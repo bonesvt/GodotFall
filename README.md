@@ -26,10 +26,12 @@ Pressing Play starts a run (`scenes/run.tscn`). The movement test level is still
 
 1. **Three zones.** Each is a seeded chain of platforms over a void, linked by gaps you
    clear with a sprint jump, a double-jump climb, a wallrun along a blue wall, or the grapple
-   on an orange anchor. Falling costs 25 pilot integrity and puts you back on the last
+   on an orange anchor. Grunt squads hold some platforms from behind cover (more of them in
+   later zones), and every platform has low walls or blocks you can use as cover too.
+   Falling, or getting gunned down, costs 25 pilot integrity and puts you back on the last
    platform you stood on. At 0 the run is over.
-2. **Salvage.** Each zone has two caches on side platforms. One is guarded: stand in the red
-   uplink ring until it completes (a placeholder until real enemies land). Opening a cache
+2. **Salvage.** Each zone has two caches on side platforms. One is guarded by a grunt squad
+   dug in facing you; kill them all to unlock it. Opening a cache
    pauses and offers three titan parts; press 1, 2 or 3 to keep one, or X to leave it.
 3. **Your titan is your build.** Four slots: chassis (armor, speed, dashes), weapon (damage),
    core (charged ability: laser burst, shield, overdrive) and kit (extra dash, plating,
@@ -50,10 +52,14 @@ Pressing Play starts a run (`scenes/run.tscn`). The movement test level is still
 
 Run code lives in `scripts/run/`: `run_manager.gd` (the loop), `run_state.gd` (what a run
 carries), `zone_builder.gd` (zone and arena generation), `titan_parts.gd` (part catalog and
-stats), `titan.gd`, `boss.gd`, and the cache, uplink and beacon scripts. The titan is its own
+stats), `titan.gd`, `boss.gd`, and the cache, guard squad and beacon scripts. The titan is its own
 node holding the run's parts, so it can later travel with you as a walking base.
 
 ## Abilities
+Movement is tuned to feel heavy rather than floaty: gravity is 28 m/s², falling is 35% faster
+than rising, and hard landings dip the camera. A jump peaks at about 1.3 m and a double jump
+at about 2.5 m.
+
 - **Sprint** with fast acceleration.
 - **Slide**: crouch while running for a speed boost (1.5 s cooldown). Speeds up down slopes. Hold crouch in the air to slide on landing.
 - **Slide-hop**: jump out of a slide and keep your speed; landing gives a short window before friction.

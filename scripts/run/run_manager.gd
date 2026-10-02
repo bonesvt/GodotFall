@@ -3,8 +3,9 @@ extends Node3D
 ## A run is RunState.ZONE_COUNT traversal zones, then a titan fight. Each zone
 ## has two salvage caches; opening one offers three titan parts and you keep one.
 ## Empty slots stay scrap. At the end you call in the titan you assembled and
-## fight with it. Falls cost pilot integrity, which carries across zones; at
-## zero the run is over, and so it is if your titan is destroyed.
+## fight with it. Falls and getting downed by grunts cost pilot integrity, which
+## carries across zones; at zero the run is over, and so it is if your titan is
+## destroyed.
 
 enum Phase { ZONE, CHOOSING, ARENA, FIGHT, OVER }
 
@@ -17,6 +18,8 @@ const ZoneBuilder := preload("res://scripts/run/zone_builder.gd")
 const Titan := preload("res://scripts/run/titan.gd")
 
 const FALL_DAMAGE := 25
+## Integrity lost when grunts take the pilot's health to zero.
+const DOWNED_DAMAGE := 25
 ## How far below the lowest platform counts as a fall.
 const KILL_DEPTH := 15.0
 const OFFER_SIZE := 3
@@ -71,6 +74,7 @@ func _ready() -> void:
 	player.name = "Player"
 	player.process_mode = Node.PROCESS_MODE_PAUSABLE
 	add_child(player)
+	player.died.connect(_on_pilot_downed)
 	pilot_hud = CanvasLayer.new()
 	pilot_hud.set_script(PILOT_HUD)
 	pilot_hud.name = "PilotHUD"
@@ -107,8 +111,8 @@ func load_zone(index: int) -> void:
 	run.zone = index
 	if index < RunState.ZONE_COUNT:
 		zone_info = ZoneBuilder.build_zone(zone_root, run.rng, index)
-		for objective in zone_info["objectives"]:
-			objective.target = player
+		for grunt in zone_info["grunts"]:
+			grunt.target = player
 		phase = Phase.ZONE
 		hud.toast("ZONE %d / %d" % [index + 1, RunState.ZONE_COUNT])
 	else:
@@ -171,6 +175,21 @@ func _check_fall() -> bool:
 	return true
 
 
+## Grunts emptied the pilot's health: lose integrity, back to the checkpoint.
+func _on_pilot_downed() -> void:
+	if phase != Phase.ZONE:
+		player.respawn()
+		return
+	run.pilot_hp -= DOWNED_DAMAGE
+	run.downs += 1
+	if run.pilot_hp <= 0:
+		run.pilot_hp = 0
+		end_run("PILOT KIA", "Gunned down.")
+	else:
+		place_player(checkpoint)
+		hud.toast("DOWNED: -%d INTEGRITY" % DOWNED_DAMAGE)
+
+
 ## Respawn point: the centre of the last platform the pilot stood on.
 func _track_checkpoint() -> void:
 	if not player.is_on_floor():
@@ -193,7 +212,7 @@ func nearest_cache() -> Node3D:
 
 func open_salvage(cache: Node3D) -> void:
 	if not cache.can_open():
-		hud.toast("LOCKED: HOLD THE UPLINK")
+		hud.toast("LOCKED: CLEAR THE GUARDS")
 		return
 	open_cache = cache
 	offer = TitanParts.roll_offer(run.rng, run.zone, OFFER_SIZE)
@@ -299,7 +318,7 @@ func end_run(title: String, reason: String) -> void:
 		titan.piloted = false
 	get_tree().paused = false
 	var lines := [title, reason, ""]
-	lines.append("Seed %d    Time %s    Falls %d" % [run.run_seed, _clock(run.time), run.falls])
+	lines.append("Seed %d    Time %s    Falls %d    Downed %d" % [run.run_seed, _clock(run.time), run.falls, run.downs])
 	lines.append("")
 	for slot in TitanParts.SLOTS:
 		lines.append("%s: %s" % [TitanParts.SLOT_NAMES[slot], TitanParts.display_name(run.parts, slot)])
@@ -336,10 +355,7 @@ func _prompt() -> String:
 		Phase.ZONE:
 			var cache := nearest_cache()
 			if cache != null:
-				return "[F] Open salvage" if cache.can_open() else "Locked: hold the uplink"
-			for objective in zone_info["objectives"]:
-				if not objective.done and objective.contains(player.global_position):
-					return "Holding uplink..."
+				return "[F] Open salvage" if cache.can_open() else "Locked: clear the guards"
 		Phase.ARENA:
 			if titan == null:
 				return "[V] Call in your titan"
