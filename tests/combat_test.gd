@@ -80,6 +80,19 @@ func _run() -> void:
 	await _ticks(int(weapon.reload_time * 120) + 5)
 	_check("reload refills", weapon.ammo == weapon.magazine_size and not weapon.is_reloading(), weapon.ammo)
 
+	# Inspect plays through the sensor tap, and a shot cancels it
+	weapon.refill()
+	await _press("inspect")
+	await _ticks(2)
+	_check("inspect starts", weapon.is_inspecting(), weapon.inspect_time)
+	await _ticks(int(weapon.INSPECT_TAP * 120) + 5)
+	_check("inspect taps the dead sensor", weapon._inspect_tapped, weapon.inspect_time)
+	var shots: int = weapon.shots_fired
+	await _press("fire")
+	await _ticks(2)
+	_check("firing cancels inspect", not weapon.is_inspecting() and weapon.shots_fired == shots + 1, weapon.inspect_time)
+	await _ticks(int(weapon.fire_interval * 120) + 2)
+
 	# Wallrunning keeps the pistol accurate, plain jumping does not
 	weapon.refill()
 	player.state = player.State.WALLRUN

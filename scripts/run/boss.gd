@@ -26,6 +26,8 @@ var slam_cooldown := 2.0
 var slam_timer := -1.0
 var slam_pos := Vector3.ZERO
 var _marker: MeshInstance3D
+var model: Node3D
+var _hurt := 0.0
 
 
 func _ready() -> void:
@@ -33,7 +35,7 @@ func _ready() -> void:
 	var body := Kit.box(self, Vector3(0, 4.5, 0), Vector3(4, 9, 4), Color(0.6, 0.2, 0.2))
 	body.add_to_group("titan_target")
 	body.get_child(1).visible = false  # the hitbox stays, the model shows instead
-	var model := Art.titan("enemy", "xo16")
+	model = Art.titan("enemy", "xo16")
 	model.scale = Vector3.ONE * MODEL_SCALE
 	add_child(model)
 	Kit.label(self, Vector3(0, 10.5, 0), "ENEMY TITAN", 96)
@@ -50,10 +52,17 @@ func take_damage(amount: float) -> void:
 	if not active or hp <= 0.0:
 		return
 	hp = maxf(hp - amount, 0.0)
+	_hurt = 0.05
 	if hp <= 0.0:
 		active = false
 		_marker.visible = false
 		defeated.emit()
+
+
+func _process(delta: float) -> void:
+	# Hit flash, so every round that lands reads on the armour.
+	_hurt -= delta
+	model.set_param("flash", 0.6 if _hurt > 0.0 else 0.0)
 
 
 func _physics_process(delta: float) -> void:

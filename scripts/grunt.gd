@@ -12,6 +12,7 @@ extends CharacterBody3D
 const Pilot := preload("res://scripts/player.gd")
 const FX := preload("res://scripts/fx.gd")
 const Art := preload("res://scripts/ps2/ps2_assets.gd")
+const SFX := preload("res://scripts/sfx.gd")
 
 signal died(grunt: Node)
 signal awareness_changed(grunt: Node, awareness: int)
@@ -57,8 +58,9 @@ enum Awareness { UNAWARE, SUSPICIOUS, ALERTED }
 @export var footstep_range := 0.7
 ## Anything this close gets noticed, seen or not.
 @export var touch_range := 1.5
-## Gunshots are heard this far away; within the first third they alert outright.
-@export var gunshot_range := 30.0
+## Gunshots (suppressed) are heard this far away; within the first third they
+## alert outright.
+@export var gunshot_range := 20.0
 ## Detection lost per second once the pilot has been gone for calm_delay.
 @export var calm_rate := 0.15
 @export var calm_delay := 2.0
@@ -410,6 +412,7 @@ func _shoot() -> void:
 			end = hit.position
 	FX.tracer(get_parent(), from, end, Color(1.0, 0.3, 0.2, 0.9), 0.03, 0.12)
 	FX.spark(get_parent(), from, Color(1.0, 0.6, 0.2), 0.1, 0.06)
+	SFX.play_at(get_parent(), from, "grunt_shot", -3.0, SFX.vary(0.08))
 
 
 func is_headshot(pos: Vector3) -> bool:
