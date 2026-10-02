@@ -17,6 +17,13 @@ const MATERIALS := {
 	"cover": preload("res://assets/materials/cover.tres"),
 	"barrier": preload("res://assets/materials/barrier.tres"),
 	"lava": preload("res://assets/materials/lava.tres"),
+	"temple_stone": preload("res://assets/materials/temple_stone.tres"),
+	"temple_carving": preload("res://assets/materials/temple_carving.tres"),
+	"moss": preload("res://assets/materials/moss.tres"),
+	"wood": preload("res://assets/materials/wood.tres"),
+	"gunmetal": preload("res://assets/materials/gunmetal.tres"),
+	"fabric": preload("res://assets/materials/grunt_fabric.tres"),
+	"light": preload("res://assets/materials/light.tres"),
 }
 
 const MODELS := {
@@ -53,6 +60,18 @@ static func titan(chassis: String, weapon: String) -> Node3D:
 	var gun := model("titan_weapon_" + weapon if MODELS.has("titan_weapon_" + weapon) else "titan_weapon_scrap")
 	body.find_child("WeaponMount", true, false).add_child(gun)
 	return body
+
+
+## A named material from MATERIALS, tinted when `tint` isn't white (tints are cached).
+static func material(kind: String, tint := Color.WHITE) -> Material:
+	if tint == Color.WHITE:
+		return MATERIALS[kind]
+	var key := kind + tint.to_html()
+	if not _cache.has(key):
+		var mat: ShaderMaterial = MATERIALS[kind].duplicate()
+		mat.set_shader_parameter("albedo", tint)
+		_cache[key] = mat
+	return _cache[key]
 
 
 static func surface_kind(color: Color, size: Vector3) -> String:

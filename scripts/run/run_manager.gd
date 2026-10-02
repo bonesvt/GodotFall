@@ -6,8 +6,11 @@ extends Node3D
 ## fight with it. Falls and getting downed by grunts cost pilot integrity, which
 ## carries across zones; at zero the run is over, and so it is if your titan is
 ## destroyed.
+## Between runs you are in the hub, the temple Eco hides out in (hub_builder.gd):
+## the game opens there, the map table starts a run, and a finished run, won or
+## lost, goes back there.
 
-enum Phase { ZONE, CHOOSING, ARENA, FIGHT, OVER }
+enum Phase { ZONE, CHOOSING, ARENA, FIGHT, OVER, HUB }
 
 const PLAYER_SCENE := preload("res://scenes/player.tscn")
 const PILOT_HUD := preload("res://scripts/hud.gd")
@@ -16,6 +19,7 @@ const RunState := preload("res://scripts/run/run_state.gd")
 const TitanParts := preload("res://scripts/run/titan_parts.gd")
 const ZoneBuilder := preload("res://scripts/run/zone_builder.gd")
 const Titan := preload("res://scripts/run/titan.gd")
+const HubBuilder := preload("res://scripts/hub/hub_builder.gd")
 
 const FALL_DAMAGE := 25
 ## Integrity lost when grunts take the pilot's health to zero.
@@ -26,7 +30,11 @@ const OFFER_SIZE := 3
 const TITAN_DROP_HEIGHT := 80.0
 const EMBARK_RANGE := 6.0
 const CONTROLS := "F salvage / embark    V call titan / core    Shift titan dash    Left mouse titan fire"
+## How long a line Eco says about something in the hub stays up.
+const HUB_LINE_SECONDS := 4.5
 
+## Start in the hub. Off, the scene drops straight into a run (the run loop test does this).
+@export var start_in_hub := true
 ## 0 picks a random seed each run.
 @export var run_seed := 0
 
@@ -43,6 +51,10 @@ var titan: Titan
 var boss: Node3D
 var checkpoint := Vector3.ZERO
 var result := ""
+## How many times each hub interactable has been looked at, so its lines cycle.
+var hub_reads := {}
+var runs_started := 0
+var last_result := ""
 
 
 static func ensure_input_actions() -> void:
@@ -83,13 +95,17 @@ func _ready() -> void:
 	hud = RunHud.new()
 	hud.name = "RunHUD"
 	add_child(hud)
-	start_run(run_seed)
+	if start_in_hub:
+		enter_hub()
+	else:
+		start_run(run_seed)
 
 
 func start_run(seed_value: int) -> void:
 	if seed_value == 0:
 		seed_value = randi_range(1, 999999)
 	run = RunState.new(seed_value)
+	runs_started += 1
 	result = ""
 	titan = null
 	boss = null
@@ -100,14 +116,34 @@ func start_run(seed_value: int) -> void:
 	load_zone(0)
 
 
-func load_zone(index: int) -> void:
+func _fresh_level(level_name: String) -> void:
 	if zone_root != null:
 		remove_child(zone_root)
 		zone_root.free()
 	zone_root = Node3D.new()
-	zone_root.name = "Zone"
+	zone_root.name = level_name
 	zone_root.process_mode = Node.PROCESS_MODE_PAUSABLE
 	add_child(zone_root)
+
+
+## Back to the temple: no run in progress, walk around, start one at the map table.
+func enter_hub() -> void:
+	titan = null
+	boss = null
+	get_tree().paused = false
+	hud.summary_panel.visible = false
+	hud.choice_panel.visible = false
+	_set_pilot_active(true)
+	_fresh_level("Hub")
+	zone_info = HubBuilder.build(zone_root)
+	phase = Phase.HUB
+	place_player(zone_info["spawn"])
+	if last_result != "":
+		hud.toast("Back at the temple.", HUB_LINE_SECONDS)
+
+
+func load_zone(index: int) -> void:
+	_fresh_level("Zone")
 	run.zone = index
 	if index < RunState.ZONE_COUNT:
 		zone_info = ZoneBuilder.build_zone(zone_root, run.rng, index)
@@ -142,8 +178,46 @@ func _physics_process(delta: float) -> void:
 			run.time += delta
 		Phase.OVER:
 			if Input.is_action_just_pressed("run_restart"):
-				start_run(0)
+				if start_in_hub:
+					enter_hub()
+				else:
+					start_run(0)
+		Phase.HUB:
+			_hub_tick()
 	_update_hud()
+
+
+# --- Hub ----------------------------------------------------------------------
+
+func _hub_tick() -> void:
+	# Falling off the cliff in the hub costs nothing: back inside the door.
+	if player.global_position.y < float(zone_info["floor_y"]) - KILL_DEPTH:
+		place_player(zone_info["spawn"])
+		return
+	var spot := nearest_hub_spot()
+	if spot.is_empty() or not Input.is_action_just_pressed("interact"):
+		return
+	if spot["id"] == "map_table":
+		start_run(run_seed)
+		return
+	var lines: Array = spot["lines"]
+	var n: int = hub_reads.get(spot["id"], 0)
+	hub_reads[spot["id"]] = n + 1
+	hud.toast(lines[n % lines.size()], HUB_LINE_SECONDS)
+
+
+## The hub interactable the pilot is standing at, or {} if none.
+func nearest_hub_spot() -> Dictionary:
+	var best := {}
+	var best_d := INF
+	var pos := player.global_position
+	for spot in zone_info.get("interactables", []):
+		var at: Vector3 = spot["pos"]
+		var d := Vector2(pos.x - at.x, pos.z - at.z).length()
+		if d < float(spot["range"]) and absf(pos.y - at.y) < 2.5 and d < best_d:
+			best = spot
+			best_d = d
+	return best
 
 
 # --- Zones --------------------------------------------------------------------
@@ -177,6 +251,9 @@ func _check_fall() -> bool:
 
 ## Grunts emptied the pilot's health: lose integrity, back to the checkpoint.
 func _on_pilot_downed() -> void:
+	if phase == Phase.HUB:
+		place_player(zone_info["spawn"])
+		return
 	if phase != Phase.ZONE:
 		player.respawn()
 		return
@@ -313,6 +390,7 @@ func end_run(title: String, reason: String) -> void:
 		return
 	phase = Phase.OVER
 	result = title
+	last_result = title
 	if boss != null:
 		boss.active = false
 	if titan != null:
@@ -324,7 +402,7 @@ func end_run(title: String, reason: String) -> void:
 	for slot in TitanParts.SLOTS:
 		lines.append("%s: %s" % [TitanParts.SLOT_NAMES[slot], TitanParts.display_name(run.parts, slot)])
 	lines.append("")
-	lines.append("[Enter] new run")
+	lines.append("[Enter] back to the temple" if start_in_hub else "[Enter] new run")
 	hud.summary_label.text = "\n".join(lines)
 	hud.summary_panel.visible = true
 
@@ -332,6 +410,16 @@ func end_run(title: String, reason: String) -> void:
 # --- HUD ----------------------------------------------------------------------
 
 func _update_hud() -> void:
+	hud.build_label.visible = phase != Phase.HUB
+	if phase == Phase.HUB:
+		var status := "THE TEMPLE    Runs %d" % runs_started
+		if last_result != "":
+			status += "    Last run: %s" % last_result
+		hud.status_label.text = status + "\nWalk up to the map table and press F to head out. F looks at things."
+		hud.prompt_label.text = _prompt()
+		hud.crosshair.visible = false
+		hud.fight_label.visible = false
+		return
 	var where := "ZONE %d/%d" % [run.zone + 1, RunState.ZONE_COUNT] if run.zone < RunState.ZONE_COUNT else "FINAL"
 	hud.status_label.text = "RUN %d    %s    PILOT %d    %s\n%s" % [
 		run.run_seed, where, run.pilot_hp, _clock(run.time), CONTROLS]
@@ -353,6 +441,10 @@ func _update_hud() -> void:
 
 func _prompt() -> String:
 	match phase:
+		Phase.HUB:
+			var spot := nearest_hub_spot()
+			if not spot.is_empty():
+				return spot["prompt"]
 		Phase.ZONE:
 			var cache := nearest_cache()
 			if cache != null:
