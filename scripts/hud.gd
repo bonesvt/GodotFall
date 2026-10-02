@@ -1,25 +1,46 @@
 extends CanvasLayer
-## Minimal HUD: crosshair, speedometer, movement state, ability readouts.
+## HUD: spread-aware crosshair with hitmarkers, speedometer, movement state,
+## ability readouts, health, ammo and the grunt count.
 
 var player: Node
+var level: Node
+var weapon: Node
+var crosshair: Control
 var speed_label: Label
 var info_label: Label
 var help_label: Label
+var ammo_label: Label
+var health_label: Label
+var enemy_label: Label
+var message_label: Label
+var hurt_rect: ColorRect
 
+var hitmarker_timer := 0.0
+var hitmarker_color := Color.WHITE
+var hurt_flash := 0.0
+var message_timer := 0.0
+
+const HITMARKER_TIME := 0.18
 const HELP := """WASD  move (auto-sprint forward)
 Space  jump / double jump / wall jump
 C or Ctrl  crouch, slide when running
 Q, E or right mouse  grapple (hold)
-R  respawn    H  hide help    Esc  free mouse"""
+Left mouse  shoot    R  reload
+T  respawn    G  reset grunt arena
+H  hide help    Esc  free mouse"""
 
 
 func _ready() -> void:
-	var crosshair := Label.new()
-	crosshair.text = "+"
-	crosshair.add_theme_font_size_override("font_size", 28)
-	crosshair.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
-	crosshair.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	crosshair.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	hurt_rect = ColorRect.new()
+	hurt_rect.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	hurt_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	hurt_rect.color = Color(0.8, 0.0, 0.0, 0.0)
+	add_child(hurt_rect)
+
+	crosshair = Control.new()
+	crosshair.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	crosshair.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	crosshair.draw.connect(_draw_crosshair)
 	add_child(crosshair)
 
 	speed_label = _label(40)
@@ -36,9 +57,42 @@ func _ready() -> void:
 	info_label.offset_left = -300
 	info_label.offset_right = 300
 
+	ammo_label = _label(36)
+	ammo_label.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_RIGHT)
+	ammo_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	ammo_label.offset_left = -300
+	ammo_label.offset_top = -80
+	ammo_label.offset_right = -30
+
+	health_label = _label(36)
+	health_label.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_LEFT)
+	health_label.offset_left = 30
+	health_label.offset_top = -80
+	health_label.offset_right = 400
+
+	enemy_label = _label(22)
+	enemy_label.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
+	enemy_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	enemy_label.offset_left = -300
+	enemy_label.offset_right = -20
+	enemy_label.offset_top = 20
+
+	message_label = _label(30)
+	message_label.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
+	message_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	message_label.offset_left = -400
+	message_label.offset_right = 400
+	message_label.offset_top = 140
+
 	help_label = _label(18)
 	help_label.position = Vector2(20, 20)
 	help_label.text = HELP
+
+	if player != null:
+		weapon = player.get_node_or_null("Head/Camera3D/Weapon")
+		if weapon != null:
+			weapon.hit_confirmed.connect(_on_hit)
+		player.damaged.connect(_on_damaged)
 
 
 func _label(size: int) -> Label:
@@ -55,9 +109,35 @@ func _unhandled_key_input(event: InputEvent) -> void:
 		help_label.visible = not help_label.visible
 
 
-func _process(_delta: float) -> void:
+func flash_message(text: String, seconds := 2.0) -> void:
+	message_label.text = text
+	message_timer = seconds
+
+
+func _on_hit(kind: String) -> void:
+	hitmarker_timer = HITMARKER_TIME
+	match kind:
+		"head":
+			hitmarker_color = Color(1.0, 0.75, 0.1)
+		"kill":
+			hitmarker_color = Color(1.0, 0.2, 0.15)
+			hitmarker_timer = HITMARKER_TIME * 2.0
+		_:
+			hitmarker_color = Color.WHITE
+
+
+func _on_damaged(_amount: float, _from: Vector3) -> void:
+	hurt_flash = 0.35
+
+
+func _process(delta: float) -> void:
 	if player == null:
 		return
+	hitmarker_timer -= delta
+	hurt_flash = maxf(hurt_flash - delta, 0.0)
+	message_timer -= delta
+	message_label.visible = message_timer > 0.0
+
 	speed_label.text = "%.1f m/s" % player.horizontal_speed()
 	var grapple := "READY" if player.grapple_ready_in() <= 0.0 else "%.1fs" % player.grapple_ready_in()
 	info_label.text = "%s    double jump: %s    grapple: %s" % [
@@ -65,3 +145,36 @@ func _process(_delta: float) -> void:
 		"READY" if player.air_jumps_left > 0 else "used",
 		grapple,
 	]
+
+	var hp_frac: float = player.health / player.max_health
+	health_label.text = "HP %d" % ceili(player.health)
+	health_label.add_theme_color_override("font_color", Color.WHITE.lerp(Color(1, 0.25, 0.2), 1.0 - hp_frac))
+	hurt_rect.color.a = (1.0 - hp_frac) * 0.3 + hurt_flash * 0.5
+
+	if weapon != null:
+		ammo_label.text = "RELOADING" if weapon.is_reloading() else "%d / %d" % [weapon.ammo, weapon.magazine_size]
+	if level != null:
+		enemy_label.text = "Grunts left: %d" % level.grunts_alive()
+	crosshair.queue_redraw()
+
+
+func _draw_crosshair() -> void:
+	var center := crosshair.size * 0.5
+	var gap := 4.0
+	if weapon != null:
+		# Gap matches the real spread cone on screen.
+		var cam: Camera3D = player.camera
+		var half_fov := deg_to_rad(cam.fov) * 0.5
+		gap = maxf(tan(deg_to_rad(weapon.current_spread())) / tan(half_fov) * center.y, 3.0)
+	var length := 8.0
+	var col := Color(1, 1, 1, 0.9)
+	for d in [Vector2.UP, Vector2.DOWN, Vector2.LEFT, Vector2.RIGHT]:
+		crosshair.draw_line(center + d * gap, center + d * (gap + length), Color.BLACK, 4.0)
+		crosshair.draw_line(center + d * gap, center + d * (gap + length), col, 2.0)
+	crosshair.draw_circle(center, 1.5, col)
+
+	if hitmarker_timer > 0.0:
+		var c := hitmarker_color
+		c.a = clampf(hitmarker_timer / HITMARKER_TIME, 0.0, 1.0)
+		for d in [Vector2(1, 1), Vector2(-1, 1), Vector2(1, -1), Vector2(-1, -1)]:
+			crosshair.draw_line(center + d * 7.0, center + d * 15.0, c, 3.0)
