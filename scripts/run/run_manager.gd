@@ -321,8 +321,9 @@ func open_bench(kind: String) -> void:
 
 
 func close_bench() -> void:
-	for id in bench.unlocked:
-		hud.toast("LEVEL %d: %s UNLOCKED. PICK IT AT THE WEAPON RACK" % [armory.pilot_level(), Armory.WEAPONS[id]["name"].to_upper()], 5.0)
+	if not bench.unlocked.is_empty():
+		var names: Array = bench.unlocked.map(func(id): return Armory.WEAPONS[id]["name"].to_upper())
+		hud.toast("LEVEL %d: %s UNLOCKED. PICK %s AT THE WEAPON RACK" % [armory.pilot_level(), " AND ".join(names), "IT" if names.size() == 1 else "THEM"], 5.0)
 	bench.queue_free()
 	bench = null
 	get_tree().paused = false
