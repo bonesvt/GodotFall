@@ -2,12 +2,16 @@ extends CharacterBody3D
 ## The titan you assembled this run. It drops from orbit, you embark, you fight.
 ## Chassis sets armor, speed and dashes; weapon sets damage; the core is a
 ## charged ability; the kit tweaks the rest (see titan_parts.gd).
-## Firing is a hitscan placeholder until the real weapons land.
+## How the weapon fires (rhythm, FX, sound, recoil) lives in titan_gun.gd;
+## damage still comes from the weapon part's damage per second.
 
 signal landed
 signal destroyed
 
 const Art := preload("res://scripts/ps2/ps2_assets.gd")
+const TitanGun := preload("res://scripts/run/titan_gun.gd")
+const FX := preload("res://scripts/fx.gd")
+const SFX := preload("res://scripts/sfx.gd")
 
 const GRAVITY := 30.0
 const ACCEL := 40.0
@@ -51,6 +55,10 @@ var boss: Node
 var head: Node3D
 var camera: Camera3D
 var mouse_sensitivity := 0.0022
+var gun: TitanGun
+## Camera shake; shots and impacts add to it, it decays on its own.
+var shake := 0.0
+var _shake_t := 0.0
 
 
 func setup(p_stats: Dictionary) -> void:
@@ -77,6 +85,20 @@ func _ready() -> void:
 	camera.fov = 85.0
 	camera.near = 0.1
 	head.add_child(camera)
+	gun = TitanGun.new()
+	gun.name = "Gun"
+	gun.setup(self, parts.get("weapon", {}).get("id", "scrap"))
+	add_child(gun)
+
+
+func _process(delta: float) -> void:
+	# Shake is visual only; aim comes from the head, not the camera.
+	shake = minf(maxf(shake - delta * 2.2, 0.0), 1.0)
+	_shake_t += delta * 40.0
+	var s := shake * shake
+	camera.position = Vector3(sin(_shake_t * 1.3), sin(_shake_t * 1.7 + 1.0), 0.0) * s * 0.12
+	camera.rotation = Vector3(sin(_shake_t * 1.1 + 2.0) * 0.02, sin(_shake_t * 0.9) * 0.02, sin(_shake_t * 1.5) * 0.015) * s
+	camera.fov = lerpf(camera.fov, 85.0, 1.0 - exp(-8.0 * delta))
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -141,12 +163,21 @@ func _recharge(delta: float) -> void:
 
 
 func _fire(delta: float) -> void:
-	on_target = Input.is_action_pressed("titan_fire") and aimed_target() != null
+	var firing := Input.is_action_pressed("titan_fire")
+	gun.update(delta, firing)
+	on_target = firing and not gun.jammed() and aimed_target() != null
 	if not on_target:
 		ramp_bonus = 0.0
 		return
 	ramp_bonus = minf(ramp_bonus + delta * 0.5, float(stats["ramp"]))
-	var dmg := float(stats["dps"]) * (1.0 + ramp_bonus) * delta
+
+
+## A shot from the gun hit the enemy titan for `base` damage, before the
+## ramp and overdrive bonuses.
+func hit_enemy(base: float) -> void:
+	if boss == null:
+		return
+	var dmg := base * (1.0 + ramp_bonus)
 	if overdrive_timer > 0.0:
 		dmg *= 2.0
 	boss.take_damage(dmg)
@@ -158,7 +189,7 @@ func aimed_target() -> Node:
 	if boss == null:
 		return null
 	var from := camera.global_position
-	var query := PhysicsRayQueryParameters3D.create(from, from - camera.global_basis.z * FIRE_RANGE)
+	var query := PhysicsRayQueryParameters3D.create(from, from - head.global_basis.z * FIRE_RANGE)
 	query.exclude = [get_rid()]
 	var hit := get_world_3d().direct_space_state.intersect_ray(query)
 	if hit.is_empty() or not hit.collider.is_in_group("titan_target"):
@@ -174,6 +205,13 @@ func use_core() -> bool:
 		"laser":
 			if boss != null:
 				boss.take_damage(float(stats["core_power"]))
+				var to: Vector3 = boss.global_position + Vector3.UP * 5.0
+				var from := gun._muzzle()
+				FX.tracer(get_parent(), from, to, Color(1.0, 0.3, 0.25, 0.95), 1.4, 0.6)
+				FX.tracer(get_parent(), from, to, Color(1.0, 1.0, 0.9), 0.5, 0.5)
+				FX.blast(get_parent(), to, Color(1.0, 0.35, 0.2), 6.0, 0.6)
+				SFX.play(self, "tracker_boom", 4.0, 0.6)
+				shake = 1.0
 		"shield":
 			hp = minf(hp + max_hp * float(stats["core_power"]), max_hp)
 		"overdrive":
@@ -186,6 +224,7 @@ func take_damage(amount: float) -> void:
 	if dead:
 		return
 	hp -= amount
+	shake += minf(amount / 300.0, 0.6)
 	if hp <= 0.0:
 		hp = 0.0
 		dead = true

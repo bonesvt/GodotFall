@@ -1,13 +1,16 @@
 extends CanvasLayer
 ## Run HUD: run status, titan build, prompts, the salvage choice and the summary.
-## The run manager writes the text; this only lays it out.
+## The run manager writes the text; this only lays it out. The titan reticle
+## is drawn per weapon (see titan_gun.gd) so each gun reads differently.
 
 var status_label: Label
 var build_label: Label
 var prompt_label: Label
 var toast_label: Label
 var fight_label: Label
-var crosshair: Label
+var crosshair: Control
+## The piloted titan, set on embark; the reticle reads its gun.
+var titan: Node
 var choice_panel: PanelContainer
 var choice_label: Label
 var summary_panel: PanelContainer
@@ -35,9 +38,12 @@ func _ready() -> void:
 	fight_label.offset_right = 500
 	fight_label.offset_top = -200
 
-	crosshair = _centered(28, 0)
-	crosshair.text = "+"
+	crosshair = Control.new()
+	crosshair.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	crosshair.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	crosshair.draw.connect(_draw_reticle)
 	crosshair.visible = false
+	add_child(crosshair)
 
 	choice_label = Label.new()
 	choice_label.add_theme_font_size_override("font_size", 22)
@@ -56,6 +62,8 @@ func toast(text: String, seconds := 2.5) -> void:
 func _process(delta: float) -> void:
 	_toast_time -= delta
 	toast_label.visible = _toast_time > 0.0
+	if crosshair.visible:
+		crosshair.queue_redraw()
 
 
 func _label(size: int) -> Label:
@@ -94,3 +102,60 @@ func _panel(content: Label) -> PanelContainer:
 	panel.visible = false
 	add_child(panel)
 	return panel
+
+
+func _draw_reticle() -> void:
+	var c := crosshair.size * 0.5
+	if titan == null or not is_instance_valid(titan) or titan.gun == null:
+		crosshair.draw_circle(c, 2.0, Color.WHITE)
+		return
+	var gun = titan.gun
+	var col := Color(1.0, 0.85, 0.45, 0.9)
+	var t := Time.get_ticks_msec() / 1000.0
+	match gun.id:
+		"xo16":
+			# Ring tightens as the barrels spin up; three ticks spin with them.
+			var r: float = lerpf(44.0, 24.0, gun.spin)
+			crosshair.draw_arc(c, r, 0.0, TAU, 40, Color(col, 0.5), 2.0)
+			var turn: float = t * (1.0 + gun.spin * 14.0)
+			for i in 3:
+				var a := turn + TAU * i / 3.0
+				var d := Vector2(cos(a), sin(a))
+				crosshair.draw_line(c + d * (r - 6.0), c + d * (r + 8.0), col, 3.0)
+		"tracker":
+			# Heavy brackets; a bar under them refills until the next shell.
+			var s := 30.0
+			for corner in [Vector2(-1, -1), Vector2(1, -1), Vector2(1, 1), Vector2(-1, 1)]:
+				var k: Vector2 = c + corner * s
+				crosshair.draw_line(k, k - Vector2(corner.x * 12.0, 0), col, 3.0)
+				crosshair.draw_line(k, k - Vector2(0, corner.y * 12.0), col, 3.0)
+			var ready: float = 1.0 - clampf(gun.cooldown / gun.interval(), 0.0, 1.0)
+			crosshair.draw_rect(Rect2(c + Vector2(-s, s + 10.0), Vector2(s * 2.0 * ready, 4.0)), col)
+			crosshair.draw_line(c + Vector2(-6, 6), c, col, 2.0)
+			crosshair.draw_line(c, c + Vector2(6, 6), col, 2.0)
+		"splitter":
+			# Two prongs close in and the meter heats up as the ramp builds.
+			var ramp_max := maxf(float(titan.stats.get("ramp", 0.0)), 0.01)
+			var heat: float = clampf(titan.ramp_bonus / ramp_max, 0.0, 1.0)
+			var hot := Color(0.35, 0.9, 1.0).lerp(Color(1.0, 0.35, 0.75), heat)
+			var gap := lerpf(34.0, 12.0, heat)
+			for side in [-1.0, 1.0]:
+				crosshair.draw_line(c + Vector2(side * gap, -14), c + Vector2(side * gap, 14), hot, 3.0)
+			crosshair.draw_arc(c, 46.0, PI * 0.75, PI * 0.75 + PI * 1.5 * heat, 24, hot, 4.0)
+			crosshair.draw_circle(c, 2.0, hot)
+		_:
+			# Taped-together scrap sight: crooked, uneven, and it complains.
+			var tilt: float = 0.06 + (sin(t * 37.0) * 0.08 if gun.jammed() else 0.0)
+			var arms := [Vector2(0, -16), Vector2(19, 0), Vector2(0, 13), Vector2(-17, 0)]
+			for d in arms:
+				var e: Vector2 = d.rotated(tilt)
+				crosshair.draw_line(c + e * 0.35, c + e, col, 3.0)
+			crosshair.draw_rect(Rect2(c + Vector2(9, -3).rotated(tilt), Vector2(6, 6)), Color(0.75, 0.7, 0.55, 0.8))
+			if gun.jammed() and fmod(t, 0.3) < 0.18:
+				var font := ThemeDB.fallback_font
+				crosshair.draw_string(font, c + Vector2(-26, 44), "JAMMED", HORIZONTAL_ALIGNMENT_LEFT, -1, 18, Color(1.0, 0.3, 0.2))
+	# Hitmarker when a round lands on the enemy titan.
+	if gun.since_hit < 0.12:
+		var a: float = 1.0 - gun.since_hit / 0.12
+		for d in [Vector2(1, 1), Vector2(-1, 1), Vector2(1, -1), Vector2(-1, -1)]:
+			crosshair.draw_line(c + d * 9.0, c + d * 17.0, Color(1, 1, 1, a), 3.0)

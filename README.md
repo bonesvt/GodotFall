@@ -131,7 +131,9 @@ select the Player node and tweak values in the Inspector, or change the defaults
 - `scripts/test_level.gd` builds the test level in code
 - `scripts/weapon.gd` starter pistol (hitscan, bloom, falloff, recoil, viewmodel)
 - `scripts/grunt.gd` grunt AI and hitbox
-- `scripts/fx.gd` tracers and impact sparks
+- `scripts/fx.gd` stylized combat effects: tracers, muzzle stars, smoke, debris, casings, blasts
+- `scripts/sfx.gd` procedural sound effects, synthesized at runtime (no audio files)
+- `scripts/run/titan_gun.gd` titan weapon personalities (XO-16 spin-up, Tracker shells, Splitter beam, jamming scrap rifle)
 - `scripts/hud.gd` crosshair, hitmarkers, health, ammo, speedometer, state and cooldown readout
 - `tests/movement_test.gd` headless smoke test:
   `godot --headless --path . -s res://tests/movement_test.gd`
@@ -140,3 +142,5 @@ select the Player node and tweak values in the Inspector, or change the defaults
 - `tests/run_loop_test.gd` headless run loop test (generator limits, a bot pilot clearing the
   hardest gap of each kind, salvage, extraction, titanfall, the fight, win and loss):
   `godot --headless --path . -s res://tests/run_loop_test.gd`
+- `tests/titan_weapons_test.gd` checks every titan weapon still deals its damage per second:
+  `godot --headless --path . -s res://tests/titan_weapons_test.gd`
