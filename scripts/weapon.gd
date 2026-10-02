@@ -65,6 +65,8 @@ const LED_RED := Color(1.0, 0.18, 0.12)
 ## down the grip each gun's magazine ends.
 const GRIP_XFORM := Transform3D(Basis(Vector3.RIGHT, deg_to_rad(-16.0)), Vector3(0.0, -0.088, 0.072))
 const MAG_BOTTOM := {"pistol": -0.07, "rivet_cannon": -0.07, "machine_pistol": -0.11}
+## How much further down the smart pistol's mag reaches from upgrade tier 3.
+const PISTOL_LONG_MAG := -0.03
 const ATTACHMENT_MODELS := {
 	"long_barrel": preload("res://assets/models/sidearms/att_muzzle_long.glb"),
 	"compensator": preload("res://assets/models/sidearms/att_muzzle_comp.glb"),
@@ -749,7 +751,7 @@ func _build_viewmodel() -> void:
 	add_child(viewmodel)
 	var pistol := Art.model(_model_name(model_id, tier))
 	viewmodel.add_child(pistol)
-	_fit_attachments(pistol, model_id, attachments)
+	_fit_attachments(pistol, model_id, attachments, tier)
 	_apply_finish(pistol, finish)
 	for mi in pistol.find_children("*", "GeometryInstance3D", true, false):
 		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
@@ -797,7 +799,7 @@ func _build_viewmodel() -> void:
 static func gun_model(profile: Dictionary) -> Node3D:
 	var model := Art.model(_model_name(profile.get("model", "pistol"), profile.get("tier", 0)))
 	model.get_node("Arm").free()
-	_fit_attachments(model, profile.get("model", "pistol"), profile.get("attachments", {}))
+	_fit_attachments(model, profile.get("model", "pistol"), profile.get("attachments", {}), profile.get("tier", 0))
 	_apply_finish(model, profile.get("finish", {}))
 	return model
 
@@ -811,7 +813,7 @@ static func _model_name(p_model_id: String, p_tier: int) -> String:
 	return Art.pistol_model(p_tier) if p_model_id == "pistol" else p_model_id
 
 
-static func _fit_attachments(model: Node3D, p_model_id: String, p_attachments: Dictionary) -> void:
+static func _fit_attachments(model: Node3D, p_model_id: String, p_attachments: Dictionary, p_tier := 0) -> void:
 	var gun: Node3D = model.get_node_or_null("Gun")
 	if gun == null:
 		return
@@ -833,7 +835,10 @@ static func _fit_attachments(model: Node3D, p_model_id: String, p_attachments: D
 				var mag := gun.find_child("MagBase", true, false) as Node3D
 				var parent: Node3D = mag if mag != null else gun
 				parent.add_child(piece)
-				piece.transform = GRIP_XFORM * Transform3D(Basis.IDENTITY, Vector3(0, MAG_BOTTOM.get(p_model_id, -0.07), 0))
+				var bottom: float = MAG_BOTTOM.get(p_model_id, -0.07)
+				if p_model_id == "pistol" and p_tier >= 3:
+					bottom += PISTOL_LONG_MAG  # the upgraded pistol's longer mag
+				piece.transform = GRIP_XFORM * Transform3D(Basis.IDENTITY, Vector3(0, bottom, 0))
 			"grip":
 				gun.add_child(piece)
 				piece.transform = GRIP_XFORM
