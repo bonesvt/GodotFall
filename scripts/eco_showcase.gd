@@ -15,8 +15,8 @@ const SHOTS := [
 	["three_quarter", -35.0, Vector3(0, 1.0, -3.1), Vector3(0, 0.88, 0), 34.0],
 	["side", -90.0, Vector3(0, 1.0, -3.1), Vector3(0, 0.88, 0), 34.0],
 	["back", 180.0, Vector3(0, 1.0, -3.1), Vector3(0, 0.88, 0), 34.0],
-	["face", -20.0, Vector3(0, 1.6, -0.72), Vector3(0, 1.575, 0), 30.0],
-	["face_front", 0.0, Vector3(0, 1.6, -0.72), Vector3(0, 1.575, 0), 30.0],
+	["face", -20.0, Vector3(0, 1.54, -0.72), Vector3(0, 1.515, 0), 30.0],
+	["face_front", 0.0, Vector3(0, 1.54, -0.72), Vector3(0, 1.515, 0), 30.0],
 	["first_person", 0.0, Vector3.ZERO, Vector3.ZERO, 75.0],
 ]
 

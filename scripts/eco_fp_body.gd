@@ -9,7 +9,7 @@ extends Node3D
 
 const ECO := preload("res://assets/models/eco.tscn")
 const EcoModel := preload("res://scripts/ps2/eco_model.gd")
-const HIDDEN_BONES := ["neck", "head", "upperarm.R", "upperarm.L"]
+const HIDDEN_BONES := ["J_Bip_C_Neck", "J_Bip_C_Head", "J_Bip_R_UpperArm", "J_Bip_L_UpperArm"]
 
 ## Where the camera sits relative to the base of her neck: metres above it,
 ## and metres in front of it (keeps her chest out of the near plane).
@@ -32,7 +32,7 @@ func _ready() -> void:
 	if show_body:
 		body = _spawn("Body", GeometryInstance3D.SHADOW_CASTING_SETTING_OFF)
 		body.springs_enabled = false
-		_neck_bone = body.skeleton.find_bone("neck") if body.skeleton != null else -1
+		_neck_bone = body.skeleton.find_bone("J_Bip_C_Neck") if body.skeleton != null else -1
 	if cast_shadow:
 		shadow = _spawn("Shadow", GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY)
 
