@@ -1,9 +1,11 @@
 extends SceneTree
 ## Headless test for grunt stealth: vision cone, sight range, cover, the
-## detection meter, gunshot hearing and squad callouts.
+## detection meter, gunshot hearing, squad callouts, sneak-attack damage and
+## the knife (takedowns on unaware grunts).
 ## Run: godot --headless --path . -s res://tests/stealth_test.gd
 
 const Grunt := preload("res://scripts/grunt.gd")
+const F := preload("res://scripts/run/forest_kit.gd")
 
 var level
 var player
@@ -134,6 +136,94 @@ func _run() -> void:
 	wall.queue_free()
 	_clear()
 
+	# Forest foliage: tall grass hides a crouched pilot and muffles a standing one;
+	# dense foliage blocks sight like a wall.
+	_place(SPOT)
+	var grunt_far = _grunt(Vector3(-12, 0, 0), Vector3(1, 0, 0))
+	grunt_far.passive = true
+	await _ticks(3)
+	var open_rate: float = grunt_far._sight_gain(grunt_far.global_position + Grunt.EYE)
+	var grass = F.stealth_cover(level, SPOT + Vector3(0, 0.8, 0), Vector3(3, 2.4, 3))
+	await _ticks(3)
+	var grass_rate: float = grunt_far._sight_gain(grunt_far.global_position + Grunt.EYE)
+	Input.action_press("crouch")
+	await _ticks(10)
+	var lying: int = grunt_far._visible_points(grunt_far.global_position + Grunt.EYE)
+	Input.action_release("crouch")
+	_check("standing in tall grass is noticed slower", grass_rate > 0.0 and grass_rate < open_rate * 0.6, [grass_rate, open_rate])
+	_check("crouched in tall grass is hidden", lying == 0, lying)
+	grass.queue_free()
+	var bush = F.sight_blocker(level, SPOT + Vector3(-4, 1.4, 0), Vector3(1, 2.8, 3))
+	await _ticks(10)
+	var through: int = grunt_far._visible_points(grunt_far.global_position + Grunt.EYE)
+	_check("dense foliage blocks sight", through == 0, through)
+	bush.queue_free()
+	_clear()
+
+	# Sneak attacks: hits on an unaware grunt do double damage.
+	_place(SPOT)
+	g = _grunt(Vector3(-10, 0, 0), Vector3(-1, 0, 0))
+	await _ticks(3)
+	g.take_damage(20.0, g.global_position)
+	_check("unaware grunts take double damage", is_equal_approx(g.health, 20.0) and g.alerted, g.health)
+	g.take_damage(20.0, g.global_position)
+	_check("alerted grunts take normal damage", g.dead, g.health)
+	_clear()
+
+	# Knife: a takedown from behind kills an unaware grunt outright.
+	var knife = player.get_node("Head/Camera3D/Knife")
+	var stabs := []
+	knife.stabbed.connect(func(kind): stabs.append(kind))
+	_place(SPOT)
+	g = _grunt(Vector3(-1.7, 0, 0), Vector3(-1, 0, 0))
+	await _ticks(3)
+	_check("sneaking up behind stays unnoticed", g.is_unaware(), g.detection)
+	await _stab(knife)
+	_check("knife takedown kills an unaware grunt", g.dead and stabs.back() == "takedown", [g.health, stabs])
+	_clear()
+
+	# ...but on a grunt that knows you're there it's just a hit.
+	_place(SPOT)
+	g = _grunt(Vector3(-1.7, 0, 0), Vector3(1, 0, 0))
+	g.passive = true  # stands still, doesn't shoot back
+	await _ticks(3)
+	g.awareness = Grunt.Awareness.ALERTED
+	await _stab(knife)
+	_check("knife on an aware grunt is a normal hit", not g.dead and is_equal_approx(g.health, 60.0 - knife.damage) and stabs.back() == "hit", [g.health, stabs])
+	_clear()
+
+	# Out of reach, or behind cover, it whiffs.
+	_place(SPOT)
+	g = _grunt(Vector3(-4.0, 0, 0), Vector3(-1, 0, 0))
+	await _ticks(3)
+	await _stab(knife)
+	_check("knife has short reach", not g.dead and stabs.back() == "miss", [g.health, stabs])
+	_clear()
+
+	_place(SPOT)
+	wall = level._box(SPOT + Vector3(-0.9, 1.4, 0), Vector3(0.3, 2.8, 3), Color.GRAY)
+	g = _grunt(Vector3(-1.9, 0, 0), Vector3(-1, 0, 0))
+	await _ticks(3)
+	await _stab(knife)
+	_check("knife can't stab through walls", not g.dead and stabs.back() == "miss", [g.health, stabs])
+	wall.queue_free()
+	_clear()
+
+	# The V key stabs, and the pistol can't fire mid-stab.
+	_place(SPOT)
+	await _ticks(int(knife.cooldown * 120) + 2)
+	var ev := InputEventAction.new()
+	ev.action = "melee"
+	ev.pressed = true
+	Input.parse_input_event(ev)
+	await _ticks(2)
+	var up := InputEventAction.new()
+	up.action = "melee"
+	Input.parse_input_event(up)
+	_check("melee key stabs", knife.is_stabbing(), knife.stab_timer)
+	_check("pistol holstered mid-stab", weapon.cooldown > 0.0, weapon.cooldown)
+	await _seconds(1.0)
+
 	print("RESULT: %s (%d failures)" % ["PASS" if failures == 0 else "FAIL", failures])
 	quit(failures)
 
@@ -161,6 +251,12 @@ func _place(pos: Vector3) -> void:
 	player.get_node("Head").rotation.x = 0.0
 	player.velocity = Vector3.ZERO
 	player.health = player.max_health
+
+
+func _stab(knife) -> void:
+	await _ticks(int(knife.cooldown * 120) + 2)
+	knife.stab()
+	await _seconds(knife.stab_time + 0.05)
 
 
 func _press(action: String) -> void:

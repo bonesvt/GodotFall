@@ -118,7 +118,7 @@ static func ensure_input_actions() -> void:
 		"move_left": [KEY_A], "move_right": [KEY_D],
 		"jump": [KEY_SPACE], "crouch": [KEY_C, KEY_CTRL],
 		"sprint": [KEY_SHIFT], "grapple": [KEY_Q, KEY_E], "reset": [KEY_T],
-		"reload": [KEY_R], "reset_arena": [KEY_G], "inspect": [KEY_I], "fire": [],
+		"reload": [KEY_R], "reset_arena": [KEY_G], "inspect": [KEY_I], "melee": [KEY_V, KEY_F], "fire": [],
 	}
 	for action in keys:
 		if InputMap.has_action(action):
@@ -449,6 +449,7 @@ func _try_grapple() -> void:
 	var to := from - camera.global_basis.z * grapple_range
 	var query := PhysicsRayQueryParameters3D.create(from, to)
 	query.exclude = [get_rid()]
+	query.collision_mask = 1  # world geometry only, not sight-blocking foliage
 	var hit := get_world_3d().direct_space_state.intersect_ray(query)
 	if hit.is_empty():
 		return
