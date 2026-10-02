@@ -27,8 +27,6 @@ func _init() -> void:
 	var want := func(id: String) -> bool: return only.is_empty() or only.has(id)
 	if want.call("smart_pistol"):
 		_smart_pistol()
-	if want.call("grunt"):
-		_grunt()
 	if want.call("titans"):
 		for id in TITANS:
 			_titan(id, TITANS[id])
@@ -182,52 +180,8 @@ func _smart_pistol() -> void:
 
 
 # --- grunt -----------------------------------------------------------------
-
-func _grunt() -> void:
-	var r := _root("Grunt")
-	var cloth: Material = M["grunt_fabric"]
-	var plate: Material = M["grunt_armor"]
-	var g: Material = M["gunmetal"]
-	var glove: Material = M["glove"]
-	for side in [-1.0, 1.0]:
-		var leg := _pivot(r, "LegL" if side < 0.0 else "LegR", Vector3(side * 0.11, 0.92, 0))
-		_part(leg, "Thigh", "capsule", Vector3(0.09, 0.5, 0), Vector3(0, -0.22, 0), cloth)
-		_part(leg, "Knee", "box", Vector3(0.13, 0.12, 0.07), Vector3(0, -0.46, -0.08), plate)
-		_part(leg, "Shin", "capsule", Vector3(0.08, 0.44, 0), Vector3(0, -0.65, 0), cloth)
-		_part(leg, "Boot", "box", Vector3(0.17, 0.15, 0.3), Vector3(0, -0.845, -0.05), glove)
-	_part(r, "Pelvis", "box", Vector3(0.34, 0.16, 0.2), Vector3(0, 0.98, 0), cloth)
-	_part(r, "Belly", "box", Vector3(0.32, 0.26, 0.2), Vector3(0, 1.15, 0), cloth)
-	_part(r, "Belt", "box", Vector3(0.35, 0.05, 0.22), Vector3(0, 1.04, 0), glove)
-	_part(r, "Vest", "box", Vector3(0.42, 0.36, 0.27), Vector3(0, 1.37, 0), plate)
-	for x in [-0.11, 0.0, 0.11]:
-		_part(r, "Pouch", "box", Vector3(0.09, 0.1, 0.05), Vector3(x, 1.26, -0.155), cloth)
-	_part(r, "Pack", "box", Vector3(0.3, 0.32, 0.14), Vector3(0, 1.36, 0.2), cloth)
-	_part(r, "Radio", "box", Vector3(0.1, 0.16, 0.08), Vector3(0.1, 1.5, 0.22), g)
-	_part(r, "Antenna", "cyl", Vector3(0.008, 0.36, 4), Vector3(0.12, 1.75, 0.23), g)
-	for side in [-1.0, 1.0]:
-		_part(r, "Pad", "box", Vector3(0.14, 0.08, 0.17), Vector3(side * 0.26, 1.51, 0), plate, Vector3(0, 0, side * -15))
-	# head: balaclava, helmet, glowing visor (grunt.gd tints the "Visor" nodes)
-	_part(r, "Neck", "cyl", Vector3(0.06, 0.08, 6), Vector3(0, 1.56, 0), cloth)
-	_part(r, "Head", "sphere", Vector3(0.13, 0, 0), Vector3(0, 1.65, 0), M["glove"])
-	_part(r, "Helmet", "hemi", Vector3(0.17, 0, 0), Vector3(0, 1.67, 0.01), plate)
-	_part(r, "HelmetRim", "cyl", Vector3(0.175, 0.035, 8), Vector3(0, 1.675, 0.01), plate)
-	_part(r, "Visor", "box", Vector3(0.24, 0.06, 0.05), Vector3(0, 1.645, -0.125), M["visor"])
-	_part(r, "Rebreather", "box", Vector3(0.08, 0.06, 0.06), Vector3(0, 1.575, -0.11), g)
-	# rifle, held at the hip on the right (matches grunt.gd MUZZLE)
-	var gun := _pivot(r, "Rifle", Vector3(0.22, 1.22, 0))
-	_part(gun, "Body", "box", Vector3(0.07, 0.12, 0.48), Vector3(0, 0, -0.24), g)
-	_part(gun, "Barrel", "cyl", Vector3(0.02, 0.18, 6), Vector3(0, 0.02, -0.56), g, Vector3(90, 0, 0))
-	_part(gun, "Stock", "box", Vector3(0.05, 0.1, 0.22), Vector3(0, -0.03, 0.1), g)
-	_part(gun, "Mag", "box", Vector3(0.05, 0.16, 0.07), Vector3(0, -0.12, -0.3), g, Vector3(15, 0, 0))
-	_part(gun, "Sight", "box", Vector3(0.04, 0.05, 0.12), Vector3(0, 0.085, -0.18), g)
-	# arms: right hand on the grip, left hand on the handguard
-	_part(r, "ArmRUpper", "capsule", Vector3(0.065, 0.32, 0), Vector3(0.29, 1.32, 0.02), cloth, Vector3(10, 0, 0))
-	_part(r, "ArmRLower", "box", Vector3(0.1, 0.1, 0.24), Vector3(0.27, 1.18, -0.05), cloth)
-	_part(r, "HandR", "box", Vector3(0.1, 0.1, 0.1), Vector3(0.23, 1.16, -0.15), glove)
-	_part(r, "ArmLUpper", "capsule", Vector3(0.065, 0.32, 0), Vector3(-0.26, 1.3, -0.06), cloth, Vector3(25, 0, 0))
-	_part(r, "ArmLLower", "box", Vector3(0.1, 0.1, 0.46), Vector3(-0.03, 1.19, -0.27), cloth, Vector3(0, -51, 0))
-	_part(r, "HandL", "box", Vector3(0.1, 0.1, 0.1), Vector3(0.16, 1.19, -0.42), glove)
-	_save(r, "grunt.tscn")
+# The grunt is sculpted and assembled in Blender now (tools/grunt/), and
+# assets/models/grunt.tscn wraps the exported grunt.glb; nothing to bake here.
 
 
 # --- titans ----------------------------------------------------------------

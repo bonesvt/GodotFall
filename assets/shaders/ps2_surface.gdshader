@@ -36,6 +36,11 @@ uniform float rim : hint_range(0.0, 1.0) = 0.25;
 // Fake occlusion: darken toward the model's feet over this height (metres, 0 = off).
 uniform float ao_height = 0.0;
 uniform float ao_strength : hint_range(0.0, 1.0) = 0.45;
+// Baked occlusion in the mesh's vertex colour (red), for sculpted models (Eco).
+uniform float vertex_ao : hint_range(0.0, 1.0) = 0.0;
+// Painted highlight: how bright, and how tight (0 broad, 1 pin-sharp).
+uniform float gloss : hint_range(0.0, 1.0) = 0.0;
+uniform float gloss_sharpness : hint_range(0.0, 1.0) = 0.5;
 
 // Per-object knobs, set with set_instance_shader_parameter (see ps2_model.gd).
 instance uniform float flash = 0.0;          // white hit flash, 0..1
@@ -85,6 +90,7 @@ void fragment() {
 	uv *= tex_scale;
 	vec3 tex = (use_top_tex && top) ? texture(top_tex, uv).rgb : texture(albedo_tex, uv).rgb;
 	vec3 col = tex * albedo.rgb * paint.rgb;
+	col *= mix(1.0, COLOR.r, vertex_ao);
 	if (ao_height > 0.0) {
 		col *= mix(1.0 - ao_strength, 1.0, smoothstep(0.0, ao_height, v_height));
 	}
@@ -105,4 +111,13 @@ void light() {
 	float wrapped = (ndl + light_wrap) / (1.0 + light_wrap);
 	float lit = smoothstep(0.0, light_softness, wrapped);
 	DIFFUSE_LIGHT += lit * ATTENUATION * LIGHT_COLOR / PI;
+	if (gloss > 0.0) {
+		// Highlights go through DIFFUSE_LIGHT (specular is off), so undo most
+		// of the albedo tint to keep them bright.
+		vec3 h = normalize(LIGHT + VIEW);
+		float sp = pow(max(dot(NORMAL, h), 0.0), mix(6.0, 90.0, gloss_sharpness));
+		sp = smoothstep(0.05, 0.6, sp) * step(0.0, ndl);
+		vec3 untint = mix(vec3(1.0), 1.0 / max(ALBEDO, vec3(0.08)), 0.75);
+		DIFFUSE_LIGHT += gloss * sp * untint * ATTENUATION * LIGHT_COLOR / PI;
+	}
 }

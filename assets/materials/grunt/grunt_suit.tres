@@ -1,0 +1,15 @@
+[gd_resource type="ShaderMaterial" load_steps=3 format=3]
+
+[ext_resource type="Shader" path="res://assets/shaders/ps2_surface.gdshader" id="1_shader"]
+[ext_resource type="Texture2D" path="res://assets/textures/gunmetal.png" id="2_tex"]
+
+[resource]
+resource_name = "grunt_suit"
+shader = ExtResource("1_shader")
+shader_parameter/albedo_tex = ExtResource("2_tex")
+shader_parameter/tex_scale = 4.0
+shader_parameter/world_space = false
+shader_parameter/albedo = Color(0.62, 0.62, 0.72, 1)
+shader_parameter/light_wrap = 0.35
+shader_parameter/light_softness = 0.35
+shader_parameter/vertex_ao = 1.0
