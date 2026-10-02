@@ -2,40 +2,55 @@
  "pistol": {
   "layers": [
    {
+    "src": "Silencers - 3.wav",
+    "dur": 0.26,
+    "lp": 3800,
+    "hp": 80,
+    "fadeout": 0.12
+   },
+   {
+    "src": "handgun-reload-sound-effect/reload.wav",
+    "start": 1.02,
+    "dur": 0.12,
+    "gain": -5,
+    "delay": 0.018,
+    "hp": 600,
+    "fadeout": 0.05
+   },
+   {
     "src": "Silencers - 1.wav",
-    "start": 0.0,
-    "dur": 0.42,
-    "fadeout": 0.2,
-    "hp": 90
-   },
-   {
-    "src": "hollywood-style-pistol-silencer-sound-effect/silencer.wav",
-    "dur": 0.3,
-    "gain": -6,
+    "start": 0.05,
+    "dur": 0.25,
+    "hp": 4500,
+    "gain": -16,
     "fadeout": 0.15
-   },
-   {
-    "src": "clipload2.wav",
-    "gain": -14,
-    "delay": 0.035,
-    "hp": 1500,
-    "fadeout": 0.06
    }
   ]
  },
  "pistol_last": {
   "layers": [
    {
-    "src": "Silencers - 1.wav",
-    "start": 0.0,
-    "dur": 0.42,
-    "fadeout": 0.2,
-    "hp": 90
+    "src": "Silencers - 3.wav",
+    "dur": 0.26,
+    "lp": 3800,
+    "hp": 80,
+    "fadeout": 0.12
    },
    {
-    "src": "hollywood-style-pistol-silencer-sound-effect/silencer.wav",
-    "dur": 0.3,
-    "gain": -6,
+    "src": "handgun-reload-sound-effect/reload.wav",
+    "start": 1.02,
+    "dur": 0.12,
+    "gain": -5,
+    "delay": 0.018,
+    "hp": 600,
+    "fadeout": 0.05
+   },
+   {
+    "src": "Silencers - 1.wav",
+    "start": 0.05,
+    "dur": 0.25,
+    "hp": 4500,
+    "gain": -16,
     "fadeout": 0.15
    },
    {
