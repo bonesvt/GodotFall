@@ -79,6 +79,15 @@ The movement and grunt test level is still at `scenes/test_level.tscn` (open it 
    outpost's or the camp's squad, the other sits up a climb (a hut roof or the sawmill roof);
    the run seed picks which, and how many grunts hold each spot. Falling into the ravine
    costs integrity and puts you back at the last checkpoint on the trail.
+   Three ways through: the **trail** (loud: gate or breach, the outpost yard, the crossings,
+   the camp's front), the **creek** on the left (quiet: tall grass along the banks, the
+   culvert under the wall, the tent row behind the outpost, a fallen pine over the ravine,
+   and a hunting blind overlooking the camp), and the **ridge** on the right (high: jump
+   from its end onto the wall top, across the roofs, the crane, the sawmill roof). Tall grass
+   and camo nets mark hiding spots for stealth: each has an Area3D in the `stealth_cover`
+   group, and dense patches also have an invisible `sight_blocker` body on collision layer 16
+   (mask 0) that blocks grunt line of sight but not the player, grunts or the grapple.
+   The routes are listed in `zone_info["routes"]`, and the map shot draws them.
    **Zones 2 and 3** are seeded chains of platforms over a void, linked by gaps you
    clear with a sprint jump, a double-jump climb, a wallrun along a blue wall, or the grapple
    on an orange anchor. Grunt squads hold some platforms from behind cover (more of them in
@@ -117,12 +126,13 @@ node holding the run's parts, so it can later travel with you as a walking base.
 
 The forest's models (pines, snags, fallen logs, stumps, and the enemy's wall slabs, gate,
 watchtower, huts, sandbags, crates, floodlights, antenna, fuel tank, log piles, sawmill, blown
-bridge, crane pylon, wrecked truck, evac pad and dropship) are made in Blender by
+bridge, crane pylon, wrecked truck, evac pad, dropship, log bridge, tall grass, barrels,
+pallets, generator, camo net, hunting blind and culvert) are made in Blender by
 `tools/forest/build_props.py` (`blender -b --python tools/forest/build_props.py`, writes
 `assets/models/forest/*.glb`); it reuses the hub script's shape helpers, and the forest also
 uses the hub's broadleaf trees, bushes, ferns, grass, rocks and hills. To look at the level,
 `xvfb-run -a godot --path . -s res://tools/forest/shots.gd -- /some/dir` saves screenshots of
-each section.
+each section, plus `0-map.png`, a top-down map with the three routes.
 
 ## PS2-style art
 Everything is low-poly and textured in a classic PS2 style. **F9** toggles the look
@@ -206,7 +216,8 @@ select the Player node and tweak values in the Inspector, or change the defaults
 - `tests/combat_test.gd` headless combat smoke test:
   `godot --headless --path . -s res://tests/combat_test.gd`
 - `tests/run_loop_test.gd` headless run loop test (generator limits, a bot pilot clearing the
-  hardest gap of each kind and all three real ravine crossings in the forest, salvage,
+  hardest gap of each kind and all three real ravine crossings and the culvert, log-bridge and ridge
+  flanks in the forest, salvage,
   extraction, titanfall, the fight, evac, win and loss):
   `godot --headless --path . -s res://tests/run_loop_test.gd`
 - `scripts/hub/hub_builder.gd` builds the temple in code, `hub_grounds.gd` the grounds,

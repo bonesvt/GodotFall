@@ -33,6 +33,15 @@ const SCENES := {
 	"wreck_truck": preload("res://assets/models/forest/wreck_truck.glb"),
 	"evac_pad": preload("res://assets/models/forest/evac_pad.glb"),
 	"dropship": preload("res://assets/models/forest/dropship.glb"),
+	"log_bridge": preload("res://assets/models/forest/log_bridge.glb"),
+	"tall_grass": preload("res://assets/models/forest/tall_grass.glb"),
+	"barrels": preload("res://assets/models/forest/barrels.glb"),
+	"pallet": preload("res://assets/models/forest/pallet.glb"),
+	"generator": preload("res://assets/models/forest/generator.glb"),
+	"camo_net": preload("res://assets/models/forest/camo_net.glb"),
+	"deer_stand": preload("res://assets/models/forest/deer_stand.glb"),
+	"culvert": preload("res://assets/models/forest/culvert.glb"),
+	"tent": preload("res://assets/models/hub/tent.glb"),
 	"tree_a": preload("res://assets/models/hub/tree_a.glb"),
 	"tree_b": preload("res://assets/models/hub/tree_b.glb"),
 	"tree_c": preload("res://assets/models/hub/tree_c.glb"),
@@ -47,6 +56,11 @@ const SCENES := {
 	"hill_b": preload("res://assets/models/hub/hill_b.glb"),
 }
 
+## Physics layer (bit value) for things that only block grunts' sight: dense
+## foliage you can walk through. Bodies, the player and grunts stay on layer 1,
+## so nothing collides with it; vision raycasts include it. Areas marking
+## foliage you can hide in sit on the same layer, in group "stealth_cover".
+const SIGHT_LAYER := 16
 ## Enemy lamps and windows: cold work-light white with a hint of blue.
 const LAMP := Color(0.85, 0.92, 1.0)
 ## Needles a little darker and bluer than the hub's jungle leaves.
@@ -284,3 +298,119 @@ static func pylon(parent: Node, pos: Vector3, yaw_deg := 0.0) -> void:
 static func wreck_truck(parent: Node, pos: Vector3, yaw_deg := 0.0) -> void:
 	spawn(parent, "wreck_truck", pos, yaw_deg, 1.0, {"titan_armor": Color(0.55, 0.5, 0.45)})
 	_solids(parent, pos, yaw_deg, [[Vector3(0, 1.4, 0), Vector3(7.0, 2.8, 2.6)]])
+
+
+# --- route pieces and clutter -------------------------------------------------
+
+## A giant fallen pine spanning a gap along its local X (26 m). Walk along the top.
+static func log_bridge(parent: Node, pos: Vector3, yaw_deg: float) -> void:
+	spawn(parent, "log_bridge", pos, yaw_deg, 1.0, {"leaves": NEEDLE_TINTS[0]})
+	_solids(parent, pos, yaw_deg, [[Vector3(0, -0.2, 0), Vector3(26.0, 1.0, 1.5)]])
+
+
+## Drainage culvert through a wall, 4 W, origin at the bottom of its 2.2 m opening.
+static func culvert(parent: Node, pos: Vector3, yaw_deg := 0.0) -> void:
+	spawn(parent, "culvert", pos, yaw_deg)
+	_solids(parent, pos, yaw_deg, [
+		[Vector3(0, 4.85, 0), Vector3(4.0, 5.7, 0.8)],
+		[Vector3(-1.65, 1.1, 0), Vector3(0.7, 2.2, 1.0)],
+		[Vector3(1.65, 1.1, 0), Vector3(0.7, 2.2, 1.0)],
+	])
+
+
+static func barrels(parent: Node, pos: Vector3, yaw_deg := 0.0) -> void:
+	spawn(parent, "barrels", pos, yaw_deg, 1.0, {"titan_armor": Color(0.55, 0.62, 0.5)})
+	_solids(parent, pos, yaw_deg, [[Vector3(0, 0.45, 0), Vector3(1.8, 0.9, 1.6)]])
+
+
+static func pallet(parent: Node, pos: Vector3, yaw_deg := 0.0) -> void:
+	spawn(parent, "pallet", pos, yaw_deg, 1.0, {"canvas": Color(0.5, 0.55, 0.4)})
+	_solids(parent, pos, yaw_deg, [[Vector3(0, 0.75, 0), Vector3(2.4, 1.5, 1.6)]])
+
+
+static func generator(parent: Node, pos: Vector3, yaw_deg := 0.0) -> void:
+	spawn(parent, "generator", pos, yaw_deg, 1.0, {"titan_armor": Color(0.6, 0.62, 0.5)}, Color(0.4, 1.0, 0.5))
+	_solids(parent, pos, yaw_deg, [[Vector3(0, 0.7, 0), Vector3(2.0, 1.4, 1.2)]])
+
+
+## Camouflage netting on poles, 8 x 6. Shade, and nothing you collide with but the poles.
+static func camo_net(parent: Node, pos: Vector3, yaw_deg := 0.0) -> void:
+	spawn(parent, "camo_net", pos, yaw_deg, 1.0, {"leaves": Color(0.45, 0.5, 0.36)})
+	var boxes := []
+	for sx in [-1.0, 1.0]:
+		for sz in [-1.0, 1.0]:
+			boxes.append([Vector3(sx * 4.0, 1.5, sz * 3.0), Vector3(0.15, 3.0, 0.15)])
+	_solids(parent, pos, yaw_deg, boxes)
+
+
+## Hunter's blind on stilts. Returns its floor's top centre (3 m up).
+static func deer_stand(parent: Node, pos: Vector3, yaw_deg := 0.0) -> Vector3:
+	spawn(parent, "deer_stand", pos, yaw_deg, 1.0, {"leaves": NEEDLE_TINTS[1]})
+	var boxes := [
+		[Vector3(0, 2.95, 0), Vector3(2.4, 0.1, 2.4)],
+		[Vector3(0, 3.35, 1.15), Vector3(2.4, 0.7, 0.1)],
+		[Vector3(-1.15, 3.7, 0), Vector3(0.1, 1.4, 2.4)],
+		[Vector3(1.15, 3.7, 0), Vector3(0.1, 1.4, 2.4)],
+		[Vector3(0, 4.55, -0.1), Vector3(2.8, 0.12, 2.8)],
+	]
+	for sx in [-1.0, 1.0]:
+		for sz in [-1.0, 1.0]:
+			boxes.append([Vector3(sx, 1.5, sz), Vector3(0.16, 3.0, 0.16)])
+	_solids(parent, pos, yaw_deg, boxes)
+	return pos + Vector3(0, 3.0, 0)
+
+
+static func tent(parent: Node, pos: Vector3, yaw_deg := 0.0) -> void:
+	spawn(parent, "tent", pos, yaw_deg, 1.0, {"canvas": Color(0.55, 0.58, 0.42)})
+	_solids(parent, pos, yaw_deg, [[Vector3(0, 0.95, 0), Vector3(2.6, 1.9, 4.2)]])
+
+
+## Foliage you can hide in: an Area3D in group "stealth_cover" filling `size`
+## (box centred at `pos`). The stealth system decides what being inside means.
+static func stealth_cover(parent: Node, pos: Vector3, size: Vector3, yaw_deg := 0.0) -> Area3D:
+	var area := Area3D.new()
+	area.name = "StealthCover"
+	area.add_to_group("stealth_cover")
+	area.collision_layer = SIGHT_LAYER
+	area.collision_mask = 0
+	area.monitoring = false
+	area.position = pos
+	area.rotation_degrees.y = yaw_deg
+	var col := CollisionShape3D.new()
+	var shape := BoxShape3D.new()
+	shape.size = size
+	col.shape = shape
+	area.add_child(col)
+	parent.add_child(area)
+	return area
+
+
+## Foliage that blocks grunts' sight but not movement (see SIGHT_LAYER).
+static func sight_blocker(parent: Node, pos: Vector3, size: Vector3, yaw_deg := 0.0) -> StaticBody3D:
+	var body := solid(parent, pos, size, yaw_deg)
+	body.name = "SightBlocker"
+	body.add_to_group("sight_blocker")
+	body.collision_layer = SIGHT_LAYER
+	body.collision_mask = 0
+	return body
+
+
+## A patch of tall grass and ferns centred at `center` (x, z), `size` across,
+## following the ground via `ground` (a Callable(x, z) -> y). Adds the hiding
+## area; a `dense` patch also blocks sight. Returns grass transforms to batch.
+static func grass_patch(parent: Node, ground: Callable, center: Vector2, size: Vector2, rng: RandomNumberGenerator, dense := false, yaw_deg := 0.0) -> Array:
+	var made := []
+	var basis_yaw := Basis(Vector3.UP, deg_to_rad(yaw_deg))
+	var count := int(size.x * size.y / (1.6 if dense else 2.4))
+	for i in count:
+		var local := Vector3(rng.randf_range(-0.5, 0.5) * size.x, 0, rng.randf_range(-0.5, 0.5) * size.y)
+		var w := basis_yaw * local
+		var p := Vector3(center.x + w.x, 0, center.y + w.z)
+		p.y = ground.call(p.x, p.z) - 0.05
+		var b := Basis(Vector3.UP, rng.randf_range(0, TAU)).scaled(Vector3.ONE * rng.randf_range(0.9, 1.3))
+		made.append(Transform3D(b, p))
+	var mid_y: float = ground.call(center.x, center.y)
+	stealth_cover(parent, Vector3(center.x, mid_y + 0.8, center.y), Vector3(size.x, 2.4, size.y), yaw_deg)
+	if dense:
+		sight_blocker(parent, Vector3(center.x, mid_y + 0.9, center.y), Vector3(size.x * 0.8, 1.6, size.y * 0.8), yaw_deg)
+	return made

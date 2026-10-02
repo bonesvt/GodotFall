@@ -39,6 +39,10 @@ func _run() -> void:
 		if not _ground_below(g.post, g.get_rid()):
 			floating.append(g.post)
 	_check("forest grunts stand on something", floating.is_empty(), floating)
+	var kinds: Array = info["routes"].map(func(r): return r["kind"])
+	_check("forest has a loud, a quiet and a high route", kinds == ["loud", "quiet", "high"], kinds)
+	var blockers: int = run_node.zone_root.get_children().filter(func(n): return n.is_in_group("sight_blocker")).size()
+	_check("forest has tall grass to hide in, some of it blocking sight", info["stealth_cover"].size() >= 40 and blockers >= 15, [info["stealth_cover"].size(), blockers])
 
 	# The hardest gaps the generator makes, flown by the pilot: sprint, jump at the edge, double jump.
 	var jump: Vector2 = ZoneBuilder.GAPS["jump"]
@@ -48,6 +52,7 @@ func _run() -> void:
 	await _fly_gap("widest wallrun", ZoneBuilder.GAPS["wallrun"].y, 1.0, 3.0, 0, "wallrun")
 	await _fly_gap("widest grapple", ZoneBuilder.GAPS["grapple"].y, 3.0, 3.0, 0, "grapple")
 	await _forest_crossings()
+	await _forest_flanks()
 
 	# Open salvage, pick the first part
 	var open_cache: Node3D = info["caches"][0] if not info["caches"][0].locked else info["caches"][1]
@@ -304,6 +309,53 @@ func _forest_crossings() -> void:
 	Input.action_release("move_forward")
 	_check("forest: hop the rock pillars over the ravine", ok, player.global_position)
 	await _reset_after_flight()
+
+
+## The flank routes' key moves: under the wall through the culvert, along the
+## fallen pine over the ravine, and off the end of the ridge over the wall.
+func _forest_flanks() -> void:
+	var FB = ZoneBuilder.ForestBuilder
+	var cw: float = FB.trail_x(FB.WALL_Z)
+	var cr: float = FB.trail_x(FB.RAVINE_Z)
+	_place(FB._on(FB.creek_x(-50.0), -50.0, 0.1))
+	await _ticks(2)
+	var ok: bool = await _walk(FB._on(cw + FB.CULVERT_X, FB.WALL_Z - 6.0), func(p): return p.z < FB.WALL_Z - 3.0)
+	_check("forest: walk the creek through the culvert under the wall", ok, player.global_position)
+	await _reset_after_flight()
+	_place(FB._on(cr + FB.LOG_X, FB.NEAR_LIP + 8.0, 0.1))
+	await _ticks(2)
+	ok = await _walk(FB._on(cr + FB.LOG_X, FB.FAR_LIP - 8.0), func(p): return p.z < FB.FAR_LIP - 4.0)
+	_check("forest: walk the fallen pine over the ravine", ok and run_node.run.falls == 0, player.global_position)
+	await _reset_after_flight()
+	_place(FB._on(FB.ridge_x(-46.0), -46.0, 0.1))
+	await _ticks(2)
+	var jumped := [false]
+	ok = await _walk(FB._on(FB.ridge_x(FB.RIDGE_END), FB.WALL_Z - 8.0), func(p):
+		if not jumped[0] and p.z < FB.RIDGE_END + 0.6:
+			jumped[0] = true
+			_press("jump")
+			create_timer(0.15).timeout.connect(func(): _press("jump"))
+		return p.z < FB.WALL_Z - 1.0 and player.is_on_floor())
+	_check("forest: run the ridge and jump over the wall", ok and run_node.run.falls == 0, player.global_position)
+	await _reset_after_flight()
+
+
+## Holds forward toward `to` until done(position) is true, a fall, or a timeout.
+func _walk(to: Vector3, done: Callable) -> bool:
+	for i in 900:
+		var err: Vector3 = to - player.global_position
+		err.y = 0.0
+		if err.length() > 0.5:
+			player.rotation.y = atan2(-err.x, -err.z)
+		Input.action_press("move_forward")
+		await _ticks(1)
+		if done.call(player.global_position):
+			Input.action_release("move_forward")
+			return true
+		if run_node.run.falls > 0:
+			break
+	Input.action_release("move_forward")
+	return false
 
 
 ## Runs forward from where the pilot stands, jumps at edge_z, lands on `to`.

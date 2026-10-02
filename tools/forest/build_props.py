@@ -523,6 +523,179 @@ def dropship(name):
     export(name)
 
 
+# --- route and clutter pieces -------------------------------------------------
+
+def log_bridge(name, seed):
+    """A giant pine fallen across a ravine, 26 m along X, top of the trunk
+    0.3 m above its origin (walk along it), root plate on -X, broken crown on +X."""
+    rng = random.Random(seed)
+    bm = new_bm()
+    r = 0.8
+    pts = [Vector((-13 + 26 * t, rng.uniform(-0.15, 0.15), -r + 0.3 - 0.25 * math.sin(t * math.pi))) for t in (0, 0.25, 0.5, 0.75, 1.0)]
+    tapered_tube(bm, pts, [r * 1.15, r, r * 0.95, r * 0.85, r * 0.7], sides=8)
+    for k in range(9):
+        a = 2 * math.pi * k / 9
+        d = Vector((0, math.cos(a), math.sin(a) * 0.9 + 0.2))
+        p = Vector((-13.0, 0, -r + 0.3))
+        tapered_tube(bm, [p, p + d * rng.uniform(1.6, 2.6) + Vector((-0.4, 0, 0))], [0.3, 0.08], sides=4)
+    for k in range(8):
+        x = rng.uniform(-9, 12)
+        side = rng.choice((-1, 1))
+        p = Vector((x, side * r * 0.7, -r + 0.2))
+        tapered_tube(bm, [p, p + Vector((rng.uniform(-0.5, 0.5), side * rng.uniform(1.0, 2.0), rng.uniform(-1.5, 0.3)))], [0.16, 0.05], sides=4)
+    part(bm, "log", "bark")
+    moss = new_bm()
+    for k in range(6):
+        x = rng.uniform(-11, 11)
+        blob(moss, (x, rng.uniform(-0.3, 0.3), 0.32), (1.1, 0.5, 0.12), rng, subdiv=1, wobble=0.15, seed=seed + k)
+    part(moss, "moss", "leaves")
+    export(name)
+
+
+def tall_grass(name, seed):
+    """A clump of tall reeds, about 1.4 m high and 1.6 m across: crouch in it."""
+    rng = random.Random(seed)
+    bm = new_bm()
+    for k in range(22):
+        a = rng.uniform(0, 2 * math.pi)
+        base = Vector((math.cos(a), math.sin(a), 0)) * rng.uniform(0.0, 0.75)
+        lean = Vector((math.cos(a), math.sin(a), 0)) * rng.uniform(0.1, 0.45)
+        h = rng.uniform(1.0, 1.6)
+        side = Vector((-math.sin(a), math.cos(a), 0)) * 0.07
+        mid = base + lean * 0.4 + Vector((0, 0, h * 0.55))
+        face2(bm, (base - side, base + side, mid + side * 0.7, mid - side * 0.7))
+        face2(bm, (mid - side * 0.7, mid + side * 0.7, base + lean + Vector((0, 0, h))))
+    part(bm, "blades", "grass_blade")
+    export(name)
+
+
+def barrels(name, seed):
+    """Three fuel drums and one on its side, about 2 x 1 x 2 m."""
+    rng = random.Random(seed)
+    steel = new_bm()
+    spots = [(-0.5, -0.35), (0.25, -0.4), (-0.1, 0.35)]
+    for x, y in spots:
+        cyl(steel, (x, y, 0), (x, y, 0.9), 0.3, sides=8)
+    cyl(steel, (0.65, 0.45, 0.3), (0.65, 0.45 + 0.9, 0.3), 0.3, sides=8)
+    part(steel, "drums", "titan_armor")
+    band = new_bm()
+    for x, y in spots:
+        cyl(band, (x, y, 0.55), (x, y, 0.68), 0.31, sides=8)
+    part(band, "bands", "anchor")
+    export(name)
+
+
+def pallet(name, seed):
+    """Supply pallet: crates under a tied-down tarp, 2.4 W x 1.5 H x 1.6 D."""
+    rng = random.Random(seed)
+    wood = new_bm()
+    box(wood, (0, 0, 0.08), (2.4, 1.6, 0.16))
+    part(wood, "pallet", "wood")
+    tarp = new_bm()
+    box(tarp, (0, 0, 0.82), (2.3, 1.5, 1.3), bevel=0.15)
+    part(tarp, "tarp", "canvas")
+    rope = new_bm()
+    for x in (-0.6, 0.6):
+        tapered_tube(rope, [(x, -0.78, 0.2), (x, -0.78, 1.45), (x, 0.78, 1.45), (x, 0.78, 0.2)], [0.025] * 4, sides=3)
+    part(rope, "ropes", "rope")
+    export(name)
+
+
+def generator(name):
+    """Field generator on skids with an exhaust stack and a lit panel, 2 x 1.4 x 1.2."""
+    steel = new_bm()
+    box(steel, (0, 0, 0.75), (2.0, 1.2, 1.2), bevel=0.05)
+    cyl(steel, (0.7, 0.3, 1.35), (0.7, 0.3, 2.1), 0.08, sides=5)
+    for y in (-0.45, 0.45):
+        box(steel, (0, y, 0.08), (2.2, 0.15, 0.16))
+    part(steel, "body", "titan_armor")
+    panel = new_bm()
+    box(panel, (-0.4, -0.61, 0.9), (0.5, 0.03, 0.35))
+    part(panel, "panel", "light")
+    stripe = new_bm()
+    box(stripe, (0, -0.61, 1.25), (1.9, 0.03, 0.12))
+    part(stripe, "stripe", "anchor")
+    export(name)
+
+
+def camo_net(name, seed):
+    """Camouflage netting sagging over four poles, 8 x 6 m, 3 m up at the poles."""
+    rng = random.Random(seed)
+    net = new_bm()
+    nx, ny = 8, 6
+    grid = []
+    for i in range(nx + 1):
+        row = []
+        for j in range(ny + 1):
+            u, v = i / nx, j / ny
+            sag = math.sin(u * math.pi) * math.sin(v * math.pi) * 0.7
+            row.append(Vector(((u - 0.5) * 8.4, (v - 0.5) * 6.4, 3.0 - sag + rng.uniform(-0.08, 0.08))))
+        grid.append(row)
+    for i in range(nx):
+        for j in range(ny):
+            if rng.random() < 0.08:
+                continue
+            face2(net, (grid[i][j], grid[i + 1][j], grid[i + 1][j + 1], grid[i][j + 1]))
+    # Ragged strips hanging off the edges.
+    for k in range(10):
+        i = rng.randint(0, nx)
+        p = grid[i][0] if k % 2 else grid[i][ny]
+        face2(net, (p, p + Vector((0.5, 0, 0)), p + Vector((0.3, 0, -rng.uniform(0.6, 1.4)))))
+    part(net, "net", "leaves")
+    poles = new_bm()
+    for sx in (-1, 1):
+        for sy in (-1, 1):
+            cyl(poles, (sx * 4.0, sy * 3.0, 0), (sx * 4.0, sy * 3.0, 3.0), 0.06, sides=5)
+    part(poles, "poles", "gunmetal")
+    export(name)
+
+
+def deer_stand(name):
+    """A hunter's blind: a wooden box on stilts, floor at 3 m, open at the back
+    (+Y) with a ladder, a slot window on the front (-Y)."""
+    wood = new_bm()
+    for sx in (-1, 1):
+        for sy in (-1, 1):
+            box(wood, (sx * 1.0, sy * 1.0, 1.5), (0.16, 0.16, 3.0))
+    box(wood, (0, 0, 2.95), (2.4, 2.4, 0.1))
+    box(wood, (0, -1.15, 3.35), (2.4, 0.1, 0.7))   # front, below the slot
+    box(wood, (0, -1.15, 4.25), (2.4, 0.1, 0.5))   # front, above the slot
+    for sx in (-1, 1):
+        box(wood, (sx * 1.15, 0, 3.7), (0.1, 2.4, 1.4))
+    box(wood, (0, 0.1, 4.55), (2.8, 2.8, 0.12))  # roof
+    for x in (-0.25, 0.25):
+        box(wood, (x, 1.35, 1.5), (0.06, 0.06, 3.0))
+    for k in range(7):
+        box(wood, (0, 1.35, 0.35 + k * 0.4), (0.5, 0.05, 0.05))
+    part(wood, "blind", "wood")
+    leaves = new_bm()
+    box(leaves, (0, 0.1, 4.68), (2.6, 2.6, 0.12))
+    part(leaves, "thatch", "leaves")
+    export(name)
+
+
+def culvert(name):
+    """A drainage culvert through the wall: concrete lintel over a 2.2 m opening,
+    a steel grate torn half off its hinges. 4 W, origin at the bottom of the opening."""
+    con = new_bm()
+    box(con, (0, 0, 4.85), (4.0, 0.8, 5.7))       # wall above the opening
+    for s in (-1, 1):
+        box(con, (s * 1.65, 0, 1.1), (0.7, 1.0, 2.2))  # jambs
+    box(con, (0, -0.05, 2.35), (4.0, 1.1, 0.3))  # lintel
+    part(con, "frame", "concrete")
+    grate = new_bm()
+    # Hanging off the left jamb, swung out toward the pilot.
+    for k in range(6):
+        box(grate, (-1.25 + 0.05 * k, -0.6 - 0.18 * k, 1.1), (0.06, 0.06, 2.0), rot_z=0.4)
+    box(grate, (-1.0, -0.9, 2.05), (0.1, 1.2, 0.08), rot_z=0.4)
+    box(grate, (-1.0, -0.9, 0.2), (0.1, 1.2, 0.08), rot_z=0.4)
+    part(grate, "grate", "gunmetal")
+    band = new_bm()
+    box(band, (0, -0.42, 4.6), (3.9, 0.04, 0.45))
+    part(band, "band", "anchor")
+    export(name)
+
+
 def main():
     clear()
     pine("pine_a", 201, 14.0, 5)
@@ -547,6 +720,14 @@ def main():
     wreck_truck("wreck_truck", 277)
     evac_pad("evac_pad")
     dropship("dropship")
+    log_bridge("log_bridge", 281)
+    tall_grass("tall_grass", 283)
+    barrels("barrels", 289)
+    pallet("pallet", 293)
+    generator("generator")
+    camo_net("camo_net", 307)
+    deer_stand("deer_stand")
+    culvert("culvert")
 
 
 main()
