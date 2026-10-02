@@ -42,13 +42,18 @@ var ramp_bonus := 0.0
 var on_target := false
 var dropping := true
 ## While piloted the hull is hidden so it doesn't fill the cockpit view;
-## the arms and weapon stay visible.
+## the arms and weapon stay visible, and the Cockpit frame (canopy rim, dash)
+## appears.
 var piloted := false:
 	set(value):
 		piloted = value
 		if model != null:
 			for part in model.get_children():
-				if part is Node3D and not String(part.name).begins_with("Arm"):
+				if not part is Node3D:
+					continue
+				if part.name == &"Cockpit":
+					part.visible = value
+				elif not String(part.name).begins_with("Arm"):
 					part.visible = not value
 var dead := false
 var boss: Node

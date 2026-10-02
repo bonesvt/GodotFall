@@ -69,7 +69,7 @@ func _run() -> void:
 			# The pilot's view: hull hidden as in titan.gd, camera at EYE.
 			for part in model.get_children():
 				if part is Node3D and not String(part.name).begins_with("Arm"):
-					part.visible = false
+					part.visible = part.name == &"Cockpit"
 			cam.fov = 85.0
 			cam.position = Vector3(0, 6.2, 0)
 			cam.look_at(Vector3(0, 5.6, -10))

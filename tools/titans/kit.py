@@ -120,6 +120,39 @@ def rbox(size, center=(0, 0, 0), r=0.1, seg=3, shape=None, rot=(0, 0, 0)):
 	return bm
 
 
+def smooth(size, center=(0, 0, 0), shape=None, cuts=2, levels=2, rot=(0, 0, 0)):
+	"""Sleek subdivision-surface body. A box cage of `size`, split `cuts` times
+	per edge, is bent by `shape(co, half)` (local coords) and then smoothed
+	Catmull-Clark style, so a handful of moved cage points give flowing,
+	car-body curves."""
+	bm = bmesh.new()
+	bmesh.ops.create_cube(bm, size=1.0)
+	if cuts > 0:
+		bmesh.ops.subdivide_edges(bm, edges=bm.edges[:], cuts=cuts, use_grid_fill=True)
+	bmesh.ops.scale(bm, vec=Vector(size), verts=bm.verts)
+	if shape is not None:
+		half = Vector(size) * 0.5
+		for v in bm.verts:
+			shape(v.co, half)
+	me = bpy.data.meshes.new("cage")
+	bm.to_mesh(me)
+	bm.free()
+	ob = bpy.data.objects.new("cage", me)
+	bpy.context.collection.objects.link(ob)
+	mod = ob.modifiers.new("Sub", "SUBSURF")
+	mod.levels = levels
+	mod.render_levels = levels
+	dg = bpy.context.evaluated_depsgraph_get()
+	out = bpy.data.meshes.new_from_object(ob.evaluated_get(dg))
+	bm = bmesh.new()
+	bm.from_mesh(out)
+	bpy.data.objects.remove(ob)
+	bpy.data.meshes.remove(me)
+	bpy.data.meshes.remove(out)
+	bmesh.ops.transform(bm, matrix=xform(center, rot), verts=bm.verts)
+	return bm
+
+
 def cyl(r, depth, center=(0, 0, 0), axis="y", seg=16, bevel=0.0, r2=None, rot=None):
 	"""Cylinder (or cone with r2) along a Godot axis, optionally bevelled."""
 	bm = bmesh.new()
@@ -241,11 +274,11 @@ def rivets(points, r=0.035, normal=(0, 0, -1)):
 
 
 def hit(target, p, direction):
-	"""Where a ray from `p` (backed off 1.5 m) along `direction` meets `target`:
-	(location, normal), or (p, -direction) on a miss."""
+	"""Where a ray from `p` (backed off 4 m) along `direction` meets `target`:
+	(location, normal), or (None, None) on a miss."""
 	d = Vector(direction).normalized()
-	loc, n, _, _ = BVHTree.FromBMesh(target).ray_cast(Vector(p) - d * 1.5, d, 3.0)
-	return (loc, n) if loc is not None else (Vector(p), -d)
+	loc, n, _, _ = BVHTree.FromBMesh(target).ray_cast(Vector(p) - d * 4.0, d, 8.0)
+	return (loc, n) if loc is not None else (None, None)
 
 
 def studs(target, points, direction, r=0.035):

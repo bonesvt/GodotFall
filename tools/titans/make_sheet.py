@@ -11,11 +11,11 @@ SHOTS, OUT = sys.argv[1], sys.argv[2]
 FONT = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
 BODY = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
 TITANS = [
-	("atlas", "ATLAS", "sky blue + orange, twin headlights, XO-16"),
-	("ogre", "OGRE", "mustard + army green, bull bar, armour slabs, Tracker"),
-	("stryder", "STRYDER", "white + red, raked nose, tail fins, jet, Splitter"),
-	("scrap", "SCRAP", "rusty olive buggy: open tub, seat, odd panels"),
-	("enemy", "ENEMY TITAN", "candy crimson + cream, blades, red eyes"),
+	("atlas", "ATLAS", "sky blue + orange, the all-rounder, XO-16"),
+	("ogre", "OGRE", "mustard + army green, armoured fenders, Tracker"),
+	("stryder", "STRYDER", "white + red, long nose, tail fins, jet, Splitter"),
+	("scrap", "SCRAP", "olive open-tub buggy: roll cage, seat, tyre knees"),
+	("enemy", "ENEMY TITAN", "candy crimson + cream, nose blades, red eyes"),
 	("wreck", "DAD'S TITAN (HUB)", "Atlas blue + orange stripe, wrecked"),
 ]
 GUNS = [("xo16", "XO-16"), ("tracker", "TRACKER"), ("splitter", "SPLITTER"), ("scrap", "SCRAP RIFLE")]
@@ -44,16 +44,16 @@ def main():
 	title = ImageFont.truetype(FONT, 56)
 	name = ImageFont.truetype(FONT, 30)
 	note = ImageFont.truetype(BODY, 22)
-	d.text((pad, 24), "TITANS / JAK GARAGE PASS", font=title, fill=INK)
+	d.text((pad, 24), "TITANS / JAK GARAGE PASS 2: SLEEK", font=title, fill=INK)
 	d.rectangle((pad, 94, pad + 520, 100), fill=ACCENT)
-	d.text((pad + 980, 46), "glossy chipped paint, racing stripes, roll cages, tyre knees, exposed engines", font=note, fill=DIM)
+	d.text((pad + 980, 46), "swept candy-paint bodies, bubble canopies, chrome joints, racing stripes", font=note, fill=DIM)
 	for i, (id, nm, desc) in enumerate(TITANS):
 		x = pad + (i % cols) * (card_w + pad)
 		y = head + (i // cols) * (card_h + label + pad)
 		sheet.paste(img(f"{id}_front", (big, big)), (x, y))
 		sheet.paste(img(f"{id}_back", (small, small)), (x + big, y))
 		sheet.paste(img(f"{id}_side" if id == "wreck" else f"{id}_cockpit", (small, small)), (x + big, y + small))
-		d.text((x, y + card_h + 8), nm, font=name, fill=ACCENT if id in ("enemy", "wreck") else INK)
+		d.text((x, y + card_h + 8), nm + ("" if id == "wreck" else "   (small: back, cockpit)"), font=name, fill=ACCENT if id in ("enemy", "wreck") else INK)
 		d.text((x, y + card_h + 42), desc, font=note, fill=DIM)
 	y = head + rows_h + 10
 	d.text((pad, y), "TITAN WEAPONS", font=name, fill=INK)
