@@ -108,7 +108,11 @@ func _run() -> void:
 	var c = _grunt(Vector3(-20, 0, -8), Vector3(-1, 0, 0))
 	var lone = _grunt(Vector3(-20, 0, -40), Vector3(-1, 0, 0))
 	await _ticks(5)
+	var events := []
+	a.called_out.connect(func(_g, squad): events.append(squad.size()))
+	b.awareness_changed.connect(func(_g, aw): events.append(aw))
 	a.alert()
+	_check("callout and awareness signals fire", events == [Grunt.Awareness.ALERTED, 2], events)
 	_check("alerted grunt calls in its squad", b.alerted and c.alerted, [b.alerted, c.alerted])
 	_check("callout doesn't reach far grunts", not lone.alerted, lone.alerted)
 

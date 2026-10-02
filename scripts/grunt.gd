@@ -15,7 +15,12 @@ const Art := preload("res://scripts/ps2/ps2_assets.gd")
 const SFX := preload("res://scripts/sfx.gd")
 
 signal died(grunt: Node)
+## UNAWARE, SUSPICIOUS or ALERTED (see Awareness), every time it changes.
 signal awareness_changed(grunt: Node, awareness: int)
+## This grunt spotted the pilot and called these squadmates in (may be empty).
+signal called_out(grunt: Node, squadmates: Array)
+## Alerted grunt lost the pilot and went back to searching.
+signal lost_track(grunt: Node)
 
 enum Awareness { UNAWARE, SUSPICIOUS, ALERTED }
 
@@ -315,10 +320,13 @@ func alert(callout := true) -> void:
 	_set_awareness(Awareness.ALERTED)
 	if was or not callout:
 		return
+	var squad := []
 	for g in get_tree().get_nodes_in_group("enemies"):
 		if g != self and g.has_method("alert") and not g.alerted \
 				and g.global_position.distance_to(global_position) <= callout_range:
 			g.alert(false)
+			squad.append(g)
+	called_out.emit(self, squad)
 
 
 ## Lost the pilot: back to searching where they were last seen.
@@ -328,6 +336,7 @@ func lose_track() -> void:
 	detection = 0.6
 	since_stimulus = 0.0
 	_set_awareness(Awareness.SUSPICIOUS)
+	lost_track.emit(self)
 
 
 ## A gunshot went off at this position (the pilot's weapon calls this).
