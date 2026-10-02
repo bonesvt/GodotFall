@@ -9,12 +9,16 @@ const Tutorial := preload("res://scripts/run/tutorial.gd")
 var run_node
 var tut
 var out := "user://tutorial_shots"
+## Only shots whose name starts with this (second argument), e.g. "5-".
+var only := ""
 
 
 func _initialize() -> void:
 	var args := OS.get_cmdline_user_args()
 	if args.size() > 0:
 		out = args[0]
+	if args.size() > 1:
+		only = args[1]
 	DirAccess.make_dir_recursive_absolute(out)
 	Tutorial.settings_path = "user://shots_tutorial.cfg"
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(Tutorial.settings_path))
@@ -45,7 +49,7 @@ func _go() -> void:
 		if area.global_position.distance_to(spawn) < 120.0 and area.global_position.distance_to(spawn) > 20.0:
 			grass = area
 			break
-	await _shot("5-tall-grass", "tall_grass", grass.global_position + Vector3(5.0, 0, 9.0), grass.global_position)
+	await _shot("5-tall-grass", "tall_grass", grass.global_position + Vector3(2.0, 0, 7.0), grass.global_position + Vector3(0, -0.8, 0))
 	var lip: Vector3 = info["crossing"]["lip"]
 	await _shot("6-ravine", "ravine", lip + Vector3(-4.0, 3.0, 6.0), lip + Vector3(-4.0, -2.0, -30.0))
 	await _shot("7-extract", "extract_zone0", info["beacon"].global_position + Vector3(0, 0, 22.0), info["beacon"].global_position + Vector3(0, 2, 0))
@@ -57,7 +61,16 @@ func _go() -> void:
 		gg.sight_range = 0.0
 	spawn = info["spawn"]
 	await _shot("8-blackwater-routes", "routes", spawn, spawn + Vector3(0, 1.0, -25))
+	# A grunt you can walk up behind with nothing in the way.
 	var gk: Node3D = info["grunts"][0]
+	for cand in info["grunts"]:
+		run_node.player.global_position = cand.global_position + cand.global_basis.z * 6.0 + Vector3(0, 0.3, 0)
+		_aim(run_node.player.global_position, cand.global_position + Vector3(0, 1.0, 0))
+		await physics_frame
+		await physics_frame
+		if tut._stab_target(12.0) == cand:
+			gk = cand
+			break
 	await _shot("9-stiletto", "knife", gk.global_position + gk.global_basis.z * 6.0 + Vector3(0, 0.3, 0), gk.global_position + Vector3(0, 1.0, 0))
 	lip = info["crossing"]["lip"]
 	await _shot("10-grapple", "grapple", lip + Vector3(-2.0, 3.0, 6.0), lip + Vector3(4.0, 4.0, -24.0))
@@ -88,6 +101,8 @@ func _go() -> void:
 ## Shows only `id` (everything else counts as seen), puts the pilot at `at`
 ## looking at `look`, waits for the card and saves the frame.
 func _shot(name: String, id: String, at: Vector3, look: Vector3) -> void:
+	if only != "" and not name.begins_with(only):
+		return
 	tut._finish()
 	tut.seen.clear()
 	for b in tut.beats:
@@ -96,10 +111,7 @@ func _shot(name: String, id: String, at: Vector3, look: Vector3) -> void:
 	var player = run_node.player
 	player.global_position = at
 	player.velocity = Vector3.ZERO
-	var eye := at + Vector3(0, 1.6, 0)
-	var d := look - eye
-	player.rotation.y = atan2(-d.x, -d.z)
-	player.get_node("Head").rotation.x = atan2(d.y, Vector2(d.x, d.z).length())
+	_aim(at, look)
 	tut.level_time = 5.0
 	var left := 60
 	while tut.current.get("id", "") != id and left > 0:
@@ -110,6 +122,13 @@ func _shot(name: String, id: String, at: Vector3, look: Vector3) -> void:
 	await _frames(5)
 	root.get_viewport().get_texture().get_image().save_png(out.path_join(name + ".png"))
 	print("shot ", name, "  card: ", tut.current.get("id", "NONE"), "  t=", Time.get_ticks_msec() / 1000)
+
+
+func _aim(at: Vector3, look: Vector3) -> void:
+	var player = run_node.player
+	var d := look - (at + Vector3(0, 1.6, 0))
+	player.rotation.y = atan2(-d.x, -d.z)
+	player.get_node("Head").rotation.x = atan2(d.y, Vector2(d.x, d.z).length())
 
 
 func _frames(n: int) -> void:

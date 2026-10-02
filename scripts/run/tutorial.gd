@@ -286,9 +286,11 @@ func highlight(t: Dictionary) -> void:
 		for c in area.get_children():
 			if c is CollisionShape3D and c.shape is BoxShape3D:
 				size = c.shape.size
-		var y := -size.y * 0.5 + 0.15
-		for side in [[Vector3(0, y, size.z * 0.5), Vector3(size.x, 0.08, 0.14)], [Vector3(0, y, -size.z * 0.5), Vector3(size.x, 0.08, 0.14)],
-				[Vector3(size.x * 0.5, y, 0), Vector3(0.14, 0.08, size.z)], [Vector3(-size.x * 0.5, y, 0), Vector3(0.14, 0.08, size.z)]]:
+		# Cover areas sit 0.8 m above the ground (forest_kit.gd grass_patch); the
+		# frame stands tall enough to poke out of a slope.
+		var y := -0.8 + 0.1
+		for side in [[Vector3(0, y, size.z * 0.5), Vector3(size.x, 0.25, 0.1)], [Vector3(0, y, -size.z * 0.5), Vector3(size.x, 0.25, 0.1)],
+				[Vector3(size.x * 0.5, y, 0), Vector3(0.1, 0.25, size.z)], [Vector3(-size.x * 0.5, y, 0), Vector3(0.1, 0.25, size.z)]]:
 			var mi := MeshInstance3D.new()
 			var bm := BoxMesh.new()
 			bm.size = side[1]
@@ -492,8 +494,20 @@ func _cache(locked: bool, r: float) -> Node3D:
 	return _closest(_info().get("caches", []), r, func(c): return not c.opened and c.locked == locked)
 
 
-func _grass(r: float) -> Area3D:
-	return _closest(_info().get("stealth_cover", []), r) as Area3D
+func _grass(r: float, ahead := false) -> Area3D:
+	return _closest(_info().get("stealth_cover", []), r, func(a): return not ahead or _ahead(a)) as Area3D
+
+
+## Roughly where the pilot is looking.
+func _ahead(n: Node3D) -> bool:
+	var cam: Camera3D = get_viewport().get_camera_3d() if is_inside_tree() else null
+	if cam == null:
+		return true
+	var to := n.global_position - cam.global_position
+	to.y = 0.0
+	var fwd := -cam.global_basis.z
+	fwd.y = 0.0
+	return to.length() < 2.0 or fwd.normalized().dot(to.normalized()) > 0.5
 
 
 func _in_area(area: Area3D) -> bool:
@@ -690,8 +704,8 @@ func _grunt_beat() -> Dictionary:
 func _grass_beat() -> Dictionary:
 	return {"id": "tall_grass", "title": "TALL GRASS", "color": GREEN, "max": 14.0,
 		"body": "Crouch [C] in tall grass and grunts can't make you out past a few metres. The thick patches block their sight completely.",
-		"targets": func(): return [{"area": _grass(18.0), "tag": "HIDE HERE", "color": GREEN}],
-		"when": func(): return _grass(14.0) != null,
+		"targets": func(): return [{"area": _grass(18.0, true), "tag": "HIDE HERE", "color": GREEN}],
+		"when": func(): return _grass(14.0, true) != null,
 		"done": func(): return run.player.crouching and _grass(8.0) != null and _in_area(_grass(8.0))}
 
 
@@ -706,7 +720,8 @@ func _knife_beat() -> Dictionary:
 func _extract_beat(tag: String, body: String) -> Dictionary:
 	return {"id": "extract_%s" % level, "title": "EXTRACT", "color": GREEN, "max": 12.0,
 		"body": body,
-		"targets": func(): return [{"node": _info().get("beacon"), "tag": tag, "color": GREEN, "ring": false}],
+		# A ring and tag at its foot: the beam is far too tall to tag the top of.
+		"targets": func(): return [{"pos": _info()["beacon"].global_position, "tag": tag, "color": GREEN, "radius": 3.0, "height": 4.0}],
 		"when": func(): return _info().get("beacon") != null and _near(_info()["beacon"].global_position, 40.0)}
 
 
