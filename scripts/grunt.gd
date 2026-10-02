@@ -71,6 +71,9 @@ enum Awareness { UNAWARE, SUSPICIOUS, ALERTED }
 @export var calm_delay := 2.0
 ## Detection at which the grunt turns to look.
 @export var suspicious_at := 0.35
+## Damage multiplier for hits on a grunt that hasn't noticed the pilot at all
+## (a pistol headshot on an unaware grunt kills outright).
+@export var unaware_damage := 2.0
 ## Squadmates this close hear an alerted grunt's callout.
 @export var callout_range := 16.0
 ## Alerted grunts that lose sight of the pilot this long go back to searching.
@@ -428,10 +431,17 @@ func is_headshot(pos: Vector3) -> bool:
 	return pos.y - global_position.y > HEAD_Y
 
 
+## True while it hasn't noticed the pilot at all: knife takedowns work on it.
+func is_unaware() -> bool:
+	return not dead and not passive and awareness == Awareness.UNAWARE
+
+
 ## Returns true when this hit killed the grunt.
 func take_damage(amount: float, _pos: Vector3, _head := false) -> bool:
 	if dead:
 		return false
+	if awareness == Awareness.UNAWARE and not passive:
+		amount *= unaware_damage
 	health -= amount
 	hurt_timer = 0.06
 	alert()

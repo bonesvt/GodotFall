@@ -249,7 +249,6 @@ func fire() -> void:
 	shots_fired += 1
 	cooldown = fire_interval
 	since_shot = 0.0
-	get_tree().call_group("enemies", "hear_gunshot", player.global_position)
 	var cam: Camera3D = player.camera
 	# Aim comes from the head, so the visual camera punch never moves the shot.
 	var basis: Basis = player.head.global_basis
@@ -275,6 +274,8 @@ func fire() -> void:
 			_hit_fx(fx_parent, end, hit.normal, dir, kind)
 		else:
 			_impact_fx(fx_parent, end, hit.normal)
+	# Heard after the round lands, so the first shot still catches its target unaware.
+	get_tree().call_group("enemies", "hear_gunshot", player.global_position)
 
 	FX.tracer(fx_parent, muzzle.global_position, end, Color(0.75, 0.97, 1.0, 0.85), 0.012, 0.06)
 	bloom = minf(bloom + bloom_per_shot, max_bloom)
