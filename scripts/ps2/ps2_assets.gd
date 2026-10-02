@@ -40,6 +40,8 @@ const MODELS := {
 	"titan_stryder": preload("res://assets/models/titan_stryder.tscn"),
 	"titan_scrap": preload("res://assets/models/titan_scrap.tscn"),
 	"titan_enemy": preload("res://assets/models/titan_enemy.tscn"),
+	## Eco's dad's titan, wrecked, for the hub (same node names as the others).
+	"titan_wreck": preload("res://assets/models/titan_wreck.tscn"),
 	"titan_weapon_xo16": preload("res://assets/models/titan_weapon_xo16.tscn"),
 	"titan_weapon_tracker": preload("res://assets/models/titan_weapon_tracker.tscn"),
 	"titan_weapon_splitter": preload("res://assets/models/titan_weapon_splitter.tscn"),

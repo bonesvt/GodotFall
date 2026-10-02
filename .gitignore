@@ -4,3 +4,5 @@
 *.import
 export_presets.cfg
 !assets/textures/*.import
+!assets/textures/titans/*.import
+!assets/models/titans/*.import

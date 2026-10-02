@@ -1,60 +1,7 @@
-[gd_scene load_steps=10 format=3]
+[gd_scene load_steps=3 format=3]
 
-[ext_resource type="Script" path="res://scripts/ps2/ps2_model.gd" id="1_lvsn5"]
-[ext_resource type="Material" path="res://assets/materials/cover.tres" id="2_5so6i"]
-[ext_resource type="Material" path="res://assets/materials/titan_frame.tres" id="3_vuumm"]
-[ext_resource type="Material" path="res://assets/materials/glove.tres" id="4_m2vge"]
+[ext_resource type="PackedScene" path="res://assets/models/titans/titan_weapon_scrap.glb" id="1_glb"]
+[ext_resource type="Script" path="res://scripts/ps2/ps2_model.gd" id="2_model"]
 
-[sub_resource type="BoxMesh" id="BoxMesh_vwtve"]
-material = ExtResource("2_5so6i")
-size = Vector3(0.5, 0.55, 1.6)
-
-[sub_resource type="CylinderMesh" id="CylinderMesh_qc1ov"]
-material = ExtResource("3_vuumm")
-top_radius = 0.14
-bottom_radius = 0.14
-height = 1.5
-radial_segments = 6
-rings = 0
-
-[sub_resource type="BoxMesh" id="BoxMesh_71nib"]
-material = ExtResource("4_m2vge")
-size = Vector3(0.56, 0.6, 0.12)
-
-[sub_resource type="BoxMesh" id="BoxMesh_63pyx"]
-material = ExtResource("4_m2vge")
-size = Vector3(0.56, 0.6, 0.12)
-
-[sub_resource type="BoxMesh" id="BoxMesh_8or4m"]
-material = ExtResource("3_vuumm")
-size = Vector3(0.1, 0.3, 0.1)
-
-[node name="TitanWeapon_scrap" type="Node3D"]
-script = ExtResource("1_lvsn5")
-stride = 1.6
-swing_degrees = 28.0
-
-[node name="Body" type="MeshInstance3D" parent="."]
-transform = Transform3D(0.997564, -0.0697565, 0, 0.0697565, 0.997564, 0, 0, 0, 1, 0, 0, -0.6)
-instance_shader_parameters/part_height_row = Vector4(0.0697565, 0.997564, 0, 0)
-mesh = SubResource("BoxMesh_vwtve")
-
-[node name="Barrel" type="MeshInstance3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, -4.37114e-08, -1, 0, 1, -4.37114e-08, 0.03, 0.05, -2.1)
-instance_shader_parameters/part_height_row = Vector4(0, -4.37114e-08, -1, 0.05)
-mesh = SubResource("CylinderMesh_qc1ov")
-
-[node name="Tape" type="MeshInstance3D" parent="."]
-transform = Transform3D(0.997564, -0.0697565, 0, 0.0697565, 0.997564, 0, 0, 0, 1, 0, 0, -0.2)
-instance_shader_parameters/part_height_row = Vector4(0.0697565, 0.997564, 0, 0)
-mesh = SubResource("BoxMesh_71nib")
-
-[node name="@MeshInstance3D@21" type="MeshInstance3D" parent="."]
-transform = Transform3D(0.997564, -0.0697565, 0, 0.0697565, 0.997564, 0, 0, 0, 1, 0, 0, -1)
-instance_shader_parameters/part_height_row = Vector4(0.0697565, 0.997564, 0, 0)
-mesh = SubResource("BoxMesh_63pyx")
-
-[node name="Sight" type="MeshInstance3D" parent="."]
-transform = Transform3D(0.978148, 0.207912, 0, -0.207912, 0.978148, 0, 0, 0, 1, 0.1, 0.4, -0.8)
-instance_shader_parameters/part_height_row = Vector4(-0.207912, 0.978148, 0, 0.4)
-mesh = SubResource("BoxMesh_8or4m")
+[node name="TitanWeapon_scrap" instance=ExtResource("1_glb")]
+script = ExtResource("2_model")

@@ -8,6 +8,7 @@ extends SceneTree
 ## Re-running overwrites the .tscn files. You can also edit the saved scenes
 ## in the editor; every part is a plain MeshInstance3D with a primitive mesh.
 ## Models face -Z with their origin at the feet, like the gameplay nodes.
+## Titans are not built here: see tools/titans/build_titans.py.
 
 const MODEL_SCRIPT := preload("res://scripts/ps2/ps2_model.gd")
 const OUT := "res://assets/models/"
@@ -21,10 +22,6 @@ func _init() -> void:
 		M[m] = load("res://assets/materials/%s.tres" % m)
 	_pistol()
 	_grunt()
-	for id in TITANS:
-		_titan(id, TITANS[id])
-	for id in ["xo16", "tracker", "splitter", "scrap"]:
-		_titan_weapon(id)
 	_cache()
 	_beacon()
 	quit()
@@ -203,115 +200,7 @@ func _grunt() -> void:
 
 
 # --- titans ----------------------------------------------------------------
-
-## Chassis proportions: w/d/h torso, leg thickness, leg spread, shoulder scale,
-## hip height, paint, and a weapon for the enemy variant.
-const TITANS := {
-	"atlas": {"w": 2.6, "d": 1.8, "h": 2.0, "leg": 0.8, "spread": 0.75, "sh": 1.0, "hip": 3.0,
-		"paint": Color(0.62, 0.7, 0.8)},
-	"ogre": {"w": 3.2, "d": 2.2, "h": 2.2, "leg": 1.0, "spread": 0.95, "sh": 1.3, "hip": 2.9,
-		"paint": Color(0.8, 0.72, 0.52)},
-	"stryder": {"w": 2.0, "d": 1.4, "h": 1.6, "leg": 0.55, "spread": 0.6, "sh": 0.8, "hip": 3.4,
-		"paint": Color(0.9, 0.9, 0.92), "accent": Color(1.0, 0.55, 0.15)},
-	"scrap": {"w": 2.5, "d": 1.8, "h": 1.9, "leg": 0.75, "spread": 0.75, "sh": 1.0, "hip": 3.0,
-		"paint": Color(0.62, 0.45, 0.34), "scrap": true},
-	"enemy": {"w": 3.2, "d": 2.2, "h": 2.2, "leg": 1.0, "spread": 0.95, "sh": 1.3, "hip": 2.9,
-		"paint": Color(0.75, 0.22, 0.18), "accent": Color(0.2, 0.2, 0.22)},
-}
-
-
-func _titan(id: String, p: Dictionary) -> void:
-	var r := _root("Titan_" + id)
-	r.set("stride", 4.5)
-	r.set("swing_degrees", 22.0)
-	var armor := _painted("titan_armor", p["paint"])
-	var accent := _painted("titan_armor", p.get("accent", Color(p["paint"]).darkened(0.25)))
-	var frame: Material = M["titan_frame"]
-	var glow: Material = M["titan_glow"]
-	var scrap: bool = p.get("scrap", false)
-	var w: float = p["w"]
-	var d: float = p["d"]
-	var h: float = p["h"]
-	var lw: float = p["leg"]
-	var hip: float = p["hip"]
-	var sh: float = p["sh"]
-
-	_part(r, "Pelvis", "box", Vector3(w * 0.58, 0.6, d * 0.55), Vector3(0, hip, 0), frame)
-	for side in [-1.0, 1.0]:
-		var leg := _pivot(r, "LegL" if side < 0.0 else "LegR", Vector3(side * (w * 0.29 + lw * 0.45), hip, 0))
-		var thigh_mat: Material = M["cover"] if scrap and side > 0.0 else armor
-		_part(leg, "Hip", "cyl", Vector3(lw * 0.45, lw + 0.1, 8), Vector3(0, 0, 0), frame, Vector3(0, 0, 90))
-		_part(leg, "Thigh", "box", Vector3(lw, hip * 0.46, lw + 0.1), Vector3(0, -hip * 0.25, 0), thigh_mat)
-		_part(leg, "Knee", "cyl", Vector3(lw * 0.42, lw + 0.12, 8), Vector3(0, -hip * 0.5, 0), frame, Vector3(0, 0, 90))
-		_part(leg, "KneePlate", "box", Vector3(lw * 0.8, lw * 0.7, 0.2), Vector3(0, -hip * 0.5, -lw * 0.55), accent, Vector3(-10, 0, 0))
-		_part(leg, "Shin", "box", Vector3(lw + 0.1, hip * 0.4, lw + 0.25), Vector3(0, -hip * 0.72, 0.04), armor)
-		_part(leg, "Foot", "box", Vector3(lw + 0.3, hip * 0.11, lw + 1.0), Vector3(0, -hip * 0.945, -0.25), frame)
-		_part(leg, "Toe", "prism", Vector3(lw + 0.3, 0.3, 0.5), Vector3(0, -hip * 0.97, -0.25 - (lw + 1.0) * 0.5 - 0.2), frame, Vector3(-90, 0, 0))
-	_part(r, "Waist", "cyl", Vector3(w * 0.22, 0.6, 8), Vector3(0, hip + 0.5, 0), frame)
-	var ty := hip + 0.75 + h * 0.5
-	var torso := _part(r, "Torso", "box", Vector3(w, h, d), Vector3(0, ty, 0), armor)
-	if scrap:
-		torso.rotation_degrees.z = 2.0
-	_part(r, "ChestLower", "prism", Vector3(w * 0.9, 0.5, d), Vector3(0, ty - h * 0.5 - 0.2, 0), armor, Vector3(180, 0, 0))
-	_part(r, "Hatch", "box", Vector3(w * 0.55, h * 0.62, 0.14), Vector3(0, ty - h * 0.05, -d * 0.5 - 0.05), accent)
-	for side in [-1.0, 1.0]:
-		_part(r, "HatchHinge", "box", Vector3(0.12, h * 0.5, 0.18), Vector3(side * w * 0.3, ty - h * 0.05, -d * 0.5 - 0.05), frame)
-	_part(r, "Eye", "box", Vector3(w * 0.34, 0.16, 0.12), Vector3(0, ty + h * 0.34, -d * 0.5 - 0.04), glow)
-	_part(r, "Brow", "box", Vector3(w * 0.5, 0.14, 0.3), Vector3(0, ty + h * 0.45, -d * 0.5 - 0.05), accent)
-	_part(r, "Back", "box", Vector3(w * 0.7, h * 0.75, 0.8), Vector3(0, ty - 0.05, d * 0.5 + 0.35), frame)
-	for side in [-1.0, 1.0]:
-		_part(r, "Vent", "cyl", Vector3(0.18, 0.6, 6), Vector3(side * w * 0.2, ty + h * 0.35, d * 0.5 + 0.55), frame)
-	_part(r, "Core", "box", Vector3(w * 0.3, 0.3, 0.12), Vector3(0, ty - h * 0.2, d * 0.5 + 0.77), glow)
-
-	for side in [-1.0, 1.0]:
-		var arm := _pivot(r, "ArmL" if side < 0.0 else "ArmR", Vector3(side * (w * 0.5 + 0.35 * sh), ty + h * 0.3, 0))
-		if not (scrap and side < 0.0):
-			_part(arm, "Pad", "box", Vector3(0.95, 0.75, 1.25) * sh, Vector3(side * 0.1, 0.1, 0), accent if side > 0.0 else armor, Vector3(0, 0, side * -10))
-		_part(arm, "Shoulder", "sphere", Vector3(0.42 * sh, 0, 0), Vector3.ZERO, frame)
-		_part(arm, "Upper", "box", Vector3(0.5, 1.1, 0.5) * Vector3(sh, 1, sh), Vector3(0, -0.75, 0), frame)
-		_part(arm, "Elbow", "cyl", Vector3(0.3 * sh, 0.6 * sh, 8), Vector3(0, -1.4, 0), frame, Vector3(0, 0, 90))
-		_part(arm, "Forearm", "box", Vector3(0.7, 0.7, 1.5) * sh, Vector3(0, -1.45, -0.55 * sh), armor)
-		if side < 0.0:
-			_part(arm, "Fist", "box", Vector3(0.55, 0.55, 0.5) * sh, Vector3(0, -1.45, -1.45 * sh), frame)
-		else:
-			_pivot(arm, "WeaponMount", Vector3(0, -1.45, -1.2 * sh))
-	if scrap:
-		_part(r, "Patch", "box", Vector3(0.8, 0.6, 0.06), Vector3(-w * 0.3, ty + h * 0.15, -d * 0.5 - 0.03), M["cover"], Vector3(0, 0, 12))
-	_save(r, "titan_%s.tscn" % id)
-
-
-func _titan_weapon(id: String) -> void:
-	var r := _root("TitanWeapon_" + id)
-	var frame: Material = M["titan_frame"]
-	var steel := _painted("titan_armor", Color(0.5, 0.52, 0.55))
-	match id:
-		"xo16":
-			_part(r, "Body", "box", Vector3(0.65, 0.75, 1.4), Vector3(0, 0, -0.5), steel)
-			_part(r, "Drum", "cyl", Vector3(0.45, 0.5, 8), Vector3(0.55, -0.05, -0.35), frame, Vector3(0, 0, 90))
-			for i in 6:
-				var a := TAU * i / 6.0
-				_part(r, "Barrel", "cyl", Vector3(0.07, 1.7, 5), Vector3(cos(a) * 0.18, sin(a) * 0.18, -2.0), frame, Vector3(90, 0, 0))
-			_part(r, "Shroud", "cyl", Vector3(0.32, 0.3, 8), Vector3(0, 0, -1.35), steel, Vector3(90, 0, 0))
-			_part(r, "Tip", "cyl", Vector3(0.3, 0.25, 8), Vector3(0, 0, -2.75), steel, Vector3(90, 0, 0))
-		"tracker":
-			_part(r, "Body", "box", Vector3(0.75, 0.85, 1.8), Vector3(0, 0.05, -0.7), steel)
-			_part(r, "Barrel", "cyl", Vector3(0.22, 1.6, 8), Vector3(0, 0.1, -2.4), frame, Vector3(90, 0, 0))
-			_part(r, "Brake", "box", Vector3(0.62, 0.36, 0.4), Vector3(0, 0.1, -3.2), steel)
-			_part(r, "Mag", "box", Vector3(0.4, 0.6, 0.5), Vector3(0, -0.6, -0.5), frame)
-			_part(r, "Sight", "box", Vector3(0.18, 0.12, 0.3), Vector3(0, 0.55, -0.9), M["titan_glow"])
-		"splitter":
-			_part(r, "Body", "box", Vector3(0.5, 0.62, 2.6), Vector3(0, 0, -1.1), steel)
-			for side in [-1.0, 1.0]:
-				_part(r, "Prong", "box", Vector3(0.12, 0.18, 1.0), Vector3(side * 0.16, 0, -2.85), frame)
-			_part(r, "Glow", "box", Vector3(0.52, 0.08, 1.8), Vector3(0, 0.2, -1.1), M["titan_glow"])
-			_part(r, "Cell", "box", Vector3(0.35, 0.45, 0.6), Vector3(0, -0.45, -0.4), frame)
-		_:
-			_part(r, "Body", "box", Vector3(0.5, 0.55, 1.6), Vector3(0, 0, -0.6), M["cover"], Vector3(0, 0, 4))
-			_part(r, "Barrel", "cyl", Vector3(0.14, 1.5, 6), Vector3(0.03, 0.05, -2.1), frame, Vector3(90, 0, 0))
-			for z in [-0.2, -1.0]:
-				_part(r, "Tape", "box", Vector3(0.56, 0.6, 0.12), Vector3(0, 0, z), M["glove"], Vector3(0, 0, 4))
-			_part(r, "Sight", "box", Vector3(0.1, 0.3, 0.1), Vector3(0.1, 0.4, -0.8), frame, Vector3(0, 0, -12))
-	_save(r, "titan_weapon_%s.tscn" % id)
+# The titans and their weapons are built in Blender now: tools/titans/.
 
 
 # --- salvage cache and extraction beacon ------------------------------------
