@@ -69,7 +69,26 @@ scatters a prop.
 ## Scrap Titan run loop
 The movement and grunt test level is still at `scenes/test_level.tscn` (open it and press F6).
 
-1. **Three zones.** Each is a seeded chain of platforms over a void, linked by gaps you
+1. **Zone 1: the Pinewoods.** A laid-out forest level. Follow the trail north from the
+   drop clearing: a picket behind a fallen log, then the enemy's wall across the valley
+   (closed gate under a watchtower; get in through the breach a falling pine made, or grapple
+   over), their outpost behind it (huts, antenna, fuel tank, a squad in the yard), a ravine
+   with the bridge blown (wallrun the hanging blast shield, grapple the crane, or hop the rock
+   pillars; grunts watch from the far lip), a logging camp on the rise (sawmill, log piles,
+   a second tower), and the extraction beacon in a clearing. One cache is guarded by the
+   outpost's or the camp's squad, the other sits up a climb (a hut roof or the sawmill roof);
+   the run seed picks which, and how many grunts hold each spot. Falling into the ravine
+   costs integrity and puts you back at the last checkpoint on the trail.
+   Three ways through: the **trail** (loud: gate or breach, the outpost yard, the crossings,
+   the camp's front), the **creek** on the left (quiet: tall grass along the banks, the
+   culvert under the wall, the tent row behind the outpost, a fallen pine over the ravine,
+   and a hunting blind overlooking the camp), and the **ridge** on the right (high: jump
+   from its end onto the wall top, across the roofs, the crane, the sawmill roof). Tall grass
+   and camo nets mark hiding spots for stealth: each has an Area3D in the `stealth_cover`
+   group, and dense patches also have an invisible `sight_blocker` body on collision layer 16
+   (mask 0) that blocks grunt line of sight but not the player, grunts or the grapple.
+   The routes are listed in `zone_info["routes"]`, and the map shot draws them.
+   **Zones 2 and 3** are seeded chains of platforms over a void, linked by gaps you
    clear with a sprint jump, a double-jump climb, a wallrun along a blue wall, or the grapple
    on an orange anchor. Grunt squads hold some platforms from behind cover (more of them in
    later zones), and every platform has low walls or blocks you can use as cover too.
@@ -81,10 +100,13 @@ The movement and grunt test level is still at `scenes/test_level.tscn` (open it 
 3. **Your titan is your build.** Four slots: chassis (armor, speed, dashes), weapon (damage),
    core (charged ability: laser burst, shield, overdrive) and kit (extra dash, plating,
    coolant). Empty slots stay scrap. Parts roll Mk I to III, and later zones roll higher.
-4. **Titanfall.** Extract from zone 3 into the arena, press V to call your titan in, walk to
-   it and press F to embark. Fight the enemy titan (a placeholder): hold left mouse on it to
-   fire, Shift to dash out of its red slam circles, V when the core is ready.
-5. Kill it and the run is complete. Lose the titan and the run is over. Enter takes you back to the temple.
+4. **Titanfall at the forest's edge.** Extract from zone 3 and you step out of the treeline
+   onto a meadow where the enemy was building a forward base. Press V to call your titan in,
+   walk to it and press F to embark. Fight the enemy titan (a placeholder): hold left mouse
+   on it to fire, Shift to dash out of its red slam circles, V when the core is ready.
+5. **Extract.** Kill it and the evac dropship comes in over the pad past where it stood;
+   walk your titan into the beam and the run is complete. Lose the titan and the run is over.
+   Enter takes you back to the temple.
 
 | Key | Action |
 |---|---|
@@ -96,9 +118,21 @@ The movement and grunt test level is still at `scenes/test_level.tscn` (open it 
 | Enter | Back to the temple (after a run ends) |
 
 Run code lives in `scripts/run/`: `run_manager.gd` (the loop), `run_state.gd` (what a run
-carries), `zone_builder.gd` (zone and arena generation), `titan_parts.gd` (part catalog and
+carries), `zone_builder.gd` (zone generation), `forest_builder.gd` (zone 1 and the forest's
+edge arena), `forest_kit.gd` (forest props and the enemy outpost kit with their colliders),
+`terrain.gd` (height-grid ground with matching collision), `titan_parts.gd` (part catalog and
 stats), `titan.gd`, `boss.gd`, and the cache, guard squad and beacon scripts. The titan is its own
 node holding the run's parts, so it can later travel with you as a walking base.
+
+The forest's models (pines, snags, fallen logs, stumps, and the enemy's wall slabs, gate,
+watchtower, huts, sandbags, crates, floodlights, antenna, fuel tank, log piles, sawmill, blown
+bridge, crane pylon, wrecked truck, evac pad, dropship, log bridge, tall grass, barrels,
+pallets, generator, camo net, hunting blind and culvert) are made in Blender by
+`tools/forest/build_props.py` (`blender -b --python tools/forest/build_props.py`, writes
+`assets/models/forest/*.glb`); it reuses the hub script's shape helpers, and the forest also
+uses the hub's broadleaf trees, bushes, ferns, grass, rocks and hills. To look at the level,
+`xvfb-run -a godot --path . -s res://tools/forest/shots.gd -- /some/dir` saves screenshots of
+each section, plus `0-map.png`, a top-down map with the three routes.
 
 ## PS2-style art
 Everything is low-poly and textured in a classic PS2 style. **F9** toggles the look
@@ -228,7 +262,9 @@ select the Player node and tweak values in the Inspector, or change the defaults
 - `tests/combat_test.gd` headless combat smoke test:
   `godot --headless --path . -s res://tests/combat_test.gd`
 - `tests/run_loop_test.gd` headless run loop test (generator limits, a bot pilot clearing the
-  hardest gap of each kind, salvage, extraction, titanfall, the fight, win and loss):
+  hardest gap of each kind and all three real ravine crossings and the culvert, log-bridge and ridge
+  flanks in the forest, salvage,
+  extraction, titanfall, the fight, evac, win and loss):
   `godot --headless --path . -s res://tests/run_loop_test.gd`
 - `tests/titan_weapons_test.gd` checks every titan weapon still deals its damage per second:
   `godot --headless --path . -s res://tests/titan_weapons_test.gd`
