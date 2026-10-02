@@ -7,8 +7,16 @@ and scikit-image.
 
 The grunt is drawn the way Eco pictures the men who turned her away: a toy
 soldier blown up with his own importance. Barrel chest full of medals, a jaw
-like a cinder block with a cigar in the smirk, a helmet two sizes too big
-pulled down over a glowing visor slit, one fist on his hip.
+like a cinder block, a helmet two sizes too big
+pulled down over a glowing visor slit, one fist on his hip. They said worse
+than "too frail" to her face, so in her memory they leer: a wide toothy
+sneer with a gold tooth and a toothpick, two narrow glowing eyes behind the
+visor glass, and they look her up and down (grunt_model.gd).
+
+Their kit is militia-issue future tech: a visor housing with ear pods,
+glowing armour seams, a jump pack with twin thrusters and an energy rifle.
+Every light is a "Visor*" part, so they all flare red during the shot
+wind-up (grunt.gd tints parts by that prefix).
 
 Blender axes, metres: Z up, he faces +Y, his right is +X, feet at Z=0. He is
 a rigid-part puppet (PS2 action figure), so every part belongs to one segment
@@ -23,7 +31,7 @@ import numpy as np
 from skimage import measure
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from sdf import (V, norm, smin, smax, union, ellipsoid, capsule, round_cone,  # noqa: E402
+from sdf import (V, norm, smin, smax, union, rot, ellipsoid, capsule, round_cone,  # noqa: E402
                  rbox, cylinder, ring, plane)
 
 SIDES = ((1.0, "R"), (-1.0, "L"))
@@ -163,6 +171,50 @@ def vest(P):
     return d
 
 
+def wrist_pad(P):
+    """Wrist computer on the left forearm."""
+    el, wr = ELBOW[-1.0], WRIST[-1.0]
+    c = el + (wr - el) * 0.62
+    ax = norm(wr - el)
+    out = norm(np.cross(ax, V(0, 1, 0)))
+    if out[0] > 0:
+        out = -out
+    R = np.column_stack([out, np.cross(ax, out), ax])
+    return rbox(P, c + out * 0.05, V(0.018, 0.045, 0.06), R, 0.01)
+
+
+def wrist_screen(P):
+    el, wr = ELBOW[-1.0], WRIST[-1.0]
+    c = el + (wr - el) * 0.62
+    ax = norm(wr - el)
+    out = norm(np.cross(ax, V(0, 1, 0)))
+    if out[0] > 0:
+        out = -out
+    R = np.column_stack([out, np.cross(ax, out), ax])
+    return rbox(P, c + out * 0.068, V(0.003, 0.032, 0.042), R, 0.002)
+
+
+def shin_guard(P, s):
+    k, a = KNEE[s], ANKLE[s]
+    c = k + (a - k) * 0.45 + V(0, 0.07, 0)
+    d = rbox(P, c, V(0.06, 0.025, 0.12), rad=0.022)
+    return smax(d, -rbox(P, c + V(0, 0.025, 0), V(0.004, 0.01, 0.13)), 0.004)  # centre ridge
+
+
+def vest_glow(P):
+    """Light strips in the vest seams and round the pauldron rims."""
+    shell = np.abs(ellipsoid(P, CHEST_C + V(0, 0.005, 0), CHEST_R + 0.026)) - 0.005
+    front = -(P[:, 1] - 0.05)
+    centre = np.maximum(np.abs(P[:, 0]) - 0.007, np.maximum(P[:, 2] - 1.38, 1.04 - P[:, 2]))
+    seam = np.maximum(np.abs(P[:, 2] - 1.17) - 0.006, np.abs(P[:, 0]) - 0.16)
+    d = np.maximum(np.maximum(shell, front), np.minimum(centre, seam))
+    for s, _ in SIDES:
+        c = SHOULDER[s] + V(s * 0.015, 0, 0.04)
+        rim = ring(P, c + V(0, 0, -0.03), None, 0.13, 0.144, 0.004, 0.006)
+        d = np.minimum(d, np.maximum(rim, -(P[:, 1] - 0.02)))
+    return d
+
+
 def pauldrons(P):
     d = 1.0
     for s, _ in SIDES:
@@ -236,42 +288,69 @@ def straps(P):
 
 
 def pack(P):
-    d = rbox(P, V(0, -0.24, 1.24), V(0.17, 0.075, 0.16), rad=0.045)
-    return smin(d, rbox(P, V(0, -0.235, 1.07), V(0.19, 0.06, 0.04), rad=0.03), 0.02)  # bedroll
+    """Jump pack."""
+    d = rbox(P, V(0, -0.235, 1.25), V(0.155, 0.07, 0.15), rad=0.04)
+    for s, _ in SIDES:  # shoulder-height intakes
+        d = smin(d, rbox(P, V(s * 0.12, -0.25, 1.39), V(0.04, 0.05, 0.03), rad=0.015), 0.02)
+    return d
 
 
-def radio(P):
-    d = rbox(P, V(0.09, -0.32, 1.33), V(0.06, 0.035, 0.09), rad=0.015)
-    d = np.minimum(d, cylinder(P, V(0.12, -0.33, 1.4), V(0.13, -0.34, 1.82), 0.006))
-    return np.minimum(d, ellipsoid(P, V(0.13, -0.34, 1.82), V(0.012, 0.012, 0.012)))
+def thrusters(P):
+    d = 1.0
+    for s, _ in SIDES:
+        a, b = V(s * 0.1, -0.31, 1.25), V(s * 0.1, -0.31, 1.06)
+        t = round_cone(P, a, b, 0.04, 0.05)
+        t = smax(t, -cylinder(P, b - V(0, 0, 0.01), b + V(0, 0, 0.04), 0.036), 0.004)  # nozzle bell
+        d = np.minimum(d, t)
+    # whip antenna
+    d = np.minimum(d, cylinder(P, V(0.11, -0.27, 1.38), V(0.13, -0.3, 1.72), 0.005))
+    return d
+
+
+def thruster_glow(P):
+    d = 1.0
+    for s, _ in SIDES:
+        d = np.minimum(d, cylinder(P, V(s * 0.1, -0.31, 1.065), V(s * 0.1, -0.31, 1.08), 0.034))
+    return np.minimum(d, ellipsoid(P, V(0.13, -0.3, 1.725), V(0.011, 0.011, 0.011)))
+
+
+def _rifle_frame():
+    d_ = RIFLE_DIR
+    rear = MUZZLE - d_ * 0.82
+    side = norm(np.cross(d_, V(0, 0, 1)))
+    up = np.cross(side, d_)
+    return d_, rear, side, up, np.column_stack([side, d_, up])
 
 
 def rifle(P):
-    d_ = RIFLE_DIR
-    rear = MUZZLE - d_ * 0.82
-    side = norm(np.cross(d_, V(0, 0, 1)))
-    up = np.cross(side, d_)
-    R = np.column_stack([side, d_, up])
-    mid = rear + d_ * 0.36
-    d = rbox(P, mid, V(0.032, 0.2, 0.05), R, 0.01)                              # receiver
-    d = np.minimum(d, cylinder(P, mid + d_ * 0.18 + up * 0.015, MUZZLE, 0.016))   # barrel
-    d = np.minimum(d, cylinder(P, MUZZLE - d_ * 0.04, MUZZLE, 0.024))             # muzzle brake
-    d = np.minimum(d, rbox(P, mid + up * 0.07 - d_ * 0.02, V(0.012, 0.07, 0.02), R, 0.006))  # sight rail
-    mag = mid + d_ * 0.08 - up * 0.1
-    d = np.minimum(d, rbox(P, mag, V(0.022, 0.035, 0.07), R @ _rx(-15), 0.008))
+    """Energy rifle: slab-sided receiver, shrouded barrel, top rail."""
+    d_, rear, side, up, R = _rifle_frame()
+    mid = rear + d_ * 0.38
+    d = rbox(P, mid, V(0.034, 0.22, 0.052), R, 0.016)                               # receiver
+    d = np.minimum(d, rbox(P, mid + d_ * 0.29 + up * 0.012, V(0.028, 0.1, 0.034), R, 0.014))  # shroud
+    d = np.minimum(d, cylinder(P, mid + d_ * 0.3, MUZZLE, 0.014))                   # barrel
+    d = np.minimum(d, cylinder(P, MUZZLE - d_ * 0.05, MUZZLE, 0.022))               # emitter
+    d = np.minimum(d, rbox(P, mid + up * 0.07 - d_ * 0.04, V(0.014, 0.09, 0.016), R, 0.006))  # rail
+    d = np.minimum(d, rbox(P, mid + up * 0.1 - d_ * 0.02, V(0.02, 0.03, 0.022), R, 0.008))   # sight body
     return d
 
 
-def rifle_wood(P):
-    d_ = RIFLE_DIR
-    rear = MUZZLE - d_ * 0.82
-    side = norm(np.cross(d_, V(0, 0, 1)))
-    up = np.cross(side, d_)
-    R = np.column_stack([side, d_, up])
-    d = rbox(P, rear + d_ * 0.07 - up * 0.02, V(0.026, 0.09, 0.045), R, 0.012)      # stock
-    d = np.minimum(d, rbox(P, rear + d_ * 0.63 + up * 0.0, V(0.03, 0.1, 0.035), R, 0.012))  # handguard
-    d = np.minimum(d, rbox(P, rear + d_ * 0.26 - up * 0.07, V(0.02, 0.022, 0.05), R @ _rx(15), 0.008))  # grip
+def rifle_frame(P):
+    d_, rear, side, up, R = _rifle_frame()
+    d = rbox(P, rear + d_ * 0.07 - up * 0.01, V(0.024, 0.09, 0.04), R, 0.014)       # stock
+    d = smax(d, -rbox(P, rear + d_ * 0.07 - up * 0.01, V(0.03, 0.05, 0.016), R, 0.008), 0.006)  # skeleton cut
+    d = np.minimum(d, rbox(P, rear + d_ * 0.27 - up * 0.075, V(0.02, 0.022, 0.05), R @ _rx(15), 0.008))  # grip
+    d = np.minimum(d, rbox(P, rear + d_ * 0.47 - up * 0.08, V(0.024, 0.04, 0.05), R @ _rx(-10), 0.01))  # cell well
     return d
+
+
+def rifle_glow(P):
+    """Energy cell window and holo sight."""
+    d_, rear, side, up, R = _rifle_frame()
+    mid = rear + d_ * 0.38
+    d = rbox(P, mid + side * 0.033 + d_ * 0.05, V(0.006, 0.09, 0.012), R, 0.004)
+    d = np.minimum(d, rbox(P, mid - side * 0.033 + d_ * 0.05, V(0.006, 0.09, 0.012), R, 0.004))
+    return np.minimum(d, rbox(P, mid + up * 0.135 - d_ * 0.02, V(0.016, 0.003, 0.014), R, 0.002))
 
 
 def _rx(deg):
@@ -281,7 +360,7 @@ def _rx(deg):
 
 # --- head (tilts back, smug) ------------------------------------------------------
 
-def head_skin(P):
+def _face(P):
     neck = round_cone(P, V(0, -0.01, 1.42), V(0, 0.0, 1.56), 0.098, 0.088)   # bull neck
     skull = ellipsoid(P, HEAD_C, V(0.108, 0.118, 0.12))
     jaw = rbox(P, V(0, 0.06, 1.545), V(0.108, 0.085, 0.058), rad=0.048)        # cinder-block jaw
@@ -295,61 +374,115 @@ def head_skin(P):
     return d
 
 
+def head_skin(P):
+    """Face with the leering grin cut into it."""
+    return smax(_face(P), -_grin(P), 0.004)
+
+
+GRIN_C = V(0.0, 0.15, 1.562)
+GRIN_R = rot(V(0, 1, 0), -9)  # lopsided: higher on his right
+
+
+def _grin(P):
+    """Wide crescent grin, thick in the middle and pulled up at the corners."""
+    low = ellipsoid(P, GRIN_C, V(0.066, 0.06, 0.027), GRIN_R)
+    top = ellipsoid(P, GRIN_C + GRIN_R @ V(0, 0, 0.034), V(0.085, 0.09, 0.036), GRIN_R)
+    return smax(low, -top, 0.004)
+
+
+def mouth(P):
+    """Dark mouth behind the teeth."""
+    return ellipsoid(P, GRIN_C + V(0, -0.045, 0.0), V(0.062, 0.03, 0.028), GRIN_R)
+
+
+def _teeth_row(P):
+    d = ellipsoid(P, GRIN_C + V(0, -0.024, 0.006), V(0.058, 0.03, 0.022), GRIN_R)
+    d = np.maximum(d, -(P[:, 2] - (GRIN_C[2] - 0.006 + P[:, 0] * np.tan(np.radians(9)))))  # upper row only
+    gap = np.abs(((P[:, 0] + 0.008) / 0.016) % 1.0 - 0.5) * 0.016 - 0.0065
+    return smax(d, gap, 0.0015)
+
+
+def teeth(P):
+    return np.maximum(_teeth_row(P), -np.maximum(P[:, 0] - 0.032, 0.016 - P[:, 0]))
+
+
+def gold_tooth(P):
+    return np.maximum(_teeth_row(P) - 0.0005, np.maximum(P[:, 0] - 0.032, 0.016 - P[:, 0]))
+
+
 def face_point(x, z, out=0.0):
     """Point on the front of the face at (x, z), pushed `out` metres forward."""
     lo, hi = 0.0, 0.3
     for _ in range(40):
         mid = (lo + hi) / 2
-        if head_skin(V(x, mid, z)[None])[0] < 0:
+        if _face(V(x, mid, z)[None])[0] < 0:
             lo = mid
         else:
             hi = mid
     return V(x, lo + out, z)
 
 
-def _smirk():
-    """Lopsided smirk, rising to his right where the cigar sits."""
-    return [face_point(x, z, -0.002) for x, z in
-            ((-0.055, 1.566), (-0.025, 1.561), (0.0, 1.561), (0.025, 1.566), (0.05, 1.578))]
-
-
-def mouth(P):
-    pts = _smirk()
-    d = 1.0
-    for a, b in zip(pts, pts[1:]):
-        d = np.minimum(d, capsule(P, a, b, 0.0055))
-    c = face_point(0.0, 1.5, -0.003)  # cleft chin
-    return np.minimum(d, capsule(P, c, c + V(0, 0.0, 0.035), 0.004))
-
-
 def stubble(P):
     """Five o'clock shadow on the jaw."""
-    d = head_skin(P) - 0.006
-    region = np.maximum(P[:, 2] - 1.548, 1.47 - P[:, 2])
+    d = _face(P) - 0.004
+    d = smax(d, -_grin(P) - 0.004, 0.004)
+    region = np.maximum(P[:, 2] - 1.55, 1.47 - P[:, 2])
     region = smax(region, -(P[:, 1] - 0.0), 0.02)
     return np.maximum(d, region)
 
 
 def helmet(P):
-    """Two sizes too big and pulled down to the eyes."""
+    """Two sizes too big: a tech dome with a visor housing and ear pods."""
     c = HEAD_C + V(0, -0.005, 0.045)
-    dome = ellipsoid(P, c, V(0.185, 0.2, 0.165))
-    dome = smax(dome, plane(P, V(0, 0, 1.66), V(0, 0, -1)), 0.01)
-    brim = ellipsoid(P, V(0, 0.03, 1.665), V(0.215, 0.25, 0.02))
-    d = smin(dome, brim, 0.02)
-    d = smin(d, ellipsoid(P, c + V(0, 0, 0.15), V(0.05, 0.13, 0.03)), 0.04)  # crest ridge
-    return d
+    dome = ellipsoid(P, c, V(0.19, 0.205, 0.17))
+    dome = smax(dome, plane(P, V(0, 0, 1.6), V(0, 0, -1)), 0.01)
+    housing = ellipsoid(P, V(0, 0.02, 1.64), V(0.158, 0.172, 0.06))
+    housing = smax(housing, plane(P, V(0, 0, 1.602), V(0, 0, -1)), 0.006)
+    d = smin(dome, housing, 0.02)
+    d = smax(d, -np.maximum(np.abs(P[:, 2] - 1.628) - 0.02, -(P[:, 1] - 0.03)), 0.006)  # visor slot
+    d = smin(d, ellipsoid(P, c + V(0, -0.03, 0.15), V(0.035, 0.14, 0.035)), 0.03)  # crest
+    for s, _ in SIDES:
+        d = smin(d, cylinder(P, V(s * 0.15, -0.005, 1.63), V(s * 0.2, -0.005, 1.63), 0.05), 0.012)
+    # antenna fin over his left ear
+    fin = rbox(P, V(-0.19, -0.05, 1.69), V(0.006, 0.03, 0.06), rot(V(1, 0, 0), -25), 0.005)
+    return smin(d, fin, 0.01)
 
 
 def helmet_band(P):
-    return ring(P, V(0, -0.005, 1.7), None, 0.186, 0.2, 0.008, 0.016)
+    return ring(P, V(0, -0.005, 1.67), None, 0.19, 0.205, 0.007, 0.012)
 
 
 def visor(P):
-    """Glowing slit across the eyes under the brim (grunt.gd tints it)."""
-    d = ellipsoid(P, V(0, 0.01, 1.625), V(0.122, 0.135, 0.12))
-    d = np.maximum(d, np.abs(P[:, 2] - 1.627) - 0.016)
-    return np.maximum(d, -(P[:, 1] - 0.03))
+    """Dark visor glass in the housing slot (grunt.gd tints its glow)."""
+    d = ellipsoid(P, V(0, 0.012, 1.628), V(0.14, 0.152, 0.12))
+    d = np.maximum(d, np.abs(P[:, 2] - 1.628) - 0.019)
+    return np.maximum(d, -(P[:, 1] - 0.0))
+
+
+def _eye_centres():
+    out = []
+    for s in (1.0, -1.0):
+        x = s * 0.046
+        y = 0.012 + 0.152 * np.sqrt(1 - (x / 0.14) ** 2) + 0.001
+        out.append((s, V(x, y, 1.627)))
+    return out
+
+
+def visor_eyes(P):
+    """Two narrow glowing eyes behind the glass, squinting in a leer."""
+    d = 1.0
+    for s, c in _eye_centres():
+        R = rot(V(0, 1, 0), s * 12) @ rot(V(0, 0, 1), s * 14)  # outer corners droop
+        d = np.minimum(d, ellipsoid(P, c, V(0.027, 0.006, 0.0052), R))
+    return d
+
+
+def visor_lights(P):
+    """Status lights on the ear pods."""
+    d = 1.0
+    for s, _ in SIDES:
+        d = np.minimum(d, cylinder(P, V(s * 0.2, -0.005, 1.63), V(s * 0.204, -0.005, 1.63), 0.022))
+    return d
 
 
 def straps_chin(P):
@@ -359,19 +492,9 @@ def straps_chin(P):
     return d
 
 
-def _cigar_ends():
-    a = face_point(0.04, 1.574, -0.01)
-    return a, a + norm(V(0.4, 1.0, -0.12)) * 0.1
-
-
-def cigar(P):
-    a, b = _cigar_ends()
-    return round_cone(P, a, b, 0.011, 0.012)
-
-
-def ember(P):
-    a, b = _cigar_ends()
-    return ellipsoid(P, b + norm(b - a) * 0.004, V(0.012, 0.012, 0.012))
+def toothpick(P):
+    a = GRIN_C + V(0.058, -0.004, 0.012)
+    return capsule(P, a, a + norm(V(0.55, 1.0, -0.25)) * 0.075, 0.0032)
 
 
 # --- parts table -----------------------------------------------------------------
@@ -384,6 +507,7 @@ for s, side in SIDES:
     PARTS[f"kneepad_{side}"] = ("Shin" + side, "grunt_armor", lambda P, s=s: knee_pad(P, s), 0.004, 300)
     PARTS[f"boot_{side}"] = ("Shin" + side, "grunt_leather", lambda P, s=s: boot(P, s), 0.005, 900)
     PARTS[f"sole_{side}"] = ("Shin" + side, "grunt_dark", lambda P, s=s: sole(P, s), 0.005, 300)
+    PARTS[f"shinguard_{side}"] = ("Shin" + side, "grunt_metal", lambda P, s=s: shin_guard(P, s), 0.004, 400)
     PARTS[f"laces_{side}"] = ("Shin" + side, "grunt_dark", lambda P, s=s: lace_strap(P, s), 0.004, 300)
 PARTS.update({
     "pelvis": ("Hips", "grunt_uniform", pelvis, 0.006, 900),
@@ -399,19 +523,27 @@ PARTS.update({
     "ribbons": ("Torso", "grunt_ribbon", ribbons, 0.0025, 300),
     "pouches": ("Hips", "grunt_leather", pouches, 0.004, 500),
     "straps": ("Torso", "grunt_dark", straps, 0.004, 600),
-    "pack": ("Torso", "grunt_uniform", pack, 0.006, 700),
-    "radio": ("Torso", "grunt_metal", radio, 0.004, 400),
-    "rifle": ("Torso", "grunt_metal", rifle, 0.004, 900),
-    "rifle_wood": ("Torso", "grunt_dark", rifle_wood, 0.004, 500),
+    "pack": ("Torso", "grunt_armor", pack, 0.005, 900),
+    "thrusters": ("Torso", "grunt_metal", thrusters, 0.004, 900),
+    "visor_thrust": ("Torso", "grunt_visor", thruster_glow, 0.003, 200),
+    "visor_trim": ("Torso", "grunt_visor", vest_glow, 0.003, 1200),
+    "wrist_pad": ("Torso", "grunt_metal", wrist_pad, 0.003, 300),
+    "visor_screen": ("Torso", "grunt_visor", wrist_screen, 0.002, 100),
+    "rifle": ("Torso", "grunt_metal", rifle, 0.004, 1200),
+    "rifle_frame": ("Torso", "grunt_dark", rifle_frame, 0.004, 600),
+    "visor_cell": ("Torso", "grunt_visor", rifle_glow, 0.0025, 200),
     "head": ("Head", "grunt_skin", head_skin, 0.0035, 2400),
     "stubble": ("Head", "grunt_stubble", stubble, 0.003, 2400),
-    "mouth": ("Head", "grunt_dark", mouth, 0.002, 400),
-    "helmet": ("Head", "grunt_armor", helmet, 0.004, 1600),
+    "mouth": ("Head", "grunt_dark", mouth, 0.003, 300),
+    "teeth": ("Head", "grunt_teeth", teeth, 0.0015, 900),
+    "gold_tooth": ("Head", "grunt_brass", gold_tooth, 0.0015, 150),
+    "helmet": ("Head", "grunt_armor", helmet, 0.0035, 3000),
     "helmet_band": ("Head", "grunt_dark", helmet_band, 0.003, 500),
-    "visor": ("Head", "grunt_visor", visor, 0.003, 400),
+    "visor": ("Head", "grunt_glass", visor, 0.003, 500),
+    "visor_eyes": ("Head", "grunt_visor", visor_eyes, 0.0015, 300),
+    "visor_lights": ("Head", "grunt_visor", visor_lights, 0.002, 150),
     "chinstraps": ("Head", "grunt_leather", straps_chin, 0.003, 200),
-    "cigar": ("Head", "grunt_cigar", cigar, 0.0025, 200),
-    "ember": ("Head", "grunt_ember", ember, 0.002, 80),
+    "toothpick": ("Head", "grunt_cigar", toothpick, 0.0012, 120),
 })
 
 BOUNDS = (V(-0.62, -0.45, -0.02), V(0.62, 0.72, 1.92))

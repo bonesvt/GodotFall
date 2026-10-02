@@ -11,4 +11,4 @@ shader_parameter/tex_scale = 4.0
 shader_parameter/world_space = false
 shader_parameter/albedo = Color(0.25, 0.25, 0.25, 1)
 shader_parameter/emission = Color(1, 1, 1, 1)
-shader_parameter/emission_energy = 1.0
+shader_parameter/emission_energy = 2.0

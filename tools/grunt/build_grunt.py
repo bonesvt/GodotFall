@@ -42,9 +42,10 @@ PREVIEW_COLORS = {
     "grunt_dark": (0.14, 0.13, 0.12), "grunt_metal": (0.35, 0.36, 0.38),
     "grunt_brass": (0.9, 0.7, 0.3), "grunt_ribbon": (0.75, 0.15, 0.15),
     "grunt_visor": (1.0, 0.75, 0.25), "grunt_cigar": (0.45, 0.3, 0.18),
-    "grunt_ember": (1.0, 0.45, 0.1), "grunt_stubble": (0.5, 0.45, 0.45),
+    "grunt_stubble": (0.5, 0.45, 0.45), "grunt_teeth": (0.95, 0.92, 0.8),
+    "grunt_glass": (0.15, 0.12, 0.1),
 }
-AO_SKIP = ("Visor", "Ember")
+AO_SKIP = ("Visor",)
 
 
 def material(name):

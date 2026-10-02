@@ -127,6 +127,7 @@ func _unhandled_input(event: InputEvent) -> void:
 
 func _render_shots(folder: String) -> void:
 	turntable = false
+	grunt.model._ogle_wait = 1e9  # keep his head up for the stills
 	DirAccess.make_dir_recursive_absolute(folder)
 	for shot in SHOTS:
 		var is_squad: bool = shot[0] == "squad"

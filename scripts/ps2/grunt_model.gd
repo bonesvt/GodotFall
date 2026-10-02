@@ -2,7 +2,8 @@ extends "res://scripts/ps2/ps2_model.gd"
 ## The grunt's puppet (assets/models/grunt/grunt.glb): on top of the leg swing
 ## from ps2_model.gd, bends the knees on the back swing, bobs and twists the
 ## torso while walking, and when standing puffs his chest, rocks on his heels
-## and keeps his chin up. (Positive X rotation tips a part back / up.) During the shot wind-up he squares up to the target.
+## and keeps his chin up, every few seconds slowly looking you up and down
+## and leaning in. (Positive X rotation tips a part back / up.) During the shot wind-up he squares up to the target.
 
 var _knees: Array[Node3D] = []
 var _torso: Node3D
@@ -11,6 +12,11 @@ var _hips: Node3D
 var _rest := {}
 var _t := 0.0
 var _swagger := 0.0
+## Time left in the current once-over (look down and back up), and until the next.
+var _ogle := 0.0
+var _ogle_wait := 0.0
+
+const OGLE_TIME := 2.2
 
 
 func _ready() -> void:
@@ -26,6 +32,7 @@ func _ready() -> void:
 		if n != null:
 			_rest[n] = n.position
 	_t = randf() * 10.0  # squads don't swagger in step
+	_ogle_wait = randf_range(1.0, 5.0)
 
 
 func _process(delta: float) -> void:
@@ -40,6 +47,15 @@ func _process(delta: float) -> void:
 		aiming = 1.0
 	_swagger = lerpf(_swagger, (1.0 - walk) * (1.0 - aiming), minf(delta * 4.0, 1.0))
 	var k := minf(delta * 12.0, 1.0)
+
+	# the once-over: eyes drop to your boots and crawl back up, leaning in
+	_ogle_wait -= delta * _swagger
+	if _ogle_wait <= 0.0 and _ogle <= 0.0:
+		_ogle = OGLE_TIME
+		_ogle_wait = randf_range(4.0, 8.0)
+	_ogle = maxf(_ogle - delta, 0.0)
+	var look_down := sin(PI * (1.0 - _ogle / OGLE_TIME)) if _ogle > 0.0 else 0.0
+	look_down *= _swagger
 
 	# knees bend while that leg swings back
 	if _knees.size() == 2 and _legs.size() == 2:
@@ -57,11 +73,11 @@ func _process(delta: float) -> void:
 
 	_hips.position = _rest[_hips] + Vector3(0, bob, 0)
 	_torso.position = _rest[_torso] + Vector3(0, bob, 0)
-	_torso.rotation.x = lerpf(_torso.rotation.x, rock + 0.04 * _swagger - 0.06 * aiming, k)
+	_torso.rotation.x = lerpf(_torso.rotation.x, rock + 0.04 * _swagger - 0.06 * aiming - 0.07 * look_down, k)
 	_torso.rotation.y = lerpf(_torso.rotation.y, twist, k)
 	_torso.rotation.z = lerpf(_torso.rotation.z, roll, k)
 	_torso.scale = Vector3(1.0 + puff, 1.0 + puff * 0.5, 1.0 + puff)
 	# chin up (looking down his nose at you), dropped level to aim
 	var nod := sin(_t * 2.6) * 0.03 * _swagger
-	_head.rotation.x = lerpf(_head.rotation.x, 0.18 * _swagger + nod, k)
-	_head.rotation.z = lerpf(_head.rotation.z, 0.08 * _swagger, k)
+	_head.rotation.x = lerpf(_head.rotation.x, 0.18 * _swagger + nod - 0.5 * look_down, k)
+	_head.rotation.z = lerpf(_head.rotation.z, 0.08 * _swagger + 0.06 * look_down, k)
