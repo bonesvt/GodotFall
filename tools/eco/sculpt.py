@@ -73,12 +73,45 @@ def _frame(axis_z, hint=V(1, 0, 0)):
     return np.column_stack([x, y, z])
 
 
+def _front(x, z, off=0.0):
+    return _on_torso(V(x, 1.0, z), off)
+
+
+def toned_stomach(P, d):
+    """Athletic abs: two columns of shallow pads either side of a centre line,
+    the lines across them, obliques curving down to the hips, and a navel."""
+    m = (P[:, 2] > 0.93) & (P[:, 2] < 1.2) & (P[:, 1] > 0.0) & (np.abs(P[:, 0]) < 0.13)
+    if not m.any():
+        return d
+    Q, e = P[m], d[m]
+    for z in (1.118, 1.078, 1.04):
+        for s in (1, -1):
+            c = _front(s * 0.018, z, -0.0035)
+            e = smin(e, ellipsoid(Q, c, V(0.0155, 0.007, 0.0165)), 0.006)
+    e = smax(e, -capsule(Q, _front(0, 1.16, 0.0005), _front(0, 1.0, 0.0005), 0.0028), 0.003)  # centre line
+    for z in (1.098, 1.059):
+        e = smax(e, -capsule(Q, _front(-0.03, z, 0.0004), _front(0.03, z, 0.0004), 0.0018), 0.003)
+    for s in (1, -1):  # obliques / hip lines
+        pts = [_front(s * x, z, 0.0004) for x, z in ((0.062, 1.09), (0.058, 1.03), (0.045, 0.98), (0.03, 0.94))]
+        for a, b in zip(pts[:-1], pts[1:]):
+            e = smax(e, -capsule(Q, a, b, 0.0022), 0.004)
+    e = smax(e, -sphere(Q, _front(0, 1.012, -0.001), 0.0052), 0.003)  # navel
+    d = d.copy()
+    d[m] = e
+    return d
+
+
 def body(P):
     d = smin(torso(P), neck(P), 0.03)
     for s, side in SIDES:
         d = smin(d, leg(P, s, side), 0.04)
         d = smin(d, arm(P, s, side), 0.03)
-    return d
+        # kneecap
+        d = smin(d, ellipsoid(P, J["knee." + side] + V(0, 0.043, 0.012), V(0.024, 0.014, 0.028)), 0.014)
+    d = toned_stomach(P, d)
+    # the thighs touch but stay separate surfaces below the crotch
+    gap = np.maximum(np.abs(P[:, 0]) - 0.004, P[:, 2] - 0.765)
+    return smax(d, -gap, 0.012)
 
 
 # --- hands -----------------------------------------------------------------
@@ -253,12 +286,14 @@ def hair_strands():
     rng = np.random.default_rng(7)
     whorl, _ = scalp_point(28, 180)
     strands = []
-    rows = [(10, 5, 0), (28, 9, 20), (48, 12, 0), (68, 14, 13), (88, 14, 0), (106, 11, 16)]
+    rows = [(8, 6, 0), (20, 11, 16), (33, 15, 6), (40, 24, 4), (47, 19, 0), (61, 22, 8), (75, 23, 0), (89, 22, 9), (103, 18, 4), (114, 12, 15)]
     for theta, count, offset in rows:
         for i in range(count):
             phi = -180 + offset + 360.0 * i / count + rng.uniform(-6, 6)
             phi = (phi + 180) % 360 - 180
-            th = theta + rng.uniform(-4, 4)
+            if theta == 40 and abs(phi) > 60:
+                continue  # extra fringe row, front only
+            th = theta + rng.uniform(-3, 3)
             root, n = scalp_point(th, phi, 0.004)
             if root[2] < hairline_z(phi) + 0.004:
                 continue
@@ -273,37 +308,52 @@ def hair_strands():
                 flow = norm(flow * 0.7 + V(0.95, 0.15, -0.35))
             side = 60 <= abs(phi) <= 130
             back = abs(phi) > 130
+            k_r = rng.uniform(0.85, 1.15)
             if front:
-                L, r0, lift, flick, grav = rng.uniform(0.095, 0.12), 0.018, 0.35, 0.12, 0.3
+                L, r0, lift, flick, grav = rng.uniform(0.08, 0.1), 0.0125, 0.35, 0.12, 0.3
             elif th < 16:
-                L, r0, lift, flick, grav = rng.uniform(0.07, 0.085), 0.02, 0.15, 0.05, 0.5
+                L, r0, lift, flick, grav = rng.uniform(0.07, 0.085), 0.0135, 0.15, 0.05, 0.5
             elif th < 30:
-                L, r0, lift, flick, grav = rng.uniform(0.09, 0.11), 0.02, 0.3, 0.25, 0.4
+                L, r0, lift, flick, grav = rng.uniform(0.09, 0.115), 0.0135, 0.3, 0.25, 0.4
             elif side:
-                L, r0, lift, flick, grav = rng.uniform(0.065, 0.085), 0.017, 0.15, 0.35, 0.9
+                L, r0, lift, flick, grav = rng.uniform(0.065, 0.09), 0.0115, 0.15, 0.35, 0.9
             elif back:
-                L, r0, lift, flick, grav = rng.uniform(0.07, 0.09), 0.018, 0.2, 0.42, 0.8
+                L, r0, lift, flick, grav = rng.uniform(0.07, 0.095), 0.0125, 0.2, 0.42, 0.8
             else:
-                L, r0, lift, flick, grav = rng.uniform(0.085, 0.1), 0.019, 0.25, 0.3, 0.6
+                L, r0, lift, flick, grav = rng.uniform(0.085, 0.105), 0.013, 0.25, 0.3, 0.6
+            r0 *= k_r
             pts, radii = [root], [r0]
             dirv = norm(flow + n * lift)
-            steps = 7
+            steps = 9
             for k in range(steps):
                 t = (k + 1) / steps
                 p = pts[-1]
                 nn = scalp_normal(p)
                 dirv = norm(dirv + V(0, 0, -grav * 0.18) + nn * (flick * 0.5 * t * t))
-                if front and p[2] < 1.585:  # the fringe sweeps aside above her eyes
-                    dirv = norm(V(dirv[0] + 0.12, dirv[1], dirv[2] * 0.5))
+                if front and p[2] < 1.592:  # the fringe sweeps aside above her eyes
+                    dirv = norm(V(dirv[0] + 0.2, dirv[1], dirv[2] * 0.15))
                 p = p + dirv * L / steps
                 # keep the lock lying on the head rather than inside it
-                lim = 0.009 + 0.004 * t
+                lim = (0.012 if front else 0.009) + 0.004 * t
+                if front and p[2] < 1.6:
+                    lim += 0.006  # clear the brow ridge
                 dist = scalp_dist(p)
                 if dist < lim:
                     p = p + scalp_normal(p) * (lim - dist)
                 pts.append(p)
-                radii.append(r0 * (1.0 - 0.82 * t ** 1.3))
+                radii.append(r0 * (1.0 - 0.9 * t ** 1.15))
             strands.append((pts, radii, n))
+            # split tip: a thinner offshoot peeling away from the lock's last third
+            if rng.random() < 0.6:
+                j = 5
+                side_v = norm(np.cross(n, norm(pts[-1] - pts[j])) + rng.normal(0, 0.2, 3))
+                sub, sr = [pts[j]], [radii[j] * 0.7]
+                for k in range(1, 4):
+                    t = k / 3
+                    q = pts[min(j + k * 1, len(pts) - 1)] + side_v * 0.008 * t + n * 0.002 * t
+                    sub.append(q)
+                    sr.append(radii[j] * 0.7 * (1 - 0.88 * t))
+                strands.append((sub, sr, n))
     # sideburn locks in front of the ears
     for s, _ in SIDES:
         root, n = scalp_point(98, s * 76, 0.004)
@@ -333,7 +383,7 @@ def hair(P):
     phi = np.degrees(np.arctan2(P[:, 0], P[:, 1]))
     cap = smax(cap, hairline_z(phi) - P[:, 2], 0.006)
     d = cap
-    flat = 1.6  # locks are ribbons: this much wider than they are thick
+    flat = 2.0  # locks are ribbons: this much wider than they are thick
     for pts, radii, n in _STRANDS:
         lo = np.min(pts, axis=0) - 0.03
         hi = np.max(pts, axis=0) + 0.03
@@ -348,48 +398,83 @@ def hair(P):
         e = None
         for k in range(len(pts) - 1):
             seg = round_cone(Q, tp[k], tp[k + 1], radii[k] * flat, radii[k + 1] * flat) / flat
-            e = seg if e is None else smin(e, seg, 0.004)
-        d[m] = smin(d[m], e, 0.006)
+            e = seg if e is None else smin(e, seg, 0.003)
+        d[m] = smin(d[m], e, 0.0012)  # nearly hard joins keep a crease between locks
     return d
 
 
 # --- clothes -------------------------------------------------------------------
 
-def shirt(P):
-    d = torso(P, 0.004)
-    d = smin(d, neck(P, 0.003), 0.02)
-    d = smax(d, P[:, 2] - 1.402, 0.008)            # crew neckline
-    d = smax(d, 0.985 - P[:, 2], 0.006)            # tucked into the pants
-    for s, side in SIDES:                          # cut the arm holes
-        d = smax(d, -arm(P, s, side, 0.003), 0.004)
-    return d
-
-
-def pants(P):
-    d = ellipsoid(P, V(0, 0, 0.9), V(0.178, 0.122, 0.116))
-    d = smin(d, ellipsoid(P, V(0, 0.0, 1.02), V(0.122, 0.09, 0.06)), 0.04)
+def sports_bra(P):
+    """Racerback sports bra: scoop front, wide under-bust band."""
+    d = torso(P, 0.0035)
+    d = smax(d, P[:, 2] - 1.40, 0.005)
+    d = smax(d, 1.163 - P[:, 2], 0.004)
     for s, side in SIDES:
-        d = smin(d, ellipsoid(P, V(s * 0.066, -0.06, 0.85), V(0.095, 0.081, 0.097)), 0.035)
-        hip, knee, ankle = J["hip." + side], J["knee." + side], J["ankle." + side]
-        d = smin(d, round_cone(P, hip, knee, 0.11, 0.072), 0.05)
-        d = smin(d, ellipsoid(P, V(s * 0.1, 0.008, 0.7), V(0.087, 0.082, 0.14)), 0.04)
-        d = smin(d, round_cone(P, knee + V(0, -0.006, 0), ankle + V(0, -0.006, 0.1), 0.063, 0.056), 0.03)
-        d = smin(d, ellipsoid(P, V(s * 0.09, -0.03, 0.32), V(0.057, 0.057, 0.11)), 0.03)
-        # cargo pocket with a flap on the outer thigh
-        d = smin(d, rbox(P, V(s * 0.152, 0.006, 0.6), V(0.016, 0.048, 0.06), rot(V(0, 1, 0), -s * 5), 0.012), 0.008)
-        d = smin(d, rbox(P, V(s * 0.158, 0.006, 0.655), V(0.012, 0.052, 0.014), rot(V(0, 1, 0), -s * 5), 0.006), 0.004)
-        # bunched folds above the boots
-        m = (P[:, 2] < 0.36) & (np.abs(P[:, 0] - s * 0.09) < 0.12)
-        ang = np.arctan2(P[m, 0] - s * 0.09, P[m, 1])
-        d[m] -= 0.0026 * np.sin(P[m, 2] * 120.0 + 2.5 * np.sin(ang * 2 + s)) * np.clip((0.36 - P[m, 2]) * 10, 0, 1)
-        # knee seam ridge
-        d = smin(d, ring(P, knee + V(0, 0.0, 0.07), rot(V(1, 0, 0), 6), 0.07, 0.072, 0.003, 0.004), 0.004)
-    # keep a gap between the legs below the crotch so strides don't stretch a web
-    gap = np.maximum(np.abs(P[:, 0]) - 0.007, P[:, 2] - 0.72)
-    d = smax(d, -gap, 0.012)
-    d = smax(d, P[:, 2] - 1.035, 0.006)
-    d = smax(d, 0.17 - P[:, 2], 0.004)
+        d = smax(d, -ellipsoid(P, V(s * 0.145, -0.005, 1.34), V(0.075, 0.13, 0.085)), 0.005)  # armholes
+        d = smax(d, -ellipsoid(P, V(s * 0.115, -0.085, 1.34), V(0.095, 0.06, 0.12)), 0.005)  # racerback
+        d = smax(d, -arm(P, s, side, 0.003), 0.004)
+    d = smax(d, -ellipsoid(P, V(0, 0.12, 1.37), V(0.062, 0.1, 0.105)), 0.005)          # deep scoop
+    band = np.maximum(torso(P, 0.0058), np.abs(P[:, 2] - 1.171) - 0.0075)
+    return smin(d, band, 0.002)
+
+
+def _hips(P, grow=0.0):
+    d = torso(P, grow)
+    for s, side in SIDES:
+        d = smin(d, leg(P, s, side, grow), 0.02)
     return d
+
+
+def shorts_hem(P):
+    return 0.762 + np.clip(np.abs(P[:, 0]) - 0.09, 0, 0.1) * 0.3 - np.clip(-P[:, 1], 0, 0.1) * 0.08
+
+
+def shorts_top(P):
+    return 0.99 - P[:, 1] * 0.1
+
+
+def _leg_gap(P, z=0.774, w=0.0065):
+    return np.maximum(np.abs(P[:, 0]) - w, P[:, 2] - z)
+
+
+def shorts(P):
+    """Fitted short shorts: rolled cuffs, waistband, back patch pockets,
+    front pocket seams and a fly."""
+    base = _hips(P)
+    hem, top = shorts_hem(P), shorts_top(P)
+    d = base - 0.008
+    d = smax(d, hem - P[:, 2], 0.003)
+    d = smax(d, P[:, 2] - top, 0.004)
+    cuff = np.maximum(base - 0.0125, np.abs(P[:, 2] - hem - 0.009) - 0.009)
+    band = np.maximum(base - 0.0115, np.abs(P[:, 2] - top + 0.013) - 0.012)
+    d = smin(np.minimum(d, cuff), band, 0.002)
+    for s, side in SIDES:
+        c = _on_torso(V(s * 0.068, -1.0, 0.905), 0.0095)
+        d = smin(d, rbox(P, c, V(0.037, 0.005, 0.033), rot(V(1, 0, 0), -12), 0.006), 0.002)
+        pts = [_on_torso(V(s * x, 1.0, z), 0.008) for x, z in ((0.062, 0.975), (0.09, 0.95), (0.125, 0.925), (0.15, 0.92))]
+        for a, b in zip(pts[:-1], pts[1:]):
+            d = smax(d, -capsule(P, a, b, 0.0022), 0.0015)
+    fly = [_on_torso(V(x, 1.0, z), 0.008) for x, z in ((0.014, 0.968), (0.014, 0.9), (0.004, 0.875))]
+    for a, b in zip(fly[:-1], fly[1:]):
+        d = smax(d, -capsule(P, a, b, 0.0018), 0.0012)
+    return smax(d, -_leg_gap(P), 0.01)
+
+
+def socks(P):
+    """Slouchy ribbed socks peeking out of the boots."""
+    d = None
+    for s, side in SIDES:
+        ang = np.arctan2(P[:, 0] - s * 0.09, P[:, 1] + 0.02)
+        e = np.maximum(leg(P, s, side, 0.0045), np.abs(P[:, 2] - 0.288) - 0.032)
+        e += 0.0008 * np.sin(ang * 26) - 0.0016 * np.sin(P[:, 2] * 170 + ang * 2 + s)
+        d = e if d is None else np.minimum(d, e)
+    return d
+
+
+def _band(base, P, zc, half_h, out=0.003, thick=0.0025):
+    """A strap hugging the surface `base` (an SDF) at height zc."""
+    return np.maximum(np.abs(base - out) - thick, np.abs(P[:, 2] - zc) - half_h)
 
 
 def knee_pads(P):
@@ -397,7 +482,9 @@ def knee_pads(P):
     for s, side in SIDES:
         k = J["knee." + side]
         R = rot(V(1, 0, 0), -8)
-        e = rbox(P, k + V(0, 0.07, 0.0), V(0.042, 0.012, 0.052), R, 0.012)
+        e = rbox(P, k + V(0, 0.078, 0.006), V(0.04, 0.011, 0.05), R, 0.012)
+        base = leg(P, s, side)
+        e = np.minimum(e, _band(base, P, k[2] + 0.004, 0.009))
         d = e if d is None else np.minimum(d, e)
     return d
 
@@ -518,36 +605,39 @@ def bandage(P):
 # --- gear --------------------------------------------------------------------
 
 def belt(P):
-    R = rot(V(1, 0, 0), -7)
-    d = ring(P, V(0, -0.002, 0.995), R, 0.158, 0.114, 0.0055, 0.016)
-    return d
+    """Worn low on the hips, dipping at the front, over the shorts' waistband."""
+    zb = 0.962 - P[:, 1] * 0.06
+    return np.maximum(np.abs(torso(P) - 0.0135) - 0.0045, np.abs(P[:, 2] - zb) - 0.0145)
 
 
 def buckle(P):
-    d = rbox(P, V(0, 0.116, 0.983), V(0.024, 0.006, 0.019), rot(V(1, 0, 0), -7), 0.004)
-    d = smax(d, -rbox(P, V(0, 0.122, 0.983), V(0.014, 0.01, 0.009), rot(V(1, 0, 0), -7), 0.002), 0.001)
+    d = rbox(P, V(0, 0.115, 0.956), V(0.024, 0.006, 0.019), rot(V(1, 0, 0), -7), 0.004)
+    d = smax(d, -rbox(P, V(0, 0.121, 0.956), V(0.014, 0.01, 0.009), rot(V(1, 0, 0), -7), 0.002), 0.001)
     return d
 
 
 def pouches(P):
-    d = rbox(P, V(0.192, -0.03, 0.95), V(0.022, 0.036, 0.042), rot(V(0, 0, 1), -25), 0.012)
-    d = smin(d, rbox(P, V(0.197, -0.03, 0.985), V(0.025, 0.04, 0.012), rot(V(0, 0, 1), -25), 0.006), 0.004)
-    # holster on the right thigh
+    d = rbox(P, V(0.188, -0.05, 0.922), V(0.022, 0.036, 0.042), rot(V(0, 0, 1), -25), 0.012)
+    d = smin(d, rbox(P, V(0.192, -0.05, 0.957), V(0.025, 0.04, 0.012), rot(V(0, 0, 1), -25), 0.006), 0.004)
+    # holster strapped to the bare right thigh
     R = rot(V(0, 1, 0), -6)
-    d = np.minimum(d, rbox(P, V(0.219, 0.008, 0.7), V(0.016, 0.034, 0.072), R, 0.01))
+    d = np.minimum(d, rbox(P, V(0.187, 0.008, 0.6), V(0.016, 0.034, 0.07), R, 0.01))
     return d
 
 
 def leather_dark(P):
     """Straps: crossbody strap (left shoulder to right hip), holster thigh strap,
     goggle strap is separate (on the head)."""
-    d = ring(P, V(0.104, 0.006, 0.745), np.eye(3), 0.12, 0.112, 0.004, 0.011)
+    thigh = leg(P, 1.0, "R")
+    d = _band(thigh, P, 0.6, 0.009)
+    d = np.minimum(d, capsule(P, V(0.158, 0.004, 0.952), V(0.182, 0.006, 0.675), 0.0065))  # drop strap
     for front in (True, False):
         pts = []
         for t in np.linspace(0, 1, 28):
             x = -0.115 + t * 0.235
             z = 1.4 - t * 0.43
-            pts.append(_on_torso(V(x, 1.0 if front else -1.0, z), 0.024))
+            off = 0.013 + 0.011 * np.clip((z - 0.97) / 0.18, 0, 1)
+            pts.append(_on_torso(V(x, 1.0 if front else -1.0, z), off))
         for k in range(len(pts) - 1):
             d = np.minimum(d, capsule(P, pts[k], pts[k + 1], 0.0075))
     top_f = _on_torso(V(-0.115, 1.0, 1.4), 0.024)
@@ -602,7 +692,7 @@ def metal(P):
         e = sphere(P, q, 0.0045)
         d = e if d is None else np.minimum(d, e)
     # wrench hanging on the left hip
-    w0, w1 = V(-0.196, 0.03, 0.96), V(-0.214, 0.035, 0.805)
+    w0, w1 = V(-0.176, 0.03, 0.952), V(-0.213, 0.035, 0.81)
     ax = norm(w1 - w0)
     d = np.minimum(d, rbox(P, (w0 + w1) / 2, V(0.004, 0.01, 0.078), _frame(ax, V(1, 0, 0)), 0.003))
     head = cylinder(P, w1 - V(0.005, 0, 0), w1 + V(0.005, 0, 0), 0.022)
@@ -610,12 +700,12 @@ def metal(P):
     head = smax(head, -rbox(P, w1 + V(0, 0, -0.02), V(0.012, 0.009, 0.02)), 0.002)
     d = np.minimum(d, head)
     # pistol grip in the holster, and the buckle prong
-    d = np.minimum(d, rbox(P, V(0.214, -0.004, 0.79), V(0.012, 0.02, 0.032), rot(V(1, 0, 0), -14), 0.006))
+    d = np.minimum(d, rbox(P, V(0.187, -0.004, 0.69), V(0.012, 0.02, 0.032), rot(V(1, 0, 0), -14), 0.006))
     return d
 
 
 def rag(P):
-    c = V(0.075, -0.16, 0.9)
+    c = V(0.072, -0.148, 0.88)
     q = P - c
     sheet = np.abs(q[:, 1] - 0.006 * np.sin(q[:, 0] * 90) + 0.01 * (q[:, 2] / 0.08) ** 2) - 0.0025
     box = np.maximum(np.abs(q[:, 0]) - 0.028 - q[:, 2] * -0.08, np.abs(q[:, 2] + 0.02) - 0.07)
@@ -735,11 +825,14 @@ def visible_body(P):
 
 def skin_cut(verts):
     """True for body vertices hidden under clothes (cut from the body mesh)."""
-    hidden = (shirt(verts) < 0.004) | (pants(verts) < 0.006)
+    hidden = (sports_bra(verts) < 0.004) | (shorts(verts) < 0.006) | (socks(verts) < 0.003)
     for s, side in SIDES:
         hidden |= boot(verts, s, side) < 0.004
-    hidden |= jacket_outer(verts) < 0.0
-    hidden |= (np.abs(verts[:, 0]) < 0.03) & (verts[:, 2] < 0.76) & (verts[:, 2] > 0.2)  # inner thighs
+    hidden |= (jacket_outer(verts) < 0.0) & (jacket_open(verts) > 0.0) & (verts[:, 2] > 1.15)
+    # upper arms under the sleeves
+    for s, side in SIDES:
+        sh, el = J["shoulder." + side], J["elbow." + side]
+        hidden |= (round_cone(verts, sh, sh + (el - sh) * 0.78, 0.06, 0.05) < 0.0) & (np.abs(verts[:, 0]) > 0.14)
     hidden &= ~(verts[:, 2] > 1.43)  # keep the neck
     # forearms stay visible below the rolled sleeves
     for s, side in SIDES:
@@ -759,31 +852,32 @@ R_HAND = {side: _box([J["wrist." + side], J["hand_end." + side]], 0.075) for _, 
 
 PARTS = {
     # name: (sdf, lo, hi, voxel size, target triangles)
-    "body": (visible_body, V(-0.36, -0.2, -0.01), V(0.36, 0.2, 1.52), 0.005, 5000),
+    "body": (visible_body, V(-0.36, -0.2, -0.01), V(0.36, 0.2, 1.52), 0.003, 15000),
     "head": (head, V(-0.11, -0.13, 1.37), V(0.11, 0.13, 1.69), 0.0018, 6500),
     "lashes": (eyelash, V(-0.08, 0.05, 1.53), V(0.08, 0.1, 1.58), 0.0007, 600),
-    "hair": (hair, V(-0.16, -0.17, 1.42), V(0.17, 0.2, 1.75), 0.002, 10000),
+    "hair": (hair, V(-0.17, -0.18, 1.42), V(0.18, 0.21, 1.75), 0.0015, 22000),
     "hand_R": (lambda P: hand(P, 1.0, "R"), *R_HAND["R"], 0.0018, 2600),
     "hand_L": (lambda P: hand(P, -1.0, "L"), *R_HAND["L"], 0.0018, 2600),
     "glove_R": (lambda P: glove(P, 1.0, "R"), *R_HAND["R"], 0.0018, 2500),
     "glove_L": (lambda P: glove(P, -1.0, "L"), *R_HAND["L"], 0.0018, 2500),
-    "shirt": (shirt, V(-0.2, -0.13, 0.95), V(0.2, 0.14, 1.43), 0.003, 5000),
-    "pants": (pants, V(-0.29, -0.19, 0.14), V(0.29, 0.16, 1.07), 0.0035, 6500),
-    "knee_pads": (knee_pads, V(-0.16, 0.0, 0.38), V(0.16, 0.12, 0.56), 0.0025, 1200),
+    "bra": (sports_bra, V(-0.2, -0.13, 1.11), V(0.2, 0.14, 1.43), 0.0025, 4500),
+    "shorts": (shorts, V(-0.25, -0.2, 0.72), V(0.25, 0.17, 1.03), 0.0025, 6500),
+    "socks": (socks, V(-0.16, -0.1, 0.24), V(0.16, 0.08, 0.33), 0.002, 1800),
+    "knee_pads": (knee_pads, V(-0.17, -0.08, 0.38), V(0.17, 0.13, 0.56), 0.0022, 3000),
     "boots": (lambda P: np.minimum(boot(P, 1.0, "R"), boot(P, -1.0, "L")), V(-0.18, -0.1, 0.0), V(0.18, 0.18, 0.29), 0.0028, 4000),
     "soles": (soles, V(-0.18, -0.12, -0.01), V(0.18, 0.2, 0.06), 0.0025, 1500),
     "toe_caps": (toe_caps, V(-0.18, 0.06, 0.0), V(0.18, 0.2, 0.1), 0.0022, 1200),
     "jacket": (jacket, V(-0.29, -0.14, 1.1), V(0.29, 0.15, 1.47), 0.0028, 7000),
     "jacket_trim": (jacket_trim, V(-0.29, -0.14, 1.1), V(0.29, 0.15, 1.47), 0.0024, 3000),
     "bandage": (bandage, V(-0.36, -0.06, 0.88), V(-0.18, 0.1, 1.15), 0.0018, 1500),
-    "belt": (belt, V(-0.18, -0.14, 0.96), V(0.18, 0.14, 1.03), 0.0022, 2000),
-    "buckle": (buckle, V(-0.04, 0.09, 0.95), V(0.04, 0.14, 1.01), 0.0012, 400),
-    "pouches": (pouches, V(0.12, -0.1, 0.6), V(0.26, 0.07, 1.02), 0.0025, 1500),
-    "straps": (leather_dark, V(-0.2, -0.16, 0.6), V(0.22, 0.16, 1.46), 0.0025, 3000),
+    "belt": (belt, V(-0.2, -0.17, 0.93), V(0.2, 0.15, 0.99), 0.0022, 2000),
+    "buckle": (buckle, V(-0.04, 0.09, 0.925), V(0.04, 0.14, 0.985), 0.0012, 400),
+    "pouches": (pouches, V(0.12, -0.11, 0.51), V(0.25, 0.07, 0.99), 0.0025, 1500),
+    "straps": (leather_dark, V(-0.2, -0.16, 0.53), V(0.22, 0.16, 1.46), 0.0025, 3000),
     "plate": (shoulder_plate, V(-0.29, -0.12, 1.3), V(-0.1, 0.1, 1.46), 0.0018, 2000),
     "plate_stripe": (plate_stripe, V(-0.29, -0.12, 1.3), V(-0.1, 0.1, 1.46), 0.0018, 600),
-    "metal": (metal, V(-0.26, -0.12, 0.74), V(0.25, 0.08, 1.44), 0.0018, 2000),
-    "rag": (rag, V(0.02, -0.2, 0.78), V(0.13, -0.12, 0.96), 0.0018, 600),
+    "metal": (metal, V(-0.26, -0.12, 0.64), V(0.25, 0.08, 1.44), 0.0018, 2000),
+    "rag": (rag, V(0.02, -0.19, 0.77), V(0.13, -0.11, 0.95), 0.0018, 600),
     "goggle_rims": (goggle_rims, V(-0.08, 0.02, 1.63), V(0.08, 0.1, 1.71), 0.0012, 1500),
     "goggle_lenses": (goggle_lenses, V(-0.07, 0.03, 1.64), V(0.07, 0.1, 1.71), 0.0012, 400),
     "goggle_strap": (goggle_strap, V(-0.13, -0.15, 1.52), V(0.13, 0.11, 1.7), 0.0018, 1500),
@@ -809,6 +903,30 @@ def mesh_part(fn, lo, hi, res):
     return verts + lo, faces
 
 
+def hair_lock_shade(verts):
+    """A random shade per lock for each hair vertex (the lock it is nearest
+    to), so the build can tint locks apart instead of one smooth mass."""
+    strands = _STRANDS or hair_strands()
+    shades = np.random.default_rng(11).uniform(0, 1, len(strands))
+    best = np.full(len(verts), np.inf)
+    out = np.full(len(verts), 0.5)
+    for i, (pts, radii, _) in enumerate(strands):
+        for k in range(len(pts) - 1):
+            # distance relative to the lock's thickness there
+            dd = seg_dist_np(verts, pts[k], pts[k + 1]) / max(radii[k], 0.003)
+            m = dd < best
+            best[m] = dd[m]
+            out[m] = shades[i]
+    out[best > 6.0] = 0.5  # the scalp cap between locks
+    return out
+
+
+def seg_dist_np(P, a, b):
+    ab = b - a
+    t = np.clip(((P - a) @ ab) / (ab @ ab), 0, 1)
+    return np.linalg.norm(P - (a + t[:, None] * ab), axis=1)
+
+
 def main():
     out = Path(sys.argv[1])
     out.mkdir(parents=True, exist_ok=True)
@@ -825,7 +943,8 @@ def main():
             hidden = skin_cut(v)
             keep = ~hidden[f].all(1)
             f = f[keep]
-        np.savez(out / f"{name}.npz", verts=v, faces=f, target=tris)
+        extra = {"lock": hair_lock_shade(v)} if name == "hair" else {}
+        np.savez(out / f"{name}.npz", verts=v, faces=f, target=tris, **extra)
         print(f"{name}: {len(v)} verts {len(f)} faces ({time.time() - t:.1f}s)", flush=True)
 
 

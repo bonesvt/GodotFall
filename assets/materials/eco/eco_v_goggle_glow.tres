@@ -1,0 +1,13 @@
+[gd_resource type="ShaderMaterial" load_steps=2 format=3]
+
+[ext_resource type="Shader" path="res://assets/shaders/eco_toon.gdshader" id="1_shader"]
+
+[resource]
+resource_name = "eco_v_goggle_glow"
+render_priority = 0
+shader = ExtResource("1_shader")
+shader_parameter/albedo = Color(0.0, 0.809, 0.767, 1)
+shader_parameter/shade_tint = Vector3(0.55, 0.55, 0.7)
+shader_parameter/rim = 0.0
+shader_parameter/emission = Color(0.0, 0.809, 0.767, 1)
+shader_parameter/emission_energy = 1.6

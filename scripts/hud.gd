@@ -5,11 +5,12 @@ extends CanvasLayer
 ## The reticle wears the pistol's story: around the spread ticks sits the
 ## ring of the old smart-lock, half its segments dead, flickering when the
 ## module glitches, and it still brackets enemies before failing to lock.
-## Also hosts the enemy radio chatter popup (scripts/radio/).
+## Also hosts the enemy radio chatter popup and Eco's whispers (scripts/radio/).
 
 const RadioChatter := preload("res://scripts/radio/radio_chatter.gd")
 const ContentRating := preload("res://scripts/radio/content_rating.gd")
 const RadioLines := preload("res://scripts/radio/radio_lines.gd")
+const EcoWhispers := preload("res://scripts/radio/eco_whispers.gd")
 
 var player: Node
 var level: Node
@@ -24,6 +25,7 @@ var enemy_label: Label
 var message_label: Label
 var hurt_rect: ColorRect
 var radio: Node
+var whispers: Node
 
 var hitmarker_timer := 0.0
 var hitmarker_color := Color.WHITE
@@ -39,7 +41,7 @@ Q, E or right mouse  grapple (hold)
 Left mouse  shoot    R  reload    I  inspect
 Z or mouse thumb  knife (kills unaware grunts)
 T  respawn    G  reset grunt arena
-H  hide help    F8  dialogue rating    Esc  free mouse"""
+H  hide help    O  dialogue rating    Esc  free mouse"""
 
 
 func _ready() -> void:
@@ -110,6 +112,13 @@ func _ready() -> void:
 		radio.name = "Radio"
 		radio.player = player
 		add_child(radio)
+		whispers = EcoWhispers.new()
+		whispers.name = "Whispers"
+		whispers.player = player
+		whispers.weapon = weapon
+		whispers.knife = player.get_node_or_null("Head/Camera3D/Knife")
+		whispers.radio = radio
+		add_child(whispers)
 
 
 func _label(size: int) -> Label:
@@ -124,7 +133,7 @@ func _label(size: int) -> Label:
 func _unhandled_key_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo and event.physical_keycode == KEY_H:
 		help_label.visible = not help_label.visible
-	if event is InputEventKey and event.pressed and not event.echo and event.physical_keycode == KEY_F8:
+	if event is InputEventKey and event.pressed and not event.echo and event.physical_keycode == KEY_O:
 		var r: String = ContentRating.cycle()
 		flash_message("Dialogue rating: %s" % RadioLines.RATING_NAMES[r], 2.5)
 
