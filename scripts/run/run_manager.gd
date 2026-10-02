@@ -5,7 +5,8 @@ extends Node3D
 ## Empty slots stay scrap. At the end you call in the titan you assembled and
 ## fight with it. Falls and getting downed by grunts cost pilot integrity, which
 ## carries across zones; at zero the run is over, and so it is if your titan is
-## destroyed.
+## destroyed. Beat the enemy titan and the evac dropship comes for yours: walk
+## it onto the pad to finish the run.
 ## Between runs you are in the hub, the temple Eco hides out in (hub_builder.gd):
 ## the game opens there, the map table starts a run, and a finished run, won or
 ## lost, goes back there.
@@ -29,6 +30,10 @@ const KILL_DEPTH := 15.0
 const OFFER_SIZE := 3
 const TITAN_DROP_HEIGHT := 80.0
 const EMBARK_RANGE := 6.0
+## How close (m) your titan has to get to the evac pad's centre.
+const EVAC_RADIUS := 6.0
+## Checkpoints in laid-out zones count once you stand this close (m) to one.
+const CHECKPOINT_RADIUS := 10.0
 const CONTROLS := "F salvage / embark    V call titan / core    Shift titan dash    Left mouse titan fire"
 ## How long a line Eco says about something in the hub stays up.
 const HUB_LINE_SECONDS := 4.5
@@ -51,6 +56,8 @@ var titan: Titan
 var boss: Node3D
 var checkpoint := Vector3.ZERO
 var result := ""
+## The enemy titan is down and the evac dropship is waiting at the pad.
+var evac_open := false
 ## How many times each hub interactable has been looked at, so its lines cycle.
 var hub_reads := {}
 var runs_started := 0
@@ -119,6 +126,7 @@ func start_run(seed_value: int) -> void:
 	result = ""
 	titan = null
 	boss = null
+	evac_open = false
 	get_tree().paused = false
 	hud.summary_panel.visible = false
 	hud.choice_panel.visible = false
@@ -164,13 +172,15 @@ func load_zone(index: int) -> void:
 		for grunt in zone_info["grunts"]:
 			grunt.target = player
 		phase = Phase.ZONE
-		hud.toast("ZONE %d / %d" % [index + 1, RunState.ZONE_COUNT])
+		var zone_name: String = zone_info.get("name", "")
+		hud.toast("ZONE %d / %d%s" % [index + 1, RunState.ZONE_COUNT, ": " + zone_name if zone_name != "" else ""])
 	else:
 		zone_info = ZoneBuilder.build_arena(zone_root)
 		boss = zone_info["boss"]
 		boss.defeated.connect(_on_boss_defeated)
 		phase = Phase.ARENA
-		hud.toast("TITANFALL STANDING BY")
+		evac_open = false
+		hud.toast("THE FOREST'S EDGE: TITANFALL STANDING BY")
 	place_player(zone_info["spawn"])
 
 
@@ -190,6 +200,7 @@ func _physics_process(delta: float) -> void:
 			_arena_tick(delta)
 		Phase.FIGHT:
 			run.time += delta
+			_evac_tick()
 		Phase.OVER:
 			if Input.is_action_just_pressed("run_restart"):
 				if start_in_hub:
@@ -341,8 +352,13 @@ func _zone_tick(delta: float) -> void:
 		load_zone(run.zone + 1)
 
 
+## Below this height the pilot has fallen out of the level.
+func kill_y() -> float:
+	return float(zone_info.get("kill_y", float(zone_info["floor_y"]) - KILL_DEPTH))
+
+
 func _check_fall() -> bool:
-	if player.global_position.y > float(zone_info["floor_y"]) - KILL_DEPTH:
+	if player.global_position.y > kill_y():
 		return false
 	run.pilot_hp -= FALL_DAMAGE
 	run.falls += 1
@@ -373,11 +389,16 @@ func _on_pilot_downed() -> void:
 		hud.toast("DOWNED: -%d INTEGRITY" % DOWNED_DAMAGE)
 
 
-## Respawn point: the centre of the last platform the pilot stood on.
+## Respawn point: the centre of the last platform the pilot stood on, or in a
+## laid-out zone the last checkpoint they passed.
 func _track_checkpoint() -> void:
 	if not player.is_on_floor():
 		return
 	var pos := player.global_position
+	for point in zone_info.get("checkpoints", []):
+		if Vector2(pos.x - point.x, pos.z - point.z).length() < CHECKPOINT_RADIUS and absf(pos.y - point.y) < 2.0:
+			checkpoint = point
+			return
 	for p in zone_info["platforms"]:
 		var top: Vector3 = p["top"]
 		var size: Vector2 = p["size"]
@@ -484,8 +505,30 @@ func _set_pilot_active(on: bool) -> void:
 		player.get_node("Head/Camera3D").make_current()
 
 
+## Their titan is down: it topples, and the dropship comes in over the evac pad.
 func _on_boss_defeated() -> void:
-	end_run("RUN COMPLETE", "Enemy titan destroyed.")
+	if not zone_info.has("evac"):
+		end_run("RUN COMPLETE", "Enemy titan destroyed.")
+		return
+	evac_open = true
+	var tip := boss.create_tween()
+	tip.tween_property(boss, "rotation:x", deg_to_rad(-75.0), 1.4).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	var evac: Node3D = zone_info["evac_node"]
+	evac.visible = true
+	var ship := evac.get_node("Dropship") as Node3D
+	var hover := ship.position
+	ship.position = hover + Vector3(0, 60, 40)
+	evac.create_tween().tween_property(ship, "position", hover, 4.0).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	hud.toast("ENEMY TITAN DOWN. GET TO THE EVAC PAD", 5.0)
+
+
+func _evac_tick() -> void:
+	if not evac_open or titan == null:
+		return
+	var pad: Vector3 = zone_info["evac"]
+	var d := titan.global_position - pad
+	if Vector2(d.x, d.z).length() < EVAC_RADIUS:
+		end_run("RUN COMPLETE", "Titan extracted back to base.")
 
 
 func _on_titan_destroyed() -> void:
@@ -597,6 +640,9 @@ func _choice_text() -> String:
 
 
 func _fight_text() -> String:
+	if evac_open:
+		var pad: Vector3 = zone_info["evac"]
+		return "ENEMY TITAN DOWN\nEVAC PAD %d m: walk your titan into the beam" % roundi(titan.global_position.distance_to(pad))
 	var dash_text := "%d/%d" % [titan.dashes, int(titan.stats["dashes"])]
 	var core := String(titan.stats["core"]).to_upper()
 	var core_text := "NONE" if core == "NONE" else ("%s READY [V]" % core if titan.core_charge >= 1.0 else "%s %d%%" % [core, roundi(titan.core_charge * 100.0)])
