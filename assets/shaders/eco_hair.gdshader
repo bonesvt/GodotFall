@@ -17,6 +17,8 @@ uniform float wave_speed = 1.4;
 // far each vertex is out along its lock, so roots stay put.
 uniform float sway = 0.006;
 uniform float light_wrap : hint_range(0.0, 1.0) = 0.4;
+// Baked occlusion between the locks (vertex colour green).
+uniform float vertex_ao : hint_range(0.0, 1.0) = 0.8;
 uniform float light_softness : hint_range(0.01, 1.0) = 0.4;
 
 instance uniform float flash = 0.0;
@@ -47,8 +49,9 @@ void fragment() {
 	float crest = smoothstep(0.3, 1.0, sin(phase) * 0.5 + 0.5);
 	float amount = clamp(iridescence * (0.3 + 0.6 * fresnel + 0.6 * crest), 0.0, 1.0);
 
-	ALBEDO = mix(base, base * rainbow * 1.25, amount * 0.75);
-	EMISSION = rainbow * amount * 0.22 + vec3(flash);
+	float ao = mix(1.0, COLOR.g, vertex_ao);
+	ALBEDO = mix(base, base * rainbow * 1.25, amount * 0.75) * ao;
+	EMISSION = rainbow * amount * 0.22 * ao + vec3(flash);
 	RIM = 0.6;
 	RIM_TINT = 0.8;
 }

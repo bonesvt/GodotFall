@@ -114,7 +114,8 @@ Weak on purpose, so skill decides fights.
 ## Eco, the heroine
 A young mechanic who went rogue after the army turned her down as a Pilot. She fights with her
 late father's broken smart pistol and builds titans from scrap. Short white hair that shimmers in
-technicolor waves, striking aqua eyes, and a makeshift mechanic's outfit in the Jak and Daxter style.
+technicolor waves, striking aqua eyes, and a makeshift mechanic's outfit in the Jak and Daxter style:
+cropped work jacket, racerback sports bra, olive cut-off shorts, knee pads, slouch socks and boots.
 
 - **Model**: `assets/models/eco.tscn` (or `Art.model("eco")`), a rigged mesh about 1.7 m tall,
   facing -Z with its origin at her feet. Drop it under a CharacterBody3D and she picks her
@@ -128,6 +129,9 @@ technicolor waves, striking aqua eyes, and a makeshift mechanic's outfit in the 
   shadow. `camera_above_neck` and `camera_ahead` place it; `show_body` and `cast_shadow` toggle it.
 - **Look at her**: open `scenes/eco_showcase.tscn` and press F6. Left/Right turn her, Space
   pauses the turntable, 1/2/3 switch between full body, face, and the first-person pistol.
+- **Shading**: the build bakes ambient occlusion into each vertex colour so creases read, and
+  her materials use `vertex_ao`, `gloss` and a tighter `light_wrap`/`light_softness` in
+  `ps2_surface.gdshader`.
 - **Hair**: `assets/shaders/eco_hair.gdshader`. `iridescence`, `wave_scale`, `wave_speed`
   and `sway` on `assets/materials/eco/eco_hair.tres` tune the colour waves and the tip sway.
 - **How she's made** (`tools/eco/`): she is sculpted in code from signed distance fields,
