@@ -172,6 +172,8 @@ func _run() -> void:
 	run_node.boss.hp = 1.0
 	run_node.boss.take_damage(5.0)
 	await _ticks(3)
+	run_node.titan.global_position = run_node.zone_info["evac"] + Vector3(0, 0.5, 0)  # walk it to the evac pad
+	await _ticks(3)
 	_check("titan win ends the run", run_node.result == "RUN COMPLETE", run_node.result)
 	await _press("run_restart")
 	await _ticks(3)
