@@ -91,6 +91,7 @@ func _run() -> void:
 
 	# Grunts: aim worse at a fast pilot, and actually shoot a still one
 	g = level.spawn_grunt(RANGE_SPOT + Vector3(-12, 0, 0))
+	g.rotation.y = -PI / 2.0  # facing the pilot, so it can spot them
 	await _ticks(5)
 	var still: float = g.hit_chance()
 	player.velocity = Vector3(0, 0, 11)

@@ -124,6 +124,7 @@ func fire() -> void:
 	shots_fired += 1
 	cooldown = fire_interval
 	since_shot = 0.0
+	get_tree().call_group("enemies", "hear_gunshot", player.global_position)
 	var cam: Camera3D = player.camera
 	var basis := cam.global_basis
 	var r := tan(deg_to_rad(current_spread())) * sqrt(rng.randf())
