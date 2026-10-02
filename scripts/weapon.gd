@@ -117,6 +117,12 @@ const INSPECT_LINES := [
 ## Share of each kick the camera drifts back down on its own.
 @export var recoil_recovery := 0.75
 
+@export_group("Upgrades")
+## Which smart pistol model to show: 0 is Dad's broken pistol, 1-5 are Eco's
+## upgrades (tools/pistol/build_pistol.py --tier). Looks only; set_tier()
+## swaps it at runtime.
+@export_range(0, 5) var tier := 0
+
 @export_group("Feel")
 ## Visual-only camera punch per shot (degrees); does not move your aim.
 @export var camera_punch := 1.6
@@ -142,8 +148,6 @@ var inspect_lines: Array = INSPECT_LINES
 ## slot -> attachment id, and the finish's colours (empty: as modelled).
 var attachments := {}
 var finish := {}
-## Upgrade look, 0 (stock) to 5, passed to the model's `tier` if it has one.
-var tier := 0
 
 var player: CharacterBody3D
 var ammo := 0
@@ -203,6 +207,11 @@ var _charm_last_pos := Vector3.ZERO
 var _charm_last_vel := Vector3.ZERO
 
 ## The enemy the broken smart-lock is currently trying to lock onto, for the HUD.
+## True while the knife has Eco's hands: the pistol drops out of the way and
+## can't fire.
+var holstered := false
+var _holster := 0.0
+
 var lock_target: Node3D
 ## Seconds spent trying to lock the current target.
 var lock_time := 0.0
@@ -267,7 +276,7 @@ func _physics_process(delta: float) -> void:
 			ammo = magazine_size
 	elif Input.is_action_just_pressed("reload") and ammo < magazine_size:
 		start_reload()
-	elif Input.is_action_just_pressed("inspect") and not is_inspecting():
+	elif Input.is_action_just_pressed("inspect") and not is_inspecting() and not holstered:
 		inspect()
 	_update_inspect(delta)
 	if smart:
@@ -276,7 +285,7 @@ func _physics_process(delta: float) -> void:
 	if Input.is_action_just_pressed("fire") or (automatic and Input.is_action_pressed("fire") and ammo > 0):
 		buffer_timer = fire_buffer
 		stop_inspect()  # shooting always wins over showing off
-	if buffer_timer > 0.0 and cooldown <= 0.0 and reload_timer <= 0.0:
+	if buffer_timer > 0.0 and cooldown <= 0.0 and reload_timer <= 0.0 and not holstered:
 		buffer_timer = 0.0
 		if ammo > 0:
 			fire()
@@ -487,6 +496,19 @@ func start_reload() -> void:
 	reload_timer = reload_time
 	_reload_events = 0
 	stop_inspect()
+
+
+## Swaps the pistol for another upgrade tier's model (0-5), keeping ammo.
+func set_tier(new_tier: int) -> void:
+	tier = clampi(new_tier, 0, 5)
+	if viewmodel == null:
+		return
+	viewmodel.free()
+	viewmodel = null
+	_parts.clear()
+	_leds.clear()
+	_twirl = -1.0
+	_build_viewmodel()
 
 
 func is_reloading() -> bool:
@@ -725,9 +747,8 @@ func _build_viewmodel() -> void:
 	_ammo_label = null
 	viewmodel = Node3D.new()
 	add_child(viewmodel)
-	var pistol := Art.model(model_id)
+	var pistol := Art.model(_model_name(model_id, tier))
 	viewmodel.add_child(pistol)
-	_set_tier(pistol, tier)
 	_fit_attachments(pistol, model_id, attachments)
 	_apply_finish(pistol, finish)
 	for mi in pistol.find_children("*", "GeometryInstance3D", true, false):
@@ -774,9 +795,8 @@ func _build_viewmodel() -> void:
 ## The gun model a profile describes, attachments on and painted, without
 ## Eco's arm: what the workbenches show.
 static func gun_model(profile: Dictionary) -> Node3D:
-	var model := Art.model(profile.get("model", "pistol"))
+	var model := Art.model(_model_name(profile.get("model", "pistol"), profile.get("tier", 0)))
 	model.get_node("Arm").free()
-	_set_tier(model, profile.get("tier", 0))
 	_fit_attachments(model, profile.get("model", "pistol"), profile.get("attachments", {}))
 	_apply_finish(model, profile.get("finish", {}))
 	return model
@@ -785,11 +805,10 @@ static func gun_model(profile: Dictionary) -> Node3D:
 ## Bolts the fitted attachments onto the gun: muzzle pieces at the Muzzle
 ## (which moves to the end of them), mag pieces under the magazine (so they
 ## drop out with it on a reload), grip pieces round the grip.
-## Picks the gun's upgraded look on models that have one (a `tier` property).
-static func _set_tier(model: Node3D, p_tier: int) -> void:
-	for node in [model, model.get_node_or_null("Gun")]:
-		if node != null and "tier" in node:
-			node.tier = p_tier
+## The model to show for a gun at an upgrade tier: the smart pistol has a
+## model per tier (Art.pistol_model), the other sidearms one each.
+static func _model_name(p_model_id: String, p_tier: int) -> String:
+	return Art.pistol_model(p_tier) if p_model_id == "pistol" else p_model_id
 
 
 static func _fit_attachments(model: Node3D, p_model_id: String, p_attachments: Dictionary) -> void:
@@ -927,7 +946,11 @@ func _animate_viewmodel(delta: float) -> void:
 	var p := reload_progress()
 	var r := smoothstep(0.0, 0.14, p) * (1.0 - smoothstep(0.86, 1.0, p))
 
+	_holster = move_toward(_holster, 1.0 if holstered else 0.0, delta * 7.0)
+	var h := smoothstep(0.0, 1.0, _holster)
+
 	var pos := Vector3(0.22, -0.2, -0.42)
+	pos += Vector3(0.05, -0.2, 0.08) * h
 	pos += Vector3(-_sway.x * 0.006, _sway.y * 0.006, 0.0)
 	pos += bob + Vector3(0.0, -_move_pose.y + _move_pose.z, 0.0)
 	pos += Vector3(_kick_pos.x * 0.02, _kick_pos.y * 0.02, _kick_pos.z * 0.04)
@@ -937,7 +960,7 @@ func _animate_viewmodel(delta: float) -> void:
 	pos += inspect_pose[0]
 	viewmodel.position = pos
 	viewmodel.rotation = Vector3(
-		deg_to_rad(_kick_rot.x + ir.x) + _sway.y * 0.02 + 0.35 * r,
+		deg_to_rad(_kick_rot.x + ir.x) + _sway.y * 0.02 + 0.35 * r - 0.5 * h,
 		deg_to_rad(_kick_rot.y + ir.y) + _sway.x * 0.025 - 0.25 * r,
 		deg_to_rad(_kick_rot.z + ir.z) + _move_pose.x + _sway.x * 0.02 + 0.7 * r)
 

@@ -311,7 +311,7 @@ func buy_upgrade(weapon: String, track: String) -> bool:
 
 ## The gun's look tier, 0 (stock) to MODEL_TIERS: every upgrade level bought
 ## moves it on, so a maxed gun (all three tracks at MAX_LEVEL) is the top model.
-## The smart pistol has a model per tier (the gun's `tier` property picks it).
+## The smart pistol has a model per tier (Art.pistol_model picks it).
 func weapon_tier(id: String) -> int:
 	var total := 0
 	for track in UPGRADE_ORDER:

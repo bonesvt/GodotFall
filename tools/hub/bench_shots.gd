@@ -18,7 +18,7 @@ func _initialize() -> void:
 	DirAccess.make_dir_recursive_absolute(out)
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(PATH))
 	var a = Armory.open(PATH)
-	a.stash = {"scrap": 900, "alloy": 400, "circuits": 40}
+	a.stash = {"scrap": 2000, "alloy": 400, "circuits": 80}
 	a.buy_weapon("rivet_cannon")
 	a.buy_weapon("machine_pistol")
 	a.fit("rivet_cannon", "muzzle", "compensator")
@@ -69,6 +69,17 @@ func _go() -> void:
 		run_node.armory.equip(id)
 		run_node.equip_loadout()
 		await _shot("9-hand-" + id, Vector3(-20, 0.2, 10), Vector3(-30, 1.4, 10))
+	# The smart pistol fully upgraded: its tier 5 model, in hand and on the bench.
+	for up in Armory.UPGRADES:
+		while run_node.armory.buy_upgrade("smart_pistol", up):
+			pass
+	run_node.armory.equip("smart_pistol")
+	run_node.equip_loadout()
+	await _shot("9-hand-smart_pistol-tier5", Vector3(-20, 0.2, 10), Vector3(-30, 1.4, 10))
+	run_node.open_bench("gunsmith")
+	await _frames(12)
+	await _save("4b-screen-gunsmith-tier5")
+	run_node.close_bench()
 	# Loot in the forest.
 	run_node.start_run(1234)
 	await _frames(20)

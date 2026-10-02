@@ -273,7 +273,7 @@ Grunts start **unaware** and have to notice you first.
 - **Over each grunt**: a **?** that grows from yellow to orange as it notices you (half full, it turns to look), then a red **!** once alerted. Visible through cover.
 - **Around the crosshair**: an arc points at every grunt noticing you, including ones behind you, and fills toward red.
 - **Sneak attacks**: anything that hits a grunt that hasn't noticed you does double damage, so a pistol headshot on an unaware grunt kills outright.
-- **Stiletto** (V or F): a quick stab from Eco's left hand, 2.4 m reach. On an unaware grunt it's a silent takedown that kills instantly; on one that knows you're there it does 30 damage and alerts it. The pistol can't fire mid-stab.
+- **Stiletto** (Z or the mouse thumb button): tap for a quick stab from Eco's left hand, 2.4 m reach. **Hold** to draw it with a flip-spin and keep it out: the pistol drops, Eco runs 20% faster, left mouse swings alternating slashes (light trail off the tip), and I plays a knife inspect (edge glint, finger spins, toss and catch). Takedowns are always a straight thrust. Let go to put it away. Cobalt-steel model built in Blender by `tools/knife/build_stiletto.py`. On an unaware grunt it's a silent takedown that kills instantly; on one that knows you're there it does 30 damage and alerts it. The pistol can't fire mid-stab.
 - **Alerted** grunts fight exactly as before, and call in every squadmate within 16 m. Getting shot always alerts. Out of sight for 10 s, they lose you and go back to searching.
 
 ## Enemy radio
@@ -311,7 +311,8 @@ select the Player node and tweak values in the Inspector, or change the defaults
 - `scripts/weapon.gd` starter pistol (hitscan, bloom, falloff, recoil, viewmodel)
 - `scripts/grunt.gd` grunt AI and hitbox
 - `scripts/fx.gd` stylized combat effects: tracers, muzzle stars, smoke, debris, casings, blasts
-- `tools/pistol/build_pistol.py` builds Eco's smart pistol in Blender
+- `tools/pistol/build_pistol.py` builds Eco's smart pistol in Blender (`--tier 1`..`5` builds her upgrades;
+  `weapon.gd` `tier` / `set_tier()` and `ps2_assets.gd` `pistol_model(tier)` pick one)
   (`blender --background --python tools/pistol/build_pistol.py -- assets/models/smart_pistol/smart_pistol.glb`);
   `tools/bake_models.gd -- smart_pistol` then puts it in her hand (`assets/models/smart_pistol.tscn`)
 - `scripts/sfx.gd` procedural sound effects, synthesized at runtime; drop `<id>.wav` or `<id>.ogg`

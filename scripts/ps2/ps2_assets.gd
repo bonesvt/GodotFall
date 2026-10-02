@@ -32,6 +32,12 @@ const MATERIALS := {
 
 const MODELS := {
 	"pistol": preload("res://assets/models/smart_pistol.tscn"),
+	# Eco's upgrades of the smart pistol, tiers 1-5 (pistol_model() picks one).
+	"pistol_t1": preload("res://assets/models/smart_pistol_t1.tscn"),
+	"pistol_t2": preload("res://assets/models/smart_pistol_t2.tscn"),
+	"pistol_t3": preload("res://assets/models/smart_pistol_t3.tscn"),
+	"pistol_t4": preload("res://assets/models/smart_pistol_t4.tscn"),
+	"pistol_t5": preload("res://assets/models/smart_pistol_t5.tscn"),
 	"rivet_cannon": preload("res://assets/models/rivet_cannon.tscn"),
 	"machine_pistol": preload("res://assets/models/machine_pistol.tscn"),
 	"eco": preload("res://assets/models/eco.tscn"),
@@ -60,6 +66,13 @@ static var _cache := {}
 
 static func model(id: String) -> Node3D:
 	return MODELS[id].instantiate()
+
+
+## Model id of the smart pistol at an upgrade tier: 0 is Dad's broken pistol,
+## 1-5 are Eco's upgrades. Out-of-range tiers clamp.
+static func pistol_model(tier: int) -> String:
+	tier = clampi(tier, 0, 5)
+	return "pistol" if tier == 0 else "pistol_t%d" % tier
 
 
 ## A titan model for a chassis id ("atlas", "ogre", "stryder", "scrap", "enemy")

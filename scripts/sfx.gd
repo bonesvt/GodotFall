@@ -142,18 +142,28 @@ static func _synth(id: String) -> PackedFloat32Array:
 			return _master(_mix([_filter(_burst(0.03, 0.0003, 120.0, 0.5), "bp", 2500.0, 2.0), _sweep(0.22, 3300.0, 1500.0, 12.0, 0.12)]), 0.1)
 		"impact":  # round hitting concrete
 			return _master(_mix([_filter(_burst(0.06, 0.0003, 70.0, 0.7), "bp", 1500.0, 1.2), _sweep(0.05, 140.0, 80.0, 60.0, 0.35)]), 0.06)
-		"knife_swish":  # the stiletto snapping out: a thin metallic shing and air
+		# Eco's stiletto: quiet and close, like foley rather than a game effect.
+		"knife_swish":  # a thin blade cutting air: a soft, short swell of breath
+			return _master(_swish(0.2, 450.0, 1200.0), 0.0, 1.0)
+		"knife_draw":  # out of the sheath: a light steel slide and a leather tug
 			return _master(_mix([
-				_sweep(0.12, 3800.0, 7200.0, 22.0, 0.08),
-				_ring([4180.0, 6650.0], 0.18, 20.0, 0.08),
-				_filter(_whoosh(0.16, 0.3), "hp", 900.0),
-			]), 0.02, 1.0)
-		"knife_hit":  # blade punching through cloth and plate
+				_ramp(_filter(_filter(_burst(0.16, 0.0, 0.0, 0.35), "bp", 3600.0, 1.4), "lp", 6000.0), 0.75),
+				_delay(_filter(_burst(0.05, 0.002, 70.0, 0.5), "lp", 650.0), 0.15),
+				_delay(_swish(0.16, 400.0, 900.0), 0.14),
+			]), 0.0, 1.0)
+		"knife_hit":  # into cloth and padding: a muffled thud and a short tear
 			return _master(_mix([
-				_filter(_burst(0.04, 0.0003, 90.0, 0.8), "bp", 2400.0, 1.5),
-				_sweep(0.06, 190.0, 80.0, 50.0, 0.5),
-				_delay(_filter(_burst(0.05, 0.001, 60.0, 0.3), "lp", 800.0), 0.02),
-			]), 0.02)
+				_filter(_burst(0.09, 0.001, 45.0, 0.9), "lp", 420.0),
+				_delay(_filter(_burst(0.06, 0.002, 60.0, 0.25), "bp", 1400.0, 0.9), 0.006),
+			]), 0.0, 1.2)
+		"knife_spin":  # turned through her fingers: three soft flicks of air
+			return _master(_mix([
+				_swish(0.11, 600.0, 1000.0),
+				_delay(_swish(0.11, 600.0, 1000.0), 0.13),
+				_delay(_swish(0.11, 600.0, 1000.0), 0.26),
+			]), 0.0, 1.0)
+		"knife_catch":  # the grip landing in a gloved palm
+			return _master(_filter(_burst(0.05, 0.001, 90.0, 0.8), "lp", 900.0), 0.0, 1.0)
 		# Eco's other sidearms (the hub's weapon rack).
 		"rivet_cannon":  # a hand cannon: a big crack, a chesty boom, coils pinging as they heat
 			return _master(_mix([
@@ -276,6 +286,31 @@ static func _whoosh(length: float, amp: float) -> PackedFloat32Array:
 		var swell := pow(sin(PI * t), 2.0) * (0.6 + 0.4 * sin(TAU * 3.0 * t))
 		out[i] = (low[i] * (1.0 - t) + high[i] * t) * swell * amp
 	return out
+
+
+## Air moving past a thin blade: noise whose band glides from f0 up to f1
+## and back as it swells and fades (no tremolo, no ring).
+static func _swish(length: float, f0: float, f1: float) -> PackedFloat32Array:
+	var n := int(length * RATE)
+	var raw := _burst(length, 0.0, 0.0, 1.0)
+	var low := _filter(raw, "bp", f0, 0.8)
+	var high := _filter(raw, "bp", f1, 0.8)
+	var out := PackedFloat32Array()
+	out.resize(n)
+	for i in n:
+		var t := float(i) / n
+		var peak := sin(PI * t)
+		out[i] = lerpf(low[i], high[i], peak) * pow(peak, 1.6)
+	return _filter(out, "lp", 4000.0)
+
+
+## Fades a sound in linearly over `rise` (0-1 of its length), then cuts it off softly.
+static func _ramp(s: PackedFloat32Array, rise: float) -> PackedFloat32Array:
+	var n := s.size()
+	for i in n:
+		var t := float(i) / n
+		s[i] *= minf(t / rise, 1.0) * minf((1.0 - t) * 12.0, 1.0)
+	return s
 
 
 ## A short mechanical impact: a resonant click plus an optional low thunk.

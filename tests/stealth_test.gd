@@ -6,6 +6,7 @@ extends SceneTree
 
 const Grunt := preload("res://scripts/grunt.gd")
 const F := preload("res://scripts/run/forest_kit.gd")
+const RunManager := preload("res://scripts/run/run_manager.gd")
 
 var level
 var player
@@ -179,6 +180,7 @@ func _run() -> void:
 	await _ticks(3)
 	_check("sneaking up behind stays unnoticed", g.is_unaware(), g.detection)
 	await _stab(knife)
+	_check("takedown is a thrust", stab_anims.back() == "thrust", stab_anims)
 	_check("knife takedown kills an unaware grunt", g.dead and stabs.back() == "takedown", [g.health, stabs])
 	_clear()
 
@@ -209,7 +211,32 @@ func _run() -> void:
 	wall.queue_free()
 	_clear()
 
-	# The V key stabs, and the pistol can't fire mid-stab.
+	# The knife's keys don't clash with anything: not V (titan call / core),
+	# not F (interact / embark), nor any other action, in or out of a run.
+	RunManager.ensure_input_actions()
+	var clashes := []
+	for action in InputMap.get_actions():
+		if action == "melee" or String(action).begins_with("ui_"):
+			continue
+		for ev in InputMap.action_get_events(action):
+			for mine in InputMap.action_get_events("melee"):
+				if ev.is_match(mine):
+					clashes.append([action, ev.as_text()])
+	_check("knife keys are free", clashes.is_empty() and InputMap.action_get_events("melee").size() >= 1, clashes)
+	await _ticks(int(knife.cooldown * 120) + 2)
+	for key in [KEY_V, KEY_F]:
+		var k := InputEventKey.new()
+		k.physical_keycode = key
+		k.pressed = true
+		Input.parse_input_event(k)
+		await _ticks(2)
+		k = k.duplicate()
+		k.pressed = false
+		Input.parse_input_event(k)
+		await _ticks(1)
+	_check("V and F don't stab", not knife.is_stabbing(), knife.stab_timer)
+
+	# The melee key stabs, and the pistol can't fire mid-stab.
 	_place(SPOT)
 	await _ticks(int(knife.cooldown * 120) + 2)
 	var ev := InputEventAction.new()
@@ -220,9 +247,66 @@ func _run() -> void:
 	var up := InputEventAction.new()
 	up.action = "melee"
 	Input.parse_input_event(up)
-	_check("melee key stabs", knife.is_stabbing(), knife.stab_timer)
-	_check("pistol holstered mid-stab", weapon.cooldown > 0.0, weapon.cooldown)
+	await _ticks(2)
+	_check("tapping the melee key stabs", knife.is_stabbing(), knife.stab_timer)
+	_check("pistol holstered mid-stab", weapon.holstered, weapon.holstered)
 	await _seconds(1.0)
+	_check("pistol back after the stab", not weapon.holstered, weapon.holstered)
+
+	# Holding the key keeps the knife out: no stab, pistol down, faster running;
+	# left mouse stabs while it's out, and letting go puts it away.
+	var run_before: float = player.run_speed * player.speed_mult
+	Input.parse_input_event(ev)
+	await _seconds(0.4)
+	_check("holding keeps the knife out", knife.readied and not knife.is_stabbing(), [knife.readied, knife.stab_timer])
+	_check("drawing it plays the flip-spin draw", knife.anim == "draw", knife.anim)
+	_check("knife out: pistol lowered, Eco runs faster", weapon.holstered and player.run_speed * player.speed_mult > run_before * 1.1, player.speed_mult)
+	Input.action_press("move_forward")
+	await _seconds(1.5)
+	var hs: float = player.horizontal_speed()
+	Input.action_release("move_forward")
+	_check("actually moves faster with the knife out", hs > player.sprint_speed * 1.1, hs)
+	await _seconds(0.5)
+	var lines := []
+	weapon.inspected.connect(func(line): lines.append(line))
+	# Real key and mouse events: a synthetic InputEventAction for one action
+	# also releases the held melee action.
+	var insp := InputEventKey.new()
+	insp.physical_keycode = KEY_I
+	insp.pressed = true
+	Input.parse_input_event(insp)
+	await _ticks(3)
+	insp = insp.duplicate()
+	insp.pressed = false
+	Input.parse_input_event(insp)
+	_check("I with the knife out plays the knife inspect", knife.is_inspecting() and not weapon.is_inspecting() and lines.size() == 1, [knife.anim, lines])
+	await _seconds(knife.INSPECT_TIME + 0.1)
+	_check("knife inspect ends back in the guard", knife.anim == "" and knife.readied, knife.anim)
+	var click := InputEventMouseButton.new()
+	click.button_index = MOUSE_BUTTON_LEFT
+	click.pressed = true
+	Input.parse_input_event(click)
+	await _ticks(2)
+	click = click.duplicate()
+	click.pressed = false
+	Input.parse_input_event(click)
+	_check("left mouse stabs with the knife out", knife.is_stabbing(), knife.stab_timer)
+	var first: String = knife.anim
+	await _seconds(0.6)
+	click = click.duplicate()
+	click.pressed = true
+	Input.parse_input_event(click)
+	await _ticks(2)
+	click = click.duplicate()
+	click.pressed = false
+	Input.parse_input_event(click)
+	_check("swings alternate slashes", first.begins_with("slash") and knife.anim.begins_with("slash") and knife.anim != first, [first, knife.anim])
+	await _seconds(0.6)
+	Input.parse_input_event(up)
+	await _ticks(3)
+	_check("letting go puts the knife away without a stab", not knife.readied and not knife.is_stabbing() and player.speed_mult == 1.0, [knife.readied, knife.stab_timer])
+	await _seconds(0.5)
+	_check("pistol back up", not weapon.holstered, weapon.holstered)
 
 	print("RESULT: %s (%d failures)" % ["PASS" if failures == 0 else "FAIL", failures])
 	quit(failures)
@@ -253,9 +337,13 @@ func _place(pos: Vector3) -> void:
 	player.health = player.max_health
 
 
+var stab_anims := []
+
+
 func _stab(knife) -> void:
 	await _ticks(int(knife.cooldown * 120) + 2)
 	knife.stab()
+	stab_anims.append(knife.anim)
 	await _seconds(knife.stab_time + 0.05)
 
 
