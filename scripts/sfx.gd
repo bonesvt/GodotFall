@@ -203,15 +203,6 @@ static func _synth(id: String) -> PackedFloat32Array:
 				_sweep(0.07, 160.0, 80.0, 45.0, 0.35),
 				_delay(_tick(3400.0, 0.3), 0.02),
 			]), 0.12)
-		"bench":  # a part bolted on at the workbench: ratchet clicks and a clunk
-			return _master(_mix([
-				_tick(3000.0, 0.5), _delay(_tick(3300.0, 0.45), 0.05), _delay(_tick(3100.0, 0.45), 0.1),
-				_delay(_clack(1500.0, 140.0, 0.5), 0.16),
-			]), 0.1)
-		"bench_deny":  # can't afford it: a flat double buzz
-			return _filter(_mix([_square(0.07, 180.0, 0.2), _square(0.07, 150.0, 0.2, 0.1)]), "lp", 1800.0)
-		"bench_tick":  # moving through the bench's menu
-			return _tick(4200.0, 0.25)
 		"grunt_shot":  # enemy rifle: thinner and drier than Eco's pistol
 			return _master(_mix([
 				_filter(_burst(0.03, 0.0003, 150.0, 0.8), "hp", 2200.0),

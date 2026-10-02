@@ -26,6 +26,8 @@ every file from the original downloads.
 | Titan | `titan_step_*` `titan_servo_*` (walking), `titan_embark` + `titan_boot` (climbing in), `titan_hiss_short` (dash), `titan_doom_laser` / `titan_core_charge` / `titan_hiss` (laser, shield, overdrive cores), `titan_clang` + `debris_rock` (landfall), `explosion_big` (destroyed) | titan.gd |
 | Eco's feet | `step_grass_*` `step_concrete_*` `step_wood_*` `step_metal_*` (by the floor's `surface` meta), `land` `land_heavy` | player.gd |
 | Radio | `radio_squelch_on` | radio_chatter.gd |
+| Workbenches | `ui_hover` (pick a row), `ui_switch` (browse), `ui_error` (can't afford), buying: `workbench_tools` (gunsmith), `reload_in` (weapon rack), `workbench_ratchet` (titan workshop) | bench_screen.gd |
+| Loot | `cache_open` (supply crate), `whack` + `debris_metal` (mining an alloy node), `ui_click` (picking up materials) | loot_crate.gd, resource_node.gd, material_pickup.gd |
 | Ambience | forest zone: `forest_day` `forest_wind` `forest_birds`; forest's edge: `forest_wind` `forest_night`; temple hub: `temple_interior` `temple_drips` `wind_soft` `forest_birds` | forest_builder.gd, hub_builder.gd |
 
 Recorded but not wired in yet, ready for later: `step_gravel_*`,
@@ -35,10 +37,9 @@ Recorded but not wired in yet, ready for later: `step_gravel_*`,
 `explosion_muffled` `explosion_metal`, `debris_metal`, `glass_break`,
 `grunt_yell_*` `grunt_effort_*` `grunt_hey` `grunt_kill_you`,
 `radio_squelch_off` `radio_static_burst` `radio_dead`, `door_iron`
-`door_stone` `door_metal_open` `door_metal_close`, `cache_unlock`
-`cache_open`, `pickup_part`, `workbench_drill` `workbench_ratchet`
-`workbench_hammer` `workbench_tools` `workbench_squeeze`, `tree_creak`,
-`ui_click` `ui_hover` `ui_confirm` `ui_error` `ui_switch` `ui_terminal`, and the
+`door_stone` `door_metal_open` `door_metal_close`, `cache_unlock`,
+`pickup_part`, `workbench_drill` `workbench_hammer` `workbench_squeeze`, `tree_creak`,
+`ui_confirm` `ui_terminal`, and the
 beds `forest_morning` `swamp_creek` `rain` `temple_eerie` `campfire`
 `machine_hum` `radio_static_loop`.
 
