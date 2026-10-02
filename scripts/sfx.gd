@@ -142,6 +142,18 @@ static func _synth(id: String) -> PackedFloat32Array:
 			return _master(_mix([_filter(_burst(0.03, 0.0003, 120.0, 0.5), "bp", 2500.0, 2.0), _sweep(0.22, 3300.0, 1500.0, 12.0, 0.12)]), 0.1)
 		"impact":  # round hitting concrete
 			return _master(_mix([_filter(_burst(0.06, 0.0003, 70.0, 0.7), "bp", 1500.0, 1.2), _sweep(0.05, 140.0, 80.0, 60.0, 0.35)]), 0.06)
+		"knife_swish":  # the stiletto snapping out: a thin metallic shing and air
+			return _master(_mix([
+				_sweep(0.12, 3800.0, 7200.0, 22.0, 0.08),
+				_ring([4180.0, 6650.0], 0.18, 20.0, 0.08),
+				_filter(_whoosh(0.16, 0.3), "hp", 900.0),
+			]), 0.02, 1.0)
+		"knife_hit":  # blade punching through cloth and plate
+			return _master(_mix([
+				_filter(_burst(0.04, 0.0003, 90.0, 0.8), "bp", 2400.0, 1.5),
+				_sweep(0.06, 190.0, 80.0, 50.0, 0.5),
+				_delay(_filter(_burst(0.05, 0.001, 60.0, 0.3), "lp", 800.0), 0.02),
+			]), 0.02)
 		"grunt_shot":  # enemy rifle: thinner and drier than Eco's pistol
 			return _master(_mix([
 				_filter(_burst(0.03, 0.0003, 150.0, 0.8), "hp", 2200.0),

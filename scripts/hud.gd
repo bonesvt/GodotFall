@@ -1,9 +1,13 @@
 extends CanvasLayer
 ## HUD: spread-aware crosshair with hitmarkers, speedometer, movement state,
-## ability readouts, health, ammo and the grunt count.
+## ability readouts, health, ammo, the grunt count, and stealth markers around
+## the crosshair pointing at every grunt that is noticing the pilot.
 ## The reticle wears the pistol's story: around the spread ticks sits the
 ## ring of the old smart-lock, half its segments dead, flickering when the
 ## module glitches, and it still brackets enemies before failing to lock.
+## Also hosts the enemy radio chatter popup (scripts/radio/).
+
+const RadioChatter := preload("res://scripts/radio/radio_chatter.gd")
 
 var player: Node
 var level: Node
@@ -17,6 +21,7 @@ var health_label: Label
 var enemy_label: Label
 var message_label: Label
 var hurt_rect: ColorRect
+var radio: Node
 
 var hitmarker_timer := 0.0
 var hitmarker_color := Color.WHITE
@@ -30,6 +35,7 @@ Space  jump / double jump / wall jump
 C or Ctrl  crouch, slide when running
 Q, E or right mouse  grapple (hold)
 Left mouse  shoot    R  reload    I  inspect
+V or F  knife (kills unaware grunts)
 T  respawn    G  reset grunt arena
 H  hide help    Esc  free mouse"""
 
@@ -98,6 +104,10 @@ func _ready() -> void:
 			weapon.hit_confirmed.connect(_on_hit)
 			weapon.inspected.connect(func(line: String): flash_message(line, 3.0))
 		player.damaged.connect(_on_damaged)
+		radio = RadioChatter.new()
+		radio.name = "Radio"
+		radio.player = player
+		add_child(radio)
 
 
 func _label(size: int) -> Label:
@@ -183,6 +193,7 @@ func _draw_crosshair() -> void:
 		_draw_dead_lock_ring(center, gap)
 		_draw_lock_attempt()
 		_draw_ammo_pips()
+	_draw_detection(center)
 
 	if hitmarker_timer > 0.0:
 		var c := hitmarker_color
@@ -263,3 +274,32 @@ func _draw_ammo_pips() -> void:
 			crosshair.draw_rect(rect.grow(-1.0), c, true)
 		else:
 			crosshair.draw_rect(rect.grow(-1.0), Color(1, 1, 1, 0.25), false, 1.0)
+
+
+const DETECT_RING := 90.0
+
+## One arc per grunt that is noticing the pilot, on a ring around the
+## crosshair in the grunt's direction (top is straight ahead, bottom behind).
+## It grows and goes from yellow to red as the grunt's detection meter fills.
+func _draw_detection(center: Vector2) -> void:
+	var cam: Camera3D = player.camera
+	var fwd := -cam.global_basis.z
+	var right := cam.global_basis.x
+	for g in get_tree().get_nodes_in_group("enemies"):
+		if not ("detection" in g) or g.passive or g.target != player:
+			continue
+		var amount: float = g.detection
+		if amount < 0.02:
+			continue
+		var to: Vector3 = g.global_position - player.global_position
+		var ang := atan2(to.dot(right), to.dot(Vector3(fwd.x, 0.0, fwd.z).normalized()))
+		var a := ang - PI / 2.0  # screen angle, 0 = up
+		var alerted: bool = g.alerted
+		var col := Color(1.0, 0.85, 0.25).lerp(Color(1.0, 0.25, 0.1), amount)
+		if alerted:
+			col = Color(1.0, 0.1, 0.05)
+		var span := lerpf(0.12, 0.45, amount)
+		var width := 8.0 if alerted else lerpf(3.0, 6.0, amount)
+		col.a = 0.9 if alerted else lerpf(0.4, 0.95, amount)
+		crosshair.draw_arc(center, DETECT_RING, a - span * 0.5, a + span * 0.5, 12, Color(0, 0, 0, col.a * 0.6), width + 3.0)
+		crosshair.draw_arc(center, DETECT_RING, a - span * 0.5, a + span * 0.5, 12, col, width)

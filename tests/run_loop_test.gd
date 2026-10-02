@@ -70,7 +70,11 @@ func _run() -> void:
 	await _use_cache(objective.cache)
 	_check("guarded cache stays locked", run_node.phase == run_node.Phase.ZONE and not objective.cache.opened, run_node.phase)
 	_check("guard squad posted", objective.alive() >= 2, objective.alive())
-	# Let the squad see the pilot and fight for a few seconds: they hold their cover and stay on the platform.
+	# The pilot is behind the squad, so they haven't noticed yet. One of them
+	# spots the pilot and calls the rest in; they fight for a few seconds,
+	# hold their cover and stay on the platform.
+	objective.grunts[0].alert()
+	_check("one guard's callout alerts the squad", objective.grunts.all(func(g): return g.alerted), "")
 	await _ticks(600)
 	var stayed: bool = objective.grunts.all(func(g): return g.alerted and g.global_position.distance_to(g.post) < g.leash + 0.6)
 	_check("guards engage and hold their cover", stayed, objective.grunts.map(func(g): return g.global_position.distance_to(g.post)))
