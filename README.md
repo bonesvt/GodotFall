@@ -21,9 +21,53 @@ Pilot movement, first combat (a weak starter pistol and grunt enemies), and the 
 | H | Toggle help |
 | F9 | Toggle the PS2 look |
 
+## The temple (hub)
+Pressing Play (`scenes/run.tscn`) opens in the hub: the small abandoned temple Eco hides
+out in. A lost civilization built it for their precursor god; she has made it her secret
+base since the militia turned her away. Walk around, warm up the movement kit, and
+press **F** at the map table ("HEAD OUT") to start a run. When a run ends, won or lost,
+**Enter** brings you back here.
+
+- **The hall**: two rows of pillars down a nave, the roof fallen in over the middle so a
+  shaft of sun lands on the idol. Carved eye glyphs run along the walls.
+- **The idol**: the precursor god, seated on a stepped dais with its hands open on its
+  knees and one great eye still glowing in its brow. Fire bowls either side.
+- **Eco's corner** (left of the door): her bedroll and lantern, and the militia's letter
+  turning down her pilot application, pinned to the wall.
+- **Workbench** (right of the door): her father's smart pistol stripped down, its burnt
+  auto-lock board on the bench. An `EcoSpot` marker beside it is where her character
+  model will stand.
+- **Her father's titan** (right aisle): the wreck sitting slumped against the wall, left
+  arm torn off and lying beside it, core dark, wired to a bank of salvaged batteries.
+- **The gallery**: a ledge 4.5 m up the left wall. Run up the fallen pillar from the nave,
+  or double-jump up the rubble by the door. Her stash of scrap is up there.
+- **The grounds** (`scripts/hub/hub_grounds.gd`): a big grassy clearing round the temple,
+  closed in by a ruined boundary wall, thick jungle and green hills, so there is no void.
+  - **Plaza** in front of the door, with the god's eye on a plinth and lamp posts.
+  - **Eco's camp** (east, also out through the breach): tents, a campfire with smoke,
+    laundry and banners in the breeze, a salvage tarp over titan scrap, a pond.
+  - **Shooting range** (west): a covered firing line and nine pop-up targets from 8 to
+    40 m. Shoot one and it drops, then springs back up; the board counts hits and headshots.
+  - **Movement course** (behind the temple): three jumps, a wallrun, a climb, a grapple to
+    the finish tower and a long slide back down. Stand on the start pad, leave it and the
+    clock runs until the finish; touch the grass and it resets. Your best time shows on
+    the HUD.
+  - **Titan yard** (past the plaza): press **V** in the yard to drop a practice titan
+    (built from your last run's parts, scrap if none), **F** to climb in and out. Walk it
+    round titan-sized cover, dash, and shoot the four scrap titan dummies; they topple
+    and get propped back up.
+
+Press **F** near anything to have Eco say something about it; press again for more.
+Built in code by `scripts/hub/hub_builder.gd` and `hub_grounds.gd` (temple stone,
+carvings, moss, wood, grass, dirt, canvas and bark textures come from `tools/make_textures.py`).
+The trees, palms, bushes, ferns, grass, rocks, hills, tents and the idol are modelled in
+Blender by `tools/hub/build_props.py` (`blender -b --python tools/hub/build_props.py`, writes
+`assets/models/hub/*.glb`). Each mesh is named `<part>__<material>`, and
+`scripts/hub/hub_props.gd` swaps in the game material for that suffix when it spawns or
+scatters a prop.
+
 ## Scrap Titan run loop
-Pressing Play starts a run (`scenes/run.tscn`). The movement and grunt test level is
-still at `scenes/test_level.tscn` (open it and press F6).
+The movement and grunt test level is still at `scenes/test_level.tscn` (open it and press F6).
 
 1. **Three zones.** Each is a seeded chain of platforms over a void, linked by gaps you
    clear with a sprint jump, a double-jump climb, a wallrun along a blue wall, or the grapple
@@ -40,7 +84,7 @@ still at `scenes/test_level.tscn` (open it and press F6).
 4. **Titanfall.** Extract from zone 3 into the arena, press V to call your titan in, walk to
    it and press F to embark. Fight the enemy titan (a placeholder): hold left mouse on it to
    fire, Shift to dash out of its red slam circles, V when the core is ready.
-5. Kill it and the run is complete. Lose the titan and the run is over. Enter starts a new run.
+5. Kill it and the run is complete. Lose the titan and the run is over. Enter takes you back to the temple.
 
 | Key | Action |
 |---|---|
@@ -49,7 +93,7 @@ still at `scenes/test_level.tscn` (open it and press F6).
 | V | Call in titan, fire core |
 | Shift | Titan dash |
 | Left mouse | Titan fire |
-| Enter | New run (after a run ends) |
+| Enter | Back to the temple (after a run ends) |
 
 Run code lives in `scripts/run/`: `run_manager.gd` (the loop), `run_state.gd` (what a run
 carries), `zone_builder.gd` (zone and arena generation), `titan_parts.gd` (part catalog and
@@ -110,6 +154,10 @@ Weak on purpose, so skill decides fights.
   Paced shots land, spam doesn't. The crosshair gap shows the real cone.
 - **Movement**: sprinting and jumping add spread. **Wallrunning and sliding don't**, so shooting off a wall is a pilot skill.
 - Recoil kicks the view up and mostly settles back. Hitmarkers: white body, gold head, red kill.
+- **Eco's build**: an integrated suppressor (a quiet "thup" and the crisp clack of the slide), vents that
+  glow hotter the faster you shoot, LEDs on the slide that show the ammo left and race to the muzzle on
+  each shot, a holo sight that pulses, her father's dog tag swinging off the rail, and a twirl on every
+  reload and inspect (I). All feel; none of it changes the numbers above.
 
 ## Eco, the heroine
 A young mechanic who went rogue after the army turned her down as a Pilot. She fights with her
@@ -171,7 +219,13 @@ select the Player node and tweak values in the Inspector, or change the defaults
 - `scripts/test_level.gd` builds the test level in code
 - `scripts/weapon.gd` starter pistol (hitscan, bloom, falloff, recoil, viewmodel)
 - `scripts/grunt.gd` grunt AI and hitbox
-- `scripts/fx.gd` tracers and impact sparks
+- `scripts/fx.gd` stylized combat effects: tracers, muzzle stars, smoke, debris, casings, blasts
+- `tools/pistol/build_pistol.py` builds Eco's smart pistol in Blender
+  (`blender --background --python tools/pistol/build_pistol.py -- assets/models/smart_pistol/smart_pistol.glb`);
+  `tools/bake_models.gd -- smart_pistol` then puts it in her hand (`assets/models/smart_pistol.tscn`)
+- `scripts/sfx.gd` procedural sound effects, synthesized at runtime; drop `<id>.wav` or `<id>.ogg`
+  in `assets/audio/sfx/` (for example `pistol.wav`) to replace one with a recording
+- `scripts/run/titan_gun.gd` titan weapon personalities (XO-16 spin-up, Tracker shells, Splitter beam, jamming scrap rifle)
 - `scripts/hud.gd` crosshair, hitmarkers, health, ammo, speedometer, state and cooldown readout
 - `tests/movement_test.gd` headless smoke test:
   `godot --headless --path . -s res://tests/movement_test.gd`
@@ -180,3 +234,12 @@ select the Player node and tweak values in the Inspector, or change the defaults
 - `tests/run_loop_test.gd` headless run loop test (generator limits, a bot pilot clearing the
   hardest gap of each kind, salvage, extraction, titanfall, the fight, win and loss):
   `godot --headless --path . -s res://tests/run_loop_test.gd`
+- `tests/titan_weapons_test.gd` checks every titan weapon still deals its damage per second:
+  `godot --headless --path . -s res://tests/titan_weapons_test.gd`
+- `scripts/hub/hub_builder.gd` builds the temple in code, `hub_grounds.gd` the grounds,
+  `hub_kit.gd` shared shape helpers, `hub_props.gd` the Blender props; `practice_target.gd`, `titan_dummy.gd` and
+  `ambient.gd` (fire flicker, swaying cloth, birds) are the hub's moving parts
+- `tests/hub_test.gd` headless hub test (opens in the hub, walking the nave, every look-at
+  spot, the climb to the gallery, the grounds are closed in, range targets, the course
+  clock, the practice titan and dummies, map table starts a run, runs return to the hub):
+  `godot --headless --path . -s res://tests/hub_test.gd`

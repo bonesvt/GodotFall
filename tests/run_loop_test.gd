@@ -15,6 +15,7 @@ var failures := 0
 func _initialize() -> void:
 	run_node = load("res://scenes/run.tscn").instantiate()
 	run_node.run_seed = SEED
+	run_node.start_in_hub = false
 	root.add_child(run_node)
 	_run.call_deferred()
 
@@ -123,7 +124,7 @@ func _run() -> void:
 	await _ticks(240)
 	_check("boss fights back", titan.hp < titan.max_hp, titan.hp)
 	boss.hp = 1.0
-	await _ticks(10)
+	await _ticks(120)  # the slowest gun (40mm Tracker) fires about every 0.4 s
 	Input.action_release("titan_fire")
 	_check("killing the boss completes the run", run_node.phase == run_node.Phase.OVER and run_node.result == "RUN COMPLETE", run_node.result)
 

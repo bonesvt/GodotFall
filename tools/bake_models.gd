@@ -165,44 +165,19 @@ func _own(node: Node, owner_node: Node) -> void:
 		_own(c, owner_node)
 
 
-# --- Eco's sidearm: her father's broken smart pistol (first-person viewmodel) -
+# --- Eco's sidearm: her father's smart pistol (first-person viewmodel) -------
+# The gun itself is modelled in Blender (tools/pistol/build_pistol.py ->
+# assets/models/smart_pistol/smart_pistol.glb); this puts it in Eco's hand.
 
 func _smart_pistol() -> void:
 	var r := _root("SmartPistol")
-	var body := _painted("gunmetal", Color(0.78, 0.8, 0.84))
-	var dark := _painted("gunmetal", Color(0.42, 0.42, 0.46))
-	var paint := _painted("titan_armor", Color(0.62, 0.7, 0.8))  # his titan's colours
-	var stripe := _painted("titan_armor", Color(1.0, 0.55, 0.2))
-	var tape := _painted("canvas", Color(0.72, 0.72, 0.7))
-	# chunky smart-pistol upper with a rounded nose
-	_part(r, "Upper", "box", Vector3(0.05, 0.06, 0.22), Vector3(0, 0.012, 0.0), paint)
-	_part(r, "Nose", "cyl", Vector3(0.03, 0.05, 8), Vector3(0, 0.012, -0.11), paint, Vector3(0, 0, 90))
-	_part(r, "Stripe", "box", Vector3(0.052, 0.012, 0.09), Vector3(0, 0.03, 0.05), stripe)
-	_part(r, "Frame", "box", Vector3(0.042, 0.03, 0.18), Vector3(0, -0.03, -0.02), dark)
-	_part(r, "Barrel", "cyl", Vector3(0.011, 0.03, 6), Vector3(0, 0.005, -0.14), dark, Vector3(90, 0, 0))
-	# the auto-lock sensor on top: dead, cracked, taped back on
-	_part(r, "SensorHousing", "box", Vector3(0.04, 0.03, 0.07), Vector3(0, 0.057, -0.07), body)
-	var lens := _painted("visor", Color(0.9, 0.2, 0.15))
-	_part(r, "SensorLens", "cyl", Vector3(0.013, 0.01, 8), Vector3(0, 0.057, -0.106), lens, Vector3(90, 0, 0)) \
-		.set_instance_shader_parameter("glow", 0.15)
-	_part(r, "SensorCrack", "box", Vector3(0.026, 0.003, 0.003), Vector3(0, 0.058, -0.112), dark, Vector3(0, 0, 35))
-	_part(r, "SensorTape", "box", Vector3(0.046, 0.034, 0.016), Vector3(0, 0.054, -0.05), tape)
-	_part(r, "Tape", "box", Vector3(0.056, 0.066, 0.025), Vector3(0, 0.012, -0.03), tape)
-	# rear sights and the lock display facing the shooter, dark ever since it broke
-	_part(r, "RearSight", "box", Vector3(0.034, 0.014, 0.012), Vector3(0, 0.048, 0.1), dark)
-	_part(r, "Display", "box", Vector3(0.036, 0.026, 0.004), Vector3(0, 0.02, 0.111), lens) \
-		.set_instance_shader_parameter("glow", 0.25)
-	_part(r, "Hammer", "box", Vector3(0.014, 0.02, 0.016), Vector3(0, 0.05, 0.118), dark, Vector3(-25, 0, 0))
-	_part(r, "Grip", "box", Vector3(0.038, 0.12, 0.054), Vector3(0, -0.088, 0.072), dark, Vector3(-16, 0, 0))
-	_part(r, "MagBase", "box", Vector3(0.042, 0.014, 0.06), Vector3(0, -0.15, 0.09), paint, Vector3(-16, 0, 0))
-	_part(r, "GuardBottom", "box", Vector3(0.012, 0.008, 0.055), Vector3(0, -0.062, -0.012), dark)
-	_part(r, "GuardFront", "box", Vector3(0.012, 0.03, 0.008), Vector3(0, -0.048, -0.04), dark)
-	_part(r, "Trigger", "box", Vector3(0.008, 0.022, 0.008), Vector3(0, -0.046, 0.0), body, Vector3(15, 0, 0))
+	var gun: Node3D = load("res://assets/models/smart_pistol/smart_pistol.glb").instantiate()
+	gun.name = "Gun"
+	r.add_child(gun)
 	# Eco's arm: fingerless glove round the grip, sleeve rolled up (sculpted in tools/eco/)
 	var arm: Node3D = load("res://assets/models/eco/eco_fp_arm.glb").instantiate()
 	arm.name = "Arm"
 	r.add_child(arm)
-	_pivot(r, "Muzzle", Vector3(0, 0.005, -0.16))
 	_save(r, "smart_pistol.tscn")
 
 

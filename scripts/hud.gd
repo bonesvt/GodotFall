@@ -1,6 +1,9 @@
 extends CanvasLayer
 ## HUD: spread-aware crosshair with hitmarkers, speedometer, movement state,
 ## ability readouts, health, ammo and the grunt count.
+## The reticle wears the pistol's story: around the spread ticks sits the
+## ring of the old smart-lock, half its segments dead, flickering when the
+## module glitches, and it still brackets enemies before failing to lock.
 
 var player: Node
 var level: Node
@@ -17,6 +20,7 @@ var hurt_rect: ColorRect
 
 var hitmarker_timer := 0.0
 var hitmarker_color := Color.WHITE
+var hitmarker_kind := "body"
 var hurt_flash := 0.0
 var message_timer := 0.0
 
@@ -25,7 +29,7 @@ const HELP := """WASD  move (auto-sprint forward)
 Space  jump / double jump / wall jump
 C or Ctrl  crouch, slide when running
 Q, E or right mouse  grapple (hold)
-Left mouse  shoot    R  reload
+Left mouse  shoot    R  reload    I  inspect
 T  respawn    G  reset grunt arena
 H  hide help    Esc  free mouse"""
 
@@ -92,6 +96,7 @@ func _ready() -> void:
 		weapon = player.get_node_or_null("Head/Camera3D/Weapon")
 		if weapon != null:
 			weapon.hit_confirmed.connect(_on_hit)
+			weapon.inspected.connect(func(line: String): flash_message(line, 3.0))
 		player.damaged.connect(_on_damaged)
 
 
@@ -116,6 +121,7 @@ func flash_message(text: String, seconds := 2.0) -> void:
 
 func _on_hit(kind: String) -> void:
 	hitmarker_timer = HITMARKER_TIME
+	hitmarker_kind = kind
 	match kind:
 		"head":
 			hitmarker_color = Color(1.0, 0.75, 0.1)
@@ -173,8 +179,87 @@ func _draw_crosshair() -> void:
 		crosshair.draw_line(center + d * gap, center + d * (gap + length), col, 2.0)
 	crosshair.draw_circle(center, 1.5, col)
 
+	if weapon != null:
+		_draw_dead_lock_ring(center, gap)
+		_draw_lock_attempt()
+		_draw_ammo_pips()
+
 	if hitmarker_timer > 0.0:
 		var c := hitmarker_color
-		c.a = clampf(hitmarker_timer / HITMARKER_TIME, 0.0, 1.0)
+		var k := clampf(hitmarker_timer / HITMARKER_TIME, 0.0, 1.0)
+		c.a = k
+		# Pops out big and settles; heads and kills hit harder.
+		var pop := 1.0 + k * k * (0.6 if hitmarker_kind != "body" else 0.3)
+		var inner := 7.0 * pop
+		var outer := (15.0 if hitmarker_kind == "body" else 19.0) * pop
 		for d in [Vector2(1, 1), Vector2(-1, 1), Vector2(1, -1), Vector2(-1, -1)]:
-			crosshair.draw_line(center + d * 7.0, center + d * 15.0, c, 3.0)
+			crosshair.draw_line(center + d * inner, center + d * outer, Color(0, 0, 0, c.a * 0.8), 5.0)
+			crosshair.draw_line(center + d * inner, center + d * outer, c, 3.0)
+		if hitmarker_kind == "kill":
+			crosshair.draw_arc(center, 26.0 + (1.0 - k) * 30.0, 0.0, TAU, 32, Color(c, k * 0.8), 2.0)
+
+
+## The smart pistol's old lock ring. Some segments are dead for good; the rest
+## flicker out whenever the module glitches.
+func _draw_dead_lock_ring(center: Vector2, gap: float) -> void:
+	const SEGMENTS := 12
+	const DEAD := [1, 4, 5, 9]
+	var radius := gap + 18.0
+	var g: float = weapon.glitch
+	var jitter := Vector2(randf_range(-2, 2), randf_range(-1, 1)) * g
+	for i in SEGMENTS:
+		if i in DEAD:
+			continue
+		if g > 0.2 and randf() < g * 0.5:
+			continue
+		var a0 := TAU * i / SEGMENTS + 0.08
+		var a1 := TAU * (i + 1) / SEGMENTS - 0.08
+		var c := Color(0.45, 0.85, 1.0, 0.45 + g * 0.4)
+		crosshair.draw_arc(center + jitter, radius, a0, a1, 4, Color(0, 0, 0, c.a * 0.5), 3.5)
+		crosshair.draw_arc(center + jitter, radius, a0, a1, 4, c, 1.5)
+
+
+## When the crosshair sits on an enemy the module brackets it, the brackets
+## jitter and fail to close, and it throws a LOCK ERR.
+func _draw_lock_attempt() -> void:
+	var t = weapon.lock_target
+	if not is_instance_valid(t):
+		return
+	var cam: Camera3D = player.camera
+	var at: Vector3 = t.global_position + Vector3.UP * 1.0
+	if cam.is_position_behind(at):
+		return
+	var p: Vector2 = cam.unproject_position(at)
+	var lt: float = weapon.lock_time
+	# Brackets close in for a moment, then spring back open as the lock fails.
+	var close := clampf(lt / 0.35, 0.0, 1.0)
+	var fail := clampf((lt - 0.35) / 0.15, 0.0, 1.0)
+	var size := lerpf(60.0, 26.0, close) + fail * 14.0 + randf_range(-2, 2) * (1.0 + fail * 2.0)
+	var blink := fail < 1.0 or fmod(lt, 0.5) < 0.3
+	if not blink:
+		return
+	var c := Color(0.45, 0.85, 1.0, 0.8).lerp(Color(1.0, 0.25, 0.2, 0.85), fail)
+	var arm := 9.0
+	for corner in [Vector2(-1, -1), Vector2(1, -1), Vector2(1, 1), Vector2(-1, 1)]:
+		var k: Vector2 = p + corner * size * 0.5
+		crosshair.draw_line(k, k - Vector2(corner.x * arm, 0), c, 2.0)
+		crosshair.draw_line(k, k - Vector2(0, corner.y * arm), c, 2.0)
+	if fail > 0.0:
+		var font := ThemeDB.fallback_font
+		crosshair.draw_string(font, p + Vector2(-size * 0.5, size * 0.5 + 16), "LOCK ERR", HORIZONTAL_ALIGNMENT_LEFT, -1, 13, c)
+
+
+## One pip per round above the ammo counter; the last round glows red.
+func _draw_ammo_pips() -> void:
+	var n: int = weapon.magazine_size
+	var right := Vector2(crosshair.size.x - 32.0, crosshair.size.y - 88.0)
+	for i in n:
+		var x := right.x - (n - 1 - i) * 11.0
+		var rect := Rect2(x - 3.0, right.y - 18.0, 6.0, 18.0)
+		var loaded: bool = i < weapon.ammo and not weapon.is_reloading()
+		var c := Color(1.0, 0.85, 0.45) if weapon.ammo > 1 else Color(1.0, 0.3, 0.2)
+		crosshair.draw_rect(rect, Color(0, 0, 0, 0.6), true)
+		if loaded:
+			crosshair.draw_rect(rect.grow(-1.0), c, true)
+		else:
+			crosshair.draw_rect(rect.grow(-1.0), Color(1, 1, 1, 0.25), false, 1.0)
