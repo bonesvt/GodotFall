@@ -122,7 +122,7 @@ func _set_readied(on: bool) -> void:
 	player.speed_mult = ready_speed if on else 1.0
 	if on and stab_timer < 0.0:
 		_play("draw")
-		SFX.play(self, "knife_draw", -6.0, SFX.vary(0.04))
+		SFX.play(self, "knife_draw", -14.0, SFX.vary(0.04))
 	elif not on and anim == "inspect":
 		_play("")
 
@@ -278,14 +278,13 @@ func _anim_events() -> void:
 		"inspect":
 			if not _glint_done and anim_time >= 0.4:
 				_glint_done = true
-				SFX.play(self, "flourish", -8.0)
 				_edge_glint()
 			if anim_time >= 0.85 and anim_time - get_process_delta_time() < 0.85:
-				SFX.play(self, "knife_spin", -6.0)
+				SFX.play(self, "knife_spin", -16.0)
 			if anim_time >= 1.55 and anim_time - get_process_delta_time() < 1.55:
-				SFX.play(self, "knife_swish", -9.0, 1.3)
+				SFX.play(self, "knife_swish", -16.0, 1.1)
 			if anim_time >= 2.05 and anim_time - get_process_delta_time() < 2.05:
-				SFX.play(self, "knife_catch", -4.0)
+				SFX.play(self, "knife_catch", -12.0)
 				FX.star(_tip, _tip.global_position, Color(0.75, 0.95, 1.0, 0.9), 0.05, 0.1, 4)
 
 
@@ -339,7 +338,7 @@ func stab() -> bool:
 		_play(_next_slash)
 		_next_slash = "slash_b" if _next_slash == "slash_a" else "slash_a"
 	_last_tip = _tip.global_position
-	SFX.play(self, "knife_swish", -4.0, SFX.vary(0.06))
+	SFX.play(self, "knife_swish", -10.0, SFX.vary(0.08))
 	if weapon != null:
 		# The pistol hand swings aside and can't fire mid-stab.
 		weapon.holstered = true
@@ -395,9 +394,9 @@ func _strike() -> void:
 	stabbed.emit(kind)
 	if weapon != null:
 		weapon.hit_confirmed.emit("kill" if killed else "body")
-	SFX.play(self, "knife_hit", 0.0, SFX.vary(0.08))
-	if killed:
-		SFX.play(self, "kill", -2.0)
+	SFX.play(self, "knife_hit", -6.0, SFX.vary(0.08))
+	if killed and not takedown:
+		SFX.play(self, "kill", -10.0)  # takedowns stay silent
 	var dir: Vector3 = (at - player.camera.global_position).normalized()
 	FX.star(fx_parent, at - dir * 0.3, Color(1.0, 0.9, 0.6), 0.3 if killed else 0.18, 0.06, 6)
 	FX.debris(fx_parent, at - dir * 0.3, -dir, Color(0.42, 0.45, 0.4), 4, 3.0, 0.03, 0.35)
