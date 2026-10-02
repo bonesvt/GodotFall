@@ -6,5 +6,8 @@ export_presets.cfg
 !assets/textures/*.import
 !assets/textures/titans/*.import
 !assets/models/titans/*.import
+!assets/models/grunt/*.import
 !assets/models/eco/*.import
 tools/eco/__pycache__/
+tools/grunt/__pycache__/
+tools/titans/__pycache__/

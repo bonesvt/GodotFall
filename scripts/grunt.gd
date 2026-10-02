@@ -1,8 +1,13 @@
 extends CharacterBody3D
-## Basic grunt. Spots the pilot by line of sight, holds a mid range,
-## strafes, and fires slow single shots after a visible wind-up
-## (the visor glows red). Its aim gets worse the faster the pilot moves,
-## so wallrunning and sliding are your best armour.
+## Basic grunt. Starts unaware and has to notice the pilot first: it only
+## sees inside a forward cone, out to its sight range, with cover blocking the
+## view, and a detection meter fills while it can see (faster up close, when
+## the pilot moves fast, and slower for a crouched pilot or one peeking over
+## cover). Footsteps and gunshots can be heard from behind. Half full it turns
+## to look ("?"), full it is alerted ("!") and calls its squad in.
+## Once alerted it holds a mid range, strafes, and fires slow single shots
+## after a visible wind-up (the visor glows red). Its aim gets worse the faster
+## the pilot moves, so wallrunning and sliding are your best armour.
 
 const Pilot := preload("res://scripts/player.gd")
 const FX := preload("res://scripts/fx.gd")
@@ -10,6 +15,14 @@ const Art := preload("res://scripts/ps2/ps2_assets.gd")
 const SFX := preload("res://scripts/sfx.gd")
 
 signal died(grunt: Node)
+## UNAWARE, SUSPICIOUS or ALERTED (see Awareness), every time it changes.
+signal awareness_changed(grunt: Node, awareness: int)
+## This grunt spotted the pilot and called these squadmates in (may be empty).
+signal called_out(grunt: Node, squadmates: Array)
+## Alerted grunt lost the pilot and went back to searching.
+signal lost_track(grunt: Node)
+
+enum Awareness { UNAWARE, SUSPICIOUS, ALERTED }
 
 @export var max_health := 60.0
 @export var move_speed := 3.5
@@ -34,13 +47,59 @@ signal died(grunt: Node)
 ## chasing, wandering at most this far from it.
 @export var leash := 0.0
 
+@export_group("Stealth")
+## Half-angle of the vision cone, in degrees. Outside it the grunt sees nothing.
+@export var view_cone := 60.0
+## Detection gained per second for a standing pilot in plain view, from the
+## edge of sight range up to point-blank.
+@export var notice_rate_far := 0.3
+@export var notice_rate_near := 3.0
+## Detection multiplier for a crouched pilot (not sliding).
+@export var crouch_notice := 0.45
+## Detection multiplier when only the pilot's head or body shows past cover.
+@export var partial_notice := 0.6
+## Footsteps carry this many metres per m/s of pilot speed (a sprint is ~7 m,
+## a crouch walk ~1 m). Airborne pilots and grapples make no footsteps.
+@export var footstep_range := 0.7
+## Anything this close gets noticed, seen or not.
+@export var touch_range := 1.5
+## Gunshots (suppressed) are heard this far away; within the first third they
+## alert outright.
+@export var gunshot_range := 20.0
+## Detection lost per second once the pilot has been gone for calm_delay.
+@export var calm_rate := 0.15
+@export var calm_delay := 2.0
+## Detection multiplier for a pilot standing in tall grass ("stealth_cover").
+@export var grass_notice := 0.5
+## A pilot crouched in tall grass can't be seen at all past this distance.
+@export var grass_hide_range := 4.0
+## Detection at which the grunt turns to look.
+@export var suspicious_at := 0.35
+## Damage multiplier for hits on a grunt that hasn't noticed the pilot at all
+## (a pistol headshot on an unaware grunt kills outright).
+@export var unaware_damage := 2.0
+## Squadmates this close hear an alerted grunt's callout.
+@export var callout_range := 16.0
+## Alerted grunts that lose sight of the pilot this long go back to searching.
+@export var lose_track_time := 10.0
+
 const HEAD_Y := 1.5  # hits higher than this above the feet are headshots
 const EYE := Vector3(0, 1.6, 0)
 const MUZZLE := Vector3(0.3, 1.2, -0.6)
 
 var health := 0.0
 var target: CharacterBody3D
+## True while alerted (fighting); kept alongside `awareness` for older callers.
 var alerted := false
+var awareness := Awareness.UNAWARE
+## Detection meter, 0 to 1. Reaching 1 alerts the grunt.
+var detection := 0.0
+## Where the grunt last saw or heard something; it looks there when suspicious.
+var last_known := Vector3.ZERO
+var since_stimulus := 99.0
+var since_seen := 0.0
+var home_yaw := NAN
+var scan_time := 0.0
 var has_sight := false
 var sight_timer := 0.0
 var fire_timer := 0.0
@@ -53,6 +112,8 @@ var rng := RandomNumberGenerator.new()
 
 var model: Node3D
 var hurt_timer := 0.0
+var indicator: Label3D
+var indicator_pop := 0.0
 
 
 func _ready() -> void:
@@ -61,6 +122,7 @@ func _ready() -> void:
 	post = global_position
 	fire_timer = rng.randf_range(0.5, fire_interval)
 	strafe_dir = 1.0 if rng.randf() < 0.5 else -1.0
+	scan_time = rng.randf() * TAU
 	_build_body()
 
 
@@ -71,13 +133,19 @@ func _physics_process(delta: float) -> void:
 	var hvel := Vector3(velocity.x, 0.0, velocity.z)
 	var want := Vector3.ZERO
 
+	if is_nan(home_yaw):
+		home_yaw = rotation.y  # spawners set the facing after _ready
 	if not passive and target != null:
 		_update_sight(delta)
 		var to := target.global_position - global_position
 		to.y = 0.0
 		var dist := to.length()
-		if alerted and dist > sight_range * 1.5:
-			alerted = false
+		if alerted:
+			since_seen = 0.0 if has_sight else since_seen + delta
+			if dist > sight_range * 1.5 or since_seen > lose_track_time:
+				lose_track()
+		else:
+			_unaware_look(delta)
 		if alerted and dist > 0.1:
 			var dir := to / dist
 			rotation.y = lerp_angle(rotation.y, atan2(-dir.x, -dir.z), 1.0 - exp(-8.0 * delta))
@@ -111,6 +179,27 @@ func _process(delta: float) -> void:
 	var glow := 0.0 if windup_timer < 0.0 else 1.0 - windup_timer / windup
 	model.set_param("paint", Color(0.9, 0.7, 0.2).lerp(Color(1.0, 0.1, 0.05), glow), "Visor")
 	model.set_param("glow", 0.5 + glow * 4.0, "Visor")
+	_update_indicator(delta)
+
+
+## "?" that fills in yellow to orange while the grunt is noticing the pilot,
+## "!" in red once it's alerted. Drawn over cover so you can read it hiding.
+func _update_indicator(delta: float) -> void:
+	indicator_pop = maxf(indicator_pop - delta * 4.0, 0.0)
+	if dead or passive or (awareness == Awareness.UNAWARE and detection < 0.02):
+		indicator.visible = false
+		return
+	indicator.visible = true
+	var scale_up := 1.0 + indicator_pop * 0.6
+	if awareness == Awareness.ALERTED:
+		indicator.text = "!"
+		indicator.modulate = Color(1.0, 0.15, 0.1)
+	else:
+		indicator.text = "?"
+		indicator.modulate = Color(1.0, 0.9, 0.3).lerp(Color(1.0, 0.45, 0.1), detection)
+		indicator.modulate.a = lerpf(0.35, 1.0, clampf(detection / suspicious_at, 0.0, 1.0))
+		scale_up *= lerpf(0.7, 1.0, detection)
+	indicator.scale = Vector3.ONE * scale_up
 
 
 ## True when there is floor a short step in this direction (keeps grunts on platforms).
@@ -123,22 +212,183 @@ func _ground_ahead(dir: Vector3) -> bool:
 	return not get_world_3d().direct_space_state.intersect_ray(query).is_empty()
 
 
+const SIGHT_TICK := 0.2
+## Foliage that only blocks sight (forest_kit.gd SIGHT_LAYER); vision rays hit it.
+const SIGHT_LAYER := 16
+
+
 func _update_sight(delta: float) -> void:
+	since_stimulus += delta
 	sight_timer -= delta
 	if sight_timer > 0.0:
 		return
-	sight_timer = 0.2
-	has_sight = false
+	sight_timer = SIGHT_TICK
 	var from := global_position + EYE
-	var to := target.global_position + Vector3.UP * 1.2
-	if from.distance_to(to) > sight_range and not alerted:
+	if alerted:
+		# Already fighting: it tracks the pilot wherever it can see them.
+		has_sight = _visible_points(from) > 0
+		if has_sight:
+			last_known = target.global_position
 		return
-	var query := PhysicsRayQueryParameters3D.create(from, to)
-	query.exclude = [get_rid()]
-	var hit := get_world_3d().direct_space_state.intersect_ray(query)
-	has_sight = not hit.is_empty() and hit.collider == target
-	if has_sight:
-		alerted = true
+	has_sight = false
+	var gain := _sight_gain(from) + _hearing_gain()
+	if gain > 0.0:
+		detection += gain * SIGHT_TICK
+		since_stimulus = 0.0
+		last_known = target.global_position
+	elif since_stimulus > calm_delay:
+		detection -= calm_rate * SIGHT_TICK
+	detection = clampf(detection, 0.0, 1.0)
+	if detection >= 1.0:
+		alert()
+	else:
+		_set_awareness(Awareness.SUSPICIOUS if detection >= suspicious_at else Awareness.UNAWARE)
+
+
+## Detection per second from seeing the pilot right now (0 when it can't).
+func _sight_gain(from: Vector3) -> float:
+	var to := target.global_position - global_position
+	var dist := to.length()
+	if dist > sight_range:
+		return 0.0
+	var flat := Vector3(to.x, 0.0, to.z)
+	var facing := -global_basis.z
+	var angle: float = rad_to_deg(facing.angle_to(flat)) if flat.length() > 0.01 else 0.0
+	if angle > view_cone:
+		return 0.0
+	var points := _visible_points(from)
+	if points == 0:
+		return 0.0
+	has_sight = true
+	var near := 1.0 - dist / sight_range
+	var rate := lerpf(notice_rate_far, notice_rate_near, near * near)
+	rate *= lerpf(1.0, 0.5, angle / view_cone)  # slower at the edge of vision
+	if points == 1:
+		rate *= partial_notice
+	if target.crouching and target.state != Pilot.State.SLIDE:
+		rate *= crouch_notice
+	if _pilot_in_grass():
+		rate *= grass_notice
+	rate *= 1.0 + clampf(target.horizontal_speed() / target.sprint_speed, 0.0, 2.0)
+	return rate
+
+
+## Detection per second from footsteps (and bumping into the grunt).
+func _hearing_gain() -> float:
+	var dist := global_position.distance_to(target.global_position)
+	if dist < touch_range:
+		return 4.0
+	var r := 0.0
+	match target.state:
+		Pilot.State.GROUND, Pilot.State.SLIDE, Pilot.State.WALLRUN:
+			r = target.horizontal_speed() * footstep_range
+			if target.crouching and target.state == Pilot.State.GROUND:
+				r *= 0.4
+	if dist >= r:
+		return 0.0
+	return 0.6 + 1.6 * (1.0 - dist / r)
+
+
+## How many of the pilot's head and chest this grunt has a clear line to (0-2).
+func _visible_points(from: Vector3) -> int:
+	var eye := 0.8 if target.crouching else 1.55
+	if target.crouching and _pilot_in_grass() \
+			and global_position.distance_to(target.global_position) > grass_hide_range:
+		return 0  # lying low in the tall grass
+	var count := 0
+	for h in [eye, eye * 0.6]:
+		var query := PhysicsRayQueryParameters3D.create(from, target.global_position + Vector3.UP * h, 1 | SIGHT_LAYER)
+		query.exclude = [get_rid()]
+		var hit := get_world_3d().direct_space_state.intersect_ray(query)
+		if not hit.is_empty() and hit.collider == target:
+			count += 1
+	return count
+
+
+## True while the pilot stands in tall grass (an Area3D in group "stealth_cover").
+func _pilot_in_grass() -> bool:
+	var q := PhysicsPointQueryParameters3D.new()
+	q.position = target.global_position + Vector3.UP * 0.5
+	q.collide_with_areas = true
+	q.collide_with_bodies = false
+	q.collision_mask = SIGHT_LAYER
+	for hit in get_world_3d().direct_space_state.intersect_point(q, 8):
+		if hit.collider.is_in_group("stealth_cover"):
+			return true
+	return false
+
+
+## Unaware grunts sweep their gaze around their post; suspicious ones turn to
+## face whatever they noticed.
+func _unaware_look(delta: float) -> void:
+	var want := home_yaw
+	if awareness == Awareness.SUSPICIOUS:
+		var d := last_known - global_position
+		if Vector2(d.x, d.z).length() > 0.5:
+			want = atan2(-d.x, -d.z)
+	else:
+		scan_time += delta
+		want += sin(scan_time * 0.6) * deg_to_rad(35.0)
+	var speed := 5.0 if awareness == Awareness.SUSPICIOUS else 1.5
+	rotation.y = lerp_angle(rotation.y, want, 1.0 - exp(-speed * delta))
+
+
+## Spots the pilot outright. With callout, nearby squadmates are alerted too
+## (they don't pass it on further).
+func alert(callout := true) -> void:
+	if dead or passive:
+		return
+	detection = 1.0
+	since_seen = 0.0
+	if target != null:
+		last_known = target.global_position
+	var was := alerted
+	alerted = true
+	_set_awareness(Awareness.ALERTED)
+	if was or not callout:
+		return
+	var squad := []
+	for g in get_tree().get_nodes_in_group("enemies"):
+		if g != self and g.has_method("alert") and not g.alerted \
+				and g.global_position.distance_to(global_position) <= callout_range:
+			g.alert(false)
+			squad.append(g)
+	called_out.emit(self, squad)
+
+
+## Lost the pilot: back to searching where they were last seen.
+func lose_track() -> void:
+	alerted = false
+	windup_timer = -1.0
+	detection = 0.6
+	since_stimulus = 0.0
+	_set_awareness(Awareness.SUSPICIOUS)
+	lost_track.emit(self)
+
+
+## A gunshot went off at this position (the pilot's weapon calls this).
+func hear_gunshot(pos: Vector3) -> void:
+	if dead or passive or alerted:
+		return
+	var dist := global_position.distance_to(pos)
+	if dist > gunshot_range:
+		return
+	last_known = pos
+	since_stimulus = 0.0
+	if dist < gunshot_range / 3.0:
+		alert()
+		return
+	detection = maxf(detection, 0.5 + 0.4 * (1.0 - dist / gunshot_range))
+	_set_awareness(Awareness.SUSPICIOUS)
+
+
+func _set_awareness(a: Awareness) -> void:
+	if a == awareness:
+		return
+	if a > awareness:
+		indicator_pop = 1.0
+	awareness = a
+	awareness_changed.emit(self, a)
 
 
 func _movement(dir: Vector3, dist: float, delta: float) -> Vector3:
@@ -205,13 +455,20 @@ func is_headshot(pos: Vector3) -> bool:
 	return pos.y - global_position.y > HEAD_Y
 
 
+## True while it hasn't noticed the pilot at all: knife takedowns work on it.
+func is_unaware() -> bool:
+	return not dead and not passive and awareness == Awareness.UNAWARE
+
+
 ## Returns true when this hit killed the grunt.
 func take_damage(amount: float, _pos: Vector3, _head := false) -> bool:
 	if dead:
 		return false
+	if awareness == Awareness.UNAWARE and not passive:
+		amount *= unaware_damage
 	health -= amount
 	hurt_timer = 0.06
-	alerted = true
+	alert()
 	if health > 0.0:
 		return false
 	_die()
@@ -221,6 +478,7 @@ func take_damage(amount: float, _pos: Vector3, _head := false) -> bool:
 func _die() -> void:
 	dead = true
 	windup_timer = -1.0
+	indicator.visible = false
 	remove_from_group("enemies")
 	collision_layer = 0
 	collision_mask = 0
@@ -242,3 +500,17 @@ func _build_body() -> void:
 
 	model = Art.model("grunt")
 	add_child(model)
+
+	indicator = Label3D.new()
+	indicator.name = "Awareness"
+	indicator.position.y = 2.4
+	indicator.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	indicator.no_depth_test = true
+	indicator.fixed_size = true
+	indicator.pixel_size = 0.0022
+	indicator.font_size = 64
+	indicator.outline_size = 16
+	indicator.outline_modulate = Color(0, 0, 0, 0.8)
+	indicator.render_priority = 10
+	indicator.visible = false
+	add_child(indicator)
