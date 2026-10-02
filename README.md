@@ -59,7 +59,12 @@ press **F** at the map table ("HEAD OUT") to start a run. When a run ends, won o
 
 Press **F** near anything to have Eco say something about it; press again for more.
 Built in code by `scripts/hub/hub_builder.gd` and `hub_grounds.gd` (temple stone,
-carvings, moss, wood, grass, dirt and canvas textures come from `tools/make_textures.py`).
+carvings, moss, wood, grass, dirt, canvas and bark textures come from `tools/make_textures.py`).
+The trees, palms, bushes, ferns, grass, rocks, hills, tents and the idol are modelled in
+Blender by `tools/hub/build_props.py` (`blender -b --python tools/hub/build_props.py`, writes
+`assets/models/hub/*.glb`). Each mesh is named `<part>__<material>`, and
+`scripts/hub/hub_props.gd` swaps in the game material for that suffix when it spawns or
+scatters a prop.
 
 ## Scrap Titan run loop
 The movement and grunt test level is still at `scenes/test_level.tscn` (open it and press F6).
@@ -180,7 +185,7 @@ select the Player node and tweak values in the Inspector, or change the defaults
   hardest gap of each kind, salvage, extraction, titanfall, the fight, win and loss):
   `godot --headless --path . -s res://tests/run_loop_test.gd`
 - `scripts/hub/hub_builder.gd` builds the temple in code, `hub_grounds.gd` the grounds,
-  `hub_kit.gd` shared shape helpers; `practice_target.gd`, `titan_dummy.gd` and
+  `hub_kit.gd` shared shape helpers, `hub_props.gd` the Blender props; `practice_target.gd`, `titan_dummy.gd` and
   `ambient.gd` (fire flicker, swaying cloth, birds) are the hub's moving parts
 - `tests/hub_test.gd` headless hub test (opens in the hub, walking the nave, every look-at
   spot, the climb to the gallery, the grounds are closed in, range targets, the course

@@ -73,7 +73,8 @@ static func material(kind: String, tint := Color.WHITE) -> Material:
 	var key := kind + tint.to_html()
 	if not _cache.has(key):
 		var mat: ShaderMaterial = MATERIALS[kind].duplicate()
-		mat.set_shader_parameter("albedo", tint)
+		var base = mat.get_shader_parameter("albedo")
+		mat.set_shader_parameter("albedo", tint * (base if base is Color else Color.WHITE))
 		_cache[key] = mat
 	return _cache[key]
 

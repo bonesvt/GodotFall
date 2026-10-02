@@ -17,6 +17,7 @@ const Art := preload("res://scripts/ps2/ps2_assets.gd")
 const PracticeTarget := preload("res://scripts/hub/practice_target.gd")
 const TitanDummy := preload("res://scripts/hub/titan_dummy.gd")
 const Ambient := preload("res://scripts/hub/ambient.gd")
+const Props := preload("res://scripts/hub/hub_props.gd")
 
 ## The boundary wall runs at x = +-WALL_X, z = WALL_BACK and z = WALL_FRONT.
 const WALL_X := 72.0
@@ -59,7 +60,7 @@ static func build(root: Node3D, info: Dictionary) -> void:
 # --- ground and boundary ----------------------------------------------------------
 
 static func _ground(root: Node3D) -> void:
-	Kit.box(root, Vector3(0, -1.0, 0), Vector3(340, 2.0, 360), K.STONE, Vector3.ZERO, Art.material("grass"))
+	Kit.box(root, Vector3(0, -1.0, 0), Vector3(600, 2.0, 600), K.STONE, Vector3.ZERO, Art.material("grass"))
 	var dirt := Art.material("dirt")
 	# Worn paths from the plaza to each area, and round the temple to the course.
 	for spec in [[Vector3(20, 0.02, 16), Vector3(10, 0.04, 4)], [Vector3(-18, 0.02, 16), Vector3(6, 0.04, 4)],
@@ -118,32 +119,29 @@ static func _boundary(root: Node3D, rng: RandomNumberGenerator) -> void:
 	K.stone(root, gate + Vector3(-1.5, 1.4, 0), Vector3(6, 2.8, 3), Vector3(0, 10, 4), tint)
 	K.stone(root, gate + Vector3(2.5, 1.0, -0.5), Vector3(4, 2.0, 3), Vector3(0, -20, 0), tint)
 	K.stone(root, gate + Vector3(0.5, 3.3, 0.3), Vector3(4, 1.6, 2.4), Vector3(0, 30, 8), tint)
-	# Jungle outside the wall, thick enough that you only see trees.
-	for i in 220:
+	# Jungle outside the wall, thick enough that you only see trees: one batched
+	# draw per tree model.
+	var jungle := {}
+	for id in Props.TREES:
+		jungle[id] = []
+	for i in 320:
 		var p := Vector3.ZERO
 		while true:
-			p = Vector3(rng.randf_range(-WALL_X - 30, WALL_X + 30), 0, rng.randf_range(WALL_BACK - 30, WALL_FRONT + 30))
+			p = Vector3(rng.randf_range(-WALL_X - 34, WALL_X + 34), 0, rng.randf_range(WALL_BACK - 34, WALL_FRONT + 34))
 			if absf(p.x) > WALL_X + 2.5 or p.z < WALL_BACK - 2.5 or p.z > WALL_FRONT + 2.5:
 				break
-		tree(root, p, rng.randf_range(9.0, 16.0), rng, false)
-	# Jungle hills ringing the valley, stepped and green, with bare rock at the
-	# peaks, fading into the haze.
-	var hill_green := Color(0.6, 0.75, 0.62)
-	for i in 26:
-		var ang := TAU * i / 26.0 + rng.randf_range(-0.05, 0.05)
-		var dist := rng.randf_range(150.0, 200.0)
-		var h := rng.randf_range(28.0, 60.0)
-		var w := rng.randf_range(50.0, 80.0)
-		var base := Vector3(sin(ang) * dist, -2.0, cos(ang) * dist)
-		var yaw := rad_to_deg(ang) + rng.randf_range(-25, 25)
-		var y := 0.0
-		for tier in 3:
-			var tw := w * (1.0 - tier * 0.3)
-			var th: float = h * [0.45, 0.35, 0.2][tier]
-			var off := Vector3(rng.randf_range(-5, 5), 0, rng.randf_range(-5, 5)) * tier
-			var mat := Art.material("temple_stone", Color(0.62, 0.66, 0.62)) if tier == 2 else Art.material("moss", hill_green * LEAF_TINTS[(i + tier) % LEAF_TINTS.size()])
-			K.mesh(root, base + off + Vector3(0, y + th * 0.5, 0), Vector3(tw, th, tw * 0.8), mat, Vector3(0, yaw + tier * 17.0, 0))
-			y += th
+		var id: String = Props.TREES[i % Props.TREES.size()]
+		var basis := Basis(Vector3.UP, rng.randf_range(0, TAU)).scaled(Vector3.ONE * rng.randf_range(1.0, 1.6))
+		jungle[id].append(Transform3D(basis, p))
+	for id in jungle:
+		Props.scatter(root, id, jungle[id], LEAF_TINTS[Props.TREES.find(id) % LEAF_TINTS.size()])
+	# Forested hills ringing the valley with bare rock at the peaks.
+	for i in 18:
+		var ang := TAU * i / 18.0 + rng.randf_range(-0.06, 0.06)
+		var dist := rng.randf_range(175.0, 215.0)
+		var base := Vector3(sin(ang) * dist, -3.0, cos(ang) * dist)
+		Props.spawn(root, "hill_a" if i % 2 == 0 else "hill_b", base, rng.randf_range(0, 360), rng.randf_range(0.8, 1.15),
+				{"hill_forest": LEAF_TINTS[i % LEAF_TINTS.size()]})
 	# Invisible fence a few metres outside the wall.
 	for spec in [[Vector3(-WALL_X - 5, 0, 0), Vector3(1, 60, 400)], [Vector3(WALL_X + 5, 0, 0), Vector3(1, 60, 400)],
 			[Vector3(0, 0, WALL_BACK - 5), Vector3(400, 60, 1)], [Vector3(0, 0, WALL_FRONT + 5), Vector3(400, 60, 1)]]:
@@ -156,38 +154,25 @@ static func _boundary(root: Node3D, rng: RandomNumberGenerator) -> void:
 		root.add_child(fence)
 
 
-## A blocky jungle tree: trunk with collision, two or three leafy canopies.
+## A modelled jungle tree or palm (hub_props.gd), with a trunk collider if `solid`.
 static func tree(root: Node3D, p: Vector3, h: float, rng: RandomNumberGenerator, solid := true) -> void:
-	var leaf := Art.material("moss", LEAF_TINTS[rng.randi() % LEAF_TINTS.size()])
-	var lean := Vector3(rng.randf_range(-4, 4), rng.randf_range(0, 90), rng.randf_range(-4, 4))
-	var trunk_w := 0.6 + h * 0.04
-	if solid:
-		K.wood(root, p + Vector3(0, h * 0.5, 0), Vector3(trunk_w, h, trunk_w), lean)
-	else:
-		K.mesh(root, p + Vector3(0, h * 0.5, 0), Vector3(trunk_w, h, trunk_w), Art.material("wood"), lean)
-	var c := h * 0.45
-	K.mesh(root, p + Vector3(0, h + 0.4, 0), Vector3(c, c * 0.45, c), leaf, Vector3(0, lean.y + 20, 0))
-	K.mesh(root, p + Vector3(rng.randf_range(-0.6, 0.6), h + c * 0.4, rng.randf_range(-0.6, 0.6)), Vector3(c * 0.65, c * 0.35, c * 0.65), leaf, Vector3(0, lean.y + 55, 0))
-	if rng.randf() < 0.5:
-		K.mesh(root, p + Vector3(c * 0.3, h - c * 0.1, -c * 0.2), Vector3(c * 0.5, c * 0.3, c * 0.5), leaf, Vector3(0, lean.y, 0))
+	Props.tree(root, p, rng, h / 10.0, solid)
 
 
 static func bush(root: Node3D, p: Vector3, s: float, rng: RandomNumberGenerator) -> void:
-	var leaf := Art.material("moss", LEAF_TINTS[rng.randi() % LEAF_TINTS.size()])
-	K.mesh(root, p + Vector3(0, s * 0.35, 0), Vector3(s, s * 0.7, s * 0.9), leaf, Vector3(0, rng.randf_range(0, 90), 0))
-	K.mesh(root, p + Vector3(s * 0.3, s * 0.25, s * 0.2), Vector3(s * 0.7, s * 0.5, s * 0.7), leaf, Vector3(0, rng.randf_range(0, 90), 0))
+	var id: String = ["bush_a", "bush_b", "fern"][rng.randi() % 3]
+	Props.spawn(root, id, p, rng.randf_range(0, 360), s * 0.6, {"leaves": LEAF_TINTS[rng.randi() % LEAF_TINTS.size()]})
 
 
 # --- the plaza --------------------------------------------------------------------
 
-## Paving in front of the temple, a statue of the eye on a plinth, lamp posts.
+## Paving in front of the temple, a statue of the god on a plinth, lamp posts.
 static func _plaza(root: Node3D) -> void:
 	K.stone(root, Vector3(0, -0.45, 22), Vector3(32, 1.0, 26), Vector3.ZERO, Color(0.92, 0.94, 0.88))
-	# The eye on a plinth in the middle of the plaza.
+	# A small likeness of the god on a plinth in the middle of the plaza.
 	K.stone(root, Vector3(0, 0.6, 26), Vector3(3, 1.2, 3))
-	K.carved(root, Vector3(0, 2.4, 26), Vector3(1.8, 2.4, 1.8))
-	K.glow(root, Vector3(0, 2.6, 25.08), Vector3(0.7, 0.35, 0.04), Color(0.35, 1.0, 0.85))
-	K.glow(root, Vector3(0, 2.6, 26.92), Vector3(0.7, 0.35, 0.04), Color(0.35, 1.0, 0.85))
+	var god := Props.spawn(root, "idol", Vector3(0, 1.2, 25.6), 0.0, 0.3)
+	K.glow(root, god.transform * Vector3(0, 8.35, 0.1), Vector3(0.32, 0.14, 0.04), Color(0.35, 1.0, 0.85))
 	for p in [Vector3(-15, 0, 12), Vector3(15, 0, 12), Vector3(-15, 0, 33), Vector3(15, 0, 33)]:
 		_lamp_post(root, p)
 
@@ -288,36 +273,12 @@ static func _camp(root: Node3D, info: Dictionary) -> void:
 	_motes(root, Vector3(36, 3, 18), Vector3(16, 3, 16))
 
 
-## An A-frame canvas tent, door facing local +Z, with a lantern if `lit`.
+## A canvas tent (hub_props.gd), door facing local +Z, with a lantern if `lit`.
 static func _tent(root: Node3D, p: Vector3, yaw: float, tint: Color, lit: bool) -> void:
-	var pivot := Node3D.new()
-	pivot.position = p
-	pivot.rotation_degrees.y = yaw
-	root.add_child(pivot)
-	var w := 3.2
-	var h := 2.3
-	var l := 4.2
-	var canvas := Art.material("canvas", tint)
-	var slope := sqrt(w * w * 0.25 + h * h)
-	for s in [-1.0, 1.0]:
-		var ang := atan2(h, -s * w * 0.5)
-		K.mesh(pivot, Vector3(s * w * 0.25, h * 0.5, 0), Vector3(slope + 0.2, 0.08, l), canvas, Vector3(0, 0, rad_to_deg(ang)))
-	# Dark doorway, back panel, ridge pole, guy ropes.
-	K.mesh(pivot, Vector3(0, h * 0.35, l * 0.5 - 0.05), Vector3(w * 0.4, h * 0.65, 0.04), Art.material("fabric", Color(0.25, 0.22, 0.2)))
-	K.mesh(pivot, Vector3(0, h * 0.4, -l * 0.5 + 0.05), Vector3(w * 0.7, h * 0.75, 0.05), canvas)
-	K.mesh(pivot, Vector3(0, h + 0.05, 0), Vector3(0.1, 0.1, l + 0.5), Art.material("wood"))
-	for z in [-l * 0.5 - 0.2, l * 0.5 + 0.2]:
-		K.mesh(pivot, Vector3(0, h * 0.5 + 0.05, z), Vector3(0.1, h + 0.1, 0.1), Art.material("wood"))
-	var body := StaticBody3D.new()
-	var col := CollisionShape3D.new()
-	col.shape = BoxShape3D.new()
-	col.shape.size = Vector3(w * 0.75, h * 0.8, l)
-	col.position.y = h * 0.4
-	body.add_child(col)
-	pivot.add_child(body)
+	var pivot := Props.spawn(root, "tent", p, yaw, 1.0, {"canvas": tint}, true)
 	if lit:
-		K.glow(pivot, Vector3(0.9, 1.5, l * 0.5 + 0.35), Vector3(0.2, 0.28, 0.2), LAMP)
-		K.light(pivot, Vector3(0.9, 1.8, l * 0.5 + 0.8), LAMP, 0.9, 6.0)
+		K.glow(pivot, Vector3(0.9, 1.5, 2.45), Vector3(0.2, 0.28, 0.2), LAMP)
+		K.light(pivot, Vector3(0.9, 1.8, 2.9), LAMP, 0.9, 6.0)
 
 
 # --- the shooting range -----------------------------------------------------------
@@ -498,7 +459,7 @@ static func _greenery(root: Node3D, rng: RandomNumberGenerator) -> void:
 			2:
 				bush(root, p, rng.randf_range(1.2, 2.4), rng)
 			3:
-				K.stone(root, p + Vector3(0, 0.4, 0), Vector3(rng.randf_range(1.0, 2.5), rng.randf_range(0.6, 1.6), rng.randf_range(1.0, 2.0)), Vector3(rng.randf_range(-8, 8), rng.randf_range(0, 90), rng.randf_range(-8, 8)), Color(0.8, 0.85, 0.8))
+				Props.spawn(root, ["rock_a", "rock_b", "rock_c"][rng.randi() % 3], p, rng.randf_range(0, 360), rng.randf_range(0.8, 1.6), {}, true)
 	# Trees framing the plaza and the camp.
 	for p in [Vector3(-12, 0, 38), Vector3(12, 0, 38), Vector3(-22, 0, 2), Vector3(22, 0, -4), Vector3(52, 0, 4), Vector3(24, 0, 34), Vector3(-26, 0, -30), Vector3(26, 0, -32)]:
 		tree(root, p, rng.randf_range(8.0, 11.0), rng)
@@ -512,6 +473,27 @@ static func _greenery(root: Node3D, rng: RandomNumberGenerator) -> void:
 			2: p = Vector3(lerpf(-WALL_X, WALL_X, t), 0, WALL_BACK + 2.5)
 			_: p = Vector3(lerpf(-WALL_X, WALL_X, t), 0, WALL_FRONT - 2.5)
 		bush(root, p, rng.randf_range(1.5, 3.0), rng)
+	# Grass tufts and ferns over the open ground, off the paving and paths.
+	var paved := [Rect2(-17, -34, 34, 70), Rect2(-24, 14, 48, 4), Rect2(-3, 34, 6, 12),
+			Rect2(16, -46, 4, 56), Rect2(-20, -46, 4, 56), Rect2(-40, -46, 24, 4)]
+	var grass := []
+	var ferns := []
+	while grass.size() < 5000:
+		var p := Vector3(rng.randf_range(-WALL_X + 1.5, WALL_X - 1.5), 0, rng.randf_range(WALL_BACK + 1.5, WALL_FRONT - 1.5))
+		var clear := true
+		for r in paved:
+			if r.has_point(Vector2(p.x, p.z)):
+				clear = false
+				break
+		if not clear:
+			continue
+		var basis := Basis(Vector3.UP, rng.randf_range(0, TAU)).scaled(Vector3.ONE * rng.randf_range(0.8, 1.6))
+		if rng.randf() < 0.04:
+			ferns.append(Transform3D(basis.scaled(Vector3.ONE * 0.8), p))
+		else:
+			grass.append(Transform3D(basis, p))
+	Props.scatter(root, "grass_tuft", grass)
+	Props.scatter(root, "fern", ferns, LEAF_TINTS[1])
 	# Flowers.
 	var petals := [Color(1.0, 0.85, 0.35), Color(0.95, 0.55, 0.65), Color(0.85, 0.85, 1.0)]
 	for i in 90:

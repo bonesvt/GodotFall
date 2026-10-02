@@ -520,11 +520,24 @@ def canvas():
     save("canvas", img)
 
 
+def bark():
+    """Tree trunks and tent poles: deep vertical furrows in warm brown bark."""
+    s = 64
+    y, x = np.mgrid[0:s, 0:s]
+    n = noise(s, 4, 2, 241)
+    ridge = np.sin(x * 0.3 + n * 5.0 + np.sin(y * 0.12) * 1.2) * 0.5 + 0.5
+    grain = noise(s, 8, 3, 243)
+    img = mix(blur(ridge * 0.55 + grain * 0.45, 1), (84, 62, 44), (128, 94, 64))
+    moss = (noise(s, 3, 2, 242) > 0.66) & (ridge < 0.5)
+    img[moss] = (88, 112, 56)
+    save("bark", img)
+
+
 if __name__ == "__main__":
     OUT.mkdir(parents=True, exist_ok=True)
     for fn in (concrete, metal_floor, wall_panel, hazard, crate, barrier, lava, gunmetal, glove,
                fabric, armor, titan_armor, titan_frame, sky, temple_stone, temple_floor,
-               temple_carving, moss, wood, grass, dirt, canvas):
+               temple_carving, moss, wood, grass, dirt, canvas, bark):
         # `make_textures.py moss wood` repaints only the named textures.
         if len(sys.argv) < 2 or fn.__name__ in sys.argv[1:]:
             fn()

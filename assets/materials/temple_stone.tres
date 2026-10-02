@@ -10,3 +10,4 @@ shader_parameter/albedo_tex = ExtResource("2_tex")
 shader_parameter/top_tex = ExtResource("3_top")
 shader_parameter/use_top_tex = true
 shader_parameter/tex_scale = 0.25
+shader_parameter/albedo = Color(0.84, 0.86, 0.82, 1)

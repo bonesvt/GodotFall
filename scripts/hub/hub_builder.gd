@@ -18,6 +18,7 @@ const Kit := preload("res://scripts/run/level_kit.gd")
 const Art := preload("res://scripts/ps2/ps2_assets.gd")
 const K := preload("res://scripts/hub/hub_kit.gd")
 const Grounds := preload("res://scripts/hub/hub_grounds.gd")
+const Props := preload("res://scripts/hub/hub_props.gd")
 
 ## Floor height inside the temple (top of its plinth).
 const F := 1.2
@@ -36,8 +37,8 @@ const GALLERY_H := 4.5
 const RAMP_FROM := Vector3(-4.6, F, -6.5)
 const RAMP_TO := Vector3(-HALF + 3.1, F + GALLERY_H + 0.05, -12.5)
 
-const SKY_TOP := Color(0.32, 0.5, 0.62)
-const SKY_HORIZON := Color(0.92, 0.8, 0.62)
+const SKY_TOP := Color(0.28, 0.5, 0.72)
+const SKY_HORIZON := Color(0.78, 0.84, 0.86)
 const EYE := Color(0.35, 1.0, 0.85)
 const FIRE := Color(1.0, 0.55, 0.18)
 const LAMP := Color(1.0, 0.78, 0.45)
@@ -55,10 +56,13 @@ static func build(root: Node3D) -> Dictionary:
 	for node in root.get_children():
 		if node is WorldEnvironment:
 			node.environment.ambient_light_energy = 0.3
-			node.environment.fog_density = 0.0035
+			node.environment.fog_density = 0.0028
+			node.environment.fog_light_color = Color(0.7, 0.8, 0.84)
+			node.environment.fog_aerial_perspective = 0.35
+			node.environment.adjustment_saturation = 1.1
 		elif node is DirectionalLight3D:
 			node.rotation_degrees = Vector3(-62, 20, 0)
-			node.light_energy = 1.6
+			node.light_energy = 1.35
 			node.directional_shadow_max_distance = 90.0
 			node.shadow_opacity = 1.0
 	var info := {
@@ -231,30 +235,23 @@ static func _idol(root: Node3D, info: Dictionary) -> void:
 	var z0 := BACK_Z
 	K.stone(root, Vector3(0, F + 0.25, z0 + 4.0), Vector3(14, 0.5, 8))
 	K.stone(root, Vector3(0, F + 0.75, z0 + 3.0), Vector3(11, 0.5, 6))
-	var base := F + 1.0
-	# Throne, legs, body, head.
-	K.carved(root, Vector3(0, base + 1.0, z0 + 1.8), Vector3(7.5, 2.0, 3.4), Vector3.ZERO, IDOL)
-	K.stone(root, Vector3(0, base + 2.6, z0 + 3.4), Vector3(6.0, 1.2, 3.4), Vector3.ZERO, IDOL)
-	K.carved(root, Vector3(0, base + 4.2, z0 + 1.5), Vector3(4.4, 4.4, 2.4), Vector3.ZERO, IDOL)
-	K.carved(root, Vector3(0, base + 3.4, z0 + 2.75), Vector3(3.6, 1.4, 0.15), Vector3.ZERO, IDOL)
-	for s in [-1.0, 1.0]:
-		K.stone(root, Vector3(s * 2.8, base + 5.6, z0 + 1.5), Vector3(1.6, 1.0, 2.0), Vector3.ZERO, IDOL)
-		K.stone(root, Vector3(s * 2.6, base + 4.2, z0 + 2.7), Vector3(1.0, 2.6, 1.0), Vector3(-30, 0, 0), IDOL)
-		# Open hands resting on the knees, palms up.
-		K.stone(root, Vector3(s * 2.2, base + 3.35, z0 + 4.4), Vector3(1.4, 0.3, 1.6), Vector3(0, 0, -s * 6.0), IDOL)
-	# The head rises into the roof, as if the god holds it up.
-	var head := Vector3(0, base + 6.7, z0 + 1.6)
-	K.carved(root, head, Vector3(3.0, 2.4, 2.6), Vector3.ZERO, IDOL)
-	# The eye: a bright core in a dark socket, two dim side marks.
-	var face := head.z + 1.31
-	K.mesh(root, Vector3(head.x, head.y + 0.25, face), Vector3(1.6, 0.8, 0.06), Art.material("gunmetal"))
-	K.glow(root, Vector3(head.x, head.y + 0.25, face + 0.04), Vector3(1.1, 0.5, 0.06), EYE)
-	for s in [-1.0, 1.0]:
-		K.glow(root, Vector3(head.x + s * 1.0, head.y - 0.5, face + 0.02), Vector3(0.12, 0.6, 0.04), EYE.darkened(0.4))
-	K.light(root, Vector3(0, head.y, face + 1.5), EYE, 0.7, 6.0)
-	# Glowing channels down the front of the throne.
-	for x in [-2.8, -1.4, 0.0, 1.4, 2.8]:
-		K.glow(root, Vector3(x, base + 1.0, z0 + 3.52), Vector3(0.1, 1.6, 0.04), EYE.darkened(0.3))
+	# The seated god (modelled in Blender, hub_props.gd), facing the door.
+	var statue := Props.spawn(root, "idol", Vector3(0, F + 1.0, z0 + 4.4), 0.0, 0.75)
+	var body := StaticBody3D.new()
+	var col := CollisionShape3D.new()
+	col.shape = BoxShape3D.new()
+	col.shape.size = Vector3(7.8, 8.0, 5.0)
+	col.position = Vector3(0, 4.0, -2.0)
+	body.add_child(col)
+	statue.add_child(body)
+	# The eye: a bright core in the dark socket on its brow.
+	var marker := statue.find_child("EyeMarker", true, false) as Node3D
+	var eye := statue.transform * (marker.transform.origin if marker else Vector3(0, 8.35, 0.04))
+	K.glow(root, eye + Vector3(0, 0, 0.02), Vector3(1.0, 0.45, 0.06), EYE)
+	K.light(root, eye + Vector3(0, 0, 1.5), EYE, 0.9, 7.0)
+	# Glowing channels down the front of the dais.
+	for x in [-4.2, -2.1, 2.1, 4.2]:
+		K.glow(root, Vector3(x, F + 0.5, z0 + 6.02), Vector3(0.1, 0.4, 0.04), EYE.darkened(0.3))
 	# Fire bowls either side of the dais.
 	for s in [-1.0, 1.0]:
 		var bowl := Vector3(s * 5.4, F + 0.5, z0 + 7.6)
