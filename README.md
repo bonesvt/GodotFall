@@ -1,6 +1,6 @@
-# Titanfall Roguelike: Combat Prototype (Godot 4)
+# Titanfall Roguelike (Godot 4)
 
-The movement prototype plus first combat: a weak starter pistol and grunt enemies in an arena.
+Pilot movement, first combat (a weak starter pistol and grunt enemies), and the Scrap Titan run loop.
 
 ## Run it
 1. Install Godot 4.3 or newer (standard build, not .NET): https://godotengine.org/download
@@ -21,8 +21,8 @@ The movement prototype plus first combat: a weak starter pistol and grunt enemie
 | H | Toggle help |
 
 ## Scrap Titan run loop
-Pressing Play starts a run (`scenes/run.tscn`). The movement test level is still at
-`scenes/test_level.tscn` (open it and press F6).
+Pressing Play starts a run (`scenes/run.tscn`). The movement and grunt test level is
+still at `scenes/test_level.tscn` (open it and press F6).
 
 1. **Three zones.** Each is a seeded chain of platforms over a void, linked by gaps you
    clear with a sprint jump, a double-jump climb, a wallrun along a blue wall, or the grapple
@@ -107,3 +107,6 @@ select the Player node and tweak values in the Inspector, or change the defaults
   `godot --headless --path . -s res://tests/movement_test.gd`
 - `tests/combat_test.gd` headless combat smoke test:
   `godot --headless --path . -s res://tests/combat_test.gd`
+- `tests/run_loop_test.gd` headless run loop test (generator limits, a bot pilot clearing the
+  hardest gap of each kind, salvage, extraction, titanfall, the fight, win and loss):
+  `godot --headless --path . -s res://tests/run_loop_test.gd`
