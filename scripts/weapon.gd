@@ -97,6 +97,12 @@ const INSPECT_LINES := [
 ## Share of each kick the camera drifts back down on its own.
 @export var recoil_recovery := 0.75
 
+@export_group("Upgrades")
+## Which smart pistol model to show: 0 is Dad's broken pistol, 1-5 are Eco's
+## upgrades (tools/pistol/build_pistol.py --tier). Looks only; set_tier()
+## swaps it at runtime.
+@export_range(0, 5) var tier := 0
+
 @export_group("Feel")
 ## Visual-only camera punch per shot (degrees); does not move your aim.
 @export var camera_punch := 1.6
@@ -410,6 +416,19 @@ func start_reload() -> void:
 	stop_inspect()
 
 
+## Swaps the pistol for another upgrade tier's model (0-5), keeping ammo.
+func set_tier(new_tier: int) -> void:
+	tier = clampi(new_tier, 0, 5)
+	if viewmodel == null:
+		return
+	viewmodel.free()
+	viewmodel = null
+	_parts.clear()
+	_leds.clear()
+	_twirl = -1.0
+	_build_viewmodel()
+
+
 func is_reloading() -> bool:
 	return reload_timer > 0.0
 
@@ -642,7 +661,7 @@ func _recover_recoil(delta: float) -> void:
 func _build_viewmodel() -> void:
 	viewmodel = Node3D.new()
 	add_child(viewmodel)
-	var pistol := Art.model("pistol")
+	var pistol := Art.model(Art.pistol_model(tier))
 	viewmodel.add_child(pistol)
 	for mi in pistol.find_children("*", "GeometryInstance3D", true, false):
 		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF

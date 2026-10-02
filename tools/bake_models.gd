@@ -27,7 +27,8 @@ func _init() -> void:
 	var only := OS.get_cmdline_user_args()
 	var want := func(id: String) -> bool: return only.is_empty() or only.has(id)
 	if want.call("smart_pistol"):
-		_smart_pistol()
+		for tier in 6:
+			_smart_pistol(tier)
 	if want.call("props"):
 		_cache()
 		_beacon()
@@ -163,16 +164,18 @@ func _own(node: Node, owner_node: Node) -> void:
 # The gun itself is modelled in Blender (tools/pistol/build_pistol.py ->
 # assets/models/smart_pistol/smart_pistol.glb); this puts it in Eco's hand.
 
-func _smart_pistol() -> void:
+## Tier 0 is Dad's broken pistol; 1-5 are Eco's upgrades (build_pistol.py --tier).
+func _smart_pistol(tier := 0) -> void:
+	var suffix := "" if tier == 0 else "_t%d" % tier
 	var r := _root("SmartPistol")
-	var gun: Node3D = load("res://assets/models/smart_pistol/smart_pistol.glb").instantiate()
+	var gun: Node3D = load("res://assets/models/smart_pistol/smart_pistol%s.glb" % suffix).instantiate()
 	gun.name = "Gun"
 	r.add_child(gun)
 	# Eco's arm: fingerless glove round the grip, sleeve rolled up (sculpted in tools/eco/)
 	var arm: Node3D = load("res://assets/models/eco/eco_fp_arm.glb").instantiate()
 	arm.name = "Arm"
 	r.add_child(arm)
-	_save(r, "smart_pistol.tscn")
+	_save(r, "smart_pistol%s.tscn" % suffix)
 
 
 # --- grunt -----------------------------------------------------------------

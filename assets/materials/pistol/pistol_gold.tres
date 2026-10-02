@@ -1,0 +1,15 @@
+[gd_resource type="ShaderMaterial" load_steps=3 format=3]
+
+[ext_resource type="Shader" path="res://assets/shaders/ps2_surface.gdshader" id="1_shader"]
+[ext_resource type="Texture2D" path="res://assets/textures/gunmetal.png" id="2_tex"]
+
+[resource]
+resource_name = "pistol_gold"
+shader = ExtResource("1_shader")
+shader_parameter/albedo_tex = ExtResource("2_tex")
+shader_parameter/world_space = false
+shader_parameter/albedo = Color(1.25, 0.95, 0.4, 1)
+shader_parameter/tex_scale = 2.0
+shader_parameter/rim = 0.7
+shader_parameter/emission = Color(1, 0.8, 0.35, 1)
+shader_parameter/emission_energy = 0.25

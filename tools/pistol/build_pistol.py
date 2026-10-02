@@ -1,6 +1,7 @@
 """Builds Eco's smart pistol in Blender and exports it for Godot.
 
     blender --background --python tools/pistol/build_pistol.py -- assets/models/smart_pistol/smart_pistol.glb
+    blender --background --python tools/pistol/build_pistol.py -- assets/models/smart_pistol/smart_pistol_t3.glb --tier 3
 
 Her father's smart pistol, cleaned up: a sleek two-tone slide and frame in
 his titan's colours, a sloped ammo screen facing the shooter, a holo sight on
@@ -10,6 +11,20 @@ Eco has kept building on it since: an integrated suppressor shroud with
 glowing vent ports, a strip of LEDs along the top of the slide, hex bolts
 she machined herself, tape wrapped round the grip, a cable she rerouted to
 the ammo screen, and her father's dog tag hanging off the rail.
+
+`--tier N` (1-5) builds the upgrades, each on top of the one before:
+  0  Dad's pistol: tracker smashed, short suppressor (the default).
+  1  Patched: a riveted scrap plate over the smashed tracker, a mag bumper,
+     more tape, an extra row of vents.
+  2  Tuned: a longer shroud with a ported muzzle brake whose ports glow too,
+     and a second stripe down the slide.
+  3  Scrapforged: armour plates cut from a titan bolted to the slide, an
+     extended mag, a wider holo hood.
+  4  Rewired: the tracker rebuilt with a working screen, copper coils round
+     the shroud, cables down both sides.
+  5  Legacy: the smart pistol restored and then some: gold trim, a glowing
+     emitter ring at the muzzle, a power cell under the frame, and the lock
+     reticle back on the tracker screen.
 
 Everything is authored in Godot's frame (x right, y up, -z forward, metres)
 and converted on the way in, so the numbers line up with the viewmodel code.
@@ -28,7 +43,9 @@ import bmesh
 import bpy
 from mathutils import Matrix, Vector
 
-OUT = sys.argv[sys.argv.index("--") + 1] if "--" in sys.argv else "smart_pistol.glb"
+ARGS = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
+OUT = ARGS[0] if ARGS else "smart_pistol.glb"
+TIER = int(ARGS[ARGS.index("--tier") + 1]) if "--tier" in ARGS else 0
 random.seed(7)
 
 # Godot (x, y, z) -> Blender (x, -z, y)
@@ -47,6 +64,10 @@ COLORS = {
 	"pistol_led": (0.3, 0.95, 1.0),
 	"pistol_tape": (0.62, 0.2, 0.16),
 	"pistol_tag": (0.9, 0.9, 0.86),
+	"pistol_armor": (0.95, 0.55, 0.2),
+	"pistol_copper": (0.85, 0.5, 0.3),
+	"pistol_gold": (1.0, 0.78, 0.3),
+	"pistol_live": (0.3, 0.95, 1.0),
 }
 
 
@@ -160,7 +181,23 @@ def slide():
 	b2 = box("SlideStripe", (0.0428, 0.0028, 0.15), (0, 0.0095, 0.02), "pistol_stripe")
 	# rear grip cuts
 	cuts = [box("Cut%d" % i, (0.0418, 0.022, 0.0025), (0, 0.022, 0.078 + i * 0.0065), "pistol_dark") for i in range(4)]
-	return [s, b1, b2] + cuts
+	extra = []
+	if TIER >= 2:
+		extra.append(box("SlideStripe2", (0.0428, 0.0016, 0.12), (0, 0.0135, 0.035), "pistol_stripe"))
+	if TIER >= 3:
+		# Armour cut from a titan's plating, bolted over the slide's flanks.
+		for side in (-1, 1):
+			extra.append(box("ArmorPlate", (0.0022, 0.02, 0.052), (side * 0.0212, 0.025, 0.045), "pistol_armor", bevel=0.0008))
+			for z in (0.024, 0.066):
+				bm = bmesh.new()
+				bmesh.ops.create_cone(bm, cap_ends=True, segments=6, radius1=0.0016, radius2=0.0016, depth=0.0012)
+				extra.append(obj_from_bm("PlateBolt", bm, "pistol_shell", xform((side * 0.0226, 0.031, z), (0, 90, 0)), smooth=False))
+	if TIER >= 5:
+		# Gold trim along both top edges of the slide.
+		slope = math.degrees(math.atan(0.013 / 0.227))
+		for side in (-1, 1):
+			extra.append(box("Trim", (0.0016, 0.0016, 0.19), (side * 0.0195, slide_top(0.0) - 0.0005, 0.0), "pistol_gold", rot=(-slope, 0, 0)))
+	return [s, b1, b2] + cuts + extra
 
 
 def frame():
@@ -175,16 +212,19 @@ def frame():
 
 SHROUD_Y = 0.01
 SHROUD_R = 0.0165
-SHROUD_FRONT = -0.205
+# The shroud grows with the upgrades; the back always meets the slide's nose.
+SHROUD_LENGTH = 0.088 + (0.02 if TIER >= 2 else 0.0) + (0.012 if TIER >= 4 else 0.0)
+SHROUD_FRONT = -0.117 - SHROUD_LENGTH
+VENT_ROWS = 4 + min(TIER, 2)
 
 
 def suppressor():
 	"""Integrated suppressor: an octagonal shroud out of the slide's nose, an end
 	cap with an orange band, and vent ports that glow when the gun runs hot."""
-	length = 0.088
+	length = SHROUD_LENGTH
 	z0 = SHROUD_FRONT + length / 2
 	shroud = prism("Shroud", SHROUD_R, length, (0, SHROUD_Y, z0), "pistol_dark", bevel=0.0012)
-	cap = prism("ShroudCap", SHROUD_R * 1.04, 0.009, (0, SHROUD_Y, SHROUD_FRONT - 0.0035), "pistol_shell", bevel=0.0015)
+	cap = prism("ShroudCap", SHROUD_R * 1.04, 0.009, (0, SHROUD_Y, SHROUD_FRONT - 0.0035), "pistol_gold" if TIER >= 5 else "pistol_shell", bevel=0.0015)
 	band = prism("ShroudBand", SHROUD_R * 1.03, 0.003, (0, SHROUD_Y, SHROUD_FRONT + 0.008), "pistol_stripe")
 	bore = cylinder("Bore", 0.0045, 0.012, (0, SHROUD_Y, SHROUD_FRONT - 0.004), "pistol_screen", axis="z")
 	# Ports on the three upper faces, four rows down the shroud.
@@ -192,11 +232,27 @@ def suppressor():
 	vents = []
 	for face in (-45, 0, 45):
 		a = math.radians(face)
-		for row in range(4):
+		for row in range(VENT_ROWS):
 			z = SHROUD_FRONT + 0.02 + row * 0.014
 			pos = (math.sin(a) * apothem, SHROUD_Y + math.cos(a) * apothem, z)
 			vents.append(box("Vent", (0.0034, 0.0012, 0.0095), pos, "pistol_vent", rot=(0, 0, -face)))
-	return [shroud, cap, band, bore], join("Vents", vents)
+	parts = [shroud, cap, band, bore]
+	if TIER >= 2:
+		# Ported muzzle brake: a collar with two slots a side, glowing like the vents.
+		brake_z = SHROUD_FRONT + 0.008
+		parts.append(prism("Brake", SHROUD_R * 1.12, 0.014, (0, SHROUD_Y, brake_z), "pistol_shell", bevel=0.0012))
+		for side in (-1, 1):
+			for k in range(2):
+				vents.append(box("Port", (0.0012, 0.006, 0.0035), (side * SHROUD_R * 1.12, SHROUD_Y, brake_z - 0.0035 + k * 0.007), "pistol_vent"))
+	if TIER >= 4:
+		# Copper coils wound round the shroud.
+		for k in range(3):
+			z = SHROUD_FRONT + 0.03 + k * 0.022
+			parts.append(prism("Coil", SHROUD_R * 1.07, 0.0035, (0, SHROUD_Y, z), "pistol_copper", segments=8))
+	if TIER >= 5:
+		# Emitter ring round the muzzle.
+		parts.append(prism("EmitterRing", SHROUD_R * 0.7, 0.002, (0, SHROUD_Y, SHROUD_FRONT - 0.0085), "pistol_live", segments=8))
+	return parts, join("Vents", vents)
 
 
 def slide_top(z):
@@ -210,7 +266,7 @@ def leds():
 	slope = math.degrees(math.atan(0.013 / 0.227))
 	for i in range(6):
 		z = -0.004 - i * 0.0155
-		pair = [box("Led", (0.0042, 0.0016, 0.0105), (s * 0.0115, slide_top(z) + 0.0003, z), "pistol_led", rot=(slope, 0, 0), bevel=0.0005) for s in (-1, 1)]
+		pair = [box("Led", (0.0042, 0.0016, 0.0105), (s * 0.0115, slide_top(z) + 0.0003, z), "pistol_led", rot=(-slope, 0, 0), bevel=0.0005) for s in (-1, 1)]
 		out.append(join("Led%d" % i, pair))
 	return out
 
@@ -226,21 +282,21 @@ def bolts():
 	return out
 
 
-def cable():
+def cable(side=1):
 	"""A cable rerouted from the frame to the ammo screen, in a loose loop."""
 	cu = bpy.data.curves.new("Cable", "CURVE")
 	cu.dimensions = "3D"
 	cu.bevel_depth = 0.0017
 	cu.bevel_resolution = 2
 	sp = cu.splines.new("BEZIER")
-	pts = [Vector((0.0178, -0.006, 0.056)), Vector((0.029, -0.002, 0.084)), Vector((0.027, 0.022, 0.1)), Vector((0.0155, 0.029, 0.11))]
+	pts = [Vector((0.0178 * side, -0.006, 0.056)), Vector((0.029 * side, -0.002, 0.084)), Vector((0.027 * side, 0.022, 0.1)), Vector((0.0155 * side, 0.029, 0.11))]
 	sp.bezier_points.add(len(pts) - 1)
 	for bp, p in zip(sp.bezier_points, pts):
 		bp.co = G2B @ p
 		bp.handle_left_type = bp.handle_right_type = "AUTO"
 	ob = bpy.data.objects.new("Cable", cu)
 	bpy.context.collection.objects.link(ob)
-	cu.materials.append(bpy.data.materials["pistol_stripe"])
+	cu.materials.append(bpy.data.materials["pistol_stripe" if side > 0 else "pistol_blue"])
 	bpy.ops.object.select_all(action="DESELECT")
 	ob.select_set(True)
 	bpy.context.view_layer.objects.active = ob
@@ -251,7 +307,8 @@ def cable():
 def grip_tape():
 	"""Tape wrapped round the bottom of the grip, a little crooked."""
 	bands = []
-	for i, y in enumerate((-0.044, -0.034)):
+	rows = (-0.044, -0.034, -0.024) if TIER >= 1 else (-0.044, -0.034)
+	for i, y in enumerate(rows):
 		b = box("Tape", (0.0352, 0.0075, 0.0515), (0, y, 0), "pistol_tape", rot=(random.uniform(-7, 7), 0, random.uniform(-3, 3)), bevel=0.001)
 		b.data.transform(G2B @ xform(GRIP_POS, GRIP_ROT) @ G2B.inverted())
 		bands.append(b)
@@ -275,6 +332,14 @@ def charm():
 	tag.parent = pivot
 	tag.matrix_parent_inverse = pivot.matrix_world.inverted()
 	return pivot
+
+
+def power_cell():
+	"""Tier 5: a glowing power cell clamped under the frame, on the rail."""
+	cell = cylinder("Cell", 0.0055, 0.03, (0, -0.0385, -0.077), "pistol_live", axis="z", segments=8)
+	clamps = [cylinder("Clamp", 0.0068, 0.004, (0, -0.0385, z), "pistol_gold", axis="z", segments=8) for z in (-0.09, -0.064)]
+	mount = box("CellMount", (0.008, 0.006, 0.03), (0, -0.0335, -0.077), "pistol_dark")
+	return [cell, mount] + clamps
 
 
 def guard_and_trigger():
@@ -305,8 +370,18 @@ def grip():
 		panels.append(box("GripPanel", (0.002, 0.085, 0.034), (side * 0.0172, 0.004, 0.002), "pistol_blue", bevel=0.0008))
 	for p in panels:
 		p.data.transform(G2B @ xform(GRIP_POS, GRIP_ROT) @ G2B.inverted())
-	mag = box("MagBase", (0.037, 0.012, 0.054), (0, -0.064, 0.0), "pistol_shell", bevel=0.003)
-	mag.data.transform(G2B @ xform(GRIP_POS, GRIP_ROT) @ G2B.inverted())
+	mag_parts = [box("MagBase", (0.037, 0.012, 0.054), (0, -0.064, 0.0), "pistol_shell", bevel=0.003)]
+	if TIER >= 3:
+		# Extended mag: a longer body below the grip with grip ribs.
+		mag_parts.append(box("MagExt", (0.034, 0.022, 0.048), (0, -0.081, 0.0), "pistol_dark", bevel=0.002))
+		for k in range(3):
+			mag_parts.append(box("MagRib", (0.0355, 0.0022, 0.0495), (0, -0.074 - k * 0.0065, 0.0), "pistol_blue"))
+		mag_parts.append(box("MagFoot", (0.038, 0.008, 0.056), (0, -0.095, 0.0), "pistol_shell", bevel=0.0025))
+	elif TIER >= 1:
+		mag_parts.append(box("MagBumper", (0.039, 0.006, 0.057), (0, -0.072, 0.0), "pistol_tape", bevel=0.002))
+	for m in mag_parts:
+		m.data.transform(G2B @ xform(GRIP_POS, GRIP_ROT) @ G2B.inverted())
+	mag = join("MagBase", mag_parts)
 	return [g] + panels, mag
 
 
@@ -329,6 +404,11 @@ def tracker_screen():
 	housing = box("TrackerScreen", (0.006, 0.03, 0.062), pos, "pistol_dark", bevel=0.0015)
 	w, h = 0.054, 0.025
 	impact = Vector((0.006, 0.003))
+	empty("TrackerImpact", pos + Vector((-0.004, impact.y, -impact.x)))
+	if TIER >= 4:
+		return [housing], tracker_rebuilt(pos, w, h)
+	if TIER >= 1:
+		return [housing], tracker_patch(pos, w, h)
 	corners = [Vector((-w / 2, -h / 2)), Vector((w / 2, -h / 2)), Vector((w / 2, h / 2)), Vector((-w / 2, h / 2))]
 	ring = []
 	for i in range(4):
@@ -354,14 +434,46 @@ def tracker_screen():
 		shard = obj_from_bm("Shard%d" % i, bm, "pistol_tracker", xform(pos + Vector((-0.0032, 0, 0))) @ tilt, smooth=False)
 		shards.append(shard)
 	glass = join("TrackerGlass", shards)
-	empty("TrackerImpact", pos + Vector((-0.004, impact.y, -impact.x)))
 	return [housing], glass
+
+
+def tracker_patch(pos, w, h):
+	"""Tiers 1-3: the smashed glass pried out and a scrap plate riveted over
+	the hole, with a stripe Eco painted on it by hand."""
+	x = pos.x - 0.0036
+	parts = [box("Patch", (0.0012, h + 0.002, w + 0.002), (x, pos.y, pos.z), "pistol_blue", rot=(1.5, 0, 0), bevel=0.0005)]
+	parts.append(box("PatchStripe", (0.0014, 0.005, w * 0.8), (x - 0.0002, pos.y + 0.004, pos.z), "pistol_stripe", rot=(-4, 0, 0)))
+	for dy in (-h / 2 + 0.003, h / 2 - 0.003):
+		for dz in (-w / 2 + 0.003, w / 2 - 0.003):
+			bm = bmesh.new()
+			bmesh.ops.create_cone(bm, cap_ends=True, segments=6, radius1=0.0013, radius2=0.0013, depth=0.001)
+			parts.append(obj_from_bm("Rivet", bm, "pistol_dark", xform((x - 0.0008, pos.y + dy, pos.z + dz), (0, 90, 0)), smooth=False))
+	return join("TrackerGlass", parts)
+
+
+def tracker_rebuilt(pos, w, h):
+	"""Tiers 4-5: a new tracker screen, lit. Tier 5 brings the lock reticle back."""
+	x = pos.x - 0.0034
+	parts = [box("Screen", (0.0008, h, w), (x, pos.y, pos.z), "pistol_live")]
+	if TIER >= 5:
+		# corner brackets of the lock reticle, standing proud of the glass
+		for sy in (-1, 1):
+			for sz in (-1, 1):
+				cy, cz = pos.y + sy * h * 0.28, pos.z + sz * h * 0.42
+				parts.append(box("Bracket", (0.0012, 0.0012, 0.006), (x - 0.0006, cy, cz - sz * 0.0024), "pistol_gold"))
+				parts.append(box("Bracket", (0.0012, 0.006, 0.0012), (x - 0.0006, cy - sy * 0.0024, cz), "pistol_gold"))
+	bezel = [box("Bezel", (0.0016, 0.002, w + 0.003), (x - 0.0002, pos.y + s * (h / 2 + 0.0005), pos.z), "pistol_shell") for s in (-1, 1)]
+	return join("TrackerGlass", parts + bezel)
 
 
 def holo_sight():
 	base = box("HoloBase", (0.026, 0.012, 0.032), (0, 0.039, 0.035), "pistol_dark", bevel=0.0015)
 	posts = [box("HoloPost", (0.0032, 0.03, 0.008), (s * 0.0128, 0.058, 0.028), "pistol_shell", bevel=0.0012) for s in (-1, 1)]
 	hood = box("HoloHood", (0.0288, 0.0035, 0.014), (0, 0.0735, 0.03), "pistol_shell", bevel=0.0012)
+	if TIER >= 3:
+		# a wider hood with side wings that shade the pane
+		hood = box("HoloHood", (0.034, 0.004, 0.018), (0, 0.0738, 0.03), "pistol_armor" if TIER < 5 else "pistol_gold", bevel=0.0014)
+		posts += [box("HoloWing", (0.0024, 0.024, 0.016), (s * 0.016, 0.062, 0.03), "pistol_shell", rot=(0, 0, s * -8), bevel=0.001) for s in (-1, 1)]
 	emitter = box("HoloEmitter", (0.006, 0.004, 0.005), (0, 0.047, 0.047), "pistol_emitter", bevel=0.001)
 	# The projection pane: a UV'd quad the holo shader draws the reticle on.
 	bpy.ops.mesh.primitive_plane_add(size=1.0)
@@ -392,7 +504,12 @@ def build():
 	join("Slide", body)
 	join("Frame", lower + grip_parts)
 	join("Shroud", shroud_parts)
-	join("Details", bolts() + grip_tape() + [cable()])
+	details = bolts() + grip_tape() + [cable()]
+	if TIER >= 4:
+		details.append(cable(-1))
+	if TIER >= 5:
+		details += power_cell()
+	join("Details", details)
 	join("AmmoScreen", ammo_housing)
 	join("HoloSight", holo_parts)
 	empty("Muzzle", (0, SHROUD_Y, SHROUD_FRONT - 0.009))
@@ -406,4 +523,5 @@ def build():
 	print("exported", OUT, "triangles", tris)
 
 
-build()
+if __name__ == "__main__":
+	build()
