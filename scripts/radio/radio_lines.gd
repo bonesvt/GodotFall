@@ -203,3 +203,183 @@ static func roles(entry: String) -> Array:
 		if entry.contains(tag) and not out.has(role):
 			out.append(role)
 	return out
+
+
+# --- Rating banks --------------------------------------------------------
+# LINES above is the M bank. Lower ratings get their own clean banks rather
+# than a censored M bank, so every category still has full exchanges.
+
+const RATINGS := ["E", "T", "M", "AO"]
+const RATING_NAMES := {
+	"E": "E (Everyone 10+)", "T": "T (Teen)", "M": "M (Mature 17+)", "AO": "AO (Adults Only)",
+}
+
+## T: contempt and mild swearing (damn, hell), plain threats, no gendered or
+## sexual insults, no gore.
+const LINES_T := {
+	"idle": [
+		"a: Caught another deserter by the river. | b: And? | a: And now he's digging latrines for a month.",
+		"a: Who keeps leaving cigar butts in the water can? | b: Not me. | a: You're smoking one right now.",
+		"a: I could've been a Pilot, you know. | b: You'd have lasted a week. | a: Better than lasting forever out here.",
+		"hq: Militia net, radio check. | a: {a}. Still alive. | b: {b}. Unfortunately also alive.",
+		"a: Quiet out here. | b: Don't say that. Every time somebody says that, something goes wrong.",
+		"a: You write home yet? | b: Nobody left at home to write to. | a: ...Yeah. Me neither.",
+		"a: Ration bar's green again. | b: Eat it. The last guy who complained is walking point.",
+		"a: Talking to myself again. Only one out here worth listening to.",
+		"hq: Patrol, sitrep. | a: Bored as hell, HQ. | hq: Bored keeps you breathing. Watch your sector.",
+	],
+	"rumor_eco": [
+		"a: You hear the scrapper girl's still out here? | b: The one we laughed out of the recruiting tent? | a: Says she's gonna build a Titan. | b: Out of what, spare bolts and wishful thinking?",
+		"a: Her old man flew an Atlas, right? | b: Yeah. Didn't come back. | a: And she still wants in. | b: Some people never learn.",
+		"hq: All units, bounty is up on the scavenger. White hair. | a: How much? | hq: Enough to make it worth your while.",
+		"a: Recruiter said she aced the sim. | b: Sims don't shoot back. | a: Neither does she, with that broken pistol.",
+		"a: Word is she's carrying her daddy's smart pistol. | b: The one with the fried lock? | a: That's it. | b: Then she'll go down just like he did.",
+		"a: The reject left a note on the supply crate. | b: What'd it say? | a: 'Thanks for the parts, boys.' | b: Burn it.",
+		"a: She's been hitting patrols out east. | b: Some girl with a broken pistol? Come on. | a: That's what the patrols said.",
+	],
+	"rumor_salvage": [
+		"hq: Salvage crate with a {part} in your sector. Nobody touches it. | a: Copy. Guarding a box. Again.",
+		"a: What's in the crates? | b: Titan scrap. Someone said a {part}. | a: Off a wreck? | b: Off a dead Pilot's rig.",
+		"a: Brass wants every Titan scrap locked down. | b: Afraid someone builds one and comes for them.",
+		"hq: Recovery team is delayed. Hold the salvage. | a: How delayed? | hq: Recovery team isn't answering. Hold the salvage.",
+		"a: Somebody left a {part} out in the open. Looks like bait to me.",
+	],
+	"suspicious": [
+		"a: Hold up. Something moved. | b: Wind. | a: The wind doesn't wear boots.",
+		"a: You hear that? | b: Yeah. Safeties off.",
+		"a: Flash on the ridge. | hq: Investigate. If it's hostile, take it down.",
+		"a: Who's there? ...Come on out. I know you're there.",
+	],
+	"stand_down": [
+		"a: Nothing there. | b: Rats again.",
+		"a: False alarm. | hq: Another one and you're on latrine duty.",
+		"a: Clear. For now. She's out there somewhere, though.",
+	],
+	"alerted": [
+		"a: Contact! It's the scavenger! | b: Take her down!",
+		"a: Eyes on her! White hair! | hq: Weapons free.",
+		"a: It's that Pilot wannabe! | b: Light her up!",
+		"a: There she is! Bounty's walking right at us!",
+	],
+	"combat": [
+		"a: Hold still, damn it! | b: She's not gonna hold still, {a}! Lead her!",
+		"a: Flank her! Box her in! | b: Moving!",
+		"a: Somebody hit her already! | b: I'm trying!",
+		"a: You're no Pilot, girl! Go home!",
+		"hq: Status! | a: She's still up! | hq: Then fix that!",
+		"a: She's just one scavenger! | b: Then why the hell are we losing?!",
+	],
+	"pilot_moving": [
+		"a: She's on the walls! What the hell?! | b: Shoot the walls!",
+		"a: She's moving like a Pilot! | b: She's NOT a Pilot! | a: Tell her that!",
+		"a: Get down here and fight like a soldier!",
+	],
+	"hurt": [
+		"a: Got a piece of her! | b: Keep on her!",
+		"a: Hit her! She's slowing down!",
+	],
+	"man_down": [
+		"a: {dead}'s down! | b: Forget him, focus on her!",
+		"a: She got {dead}! | b: Damn it! Make her pay!",
+		"a: Man down! Man down! | hq: Hold your position!",
+	],
+	"last_man": [
+		"a: HQ, it's just me left! Requesting backup! | hq: Negative. Hold the line. | a: Hold it with WHAT?!",
+		"a: Okay! Okay, I take it back! Everything I said at recruitment!",
+		"a: Stay back! Stay the hell back!",
+	],
+	"lost": [
+		"a: Lost her! | b: How do you lose one scavenger?!",
+		"a: Where'd she go? | hq: Find her or don't come back.",
+		"a: She's gone. Hiding somewhere. Watch your back.",
+	],
+	"no_answer": [
+		"hq: Squad, report. | hq: Squad? ...Squad, respond, damn it.",
+		"hq: Patrol, you've gone quiet. Check in. | hq: ...Mark the grid.",
+	],
+}
+
+## E: cartoon rivalry. No killing, no swearing; the militia are blustering
+## rivals who think Eco is just a kid playing soldier.
+const LINES_E := {
+	"idle": [
+		"a: Who's got the deck of cards? | b: You lost the deck, {a}. In the river. | a: I lent it to the river.",
+		"a: Rate my mustache. | b: Two out of ten. | a: Out of ten?! | b: I rounded up.",
+		"a: I could've been a Pilot, you know. | b: You get winded on stairs. | a: Titans have elevators.",
+		"hq: Militia net, radio check. | a: {a}, loud and handsome. | b: {b}, louder and handsomer.",
+		"a: Saw a bird out there bigger than a Titan. | b: That was a Titan, {a}.",
+		"a: Talking to myself again. Great conversationalist. Great listener.",
+		"hq: Inspection at oh-six-hundred. Polish something. | a: Copy, HQ. Polishing my attitude.",
+	],
+	"rumor_eco": [
+		"a: You hear the scrapper kid's still out here? | b: The one the recruiters sent home? | a: Says she's gonna build a Titan. | b: Out of what, kitchen spoons?",
+		"a: Heard the scavenger's picking through our junk piles. | b: Good. Saves us hauling it.",
+		"a: Recruiter said she aced the sim. | b: Sim's for show. | a: You failed it twice. | b: The sim was rigged.",
+		"a: The scavenger left a note on the supply crate. | b: What'd it say? | a: 'Thanks for the parts, boys.' With a smiley face.",
+		"a: Didn't she rebuild a Titan reactor by hand? | b: Rumours. Probably.",
+		"a: If that scrapper kid shows up, I'm confiscating her goggles. For safety reasons.",
+	],
+	"rumor_salvage": [
+		"hq: Salvage crate with a {part} in your sector. Guard it. | a: Guard a box. Living the dream.",
+		"a: I sat in a Titan once. | b: The museum one doesn't count. | a: It had a {part}! | b: It had a gift shop.",
+		"a: That wreck over the hill still has its core humming. Last guy who poked it lost his eyebrows.",
+	],
+	"suspicious": [
+		"a: Hold up. Something moved. | b: It's the wind, {a}. | a: The wind doesn't wear boots.",
+		"a: You hear that? | b: I hear you breathing through your mouth again.",
+		"a: Hello? ...I'm armed. Very armed.",
+	],
+	"stand_down": [
+		"a: Nothing there. | b: Told you. Rats. | a: Big rats.",
+		"a: False alarm. | hq: Noted. Again.",
+		"a: All clear. Probably.",
+	],
+	"alerted": [
+		"a: Contact! It's the scavenger! | b: Get her!",
+		"a: Eyes on her! White hair! | hq: Stop her!",
+		"a: It's the mechanic kid! | b: Don't let her near the crates!",
+		"a: There she is! Get her, boys!",
+	],
+	"combat": [
+		"a: Hold still! | b: She's not gonna hold still, {a}.",
+		"a: Flank her! | b: Which way's flank? | a: The other way!",
+		"a: Go home and fix a toaster!",
+		"hq: Status report! | a: Uh, winning? | b: Define winning.",
+	],
+	"pilot_moving": [
+		"a: She's on the walls! How is she on the walls?!",
+		"a: Stop bouncing, it's not fair! | b: War's not fair, {a}!",
+	],
+	"hurt": [
+		"a: Tagged her! | b: Don't get cocky.",
+		"a: Got her! Who's laughing now?",
+	],
+	"man_down": [
+		"a: {dead}'s out! | b: Keep it together!",
+		"a: She got {dead}! | b: Hold the line!",
+	],
+	"last_man": [
+		"a: HQ, it's just me left! | hq: Hold the line. | a: Hold it with WHAT?!",
+		"a: I'm not scared! I'm tactically sweating!",
+	],
+	"lost": [
+		"a: Lost her! | b: How do you lose a whole person? | a: She's small!",
+		"a: Where'd she go? Okay. Okay. Nobody panic.",
+	],
+	"no_answer": [
+		"hq: Squad, report. | hq: Squad? ...Squad, respond.",
+		"hq: Patrol, check in. | hq: ...Anybody?",
+	],
+}
+
+
+## The line bank for a content rating. AO shares the M bank: our house rules
+## keep out the explicit and sexual-violence content that would make a line
+## AO, so the slot exists for later without adding any.
+static func bank(rating: String) -> Dictionary:
+	match rating:
+		"E":
+			return LINES_E
+		"T":
+			return LINES_T
+	return LINES

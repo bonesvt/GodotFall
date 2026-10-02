@@ -17,6 +17,7 @@ signal line_started(callsign: String, text: String, category: String)
 const Lines := preload("res://scripts/radio/radio_lines.gd")
 const RadioPopup := preload("res://scripts/radio/radio_popup.gd")
 const TitanParts := preload("res://scripts/run/titan_parts.gd")
+const Rating := preload("res://scripts/radio/content_rating.gd")
 
 ## Eco hears grunts within this many metres.
 const RANGE := 45.0
@@ -292,7 +293,9 @@ func _call(category: String, speaker: Node, extra := {}) -> bool:
 ## shuffled bag, so every entry plays before any repeats, and never the same
 ## entry twice in a row.
 func _pick(category: String, grunts: int) -> Array:
-	var entries: Array = Lines.LINES.get(category, [])
+	var rating := Rating.current()
+	var entries: Array = Lines.bank(rating).get(category, [])
+	category = rating + "/" + category  # bags and repeats are tracked per rating
 	var fits := range(entries.size()).filter(func(i): return Lines.roles(entries[i]).size() <= grunts)
 	if fits.is_empty():
 		return []
