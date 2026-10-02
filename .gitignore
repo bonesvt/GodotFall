@@ -4,3 +4,5 @@
 *.import
 export_presets.cfg
 !assets/textures/*.import
+!assets/textures/grunt/*.import
+!assets/models/grunt/*.import
