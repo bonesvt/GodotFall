@@ -8,7 +8,7 @@ const LootArt := preload("res://scripts/run/loot_art.gd")
 const SFX := preload("res://scripts/sfx.gd")
 const FX := preload("res://scripts/fx.gd")
 
-const INTERACT_RANGE := 3.0
+const INTERACT_RANGE := 3.6
 ## Seconds of holding F to mine one out.
 const MINE_TIME := 1.8
 ## A strike (sparks, a clank, a shake) every this many seconds while mining.
@@ -24,17 +24,25 @@ var _model: Node3D
 var _settled := false
 var _since_strike := 0.0
 var _shake := 0.0
+var _light: OmniLight3D
 
 
 func _ready() -> void:
 	_model = LootArt.model("alloy_node")
+	_model.scale = Vector3.ONE * 1.5
 	add_child(_model)
+	_light = OmniLight3D.new()
+	_light.light_color = VEIN
+	_light.light_energy = 1.5
+	_light.omni_range = 5.0
+	_light.position.y = 1.2
+	add_child(_light)
 	var body := StaticBody3D.new()
 	var col := CollisionShape3D.new()
 	col.shape = CylinderShape3D.new()
-	col.shape.radius = 0.9
-	col.shape.height = 1.2
-	col.position.y = 0.6
+	col.shape.radius = 1.3
+	col.shape.height = 1.8
+	col.position.y = 0.9
 	body.add_child(col)
 	add_child(body)
 	_veins(VEIN, 2.0)
@@ -54,7 +62,7 @@ func _physics_process(_delta: float) -> void:
 
 func _process(delta: float) -> void:
 	_shake = maxf(_shake - delta * 6.0, 0.0)
-	_model.position = Vector3(randf_range(-1, 1), 0, randf_range(-1, 1)) * 0.03 * _shake
+	_model.position = Vector3(randf_range(-1, 1), 0, randf_range(-1, 1)) * 0.04 * _shake
 	if not depleted:
 		var pulse := 1.6 + 0.6 * sin(Time.get_ticks_msec() / 1000.0 * 2.5) + progress * 3.0
 		_veins(VEIN, pulse)
@@ -86,6 +94,7 @@ func mine(delta: float) -> Dictionary:
 	if progress < MINE_TIME:
 		return {}
 	depleted = true
+	_light.visible = false
 	_veins(Color(0.25, 0.3, 0.32), 0.0)
 	FX.blast(get_parent(), global_position + Vector3(0, 0.6, 0), VEIN, 1.2, 0.3)
 	SFX.play_at(get_parent(), global_position, "ricochet", -2.0, 0.7)

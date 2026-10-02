@@ -461,7 +461,7 @@ func _build_stage() -> SubViewport:
 	sub.msaa_3d = Viewport.MSAA_4X
 	var stage := Node3D.new()
 	sub.add_child(stage)
-	Art.environment(stage, Color(0.32, 0.26, 0.2), Color(0.72, 0.6, 0.48))
+	Art.environment(stage, Color(0.1, 0.09, 0.11), Color(0.3, 0.25, 0.22))
 	for node in stage.get_children():
 		if node is WorldEnvironment:
 			node.environment.fog_enabled = false
@@ -485,10 +485,10 @@ func _build_stage() -> SubViewport:
 func _frame_camera(titan: bool) -> void:
 	if titan:
 		_camera.fov = 38.0
-		_camera.look_at_from_position(Vector3(-6.0, 5.4, -12.5), Vector3(0, 3.9, 0))
+		_camera.look_at_from_position(Vector3(-7.5, 5.8, -15.5), Vector3(0, 3.7, 0))
 	else:
 		_camera.fov = 30.0
-		_camera.look_at_from_position(Vector3(0.0, 0.08, 0.95), Vector3(0, -0.01, 0))
+		_camera.look_at_from_position(Vector3(0.0, 0.08, 1.15), Vector3(0, -0.02, 0))
 
 
 ## Shows what the selected row is about: the gun (with the browsed attachment

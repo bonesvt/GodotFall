@@ -321,8 +321,9 @@ func dress_hub() -> void:
 			c.free()
 		var id: String = ids[i]
 		var tag := Label3D.new()
-		tag.font_size = 40
-		tag.pixel_size = 0.0025
+		tag.font_size = 44
+		tag.pixel_size = 0.002
+		tag.shaded = false
 		tag.position = Vector3(0, -0.42, 0.02)
 		tag.outline_size = 8
 		slot.add_child(tag)
@@ -331,7 +332,7 @@ func dress_hub() -> void:
 			gun.scale = Vector3.ONE * 2.2
 			gun.rotation_degrees = Vector3(0, 90, 0)
 			slot.add_child(gun)
-			tag.text = "IN HAND" if id == armory.equipped else Armory.WEAPONS[id]["name"].to_upper()
+			tag.text = "IN HAND" if id == armory.equipped else Armory.WEAPONS[id]["short"]
 			tag.modulate = Color(1.0, 0.8, 0.35) if id == armory.equipped else Color(0.9, 0.88, 0.82)
 		else:
 			tag.text = "LOCKED"

@@ -57,6 +57,36 @@ press **F** at the map table ("HEAD OUT") to start a run. When a run ends, won o
     round titan-sized cover, dash, and shoot the four scrap titan dummies; they topple
     and get propped back up.
 
+### Workbenches and materials
+Out on runs you collect three materials, and the hub's workbenches spend them:
+- **Scrap**: grunts drop it when they die; small **supply crates** beside the routes hold
+  more (press **F** to pry one open).
+- **Alloy**: hold **F** at an **alloy node** (a titan wreck half sunk in the ground, glowing
+  blue) to mine it.
+- **Circuits**: rare, from crates and now and then a grunt.
+
+Pickups fly to you when you get close. Extracting banks everything you carried (plus the
+enemy titan's salvage when you win); a lost run banks half. The HUD shows what you have.
+
+- **Gunsmith bench** (the workbench right of the door): **upgrades** for the gun in hand
+  (Calibre, Action, Magazine; three small steps each, so the pistol stays skill-first; every
+  step moves the gun's look tier from 0 to 5) and **attachments** (muzzle, mag, grip, each a
+  trade-off: long barrel, compensator, extended mag, speed base, paracord wrap, skeleton
+  grip) plus free paint **finishes**. Q/E switches guns.
+- **Weapon rack** (on the wall past the bench): buy and pick your sidearm. Dad's smart
+  pistol, the **Rivet Cannon** (five heavy shots off a titan's rivet driver) or the
+  **Militia Machine Pistol** (full auto, hold the trigger).
+- **Titan workshop** (gantry at the west edge of the titan yard): buy titan parts to start
+  runs with (Mk I, instead of scrap; salvage can still replace them) and **refit** parts
+  (+6% per level to every copy you install, salvaged ones and scrap included). The titan
+  in the gantry is the one you'd start with.
+
+On the screens: W/S pick a row, A/D browse, Space buy or fit, Tab or Q/E switch section,
+F or Esc to leave. Progress saves to `user://armory.cfg` (`scripts/hub/armory.gd` has every
+price and number). The sidearms and attachments are modelled by
+`tools/pistol/build_sidearms.py`, the benches by `tools/hub/build_benches.py`, the crates,
+nodes and pickups by `tools/run/build_loot.py` (all `blender -b --python <script>`).
+
 Press **F** near anything to have Eco say something about it; press again for more.
 Built in code by `scripts/hub/hub_builder.gd` and `hub_grounds.gd` (temple stone,
 carvings, moss, wood, grass, dirt, canvas and bark textures come from `tools/make_textures.py`).
@@ -295,6 +325,11 @@ select the Player node and tweak values in the Inspector, or change the defaults
   `godot --headless --path . -s res://tests/combat_test.gd`
 - `tests/stealth_test.gd` headless stealth test (vision cone, sight range, cover, detection meter,
   gunshots, squad callouts, losing the pilot): `godot --headless --path . -s res://tests/stealth_test.gd`
+- `tests/armory_test.gd` headless workbench test (prices, upgrades, attachments, titan parts and
+  refits, saving, the bench screens changing your gun, crates, alloy nodes and grunt drops):
+  `godot --headless --path . -s res://tests/armory_test.gd`
+- `tools/hub/bench_shots.gd` screenshots of the benches, their screens, the guns and the loot
+  (needs a renderer): `xvfb-run -a godot --path . -s res://tools/hub/bench_shots.gd -- out_dir`
 - `tests/run_loop_test.gd` headless run loop test (generator limits, a bot pilot clearing the
   hardest gap of each kind and all three real ravine crossings and the culvert, log-bridge and ridge
   flanks in the forest, salvage,

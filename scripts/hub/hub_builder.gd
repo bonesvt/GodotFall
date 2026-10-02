@@ -44,6 +44,8 @@ const FIRE := Color(1.0, 0.55, 0.18)
 const LAMP := Color(1.0, 0.78, 0.45)
 ## The idol is carved from a darker, cooler stone than the temple.
 const IDOL := Color(0.5, 0.64, 0.6)
+## Her benches are old, oiled timber, darker than the crates.
+const BENCH_WOOD := Color(0.72, 0.6, 0.52)
 
 
 ## Returns {spawn, floor_y, interactables, map_table, eco_spot, half_size}.
@@ -300,7 +302,7 @@ static func _eco_corner(root: Node3D, info: Dictionary) -> void:
 ## (bench_screen.gd). eco_spot marks where she stands at the bench.
 static func _workbench(root: Node3D, info: Dictionary) -> void:
 	var b := Vector3(HALF - 0.72, F, 1.0)
-	var bench := Props.spawn(root, "gunsmith_bench", b, -90.0)
+	var bench := Props.spawn(root, "gunsmith_bench", b, -90.0, 1.0, {"wood": BENCH_WOOD})
 	_solid(root, b + Vector3(0, 0.5, 0), Vector3(1.25, 1.0, 3.45))
 	info["gun_marker"] = bench.find_child("GunMarker", true, false)
 	var lamp: Node3D = bench.find_child("LampMarker", true, false)
@@ -315,7 +317,7 @@ static func _workbench(root: Node3D, info: Dictionary) -> void:
 	info["interactables"].back()["screen"] = "gunsmith"
 	# The rack on the wall past the bench, toward the battery bank.
 	var r := Vector3(HALF - 0.08, F, -3.4)
-	var rack := Props.spawn(root, "weapon_rack", r, -90.0)
+	var rack := Props.spawn(root, "weapon_rack", r, -90.0, 1.0, {"wood": BENCH_WOOD})
 	_solid(root, r + Vector3(-0.3, 0.35, 0), Vector3(0.6, 0.7, 2.6))
 	info["rack_slots"] = []
 	for i in 3:

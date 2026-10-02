@@ -34,7 +34,7 @@ const WIN_BONUS := {"scrap": 40, "alloy": 25, "circuits": 3}
 ## are weapon.gd's defaults. `mag_step` is rounds per Magazine upgrade.
 const WEAPONS := {
 	"smart_pistol": {
-		"name": "Dad's Smart Pistol", "cost": {}, "model": "pistol",
+		"name": "Dad's Smart Pistol", "short": "SMART PISTOL", "cost": {}, "model": "pistol",
 		"desc": "Semi-auto, suppressed. Weak on the body, brutal on the head.",
 		"smart": true, "automatic": false, "suppressed": true, "mag_step": 1,
 		"sound": "pistol", "sound_last": "pistol_last", "tracer": Color(0.75, 0.97, 1.0, 0.85),
@@ -53,7 +53,7 @@ const WEAPONS := {
 		],
 	},
 	"rivet_cannon": {
-		"name": "Rivet Cannon", "cost": {"scrap": 120, "alloy": 20, "circuits": 3}, "model": "rivet_cannon",
+		"name": "Rivet Cannon", "short": "RIVET CANNON", "cost": {"scrap": 120, "alloy": 20, "circuits": 3}, "model": "rivet_cannon",
 		"desc": "Five heavy rounds off a titan's rivet driver. Slow, loud, kicks like a mule.",
 		"smart": false, "automatic": false, "suppressed": false, "mag_step": 1,
 		"sound": "rivet_cannon", "sound_last": "rivet_cannon", "tracer": Color(1.0, 0.75, 0.4, 0.9),
@@ -70,7 +70,7 @@ const WEAPONS := {
 		],
 	},
 	"machine_pistol": {
-		"name": "Militia Machine Pistol", "cost": {"scrap": 100, "circuits": 2}, "model": "machine_pistol",
+		"name": "Militia Machine Pistol", "short": "MACHINE PISTOL", "cost": {"scrap": 100, "circuits": 2}, "model": "machine_pistol",
 		"desc": "Full auto, light rounds, sprays wide. Hold the trigger, mind the bloom.",
 		"smart": false, "automatic": true, "suppressed": false, "mag_step": 3,
 		"sound": "machine_pistol", "sound_last": "machine_pistol", "tracer": Color(1.0, 0.9, 0.6, 0.7),

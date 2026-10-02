@@ -450,7 +450,7 @@ static func _workshop(root: Node3D, info: Dictionary) -> void:
 		root.add_child(body)
 	info["workshop_titan"] = model.find_child("TitanMarker", true, false)
 	K.light(root, w + Vector3(0, 6.0, 1.2), LAMP, 2.0, 12.0)
-	var sign := Kit.label(root, w + Vector3(0, 7.6, 1.2), "WORKSHOP", 56)
+	var sign := Kit.label(root, w + Vector3(0, 7.6, 1.2), "WORKSHOP", 80)
 	sign.modulate = Color(1.0, 0.75, 0.35)
 	K.interactable(info, "titan_workshop", w + Vector3(0.6, 0.1, -3.6), "[F] Work on the titan (starting parts, refits)", [], 2.6)
 	info["interactables"].back()["screen"] = "workshop"
