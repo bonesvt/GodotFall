@@ -1060,7 +1060,7 @@ def timber_wall():
     silvered where the weather got at them, pegged top and bottom."""
     s = BIG
     g = wood_grain(s, 301, 9, vertical=True)
-    boards = [(int(x0), 0, int(x0 + s / 6), s) for x0 in np.arange(0, s, s / 6)]
+    boards = [(int(x0), -s, int(x0 + s / 6), 2 * s) for x0 in np.arange(0, s, s / 6)]  # no end joints: one board per column
     h, ids, _ = plates(s, boards, s * 0.01, seed=302, chip=s * 0.006)
     img = mix(g, (82, 54, 36), (138, 96, 62)) * (1 + per_id(ids, 303, -0.1, 0.1))[..., None]
     # silver weathering in broad vertical streaks
