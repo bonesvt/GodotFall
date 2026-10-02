@@ -153,7 +153,7 @@ on and off in game, to compare.
   picks the material: grey is concrete with steel-plate tops (small grey pieces become
   cover barriers and crates), blue is wallrun panels, orange is grapple-anchor hazard
   stripes, green is crates, red is lava.
-- **Models** (`assets/models/*.tscn`): P-08 pistol with a gloved hand, grunt (legs swing
+- **Models** (`assets/models/*.tscn`): Eco (see below), her smart pistol held in her gloved hand, grunt (legs swing
   as it walks, visor glows on wind-up), four titan chassis (Atlas, Ogre, Stryder, Scrap)
   and four titan guns (XO-16, 40mm Tracker, Splitter, scrap rifle). Your titan is built
   from the chassis and weapon you salvaged. Plus the red enemy titan, salvage cache and
@@ -177,7 +177,9 @@ at about 2.5 m.
 - **Grapple**: 45 m range, pulls you to the point, 2.5 s cooldown.
 - **Air strafing**: you keep momentum in the air but can steer.
 
-## Starter pistol (P-08 placeholder)
+## Starter pistol (Eco's father's broken smart pistol)
+The model is the smart pistol Eco took from her father: its auto-lock sensor is dead, cracked
+and taped back on, so every shot is aimed by hand.
 Weak on purpose, so skill decides fights.
 - **Damage**: 20 to the body, 45 to the head. A grunt has 60 HP: three body shots, or a headshot plus a body shot.
 - **Falloff**: full damage to 15 m, down to 60% at 35 m.
@@ -186,6 +188,44 @@ Weak on purpose, so skill decides fights.
   Paced shots land, spam doesn't. The crosshair gap shows the real cone.
 - **Movement**: sprinting and jumping add spread. **Wallrunning and sliding don't**, so shooting off a wall is a pilot skill.
 - Recoil kicks the view up and mostly settles back. Hitmarkers: white body, gold head, red kill.
+- **Eco's build**: an integrated suppressor (a quiet "thup" and the crisp clack of the slide), vents that
+  glow hotter the faster you shoot, LEDs on the slide that show the ammo left and race to the muzzle on
+  each shot, a holo sight that pulses, her father's dog tag swinging off the rail, and a twirl on every
+  reload and inspect (I). All feel; none of it changes the numbers above.
+
+## Eco, the heroine
+A young mechanic who went rogue after the army turned her down as a Pilot. She fights with her
+late father's broken smart pistol and builds titans from scrap. Short white hair that shimmers in
+technicolor waves, striking aqua eyes, and a makeshift mechanic's outfit in the Jak and Daxter style.
+
+- **Model**: `assets/models/eco.tscn` (or `Art.model("eco")`), a rigged mesh about 1.7 m tall,
+  facing -Z with its origin at her feet. Drop it under a CharacterBody3D and she picks her
+  animation from it: idle, walk or run (sped up to match), and on the player also fall, crouch
+  and slide from its movement state. `idle_motion` turns the idle off.
+- **Physics**: spring bones swing her hair locks (fringe, sides, back) and the rag on her hip;
+  `SPRINGS` in `scripts/ps2/eco_model.gd` tunes stiffness, drag, gravity and swing limits, and
+  `springs_enabled` turns them off.
+- **First person**: the player's `EcoBody` node (`scripts/eco_fp_body.gd`) shows her body when
+  you look down (head and arms hidden, kept under the camera in every pose) and casts her full
+  shadow. `camera_above_neck` and `camera_ahead` place it; `show_body` and `cast_shadow` toggle it.
+- **Look at her**: open `scenes/eco_showcase.tscn` and press F6. Left/Right turn her, Space
+  pauses the turntable, 1/2/3 switch between full body, face, and the first-person pistol.
+- **Hair**: `assets/shaders/eco_hair.gdshader`. `iridescence`, `wave_scale`, `wave_speed`
+  and `sway` on `assets/materials/eco/eco_hair.tres` tune the colour waves and the tip sway.
+- **How she's made** (`tools/eco/`): she is sculpted in code from signed distance fields,
+  then decimated, UV'd, rigged and animated in Blender, and exported to
+  `assets/models/eco/eco.glb`. Its import script swaps the Blender materials for the PS2
+  ones in `assets/materials/eco/`. To rebuild (needs numpy, scikit-image, pillow, Blender 4):
+  ```
+  python3 tools/eco/paint_eco.py                     # face, eyes, fabrics
+  python3 tools/eco/sculpt.py /tmp/eco               # all parts (or name some)
+  blender -b --factory-startup -P tools/eco/build_eco.py -- /tmp/eco assets/models/eco/eco.glb
+  python3 tools/eco/sculpt.py /tmp/eco --fp          # first-person arm
+  blender -b --factory-startup -P tools/eco/build_eco.py -- /tmp/eco assets/models/eco/eco_fp_arm.glb --fp
+  ```
+  Shapes and joints live in `sculpt.py` and `rig.py`; add `--preview <prefix>` to the
+  Blender step for quick workbench renders.
+- **Reference sheet renders**: `godot res://scenes/eco_showcase.tscn -- --shots=<folder> [--clean]`.
 
 ## Grunts
 - 60 HP, headshots count above the shoulders. Visor glows red during a 0.4 s wind-up before each shot.
@@ -209,7 +249,13 @@ select the Player node and tweak values in the Inspector, or change the defaults
 - `scripts/test_level.gd` builds the test level in code
 - `scripts/weapon.gd` starter pistol (hitscan, bloom, falloff, recoil, viewmodel)
 - `scripts/grunt.gd` grunt AI and hitbox
-- `scripts/fx.gd` tracers and impact sparks
+- `scripts/fx.gd` stylized combat effects: tracers, muzzle stars, smoke, debris, casings, blasts
+- `tools/pistol/build_pistol.py` builds Eco's smart pistol in Blender
+  (`blender --background --python tools/pistol/build_pistol.py -- assets/models/smart_pistol/smart_pistol.glb`);
+  `tools/bake_models.gd -- smart_pistol` then puts it in her hand (`assets/models/smart_pistol.tscn`)
+- `scripts/sfx.gd` procedural sound effects, synthesized at runtime; drop `<id>.wav` or `<id>.ogg`
+  in `assets/audio/sfx/` (for example `pistol.wav`) to replace one with a recording
+- `scripts/run/titan_gun.gd` titan weapon personalities (XO-16 spin-up, Tracker shells, Splitter beam, jamming scrap rifle)
 - `scripts/hud.gd` crosshair, hitmarkers, health, ammo, speedometer, state and cooldown readout
 - `tests/movement_test.gd` headless smoke test:
   `godot --headless --path . -s res://tests/movement_test.gd`
@@ -220,6 +266,8 @@ select the Player node and tweak values in the Inspector, or change the defaults
   flanks in the forest, salvage,
   extraction, titanfall, the fight, evac, win and loss):
   `godot --headless --path . -s res://tests/run_loop_test.gd`
+- `tests/titan_weapons_test.gd` checks every titan weapon still deals its damage per second:
+  `godot --headless --path . -s res://tests/titan_weapons_test.gd`
 - `scripts/hub/hub_builder.gd` builds the temple in code, `hub_grounds.gd` the grounds,
   `hub_kit.gd` shared shape helpers, `hub_props.gd` the Blender props; `practice_target.gd`, `titan_dummy.gd` and
   `ambient.gd` (fire flicker, swaying cloth, birds) are the hub's moving parts

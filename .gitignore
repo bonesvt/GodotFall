@@ -4,3 +4,5 @@
 *.import
 export_presets.cfg
 !assets/textures/*.import
+!assets/models/eco/*.import
+tools/eco/__pycache__/

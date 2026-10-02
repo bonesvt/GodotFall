@@ -136,7 +136,7 @@ func _run() -> void:
 	await _ticks(240)
 	_check("boss fights back", titan.hp < titan.max_hp, titan.hp)
 	boss.hp = 1.0
-	await _ticks(10)
+	await _ticks(120)  # the slowest gun (40mm Tracker) fires about every 0.4 s
 	Input.action_release("titan_fire")
 	_check("killing the boss opens the evac", run_node.phase == run_node.Phase.FIGHT and run_node.evac_open and run_node.zone_info["evac_node"].visible, run_node.phase)
 	titan.global_position = run_node.zone_info["evac"] + Vector3(0, 0.5, 0)

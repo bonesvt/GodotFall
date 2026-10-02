@@ -1,0 +1,15 @@
+[gd_resource type="ShaderMaterial" load_steps=3 format=3]
+
+[ext_resource type="Shader" path="res://assets/shaders/ps2_surface.gdshader" id="1_shader"]
+[ext_resource type="Texture2D" path="res://assets/textures/gunmetal.png" id="2_tex"]
+
+[resource]
+resource_name = "eco_lens"
+shader = ExtResource("1_shader")
+shader_parameter/albedo_tex = ExtResource("2_tex")
+shader_parameter/use_uv = true
+shader_parameter/tex_scale = 4.0
+shader_parameter/world_space = false
+shader_parameter/albedo = Color(0.25, 0.55, 0.6, 1)
+shader_parameter/emission = Color(0.35, 0.75, 0.8, 1)
+shader_parameter/emission_energy = 0.35

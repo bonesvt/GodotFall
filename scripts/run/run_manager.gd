@@ -490,6 +490,7 @@ func embark() -> void:
 	_set_pilot_active(false)
 	titan.piloted = true
 	titan.camera.make_current()
+	hud.titan = titan
 	boss.target = titan
 	boss.active = true
 	phase = Phase.FIGHT

@@ -1,0 +1,9 @@
+[gd_resource type="ShaderMaterial" load_steps=3 format=3]
+
+[ext_resource type="Shader" path="res://assets/shaders/eco_hair.gdshader" id="1_shader"]
+[ext_resource type="Texture2D" path="res://assets/textures/hair.png" id="2_tex"]
+
+[resource]
+resource_name = "eco_hair"
+shader = ExtResource("1_shader")
+shader_parameter/strand_tex = ExtResource("2_tex")

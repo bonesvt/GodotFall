@@ -370,6 +370,32 @@ def sky():
     print("wrote sky")
 
 
+# --- Eco (the heroine) ---------------------------------------------------------
+
+def skin():
+    """Eco's skin: smooth, warm painted tone with soft blush strokes (tinted in the material)."""
+    s = 64
+    st = strokes(s, 2, 3, 141, 2)
+    img = mix(st, (226, 206, 192), (246, 230, 218))
+    warm = blur(noise(s, 3, 2, 142), 2)
+    img[..., 0] += 10 * warm
+    save("skin", img)
+
+
+def hair():
+    """Eco's hair: white strands with soft lavender shadows; the shader adds the colour waves."""
+    s = 64
+    r = np.random.default_rng(151)
+    cols = np.repeat(r.random(16), 4)
+    cols = blur(np.tile(cols, (s, 1)), 1)
+    bands = strokes(s, 2, 3, 152, 1)
+    t = np.clip(cols * 0.75 + bands * 0.35, 0, 1)
+    img = mix(t, (196, 196, 214), (252, 252, 255))
+    y, x = np.mgrid[0:s, 0:s]
+    img[(x % 16 == 5)] *= 0.92  # strand partings
+    save("hair", img)
+
+
 # --- temple hub ------------------------------------------------------------
 
 def temple_stone():
@@ -537,7 +563,7 @@ if __name__ == "__main__":
     OUT.mkdir(parents=True, exist_ok=True)
     for fn in (concrete, metal_floor, wall_panel, hazard, crate, barrier, lava, gunmetal, glove,
                fabric, armor, titan_armor, titan_frame, sky, temple_stone, temple_floor,
-               temple_carving, moss, wood, grass, dirt, canvas, bark):
+               temple_carving, moss, wood, grass, dirt, canvas, bark, skin, hair):
         # `make_textures.py moss wood` repaints only the named textures.
         if len(sys.argv) < 2 or fn.__name__ in sys.argv[1:]:
             fn()
