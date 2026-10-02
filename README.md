@@ -75,7 +75,7 @@ on and off in game, to compare.
   picks the material: grey is concrete with steel-plate tops (small grey pieces become
   cover barriers and crates), blue is wallrun panels, orange is grapple-anchor hazard
   stripes, green is crates, red is lava.
-- **Models** (`assets/models/*.tscn`): P-08 pistol with a gloved hand, grunt (legs swing
+- **Models** (`assets/models/*.tscn`): Eco (see below), her smart pistol with her gloved hand, grunt (legs swing
   as it walks, visor glows on wind-up), four titan chassis (Atlas, Ogre, Stryder, Scrap)
   and four titan guns (XO-16, 40mm Tracker, Splitter, scrap rifle). Your titan is built
   from the chassis and weapon you salvaged. Plus the red enemy titan, salvage cache and
@@ -99,7 +99,9 @@ at about 2.5 m.
 - **Grapple**: 45 m range, pulls you to the point, 2.5 s cooldown.
 - **Air strafing**: you keep momentum in the air but can steer.
 
-## Starter pistol (P-08 placeholder)
+## Starter pistol (Eco's father's broken smart pistol)
+The model is the smart pistol Eco took from her father: its auto-lock sensor is dead, cracked
+and taped back on, so every shot is aimed by hand.
 Weak on purpose, so skill decides fights.
 - **Damage**: 20 to the body, 45 to the head. A grunt has 60 HP: three body shots, or a headshot plus a body shot.
 - **Falloff**: full damage to 15 m, down to 60% at 35 m.
@@ -108,6 +110,22 @@ Weak on purpose, so skill decides fights.
   Paced shots land, spam doesn't. The crosshair gap shows the real cone.
 - **Movement**: sprinting and jumping add spread. **Wallrunning and sliding don't**, so shooting off a wall is a pilot skill.
 - Recoil kicks the view up and mostly settles back. Hitmarkers: white body, gold head, red kill.
+
+## Eco, the heroine
+A young mechanic who went rogue after the army turned her down as a Pilot. She fights with her
+late father's broken smart pistol and builds titans from scrap. Short white hair that shimmers in
+technicolor waves, striking aqua eyes, and a makeshift mechanic's outfit in the Jak and Daxter style.
+
+- **Model**: `assets/models/eco.tscn` (or `Art.model("eco")`), about 1.75 m, facing -Z with
+  its origin at her feet. Drop it under a CharacterBody3D and her legs and arms swing as it
+  walks; on her own she idles (breathing, glancing around). `idle_motion` turns that off.
+- **Look at her**: open `scenes/eco_showcase.tscn` and press F6. Left/Right turn her, Space
+  pauses the turntable, 1/2/3 switch between full body, face, and the first-person pistol.
+- **Hair**: `assets/shaders/eco_hair.gdshader`. `iridescence`, `wave_scale`, `wave_speed`
+  and `sway` on `assets/materials/eco_hair.tres` tune the colour waves and the tip sway.
+- **Rebuild** after editing `tools/bake_models.gd`:
+  `xvfb-run godot -s res://tools/bake_models.gd -- eco smart_pistol` (names limit the rebuild).
+- **Reference sheet renders**: `godot res://scenes/eco_showcase.tscn -- --shots=<folder>`.
 
 ## Grunts
 - 60 HP, headshots count above the shoulders. Visor glows red during a 0.4 s wind-up before each shot.

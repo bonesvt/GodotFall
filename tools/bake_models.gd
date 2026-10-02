@@ -8,8 +8,11 @@ extends SceneTree
 ## Re-running overwrites the .tscn files. You can also edit the saved scenes
 ## in the editor; every part is a plain MeshInstance3D with a primitive mesh.
 ## Models face -Z with their origin at the feet, like the gameplay nodes.
+## Pass model names after "--" to rebuild only those, e.g.
+##   godot -s res://tools/bake_models.gd -- eco smart_pistol
 
 const MODEL_SCRIPT := preload("res://scripts/ps2/ps2_model.gd")
+const ECO_SCRIPT := preload("res://scripts/ps2/eco_model.gd")
 const OUT := "res://assets/models/"
 
 var M := {}
@@ -17,16 +20,25 @@ var M := {}
 
 func _init() -> void:
 	for m in ["gunmetal", "glove", "pilot_suit", "grunt_fabric", "grunt_armor", "visor",
-			"titan_armor", "titan_frame", "titan_glow", "light", "anchor", "cover"]:
+			"titan_armor", "titan_frame", "titan_glow", "light", "anchor", "cover",
+			"skin", "canvas", "eco_hair"]:
 		M[m] = load("res://assets/materials/%s.tres" % m)
-	_pistol()
-	_grunt()
-	for id in TITANS:
-		_titan(id, TITANS[id])
-	for id in ["xo16", "tracker", "splitter", "scrap"]:
-		_titan_weapon(id)
-	_cache()
-	_beacon()
+	var only := OS.get_cmdline_user_args()
+	var want := func(id: String) -> bool: return only.is_empty() or only.has(id)
+	if want.call("smart_pistol"):
+		_smart_pistol()
+	if want.call("grunt"):
+		_grunt()
+	if want.call("titans"):
+		for id in TITANS:
+			_titan(id, TITANS[id])
+		for id in ["xo16", "tracker", "splitter", "scrap"]:
+			_titan_weapon(id)
+	if want.call("props"):
+		_cache()
+		_beacon()
+	if want.call("eco"):
+		_eco()
 	quit()
 
 
@@ -81,6 +93,18 @@ func _part(parent: Node3D, name: String, kind: String, size: Vector3, pos: Vecto
 		"prism":
 			mesh = PrismMesh.new()
 			mesh.size = size
+		"ell":  # smooth ellipsoid: x radius, scaled per axis by the node (see _ell)
+			mesh = SphereMesh.new()
+			mesh.radius = size.x
+			mesh.height = size.x * 2.0
+			mesh.radial_segments = 12
+			mesh.rings = 7
+		"torus":  # x inner radius, y outer radius
+			mesh = TorusMesh.new()
+			mesh.inner_radius = size.x
+			mesh.outer_radius = size.y
+			mesh.rings = 12
+			mesh.ring_segments = 6
 	mesh.material = mat
 	var mi := MeshInstance3D.new()
 	mi.name = name
@@ -88,6 +112,24 @@ func _part(parent: Node3D, name: String, kind: String, size: Vector3, pos: Vecto
 	mi.position = pos
 	mi.rotation_degrees = rot_deg
 	parent.add_child(mi)
+	return mi
+
+
+## Ellipsoid: a smooth sphere of radius r stretched by `stretch`.
+func _ell(parent: Node3D, name: String, r: float, stretch: Vector3, pos: Vector3,
+		mat: Material, rot_deg := Vector3.ZERO) -> MeshInstance3D:
+	var mi := _part(parent, name, "ell", Vector3(r, 0, 0), pos, mat, rot_deg)
+	mi.scale = stretch
+	return mi
+
+
+## Cone from `base` toward `dir`, tapering to a point (hair spikes, built along
+## +Y so the hair shader can sway their tips).
+func _spike(parent: Node3D, name: String, base: Vector3, dir: Vector3, length: float,
+		radius: float, mat: Material) -> MeshInstance3D:
+	dir = dir.normalized()
+	var mi := _part(parent, name, "cone", Vector3(radius, length, 0.0), base + dir * length * 0.5, mat)
+	mi.quaternion = Quaternion(Vector3.UP, dir)
 	return mi
 
 
@@ -123,34 +165,52 @@ func _own(node: Node, owner_node: Node) -> void:
 		_own(c, owner_node)
 
 
-# --- starter pistol (first-person viewmodel) -------------------------------
+# --- Eco's sidearm: her father's broken smart pistol (first-person viewmodel) -
 
-func _pistol() -> void:
-	var r := _root("P08Pistol")
-	var g := _painted("gunmetal", Color(0.7, 0.7, 0.72))
-	var dark := _painted("gunmetal", Color(0.42, 0.42, 0.45))
-	_part(r, "Slide", "box", Vector3(0.042, 0.048, 0.25), Vector3(0, 0.012, -0.005), g)
-	_part(r, "SlideTop", "box", Vector3(0.03, 0.01, 0.23), Vector3(0, 0.039, -0.005), dark)
-	_part(r, "Frame", "box", Vector3(0.038, 0.03, 0.19), Vector3(0, -0.026, -0.02), dark)
-	_part(r, "Barrel", "cyl", Vector3(0.011, 0.02, 6), Vector3(0, 0.012, -0.135), dark, Vector3(90, 0, 0))
-	_part(r, "FrontSight", "box", Vector3(0.006, 0.012, 0.01), Vector3(0, 0.048, -0.118), dark)
-	_part(r, "RearSight", "box", Vector3(0.03, 0.012, 0.012), Vector3(0, 0.048, 0.105), dark)
-	_part(r, "Hammer", "box", Vector3(0.012, 0.022, 0.014), Vector3(0, 0.03, 0.128), dark, Vector3(-25, 0, 0))
-	_part(r, "Grip", "box", Vector3(0.036, 0.12, 0.052), Vector3(0, -0.088, 0.072), dark, Vector3(-16, 0, 0))
-	_part(r, "MagBase", "box", Vector3(0.04, 0.012, 0.058), Vector3(0, -0.15, 0.09), g, Vector3(-16, 0, 0))
+func _smart_pistol() -> void:
+	var r := _root("SmartPistol")
+	var body := _painted("gunmetal", Color(0.78, 0.8, 0.84))
+	var dark := _painted("gunmetal", Color(0.42, 0.42, 0.46))
+	var paint := _painted("titan_armor", Color(0.62, 0.7, 0.8))  # his titan's colours
+	var stripe := _painted("titan_armor", Color(1.0, 0.55, 0.2))
+	var tape := _painted("canvas", Color(0.72, 0.72, 0.7))
+	# chunky smart-pistol upper with a rounded nose
+	_part(r, "Upper", "box", Vector3(0.05, 0.06, 0.22), Vector3(0, 0.012, 0.0), paint)
+	_part(r, "Nose", "cyl", Vector3(0.03, 0.05, 8), Vector3(0, 0.012, -0.11), paint, Vector3(0, 0, 90))
+	_part(r, "Stripe", "box", Vector3(0.052, 0.012, 0.09), Vector3(0, 0.03, 0.05), stripe)
+	_part(r, "Frame", "box", Vector3(0.042, 0.03, 0.18), Vector3(0, -0.03, -0.02), dark)
+	_part(r, "Barrel", "cyl", Vector3(0.011, 0.03, 6), Vector3(0, 0.005, -0.14), dark, Vector3(90, 0, 0))
+	# the auto-lock sensor on top: dead, cracked, taped back on
+	_part(r, "SensorHousing", "box", Vector3(0.04, 0.03, 0.07), Vector3(0, 0.057, -0.07), body)
+	var lens := _painted("visor", Color(0.9, 0.2, 0.15))
+	_part(r, "SensorLens", "cyl", Vector3(0.013, 0.01, 8), Vector3(0, 0.057, -0.106), lens, Vector3(90, 0, 0)) \
+		.set_instance_shader_parameter("glow", 0.15)
+	_part(r, "SensorCrack", "box", Vector3(0.026, 0.003, 0.003), Vector3(0, 0.058, -0.112), dark, Vector3(0, 0, 35))
+	_part(r, "SensorTape", "box", Vector3(0.046, 0.034, 0.016), Vector3(0, 0.054, -0.05), tape)
+	_part(r, "Tape", "box", Vector3(0.056, 0.066, 0.025), Vector3(0, 0.012, -0.03), tape)
+	# rear sights and the lock display facing the shooter, dark ever since it broke
+	_part(r, "RearSight", "box", Vector3(0.034, 0.014, 0.012), Vector3(0, 0.048, 0.1), dark)
+	_part(r, "Display", "box", Vector3(0.036, 0.026, 0.004), Vector3(0, 0.02, 0.111), lens) \
+		.set_instance_shader_parameter("glow", 0.25)
+	_part(r, "Hammer", "box", Vector3(0.014, 0.02, 0.016), Vector3(0, 0.05, 0.118), dark, Vector3(-25, 0, 0))
+	_part(r, "Grip", "box", Vector3(0.038, 0.12, 0.054), Vector3(0, -0.088, 0.072), dark, Vector3(-16, 0, 0))
+	_part(r, "MagBase", "box", Vector3(0.042, 0.014, 0.06), Vector3(0, -0.15, 0.09), paint, Vector3(-16, 0, 0))
 	_part(r, "GuardBottom", "box", Vector3(0.012, 0.008, 0.055), Vector3(0, -0.062, -0.012), dark)
 	_part(r, "GuardFront", "box", Vector3(0.012, 0.03, 0.008), Vector3(0, -0.048, -0.04), dark)
-	_part(r, "Trigger", "box", Vector3(0.008, 0.022, 0.008), Vector3(0, -0.046, 0.0), g, Vector3(15, 0, 0))
-	# gloved hand wrapped round the grip, and the sleeve running back out of view
+	_part(r, "Trigger", "box", Vector3(0.008, 0.022, 0.008), Vector3(0, -0.046, 0.0), body, Vector3(15, 0, 0))
+	# Eco's hand: fingerless mechanic's glove, wrapped wrist, sleeve rolled to the elbow
 	var glove: Material = M["glove"]
+	var skin: Material = M["skin"]
 	_part(r, "Palm", "box", Vector3(0.05, 0.085, 0.06), Vector3(0.012, -0.09, 0.098), glove, Vector3(-16, 0, 0))
-	_part(r, "Fingers", "box", Vector3(0.052, 0.07, 0.026), Vector3(0.004, -0.092, 0.036), glove, Vector3(-16, 0, 0))
-	_part(r, "Thumb", "box", Vector3(0.02, 0.02, 0.07), Vector3(-0.024, -0.04, 0.05), glove, Vector3(0, -8, 0))
-	_part(r, "Wrist", "box", Vector3(0.06, 0.06, 0.07), Vector3(0.016, -0.14, 0.15), glove, Vector3(-40, 0, 0))
-	_part(r, "Sleeve", "cyl", Vector3(0.042, 0.34, 6), Vector3(0.03, -0.24, 0.29), M["pilot_suit"], Vector3(-50, 0, 0))
-	_part(r, "Cuff", "cyl", Vector3(0.046, 0.04, 6), Vector3(0.02, -0.17, 0.2), M["gunmetal"], Vector3(-50, 0, 0))
-	_pivot(r, "Muzzle", Vector3(0, 0.012, -0.145))
-	_save(r, "pistol_p08.tscn")
+	_part(r, "GloveBand", "box", Vector3(0.054, 0.03, 0.03), Vector3(0.005, -0.068, 0.042), glove, Vector3(-16, 0, 0))
+	_part(r, "Fingers", "box", Vector3(0.05, 0.068, 0.024), Vector3(0.004, -0.098, 0.034), skin, Vector3(-16, 0, 0))
+	_part(r, "Thumb", "box", Vector3(0.019, 0.019, 0.068), Vector3(-0.024, -0.04, 0.05), skin, Vector3(0, -8, 0))
+	_part(r, "Knuckles", "box", Vector3(0.012, 0.03, 0.05), Vector3(0.038, -0.07, 0.07), _painted("gunmetal", Color(1.6, 1.3, 0.75)), Vector3(-16, 0, 0))
+	_part(r, "Wrap", "box", Vector3(0.058, 0.06, 0.07), Vector3(0.016, -0.14, 0.15), _painted("canvas", Color(0.92, 0.88, 0.78)), Vector3(-40, 0, 0))
+	_part(r, "Forearm", "cone", Vector3(0.04, 0.32, 0.034), Vector3(0.03, -0.24, 0.29), skin, Vector3(-50, 0, 0))
+	_part(r, "Sleeve", "cyl", Vector3(0.05, 0.07, 8), Vector3(0.045, -0.35, 0.42), _painted("canvas", Color(0.86, 0.46, 0.26)), Vector3(-50, 0, 0))
+	_pivot(r, "Muzzle", Vector3(0, 0.005, -0.16))
+	_save(r, "smart_pistol.tscn")
 
 
 # --- grunt -----------------------------------------------------------------
@@ -340,3 +400,169 @@ func _beacon() -> void:
 	_part(r, "Light", "sphere", Vector3(0.25, 0, 0), Vector3(0, 2.9, 0), M["light"])
 	_part(r, "LightRing", "cyl", Vector3(0.4, 0.08, 8), Vector3(0, 2.6, 0), M["light"])
 	_save(r, "extract_beacon.tscn")
+
+
+# --- Eco, the heroine (third person) ---------------------------------------
+# A young mechanic in a makeshift work outfit, Jak and Daxter proportions:
+# slightly large head and eyes, chunky gloves and boots, lean athletic build.
+# Short white hair with the iridescent eco_hair shader. About 1.75 m to the
+# top of the hair. Pivots: LegL/LegR (walk), Upper (breathing), ArmL/ArmR,
+# Head (idle look), all driven by scripts/ps2/eco_model.gd.
+
+func _eco() -> void:
+	var r := _root("Eco")
+	r.set_script(ECO_SCRIPT)
+	r.set("stride", 1.5)
+	var skin: Material = M["skin"]
+	var hair: Material = M["eco_hair"]
+	var leather: Material = M["glove"]
+	var strap := _painted("glove", Color(0.62, 0.58, 0.56))
+	var metal: Material = M["gunmetal"]
+	var brass := _painted("glove", Color(1.7, 1.45, 0.8))
+	var jacket := _painted("canvas", Color(0.86, 0.46, 0.26))
+	var jacket_dark := _painted("canvas", Color(0.64, 0.31, 0.18))
+	var shirt := _painted("canvas", Color(0.3, 0.32, 0.37))
+	var pants := _painted("canvas", Color(0.6, 0.6, 0.42))
+	var pants_dark := _painted("canvas", Color(0.48, 0.48, 0.33))
+	var scarf := _painted("canvas", Color(0.3, 0.52, 0.68))
+	var rag := _painted("canvas", Color(0.82, 0.26, 0.2))
+	var bandage := _painted("canvas", Color(0.92, 0.88, 0.78))
+	var titan_paint := _painted("titan_armor", Color(0.62, 0.7, 0.8))
+	var titan_stripe := _painted("titan_armor", Color(1.0, 0.55, 0.2))
+	var dark := _painted("gunmetal", Color(0.16, 0.14, 0.16))
+
+	# legs: baggy cargo pants tucked into steel-toed work boots
+	for side in [-1.0, 1.0]:
+		var leg := _pivot(r, "LegL" if side < 0.0 else "LegR", Vector3(side * 0.095, 0.9, 0))
+		_part(leg, "Thigh", "cone", Vector3(0.066, 0.44, 0.084), Vector3(0, -0.22, 0), pants)
+		_part(leg, "CargoPocket", "box", Vector3(0.035, 0.1, 0.1), Vector3(side * 0.078, -0.27, 0), pants_dark)
+		_part(leg, "KneePad", "box", Vector3(0.105, 0.1, 0.04), Vector3(0, -0.45, -0.062), strap, Vector3(-6, 0, 0))
+		_part(leg, "Shin", "cone", Vector3(0.05, 0.3, 0.064), Vector3(0, -0.6, 0), pants)
+		_part(leg, "BootCuff", "cyl", Vector3(0.068, 0.1, 8), Vector3(0, -0.73, 0), leather)
+		_part(leg, "BootStrap", "box", Vector3(0.14, 0.022, 0.15), Vector3(0, -0.76, -0.01), strap)
+		_part(leg, "Boot", "box", Vector3(0.12, 0.12, 0.25), Vector3(0, -0.84, -0.04), leather)
+		_part(leg, "ToeCap", "box", Vector3(0.126, 0.075, 0.08), Vector3(0, -0.86, -0.135), metal)
+		_part(leg, "Sole", "box", Vector3(0.13, 0.03, 0.27), Vector3(0, -0.885, -0.04), dark)
+		if side > 0.0:  # thigh holster with the pistol grip showing
+			_part(leg, "HolsterStrap", "cyl", Vector3(0.086, 0.025, 8), Vector3(0, -0.16, 0), strap)
+			_part(leg, "Holster", "box", Vector3(0.045, 0.16, 0.085), Vector3(0.088, -0.22, 0.0), leather)
+			_part(leg, "PistolGrip", "box", Vector3(0.035, 0.07, 0.045), Vector3(0.09, -0.12, 0.02), metal, Vector3(-12, 0, 0))
+
+	# hips: belt with a tool pouch, a wrench and a red rag in the back pocket
+	_ell(r, "Pelvis", 0.155, Vector3(1.05, 0.6, 0.7), Vector3(0, 0.94, 0.005), pants)
+	_part(r, "Belt", "cyl", Vector3(0.15, 0.05, 10), Vector3(0, 1.0, 0), leather).scale = Vector3(1.0, 1.0, 0.8)
+	_part(r, "Buckle", "box", Vector3(0.05, 0.04, 0.02), Vector3(0, 1.0, -0.12), brass)
+	_part(r, "ToolPouch", "box", Vector3(0.07, 0.1, 0.07), Vector3(0.15, 0.95, 0.03), leather, Vector3(0, 0, -6))
+	_part(r, "WrenchShaft", "box", Vector3(0.018, 0.2, 0.01), Vector3(-0.16, 0.89, -0.03), metal, Vector3(0, 0, 8))
+	_part(r, "WrenchHead", "torus", Vector3(0.012, 0.03, 0), Vector3(-0.174, 0.78, -0.03), metal, Vector3(90, 0, 8))
+	_part(r, "Rag", "box", Vector3(0.06, 0.15, 0.01), Vector3(0.07, 0.9, 0.12), rag, Vector3(0, 0, 10))
+
+	var up := _pivot(r, "Upper", Vector3.ZERO)
+	# torso: charcoal work shirt under a cropped, open rust work jacket
+	_ell(up, "Waist", 0.11, Vector3(0.86, 1.05, 0.62), Vector3(0, 1.13, 0), shirt)
+	_ell(up, "Chest", 0.155, Vector3(0.95, 0.88, 0.66), Vector3(0, 1.3, 0), shirt)
+	_ell(up, "Jacket", 0.175, Vector3(1.05, 0.82, 0.68), Vector3(0, 1.322, 0.006), jacket)
+	_part(up, "ShirtFront", "box", Vector3(0.085, 0.2, 0.03), Vector3(0, 1.28, -0.1), shirt)
+	for side in [-1.0, 1.0]:
+		_part(up, "Lapel", "box", Vector3(0.03, 0.22, 0.02), Vector3(side * 0.055, 1.3, -0.108), jacket_dark, Vector3(0, side * 10, side * -8))
+	_part(up, "Collar", "cone", Vector3(0.085, 0.07, 0.102), Vector3(0, 1.45, 0.012), jacket_dark)
+	_part(up, "Scarf", "torus", Vector3(0.05, 0.085, 0), Vector3(0, 1.465, -0.004), scarf, Vector3(-14, 0, 0))
+	_part(up, "ScarfTail", "box", Vector3(0.05, 0.13, 0.02), Vector3(0.05, 1.38, -0.118), scarf, Vector3(-8, 0, 16))
+	_part(up, "BackPatch", "box", Vector3(0.12, 0.12, 0.01), Vector3(0, 1.34, 0.131), titan_paint)
+	_part(up, "BackPatchStripe", "box", Vector3(0.12, 0.025, 0.012), Vector3(0, 1.34, 0.133), titan_stripe)
+	# crossbody strap holding a plate from her father's titan on her left shoulder
+	_part(up, "StrapFront", "box", Vector3(0.03, 0.44, 0.015), Vector3(0.005, 1.27, -0.118), strap, Vector3(0, 0, -36))
+	_part(up, "StrapBack", "box", Vector3(0.03, 0.44, 0.015), Vector3(0.005, 1.27, 0.128), strap, Vector3(0, 0, -36))
+	_ell(up, "ShoulderPlate", 0.09, Vector3(1.0, 0.45, 1.08), Vector3(-0.205, 1.435, 0), titan_paint, Vector3(0, 0, 18))
+	_part(up, "PlateStripe", "box", Vector3(0.03, 0.02, 0.17), Vector3(-0.205, 1.472, 0), titan_stripe, Vector3(0, 0, 18))
+	_part(up, "PlateRivet", "cyl", Vector3(0.012, 0.02, 6), Vector3(-0.255, 1.46, -0.06), metal, Vector3(0, 0, 18))
+
+	# arms: rolled jacket sleeves, bare forearms, chunky mechanic's gloves
+	for side in [-1.0, 1.0]:
+		var arm := _pivot(up, "ArmL" if side < 0.0 else "ArmR", Vector3(side * 0.2, 1.41, 0), Vector3(0, 0, side * 7))
+		_part(arm, "Shoulder", "sphere", Vector3(0.062, 0, 0), Vector3.ZERO, jacket)
+		_part(arm, "Sleeve", "cone", Vector3(0.048, 0.25, 0.058), Vector3(0, -0.13, 0), jacket)
+		_part(arm, "RolledCuff", "cyl", Vector3(0.058, 0.05, 8), Vector3(0, -0.26, 0), jacket_dark)
+		_part(arm, "Forearm", "cone", Vector3(0.038, 0.22, 0.047), Vector3(0, -0.38, 0), skin)
+		if side < 0.0:
+			_part(arm, "Bandage", "cyl", Vector3(0.046, 0.08, 8), Vector3(0, -0.41, 0), bandage)
+		_part(arm, "GloveCuff", "cyl", Vector3(0.05, 0.05, 8), Vector3(0, -0.5, 0), leather)
+		_part(arm, "Hand", "box", Vector3(0.07, 0.1, 0.09), Vector3(0, -0.57, -0.005), leather)
+		_part(arm, "Fingers", "box", Vector3(0.066, 0.06, 0.075), Vector3(side * 0.004, -0.645, -0.01), leather, Vector3(10, 0, 0))
+		_part(arm, "Thumb", "box", Vector3(0.025, 0.05, 0.026), Vector3(-side * 0.012, -0.585, -0.054), leather)
+		_part(arm, "KnucklePlate", "box", Vector3(0.012, 0.035, 0.07), Vector3(side * 0.037, -0.6, -0.005), metal)
+
+	_part(up, "Neck", "cyl", Vector3(0.042, 0.1, 8), Vector3(0, 1.5, 0), skin)
+	var head := _pivot(up, "Head", Vector3(0, 1.55, 0))
+	head.scale = Vector3.ONE * 1.1  # Jak-style slightly big head
+	_eco_head(head, skin, hair, strap, brass, dark)
+	_save(r, "eco.tscn")
+
+
+func _eco_head(head: Node3D, skin: Material, hair: Material, strap: Material,
+		brass: Material, dark: Material) -> void:
+	_ell(head, "Skull", 0.112, Vector3(0.9, 1.02, 1.0), Vector3(0, 0.1, 0.005), skin)
+	_ell(head, "Jaw", 0.075, Vector3(1.0, 0.9, 1.0), Vector3(0, 0.035, -0.03), skin)
+	_part(head, "Nose", "prism", Vector3(0.024, 0.026, 0.034), Vector3(0, 0.077, -0.108), skin, Vector3(-90, 0, 0))
+	for side in [-1.0, 1.0]:
+		_ell(head, "Ear", 0.026, Vector3(0.45, 1.0, 0.75), Vector3(side * 0.1, 0.09, 0.012), skin)
+	_part(head, "Mouth", "box", Vector3(0.03, 0.007, 0.01), Vector3(0, 0.038, -0.1), _painted("skin", Color(0.82, 0.5, 0.48)))
+	_part(head, "Smudge", "box", Vector3(0.022, 0.008, 0.004), Vector3(0.062, 0.068, -0.088), dark, Vector3(0, -30, 8)) \
+		.set_instance_shader_parameter("paint", Color(1, 1, 1, 1))
+
+	# big, striking eyes: aqua irises with a faint glow, sharp winged liner
+	var sclera := _painted("skin", Color(1.12, 1.12, 1.14))
+	var iris: ShaderMaterial = M["light"].duplicate()
+	iris.set_shader_parameter("emission", Color(0.25, 0.95, 0.88))
+	iris.set_shader_parameter("emission_energy", 0.9)
+	var pupil := _painted("gunmetal", Color(0.08, 0.1, 0.14))
+	for side in [-1.0, 1.0]:
+		var x: float = side * 0.04
+		_ell(head, "EyeWhite", 0.026, Vector3(1.0, 1.15, 0.5), Vector3(x, 0.104, -0.094), sclera, Vector3(0, side * -12, 0))
+		_ell(head, "Iris", 0.017, Vector3(1.0, 1.12, 0.42), Vector3(x - side * 0.002, 0.102, -0.102), iris, Vector3(0, side * -12, 0))
+		_ell(head, "Pupil", 0.008, Vector3(1.0, 1.25, 0.4), Vector3(x - side * 0.002, 0.102, -0.1075), pupil)
+		_part(head, "Glint", "sphere", Vector3(0.0045, 0, 0), Vector3(x + 0.004, 0.11, -0.108), M["light"])
+		# heavy upper lid gives a steady, determined look rather than a startled one
+		_ell(head, "Lid", 0.028, Vector3(1.08, 0.62, 0.58), Vector3(x, 0.129, -0.095), skin, Vector3(0, side * -12, side * -6))
+		_part(head, "Liner", "box", Vector3(0.058, 0.007, 0.01), Vector3(x, 0.119, -0.106), dark, Vector3(0, side * -12, side * -6))
+		_part(head, "Wing", "box", Vector3(0.018, 0.006, 0.008), Vector3(x + side * 0.031, 0.122, -0.098), dark, Vector3(0, side * -30, side * 22))
+		_part(head, "Brow", "box", Vector3(0.046, 0.011, 0.012), Vector3(x, 0.148, -0.1), hair, Vector3(0, side * -12, side * -7))
+
+	# short white hair: a cap swept back, spiky fringe and tufts (Jak style)
+	var cap := _part(head, "HairCap", "hemi", Vector3(0.124, 0, 0), Vector3(0, 0.115, 0.012), hair, Vector3(24, 0, 0))
+	cap.scale = Vector3(0.96, 1.0, 1.05)
+	(cap.mesh as SphereMesh).radial_segments = 12
+	(cap.mesh as SphereMesh).rings = 4
+	var spikes := [
+		# fringe, swept across the forehead
+		[Vector3(0.03, 0.2, -0.085), Vector3(-0.5, -0.5, -0.65), 0.11, 0.032],
+		[Vector3(-0.01, 0.205, -0.08), Vector3(-0.65, -0.45, -0.55), 0.12, 0.03],
+		[Vector3(-0.05, 0.19, -0.075), Vector3(-0.75, -0.6, -0.3), 0.1, 0.028],
+		[Vector3(0.065, 0.185, -0.08), Vector3(0.25, -0.75, -0.55), 0.09, 0.026],
+		# crown, swept back and up
+		[Vector3(0.0, 0.22, -0.03), Vector3(0.0, 0.55, 0.85), 0.12, 0.036],
+		[Vector3(0.05, 0.21, -0.01), Vector3(0.45, 0.4, 0.8), 0.11, 0.032],
+		[Vector3(-0.05, 0.21, -0.01), Vector3(-0.45, 0.4, 0.8), 0.11, 0.032],
+		[Vector3(0.0, 0.2, 0.05), Vector3(0.0, 0.3, 1.0), 0.11, 0.036],
+		# back of the head, short tufts down to the nape
+		[Vector3(0.05, 0.13, 0.085), Vector3(0.4, -0.55, 0.75), 0.09, 0.032],
+		[Vector3(-0.05, 0.13, 0.085), Vector3(-0.4, -0.55, 0.75), 0.09, 0.032],
+		[Vector3(0.0, 0.09, 0.09), Vector3(0.0, -0.9, 0.45), 0.08, 0.032],
+		# over the ears
+		[Vector3(0.096, 0.14, -0.03), Vector3(0.3, -0.92, -0.2), 0.09, 0.026],
+		[Vector3(-0.096, 0.14, -0.03), Vector3(-0.3, -0.92, -0.2), 0.09, 0.026],
+		[Vector3(0.1, 0.16, 0.04), Vector3(0.6, -0.5, 0.55), 0.085, 0.028],
+		[Vector3(-0.1, 0.16, 0.04), Vector3(-0.6, -0.5, 0.55), 0.085, 0.028],
+	]
+	for i in spikes.size():
+		var s: Array = spikes[i]
+		_spike(head, "Hair%d" % i, s[0], s[1], s[2], s[3], hair)
+
+	# work goggles pushed up on her forehead, strap round the back of her head
+	_part(head, "GoggleStrap", "torus", Vector3(0.118, 0.13, 0), Vector3(0, 0.15, 0.02), strap, Vector3(-28, 0, 0))
+	var glass := _painted("visor", Color(0.35, 0.75, 0.8))
+	for side in [-1.0, 1.0]:
+		_part(head, "GoggleRim", "cyl", Vector3(0.03, 0.03, 10), Vector3(side * 0.038, 0.225, -0.068), brass, Vector3(-40, 0, 0))
+		_part(head, "GoggleLens", "cyl", Vector3(0.022, 0.032, 10), Vector3(side * 0.038, 0.225, -0.068), glass, Vector3(-40, 0, 0)) \
+			.set_instance_shader_parameter("glow", 0.3)
+	_part(head, "GoggleBridge", "box", Vector3(0.024, 0.012, 0.014), Vector3(0, 0.227, -0.073), brass, Vector3(-40, 0, 0))
