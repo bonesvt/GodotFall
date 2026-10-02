@@ -7,6 +7,7 @@ extends RefCounted
 ##   blue   -> wallrun panels       orange -> grapple anchor hazard stripes
 ##   green  -> military crates      red    -> lava
 
+const Look := preload("res://scripts/ps2/look.gd")
 const SKY_SHADER := preload("res://assets/shaders/ps2_sky.gdshader")
 const SKY_LAYERS := preload("res://assets/textures/sky.png")
 
@@ -32,6 +33,14 @@ const MATERIALS := {
 
 const MODELS := {
 	"pistol": preload("res://assets/models/smart_pistol.tscn"),
+	# Eco's upgrades of the smart pistol, tiers 1-5 (pistol_model() picks one).
+	"pistol_t1": preload("res://assets/models/smart_pistol_t1.tscn"),
+	"pistol_t2": preload("res://assets/models/smart_pistol_t2.tscn"),
+	"pistol_t3": preload("res://assets/models/smart_pistol_t3.tscn"),
+	"pistol_t4": preload("res://assets/models/smart_pistol_t4.tscn"),
+	"pistol_t5": preload("res://assets/models/smart_pistol_t5.tscn"),
+	"rivet_cannon": preload("res://assets/models/rivet_cannon.tscn"),
+	"machine_pistol": preload("res://assets/models/machine_pistol.tscn"),
 	"eco": preload("res://assets/models/eco.tscn"),
 	"grunt": preload("res://assets/models/grunt.tscn"),
 	"salvage_cache": preload("res://assets/models/salvage_cache.tscn"),
@@ -41,6 +50,8 @@ const MODELS := {
 	"titan_stryder": preload("res://assets/models/titan_stryder.tscn"),
 	"titan_scrap": preload("res://assets/models/titan_scrap.tscn"),
 	"titan_enemy": preload("res://assets/models/titan_enemy.tscn"),
+	## Eco's dad's titan, wrecked, for the hub (same node names as the others).
+	"titan_wreck": preload("res://assets/models/titan_wreck.tscn"),
 	"titan_weapon_xo16": preload("res://assets/models/titan_weapon_xo16.tscn"),
 	"titan_weapon_tracker": preload("res://assets/models/titan_weapon_tracker.tscn"),
 	"titan_weapon_splitter": preload("res://assets/models/titan_weapon_splitter.tscn"),
@@ -56,6 +67,13 @@ static var _cache := {}
 
 static func model(id: String) -> Node3D:
 	return MODELS[id].instantiate()
+
+
+## Model id of the smart pistol at an upgrade tier: 0 is Dad's broken pistol,
+## 1-5 are Eco's upgrades. Out-of-range tiers clamp.
+static func pistol_model(tier: int) -> String:
+	tier = clampi(tier, 0, 5)
+	return "pistol" if tier == 0 else "pistol_t%d" % tier
 
 
 ## A titan model for a chassis id ("atlas", "ogre", "stryder", "scrap", "enemy")
@@ -110,10 +128,12 @@ static func surface(color: Color, size: Vector3) -> Material:
 	return _cache[key]
 
 
-## Stylized PS2 sky, haze and light for a level, a blend of Jak and Daxter's warm
+## Stylized sky, haze and light for a level, a blend of Jak and Daxter's warm
 ## painted colour and Shadow of the Colossus's haze and bloom: a painted sky with
 ## a haloed sun, distance haze fading into mist in the void below the platforms,
 ## warm low sun with cool ambient shadows, soft bloom and a light colour grade.
+## look.gd then adds the PS3 look's sky light, SSAO, sun shafts and soft
+## shadows (or keeps the old PS2 settings when F9 has switched back).
 static func environment(parent: Node, top: Color, horizon: Color) -> void:
 	var sun_color := Color(1.0, 0.9, 0.72)
 	var sky_mat := ShaderMaterial.new()
@@ -164,4 +184,6 @@ static func environment(parent: Node, top: Color, horizon: Color) -> void:
 	sun.shadow_opacity = 0.75
 	sun.directional_shadow_mode = DirectionalLight3D.SHADOW_ORTHOGONAL
 	sun.directional_shadow_max_distance = 60.0
+	Look.apply_env(env, Look.is_ps3())
+	Look.apply_sun(sun, Look.is_ps3())
 	parent.add_child(sun)

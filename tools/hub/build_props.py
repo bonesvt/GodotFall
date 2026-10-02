@@ -434,4 +434,5 @@ def main():
     tent("tent", 101)
 
 
-main()
+if __name__ == "__main__":
+    main()

@@ -6,6 +6,11 @@ extends CharacterBody3D
 
 enum State { GROUND, AIR, SLIDE, WALLRUN, GRAPPLE }
 
+const SFX := preload("res://scripts/sfx.gd")
+## Metres between footsteps on the ground and when running along a wall.
+const STRIDE := 2.4
+const WALL_STRIDE := 1.9
+
 signal died
 signal respawned
 signal damaged(amount: float, from: Vector3)
@@ -102,6 +107,8 @@ var wall_coyote_timer := 0.0
 var grapple_point := Vector3.ZERO
 var grapple_cooldown_timer := 0.0
 var crouching := false
+## Ground speed multiplier (Eco runs lighter with only the knife out).
+var speed_mult := 1.0
 var cam_roll := 0.0
 var input_dir := Vector2.ZERO
 var wish_dir := Vector3.ZERO
@@ -110,6 +117,7 @@ var land_dip := 0.0
 var fall_speed := 0.0
 var health := 100.0
 var regen_timer := 0.0
+var step_dist := 0.0
 
 
 static func ensure_input_actions() -> void:
@@ -118,7 +126,7 @@ static func ensure_input_actions() -> void:
 		"move_left": [KEY_A], "move_right": [KEY_D],
 		"jump": [KEY_SPACE], "crouch": [KEY_C, KEY_CTRL],
 		"sprint": [KEY_SHIFT], "grapple": [KEY_Q, KEY_E], "reset": [KEY_T],
-		"reload": [KEY_R], "reset_arena": [KEY_G], "inspect": [KEY_I], "fire": [],
+		"reload": [KEY_R], "reset_arena": [KEY_G], "inspect": [KEY_I], "melee": [KEY_Z], "fire": [],
 	}
 	for action in keys:
 		if InputMap.has_action(action):
@@ -134,6 +142,9 @@ static func ensure_input_actions() -> void:
 	var lmb := InputEventMouseButton.new()
 	lmb.button_index = MOUSE_BUTTON_LEFT
 	InputMap.action_add_event("fire", lmb)
+	var thumb := InputEventMouseButton.new()
+	thumb.button_index = MOUSE_BUTTON_XBUTTON1
+	InputMap.action_add_event("melee", thumb)
 
 
 func _ready() -> void:
@@ -188,6 +199,7 @@ func _physics_process(delta: float) -> void:
 		State.GRAPPLE:
 			_grapple_state(delta)
 
+	_footsteps(delta)
 	_update_camera(delta)
 	_update_rope()
 
@@ -207,7 +219,7 @@ func _ground_state(delta: float) -> void:
 	_set_crouch(want_crouch)
 
 	var sprinting := (auto_sprint or Input.is_action_pressed("sprint")) and input_dir.y < -0.3
-	var target := crouch_speed if crouching else (sprint_speed if sprinting else run_speed)
+	var target := (crouch_speed if crouching else (sprint_speed if sprinting else run_speed)) * speed_mult
 	var speed := hvel.length()
 	if wish_dir != Vector3.ZERO:
 		if speed > target:
@@ -393,6 +405,10 @@ func _wall_jump() -> void:
 
 func _land() -> void:
 	ground_time = 0.0
+	if fall_speed > 3.0:
+		var hard := fall_speed > 14.0
+		SFX.play(self, "land_heavy" if hard else "land", -16.0 + minf(fall_speed, 20.0) * 0.4, SFX.vary(0.06))
+	step_dist = STRIDE * 0.5
 	# Camera dips on hard landings so falls have weight.
 	land_dip = minf(maxf(fall_speed - 4.0, 0.0) * land_dip_per_speed, land_dip_max)
 	fall_speed = 0.0
@@ -449,6 +465,7 @@ func _try_grapple() -> void:
 	var to := from - camera.global_basis.z * grapple_range
 	var query := PhysicsRayQueryParameters3D.create(from, to)
 	query.exclude = [get_rid()]
+	query.collision_mask = 1  # world geometry only, not sight-blocking foliage
 	var hit := get_world_3d().direct_space_state.intersect_ray(query)
 	if hit.is_empty():
 		return
@@ -551,6 +568,33 @@ func _update_rope() -> void:
 	var up := Vector3.UP if absf(dir.normalized().y) < 0.99 else Vector3.FORWARD
 	var b := Basis.looking_at(dir, up)
 	rope.global_transform = Transform3D(Basis(b.x, b.y, b.z * length), from)
+
+
+# --- Footsteps ----------------------------------------------------------------
+
+func _footsteps(delta: float) -> void:
+	var on_wall := state == State.WALLRUN
+	if not (state == State.GROUND or on_wall):
+		return
+	var speed := horizontal_speed()
+	if speed < 1.0 or crouching:
+		return
+	step_dist += speed * delta
+	var stride := WALL_STRIDE if on_wall else STRIDE
+	if step_dist >= stride:
+		step_dist -= stride
+		SFX.play(self, SFX.variant("step_" + _surface()), -17.0 + minf(speed / sprint_speed, 1.0) * 4.0, SFX.vary(0.08))
+
+
+## What Eco is standing or running on: "grass", "wood" and "metal" come from a
+## `surface` meta on the body (terrain, hub props); anything else is stone.
+func _surface() -> String:
+	var hit := get_last_slide_collision()
+	if hit != null:
+		var body := hit.get_collider()
+		if body != null and body.has_meta("surface"):
+			return str(body.get_meta("surface"))
+	return "concrete"
 
 
 # --- Info for the HUD ---------------------------------------------------------

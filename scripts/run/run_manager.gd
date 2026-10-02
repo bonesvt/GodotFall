@@ -5,10 +5,14 @@ extends Node3D
 ## Empty slots stay scrap. At the end you call in the titan you assembled and
 ## fight with it. Falls and getting downed by grunts cost pilot integrity, which
 ## carries across zones; at zero the run is over, and so it is if your titan is
-## destroyed.
+## destroyed. Beat the enemy titan and the evac dropship comes for yours: walk
+## it onto the pad to finish the run.
 ## Between runs you are in the hub, the temple Eco hides out in (hub_builder.gd):
 ## the game opens there, the map table starts a run, and a finished run, won or
 ## lost, goes back there.
+## Out in the zones you pick up materials (loot.gd: grunt drops, supply crates,
+## alloy nodes); a run banks them in Eco's armory (armory.gd) when it ends, and
+## the hub's workbenches (bench_screen.gd) spend them on guns and titan parts.
 
 enum Phase { ZONE, CHOOSING, ARENA, FIGHT, OVER, HUB }
 
@@ -20,6 +24,13 @@ const TitanParts := preload("res://scripts/run/titan_parts.gd")
 const ZoneBuilder := preload("res://scripts/run/zone_builder.gd")
 const Titan := preload("res://scripts/run/titan.gd")
 const HubBuilder := preload("res://scripts/hub/hub_builder.gd")
+const Armory := preload("res://scripts/hub/armory.gd")
+const BenchScreen := preload("res://scripts/hub/bench_screen.gd")
+const Loot := preload("res://scripts/run/loot.gd")
+const Weapon := preload("res://scripts/weapon.gd")
+const Art := preload("res://scripts/ps2/ps2_assets.gd")
+const Garage := preload("res://scripts/hub/garage.gd")
+const TitanStyle := preload("res://scripts/run/titan_style.gd")
 
 const FALL_DAMAGE := 25
 ## Integrity lost when grunts take the pilot's health to zero.
@@ -29,6 +40,10 @@ const KILL_DEPTH := 15.0
 const OFFER_SIZE := 3
 const TITAN_DROP_HEIGHT := 80.0
 const EMBARK_RANGE := 6.0
+## How close (m) your titan has to get to the evac pad's centre.
+const EVAC_RADIUS := 6.0
+## Checkpoints in laid-out zones count once you stand this close (m) to one.
+const CHECKPOINT_RADIUS := 10.0
 const CONTROLS := "F salvage / embark    V call titan / core    Shift titan dash    Left mouse titan fire"
 ## How long a line Eco says about something in the hub stays up.
 const HUB_LINE_SECONDS := 4.5
@@ -37,6 +52,8 @@ const HUB_LINE_SECONDS := 4.5
 @export var start_in_hub := true
 ## 0 picks a random seed each run.
 @export var run_seed := 0
+## Where Eco's armory (materials, guns, upgrades, titan parts) is saved.
+@export var armory_path := Armory.DEFAULT_PATH
 
 var run: RunState
 var phase := Phase.ZONE
@@ -51,6 +68,8 @@ var titan: Titan
 var boss: Node3D
 var checkpoint := Vector3.ZERO
 var result := ""
+## The enemy titan is down and the evac dropship is waiting at the pad.
+var evac_open := false
 ## How many times each hub interactable has been looked at, so its lines cycle.
 var hub_reads := {}
 var runs_started := 0
@@ -60,11 +79,19 @@ var last_parts := {}
 ## The practice titan in the hub's titan yard, and whether you're in it.
 var hub_titan: Titan
 var hub_piloting := false
+## The paint shop screen while it is open (it pauses the hub).
+var garage: Garage
 ## Movement course clock: armed while standing on the start pad, running (>= 0)
 ## from leaving it until the finish tower, or until you touch the grass.
 var course_armed := false
 var course_time := -1.0
 var course_best := 0.0
+var armory: Armory
+## The workbench screen while one is open (the hub is paused under it).
+var bench: BenchScreen
+## Lays out loot and rolls drops, seeded per zone from the run seed so loot
+## never shifts the run's own rolls.
+var loot_rng := RandomNumberGenerator.new()
 
 
 static func ensure_input_actions() -> void:
@@ -91,7 +118,9 @@ static func ensure_input_actions() -> void:
 func _ready() -> void:
 	# The manager keeps running while the salvage choice pauses the world.
 	process_mode = Node.PROCESS_MODE_ALWAYS
+	add_to_group("loot_collector")
 	ensure_input_actions()
+	armory = Armory.open(armory_path)
 	player = PLAYER_SCENE.instantiate()
 	player.name = "Player"
 	player.process_mode = Node.PROCESS_MODE_PAUSABLE
@@ -105,6 +134,7 @@ func _ready() -> void:
 	hud = RunHud.new()
 	hud.name = "RunHUD"
 	add_child(hud)
+	equip_loadout()
 	if start_in_hub:
 		enter_hub()
 	else:
@@ -115,10 +145,14 @@ func start_run(seed_value: int) -> void:
 	if seed_value == 0:
 		seed_value = randi_range(1, 999999)
 	run = RunState.new(seed_value)
+	for part in armory.start_parts().values():
+		run.install(part)
+	run.refits = armory.refit_bonus()
 	runs_started += 1
 	result = ""
 	titan = null
 	boss = null
+	evac_open = false
 	get_tree().paused = false
 	hud.summary_panel.visible = false
 	hud.choice_panel.visible = false
@@ -151,6 +185,7 @@ func enter_hub() -> void:
 	_fresh_level("Hub")
 	zone_info = HubBuilder.build(zone_root)
 	phase = Phase.HUB
+	dress_hub()
 	place_player(zone_info["spawn"])
 	if last_result != "":
 		hud.toast("Back at the temple.", HUB_LINE_SECONDS)
@@ -161,16 +196,21 @@ func load_zone(index: int) -> void:
 	run.zone = index
 	if index < RunState.ZONE_COUNT:
 		zone_info = ZoneBuilder.build_zone(zone_root, run.rng, index)
+		loot_rng.seed = run.run_seed * 7919 + index
+		Loot.scatter(zone_root, zone_info, loot_rng, index)
 		for grunt in zone_info["grunts"]:
 			grunt.target = player
+			grunt.died.connect(_on_grunt_died)
 		phase = Phase.ZONE
-		hud.toast("ZONE %d / %d" % [index + 1, RunState.ZONE_COUNT])
+		var zone_name: String = zone_info.get("name", "")
+		hud.toast("ZONE %d / %d%s" % [index + 1, RunState.ZONE_COUNT, ": " + zone_name if zone_name != "" else ""])
 	else:
 		zone_info = ZoneBuilder.build_arena(zone_root)
 		boss = zone_info["boss"]
 		boss.defeated.connect(_on_boss_defeated)
 		phase = Phase.ARENA
-		hud.toast("TITANFALL STANDING BY")
+		evac_open = false
+		hud.toast("THE FOREST'S EDGE: TITANFALL STANDING BY")
 	place_player(zone_info["spawn"])
 
 
@@ -190,6 +230,7 @@ func _physics_process(delta: float) -> void:
 			_arena_tick(delta)
 		Phase.FIGHT:
 			run.time += delta
+			_evac_tick()
 		Phase.OVER:
 			if Input.is_action_just_pressed("run_restart"):
 				if start_in_hub:
@@ -204,6 +245,14 @@ func _physics_process(delta: float) -> void:
 # --- Hub ----------------------------------------------------------------------
 
 func _hub_tick(delta: float) -> void:
+	if bench != null:
+		if Input.is_action_just_pressed("interact") or Input.is_action_just_pressed("ui_cancel"):
+			close_bench()
+		return
+	if garage != null:
+		if Input.is_action_just_pressed("interact") or Input.is_action_just_pressed("ui_cancel"):
+			close_garage()
+		return
 	if hub_piloting:
 		if Input.is_action_just_pressed("interact"):
 			disembark_hub_titan()
@@ -225,10 +274,150 @@ func _hub_tick(delta: float) -> void:
 	if spot["id"] == "map_table":
 		start_run(run_seed)
 		return
+	if spot.has("screen"):
+		open_bench(spot["screen"])
+		return
+	if spot["id"] == "garage":
+		open_garage()
+		return
 	var lines: Array = spot["lines"]
 	var n: int = hub_reads.get(spot["id"], 0)
 	hub_reads[spot["id"]] = n + 1
 	hud.toast(lines[n % lines.size()], HUB_LINE_SECONDS)
+
+
+## Opens Eco's paint shop on the chassis of your last titan, pausing the hub.
+func open_garage() -> void:
+	garage = Garage.new(last_parts.get("chassis", {}).get("id", "atlas"))
+	add_child(garage)
+	get_tree().paused = true
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	hud.visible = false
+	pilot_hud.visible = false
+
+
+func close_garage() -> void:
+	garage.queue_free()
+	garage = null
+	get_tree().paused = false
+	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+	hud.visible = true
+	pilot_hud.visible = true
+	dress_hub()
+	if hub_titan != null:
+		hud.toast("Call your titan again (V) to see the new paint.", HUB_LINE_SECONDS)
+
+
+## Opens a workbench screen ("gunsmith", "rack" or "workshop"), pausing the hub.
+func open_bench(kind: String) -> void:
+	bench = BenchScreen.new(armory, kind)
+	add_child(bench)
+	get_tree().paused = true
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	hud.visible = false
+	pilot_hud.visible = false
+
+
+func close_bench() -> void:
+	bench.queue_free()
+	bench = null
+	get_tree().paused = false
+	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+	hud.visible = true
+	pilot_hud.visible = true
+	equip_loadout()
+	dress_hub()
+
+
+## Puts the gun picked at the weapon rack, upgraded and fitted, in Eco's hand.
+func equip_loadout() -> void:
+	player.get_node("Head/Camera3D/Weapon").equip(armory.weapon_profile())
+
+
+## Shows the armory on the benches: the equipped gun on the gunsmith's mat,
+## the guns you own on the rack (locked slots stay empty under a tag), and the
+## titan you'd start a run with standing in the workshop's gantry.
+func dress_hub() -> void:
+	var mat: Node3D = zone_info.get("gun_marker")
+	if mat != null:
+		for c in mat.get_children():
+			c.free()
+		var gun := Weapon.gun_model(armory.weapon_profile())
+		gun.scale = Vector3.ONE * 2.2
+		gun.rotation_degrees = Vector3(0, 90, 90)
+		mat.add_child(gun)
+	var slots: Array = zone_info.get("rack_slots", [])
+	var ids: Array = Armory.WEAPONS.keys()
+	for i in mini(slots.size(), ids.size()):
+		var slot: Node3D = slots[i]
+		for c in slot.get_children():
+			c.free()
+		var id: String = ids[i]
+		var tag := Label3D.new()
+		tag.font_size = 44
+		tag.pixel_size = 0.002
+		tag.shaded = false
+		tag.position = Vector3(0, -0.42, 0.02)
+		tag.outline_size = 8
+		slot.add_child(tag)
+		if armory.owns_weapon(id):
+			var gun := Weapon.gun_model(armory.weapon_profile(id))
+			gun.scale = Vector3.ONE * 2.2
+			gun.rotation_degrees = Vector3(0, 90, 0)
+			slot.add_child(gun)
+			tag.text = "IN HAND" if id == armory.equipped else Armory.WEAPONS[id]["short"]
+			tag.modulate = Color(1.0, 0.8, 0.35) if id == armory.equipped else Color(0.9, 0.88, 0.82)
+		else:
+			tag.text = "LOCKED"
+			tag.modulate = Color(0.6, 0.6, 0.62)
+	var stand: Node3D = zone_info.get("workshop_titan")
+	if stand != null:
+		for c in stand.get_children():
+			c.free()
+		var parts := armory.start_parts()
+		var titan := Art.titan(parts.get("chassis", {}).get("id", "scrap"), parts.get("weapon", {}).get("id", "scrap"))
+		var chassis: String = parts.get("chassis", {}).get("id", "scrap")
+		TitanStyle.apply(titan, chassis, TitanStyle.load_style(chassis))
+		titan.scale = Vector3.ONE * 0.6
+		stand.add_child(titan)
+
+
+## A pickup reached the pilot.
+func collect_material(kind: String, amount: int) -> void:
+	if run == null or phase == Phase.HUB:
+		return
+	run.materials[kind] = int(run.materials.get(kind, 0)) + amount
+
+
+## Grunts drop scrap where they fall, sometimes a circuit.
+func _on_grunt_died(grunt: Node) -> void:
+	if run == null or zone_root == null or not is_instance_valid(grunt):
+		return
+	run.kills += 1
+	Loot.drop(zone_root, grunt.global_position, Loot.roll_grunt(loot_rng, run.zone), loot_rng)
+
+
+## The crate or alloy node the pilot is standing at, or null.
+func nearest_loot() -> Node3D:
+	for node in zone_info.get("loot", []):
+		if is_instance_valid(node) and node.in_range(player.global_position):
+			return node
+	return null
+
+
+## F pries a crate open; holding F mines a node.
+func _loot_tick(delta: float) -> void:
+	var node := nearest_loot()
+	if node == null:
+		return
+	var got := {}
+	if node.has_method("open"):
+		if Input.is_action_just_pressed("interact"):
+			got = node.open()
+	elif Input.is_action_pressed("interact"):
+		got = node.mine(delta)
+	if not got.is_empty():
+		Loot.drop(zone_root, node.global_position + Vector3(0, 0.4, 0), got, loot_rng)
 
 
 func in_titan_yard() -> bool:
@@ -243,8 +432,9 @@ func call_hub_titan() -> void:
 		hub_titan.queue_free()
 	hub_titan = Titan.new()
 	hub_titan.name = "PracticeTitan"
-	hub_titan.setup(TitanParts.assemble(last_parts))
-	hub_titan.parts = last_parts
+	var parts := last_parts if not last_parts.is_empty() else armory.start_parts()
+	hub_titan.setup(TitanParts.assemble(parts, armory.refit_bonus()))
+	hub_titan.parts = parts
 	var forward := -player.global_basis.z
 	forward.y = 0.0
 	var drop := player.global_position + forward.normalized() * 12.0
@@ -337,12 +527,19 @@ func _zone_tick(delta: float) -> void:
 	if cache != null and Input.is_action_just_pressed("interact"):
 		open_salvage(cache)
 		return
+	if cache == null:
+		_loot_tick(delta)
 	if zone_info["beacon"].contains(player.global_position):
 		load_zone(run.zone + 1)
 
 
+## Below this height the pilot has fallen out of the level.
+func kill_y() -> float:
+	return float(zone_info.get("kill_y", float(zone_info["floor_y"]) - KILL_DEPTH))
+
+
 func _check_fall() -> bool:
-	if player.global_position.y > float(zone_info["floor_y"]) - KILL_DEPTH:
+	if player.global_position.y > kill_y():
 		return false
 	run.pilot_hp -= FALL_DAMAGE
 	run.falls += 1
@@ -373,11 +570,16 @@ func _on_pilot_downed() -> void:
 		hud.toast("DOWNED: -%d INTEGRITY" % DOWNED_DAMAGE)
 
 
-## Respawn point: the centre of the last platform the pilot stood on.
+## Respawn point: the centre of the last platform the pilot stood on, or in a
+## laid-out zone the last checkpoint they passed.
 func _track_checkpoint() -> void:
 	if not player.is_on_floor():
 		return
 	var pos := player.global_position
+	for point in zone_info.get("checkpoints", []):
+		if Vector2(pos.x - point.x, pos.z - point.z).length() < CHECKPOINT_RADIUS and absf(pos.y - point.y) < 2.0:
+			checkpoint = point
+			return
 	for p in zone_info["platforms"]:
 		var top: Vector3 = p["top"]
 		var size: Vector2 = p["size"]
@@ -484,8 +686,34 @@ func _set_pilot_active(on: bool) -> void:
 		player.get_node("Head/Camera3D").make_current()
 
 
+## Their titan is down: it topples, and the dropship comes in over the evac pad.
+## Eco pulls its targeting core first (Armory.BOSS_DROP: what the smart
+## pistol's upgrades run on), and keeps it even if the run is lost after.
 func _on_boss_defeated() -> void:
-	end_run("RUN COMPLETE", "Enemy titan destroyed.")
+	for m in Armory.BOSS_DROP:
+		collect_material(m, Armory.BOSS_DROP[m])
+	if not zone_info.has("evac"):
+		end_run("RUN COMPLETE", "Enemy titan destroyed.")
+		return
+	evac_open = true
+	var tip := boss.create_tween()
+	tip.tween_property(boss, "rotation:x", deg_to_rad(-75.0), 1.4).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	var evac: Node3D = zone_info["evac_node"]
+	evac.visible = true
+	var ship := evac.get_node("Dropship") as Node3D
+	var hover := ship.position
+	ship.position = hover + Vector3(0, 60, 40)
+	evac.create_tween().tween_property(ship, "position", hover, 4.0).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	hud.toast("ENEMY TITAN DOWN. LOCK CORE SALVAGED. GET TO THE EVAC PAD", 5.0)
+
+
+func _evac_tick() -> void:
+	if not evac_open or titan == null:
+		return
+	var pad: Vector3 = zone_info["evac"]
+	var d := titan.global_position - pad
+	if Vector2(d.x, d.z).length() < EVAC_RADIUS:
+		end_run("RUN COMPLETE", "Titan extracted back to base.")
 
 
 func _on_titan_destroyed() -> void:
@@ -499,6 +727,9 @@ func end_run(title: String, reason: String) -> void:
 	result = title
 	last_result = title
 	last_parts = run.parts.duplicate()
+	var won := title == "RUN COMPLETE"
+	var haul := Armory.run_haul(run.materials, won)
+	armory.bank(haul)
 	if boss != null:
 		boss.active = false
 	if titan != null:
@@ -510,6 +741,8 @@ func end_run(title: String, reason: String) -> void:
 	for slot in TitanParts.SLOTS:
 		lines.append("%s: %s" % [TitanParts.SLOT_NAMES[slot], TitanParts.display_name(run.parts, slot)])
 	lines.append("")
+	lines.append("BANKED: %s%s" % [_materials_text(haul), "  (titan salvage included)" if won else "  (half of what you carried, lock cores kept)"])
+	lines.append("")
 	lines.append("[Enter] back to the temple" if start_in_hub else "[Enter] new run")
 	hud.summary_label.text = "\n".join(lines)
 	hud.summary_panel.visible = true
@@ -520,14 +753,14 @@ func end_run(title: String, reason: String) -> void:
 func _update_hud() -> void:
 	hud.build_label.visible = phase != Phase.HUB
 	if phase == Phase.HUB:
-		var status := "THE TEMPLE    Runs %d" % runs_started
+		var status := "THE TEMPLE    %s    Runs %d" % [_materials_text(armory.stash), runs_started]
 		if last_result != "":
 			status += "    Last run: %s" % last_result
 		if course_time >= 0.0:
 			status += "    COURSE %.1f s" % course_time
 		elif course_best > 0.0:
 			status += "    Course best %.2f s" % course_best
-		hud.status_label.text = status + "\nWalk up to the map table and press F to head out. F looks at things."
+		hud.status_label.text = status + "\nWalk up to the map table and press F to head out. F looks at things and works the benches."
 		hud.prompt_label.text = _prompt()
 		hud.crosshair.visible = hub_piloting
 		hud.fight_label.visible = hub_piloting
@@ -536,8 +769,8 @@ func _update_hud() -> void:
 			hud.fight_label.text = "PRACTICE TITAN    DASH [Shift] %s    Left mouse fire\n[F] Climb out" % dash_text
 		return
 	var where := "ZONE %d/%d" % [run.zone + 1, RunState.ZONE_COUNT] if run.zone < RunState.ZONE_COUNT else "FINAL"
-	hud.status_label.text = "RUN %d    %s    PILOT %d    %s\n%s" % [
-		run.run_seed, where, run.pilot_hp, _clock(run.time), CONTROLS]
+	hud.status_label.text = "RUN %d    %s    PILOT %d    %s    %s\n%s" % [
+		run.run_seed, where, run.pilot_hp, _clock(run.time), _materials_text(run.materials), CONTROLS]
 
 	var build := ["TITAN BUILD"]
 	for slot in TitanParts.SLOTS:
@@ -574,6 +807,9 @@ func _prompt() -> String:
 			var cache := nearest_cache()
 			if cache != null:
 				return "[F] Open salvage" if cache.can_open() else "Locked: clear the guards"
+			var node := nearest_loot()
+			if node != null:
+				return node.prompt()
 		Phase.ARENA:
 			if titan == null:
 				return "[V] Call in your titan"
@@ -597,6 +833,9 @@ func _choice_text() -> String:
 
 
 func _fight_text() -> String:
+	if evac_open:
+		var pad: Vector3 = zone_info["evac"]
+		return "ENEMY TITAN DOWN\nEVAC PAD %d m: walk your titan into the beam" % roundi(titan.global_position.distance_to(pad))
 	var dash_text := "%d/%d" % [titan.dashes, int(titan.stats["dashes"])]
 	var core := String(titan.stats["core"]).to_upper()
 	var core_text := "NONE" if core == "NONE" else ("%s READY [V]" % core if titan.core_charge >= 1.0 else "%s %d%%" % [core, roundi(titan.core_charge * 100.0)])
@@ -605,6 +844,10 @@ func _fight_text() -> String:
 	if boss.slam_incoming():
 		text = "SLAM INCOMING: DASH OUT\n" + text
 	return text
+
+
+func _materials_text(m: Dictionary) -> String:
+	return "SCRAP %d  ALLOY %d  CIRCUITS %d  LOCK CORES %d" % [int(m.get("scrap", 0)), int(m.get("alloy", 0)), int(m.get("circuits", 0)), int(m.get("lock_cores", 0))]
 
 
 func _clock(t: float) -> String:

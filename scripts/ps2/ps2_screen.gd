@@ -1,12 +1,21 @@
 extends CanvasLayer
-## Autoload "PS2": draws the full-screen PS2 filter (16-bit colour, dithering,
-## interlace lines) under every HUD. F9 toggles the whole PS2 look on and off
-## (filter, low internal resolution and vertex wobble) for comparison.
+## Autoload "PS2": switches the whole game between its two looks. F9 toggles.
+##   PS3 (default): full resolution, high-res normal-mapped textures, GGX
+##     highlights, sky reflections, SSAO, soft 4-split sun shadows, volumetric
+##     haze and a gentle vignette.
+##   PS2: the old look: half internal resolution, blurry textures, banded
+##     lighting, 16-bit colour with dithering and interlace lines, and vertex
+##     wobble if it is set in Project Settings > Shader Globals.
+## Levels build their sky and light with ps2_assets.gd environment(), which
+## applies the current look (look.gd); toggling re-applies it to every
+## WorldEnvironment and sun in the tree.
 
 const SCREEN_SHADER := preload("res://assets/shaders/ps2_screen.gdshader")
-const RENDER_SCALE := 0.5
+const Look := preload("res://scripts/ps2/look.gd")
+const PS2_RENDER_SCALE := 0.5
 
-var enabled := true
+## true = PS2 look, false = PS3 look.
+var enabled := false
 var _rect: ColorRect
 var _snap := 0.0
 
@@ -27,6 +36,7 @@ func _ready() -> void:
 		var ev := InputEventKey.new()
 		ev.physical_keycode = KEY_F9
 		InputMap.action_add_event("ps2_toggle", ev)
+	set_enabled(enabled)
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -36,6 +46,14 @@ func _unhandled_input(event: InputEvent) -> void:
 
 func set_enabled(on: bool) -> void:
 	enabled = on
-	_rect.visible = on
-	get_viewport().scaling_3d_scale = RENDER_SCALE if on else 1.0
+	(_rect.material as ShaderMaterial).set_shader_parameter("ps2", on)
+	get_viewport().scaling_3d_scale = PS2_RENDER_SCALE if on else 1.0
 	RenderingServer.global_shader_parameter_set("ps2_vertex_snap", _snap if on else 0.0)
+	RenderingServer.global_shader_parameter_set("ps3_look", 0.0 if on else 1.0)
+	if not is_inside_tree():
+		return
+	for node in get_tree().root.find_children("*", "WorldEnvironment", true, false):
+		if (node as WorldEnvironment).environment != null:
+			Look.apply_env((node as WorldEnvironment).environment, not on)
+	for node in get_tree().root.find_children("*", "DirectionalLight3D", true, false):
+		Look.apply_sun(node as DirectionalLight3D, not on)

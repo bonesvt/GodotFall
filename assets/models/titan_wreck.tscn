@@ -1,0 +1,9 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="PackedScene" path="res://assets/models/titans/titan_wreck.glb" id="1_glb"]
+[ext_resource type="Script" path="res://scripts/ps2/ps2_model.gd" id="2_model"]
+
+[node name="Titan_wreck" instance=ExtResource("1_glb")]
+script = ExtResource("2_model")
+stride = 4.5
+swing_degrees = 22.0

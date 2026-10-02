@@ -1,0 +1,14 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/ps2/ps2_model.gd" id="1_pu8qw"]
+[ext_resource type="PackedScene" path="res://assets/models/smart_pistol/smart_pistol_t3.glb" id="2_d6635"]
+[ext_resource type="PackedScene" path="res://assets/models/eco/eco_fp_arm.glb" id="3_ycens"]
+
+[node name="SmartPistol" type="Node3D"]
+script = ExtResource("1_pu8qw")
+stride = 1.6
+swing_degrees = 28.0
+
+[node name="Gun" type="Node3D" parent="." instance=ExtResource("2_d6635")]
+
+[node name="Arm" type="Node3D" parent="." instance=ExtResource("3_ycens")]

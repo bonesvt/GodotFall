@@ -4,14 +4,16 @@ extends RefCounted
 ## gaps (jump, wallrun, grapple, climb). Grunt squads hold some platforms from
 ## behind cover, and every platform past the spawn has cover for the pilot too.
 ## Two side platforms hold salvage caches, one of them guarded by a squad that
-## must be cleared to unlock it. The last platform has the extraction beacon. The arena is the flat end-of-run map where the titan fight happens.
+## must be cleared to unlock it. The last platform has the extraction beacon.
+## Zone 1 is the exception: a laid-out forest level (forest_builder.gd). The
+## arena, where the titan fight happens, is the forest's edge (forest_builder.gd too).
 
 const Kit := preload("res://scripts/run/level_kit.gd")
 const SalvageCache := preload("res://scripts/run/salvage_cache.gd")
 const SquadObjective := preload("res://scripts/run/squad_objective.gd")
 const GruntScript := preload("res://scripts/grunt.gd")
 const ExtractBeacon := preload("res://scripts/run/extract_beacon.gd")
-const Boss := preload("res://scripts/run/boss.gd")
+const ForestBuilder := preload("res://scripts/run/forest_builder.gd")
 
 ## Gap ranges in metres between platform edges, kept inside what the pilot can
 ## clear: a sprint jump covers about 6 m (9 m with the double jump), a wallrun
@@ -35,7 +37,6 @@ const COVER := Color(0.42, 0.44, 0.4)
 const GREY := Color(0.55, 0.57, 0.6)
 const BLUE := Color(0.25, 0.5, 0.9)
 const ORANGE := Color(0.95, 0.55, 0.2)
-const GREEN := Color(0.3, 0.75, 0.4)
 const ZONE_TINTS := [Color(0.62, 0.6, 0.55), Color(0.5, 0.58, 0.62), Color(0.62, 0.5, 0.5)]
 const ZONE_SKIES := [
 	[Color(0.3, 0.45, 0.7), Color(0.75, 0.8, 0.85)],
@@ -47,6 +48,8 @@ const ZONE_SKIES := [
 ## Returns {spawn, platforms, segments, caches, objectives, beacon, floor_y}.
 ## platforms are {top: Vector3 (centre of the top face), size: Vector2 (x, z)}.
 static func build_zone(root: Node3D, rng: RandomNumberGenerator, zone_index: int) -> Dictionary:
+	if zone_index == 0:
+		return ForestBuilder.build_zone(root, rng)
 	var sky: Array = ZONE_SKIES[zone_index % ZONE_SKIES.size()]
 	Kit.environment(root, sky[0], sky[1])
 	var tint: Color = ZONE_TINTS[zone_index % ZONE_TINTS.size()]
@@ -127,23 +130,9 @@ static func build_zone(root: Node3D, rng: RandomNumberGenerator, zone_index: int
 	return info
 
 
-## The end-of-run arena: one big platform, some cover, and the enemy titan.
+## The end-of-run arena: the forest's edge, with the enemy titan and the evac pad.
 static func build_arena(root: Node3D) -> Dictionary:
-	Kit.environment(root, Color(0.25, 0.2, 0.3), Color(0.9, 0.5, 0.35))
-	var info := {
-		"spawn": Vector3(0, 0.1, 30.0), "platforms": [], "segments": [],
-		"caches": [], "objectives": [], "beacon": null, "floor_y": 0.0,
-		"half_size": 38.0,
-	}
-	_platform(root, info, Vector3.ZERO, Vector2(80, 80), GREY)
-	for p in [Vector3(-15, 0, 5), Vector3(16, 0, -2), Vector3(-6, 0, -18), Vector3(20, 0, 20)]:
-		Kit.box(root, p + Vector3(0, 2.5, 0), Vector3(4, 5, 4), GREEN)
-	Kit.label(root, Vector3(0, 4, 24), "CALL IN YOUR TITAN", 96)
-	var boss := Boss.new()
-	root.add_child(boss)
-	boss.position = Vector3(0, 0, -25)
-	info["boss"] = boss
-	return info
+	return ForestBuilder.build_edge(root)
 
 
 static func _pick_segment(rng: RandomNumberGenerator) -> String:

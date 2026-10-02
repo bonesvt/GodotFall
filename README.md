@@ -19,7 +19,7 @@ Pilot movement, first combat (a weak starter pistol and grunt enemies), and the 
 | T | Respawn |
 | G | Reset the grunt arena |
 | H | Toggle help |
-| F9 | Toggle the PS2 look |
+| F9 | Switch between the PS3 look and the old PS2 look |
 
 ## The temple (hub)
 Pressing Play (`scenes/run.tscn`) opens in the hub: the small abandoned temple Eco hides
@@ -57,6 +57,42 @@ press **F** at the map table ("HEAD OUT") to start a run. When a run ends, won o
     round titan-sized cover, dash, and shoot the four scrap titan dummies; they topple
     and get propped back up.
 
+### Workbenches and materials
+Out on runs you collect four materials, and the hub's workbenches spend them:
+- **Scrap**: grunts drop it when they die; small **supply crates** beside the routes hold
+  more (press **F** to pry one open).
+- **Alloy**: hold **F** at an **alloy node** (a titan wreck half sunk in the ground, glowing
+  blue) to mine it.
+- **Circuits**: rare, from crates and now and then a grunt.
+- **Lock cores**: only from beating a boss (Eco pulls the enemy titan's targeting core).
+  Kept even if the run is lost afterwards.
+
+Pickups fly to you when you get close. Extracting banks everything you carried (plus the
+enemy titan's salvage when you win); a lost run banks half. The HUD shows what you have.
+
+- **Gunsmith bench** (the workbench right of the door): **upgrades** for the gun in hand,
+  each gun its own. Dad's smart pistol has **Smart rounds**, 8 levels paid in lock cores:
+  each makes another eighth of every mag smart. Smart rounds fire first (pink pips on the
+  HUD); while one is chambered the lock works again, closing on the grunt nearest the
+  crosshair, and the shot flies to its chest (never its head, so headshots stay yours).
+  The other guns have Calibre, Action and Magazine (three small steps each). Every step
+  moves the gun's look tier from 0 to 5. The bench also fits **attachments** (muzzle, mag, grip, each a
+  trade-off: long barrel, compensator, extended mag, speed base, paracord wrap, skeleton
+  grip) plus free paint **finishes**. Q/E switches guns.
+- **Weapon rack** (on the wall past the bench): buy and pick your sidearm. Dad's smart
+  pistol, the **Rivet Cannon** (five heavy shots off a titan's rivet driver) or the
+  **Militia Machine Pistol** (full auto, hold the trigger).
+- **Titan workshop** (gantry at the west edge of the titan yard): buy titan parts to start
+  runs with (Mk I, instead of scrap; salvage can still replace them) and **refit** parts
+  (+6% per level to every copy you install, salvaged ones and scrap included). The titan
+  in the gantry is the one you'd start with.
+
+On the screens: W/S pick a row, A/D browse, Space buy or fit, Tab or Q/E switch section,
+F or Esc to leave. Progress saves to `user://armory.cfg` (`scripts/hub/armory.gd` has every
+price and number). The sidearms and attachments are modelled by
+`tools/pistol/build_sidearms.py`, the benches by `tools/hub/build_benches.py`, the crates,
+nodes and pickups by `tools/run/build_loot.py` (all `blender -b --python <script>`).
+
 Press **F** near anything to have Eco say something about it; press again for more.
 Built in code by `scripts/hub/hub_builder.gd` and `hub_grounds.gd` (temple stone,
 carvings, moss, wood, grass, dirt, canvas and bark textures come from `tools/make_textures.py`).
@@ -69,7 +105,26 @@ scatters a prop.
 ## Scrap Titan run loop
 The movement and grunt test level is still at `scenes/test_level.tscn` (open it and press F6).
 
-1. **Three zones.** Each is a seeded chain of platforms over a void, linked by gaps you
+1. **Zone 1: the Pinewoods.** A laid-out forest level. Follow the trail north from the
+   drop clearing: a picket behind a fallen log, then the enemy's wall across the valley
+   (closed gate under a watchtower; get in through the breach a falling pine made, or grapple
+   over), their outpost behind it (huts, antenna, fuel tank, a squad in the yard), a ravine
+   with the bridge blown (wallrun the hanging blast shield, grapple the crane, or hop the rock
+   pillars; grunts watch from the far lip), a logging camp on the rise (sawmill, log piles,
+   a second tower), and the extraction beacon in a clearing. One cache is guarded by the
+   outpost's or the camp's squad, the other sits up a climb (a hut roof or the sawmill roof);
+   the run seed picks which, and how many grunts hold each spot. Falling into the ravine
+   costs integrity and puts you back at the last checkpoint on the trail.
+   Three ways through: the **trail** (loud: gate or breach, the outpost yard, the crossings,
+   the camp's front), the **creek** on the left (quiet: tall grass along the banks, the
+   culvert under the wall, the tent row behind the outpost, a fallen pine over the ravine,
+   and a hunting blind overlooking the camp), and the **ridge** on the right (high: jump
+   from its end onto the wall top, across the roofs, the crane, the sawmill roof). Tall grass
+   and camo nets mark hiding spots for stealth: each has an Area3D in the `stealth_cover`
+   group, and dense patches also have an invisible `sight_blocker` body on collision layer 16
+   (mask 0) that blocks grunt line of sight but not the player, grunts or the grapple.
+   The routes are listed in `zone_info["routes"]`, and the map shot draws them.
+   **Zones 2 and 3** are seeded chains of platforms over a void, linked by gaps you
    clear with a sprint jump, a double-jump climb, a wallrun along a blue wall, or the grapple
    on an orange anchor. Grunt squads hold some platforms from behind cover (more of them in
    later zones), and every platform has low walls or blocks you can use as cover too.
@@ -81,10 +136,13 @@ The movement and grunt test level is still at `scenes/test_level.tscn` (open it 
 3. **Your titan is your build.** Four slots: chassis (armor, speed, dashes), weapon (damage),
    core (charged ability: laser burst, shield, overdrive) and kit (extra dash, plating,
    coolant). Empty slots stay scrap. Parts roll Mk I to III, and later zones roll higher.
-4. **Titanfall.** Extract from zone 3 into the arena, press V to call your titan in, walk to
-   it and press F to embark. Fight the enemy titan (a placeholder): hold left mouse on it to
-   fire, Shift to dash out of its red slam circles, V when the core is ready.
-5. Kill it and the run is complete. Lose the titan and the run is over. Enter takes you back to the temple.
+4. **Titanfall at the forest's edge.** Extract from zone 3 and you step out of the treeline
+   onto a meadow where the enemy was building a forward base. Press V to call your titan in,
+   walk to it and press F to embark. Fight the enemy titan (a placeholder): hold left mouse
+   on it to fire, Shift to dash out of its red slam circles, V when the core is ready.
+5. **Extract.** Kill it and the evac dropship comes in over the pad past where it stood;
+   walk your titan into the beam and the run is complete. Lose the titan and the run is over.
+   Enter takes you back to the temple.
 
 | Key | Action |
 |---|---|
@@ -96,25 +154,49 @@ The movement and grunt test level is still at `scenes/test_level.tscn` (open it 
 | Enter | Back to the temple (after a run ends) |
 
 Run code lives in `scripts/run/`: `run_manager.gd` (the loop), `run_state.gd` (what a run
-carries), `zone_builder.gd` (zone and arena generation), `titan_parts.gd` (part catalog and
+carries), `zone_builder.gd` (zone generation), `forest_builder.gd` (zone 1 and the forest's
+edge arena), `forest_kit.gd` (forest props and the enemy outpost kit with their colliders),
+`terrain.gd` (height-grid ground with matching collision), `titan_parts.gd` (part catalog and
 stats), `titan.gd`, `boss.gd`, and the cache, guard squad and beacon scripts. The titan is its own
 node holding the run's parts, so it can later travel with you as a walking base.
 
-## PS2-style art
-Everything is low-poly and textured in a classic PS2 style. **F9** toggles the look
-on and off in game, to compare.
+The forest's models (pines, snags, fallen logs, stumps, and the enemy's wall slabs, gate,
+watchtower, huts, sandbags, crates, floodlights, antenna, fuel tank, log piles, sawmill, blown
+bridge, crane pylon, wrecked truck, evac pad, dropship, log bridge, tall grass, barrels,
+pallets, generator, camo net, hunting blind and culvert) are made in Blender by
+`tools/forest/build_props.py` (`blender -b --python tools/forest/build_props.py`, writes
+`assets/models/forest/*.glb`); it reuses the hub script's shape helpers, and the forest also
+uses the hub's broadleaf trees, bushes, ferns, grass, rocks and hills. To look at the level,
+`xvfb-run -a godot --path . -s res://tools/forest/shots.gd -- /some/dir` saves screenshots of
+each section, plus `0-map.png`, a top-down map with the three routes.
 
-- **Look**: 3D renders at half resolution and is upscaled (Project Settings > Rendering >
-  Scaling 3D), then `assets/shaders/ps2_screen.gdshader` reduces it to 16-bit colour with
-  ordered dithering and faint interlace lines. The HUD stays sharp. Vertices snap to a
-  coarse grid for a slight wobble (Project Settings > Shader Globals > `ps2_vertex_snap`,
-  0 turns it off). Levels get a painted sky with mountains, distance fog, flat ambient
-  light and low-res shadows.
-- **Textures** (`assets/textures/`): 64 to 128 px, 16 colours each, nearest filtered.
-  Painted by `tools/make_textures.py` (needs pillow and numpy); you can also paint over
-  the PNGs by hand.
+## Art: PS3 look (with the old PS2 look on F9)
+Everything is stylized in the spirit of Jak and Daxter and Shadow of the Colossus,
+rendered at roughly PS3-era quality. **F9** flips back to the original PS2 look to compare.
+
+- **PS3 look** (default): full resolution with 4x MSAA and 16x anisotropic filtering;
+  normal-mapped textures with roughness and bare-metal masks; GGX highlights and sky
+  reflections; sky-tinted ambient light with SSAO; soft 4-split sun shadows (4096 px);
+  volumetric haze that catches the sun; ACES tone mapping, soft bloom and a gentle
+  vignette. `scripts/ps2/look.gd` holds the Environment and sun settings for both looks.
+- **PS2 look** (F9): 3D renders at half resolution, `assets/shaders/ps2_screen.gdshader`
+  reduces it to 16-bit colour with ordered dithering and faint interlace lines, textures
+  drop to a blurry 128 px mip, lighting goes back to banded two-tone, and vertices snap
+  to a coarse grid if Project Settings > Shader Globals > `ps2_vertex_snap` is above 0.
+  The `ps3_look` shader global (1 or 0) is what the surface shader reads.
+- **Textures** (`assets/textures/`): 1024 px for big level surfaces (stone, steel, grass,
+  dirt, temple, titan hull) and 512 px for props and characters, all tiling. Each comes
+  as `<name>.png` (RGB albedo, A roughness) and `<name>_n.png` (RG normal, B 255 for
+  paint/stone/cloth and 0 for bare metal). Painted from height fields by
+  `tools/make_textures.py` (needs pillow and numpy; `--half` for a quick look). The
+  titans' paint-wear mask is `tools/titans/make_wear.py` (1024 px).
 - **Materials** (`assets/materials/`) all use `assets/shaders/ps2_surface.gdshader`, which
-  box-projects the texture so models need no UVs.
+  box-projects the textures (cross-faded on curved models) so models need no UVs. Knobs:
+  `normal_strength`, `roughness` (scales the texture's), `metallic` (metal everywhere:
+  chrome, gold, gun steel), `metal_mask` (how much the texture's bare-metal mask counts),
+  `translucency` (leaves, grass, canvas glow when backlit).
+- `xvfb-run -a godot --path . -s res://tools/look_shots.gd -- /some/dir` renders the hub,
+  the forest and the arena in both looks side by side.
 - **Level boxes** keep being built by colour (`Kit.box`), and `scripts/ps2/ps2_assets.gd`
   picks the material: grey is concrete with steel-plate tops (small grey pieces become
   cover barriers and crates), blue is wallrun panels, orange is grapple-anchor hazard
@@ -199,9 +281,40 @@ cropped work jacket, racerback sports bra, olive cut-off shorts, knee pads, slou
 
 ## Grunts
 - 60 HP, headshots count above the shoulders. Visor glows red during a 0.4 s wind-up before each shot.
-- Spot you by line of sight (40 m), hold around 12 m, strafe, and fire a single 8-damage round every ~1.5 s.
+- Once alerted they hold around 12 m, strafe, and fire a single 8-damage round every ~1.5 s.
 - **Their aim depends on how you move**: about 63% hit chance on a still pilot, ~14% at sprint speed, near zero while wallrunning.
 - You have 100 HP that regenerates after 3 s without damage. Dying respawns you and resets the arena.
+
+## Stealth
+Grunts start **unaware** and have to notice you first.
+- **Vision**: a 60° forward cone (each side) out to their sight range (40 m in the test level, 35-45 m in run zones). Unaware grunts slowly sweep their gaze around their post. Behind them or out of range they see nothing.
+- **Cover** blocks sight. A crouched pilot behind a low wall is hidden; standing up shows your head.
+- **Tall grass** (the forest's hiding spots): crouch in it and grunts can't see you past 4 m; standing in it halves how fast they notice you. Dense foliage blocks sight like a wall.
+- **Detection meter**: fills while they can see you, fast up close (about half a second at 5 m), slowly far away (about 3 s near max range). Moving fast doubles it, crouching halves it, showing only part of yourself past cover cuts it, and the edge of their vision is slower. It drains again a couple of seconds after you break sight.
+- **Hearing**: footsteps carry with speed (a sprint about 7 m, a crouch walk about 1 m; no footsteps in the air). The suppressed pistol is still heard out to 20 m, and within about 7 m it alerts outright. Bumping into a grunt always gets noticed.
+- **Over each grunt**: a **?** that grows from yellow to orange as it notices you (half full, it turns to look), then a red **!** once alerted. Visible through cover.
+- **Around the crosshair**: an arc points at every grunt noticing you, including ones behind you, and fills toward red.
+- **Sneak attacks**: anything that hits a grunt that hasn't noticed you does double damage, so a pistol headshot on an unaware grunt kills outright.
+- **Stiletto** (Z or the mouse thumb button): tap for a quick stab from Eco's left hand, 2.4 m reach. **Hold** to draw it with a flip-spin and keep it out: the pistol drops, Eco runs 20% faster, left mouse swings alternating slashes (light trail off the tip), and I plays a knife inspect (edge glint, finger spins, toss and catch). Takedowns are always a straight thrust. Let go to put it away. Cobalt-steel model built in Blender by `tools/knife/build_stiletto.py`. On an unaware grunt it's a silent takedown that kills instantly; on one that knows you're there it does 30 damage and alerts it. The pistol can't fire mid-stab.
+- **Alerted** grunts fight exactly as before, and call in every squadmate within 16 m. Getting shot always alerts. Out of sight for 10 s, they lose you and go back to searching.
+
+## Enemy radio
+Get within about 45 m of grunts and Eco picks up their squad net. A small **INTERCEPT** box
+above your health shows who's talking (amber callsigns, militia HQ in red) as the lines type out
+through static. She only listens; she never talks back.
+- **Calm squads** trade banter, gossip about "the Pilot reject" (they don't know she's listening), and pass
+  around salvage rumours naming real titan parts.
+- **Squad state drives the calls**: "something moved" when one turns suspicious, a stand-down when it
+  gives up, one contact call when she's spotted, fight taunts (and panic when she's wallrunning or
+  sliding), cheers when they hit her, "lost her" when they lose track, man-down calls naming the dead,
+  a terrified last man, and HQ calling into silence once the squad is gone.
+- Bigger events cut off small talk; lines never repeat back to back, and every exchange plays before any repeats.
+- Speakers near the edge of range break up: fewer signal bars and garbled characters.
+- **Dialogue rating**: press **F8** to cycle E, T, M and AO (saved between sessions; default M).
+  E and T have their own clean line banks; AO currently uses the M bank. `scripts/radio/content_rating.gd`
+  holds the setting.
+- Lines live in `scripts/radio/radio_lines.gd`, one exchange per string (`"a: ... | b: ... | hq: ..."`).
+  `radio_chatter.gd` emits `line_started(callsign, text, category)` for voice-over later.
 
 ## Test level
 - Ahead: **wallrun corridor** (two long parallel walls).
@@ -220,19 +333,37 @@ select the Player node and tweak values in the Inspector, or change the defaults
 - `scripts/weapon.gd` starter pistol (hitscan, bloom, falloff, recoil, viewmodel)
 - `scripts/grunt.gd` grunt AI and hitbox
 - `scripts/fx.gd` stylized combat effects: tracers, muzzle stars, smoke, debris, casings, blasts
-- `tools/pistol/build_pistol.py` builds Eco's smart pistol in Blender
+- `tools/pistol/build_pistol.py` builds Eco's smart pistol in Blender (`--tier 1`..`5` builds her upgrades;
+  `weapon.gd` `tier` / `set_tier()` and `ps2_assets.gd` `pistol_model(tier)` pick one)
   (`blender --background --python tools/pistol/build_pistol.py -- assets/models/smart_pistol/smart_pistol.glb`);
   `tools/bake_models.gd -- smart_pistol` then puts it in her hand (`assets/models/smart_pistol.tscn`)
-- `scripts/sfx.gd` procedural sound effects, synthesized at runtime; drop `<id>.wav` or `<id>.ogg`
-  in `assets/audio/sfx/` (for example `pistol.wav`) to replace one with a recording
+- `scripts/sfx.gd` sound effects: plays the CC0 recording `assets/audio/sfx/<id>.ogg` when there is
+  one and otherwise synthesizes the sound at runtime; `SFX.variant("step_grass")` picks a random
+  numbered take. Sources and credits: `assets/audio/sfx/README.md`; rebuild specs in `tools/audio/`
+- `scripts/ambience.gd` looping background beds from `assets/audio/ambience/` (forest, temple hub)
 - `scripts/run/titan_gun.gd` titan weapon personalities (XO-16 spin-up, Tracker shells, Splitter beam, jamming scrap rifle)
 - `scripts/hud.gd` crosshair, hitmarkers, health, ammo, speedometer, state and cooldown readout
+- `scripts/radio/` enemy radio: `radio_chatter.gd` (listens to grunt awareness and deaths, picks lines),
+  `radio_popup.gd` (the intercept box), `radio_lines.gd` (every line, by situation)
+- `tests/audio_test.gd` checks every recorded sound loads and the ambience beds loop:
+  `godot --headless --path . -s res://tests/audio_test.gd`
+- `tests/radio_test.gd` headless radio test (range, squad states, kills, no repeats, popup):
+  `godot --headless --path . -s res://tests/radio_test.gd`
 - `tests/movement_test.gd` headless smoke test:
   `godot --headless --path . -s res://tests/movement_test.gd`
 - `tests/combat_test.gd` headless combat smoke test:
   `godot --headless --path . -s res://tests/combat_test.gd`
+- `tests/stealth_test.gd` headless stealth test (vision cone, sight range, cover, detection meter,
+  gunshots, squad callouts, losing the pilot): `godot --headless --path . -s res://tests/stealth_test.gd`
+- `tests/armory_test.gd` headless workbench test (prices, upgrades, attachments, titan parts and
+  refits, saving, the bench screens changing your gun, crates, alloy nodes and grunt drops):
+  `godot --headless --path . -s res://tests/armory_test.gd`
+- `tools/hub/bench_shots.gd` screenshots of the benches, their screens, the guns and the loot
+  (needs a renderer): `xvfb-run -a godot --path . -s res://tools/hub/bench_shots.gd -- out_dir`
 - `tests/run_loop_test.gd` headless run loop test (generator limits, a bot pilot clearing the
-  hardest gap of each kind, salvage, extraction, titanfall, the fight, win and loss):
+  hardest gap of each kind and all three real ravine crossings and the culvert, log-bridge and ridge
+  flanks in the forest, salvage,
+  extraction, titanfall, the fight, evac, win and loss):
   `godot --headless --path . -s res://tests/run_loop_test.gd`
 - `tests/titan_weapons_test.gd` checks every titan weapon still deals its damage per second:
   `godot --headless --path . -s res://tests/titan_weapons_test.gd`

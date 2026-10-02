@@ -6,6 +6,7 @@ extends SceneTree
 
 const HubBuilder := preload("res://scripts/hub/hub_builder.gd")
 const Grounds := preload("res://scripts/hub/hub_grounds.gd")
+const TitanStyle := preload("res://scripts/run/titan_style.gd")
 
 var run_node
 var player
@@ -15,6 +16,8 @@ var failures := 0
 func _initialize() -> void:
 	run_node = load("res://scenes/run.tscn").instantiate()
 	run_node.run_seed = 99
+	run_node.armory_path = "user://test_hub_armory.cfg"
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(run_node.armory_path))
 	root.add_child(run_node)
 	_run.call_deferred()
 
@@ -37,9 +40,18 @@ func _run() -> void:
 	var ids := []
 	for spot in info["interactables"]:
 		ids.append(spot["id"])
-		if spot["id"] == "map_table":
+		if spot["id"] == "map_table" or spot["id"] == "garage":
 			continue
 		await _stand_at(spot["pos"])
+		if spot.has("screen"):
+			# Workbenches open their screen (pausing the hub) and F closes it.
+			await _press("interact")
+			await _ticks(2)
+			_check("%s opens its bench" % spot["id"], run_node.bench != null and run_node.bench.kind == spot["screen"] and paused, spot["id"])
+			await _press("interact")
+			await _ticks(2)
+			_check("%s bench closes" % spot["id"], run_node.bench == null and not paused, spot["id"])
+			continue
 		_check("prompt at %s" % spot["id"], run_node.nearest_hub_spot().get("id") == spot["id"] and run_node.hud.prompt_label.text == spot["prompt"], run_node.hud.prompt_label.text)
 		await _press("interact")
 		await _ticks(2)
@@ -48,9 +60,28 @@ func _run() -> void:
 			await _press("interact")
 			await _ticks(2)
 			_check("%s lines cycle" % spot["id"], run_node.hud.toast_label.text == spot["lines"][1], run_node.hud.toast_label.text)
-	for id in ["map_table", "idol", "titan", "workbench", "bedroll", "letter"]:
+	for id in ["map_table", "idol", "titan", "gunsmith", "weapon_rack", "titan_workshop", "bedroll", "letter", "garage"]:
 		_check("hub has %s" % id, id in ids, ids)
 	_check("spot left for Eco at her bench", info.get("eco_spot") is Marker3D, info.get("eco_spot"))
+
+	# The paint shop: F opens the garage and pauses the hub, a change is saved
+	# for the chassis, and F closes it again.
+	TitanStyle.path = "user://titan_style_hub_test.cfg"
+	DirAccess.remove_absolute(TitanStyle.path)
+	for spot in info["interactables"]:
+		if spot["id"] == "garage":
+			await _stand_at(spot["pos"])
+	await _press("interact")
+	await _ticks(2)
+	var garage = run_node.garage
+	_check("paint shop opens the garage", garage != null and paused, [garage, paused])
+	if garage != null:
+		garage.change(1, "livery")
+		_check("garage saves the paint job", TitanStyle.load_style(garage.chassis)["livery"] == garage.style["livery"] and garage.style["livery"] != "factory", garage.style)
+		await _press("interact")
+		await _ticks(2)
+		_check("F closes the garage", run_node.garage == null and not paused and run_node.phase == run_node.Phase.HUB, [run_node.garage, paused])
+	DirAccess.remove_absolute(TitanStyle.path)
 
 	# The gallery: run up the fallen pillar from the nave onto the ledge.
 	var ramp_to := HubBuilder.RAMP_TO
@@ -171,6 +202,8 @@ func _run() -> void:
 	await _ticks(2)
 	run_node.boss.hp = 1.0
 	run_node.boss.take_damage(5.0)
+	await _ticks(3)
+	run_node.titan.global_position = run_node.zone_info["evac"] + Vector3(0, 0.5, 0)  # walk it to the evac pad
 	await _ticks(3)
 	_check("titan win ends the run", run_node.result == "RUN COMPLETE", run_node.result)
 	await _press("run_restart")

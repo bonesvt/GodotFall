@@ -3,23 +3,24 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://b22siepjeluog"
-path="res://.godot/imported/temple_carving.png-fe4f432328c5945656bc6bdf90cfcb10.ctex"
+path.bptc="res://.godot/imported/temple_carving.png-fe4f432328c5945656bc6bdf90cfcb10.bptc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 
 [deps]
 
 source_file="res://assets/textures/temple_carving.png"
-dest_files=["res://.godot/imported/temple_carving.png-fe4f432328c5945656bc6bdf90cfcb10.ctex"]
+dest_files=["res://.godot/imported/temple_carving.png-fe4f432328c5945656bc6bdf90cfcb10.bptc.ctex"]
 
 [params]
 
-compress/mode=0
-compress/high_quality=false
+compress/mode=2
+compress/high_quality=true
 compress/lossy_quality=0.7
 compress/hdr_compression=1
-compress/normal_map=0
+compress/normal_map=2
 compress/channel_pack=0
 mipmaps/generate=true
 mipmaps/limit=-1

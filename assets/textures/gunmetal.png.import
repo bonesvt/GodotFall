@@ -3,23 +3,24 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://cbb3sd75aoo10"
-path="res://.godot/imported/gunmetal.png-803644a165487d5087eb14c4340d60bb.ctex"
+path.bptc="res://.godot/imported/gunmetal.png-803644a165487d5087eb14c4340d60bb.bptc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 
 [deps]
 
 source_file="res://assets/textures/gunmetal.png"
-dest_files=["res://.godot/imported/gunmetal.png-803644a165487d5087eb14c4340d60bb.ctex"]
+dest_files=["res://.godot/imported/gunmetal.png-803644a165487d5087eb14c4340d60bb.bptc.ctex"]
 
 [params]
 
-compress/mode=0
-compress/high_quality=false
+compress/mode=2
+compress/high_quality=true
 compress/lossy_quality=0.7
 compress/hdr_compression=1
-compress/normal_map=0
+compress/normal_map=2
 compress/channel_pack=0
 mipmaps/generate=true
 mipmaps/limit=-1

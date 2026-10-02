@@ -3,23 +3,24 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://cau6pc134cr7j"
-path="res://.godot/imported/wall_panel.png-0a0962604be41795074e6792e7cda664.ctex"
+path.bptc="res://.godot/imported/wall_panel.png-0a0962604be41795074e6792e7cda664.bptc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 
 [deps]
 
 source_file="res://assets/textures/wall_panel.png"
-dest_files=["res://.godot/imported/wall_panel.png-0a0962604be41795074e6792e7cda664.ctex"]
+dest_files=["res://.godot/imported/wall_panel.png-0a0962604be41795074e6792e7cda664.bptc.ctex"]
 
 [params]
 
-compress/mode=0
-compress/high_quality=false
+compress/mode=2
+compress/high_quality=true
 compress/lossy_quality=0.7
 compress/hdr_compression=1
-compress/normal_map=0
+compress/normal_map=2
 compress/channel_pack=0
 mipmaps/generate=true
 mipmaps/limit=-1

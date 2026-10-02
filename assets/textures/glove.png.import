@@ -3,23 +3,24 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://c3rkifv6oqnn8"
-path="res://.godot/imported/glove.png-98f8a19cdeb0e4226306f28e29e42d5a.ctex"
+path.bptc="res://.godot/imported/glove.png-98f8a19cdeb0e4226306f28e29e42d5a.bptc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 
 [deps]
 
 source_file="res://assets/textures/glove.png"
-dest_files=["res://.godot/imported/glove.png-98f8a19cdeb0e4226306f28e29e42d5a.ctex"]
+dest_files=["res://.godot/imported/glove.png-98f8a19cdeb0e4226306f28e29e42d5a.bptc.ctex"]
 
 [params]
 
-compress/mode=0
-compress/high_quality=false
+compress/mode=2
+compress/high_quality=true
 compress/lossy_quality=0.7
 compress/hdr_compression=1
-compress/normal_map=0
+compress/normal_map=2
 compress/channel_pack=0
 mipmaps/generate=true
 mipmaps/limit=-1
