@@ -1,11 +1,16 @@
 extends Node3D
-## Eco's stiletto: a quick melee stab (V or F). It snaps out from her left
-## hand, punches forward and tucks away again. On a grunt that hasn't noticed
-## her it's a silent takedown that kills outright; on anyone else it's a
-## solid hit that alerts them.
+## Eco's stiletto (Z or the mouse thumb button). A tap is a quick stab: the
+## blade snaps out from her left hand, punches forward and tucks away again.
+## Holding the key keeps it out with the pistol lowered, and she runs faster;
+## left mouse stabs while it's out. On a grunt that hasn't noticed her a stab
+## is a silent takedown that kills outright; on anyone else it's a solid hit
+## that alerts them. Model: assets/models/knife/stiletto.glb
+## (tools/knife/build_stiletto.py).
 
 const FX := preload("res://scripts/fx.gd")
 const SFX := preload("res://scripts/sfx.gd")
+const MODEL := preload("res://assets/models/knife/stiletto.glb")
+const MATERIALS := "res://assets/materials/knife/"
 
 ## Emitted on every stab: "miss", "hit", "kill" or "takedown".
 signal stabbed(kind: String)
@@ -20,12 +25,21 @@ signal stabbed(kind: String)
 @export var hit_time := 0.09
 @export var stab_time := 0.42
 @export var cooldown := 0.55
+## Hold the key this long and the knife stays out.
+@export var hold_time := 0.22
+## Ground speed multiplier while the knife is out.
+@export var ready_speed := 1.2
 
 var player: CharacterBody3D
 var weapon: Node
 var stab_timer := -1.0
 var cooldown_timer := 0.0
 var takedowns := 0
+## True while the key is held and the knife stays out.
+var readied := false
+var _held := 0.0
+var _long_hold := false  # this press already brought the knife out
+var _ready_blend := 0.0
 var _struck := false
 var _blade_root: Node3D
 
@@ -34,6 +48,9 @@ const REST := Vector3(-0.34, -0.46, -0.12)
 const THRUST := Vector3(-0.14, -0.17, -0.4)
 const REST_ROT := Vector3(0.9, 0.5, 0.6)
 const THRUST_ROT := Vector3(0.12, -0.55, -0.35)
+# Held out, low and to the left, point forward, ready to strike.
+const READY := Vector3(-0.2, -0.24, -0.34)
+const READY_ROT := Vector3(0.3, -0.75, -0.7)
 
 
 func _ready() -> void:
@@ -47,6 +64,10 @@ func _ready() -> void:
 
 func _physics_process(delta: float) -> void:
 	cooldown_timer -= delta
+	_held = _held + delta if Input.is_action_pressed("melee") else 0.0
+	_set_readied(_held >= hold_time)
+	if weapon != null:
+		weapon.holstered = readied or stab_timer >= 0.0
 	if stab_timer < 0.0:
 		return
 	stab_timer += delta
@@ -59,25 +80,49 @@ func _physics_process(delta: float) -> void:
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("melee", false, true):
+		_long_hold = false
+	elif event.is_action_released("melee", true):
+		# A tap stabs on release; holding past hold_time keeps the knife out instead.
+		if not _long_hold and not readied:
+			stab()
+		_long_hold = false
+	elif readied and event.is_action_pressed("fire", false, true):
 		stab()
 
 
-func _process(_delta: float) -> void:
-	if stab_timer < 0.0:
-		_blade_root.visible = false
+func _set_readied(on: bool) -> void:
+	if on == readied:
 		return
-	_blade_root.visible = true
-	# Snap out fast, hold a beat, ease back.
-	var t := stab_timer
+	readied = on
+	if on:
+		_long_hold = true
+	player.speed_mult = ready_speed if on else 1.0
+	if on:
+		SFX.play(self, "knife_swish", -10.0, 1.15)
+
+
+func _process(delta: float) -> void:
+	_ready_blend = move_toward(_ready_blend, 1.0 if readied else 0.0, delta * 6.0)
+	var r := smoothstep(0.0, 1.0, _ready_blend)
+	var base := REST.lerp(READY, r)
+	var base_rot := REST_ROT.lerp(READY_ROT, r)
+	if readied and stab_timer < 0.0:
+		# A little run bob so it reads as held, not floating.
+		var bob := sin(Time.get_ticks_msec() * 0.012) * 0.006 * clampf(player.horizontal_speed() / 10.0, 0.0, 1.0)
+		base += Vector3(0.0, bob, 0.0)
 	var k := 0.0
-	if t < hit_time:
-		k = ease(t / hit_time, 0.4)
-	elif t < hit_time + 0.08:
-		k = 1.0
-	else:
-		k = 1.0 - ease((t - hit_time - 0.08) / (stab_time - hit_time - 0.08), 2.2)
-	_blade_root.position = REST.lerp(THRUST, k)
-	_blade_root.rotation = REST_ROT.lerp(THRUST_ROT, k)
+	if stab_timer >= 0.0:
+		# Snap out fast, hold a beat, ease back.
+		var t := stab_timer
+		if t < hit_time:
+			k = ease(t / hit_time, 0.4)
+		elif t < hit_time + 0.08:
+			k = 1.0
+		else:
+			k = 1.0 - ease((t - hit_time - 0.08) / (stab_time - hit_time - 0.08), 2.2)
+	_blade_root.visible = k > 0.0 or _ready_blend > 0.01
+	_blade_root.position = base.lerp(THRUST, k)
+	_blade_root.rotation = base_rot.lerp(THRUST_ROT, k)
 
 
 func is_stabbing() -> bool:
@@ -94,10 +139,9 @@ func stab() -> bool:
 	SFX.play(self, "knife_swish", -4.0, SFX.vary(0.06))
 	if weapon != null:
 		# The pistol hand swings aside and can't fire mid-stab.
-		weapon.cooldown = maxf(weapon.cooldown, stab_time * 0.8)
+		weapon.holstered = true
 		if weapon.has_method("stop_inspect"):
 			weapon.stop_inspect()
-		weapon._kick_vel += Vector3(0.6, -0.8, 0.4)
 	return true
 
 
@@ -164,60 +208,17 @@ func _build_blade() -> void:
 	_blade_root.position = REST
 	_blade_root.visible = false
 	add_child(_blade_root)
-	var holder := Node3D.new()  # blade points down -Z, grip toward the camera
-	holder.rotation.x = -PI / 2.0
-	holder.scale = Vector3.ONE * 1.3
-	_blade_root.add_child(holder)
-
-	var steel := StandardMaterial3D.new()
-	steel.albedo_color = Color(0.86, 0.9, 0.95)
-	steel.metallic = 0.55
-	steel.roughness = 0.2
-	steel.emission_enabled = true  # keeps the blade bright without reflections to catch
-	steel.emission = Color(0.25, 0.28, 0.32)
-	var dark := StandardMaterial3D.new()
-	dark.albedo_color = Color(0.09, 0.09, 0.1)
-	dark.roughness = 0.6
-	var glow := StandardMaterial3D.new()
-	glow.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	glow.albedo_color = Color(0.3, 0.95, 1.0)  # the pistol's LED cyan
-
-	# Long, needle-thin diamond blade.
-	var blade := CylinderMesh.new()
-	blade.top_radius = 0.0
-	blade.bottom_radius = 0.011
-	blade.height = 0.22
-	blade.radial_segments = 4
-	blade.rings = 1
-	blade.material = steel
-	_part(holder, blade, Vector3(0, 0.13, 0), Vector3(1.0, 1.0, 0.35))
-	# Fuller: a dark line down the middle of the blade.
-	var fuller := BoxMesh.new()
-	fuller.size = Vector3(0.002, 0.14, 0.0045)
-	fuller.material = dark
-	_part(holder, fuller, Vector3(0, 0.09, 0), Vector3.ONE)
-	# Slim crossguard with a cyan inlay.
-	var guard := BoxMesh.new()
-	guard.size = Vector3(0.05, 0.007, 0.012)
-	guard.material = steel
-	_part(holder, guard, Vector3(0, 0.017, 0), Vector3.ONE)
-	var inlay := BoxMesh.new()
-	inlay.size = Vector3(0.03, 0.0035, 0.0125)
-	inlay.material = glow
-	_part(holder, inlay, Vector3(0, 0.017, 0), Vector3.ONE)
-	# Wrapped grip and a pommel.
-	var grip := CylinderMesh.new()
-	grip.top_radius = 0.009
-	grip.bottom_radius = 0.011
-	grip.height = 0.1
-	grip.radial_segments = 8
-	grip.material = dark
-	_part(holder, grip, Vector3(0, -0.037, 0), Vector3(1.0, 1.0, 0.8))
-	var pommel := SphereMesh.new()
-	pommel.radius = 0.012
-	pommel.height = 0.02
-	pommel.material = steel
-	_part(holder, pommel, Vector3(0, -0.09, 0), Vector3.ONE)
+	var blade: Node3D = MODEL.instantiate()
+	blade.name = "Stiletto"
+	blade.scale = Vector3.ONE * 1.3
+	_blade_root.add_child(blade)
+	for mi in blade.find_children("*", "MeshInstance3D", true, false):
+		var mesh := (mi as MeshInstance3D).mesh
+		for i in mesh.get_surface_count():
+			var m := mesh.surface_get_material(i)
+			if m != null and ResourceLoader.exists(MATERIALS + m.resource_name + ".tres"):
+				(mi as MeshInstance3D).set_surface_override_material(i, load(MATERIALS + m.resource_name + ".tres"))
+		(mi as MeshInstance3D).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 
 	# Eco's left fist round the grip and her forearm running back off screen.
 	var glove := StandardMaterial3D.new()
@@ -227,27 +228,24 @@ func _build_blade() -> void:
 	sleeve.albedo_color = Color(0.78, 0.78, 0.76)
 	sleeve.roughness = 0.9
 	var fist := BoxMesh.new()
-	fist.size = Vector3(0.034, 0.06, 0.036)
+	fist.size = Vector3(0.036, 0.046, 0.06)
 	fist.material = glove
-	_part(holder, fist, Vector3(0.004, -0.04, 0.0), Vector3.ONE)
+	_part(_blade_root, fist, Vector3(0.0, -0.004, 0.0), Vector3.ONE)
 	var arm := CylinderMesh.new()
 	arm.top_radius = 0.022
 	arm.bottom_radius = 0.032
 	arm.height = 0.4
 	arm.radial_segments = 8
 	arm.material = sleeve
-	var forearm := MeshInstance3D.new()
-	forearm.mesh = arm
-	forearm.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	forearm.position = Vector3(0.0, -0.03, 0.24)
+	var forearm := _part(_blade_root, arm, Vector3(0.0, -0.012, 0.22), Vector3.ONE)
 	forearm.rotation.x = PI / 2.0
-	_blade_root.add_child(forearm)
 
 
-func _part(parent: Node3D, mesh: Mesh, pos: Vector3, scl: Vector3) -> void:
+func _part(parent: Node3D, mesh: Mesh, pos: Vector3, scl: Vector3) -> MeshInstance3D:
 	var mi := MeshInstance3D.new()
 	mi.mesh = mesh
 	mi.position = pos
 	mi.scale = scl
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	parent.add_child(mi)
+	return mi
