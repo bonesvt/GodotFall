@@ -4,5 +4,7 @@
 *.import
 export_presets.cfg
 !assets/textures/*.import
+!assets/models/grunt/*.import
 !assets/models/eco/*.import
 tools/eco/__pycache__/
+tools/grunt/__pycache__/

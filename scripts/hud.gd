@@ -5,6 +5,9 @@ extends CanvasLayer
 ## The reticle wears the pistol's story: around the spread ticks sits the
 ## ring of the old smart-lock, half its segments dead, flickering when the
 ## module glitches, and it still brackets enemies before failing to lock.
+## Also hosts the enemy radio chatter popup (scripts/radio/).
+
+const RadioChatter := preload("res://scripts/radio/radio_chatter.gd")
 
 var player: Node
 var level: Node
@@ -18,6 +21,7 @@ var health_label: Label
 var enemy_label: Label
 var message_label: Label
 var hurt_rect: ColorRect
+var radio: Node
 
 var hitmarker_timer := 0.0
 var hitmarker_color := Color.WHITE
@@ -100,6 +104,10 @@ func _ready() -> void:
 			weapon.hit_confirmed.connect(_on_hit)
 			weapon.inspected.connect(func(line: String): flash_message(line, 3.0))
 		player.damaged.connect(_on_damaged)
+		radio = RadioChatter.new()
+		radio.name = "Radio"
+		radio.player = player
+		add_child(radio)
 
 
 func _label(size: int) -> Label:
