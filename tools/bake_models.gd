@@ -2,7 +2,9 @@ extends SceneTree
 ## Builds the PS2-style model scenes in assets/models/ out of low-poly primitives.
 ## Run after importing textures (opening the editor once does that):
 ##   godot --headless --import
-##   godot --headless -s res://tools/bake_models.gd
+##   godot -s res://tools/bake_models.gd
+## (not --headless: the per-part shader parameters only save with a renderer;
+## on a server use xvfb-run.)
 ## Re-running overwrites the .tscn files. You can also edit the saved scenes
 ## in the editor; every part is a plain MeshInstance3D with a primitive mesh.
 ## Models face -Z with their origin at the feet, like the gameplay nodes.
@@ -47,7 +49,8 @@ func _pivot(parent: Node3D, name: String, pos: Vector3, rot_deg := Vector3.ZERO)
 
 
 ## kind: "box" (size), "cyl" (x radius, y height, z segments), "cone" (x bottom
-## radius, y height, z top radius), "sphere" (x radius), "hemi" (x radius), "prism" (size).
+## radius, y height, z top radius), "sphere" (x radius), "hemi" (x radius),
+## "capsule" (x radius, y height), "prism" (size).
 func _part(parent: Node3D, name: String, kind: String, size: Vector3, pos: Vector3,
 		mat: Material, rot_deg := Vector3.ZERO) -> MeshInstance3D:
 	var mesh: PrimitiveMesh
@@ -69,6 +72,12 @@ func _part(parent: Node3D, name: String, kind: String, size: Vector3, pos: Vecto
 			mesh.is_hemisphere = kind == "hemi"
 			mesh.radial_segments = 8
 			mesh.rings = 3 if kind == "hemi" else 5
+		"capsule":
+			mesh = CapsuleMesh.new()
+			mesh.radius = size.x
+			mesh.height = size.y
+			mesh.radial_segments = 8
+			mesh.rings = 2
 		"prism":
 			mesh = PrismMesh.new()
 			mesh.size = size
@@ -89,6 +98,7 @@ func _painted(mat_name: String, color: Color) -> ShaderMaterial:
 
 
 func _save(root: Node3D, file: String) -> void:
+	get_root().add_child(root)  # instance shader parameters only stick inside the tree
 	_own(root, root)
 	var scene := PackedScene.new()
 	var err := scene.pack(root)
@@ -101,6 +111,15 @@ func _save(root: Node3D, file: String) -> void:
 func _own(node: Node, owner_node: Node) -> void:
 	for c in node.get_children():
 		c.owner = owner_node
+		if c is GeometryInstance3D:
+			# Height of each vertex above the model's feet, for the shader's fake occlusion.
+			var xf := Transform3D.IDENTITY
+			var n: Node = c
+			while n != owner_node:
+				xf = (n as Node3D).transform * xf
+				n = n.get_parent()
+			var row := Vector4(xf.basis.x.y, xf.basis.y.y, xf.basis.z.y, xf.origin.y)
+			(c as GeometryInstance3D).set_instance_shader_parameter("part_height_row", row)
 		_own(c, owner_node)
 
 
@@ -144,10 +163,10 @@ func _grunt() -> void:
 	var glove: Material = M["glove"]
 	for side in [-1.0, 1.0]:
 		var leg := _pivot(r, "LegL" if side < 0.0 else "LegR", Vector3(side * 0.11, 0.92, 0))
-		_part(leg, "Thigh", "box", Vector3(0.15, 0.44, 0.17), Vector3(0, -0.22, 0), cloth)
-		_part(leg, "Knee", "box", Vector3(0.12, 0.1, 0.06), Vector3(0, -0.46, -0.09), plate)
-		_part(leg, "Shin", "box", Vector3(0.13, 0.4, 0.15), Vector3(0, -0.66, 0), cloth)
-		_part(leg, "Boot", "box", Vector3(0.15, 0.13, 0.27), Vector3(0, -0.855, -0.04), glove)
+		_part(leg, "Thigh", "capsule", Vector3(0.09, 0.5, 0), Vector3(0, -0.22, 0), cloth)
+		_part(leg, "Knee", "box", Vector3(0.13, 0.12, 0.07), Vector3(0, -0.46, -0.08), plate)
+		_part(leg, "Shin", "capsule", Vector3(0.08, 0.44, 0), Vector3(0, -0.65, 0), cloth)
+		_part(leg, "Boot", "box", Vector3(0.17, 0.15, 0.3), Vector3(0, -0.845, -0.05), glove)
 	_part(r, "Pelvis", "box", Vector3(0.34, 0.16, 0.2), Vector3(0, 0.98, 0), cloth)
 	_part(r, "Belly", "box", Vector3(0.32, 0.26, 0.2), Vector3(0, 1.15, 0), cloth)
 	_part(r, "Belt", "box", Vector3(0.35, 0.05, 0.22), Vector3(0, 1.04, 0), glove)
@@ -161,10 +180,10 @@ func _grunt() -> void:
 		_part(r, "Pad", "box", Vector3(0.14, 0.08, 0.17), Vector3(side * 0.26, 1.51, 0), plate, Vector3(0, 0, side * -15))
 	# head: balaclava, helmet, glowing visor (grunt.gd tints the "Visor" nodes)
 	_part(r, "Neck", "cyl", Vector3(0.06, 0.08, 6), Vector3(0, 1.56, 0), cloth)
-	_part(r, "Head", "sphere", Vector3(0.12, 0, 0), Vector3(0, 1.65, 0), M["glove"])
-	_part(r, "Helmet", "hemi", Vector3(0.155, 0, 0), Vector3(0, 1.67, 0.01), plate)
-	_part(r, "HelmetRim", "cyl", Vector3(0.158, 0.03, 8), Vector3(0, 1.675, 0.01), plate)
-	_part(r, "Visor", "box", Vector3(0.22, 0.055, 0.05), Vector3(0, 1.645, -0.115), M["visor"])
+	_part(r, "Head", "sphere", Vector3(0.13, 0, 0), Vector3(0, 1.65, 0), M["glove"])
+	_part(r, "Helmet", "hemi", Vector3(0.17, 0, 0), Vector3(0, 1.67, 0.01), plate)
+	_part(r, "HelmetRim", "cyl", Vector3(0.175, 0.035, 8), Vector3(0, 1.675, 0.01), plate)
+	_part(r, "Visor", "box", Vector3(0.24, 0.06, 0.05), Vector3(0, 1.645, -0.125), M["visor"])
 	_part(r, "Rebreather", "box", Vector3(0.08, 0.06, 0.06), Vector3(0, 1.575, -0.11), g)
 	# rifle, held at the hip on the right (matches grunt.gd MUZZLE)
 	var gun := _pivot(r, "Rifle", Vector3(0.22, 1.22, 0))
@@ -174,12 +193,12 @@ func _grunt() -> void:
 	_part(gun, "Mag", "box", Vector3(0.05, 0.16, 0.07), Vector3(0, -0.12, -0.3), g, Vector3(15, 0, 0))
 	_part(gun, "Sight", "box", Vector3(0.04, 0.05, 0.12), Vector3(0, 0.085, -0.18), g)
 	# arms: right hand on the grip, left hand on the handguard
-	_part(r, "ArmRUpper", "box", Vector3(0.11, 0.28, 0.12), Vector3(0.29, 1.32, 0.02), cloth, Vector3(10, 0, 0))
+	_part(r, "ArmRUpper", "capsule", Vector3(0.065, 0.32, 0), Vector3(0.29, 1.32, 0.02), cloth, Vector3(10, 0, 0))
 	_part(r, "ArmRLower", "box", Vector3(0.1, 0.1, 0.24), Vector3(0.27, 1.18, -0.05), cloth)
-	_part(r, "HandR", "box", Vector3(0.08, 0.09, 0.08), Vector3(0.23, 1.16, -0.15), glove)
-	_part(r, "ArmLUpper", "box", Vector3(0.11, 0.28, 0.12), Vector3(-0.26, 1.3, -0.06), cloth, Vector3(25, 0, 0))
+	_part(r, "HandR", "box", Vector3(0.1, 0.1, 0.1), Vector3(0.23, 1.16, -0.15), glove)
+	_part(r, "ArmLUpper", "capsule", Vector3(0.065, 0.32, 0), Vector3(-0.26, 1.3, -0.06), cloth, Vector3(25, 0, 0))
 	_part(r, "ArmLLower", "box", Vector3(0.1, 0.1, 0.46), Vector3(-0.03, 1.19, -0.27), cloth, Vector3(0, -51, 0))
-	_part(r, "HandL", "box", Vector3(0.08, 0.08, 0.09), Vector3(0.16, 1.19, -0.42), glove)
+	_part(r, "HandL", "box", Vector3(0.1, 0.1, 0.1), Vector3(0.16, 1.19, -0.42), glove)
 	_save(r, "grunt.tscn")
 
 
@@ -248,7 +267,7 @@ func _titan(id: String, p: Dictionary) -> void:
 		var arm := _pivot(r, "ArmL" if side < 0.0 else "ArmR", Vector3(side * (w * 0.5 + 0.35 * sh), ty + h * 0.3, 0))
 		if not (scrap and side < 0.0):
 			_part(arm, "Pad", "box", Vector3(0.95, 0.75, 1.25) * sh, Vector3(side * 0.1, 0.1, 0), accent if side > 0.0 else armor, Vector3(0, 0, side * -10))
-		_part(arm, "Shoulder", "sphere", Vector3(0.38 * sh, 0, 0), Vector3.ZERO, frame)
+		_part(arm, "Shoulder", "sphere", Vector3(0.42 * sh, 0, 0), Vector3.ZERO, frame)
 		_part(arm, "Upper", "box", Vector3(0.5, 1.1, 0.5) * Vector3(sh, 1, sh), Vector3(0, -0.75, 0), frame)
 		_part(arm, "Elbow", "cyl", Vector3(0.3 * sh, 0.6 * sh, 8), Vector3(0, -1.4, 0), frame, Vector3(0, 0, 90))
 		_part(arm, "Forearm", "box", Vector3(0.7, 0.7, 1.5) * sh, Vector3(0, -1.45, -0.55 * sh), armor)

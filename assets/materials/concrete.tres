@@ -9,4 +9,4 @@ shader = ExtResource("1_shader")
 shader_parameter/albedo_tex = ExtResource("2_tex")
 shader_parameter/top_tex = ExtResource("3_top")
 shader_parameter/use_top_tex = true
-shader_parameter/tex_scale = 0.5
+shader_parameter/tex_scale = 0.25

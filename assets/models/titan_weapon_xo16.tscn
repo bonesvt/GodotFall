@@ -1,93 +1,98 @@
 [gd_scene load_steps=16 format=3]
 
-[ext_resource type="Script" path="res://scripts/ps2/ps2_model.gd" id="1_o77fh"]
-[ext_resource type="Shader" path="res://assets/shaders/ps2_surface.gdshader" id="2_4a5k4"]
-[ext_resource type="Texture2D" path="res://assets/textures/titan_armor.png" id="3_83dae"]
-[ext_resource type="Material" path="res://assets/materials/titan_frame.tres" id="4_xexbn"]
+[ext_resource type="Script" path="res://scripts/ps2/ps2_model.gd" id="1_dyqv5"]
+[ext_resource type="Shader" path="res://assets/shaders/ps2_surface.gdshader" id="2_itiek"]
+[ext_resource type="Texture2D" path="res://assets/textures/titan_armor.png" id="3_ty6nb"]
+[ext_resource type="Material" path="res://assets/materials/titan_frame.tres" id="4_t2rhs"]
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_w7vkj"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_3jj48"]
 render_priority = 0
-shader = ExtResource("2_4a5k4")
-shader_parameter/use_top_tex = null
+shader = ExtResource("2_itiek")
+shader_parameter/use_top_tex = false
 shader_parameter/albedo = Color(0.5, 0.52, 0.55, 1)
 shader_parameter/tex_scale = 0.35
-shader_parameter/tex_offset = null
+shader_parameter/tex_offset = Vector3(0, 0, 0)
 shader_parameter/world_space = false
-shader_parameter/emission = null
-shader_parameter/emission_energy = null
-shader_parameter/unshaded = null
-shader_parameter/albedo_tex = ExtResource("3_83dae")
+shader_parameter/emission = Color(0, 0, 0, 1)
+shader_parameter/emission_energy = 0.0
+shader_parameter/unshaded = false
+shader_parameter/light_wrap = 0.35
+shader_parameter/light_softness = 0.45
+shader_parameter/rim = 0.25
+shader_parameter/ao_height = 4.0
+shader_parameter/ao_strength = 0.4
+shader_parameter/albedo_tex = ExtResource("3_ty6nb")
 
-[sub_resource type="BoxMesh" id="BoxMesh_qqcpx"]
-material = SubResource("ShaderMaterial_w7vkj")
+[sub_resource type="BoxMesh" id="BoxMesh_4kyb1"]
+material = SubResource("ShaderMaterial_3jj48")
 size = Vector3(0.65, 0.75, 1.4)
 
-[sub_resource type="CylinderMesh" id="CylinderMesh_3tflx"]
-material = ExtResource("4_xexbn")
+[sub_resource type="CylinderMesh" id="CylinderMesh_xljjf"]
+material = ExtResource("4_t2rhs")
 top_radius = 0.45
 bottom_radius = 0.45
 height = 0.5
 radial_segments = 8
 rings = 0
 
-[sub_resource type="CylinderMesh" id="CylinderMesh_vk1e8"]
-material = ExtResource("4_xexbn")
+[sub_resource type="CylinderMesh" id="CylinderMesh_b411g"]
+material = ExtResource("4_t2rhs")
 top_radius = 0.07
 bottom_radius = 0.07
 height = 1.7
 radial_segments = 5
 rings = 0
 
-[sub_resource type="CylinderMesh" id="CylinderMesh_3apkq"]
-material = ExtResource("4_xexbn")
+[sub_resource type="CylinderMesh" id="CylinderMesh_wyaw3"]
+material = ExtResource("4_t2rhs")
 top_radius = 0.07
 bottom_radius = 0.07
 height = 1.7
 radial_segments = 5
 rings = 0
 
-[sub_resource type="CylinderMesh" id="CylinderMesh_kkdjt"]
-material = ExtResource("4_xexbn")
+[sub_resource type="CylinderMesh" id="CylinderMesh_utv37"]
+material = ExtResource("4_t2rhs")
 top_radius = 0.07
 bottom_radius = 0.07
 height = 1.7
 radial_segments = 5
 rings = 0
 
-[sub_resource type="CylinderMesh" id="CylinderMesh_dmpmt"]
-material = ExtResource("4_xexbn")
+[sub_resource type="CylinderMesh" id="CylinderMesh_ic7qp"]
+material = ExtResource("4_t2rhs")
 top_radius = 0.07
 bottom_radius = 0.07
 height = 1.7
 radial_segments = 5
 rings = 0
 
-[sub_resource type="CylinderMesh" id="CylinderMesh_1c0v8"]
-material = ExtResource("4_xexbn")
+[sub_resource type="CylinderMesh" id="CylinderMesh_0spt7"]
+material = ExtResource("4_t2rhs")
 top_radius = 0.07
 bottom_radius = 0.07
 height = 1.7
 radial_segments = 5
 rings = 0
 
-[sub_resource type="CylinderMesh" id="CylinderMesh_7w21i"]
-material = ExtResource("4_xexbn")
+[sub_resource type="CylinderMesh" id="CylinderMesh_y7uco"]
+material = ExtResource("4_t2rhs")
 top_radius = 0.07
 bottom_radius = 0.07
 height = 1.7
 radial_segments = 5
 rings = 0
 
-[sub_resource type="CylinderMesh" id="CylinderMesh_xq5xw"]
-material = SubResource("ShaderMaterial_w7vkj")
+[sub_resource type="CylinderMesh" id="CylinderMesh_wxyg5"]
+material = SubResource("ShaderMaterial_3jj48")
 top_radius = 0.32
 bottom_radius = 0.32
 height = 0.3
 radial_segments = 8
 rings = 0
 
-[sub_resource type="CylinderMesh" id="CylinderMesh_u3oki"]
-material = SubResource("ShaderMaterial_w7vkj")
+[sub_resource type="CylinderMesh" id="CylinderMesh_mkj0k"]
+material = SubResource("ShaderMaterial_3jj48")
 top_radius = 0.3
 bottom_radius = 0.3
 height = 0.25
@@ -95,46 +100,56 @@ radial_segments = 8
 rings = 0
 
 [node name="TitanWeapon_xo16" type="Node3D"]
-script = ExtResource("1_o77fh")
+script = ExtResource("1_dyqv5")
 stride = 1.6
 swing_degrees = 28.0
 
 [node name="Body" type="MeshInstance3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -0.5)
-mesh = SubResource("BoxMesh_qqcpx")
+instance_shader_parameters/part_height_row = Vector4(0, 1, 0, 0)
+mesh = SubResource("BoxMesh_4kyb1")
 
 [node name="Drum" type="MeshInstance3D" parent="."]
 transform = Transform3D(-4.37114e-08, -1, 0, 1, -4.37114e-08, 0, 0, 0, 1, 0.55, -0.05, -0.35)
-mesh = SubResource("CylinderMesh_3tflx")
+instance_shader_parameters/part_height_row = Vector4(1, -4.37114e-08, 0, -0.05)
+mesh = SubResource("CylinderMesh_xljjf")
 
 [node name="Barrel" type="MeshInstance3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, -4.37114e-08, -1, 0, 1, -4.37114e-08, 0.18, 0, -2)
-mesh = SubResource("CylinderMesh_vk1e8")
+instance_shader_parameters/part_height_row = Vector4(0, -4.37114e-08, -1, 0)
+mesh = SubResource("CylinderMesh_b411g")
 
 [node name="@MeshInstance3D@15" type="MeshInstance3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, -4.37114e-08, -1, 0, 1, -4.37114e-08, 0.09, 0.155885, -2)
-mesh = SubResource("CylinderMesh_3apkq")
+instance_shader_parameters/part_height_row = Vector4(0, -4.37114e-08, -1, 0.155885)
+mesh = SubResource("CylinderMesh_wyaw3")
 
 [node name="@MeshInstance3D@16" type="MeshInstance3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, -4.37114e-08, -1, 0, 1, -4.37114e-08, -0.09, 0.155885, -2)
-mesh = SubResource("CylinderMesh_kkdjt")
+instance_shader_parameters/part_height_row = Vector4(0, -4.37114e-08, -1, 0.155885)
+mesh = SubResource("CylinderMesh_utv37")
 
 [node name="@MeshInstance3D@17" type="MeshInstance3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, -4.37114e-08, -1, 0, 1, -4.37114e-08, -0.18, 2.20436e-17, -2)
-mesh = SubResource("CylinderMesh_dmpmt")
+instance_shader_parameters/part_height_row = Vector4(0, -4.37114e-08, -1, 2.20436e-17)
+mesh = SubResource("CylinderMesh_ic7qp")
 
 [node name="@MeshInstance3D@18" type="MeshInstance3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, -4.37114e-08, -1, 0, 1, -4.37114e-08, -0.09, -0.155885, -2)
-mesh = SubResource("CylinderMesh_1c0v8")
+instance_shader_parameters/part_height_row = Vector4(0, -4.37114e-08, -1, -0.155885)
+mesh = SubResource("CylinderMesh_0spt7")
 
 [node name="@MeshInstance3D@19" type="MeshInstance3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, -4.37114e-08, -1, 0, 1, -4.37114e-08, 0.09, -0.155885, -2)
-mesh = SubResource("CylinderMesh_7w21i")
+instance_shader_parameters/part_height_row = Vector4(0, -4.37114e-08, -1, -0.155885)
+mesh = SubResource("CylinderMesh_y7uco")
 
 [node name="Shroud" type="MeshInstance3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, -4.37114e-08, -1, 0, 1, -4.37114e-08, 0, 0, -1.35)
-mesh = SubResource("CylinderMesh_xq5xw")
+instance_shader_parameters/part_height_row = Vector4(0, -4.37114e-08, -1, 0)
+mesh = SubResource("CylinderMesh_wxyg5")
 
 [node name="Tip" type="MeshInstance3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, -4.37114e-08, -1, 0, 1, -4.37114e-08, 0, 0, -2.75)
-mesh = SubResource("CylinderMesh_u3oki")
+instance_shader_parameters/part_height_row = Vector4(0, -4.37114e-08, -1, 0)
+mesh = SubResource("CylinderMesh_mkj0k")

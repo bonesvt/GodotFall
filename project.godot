@@ -24,7 +24,7 @@ common/physics_ticks_per_second=120
 
 ps2_vertex_snap={
 "type": "float",
-"value": 480.0
+"value": 0.0
 }
 
 [rendering]

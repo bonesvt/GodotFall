@@ -1,5 +1,5 @@
 extends RefCounted
-## Lookup for the PS2-style art in assets/. Level code keeps building boxes by
+## Lookup for the stylized PS2 art in assets/. Level code keeps building boxes by
 ## colour (level_kit.gd box()), and surface() turns that colour and size into
 ## the matching textured material, so level generators need no art changes:
 ##   low-saturation colour  -> concrete with a steel-plate top, tinted by the colour
@@ -77,21 +77,25 @@ static func surface(color: Color, size: Vector3) -> Material:
 		return MATERIALS[kind]
 	var key := color.to_html(false)
 	if not _cache.has(key):
-		# The textures are mid grey, so brighten the tint to keep levels at their old brightness.
+		# The textures are light grey already, so the tint only needs a small lift.
 		var mat: ShaderMaterial = MATERIALS["concrete"].duplicate()
-		var tint := Color(minf(color.r * 1.6, 1.0), minf(color.g * 1.6, 1.0), minf(color.b * 1.6, 1.0))
+		var tint := Color(minf(color.r * 1.15, 1.0), minf(color.g * 1.15, 1.0), minf(color.b * 1.15, 1.0))
 		mat.set_shader_parameter("albedo", tint)
 		_cache[key] = mat
 	return _cache[key]
 
 
-## PS2-style sky, fog and light for a level: a painted gradient sky with
-## mountains, thick distance fog, flat ambient light and crunchy shadows.
+## Stylized PS2 sky, haze and light for a level, a blend of Jak and Daxter's warm
+## painted colour and Shadow of the Colossus's haze and bloom: a painted sky with
+## a haloed sun, distance haze fading into mist in the void below the platforms,
+## warm low sun with cool ambient shadows, soft bloom and a light colour grade.
 static func environment(parent: Node, top: Color, horizon: Color) -> void:
+	var sun_color := Color(1.0, 0.9, 0.72)
 	var sky_mat := ShaderMaterial.new()
 	sky_mat.shader = SKY_SHADER
 	sky_mat.set_shader_parameter("top_color", top)
 	sky_mat.set_shader_parameter("horizon_color", horizon)
+	sky_mat.set_shader_parameter("sun_color", sun_color)
 	sky_mat.set_shader_parameter("layers", SKY_LAYERS)
 	var sky := Sky.new()
 	sky.sky_material = sky_mat
@@ -100,25 +104,39 @@ static func environment(parent: Node, top: Color, horizon: Color) -> void:
 	env.background_mode = Environment.BG_SKY
 	env.sky = sky
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	env.ambient_light_color = top.lerp(horizon, 0.5)
-	env.ambient_light_energy = 0.9
+	env.ambient_light_color = top.lerp(horizon, 0.45).lightened(0.1)
+	env.ambient_light_energy = 0.55
 	env.reflected_light_source = Environment.REFLECTION_SOURCE_DISABLED
-	env.tonemap_mode = Environment.TONE_MAPPER_LINEAR
+	env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
+	env.tonemap_exposure = 0.95
+	env.tonemap_white = 5.0
 	env.fog_enabled = true
-	env.fog_light_color = horizon
-	env.fog_density = 0.0055
+	env.fog_light_color = horizon.lerp(sun_color, 0.2)
+	env.fog_density = 0.0045
+	env.fog_aerial_perspective = 0.2
+	env.fog_sun_scatter = 0.25
 	env.fog_sky_affect = 0.0
 	env.glow_enabled = true
-	env.glow_intensity = 0.6
-	env.glow_bloom = 0.05
+	for level in 7:
+		env.set_glow_level(level, 1.0 if level >= 2 and level <= 5 else 0.0)
+	env.glow_intensity = 0.5
+	env.glow_strength = 1.1
+	env.glow_bloom = 0.12
+	env.glow_hdr_threshold = 1.1
+	env.glow_blend_mode = Environment.GLOW_BLEND_MODE_SCREEN
+	env.adjustment_enabled = true
+	env.adjustment_saturation = 1.15
+	env.adjustment_contrast = 1.12
 	var world_env := WorldEnvironment.new()
 	world_env.environment = env
 	parent.add_child(world_env)
 
 	var sun := DirectionalLight3D.new()
-	sun.rotation_degrees = Vector3(-50, 35, 0)
-	sun.light_color = Color(1.0, 0.96, 0.88)
+	sun.rotation_degrees = Vector3(-38, 35, 0)
+	sun.light_color = sun_color
+	sun.light_energy = 1.3
 	sun.shadow_enabled = true
+	sun.shadow_opacity = 0.75
 	sun.directional_shadow_mode = DirectionalLight3D.SHADOW_ORTHOGONAL
 	sun.directional_shadow_max_distance = 60.0
 	parent.add_child(sun)

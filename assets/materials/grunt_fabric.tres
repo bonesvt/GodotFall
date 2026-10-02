@@ -8,3 +8,5 @@ shader = ExtResource("1_shader")
 shader_parameter/albedo_tex = ExtResource("2_tex")
 shader_parameter/tex_scale = 2.0
 shader_parameter/world_space = false
+shader_parameter/ao_height = 1.0
+shader_parameter/ao_strength = 0.4

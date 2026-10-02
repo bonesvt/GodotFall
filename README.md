@@ -80,7 +80,7 @@ on and off in game, to compare.
   and four titan guns (XO-16, 40mm Tracker, Splitter, scrap rifle). Your titan is built
   from the chassis and weapon you salvaged. Plus the red enemy titan, salvage cache and
   extract beacon. They are plain scenes made of primitive meshes, so you can edit them
-  in the editor or swap in Blender models later. `tools/bake_models.gd` regenerates them.
+  in the editor or swap in Blender models later. `tools/bake_models.gd` regenerates them (run it without `--headless`).
 
 From a fresh clone, import once before running the headless tests (opening the
 project in the editor also does this): `godot --headless --import`
