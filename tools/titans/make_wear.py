@@ -20,13 +20,14 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from make_textures import blur, noise  # noqa: E402
 
 OUT = Path(__file__).resolve().parent.parent.parent / "assets" / "textures" / "titans" / "paint_wear.png"
-SIZE = 256
+SIZE = 1024
+K = SIZE // 256  # the mask was first painted at 256 px
 
 
 def chips():
     # Ragged blobs: mid-frequency noise, sharpened, gated by a slow noise so
     # chips cluster in patches instead of spreading evenly.
-    n = noise(SIZE, 8, 4, seed=11)
+    n = noise(SIZE, 8, 6, seed=11)
     patch = noise(SIZE, 3, 2, seed=12)
     v = n * 0.75 + patch * 0.45
     v = (v - v.min()) / (v.max() - v.min())
@@ -40,23 +41,25 @@ def grime():
     for _ in range(90):
         x = r.integers(0, SIZE)
         y = r.integers(0, SIZE)
-        length = r.integers(20, 110)
+        length = r.integers(20, 110) * K
         w = r.uniform(0.3, 1.0)
         ys = (y + np.arange(length)) % SIZE
         fade = np.linspace(1, 0, length) * w
-        streak[ys, x] = np.maximum(streak[ys, x], fade)
-    streak = blur(streak, 1)
+        for dx in range(K):
+            xs = (x + dx) % SIZE
+            streak[ys, xs] = np.maximum(streak[ys, xs], fade)
+    streak = blur(streak, K)
     v = blotch * 0.7 + streak * 0.9
     return np.clip((v - 0.35) * 1.6, 0, 1)
 
 
 def scratches():
     r = np.random.default_rng(31)
-    img = noise(SIZE, 32, 2, seed=32) * 0.5
-    for _ in range(160):
+    img = noise(SIZE, 32, 4, seed=32) * 0.5
+    for _ in range(160 * K):
         x, y = r.integers(0, SIZE, 2)
         ang = r.uniform(0, np.pi)
-        length = r.integers(4, 18)
+        length = r.integers(4, 18) * K
         for t in range(length):
             px = int(x + np.cos(ang) * t) % SIZE
             py = int(y + np.sin(ang) * t) % SIZE

@@ -16,6 +16,8 @@ func _initialize() -> void:
 	run_node = load("res://scenes/run.tscn").instantiate()
 	run_node.run_seed = SEED
 	run_node.start_in_hub = false
+	run_node.armory_path = "user://test_run_armory.cfg"
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(run_node.armory_path))
 	root.add_child(run_node)
 	_run.call_deferred()
 

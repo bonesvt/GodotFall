@@ -18,6 +18,7 @@ const Lines := preload("res://scripts/radio/radio_lines.gd")
 const RadioPopup := preload("res://scripts/radio/radio_popup.gd")
 const TitanParts := preload("res://scripts/run/titan_parts.gd")
 const Rating := preload("res://scripts/radio/content_rating.gd")
+const SFX := preload("res://scripts/sfx.gd")
 
 ## Eco hears grunts within this many metres.
 const RANGE := 45.0
@@ -71,7 +72,8 @@ func _ready() -> void:
 		var host: Node = get_parent() if get_parent() is CanvasLayer else self
 		host.add_child.call_deferred(popup)
 	squelch = AudioStreamPlayer.new()
-	squelch.stream = _make_squelch()
+	# The recorded walkie-talkie squelch when there is one (assets/audio/sfx).
+	squelch.stream = SFX.stream("radio_squelch_on") if SFX.has_recording("radio_squelch_on") else _make_squelch()
 	squelch.volume_db = -16.0
 	add_child(squelch)
 	if player != null and player.has_signal("damaged"):

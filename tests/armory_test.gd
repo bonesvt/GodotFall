@@ -1,0 +1,247 @@
+extends SceneTree
+## Headless test for Eco's armory and the hub workbenches, and the materials
+## that pay for them: the rules (prices, upgrades, attachments, titan parts,
+## refits, what a run banks), the bench screens changing what you carry, and
+## collecting scrap, alloy and circuits out in a run.
+## Run: godot --headless --path . -s res://tests/armory_test.gd
+
+const Armory := preload("res://scripts/hub/armory.gd")
+const TitanParts := preload("res://scripts/run/titan_parts.gd")
+const WeaponScript := preload("res://scripts/weapon.gd")
+
+const PATH := "user://test_armory.cfg"
+
+var run_node
+var player
+var failures := 0
+
+
+func _initialize() -> void:
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(PATH))
+	_rules()
+	run_node = load("res://scenes/run.tscn").instantiate()
+	run_node.run_seed = 4242
+	run_node.armory_path = PATH
+	root.add_child(run_node)
+	_run.call_deferred()
+
+
+func _rules() -> void:
+	var a = Armory.open(PATH)
+	_check("starts with Eco's stash", a.stash == Armory.STARTING_STASH and a.equipped == "smart_pistol", a.stash)
+
+	# The default pistol is weapon.gd's own numbers, untouched.
+	var w = WeaponScript.new()
+	var stock: Dictionary = a.weapon_profile("smart_pistol")["stats"]
+	var same := true
+	for key in stock:
+		if not is_equal_approx(float(w.get(key)), float(stock[key])):
+			same = false
+	w.free()
+	_check("stock smart pistol matches weapon.gd", same, stock)
+
+	# Upgrades: each gun its own, capped, paid for.
+	_check("can't buy a gun you can't afford", not a.buy_weapon("rivet_cannon") and not a.owns_weapon("rivet_cannon"), a.stash)
+	a.stash = {"scrap": 2000, "alloy": 2000, "circuits": 200, "lock_cores": 0}
+	_check("smart pistol's only upgrade is smart rounds", Armory.upgrade_tracks("smart_pistol") == ["smart_rounds"] and Armory.max_level("smart_rounds") == 8, Armory.upgrade_tracks("smart_pistol"))
+	_check("no calibre on the smart pistol", not a.buy_upgrade("smart_pistol", "calibre"), a.upgrades)
+	_check("smart rounds need lock cores", not a.buy_upgrade("smart_pistol", "smart_rounds"), a.stash)
+	a.stash["lock_cores"] = 20
+	for i in 4:
+		a.buy_upgrade("smart_pistol", "smart_rounds")
+	var up: Dictionary = a.weapon_profile("smart_pistol")
+	_check("4 levels: half the mag is smart", is_equal_approx(up["stats"]["smart_fraction"], 0.5), up["stats"]["smart_fraction"])
+	_check("smart rounds move the look tier", up["tier"] == 3, up["tier"])
+	_check("lock cores spent", a.amount("lock_cores") == 16, a.stash)
+	for i in 6:
+		a.buy_upgrade("smart_pistol", "smart_rounds")
+	up = a.weapon_profile("smart_pistol")
+	_check("smart rounds cap at 8", a.upgrade_level("smart_pistol", "smart_rounds") == 8 and is_equal_approx(up["stats"]["smart_fraction"], 1.0), a.upgrade_level("smart_pistol", "smart_rounds"))
+	_check("a maxed gun is the top model tier", up["tier"] == Armory.MODEL_TIERS, up["tier"])
+	_check("smart rounds add no damage or rounds", is_equal_approx(up["stats"]["damage"], 20.0) and up["stats"]["magazine_size"] == 8, up["stats"])
+	_check("all 8 levels cost 13 lock cores", a.amount("lock_cores") == 7, a.stash)
+	a.stash["lock_cores"] = 0
+	_check("other guns keep calibre, action, magazine", a.buy_weapon("rivet_cannon") and a.buy_upgrade("rivet_cannon", "calibre") \
+			and is_equal_approx(a.weapon_profile("rivet_cannon")["stats"]["damage"], 42.0 * 1.06) and a.weapon_profile("rivet_cannon")["stats"]["smart_fraction"] == 0.0, a.upgrades)
+
+	# Attachments: trade-offs, and mags round to whole rounds.
+	var before: int = a.amount("scrap")
+	_check("fitting a locked attachment buys it", a.fit("smart_pistol", "mag", "extended") and a.amount("scrap") < before, a.stash)
+	var ext: Dictionary = a.weapon_profile("smart_pistol")["stats"]
+	_check("extended mag: more rounds, slower reload", ext["magazine_size"] == 11 and ext["reload_time"] > up["stats"]["reload_time"], ext)
+	a.fit("smart_pistol", "muzzle", "long_barrel")
+	var lb: Dictionary = a.weapon_profile("smart_pistol")["stats"]
+	_check("long barrel: more range, slower shots", lb["falloff_end"] > ext["falloff_end"] and lb["fire_interval"] > ext["fire_interval"], lb)
+	_check("owned attachments are free to refit elsewhere", a.buy_weapon("machine_pistol") and a.fit("machine_pistol", "mag", "extended"), a.fitted)
+
+	# Titan: starting parts are Mk I, refits scale every copy, scrap included.
+	_check("buy a starting chassis", a.set_start_part("chassis", "ogre") and a.start_parts()["chassis"]["tier"] == 1, a.titan_loadout)
+	var plain: float = TitanParts.assemble(a.start_parts(), a.refit_bonus())["hp"]
+	a.buy_refit("chassis", "ogre")
+	a.buy_refit("weapon", "scrap")
+	var stats: Dictionary = TitanParts.assemble(a.start_parts(), a.refit_bonus())
+	_check("refit adds armour", is_equal_approx(stats["hp"], plain * (1.0 + Armory.REFIT_STEP)), stats["hp"])
+	_check("scrap weapon can be refitted", is_equal_approx(stats["dps"], TitanParts.SCRAP["weapon"]["dps"] * (1.0 + Armory.REFIT_STEP)), stats["dps"])
+
+	# What a run banks.
+	_check("lost run banks half, but keeps lock cores", Armory.run_haul({"scrap": 11, "alloy": 4, "circuits": 1, "lock_cores": 1}, false) == {"scrap": 5, "alloy": 2, "circuits": 0, "lock_cores": 1}, "")
+	_check("won run banks it all plus titan salvage", Armory.run_haul({"scrap": 10}, true)["scrap"] == 10 + Armory.WIN_BONUS["scrap"], "")
+
+	# It all survives a save and load.
+	a.equip("machine_pistol")
+	var b = Armory.open(PATH)
+	_check("armory saves and loads", b.equipped == "machine_pistol" and b.upgrade_level("smart_pistol", "smart_rounds") == 8 \
+			and b.fitted_attachment("smart_pistol", "muzzle") == "long_barrel" and b.titan_loadout["chassis"] == "ogre" and b.stash == a.stash, b.stash)
+
+
+func _run() -> void:
+	await _ticks(30)
+	player = run_node.player
+	var weapon = player.get_node("Head/Camera3D/Weapon")
+	_check("the gun picked at the rack is in hand", weapon.weapon_id == "machine_pistol" and weapon.automatic and weapon.viewmodel.get_child(0).name == "MachinePistol", weapon.weapon_id)
+
+	# Weapon rack: switch back to the smart pistol.
+	run_node.open_bench("rack")
+	await _ticks(2)
+	var bench = run_node.bench
+	bench.select(0)
+	_check("rack: pick the smart pistol", bench.confirm() and run_node.armory.equipped == "smart_pistol", run_node.armory.equipped)
+	run_node.close_bench()
+	await _ticks(2)
+	_check("closing the rack puts it in hand", weapon.weapon_id == "smart_pistol" and weapon.smart and not weapon.automatic, weapon.weapon_id)
+	_check("upgrades and attachments carried into the hand", weapon.magazine_size == 11 and weapon.smart_left == 11 and is_equal_approx(weapon.damage, 20.0), [weapon.magazine_size, weapon.smart_left, weapon.damage])
+	_check("the long barrel is on the gun", weapon.viewmodel.find_child("Attachment_muzzle", true, false) != null, "")
+
+	# Gunsmith: browse a grip on and finish.
+	run_node.open_bench("gunsmith")
+	await _ticks(2)
+	bench = run_node.bench
+	bench.switch_tab(1)
+	bench.select(2)
+	bench.step(1)  # wrap (locked) -> shown, not fitted
+	var locked: bool = run_node.armory.fitted_attachment("smart_pistol", "grip") == "stock"
+	_check("gunsmith: a locked grip needs buying", locked and bench.confirm() and run_node.armory.fitted_attachment("smart_pistol", "grip") == "wrap", run_node.armory.fitted)
+	bench.select(3)
+	bench.step(1)
+	_check("gunsmith: finish changes", run_node.armory.finish_of("smart_pistol") != "dads", run_node.armory.finish_of("smart_pistol"))
+	run_node.close_bench()
+
+	# Workshop: the titan on the gantry is the one you'd start with.
+	var stand: Node3D = run_node.zone_info["workshop_titan"]
+	_check("workshop shows the starting titan", stand.get_child_count() == 1, stand.get_child_count())
+
+	# Out on a run: start parts are installed, loot is laid out.
+	run_node.armory.stash = {"scrap": 0, "alloy": 0, "circuits": 0, "lock_cores": 0}
+	run_node.start_run(4242)
+	await _ticks(10)
+	var run = run_node.run
+	_check("run starts with the ogre chassis", run.parts.get("chassis", {}).get("id", "") == "ogre", run.parts.keys())
+	var loot: Array = run_node.zone_info["loot"].filter(func(n): return is_instance_valid(n))
+	var crates := loot.filter(func(n): return n.has_method("open"))
+	var nodes := loot.filter(func(n): return n.has_method("mine"))
+	_check("forest has crates and alloy nodes", crates.size() >= 4 and nodes.size() >= 2, [crates.size(), nodes.size()])
+
+	# A crate: F pries it open, the pickups come to her.
+	var crate: Node3D = crates[0]
+	await _stand_at(crate.global_position + Vector3(1.5, 0, 0))
+	_check("crate prompt", run_node.hud.prompt_label.text == crate.prompt(), run_node.hud.prompt_label.text)
+	await _press("interact")
+	await _ticks(90)
+	_check("crate opened and its scrap collected", crate.opened and run.materials["scrap"] >= 6, run.materials)
+
+	# A node: hold F to mine it out.
+	var node: Node3D = nodes[0]
+	await _stand_at(node.global_position + Vector3(2.0, 0, 0))
+	_check("node prompt", run_node.hud.prompt_label.text == node.prompt(), run_node.hud.prompt_label.text)
+	Input.action_press("interact")
+	await _ticks(260)  # 120 physics ticks a second: a bit over MINE_TIME
+	Input.action_release("interact")
+	await _ticks(90)
+	_check("node mined and its alloy collected", node.depleted and run.materials["alloy"] >= 8, run.materials)
+
+	# Smart rounds: a dumb round aimed off a grunt misses; a smart one locks
+	# on and hits it anyway.
+	var mark = run_node.zone_info["grunts"][1]
+	mark.passive = true
+	# Somewhere open: the spawn, with the grunt brought over 9 m off.
+	await _stand_at(run_node.zone_info["spawn"])
+	mark.global_position = player.global_position + Vector3(9.0, 0, 0)
+	await _ticks(10)
+	_aim_near(mark, 8.0)
+	var hp: float = mark.health
+	weapon.smart_left = 0
+	await _ticks(30)
+	_check("dumb round: the lock only pretends", not weapon.is_locked(), weapon.lock_target)
+	weapon.cooldown = 0.0
+	weapon.fire()
+	_check("dumb round aimed off the grunt misses", is_equal_approx(mark.health, hp), mark.health)
+	weapon.refill()
+	_aim_near(mark, 8.0)
+	await _ticks(60)
+	_check("smart round locks on", weapon.is_locked() and weapon.lock_target == mark, weapon.lock_target)
+	weapon.cooldown = 0.0
+	weapon.fire()
+	_check("smart round homes in on the body", mark.health < hp and weapon.smart_left == weapon.magazine_size - 1, [mark.health, weapon.smart_left])
+	run_node.hud.crosshair.queue_redraw()
+	await process_frame
+
+	# A boss: beating it drops a lock core (kept even if the run is lost after).
+	var cores_before: int = int(run.materials.get("lock_cores", 0))
+	for m in Armory.BOSS_DROP:
+		run_node.collect_material(m, Armory.BOSS_DROP[m])
+	_check("a boss's drop is carried like any material", int(run.materials.get("lock_cores", 0)) == cores_before + 1, run.materials)
+
+	# A grunt: dies, drops scrap.
+	var grunt = run_node.zone_info["grunts"][0]
+	var scrap_before: int = run.materials["scrap"]
+	await _stand_at(grunt.global_position + Vector3(2.0, 0, 0))
+	grunt.take_damage(9999.0, grunt.global_position, false)
+	await _ticks(90)
+	_check("a dead grunt drops scrap", run.materials["scrap"] > scrap_before and run.kills == 1, run.materials)
+
+	# Lose the run: half of it is banked.
+	var carried: Dictionary = run.materials.duplicate()
+	run_node.end_run("PILOT KIA", "Test.")
+	var banked: Dictionary = Armory.run_haul(carried, false)
+	_check("lost run banks half of what she carried", run_node.armory.stash == banked and banked["lock_cores"] == 1, [run_node.armory.stash, carried])
+
+	# Beating the boss itself hands the lock core over.
+	run_node.start_run(4243)
+	await _ticks(10)
+	run_node._on_boss_defeated()
+	_check("beating a boss drops a lock core", int(run_node.run.materials.get("lock_cores", 0)) == 1, run_node.run.materials)
+
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(PATH))
+	print("RESULT: %s (%d failures)" % ["PASS" if failures == 0 else "FAIL", failures])
+	quit(1 if failures > 0 else 0)
+
+
+## Points the pilot at `target`'s chest, `off` degrees to the side.
+func _aim_near(target: Node3D, off: float) -> void:
+	var d: Vector3 = (target.global_position + Vector3.UP * 1.0) - player.camera.global_position
+	player.rotation.y = atan2(-d.x, -d.z) + deg_to_rad(off)
+	player.head.rotation.x = atan2(d.y, Vector2(d.x, d.z).length())
+
+
+func _stand_at(pos: Vector3) -> void:
+	player.global_position = pos + Vector3(0, 0.3, 0)
+	player.velocity = Vector3.ZERO
+	await _ticks(6)
+
+
+func _press(action: String) -> void:
+	await physics_frame
+	Input.action_press(action)
+	await physics_frame
+	Input.action_release(action)
+
+
+func _ticks(n: int) -> void:
+	for i in n:
+		await physics_frame
+
+
+func _check(what: String, ok: bool, value) -> void:
+	print("%s  %s  (%s)" % ["ok  " if ok else "FAIL", what, str(value)])
+	if not ok:
+		failures += 1

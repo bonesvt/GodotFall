@@ -1,10 +1,13 @@
-// Full-screen PS2 finish: soft ordered dithering into a reduced colour depth,
-// a milky black level, faint interlace lines and a gentle vignette. The low
-// internal resolution comes from Project Settings > Rendering > Scaling 3D,
-// and bloom, haze and the colour grade from the level's Environment.
+// Full-screen finish, drawn over the 3D view and under the HUD.
+//   ps2 on: soft ordered dithering into a reduced colour depth, a milky black
+//     level, faint interlace lines and a gentle vignette. The low internal
+//     resolution comes from the PS2 autoload (scripts/ps2/ps2_screen.gd).
+//   ps2 off (PS3 look): just a soft vignette and a whisper of film grain.
+// Bloom, haze and the colour grade come from the level's Environment.
 shader_type canvas_item;
 
 uniform sampler2D screen : hint_screen_texture, filter_linear;
+uniform bool ps2 = false;
 // Levels per colour channel (64 = 6 bits).
 uniform float color_levels = 64.0;
 uniform float dither_strength = 1.0;
@@ -13,6 +16,8 @@ uniform float pixel_size = 2.0;
 uniform float interlace = 0.015;
 uniform float black_lift = 0.035;
 uniform float vignette = 0.28;
+uniform float ps3_vignette = 0.22;
+uniform float ps3_grain = 0.012;
 
 const float BAYER[16] = float[](
 	0.0, 8.0, 2.0, 10.0,
@@ -24,14 +29,21 @@ const float BAYER[16] = float[](
 void fragment() {
 	vec3 c = texture(screen, SCREEN_UV).rgb;
 	vec2 q = SCREEN_UV - 0.5;
-	c *= 1.0 - vignette * dot(q, q) * 2.0;
-	ivec2 p = ivec2(floor(FRAGCOORD.xy / pixel_size)) % 4;
-	float b = (BAYER[p.y * 4 + p.x] + 0.5) / 16.0 - 0.5;
-	c += b * dither_strength / color_levels;
-	c = floor(c * color_levels + 0.5) / color_levels;
-	c = c * (1.0 - black_lift) + black_lift;
-	if (int(floor(FRAGCOORD.y / pixel_size)) % 2 == 1) {
-		c *= 1.0 - interlace;
+	if (!ps2) {
+		c *= 1.0 - ps3_vignette * dot(q, q) * 2.0;
+		float n = fract(sin(dot(FRAGCOORD.xy + fract(TIME) * 61.0, vec2(12.9898, 78.233))) * 43758.5453);
+		c += (n - 0.5) * ps3_grain;
+		COLOR = vec4(c, 1.0);
+	} else {
+		c *= 1.0 - vignette * dot(q, q) * 2.0;
+		ivec2 p = ivec2(floor(FRAGCOORD.xy / pixel_size)) % 4;
+		float b = (BAYER[p.y * 4 + p.x] + 0.5) / 16.0 - 0.5;
+		c += b * dither_strength / color_levels;
+		c = floor(c * color_levels + 0.5) / color_levels;
+		c = c * (1.0 - black_lift) + black_lift;
+		if (int(floor(FRAGCOORD.y / pixel_size)) % 2 == 1) {
+			c *= 1.0 - interlace;
+		}
+		COLOR = vec4(c, 1.0);
 	}
-	COLOR = vec4(c, 1.0);
 }

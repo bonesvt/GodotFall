@@ -19,7 +19,7 @@ Pilot movement, first combat (a weak starter pistol and grunt enemies), and the 
 | T | Respawn |
 | G | Reset the grunt arena |
 | H | Toggle help |
-| F9 | Toggle the PS2 look |
+| F9 | Switch between the PS3 look and the old PS2 look |
 
 ## The temple (hub)
 Pressing Play (`scenes/run.tscn`) opens in the hub: the small abandoned temple Eco hides
@@ -56,6 +56,42 @@ press **F** at the map table ("HEAD OUT") to start a run. When a run ends, won o
     (built from your last run's parts, scrap if none), **F** to climb in and out. Walk it
     round titan-sized cover, dash, and shoot the four scrap titan dummies; they topple
     and get propped back up.
+
+### Workbenches and materials
+Out on runs you collect four materials, and the hub's workbenches spend them:
+- **Scrap**: grunts drop it when they die; small **supply crates** beside the routes hold
+  more (press **F** to pry one open).
+- **Alloy**: hold **F** at an **alloy node** (a titan wreck half sunk in the ground, glowing
+  blue) to mine it.
+- **Circuits**: rare, from crates and now and then a grunt.
+- **Lock cores**: only from beating a boss (Eco pulls the enemy titan's targeting core).
+  Kept even if the run is lost afterwards.
+
+Pickups fly to you when you get close. Extracting banks everything you carried (plus the
+enemy titan's salvage when you win); a lost run banks half. The HUD shows what you have.
+
+- **Gunsmith bench** (the workbench right of the door): **upgrades** for the gun in hand,
+  each gun its own. Dad's smart pistol has **Smart rounds**, 8 levels paid in lock cores:
+  each makes another eighth of every mag smart. Smart rounds fire first (pink pips on the
+  HUD); while one is chambered the lock works again, closing on the grunt nearest the
+  crosshair, and the shot flies to its chest (never its head, so headshots stay yours).
+  The other guns have Calibre, Action and Magazine (three small steps each). Every step
+  moves the gun's look tier from 0 to 5. The bench also fits **attachments** (muzzle, mag, grip, each a
+  trade-off: long barrel, compensator, extended mag, speed base, paracord wrap, skeleton
+  grip) plus free paint **finishes**. Q/E switches guns.
+- **Weapon rack** (on the wall past the bench): buy and pick your sidearm. Dad's smart
+  pistol, the **Rivet Cannon** (five heavy shots off a titan's rivet driver) or the
+  **Militia Machine Pistol** (full auto, hold the trigger).
+- **Titan workshop** (gantry at the west edge of the titan yard): buy titan parts to start
+  runs with (Mk I, instead of scrap; salvage can still replace them) and **refit** parts
+  (+6% per level to every copy you install, salvaged ones and scrap included). The titan
+  in the gantry is the one you'd start with.
+
+On the screens: W/S pick a row, A/D browse, Space buy or fit, Tab or Q/E switch section,
+F or Esc to leave. Progress saves to `user://armory.cfg` (`scripts/hub/armory.gd` has every
+price and number). The sidearms and attachments are modelled by
+`tools/pistol/build_sidearms.py`, the benches by `tools/hub/build_benches.py`, the crates,
+nodes and pickups by `tools/run/build_loot.py` (all `blender -b --python <script>`).
 
 Press **F** near anything to have Eco say something about it; press again for more.
 Built in code by `scripts/hub/hub_builder.gd` and `hub_grounds.gd` (temple stone,
@@ -134,21 +170,33 @@ uses the hub's broadleaf trees, bushes, ferns, grass, rocks and hills. To look a
 `xvfb-run -a godot --path . -s res://tools/forest/shots.gd -- /some/dir` saves screenshots of
 each section, plus `0-map.png`, a top-down map with the three routes.
 
-## PS2-style art
-Everything is low-poly and textured in a classic PS2 style. **F9** toggles the look
-on and off in game, to compare.
+## Art: PS3 look (with the old PS2 look on F9)
+Everything is stylized in the spirit of Jak and Daxter and Shadow of the Colossus,
+rendered at roughly PS3-era quality. **F9** flips back to the original PS2 look to compare.
 
-- **Look**: 3D renders at half resolution and is upscaled (Project Settings > Rendering >
-  Scaling 3D), then `assets/shaders/ps2_screen.gdshader` reduces it to 16-bit colour with
-  ordered dithering and faint interlace lines. The HUD stays sharp. Vertices snap to a
-  coarse grid for a slight wobble (Project Settings > Shader Globals > `ps2_vertex_snap`,
-  0 turns it off). Levels get a painted sky with mountains, distance fog, flat ambient
-  light and low-res shadows.
-- **Textures** (`assets/textures/`): 64 to 128 px, 16 colours each, nearest filtered.
-  Painted by `tools/make_textures.py` (needs pillow and numpy); you can also paint over
-  the PNGs by hand.
+- **PS3 look** (default): full resolution with 4x MSAA and 16x anisotropic filtering;
+  normal-mapped textures with roughness and bare-metal masks; GGX highlights and sky
+  reflections; sky-tinted ambient light with SSAO; soft 4-split sun shadows (4096 px);
+  volumetric haze that catches the sun; ACES tone mapping, soft bloom and a gentle
+  vignette. `scripts/ps2/look.gd` holds the Environment and sun settings for both looks.
+- **PS2 look** (F9): 3D renders at half resolution, `assets/shaders/ps2_screen.gdshader`
+  reduces it to 16-bit colour with ordered dithering and faint interlace lines, textures
+  drop to a blurry 128 px mip, lighting goes back to banded two-tone, and vertices snap
+  to a coarse grid if Project Settings > Shader Globals > `ps2_vertex_snap` is above 0.
+  The `ps3_look` shader global (1 or 0) is what the surface shader reads.
+- **Textures** (`assets/textures/`): 1024 px for big level surfaces (stone, steel, grass,
+  dirt, temple, titan hull) and 512 px for props and characters, all tiling. Each comes
+  as `<name>.png` (RGB albedo, A roughness) and `<name>_n.png` (RG normal, B 255 for
+  paint/stone/cloth and 0 for bare metal). Painted from height fields by
+  `tools/make_textures.py` (needs pillow and numpy; `--half` for a quick look). The
+  titans' paint-wear mask is `tools/titans/make_wear.py` (1024 px).
 - **Materials** (`assets/materials/`) all use `assets/shaders/ps2_surface.gdshader`, which
-  box-projects the texture so models need no UVs.
+  box-projects the textures (cross-faded on curved models) so models need no UVs. Knobs:
+  `normal_strength`, `roughness` (scales the texture's), `metallic` (metal everywhere:
+  chrome, gold, gun steel), `metal_mask` (how much the texture's bare-metal mask counts),
+  `translucency` (leaves, grass, canvas glow when backlit).
+- `xvfb-run -a godot --path . -s res://tools/look_shots.gd -- /some/dir` renders the hub,
+  the forest and the arena in both looks side by side.
 - **Level boxes** keep being built by colour (`Kit.box`), and `scripts/ps2/ps2_assets.gd`
   picks the material: grey is concrete with steel-plate tops (small grey pieces become
   cover barriers and crates), blue is wallrun panels, orange is grapple-anchor hazard
@@ -281,11 +329,14 @@ select the Player node and tweak values in the Inspector, or change the defaults
 - `scripts/weapon.gd` starter pistol (hitscan, bloom, falloff, recoil, viewmodel)
 - `scripts/grunt.gd` grunt AI and hitbox
 - `scripts/fx.gd` stylized combat effects: tracers, muzzle stars, smoke, debris, casings, blasts
-- `tools/pistol/build_pistol.py` builds Eco's smart pistol in Blender
+- `tools/pistol/build_pistol.py` builds Eco's smart pistol in Blender (`--tier 1`..`5` builds her upgrades;
+  `weapon.gd` `tier` / `set_tier()` and `ps2_assets.gd` `pistol_model(tier)` pick one)
   (`blender --background --python tools/pistol/build_pistol.py -- assets/models/smart_pistol/smart_pistol.glb`);
   `tools/bake_models.gd -- smart_pistol` then puts it in her hand (`assets/models/smart_pistol.tscn`)
-- `scripts/sfx.gd` procedural sound effects, synthesized at runtime; drop `<id>.wav` or `<id>.ogg`
-  in `assets/audio/sfx/` (for example `pistol.wav`) to replace one with a recording
+- `scripts/sfx.gd` sound effects: plays the CC0 recording `assets/audio/sfx/<id>.ogg` when there is
+  one and otherwise synthesizes the sound at runtime; `SFX.variant("step_grass")` picks a random
+  numbered take. Sources and credits: `assets/audio/sfx/README.md`; rebuild specs in `tools/audio/`
+- `scripts/ambience.gd` looping background beds from `assets/audio/ambience/` (forest, temple hub)
 - `scripts/run/titan_gun.gd` titan weapon personalities (XO-16 spin-up, Tracker shells, Splitter beam, jamming scrap rifle)
 - `scripts/hud.gd` crosshair, hitmarkers, health, ammo, speedometer, state and cooldown readout
 - `scripts/radio/` enemy radio: `radio_chatter.gd` (listens to grunt awareness and deaths, picks lines),
@@ -297,6 +348,8 @@ select the Player node and tweak values in the Inspector, or change the defaults
   actually said), `whisper_caption.gd` (the caption under the crosshair). Voice acting can replace
   the breath: `assets/audio/voice/eco/<category>_<n>.ogg`
 - `tests/whisper_test.gd` headless whisper test: `godot --headless --path . -s res://tests/whisper_test.gd`
+- `tests/audio_test.gd` checks every recorded sound loads and the ambience beds loop:
+  `godot --headless --path . -s res://tests/audio_test.gd`
 - `tests/radio_test.gd` headless radio test (range, squad states, kills, no repeats, popup):
   `godot --headless --path . -s res://tests/radio_test.gd`
 - `tests/movement_test.gd` headless smoke test:
@@ -305,6 +358,11 @@ select the Player node and tweak values in the Inspector, or change the defaults
   `godot --headless --path . -s res://tests/combat_test.gd`
 - `tests/stealth_test.gd` headless stealth test (vision cone, sight range, cover, detection meter,
   gunshots, squad callouts, losing the pilot): `godot --headless --path . -s res://tests/stealth_test.gd`
+- `tests/armory_test.gd` headless workbench test (prices, upgrades, attachments, titan parts and
+  refits, saving, the bench screens changing your gun, crates, alloy nodes and grunt drops):
+  `godot --headless --path . -s res://tests/armory_test.gd`
+- `tools/hub/bench_shots.gd` screenshots of the benches, their screens, the guns and the loot
+  (needs a renderer): `xvfb-run -a godot --path . -s res://tools/hub/bench_shots.gd -- out_dir`
 - `tests/run_loop_test.gd` headless run loop test (generator limits, a bot pilot clearing the
   hardest gap of each kind and all three real ravine crossings and the culvert, log-bridge and ridge
   flanks in the forest, salvage,

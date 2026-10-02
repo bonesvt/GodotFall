@@ -31,6 +31,8 @@ const TITAN_PAD := Vector3(0, 0, 54)
 ## Eco's paint shop bench, at the yard's near edge.
 const PAINT_SHOP := Vector3(10, 0, 45)
 const TITAN_YARD := Rect2(-66.0, 40.0, 132.0, 50.0)
+## The titan workshop, at the yard's west edge facing the temple.
+const WORKSHOP := Vector3(-16, 0, 47)
 ## Course start pad and finish tower (centre of the top face, half size).
 const COURSE_START := Vector3(-36, 1.5, -50)
 const COURSE_FINISH := Vector3(50, 11.0, -50)
@@ -424,10 +426,38 @@ static func _titan_yard(root: Node3D, info: Dictionary) -> void:
 	# A toppled colossus head half sunk in the yard.
 	K.carved(root, Vector3(-30, 2.0, 46), Vector3(6, 5, 6), Vector3(12, 30, 18), Color(0.7, 0.8, 0.76))
 	K.glow(root, Vector3(-27.4, 2.6, 44.0), Vector3(0.12, 1.2, 0.6), Color(0.35, 1.0, 0.85).darkened(0.5), Vector3(12, 30, 18))
+	_workshop(root, info)
 	K.interactable(info, "titan_yard", TITAN_PAD + Vector3(0, 0, -7.5), "[F] Look at the drop pad", [
 		"Call your titan with V. Climb in and out with F.",
 		"I painted the pad myself. Dad's titan never needed one; it just fell out of the sky.",
 	], 3.0)
+
+
+## The titan workshop at the yard's west edge (tools/hub/build_benches.py): a
+## gantry over a slab where the titan you'd start a run with stands (the run
+## manager builds it at workshop_titan), a hanging core, a parts rack and a
+## bench. Its screen buys starting parts and refits (bench_screen.gd).
+static func _workshop(root: Node3D, info: Dictionary) -> void:
+	var w := WORKSHOP
+	var model := Props.spawn(root, "titan_workshop", w, 180.0)
+	# Slab to stand on (its top is 0.16 m up), gantry legs, bench, rack.
+	# (The model is turned to face the temple, so Blender's -Y side, the bench, is at -Z here.)
+	for spec in [[Vector3(0, 0.08, 0.6), Vector3(10, 0.16, 7)], [Vector3(-3.8, 3.4, 1.2), Vector3(0.4, 6.8, 2.8)],
+			[Vector3(3.8, 3.4, 1.2), Vector3(0.4, 6.8, 2.8)], [Vector3(0.6, 0.5, -2.3), Vector3(2.9, 1.0, 1.1)],
+			[Vector3(-4.3, 1.2, -1.8), Vector3(1.5, 2.4, 2.0)], [Vector3(2.4, 0.5, -2.1), Vector3(1.0, 1.0, 0.7)]]:
+		var body := StaticBody3D.new()
+		var col := CollisionShape3D.new()
+		col.shape = BoxShape3D.new()
+		col.shape.size = spec[1]
+		body.add_child(col)
+		body.position = w + spec[0]
+		root.add_child(body)
+	info["workshop_titan"] = model.find_child("TitanMarker", true, false)
+	K.light(root, w + Vector3(0, 6.0, 1.2), LAMP, 2.0, 12.0)
+	var sign := Kit.label(root, w + Vector3(0, 7.6, 1.2), "WORKSHOP", 80)
+	sign.modulate = Color(1.0, 0.75, 0.35)
+	K.interactable(info, "titan_workshop", w + Vector3(0.6, 0.1, -3.6), "[F] Work on the titan (starting parts, refits)", [], 2.6)
+	info["interactables"].back()["screen"] = "workshop"
 
 
 

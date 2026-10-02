@@ -51,6 +51,7 @@ static func build(parent: Node, heights: PackedFloat32Array, nx: int, nz: int, x
 		mesh.surface_set_material(mesh.get_surface_count() - 1, pair[1])
 	var body := StaticBody3D.new()
 	body.name = "Ground"
+	body.set_meta("surface", "grass")  # footstep sounds (player.gd)
 	var mi := MeshInstance3D.new()
 	mi.mesh = mesh
 	body.add_child(mi)

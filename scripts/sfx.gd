@@ -1,7 +1,8 @@
 extends RefCounted
-## Procedural sound effects. Every sound is synthesized from filtered noise
-## and simple oscillators the first time it plays, then cached, so the game
-## ships no audio files. Guns are built like real recordings: a sharp crack,
+## Sound effects. Each id plays the CC0 recording in res://assets/audio/sfx/
+## when there is one (see the README there for sources), and otherwise is
+## synthesized from filtered noise and simple oscillators the first time it
+## plays, then cached. Guns are built like real recordings: a sharp crack,
 ## a low-passed blast and sub thump, the action cycling, and a short room tail,
 ## pushed through soft saturation so they hit hard.
 ##
@@ -11,21 +12,25 @@ extends RefCounted
 ##
 ## To use a recorded sound instead, drop `<id>.wav` or `<id>.ogg` into
 ## res://assets/audio/sfx/ (for example pistol.wav); it replaces the recipe.
+## Numbered takes (`step_grass_1`, `step_grass_2`, ...) are picked at random
+## with `variant("step_grass")`.
 ##
 ##   SFX.play(self, "pistol")                 # flat, follows the listener
 ##   SFX.play_at(parent, pos, "ricochet")     # positional, frees itself
+##   SFX.play(self, SFX.variant("step_grass"), -12.0)
 
 const RATE := 44100
 ## Recorded overrides: <id>.wav or <id>.ogg in here replace the recipe.
 const OVERRIDES := "res://assets/audio/sfx/"
 
 static var _cache := {}
+static var _variants := {}
 static var _rng := RandomNumberGenerator.new()
 
 
 ## Plays a non-positional sound (first-person weapons, UI ticks).
 static func play(parent: Node, id: String, volume_db := 0.0, pitch := 1.0) -> AudioStreamPlayer:
-	if parent == null or not parent.is_inside_tree():
+	if parent == null or not parent.is_inside_tree() or id == "":
 		return null
 	var p := AudioStreamPlayer.new()
 	p.stream = stream(id)
@@ -39,7 +44,7 @@ static func play(parent: Node, id: String, volume_db := 0.0, pitch := 1.0) -> Au
 
 ## Plays a sound at a world position.
 static func play_at(parent: Node, pos: Vector3, id: String, volume_db := 0.0, pitch := 1.0) -> void:
-	if parent == null or not parent.is_inside_tree():
+	if parent == null or not parent.is_inside_tree() or id == "":
 		return
 	var p := AudioStreamPlayer3D.new()
 	p.stream = stream(id)
@@ -64,6 +69,23 @@ static func stream(id: String) -> AudioStream:
 		if _cache[id] == null:
 			_cache[id] = _to_wav(_synth(id))
 	return _cache[id]
+
+
+## True when a recording for `id` is in res://assets/audio/sfx/.
+static func has_recording(id: String) -> bool:
+	return ResourceLoader.exists(OVERRIDES + id + ".ogg") or ResourceLoader.exists(OVERRIDES + id + ".wav")
+
+
+## A random one of the numbered recordings `<base>_1`, `<base>_2`, ..., so
+## footsteps and voices don't repeat the same file. "" when there are none.
+static func variant(base: String) -> String:
+	if not _variants.has(base):
+		var ids: Array[String] = []
+		while has_recording("%s_%d" % [base, ids.size() + 1]):
+			ids.append("%s_%d" % [base, ids.size() + 1])
+		_variants[base] = ids
+	var takes: Array = _variants[base]
+	return "" if takes.is_empty() else takes[_rng.randi() % takes.size()]
 
 
 static func _recorded(id: String) -> AudioStream:
@@ -95,6 +117,8 @@ static func _synth(id: String) -> PackedFloat32Array:
 			return _filter(_crackle(0.22, 46, 0.6), "hp", 1800.0)
 		"lock_err":  # the smart-lock trying, and failing, to lock: a glitchy chirp
 			return _filter(_mix([_square(0.04, 1320.0, 0.12), _square(0.05, 990.0, 0.12, 0.05), _crackle(0.12, 10, 0.25)]), "lp", 4000.0)
+		"lock_on":  # a smart round has a lock: two clean rising beeps, no glitch
+			return _filter(_mix([_square(0.05, 1760.0, 0.1), _square(0.07, 2640.0, 0.1, 0.06)]), "lp", 5000.0)
 		"reload_out":  # mag release, a pneumatic kick out, the screen blanks
 			return _master(_mix([
 				_tick(3800.0, 0.7),
@@ -164,6 +188,21 @@ static func _synth(id: String) -> PackedFloat32Array:
 			]), 0.0, 1.0)
 		"knife_catch":  # the grip landing in a gloved palm
 			return _master(_filter(_burst(0.05, 0.001, 90.0, 0.8), "lp", 900.0), 0.0, 1.0)
+		# Eco's other sidearms (the hub's weapon rack).
+		"rivet_cannon":  # a hand cannon: a big crack, a chesty boom, coils pinging as they heat
+			return _master(_mix([
+				_gunshot(1.6),
+				_filter(_burst(0.35, 0.002, 9.0, 0.35), "lp", 900.0),
+				_delay(_ring([1850.0, 2770.0], 0.25, 14.0, 0.07), 0.06),
+				_delay(_clack(1900.0, 180.0, 0.35), 0.12),
+			]), 0.3, 1.6)
+		"machine_pistol":  # militia machine pistol: a short, snappy, papery bark
+			return _master(_mix([
+				_filter(_burst(0.025, 0.0003, 190.0, 0.9), "hp", 2400.0),
+				_filter(_burst(0.07, 0.0006, 55.0, 0.6), "bp", 1300.0, 0.8),
+				_sweep(0.07, 160.0, 80.0, 45.0, 0.35),
+				_delay(_tick(3400.0, 0.3), 0.02),
+			]), 0.12)
 		"grunt_shot":  # enemy rifle: thinner and drier than Eco's pistol
 			return _master(_mix([
 				_filter(_burst(0.03, 0.0003, 150.0, 0.8), "hp", 2200.0),

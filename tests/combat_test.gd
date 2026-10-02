@@ -93,6 +93,16 @@ func _run() -> void:
 	_check("firing cancels inspect", not weapon.is_inspecting() and weapon.shots_fired == shots + 1, weapon.inspect_time)
 	await _ticks(int(weapon.fire_interval * 120) + 2)
 
+	# Every upgrade tier's model has the parts the animations drive
+	for tier in 6:
+		weapon.set_tier(tier)
+		await _ticks(2)
+		var ok: bool = weapon._leds.size() == weapon.LED_COUNT and weapon._vents != null and weapon._charm != null \
+			and weapon._holo != null and weapon._gun != null and weapon._ammo_label != null and weapon.muzzle != null \
+			and weapon._parts.has("Slide") and weapon._parts.has("MagBase") and weapon._parts.has("TrackerImpact")
+		_check("tier %d pistol has every animated part" % tier, ok, weapon._parts.keys())
+	weapon.set_tier(0)
+
 	# Wallrunning keeps the pistol accurate, plain jumping does not
 	weapon.refill()
 	player.state = player.State.WALLRUN

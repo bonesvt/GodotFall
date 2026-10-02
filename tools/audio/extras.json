@@ -1,0 +1,1114 @@
+{
+ "step_grass_1": {
+  "layers": [
+   {
+    "src": "footstep_grass_000.ogg",
+    "fadeout": 0.08
+   }
+  ],
+  "norm": -3
+ },
+ "step_concrete_1": {
+  "layers": [
+   {
+    "src": "footstep_concrete_000.ogg",
+    "fadeout": 0.04
+   }
+  ],
+  "norm": -3
+ },
+ "step_wood_1": {
+  "layers": [
+   {
+    "src": "footstep_wood_000.ogg",
+    "fadeout": 0.05
+   }
+  ],
+  "norm": -3
+ },
+ "step_grass_2": {
+  "layers": [
+   {
+    "src": "footstep_grass_001.ogg",
+    "fadeout": 0.08
+   }
+  ],
+  "norm": -3
+ },
+ "step_concrete_2": {
+  "layers": [
+   {
+    "src": "footstep_concrete_001.ogg",
+    "fadeout": 0.04
+   }
+  ],
+  "norm": -3
+ },
+ "step_wood_2": {
+  "layers": [
+   {
+    "src": "footstep_wood_001.ogg",
+    "fadeout": 0.05
+   }
+  ],
+  "norm": -3
+ },
+ "step_grass_3": {
+  "layers": [
+   {
+    "src": "footstep_grass_002.ogg",
+    "fadeout": 0.08
+   }
+  ],
+  "norm": -3
+ },
+ "step_concrete_3": {
+  "layers": [
+   {
+    "src": "footstep_concrete_002.ogg",
+    "fadeout": 0.04
+   }
+  ],
+  "norm": -3
+ },
+ "step_wood_3": {
+  "layers": [
+   {
+    "src": "footstep_wood_002.ogg",
+    "fadeout": 0.05
+   }
+  ],
+  "norm": -3
+ },
+ "step_grass_4": {
+  "layers": [
+   {
+    "src": "footstep_grass_003.ogg",
+    "fadeout": 0.08
+   }
+  ],
+  "norm": -3
+ },
+ "step_concrete_4": {
+  "layers": [
+   {
+    "src": "footstep_concrete_003.ogg",
+    "fadeout": 0.04
+   }
+  ],
+  "norm": -3
+ },
+ "step_wood_4": {
+  "layers": [
+   {
+    "src": "footstep_wood_003.ogg",
+    "fadeout": 0.05
+   }
+  ],
+  "norm": -3
+ },
+ "step_grass_5": {
+  "layers": [
+   {
+    "src": "footstep_grass_004.ogg",
+    "fadeout": 0.08
+   }
+  ],
+  "norm": -3
+ },
+ "step_concrete_5": {
+  "layers": [
+   {
+    "src": "footstep_concrete_004.ogg",
+    "fadeout": 0.04
+   }
+  ],
+  "norm": -3
+ },
+ "step_wood_5": {
+  "layers": [
+   {
+    "src": "footstep_wood_004.ogg",
+    "fadeout": 0.05
+   }
+  ],
+  "norm": -3
+ },
+ "step_gravel_1": {
+  "layers": [
+   {
+    "src": "Corsica_S-Walking_on_snow_covered_gravel_01.flac",
+    "dur": 0.45,
+    "fadeout": 0.15
+   }
+  ],
+  "norm": -3
+ },
+ "step_gravel_2": {
+  "layers": [
+   {
+    "src": "Corsica_S-Walking_on_snow_covered_gravel_02.flac",
+    "dur": 0.45,
+    "fadeout": 0.15
+   }
+  ],
+  "norm": -3
+ },
+ "step_gravel_3": {
+  "layers": [
+   {
+    "src": "Corsica_S-Walking_on_snow_covered_gravel_03.flac",
+    "dur": 0.45,
+    "fadeout": 0.15
+   }
+  ],
+  "norm": -3
+ },
+ "step_gravel_4": {
+  "layers": [
+   {
+    "src": "Corsica_S-Walking_on_snow_covered_gravel_04.flac",
+    "dur": 0.45,
+    "fadeout": 0.15
+   }
+  ],
+  "norm": -3
+ },
+ "step_gravel_5": {
+  "layers": [
+   {
+    "src": "Corsica_S-Walking_on_snow_covered_gravel_05.flac",
+    "dur": 0.45,
+    "fadeout": 0.15
+   }
+  ],
+  "norm": -3
+ },
+ "step_metal_1": {
+  "layers": [
+   {
+    "src": "step_metal.ogg",
+    "fadeout": 0.05
+   }
+  ],
+  "norm": -3
+ },
+ "step_metal_2": {
+  "layers": [
+   {
+    "src": "step_metal (2).ogg",
+    "fadeout": 0.05
+   }
+  ],
+  "norm": -3
+ },
+ "step_metal_3": {
+  "layers": [
+   {
+    "src": "step_metal (3).ogg",
+    "fadeout": 0.05
+   }
+  ],
+  "norm": -3
+ },
+ "step_metal_4": {
+  "layers": [
+   {
+    "src": "step_metal (4).ogg",
+    "fadeout": 0.05
+   }
+  ],
+  "norm": -3
+ },
+ "land": {
+  "layers": [
+   {
+    "src": "boots-leather-jump-01.wav",
+    "fadeout": 0.1
+   }
+  ]
+ },
+ "land_heavy": {
+  "layers": [
+   {
+    "src": "boots-leather-jump-02.wav",
+    "fadeout": 0.1
+   },
+   {
+    "src": "footstep_grass_002.ogg",
+    "gain": -4
+   }
+  ]
+ },
+ "cloth_1": {
+  "layers": [
+   {
+    "src": "step_cloth1.ogg",
+    "fadeout": 0.05
+   }
+  ],
+  "norm": -6
+ },
+ "cloth_2": {
+  "layers": [
+   {
+    "src": "step_cloth2.ogg",
+    "fadeout": 0.05
+   }
+  ],
+  "norm": -6
+ },
+ "cloth_3": {
+  "layers": [
+   {
+    "src": "step_cloth3.ogg",
+    "fadeout": 0.05
+   }
+  ],
+  "norm": -6
+ },
+ "knife_sheathe": {
+  "layers": [
+   {
+    "src": "knife-sheathe-01.wav",
+    "fadeout": 0.1
+   }
+  ]
+ },
+ "shell_casing": {
+  "layers": [
+   {
+    "src": "singlebullet1.wav",
+    "hp": 800,
+    "fadeout": 0.08
+   }
+  ],
+  "norm": -6
+ },
+ "mag_drop": {
+  "layers": [
+   {
+    "src": "bfh1_metal_falling_03.ogg",
+    "fadeout": 0.1
+   }
+  ],
+  "norm": -4
+ },
+ "heartbeat": {
+  "layers": [
+   {
+    "src": "heartbeat.mp3_.flac",
+    "dur": 1.1,
+    "fadeout": 0.2
+   }
+  ]
+ },
+ "flare": {
+  "layers": [
+   {
+    "src": "flare-ignition/ignition.flac",
+    "fadeout": 0.3
+   }
+  ]
+ },
+ "titan_step_1": {
+  "layers": [
+   {
+    "src": "mech-stomp-step-sound/stomp.flac",
+    "pitch": 0.92,
+    "fadeout": 0.2
+   },
+   {
+    "src": "dull_metal_collision_01_44k",
+    "gain": -10,
+    "pitch": 0.7,
+    "lp": 1500,
+    "dur": 0.3
+   }
+  ]
+ },
+ "titan_step_2": {
+  "layers": [
+   {
+    "src": "mech-stomp-step-sound/stomp.flac",
+    "pitch": 1.0,
+    "fadeout": 0.2
+   },
+   {
+    "src": "dull_metal_collision_02_44k",
+    "gain": -10,
+    "pitch": 0.7,
+    "lp": 1500,
+    "dur": 0.3
+   }
+  ]
+ },
+ "titan_step_3": {
+  "layers": [
+   {
+    "src": "mech-stomp-step-sound/stomp.flac",
+    "pitch": 1.08,
+    "fadeout": 0.2
+   },
+   {
+    "src": "dull_metal_collision_03_44k",
+    "gain": -10,
+    "pitch": 0.7,
+    "lp": 1500,
+    "dur": 0.3
+   }
+  ]
+ },
+ "titan_servo_1": {
+  "layers": [
+   {
+    "src": "ROBOTIC_Transformation_Insect_01_Servos_Clicks_Digital_stereo.wav",
+    "fadeout": 0.2,
+    "lp": 9000
+   }
+  ],
+  "norm": -4
+ },
+ "titan_servo_2": {
+  "layers": [
+   {
+    "src": "ROBOTIC_Transformation_Insect_02_Servos_Clicks_Digital_stereo.wav",
+    "fadeout": 0.2,
+    "lp": 9000
+   }
+  ],
+  "norm": -4
+ },
+ "titan_servo_3": {
+  "layers": [
+   {
+    "src": "mechanical-sounds/mechanical1.wav",
+    "pitch": 0.8,
+    "fadeout": 0.2
+   }
+  ],
+  "norm": -4
+ },
+ "titan_servo_4": {
+  "layers": [
+   {
+    "src": "mechanical-sounds/mechanical2.wav",
+    "pitch": 0.8,
+    "fadeout": 0.15
+   }
+  ],
+  "norm": -4
+ },
+ "titan_hiss": {
+  "layers": [
+   {
+    "src": "steam hisses - Marker #1.wav",
+    "fadeout": 0.6
+   }
+  ],
+  "norm": -4
+ },
+ "titan_hiss_short": {
+  "layers": [
+   {
+    "src": "steam hisses - Marker #2.wav",
+    "dur": 0.8,
+    "fadeout": 0.4
+   }
+  ],
+  "norm": -4
+ },
+ "titan_embark": {
+  "layers": [
+   {
+    "src": "compressed_gas_leak_0.ogg",
+    "dur": 1.2,
+    "fadeout": 0.5,
+    "gain": -4
+   },
+   {
+    "src": "metal_close_01.ogg",
+    "delay": 0.5
+   },
+   {
+    "src": "mechanical-sounds/clank1.wav",
+    "delay": 0.9,
+    "gain": -3
+   }
+  ]
+ },
+ "titan_boot": {
+  "layers": [
+   {
+    "src": "electricity-game-sound-pack/powerup.wav",
+    "fadeout": 0.3
+   },
+   {
+    "src": "switch on.wav",
+    "gain": -4
+   }
+  ]
+ },
+ "titan_powerdown": {
+  "layers": [
+   {
+    "src": "electricity-game-sound-pack/powerdown.wav",
+    "fadeout": 0.4
+   }
+  ]
+ },
+ "titan_core_charge": {
+  "layers": [
+   {
+    "src": "chargestart.wav",
+    "dur": 2.5,
+    "fadeout": 0.4
+   }
+  ]
+ },
+ "titan_core_drain": {
+  "layers": [
+   {
+    "src": "qubodup-PowerDrain.ogg",
+    "fadeout": 0.5
+   }
+  ]
+ },
+ "splitter_beam_loop": {
+  "layers": [
+   {
+    "src": "movingshield_sound.ogg"
+   }
+  ],
+  "loop": true,
+  "xfade": 0.5,
+  "norm": -3
+ },
+ "titan_rocket": {
+  "layers": [
+   {
+    "src": "launch/launch.wav",
+    "dur": 2.0,
+    "fadeout": 0.8
+   }
+  ]
+ },
+ "titan_metal_creak": {
+  "layers": [
+   {
+    "src": "metal_grit_02_44k_32bit_stereo.wav",
+    "fadeout": 0.4
+   }
+  ],
+  "norm": -4
+ },
+ "titan_clang": {
+  "layers": [
+   {
+    "src": "dull_metal_collision_10_44k_32bit_stereo.wav",
+    "fadeout": 0.4
+   }
+  ]
+ },
+ "titan_doom_laser": {
+  "layers": [
+   {
+    "src": "doomsday_laser_cannon_short.wav",
+    "fadeout": 0.6
+   }
+  ]
+ },
+ "explosion_big": {
+  "layers": [
+   {
+    "src": "explosions-4/explosion1_0.ogg",
+    "dur": 3.0,
+    "fadeout": 1.2
+   }
+  ]
+ },
+ "explosion_small": {
+  "layers": [
+   {
+    "src": "explosions-4/explosion3.ogg",
+    "fadeout": 0.5
+   }
+  ]
+ },
+ "explosion_far": {
+  "layers": [
+   {
+    "src": "explosion_somewhere_far.mp3",
+    "fadeout": 0.8
+   }
+  ]
+ },
+ "explosion_muffled": {
+  "layers": [
+   {
+    "src": "Muffled Distant Explosion.wav",
+    "fadeout": 0.8
+   }
+  ]
+ },
+ "explosion_metal": {
+  "layers": [
+   {
+    "src": "mechanical_explosion.wav",
+    "fadeout": 0.4
+   }
+  ]
+ },
+ "debris_rock": {
+  "layers": [
+   {
+    "src": "bfh1_rock_breaking_01.ogg",
+    "fadeout": 0.3
+   }
+  ]
+ },
+ "debris_metal": {
+  "layers": [
+   {
+    "src": "bfh1_metal_falling_01.ogg",
+    "fadeout": 0.3
+   }
+  ]
+ },
+ "glass_break": {
+  "layers": [
+   {
+    "src": "bfh1_glass_breaking_01.ogg",
+    "fadeout": 0.3
+   }
+  ]
+ },
+ "grunt_pain_1": {
+  "layers": [
+   {
+    "src": "death pain grunts.wav",
+    "start": 0.5,
+    "dur": 1.45,
+    "fadeout": 0.15
+   }
+  ],
+  "norm": -2
+ },
+ "grunt_pain_2": {
+  "layers": [
+   {
+    "src": "death pain grunts.wav",
+    "start": 3.97,
+    "dur": 2.2,
+    "fadeout": 0.15
+   }
+  ],
+  "norm": -2
+ },
+ "grunt_pain_3": {
+  "layers": [
+   {
+    "src": "death pain grunts.wav",
+    "start": 6.93,
+    "dur": 0.5,
+    "fadeout": 0.15
+   }
+  ],
+  "norm": -2
+ },
+ "grunt_pain_4": {
+  "layers": [
+   {
+    "src": "death pain grunts.wav",
+    "start": 8.35,
+    "dur": 0.82,
+    "fadeout": 0.15
+   }
+  ],
+  "norm": -2
+ },
+ "grunt_pain_5": {
+  "layers": [
+   {
+    "src": "death pain grunts.wav",
+    "start": 14.44,
+    "dur": 1.72,
+    "fadeout": 0.15
+   }
+  ],
+  "norm": -2
+ },
+ "grunt_pain_6": {
+  "layers": [
+   {
+    "src": "death pain grunts.wav",
+    "start": 20.41,
+    "dur": 1.76,
+    "fadeout": 0.15
+   }
+  ],
+  "norm": -2
+ },
+ "grunt_pain_7": {
+  "layers": [
+   {
+    "src": "death pain grunts.wav",
+    "start": 23.87,
+    "dur": 1.84,
+    "fadeout": 0.15
+   }
+  ],
+  "norm": -2
+ },
+ "grunt_pain_8": {
+  "layers": [
+   {
+    "src": "death pain grunts.wav",
+    "start": 27.59,
+    "dur": 0.94,
+    "fadeout": 0.15
+   }
+  ],
+  "norm": -2
+ },
+ "grunt_pain_9": {
+  "layers": [
+   {
+    "src": "death pain grunts.wav",
+    "start": 29.84,
+    "dur": 0.52,
+    "fadeout": 0.15
+   }
+  ],
+  "norm": -2
+ },
+ "grunt_pain_10": {
+  "layers": [
+   {
+    "src": "death pain grunts.wav",
+    "start": 31.53,
+    "dur": 1.03,
+    "fadeout": 0.15
+   }
+  ],
+  "norm": -2
+ },
+ "grunt_pain_11": {
+  "layers": [
+   {
+    "src": "death pain grunts.wav",
+    "start": 35.97,
+    "dur": 1.4,
+    "fadeout": 0.15
+   }
+  ],
+  "norm": -2
+ },
+ "grunt_yell_1": {
+  "layers": [
+   {
+    "src": "yelling sounds/1yell1.wav",
+    "fadeout": 0.12
+   }
+  ],
+  "norm": -2
+ },
+ "grunt_yell_2": {
+  "layers": [
+   {
+    "src": "yelling sounds/1yell5.wav",
+    "fadeout": 0.12
+   }
+  ],
+  "norm": -2
+ },
+ "grunt_yell_3": {
+  "layers": [
+   {
+    "src": "yelling sounds/2yell3.wav",
+    "fadeout": 0.12
+   }
+  ],
+  "norm": -2
+ },
+ "grunt_yell_4": {
+  "layers": [
+   {
+    "src": "yelling sounds/3yell2.wav",
+    "fadeout": 0.12
+   }
+  ],
+  "norm": -2
+ },
+ "grunt_yell_5": {
+  "layers": [
+   {
+    "src": "yelling sounds/yell3.wav",
+    "fadeout": 0.12
+   }
+  ],
+  "norm": -2
+ },
+ "grunt_yell_6": {
+  "layers": [
+   {
+    "src": "yelling sounds/2yell7.wav",
+    "fadeout": 0.12
+   }
+  ],
+  "norm": -2
+ },
+ "grunt_yell_7": {
+  "layers": [
+   {
+    "src": "yelling sounds/3yell8.wav",
+    "fadeout": 0.12
+   }
+  ],
+  "norm": -2
+ },
+ "grunt_yell_8": {
+  "layers": [
+   {
+    "src": "yelling sounds/yell9.wav",
+    "fadeout": 0.12
+   }
+  ],
+  "norm": -2
+ },
+ "grunt_effort_1": {
+  "layers": [
+   {
+    "src": "yelling sounds/3grunt1.wav",
+    "fadeout": 0.1
+   }
+  ],
+  "norm": -3
+ },
+ "grunt_effort_2": {
+  "layers": [
+   {
+    "src": "yelling sounds/3grunt2.wav",
+    "fadeout": 0.1
+   }
+  ],
+  "norm": -3
+ },
+ "grunt_effort_3": {
+  "layers": [
+   {
+    "src": "yelling sounds/3grunt3.wav",
+    "fadeout": 0.1
+   }
+  ],
+  "norm": -3
+ },
+ "grunt_effort_4": {
+  "layers": [
+   {
+    "src": "yelling sounds/3grunt4.wav",
+    "fadeout": 0.1
+   }
+  ],
+  "norm": -3
+ },
+ "grunt_effort_5": {
+  "layers": [
+   {
+    "src": "yelling sounds/3grunt5.wav",
+    "fadeout": 0.1
+   }
+  ],
+  "norm": -3
+ },
+ "grunt_effort_6": {
+  "layers": [
+   {
+    "src": "yelling sounds/3grunt6.wav",
+    "fadeout": 0.1
+   }
+  ],
+  "norm": -3
+ },
+ "grunt_hurt_1": {
+  "layers": [
+   {
+    "src": "slightscream-01.flac",
+    "fadeout": 0.08
+   }
+  ],
+  "norm": -3
+ },
+ "grunt_hurt_2": {
+  "layers": [
+   {
+    "src": "slightscream-04.flac",
+    "fadeout": 0.08
+   }
+  ],
+  "norm": -3
+ },
+ "grunt_hurt_3": {
+  "layers": [
+   {
+    "src": "slightscream-07.flac",
+    "fadeout": 0.08
+   }
+  ],
+  "norm": -3
+ },
+ "grunt_hurt_4": {
+  "layers": [
+   {
+    "src": "slightscream-10.flac",
+    "fadeout": 0.08
+   }
+  ],
+  "norm": -3
+ },
+ "grunt_hurt_5": {
+  "layers": [
+   {
+    "src": "slightscream-15.flac",
+    "fadeout": 0.08
+   }
+  ],
+  "norm": -3
+ },
+ "grunt_hey": {
+  "layers": [
+   {
+    "src": "hey_aggressive_mujtaba.wav",
+    "fadeout": 0.1
+   }
+  ]
+ },
+ "grunt_kill_you": {
+  "layers": [
+   {
+    "src": "i_will_kill_you_aggressive_mujtaba.wav",
+    "fadeout": 0.1
+   }
+  ]
+ },
+ "radio_squelch_on": {
+  "layers": [
+   {
+    "src": "walkie static.wav",
+    "hp": 300,
+    "lp": 5000,
+    "fadeout": 0.04
+   }
+  ],
+  "norm": -4
+ },
+ "radio_squelch_off": {
+  "layers": [
+   {
+    "src": "walkie static.wav",
+    "pitch": 1.2,
+    "hp": 300,
+    "lp": 5000,
+    "fadeout": 0.06
+   },
+   {
+    "src": "Clic03.mp3.flac",
+    "gain": -8,
+    "delay": 0.16
+   }
+  ],
+  "norm": -4
+ },
+ "radio_static_burst": {
+  "layers": [
+   {
+    "src": "static/ScatterNoise1.mp3",
+    "start": 2.0,
+    "dur": 0.6,
+    "hp": 400,
+    "lp": 4500,
+    "fadeout": 0.25
+   }
+  ],
+  "norm": -6
+ },
+ "radio_dead": {
+  "layers": [
+   {
+    "src": "radio_death_0.ogg",
+    "fadeout": 0.5
+   }
+  ],
+  "norm": -3
+ },
+ "door_iron": {
+  "layers": [
+   {
+    "src": "iron_door_0.ogg",
+    "fadeout": 0.2
+   }
+  ]
+ },
+ "door_stone": {
+  "layers": [
+   {
+    "src": "stone_door.ogg",
+    "start": 0.1,
+    "fadeout": 0.3
+   }
+  ]
+ },
+ "door_metal_open": {
+  "layers": [
+   {
+    "src": "metal_open_01.ogg",
+    "fadeout": 0.2
+   }
+  ]
+ },
+ "door_metal_close": {
+  "layers": [
+   {
+    "src": "metal_close_01.ogg",
+    "fadeout": 0.2
+   }
+  ]
+ },
+ "cache_unlock": {
+  "layers": [
+   {
+    "src": "/lock_open_01.ogg",
+    "fadeout": 0.15
+   }
+  ]
+ },
+ "cache_open": {
+  "layers": [
+   {
+    "src": "/lock_open_01.ogg"
+   },
+   {
+    "src": "metal_open_01.ogg",
+    "delay": 0.35
+   }
+  ]
+ },
+ "pickup_part": {
+  "layers": [
+   {
+    "src": "workshop - clink.wav",
+    "fadeout": 0.2
+   },
+   {
+    "src": "step_lth1.ogg",
+    "gain": -6
+   }
+  ]
+ },
+ "workbench_drill": {
+  "layers": [
+   {
+    "src": "workshop - drill short 1.wav",
+    "fadeout": 0.2
+   }
+  ]
+ },
+ "workbench_ratchet": {
+  "layers": [
+   {
+    "src": "workshop - ratchet1.wav",
+    "dur": 1.6,
+    "fadeout": 0.3
+   }
+  ]
+ },
+ "workbench_hammer": {
+  "layers": [
+   {
+    "src": "workshop - metal hammering.wav",
+    "fadeout": 0.3
+   }
+  ]
+ },
+ "workbench_tools": {
+  "layers": [
+   {
+    "src": "workshop - tool rummaging.wav",
+    "dur": 2.0,
+    "fadeout": 0.4
+   }
+  ]
+ },
+ "workbench_squeeze": {
+  "layers": [
+   {
+    "src": "roboticsqueeze.flac",
+    "fadeout": 0.1,
+    "lp": 10000
+   }
+  ]
+ },
+ "tree_creak": {
+  "layers": [
+   {
+    "src": "tree_creak_0.ogg",
+    "fadeout": 0.8
+   }
+  ],
+  "norm": -4
+ },
+ "ui_click": {
+  "layers": [
+   {
+    "src": "Clic03.mp3.flac",
+    "fadeout": 0.05
+   }
+  ],
+  "norm": -6
+ },
+ "ui_hover": {
+  "layers": [
+   {
+    "src": "menu1.wav",
+    "fadeout": 0.05
+   }
+  ],
+  "norm": -10
+ },
+ "ui_confirm": {
+  "layers": [
+   {
+    "src": "dingCling-positive.ogg",
+    "fadeout": 0.08
+   }
+  ],
+  "norm": -6
+ },
+ "ui_error": {
+  "layers": [
+   {
+    "src": "dingCling-negative.ogg",
+    "fadeout": 0.08
+   }
+  ],
+  "norm": -6
+ },
+ "ui_switch": {
+  "layers": [
+   {
+    "src": "switch on.wav",
+    "fadeout": 0.1
+   }
+  ],
+  "norm": -6
+ },
+ "ui_terminal": {
+  "layers": [
+   {
+    "src": "/terminal_04.ogg",
+    "fadeout": 0.05
+   }
+  ],
+  "norm": -8
+ }
+}
