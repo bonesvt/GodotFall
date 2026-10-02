@@ -1,0 +1,226 @@
+{
+ "forest_day": {
+  "stereo": true,
+  "loop": true,
+  "xfade": 2.0,
+  "rms": -24,
+  "q": 0,
+  "layers": [
+   {
+    "src": "amb_outdoor1_loop.ogg",
+    "start": 0,
+    "dur": 24.0,
+    "fadein": 0.01,
+    "fadeout": 0.001
+   }
+  ]
+ },
+ "forest_morning": {
+  "stereo": true,
+  "loop": true,
+  "xfade": 2.0,
+  "rms": -24,
+  "q": 0,
+  "layers": [
+   {
+    "src": "amb_morning_0.ogg",
+    "start": 5,
+    "dur": 24.0,
+    "fadein": 0.01,
+    "fadeout": 0.001
+   }
+  ]
+ },
+ "forest_birds": {
+  "stereo": true,
+  "loop": true,
+  "xfade": 2.0,
+  "rms": -28,
+  "q": 0,
+  "layers": [
+   {
+    "src": "birds-isaiah658_0.ogg",
+    "start": 0,
+    "dur": 24.0,
+    "fadein": 0.01,
+    "fadeout": 0.001
+   }
+  ]
+ },
+ "forest_wind": {
+  "stereo": true,
+  "loop": true,
+  "xfade": 2.0,
+  "rms": -27,
+  "q": 0,
+  "layers": [
+   {
+    "src": "wind1/wind2.wav",
+    "start": 5,
+    "dur": 24.0,
+    "fadein": 0.01,
+    "fadeout": 0.001
+   }
+  ]
+ },
+ "wind_soft": {
+  "stereo": true,
+  "loop": true,
+  "xfade": 2.0,
+  "rms": -30,
+  "q": 0,
+  "layers": [
+   {
+    "src": "wind background noise 2.wav",
+    "start": 2,
+    "dur": 24.0,
+    "fadein": 0.01,
+    "fadeout": 0.001
+   }
+  ]
+ },
+ "forest_night": {
+  "stereo": true,
+  "loop": true,
+  "xfade": 1.0,
+  "rms": -28,
+  "q": 0,
+  "layers": [
+   {
+    "src": "crickets_1.mp3",
+    "start": 0,
+    "dur": 10.0,
+    "fadein": 0.01,
+    "fadeout": 0.001
+   }
+  ]
+ },
+ "swamp_creek": {
+  "stereo": true,
+  "loop": true,
+  "xfade": 2.0,
+  "rms": -24,
+  "q": 0,
+  "layers": [
+   {
+    "src": "swamp-environment-audio/swamp.ogg",
+    "start": 20,
+    "dur": 24.0,
+    "fadein": 0.01,
+    "fadeout": 0.001
+   }
+  ]
+ },
+ "rain": {
+  "stereo": true,
+  "loop": true,
+  "xfade": 2.0,
+  "rms": -24,
+  "q": 0,
+  "layers": [
+   {
+    "src": "rain-loopable/x/1.ogg",
+    "start": 0,
+    "dur": 26.0,
+    "fadein": 0.01,
+    "fadeout": 0.001
+   }
+  ]
+ },
+ "temple_interior": {
+  "stereo": true,
+  "loop": true,
+  "xfade": 3.0,
+  "rms": -28,
+  "q": 0,
+  "layers": [
+   {
+    "src": "dungeon_ambient_1_0.ogg",
+    "start": 10,
+    "dur": 33.0,
+    "fadein": 0.01,
+    "fadeout": 0.001
+   }
+  ]
+ },
+ "temple_drips": {
+  "stereo": true,
+  "loop": true,
+  "xfade": 2.0,
+  "rms": -30,
+  "q": 0,
+  "layers": [
+   {
+    "src": "atmosbasement.mp3_.flac",
+    "start": 0,
+    "dur": 19.0,
+    "fadein": 0.01,
+    "fadeout": 0.001
+   }
+  ]
+ },
+ "temple_eerie": {
+  "stereo": true,
+  "loop": true,
+  "xfade": 2.0,
+  "rms": -30,
+  "q": 0,
+  "layers": [
+   {
+    "src": "atmoseerie03.mp3.flac",
+    "start": 0,
+    "dur": 19.0,
+    "fadein": 0.01,
+    "fadeout": 0.001
+   }
+  ]
+ },
+ "campfire": {
+  "stereo": true,
+  "loop": true,
+  "xfade": 0.6,
+  "rms": -26,
+  "q": 0,
+  "layers": [
+   {
+    "src": "fire-1_0.ogg",
+    "start": 0,
+    "dur": 3.4,
+    "fadein": 0.01,
+    "fadeout": 0.001
+   }
+  ]
+ },
+ "machine_hum": {
+  "stereo": true,
+  "loop": true,
+  "xfade": 0.8,
+  "rms": -28,
+  "q": 0,
+  "layers": [
+   {
+    "src": "loop_generator_1.mp3",
+    "start": 0,
+    "dur": 5.2,
+    "fadein": 0.01,
+    "fadeout": 0.001
+   }
+  ]
+ },
+ "radio_static_loop": {
+  "stereo": true,
+  "loop": true,
+  "xfade": 1.0,
+  "rms": -30,
+  "q": 0,
+  "layers": [
+   {
+    "src": "radio_noise_loop.wav",
+    "start": 5,
+    "dur": 13.0,
+    "fadein": 0.01,
+    "fadeout": 0.001
+   }
+  ]
+ }
+}

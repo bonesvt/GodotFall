@@ -107,6 +107,7 @@ var windup_timer := -1.0
 var strafe_dir := 1.0
 var strafe_timer := 0.0
 var dead := false
+var voice_at := -1000
 var post := Vector3.ZERO
 var rng := RandomNumberGenerator.new()
 
@@ -464,15 +465,29 @@ func is_unaware() -> bool:
 func take_damage(amount: float, _pos: Vector3, _head := false) -> bool:
 	if dead:
 		return false
-	if awareness == Awareness.UNAWARE and not passive:
+	var unaware := awareness == Awareness.UNAWARE and not passive
+	if unaware:
 		amount *= unaware_damage
 	health -= amount
 	hurt_timer = 0.06
 	alert()
 	if health > 0.0:
+		_voice("grunt_hurt", -2.0)
 		return false
+	if not unaware:  # stealth kills stay silent
+		_voice("grunt_pain", 0.0)
 	_die()
 	return true
+
+
+## A cry from this grunt (one of the numbered `base` recordings), at most
+## one every half second so a burst of hits doesn't stack screams.
+func _voice(base: String, volume_db: float) -> void:
+	var now := Time.get_ticks_msec()
+	if now - voice_at < 500:
+		return
+	voice_at = now
+	SFX.play_at(get_parent(), global_position + Vector3.UP * 1.6, SFX.variant(base), volume_db, SFX.vary(0.07))
 
 
 func _die() -> void:

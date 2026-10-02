@@ -18,11 +18,15 @@ static func carved(parent: Node, pos: Vector3, size: Vector3, rot := Vector3.ZER
 
 
 static func wood(parent: Node, pos: Vector3, size: Vector3, rot := Vector3.ZERO) -> StaticBody3D:
-	return Kit.box(parent, pos, size, STONE, rot, Art.material("wood"))
+	var body := Kit.box(parent, pos, size, STONE, rot, Art.material("wood"))
+	body.set_meta("surface", "wood")  # footstep sounds (player.gd)
+	return body
 
 
 static func metal(parent: Node, pos: Vector3, size: Vector3, rot := Vector3.ZERO) -> StaticBody3D:
-	return Kit.box(parent, pos, size, STONE, rot, Art.material("gunmetal"))
+	var body := Kit.box(parent, pos, size, STONE, rot, Art.material("gunmetal"))
+	body.set_meta("surface", "metal")
+	return body
 
 
 ## Decoration with no collision.

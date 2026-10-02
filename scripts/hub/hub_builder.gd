@@ -19,6 +19,7 @@ const Art := preload("res://scripts/ps2/ps2_assets.gd")
 const K := preload("res://scripts/hub/hub_kit.gd")
 const Grounds := preload("res://scripts/hub/hub_grounds.gd")
 const Props := preload("res://scripts/hub/hub_props.gd")
+const Ambience := preload("res://scripts/ambience.gd")
 
 ## Floor height inside the temple (top of its plinth).
 const F := 1.2
@@ -51,6 +52,7 @@ const IDOL := Color(0.5, 0.64, 0.6)
 ## starts a run (no lines). eco_spot is a Marker3D by her workbench for her model.
 static func build(root: Node3D) -> Dictionary:
 	Kit.environment(root, SKY_TOP, SKY_HORIZON)
+	Ambience.start(root, {"temple_interior": -15.0, "temple_drips": -20.0, "wind_soft": -20.0, "forest_birds": -24.0})
 	# Darker ambient than the zones, so the roofed hall falls into shadow and
 	# the sun shaft, fire bowls and lamps carry the light.
 	for node in root.get_children():

@@ -1,7 +1,8 @@
 extends RefCounted
-## Procedural sound effects. Every sound is synthesized from filtered noise
-## and simple oscillators the first time it plays, then cached, so the game
-## ships no audio files. Guns are built like real recordings: a sharp crack,
+## Sound effects. Each id plays the CC0 recording in res://assets/audio/sfx/
+## when there is one (see the README there for sources), and otherwise is
+## synthesized from filtered noise and simple oscillators the first time it
+## plays, then cached. Guns are built like real recordings: a sharp crack,
 ## a low-passed blast and sub thump, the action cycling, and a short room tail,
 ## pushed through soft saturation so they hit hard.
 ##
@@ -11,21 +12,25 @@ extends RefCounted
 ##
 ## To use a recorded sound instead, drop `<id>.wav` or `<id>.ogg` into
 ## res://assets/audio/sfx/ (for example pistol.wav); it replaces the recipe.
+## Numbered takes (`step_grass_1`, `step_grass_2`, ...) are picked at random
+## with `variant("step_grass")`.
 ##
 ##   SFX.play(self, "pistol")                 # flat, follows the listener
 ##   SFX.play_at(parent, pos, "ricochet")     # positional, frees itself
+##   SFX.play(self, SFX.variant("step_grass"), -12.0)
 
 const RATE := 44100
 ## Recorded overrides: <id>.wav or <id>.ogg in here replace the recipe.
 const OVERRIDES := "res://assets/audio/sfx/"
 
 static var _cache := {}
+static var _variants := {}
 static var _rng := RandomNumberGenerator.new()
 
 
 ## Plays a non-positional sound (first-person weapons, UI ticks).
 static func play(parent: Node, id: String, volume_db := 0.0, pitch := 1.0) -> AudioStreamPlayer:
-	if parent == null or not parent.is_inside_tree():
+	if parent == null or not parent.is_inside_tree() or id == "":
 		return null
 	var p := AudioStreamPlayer.new()
 	p.stream = stream(id)
@@ -39,7 +44,7 @@ static func play(parent: Node, id: String, volume_db := 0.0, pitch := 1.0) -> Au
 
 ## Plays a sound at a world position.
 static func play_at(parent: Node, pos: Vector3, id: String, volume_db := 0.0, pitch := 1.0) -> void:
-	if parent == null or not parent.is_inside_tree():
+	if parent == null or not parent.is_inside_tree() or id == "":
 		return
 	var p := AudioStreamPlayer3D.new()
 	p.stream = stream(id)
@@ -64,6 +69,23 @@ static func stream(id: String) -> AudioStream:
 		if _cache[id] == null:
 			_cache[id] = _to_wav(_synth(id))
 	return _cache[id]
+
+
+## True when a recording for `id` is in res://assets/audio/sfx/.
+static func has_recording(id: String) -> bool:
+	return ResourceLoader.exists(OVERRIDES + id + ".ogg") or ResourceLoader.exists(OVERRIDES + id + ".wav")
+
+
+## A random one of the numbered recordings `<base>_1`, `<base>_2`, ..., so
+## footsteps and voices don't repeat the same file. "" when there are none.
+static func variant(base: String) -> String:
+	if not _variants.has(base):
+		var ids: Array[String] = []
+		while has_recording("%s_%d" % [base, ids.size() + 1]):
+			ids.append("%s_%d" % [base, ids.size() + 1])
+		_variants[base] = ids
+	var takes: Array = _variants[base]
+	return "" if takes.is_empty() else takes[_rng.randi() % takes.size()]
 
 
 static func _recorded(id: String) -> AudioStream:
