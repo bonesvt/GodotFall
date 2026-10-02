@@ -7,6 +7,10 @@ config/name="Titanfall Roguelike - Movement Prototype"
 run/main_scene="res://scenes/run.tscn"
 config/features=PackedStringArray("4.3", "Forward Plus")
 
+[autoload]
+
+PS2="*res://scripts/ps2/ps2_screen.gd"
+
 [display]
 
 window/size/viewport_width=1600
@@ -16,6 +20,16 @@ window/size/viewport_height=900
 
 common/physics_ticks_per_second=120
 
+[shader_globals]
+
+ps2_vertex_snap={
+"type": "float",
+"value": 0.0
+}
+
 [rendering]
 
-anti_aliasing/quality/msaa_3d=2
+anti_aliasing/quality/msaa_3d=0
+scaling_3d/scale=0.5
+lights_and_shadows/directional_shadow/size=1024
+lights_and_shadows/directional_shadow/soft_shadow_filter_quality=0

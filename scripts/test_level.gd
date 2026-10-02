@@ -6,6 +6,7 @@ extends Node3D
 const PLAYER_SCENE := preload("res://scenes/player.tscn")
 const HUD_SCRIPT := preload("res://scripts/hud.gd")
 const GRUNT_SCRIPT := preload("res://scripts/grunt.gd")
+const Art := preload("res://scripts/ps2/ps2_assets.gd")
 
 ## Grunt arena, well away from the movement courses.
 const ARENA_CENTER := Vector3(75, 0, 25)
@@ -20,15 +21,13 @@ const ORANGE := Color(0.95, 0.55, 0.2)
 const RED := Color(0.85, 0.25, 0.25)
 const GREEN := Color(0.3, 0.75, 0.4)
 
-var checker: ImageTexture
 var player: CharacterBody3D
 var hud: CanvasLayer
 var grunts: Array[Node] = []
 
 
 func _ready() -> void:
-	checker = _make_checker()
-	_build_environment()
+	Art.environment(self, Color(0.3, 0.45, 0.7), Color(0.75, 0.8, 0.85))
 
 	# Ground
 	_box(Vector3(0, -0.5, 0), Vector3(240, 1, 240), GREY)
@@ -165,13 +164,7 @@ func _box(pos: Vector3, size: Vector3, color: Color, rot_deg := Vector3.ZERO) ->
 	body.add_child(col)
 	var mesh := BoxMesh.new()
 	mesh.size = size
-	var mat := StandardMaterial3D.new()
-	mat.albedo_color = color
-	mat.albedo_texture = checker
-	mat.uv1_triplanar = true
-	mat.uv1_world_triplanar = true
-	mat.uv1_scale = Vector3(0.5, 0.5, 0.5)
-	mesh.material = mat
+	mesh.material = Art.surface(color, size)
 	var mi := MeshInstance3D.new()
 	mi.mesh = mesh
 	body.add_child(mi)
@@ -188,34 +181,3 @@ func _sign(pos: Vector3, text: String) -> void:
 	l.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	l.outline_size = 16
 	add_child(l)
-
-
-func _make_checker() -> ImageTexture:
-	var img := Image.create(64, 64, false, Image.FORMAT_RGB8)
-	for y in 64:
-		for x in 64:
-			var light := ((x >> 5) + (y >> 5)) % 2 == 0
-			img.set_pixel(x, y, Color(1, 1, 1) if light else Color(0.82, 0.82, 0.82))
-	img.generate_mipmaps()
-	return ImageTexture.create_from_image(img)
-
-
-func _build_environment() -> void:
-	var sky_mat := ProceduralSkyMaterial.new()
-	sky_mat.sky_top_color = Color(0.3, 0.45, 0.7)
-	sky_mat.sky_horizon_color = Color(0.75, 0.8, 0.85)
-	var sky := Sky.new()
-	sky.sky_material = sky_mat
-	var env := Environment.new()
-	env.background_mode = Environment.BG_SKY
-	env.sky = sky
-	env.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
-	env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
-	var world_env := WorldEnvironment.new()
-	world_env.environment = env
-	add_child(world_env)
-
-	var sun := DirectionalLight3D.new()
-	sun.rotation_degrees = Vector3(-50, 35, 0)
-	sun.shadow_enabled = true
-	add_child(sun)

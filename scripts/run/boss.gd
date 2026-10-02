@@ -7,6 +7,9 @@ extends Node3D
 signal defeated
 
 const Kit := preload("res://scripts/run/level_kit.gd")
+const Art := preload("res://scripts/ps2/ps2_assets.gd")
+## The enemy model is a heavy chassis, scaled up to fill the 9 m hitbox.
+const MODEL_SCALE := 1.45
 
 const CHIP_DPS := 35.0
 const SLAM_RADIUS := 7.0
@@ -29,6 +32,10 @@ func _ready() -> void:
 	hp = max_hp
 	var body := Kit.box(self, Vector3(0, 4.5, 0), Vector3(4, 9, 4), Color(0.6, 0.2, 0.2))
 	body.add_to_group("titan_target")
+	body.get_child(1).visible = false  # the hitbox stays, the model shows instead
+	var model := Art.titan("enemy", "xo16")
+	model.scale = Vector3.ONE * MODEL_SCALE
+	add_child(model)
 	Kit.label(self, Vector3(0, 10.5, 0), "ENEMY TITAN", 96)
 	_marker = Kit.disc(self, Vector3.ZERO, SLAM_RADIUS, Color(1.0, 0.1, 0.1, 0.35))
 	_marker.top_level = true

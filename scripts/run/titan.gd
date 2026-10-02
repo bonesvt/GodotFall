@@ -7,6 +7,8 @@ extends CharacterBody3D
 signal landed
 signal destroyed
 
+const Art := preload("res://scripts/ps2/ps2_assets.gd")
+
 const GRAVITY := 30.0
 const ACCEL := 40.0
 const DASH_SPEED := 28.0
@@ -21,6 +23,9 @@ const HEIGHT := 7.0
 const EYE := 6.2
 
 var stats := {}
+## The installed parts (slot -> part, see titan_parts.gd); picks the model.
+var parts := {}
+var model: Node3D
 var hp := 0.0
 var max_hp := 0.0
 var dashes := 0
@@ -32,7 +37,15 @@ var overdrive_timer := 0.0
 var ramp_bonus := 0.0
 var on_target := false
 var dropping := true
-var piloted := false
+## While piloted the hull is hidden so it doesn't fill the cockpit view;
+## the arms and weapon stay visible.
+var piloted := false:
+	set(value):
+		piloted = value
+		if model != null:
+			for part in model.get_children():
+				if part is Node3D and not String(part.name).begins_with("Arm"):
+					part.visible = not value
 var dead := false
 var boss: Node
 var head: Node3D
@@ -55,10 +68,8 @@ func _ready() -> void:
 	col.shape = shape
 	col.position.y = HEIGHT * 0.5
 	add_child(col)
-	_part(Vector3(2.8, 2.6, 2.0), Vector3(0, 4.6, 0), Color(0.35, 0.42, 0.5))  # torso
-	_part(Vector3(1.0, 3.2, 1.0), Vector3(-0.8, 1.6, 0), Color(0.3, 0.32, 0.35))  # legs
-	_part(Vector3(1.0, 3.2, 1.0), Vector3(0.8, 1.6, 0), Color(0.3, 0.32, 0.35))
-	_part(Vector3(1.2, 0.6, 0.4), Vector3(0, 5.2, -1.1), Color(1.0, 0.75, 0.2))  # visor
+	model = Art.titan(parts.get("chassis", {}).get("id", "scrap"), parts.get("weapon", {}).get("id", "scrap"))
+	add_child(model)
 	head = Node3D.new()
 	head.position.y = EYE
 	add_child(head)
@@ -66,18 +77,6 @@ func _ready() -> void:
 	camera.fov = 85.0
 	camera.near = 0.1
 	head.add_child(camera)
-
-
-func _part(size: Vector3, pos: Vector3, color: Color) -> void:
-	var mesh := BoxMesh.new()
-	mesh.size = size
-	var mat := StandardMaterial3D.new()
-	mat.albedo_color = color
-	mesh.material = mat
-	var mi := MeshInstance3D.new()
-	mi.mesh = mesh
-	mi.position = pos
-	add_child(mi)
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -109,6 +108,7 @@ func _physics_process(delta: float) -> void:
 	_move(delta)
 	_recharge(delta)
 	_fire(delta)
+	model.set_param("glow", 0.4 + core_charge * 1.6, "Core")
 	if Input.is_action_just_pressed("titan_core"):
 		use_core()
 

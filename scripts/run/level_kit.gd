@@ -1,7 +1,8 @@
 extends RefCounted
 ## Shared helpers for building run levels out of boxes, signs and markers.
+## Boxes pick their PS2-style material from their colour and size (see ps2_assets.gd).
 
-static var _checker: ImageTexture
+const Art := preload("res://scripts/ps2/ps2_assets.gd")
 
 
 static func box(parent: Node, pos: Vector3, size: Vector3, color: Color, rot_deg := Vector3.ZERO) -> StaticBody3D:
@@ -15,13 +16,7 @@ static func box(parent: Node, pos: Vector3, size: Vector3, color: Color, rot_deg
 	body.add_child(col)
 	var mesh := BoxMesh.new()
 	mesh.size = size
-	var mat := StandardMaterial3D.new()
-	mat.albedo_color = color
-	mat.albedo_texture = checker()
-	mat.uv1_triplanar = true
-	mat.uv1_world_triplanar = true
-	mat.uv1_scale = Vector3(0.5, 0.5, 0.5)
-	mesh.material = mat
+	mesh.material = Art.surface(color, size)
 	var mi := MeshInstance3D.new()
 	mi.mesh = mesh
 	body.add_child(mi)
@@ -63,39 +58,5 @@ static func label(parent: Node, pos: Vector3, text: String, font_size := 96) -> 
 	return l
 
 
-static func checker() -> ImageTexture:
-	if _checker == null:
-		var img := Image.create(64, 64, false, Image.FORMAT_RGB8)
-		for y in 64:
-			for x in 64:
-				var light := ((x >> 5) + (y >> 5)) % 2 == 0
-				img.set_pixel(x, y, Color(1, 1, 1) if light else Color(0.82, 0.82, 0.82))
-		img.generate_mipmaps()
-		_checker = ImageTexture.create_from_image(img)
-	return _checker
-
-
 static func environment(parent: Node, top: Color, horizon: Color) -> void:
-	var sky_mat := ProceduralSkyMaterial.new()
-	sky_mat.sky_top_color = top
-	sky_mat.sky_horizon_color = horizon
-	sky_mat.ground_bottom_color = horizon.darkened(0.6)
-	sky_mat.ground_horizon_color = horizon
-	var sky := Sky.new()
-	sky.sky_material = sky_mat
-	var env := Environment.new()
-	env.background_mode = Environment.BG_SKY
-	env.sky = sky
-	env.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
-	env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
-	env.fog_enabled = true
-	env.fog_light_color = horizon
-	env.fog_density = 0.004
-	var world_env := WorldEnvironment.new()
-	world_env.environment = env
-	parent.add_child(world_env)
-
-	var sun := DirectionalLight3D.new()
-	sun.rotation_degrees = Vector3(-50, 35, 0)
-	sun.shadow_enabled = true
-	parent.add_child(sun)
+	Art.environment(parent, top, horizon)

@@ -19,6 +19,7 @@ Pilot movement, first combat (a weak starter pistol and grunt enemies), and the 
 | T | Respawn |
 | G | Reset the grunt arena |
 | H | Toggle help |
+| F9 | Toggle the PS2 look |
 
 ## Scrap Titan run loop
 Pressing Play starts a run (`scenes/run.tscn`). The movement and grunt test level is
@@ -54,6 +55,35 @@ Run code lives in `scripts/run/`: `run_manager.gd` (the loop), `run_state.gd` (w
 carries), `zone_builder.gd` (zone and arena generation), `titan_parts.gd` (part catalog and
 stats), `titan.gd`, `boss.gd`, and the cache, guard squad and beacon scripts. The titan is its own
 node holding the run's parts, so it can later travel with you as a walking base.
+
+## PS2-style art
+Everything is low-poly and textured in a classic PS2 style. **F9** toggles the look
+on and off in game, to compare.
+
+- **Look**: 3D renders at half resolution and is upscaled (Project Settings > Rendering >
+  Scaling 3D), then `assets/shaders/ps2_screen.gdshader` reduces it to 16-bit colour with
+  ordered dithering and faint interlace lines. The HUD stays sharp. Vertices snap to a
+  coarse grid for a slight wobble (Project Settings > Shader Globals > `ps2_vertex_snap`,
+  0 turns it off). Levels get a painted sky with mountains, distance fog, flat ambient
+  light and low-res shadows.
+- **Textures** (`assets/textures/`): 64 to 128 px, 16 colours each, nearest filtered.
+  Painted by `tools/make_textures.py` (needs pillow and numpy); you can also paint over
+  the PNGs by hand.
+- **Materials** (`assets/materials/`) all use `assets/shaders/ps2_surface.gdshader`, which
+  box-projects the texture so models need no UVs.
+- **Level boxes** keep being built by colour (`Kit.box`), and `scripts/ps2/ps2_assets.gd`
+  picks the material: grey is concrete with steel-plate tops (small grey pieces become
+  cover barriers and crates), blue is wallrun panels, orange is grapple-anchor hazard
+  stripes, green is crates, red is lava.
+- **Models** (`assets/models/*.tscn`): P-08 pistol with a gloved hand, grunt (legs swing
+  as it walks, visor glows on wind-up), four titan chassis (Atlas, Ogre, Stryder, Scrap)
+  and four titan guns (XO-16, 40mm Tracker, Splitter, scrap rifle). Your titan is built
+  from the chassis and weapon you salvaged. Plus the red enemy titan, salvage cache and
+  extract beacon. They are plain scenes made of primitive meshes, so you can edit them
+  in the editor or swap in Blender models later. `tools/bake_models.gd` regenerates them (run it without `--headless`).
+
+From a fresh clone, import once before running the headless tests (opening the
+project in the editor also does this): `godot --headless --import`
 
 ## Abilities
 Movement is tuned to feel heavy rather than floaty: gravity is 28 m/s², falling is 35% faster
