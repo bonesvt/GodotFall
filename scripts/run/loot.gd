@@ -71,15 +71,22 @@ static func drop(parent: Node, pos: Vector3, materials: Dictionary, rng: RandomN
 
 
 ## Places supply crates and alloy nodes in a built zone. Adds "loot" (crates
-## and nodes) to info.
+## and nodes) to info. A zone can set info["first_loot"] ({"node": pos,
+## "crate": pos}) to put one of each at a fixed spot first (the forest does,
+## by the spawn, for the tutorial); they count towards the zone's share.
 static func scatter(root: Node3D, info: Dictionary, rng: RandomNumberGenerator, zone_index: int) -> void:
 	var spots := _candidates(info, rng)
 	var spawn: Vector3 = info["spawn"]
 	var taken: Array = []
 	info["loot"] = []
+	var first: Dictionary = info.get("first_loot", {})
 	var want := [["node", NODES[mini(zone_index, NODES.size() - 1)]], ["crate", CRATES[mini(zone_index, CRATES.size() - 1)]]]
 	for entry in want:
 		var placed := 0
+		if first.has(entry[0]):
+			_place(root, info, rng, zone_index, entry[0], first[entry[0]])
+			taken.append(first[entry[0]])
+			placed += 1
 		for spot in spots:
 			if placed >= entry[1]:
 				break
@@ -87,13 +94,17 @@ static func scatter(root: Node3D, info: Dictionary, rng: RandomNumberGenerator, 
 				continue
 			taken.append(spot)
 			placed += 1
-			var node: Node3D = ResourceNode.new() if entry[0] == "node" else LootCrate.new()
-			node.loot = roll_node(rng, zone_index) if entry[0] == "node" else roll_crate(rng, zone_index)
-			node.kill_y = float(info.get("kill_y", float(info["floor_y"]) - 15.0))
-			root.add_child(node)
-			node.position = spot
-			node.rotation.y = rng.randf() * TAU
-			info["loot"].append(node)
+			_place(root, info, rng, zone_index, entry[0], spot)
+
+
+static func _place(root: Node3D, info: Dictionary, rng: RandomNumberGenerator, zone_index: int, kind: String, spot: Vector3) -> void:
+	var node: Node3D = ResourceNode.new() if kind == "node" else LootCrate.new()
+	node.loot = roll_node(rng, zone_index) if kind == "node" else roll_crate(rng, zone_index)
+	node.kill_y = float(info.get("kill_y", float(info["floor_y"]) - 15.0))
+	root.add_child(node)
+	node.position = spot
+	node.rotation.y = rng.randf() * TAU
+	info["loot"].append(node)
 
 
 ## Places to try, shuffled: beside the forest's routes, or on platforms.

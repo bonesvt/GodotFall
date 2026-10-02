@@ -31,10 +31,13 @@ func _initialize() -> void:
 	a.set_start_part("weapon", "xo16")
 	a.equip("smart_pistol")
 	root.size = Vector2i(1600, 900)
+	# No tutorial cards in the shots, and none marked seen on your save.
+	preload("res://scripts/run/tutorial.gd").settings_path = "user://shots_settings.cfg"
 	run_node = load("res://scenes/run.tscn").instantiate()
 	run_node.run_seed = 1234
 	run_node.armory_path = PATH
 	root.add_child(run_node)
+	run_node.tutorial.set_enabled(false)
 	_go.call_deferred()
 
 

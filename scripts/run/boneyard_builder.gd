@@ -406,7 +406,10 @@ static func _rift(root: Node3D, rng: RandomNumberGenerator, dress: RandomNumberG
 	F.bridge_stub(root, Vector3(c, 0, far_end - 5.0), 180.0)
 	# Route 1: a titan's tower shield wedged upright in the rift. Wallrun it.
 	var mid := (near_end + far_end) * 0.5
-	Kit.box(root, Vector3(c + SHIELD_X, 0, mid), Vector3(1, 12, gap), BLUE)
+	# What the tutorial points at (tutorial.gd): each crossing's pieces.
+	var crossing := {"lip": _road(NEAR_LIP + 14.0, 0.0), "wallrun": [], "grapple": [], "pillars": [], "log": []}
+	info["crossing"] = crossing
+	crossing["wallrun"].append(Kit.box(root, Vector3(c + SHIELD_X, 0, mid), Vector3(1, 12, gap), BLUE))
 	Kit.box(root, Vector3(c + SHIELD_X - 0.3, 6.3, mid), Vector3(1.4, 0.8, gap + 1.2), CONCRETE, Vector3.ZERO, Art.material("titan_armor", Z.HULL_TINTS[1]))
 	Kit.box(root, Vector3(c + SHIELD_X - 0.3, 0, mid - gap * 0.5 - 0.3), Vector3(1.4, 12.6, 0.8), CONCRETE, Vector3.ZERO, Art.material("titan_armor", Z.HULL_TINTS[1]))
 	Kit.box(root, Vector3(c + SHIELD_X - 0.3, 0, mid + gap * 0.5 + 0.3), Vector3(1.4, 12.6, 0.8), CONCRETE, Vector3.ZERO, Art.material("titan_armor", Z.HULL_TINTS[1]))
@@ -414,7 +417,7 @@ static func _rift(root: Node3D, rng: RandomNumberGenerator, dress: RandomNumberG
 	# Route 2: the strippers' crane on the far lip. Grapple its anchor.
 	var anchor_z := near_end - gap * 0.6
 	F.pylon(root, Vector3(c + ANCHOR_X, 0, anchor_z - 9.0), 0.0)
-	Kit.box(root, Vector3(c + ANCHOR_X, ANCHOR_Y, anchor_z), Vector3(3, 2, 3), ORANGE)
+	crossing["grapple"].append(Kit.box(root, Vector3(c + ANCHOR_X, ANCHOR_Y, anchor_z), Vector3(3, 2, 3), ORANGE))
 	info["segments"].append({"type": "grapple", "gap": gap, "rise": 0.0})
 	# Route 3: precursor columns standing up out of the rift. Hop them.
 	var px := c + PILLAR_X
@@ -425,14 +428,16 @@ static func _rift(root: Node3D, rng: RandomNumberGenerator, dress: RandomNumberG
 		var top: float = p[1]
 		var back := front - PILLAR
 		var h := top - RIFT_FLOOR + 1.0
-		Kit.box(root, Vector3(px, top - h * 0.5, (front + back) * 0.5), Vector3(PILLAR, h, PILLAR), CONCRETE, Vector3.ZERO, Art.material("temple_stone"))
+		crossing["pillars"].append(Kit.box(root, Vector3(px, top - h * 0.5, (front + back) * 0.5), Vector3(PILLAR, h, PILLAR), CONCRETE, Vector3.ZERO, Art.material("temple_stone")))
 		Kit.box(root, Vector3(px, top - 0.25, (front + back) * 0.5), Vector3(PILLAR + 0.3, 0.5, PILLAR + 0.3), CONCRETE, Vector3.ZERO, Art.material("temple_carving"))
 		info["segments"].append({"type": "jump", "gap": last_edge - front, "rise": top - last_top})
 		last_edge = back
 		last_top = top
 	info["segments"].append({"type": "jump", "gap": last_edge - FAR_LIP, "rise": -last_top})
 	# Route 4: a precursor obelisk fell across the rift. Walk along it.
+	var before := root.get_child_count()
 	Z.obelisk_fallen(root, Vector3(c + LOG_X, 0.0, RIFT_Z), 90.0)
+	crossing["log"] = root.get_children().slice(before)
 	L.hide(root, ground, dress, info, c + LOG_X - 3.0, NEAR_LIP + 5.0, Vector2(3.0, 5.0), true)
 	L.hide(root, ground, dress, info, c + LOG_X + 3.5, FAR_LIP - 5.0, Vector2(3.0, 6.0), true)
 	for z in [NEAR_LIP + 1.0, FAR_LIP - 1.0]:

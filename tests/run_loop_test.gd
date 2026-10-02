@@ -13,11 +13,14 @@ var failures := 0
 
 
 func _initialize() -> void:
+	# Hints go to their own settings file, so these runs never mark them seen on your save.
+	preload("res://scripts/run/tutorial.gd").settings_path = "user://test_settings.cfg"
 	run_node = load("res://scenes/run.tscn").instantiate()
 	run_node.run_seed = SEED
 	run_node.start_in_hub = false
 	run_node.armory_path = "user://test_run_armory.cfg"
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(run_node.armory_path))
+	DirAccess.remove_absolute(ProjectSettings.globalize_path("user://test_settings.cfg"))
 	root.add_child(run_node)
 	_run.call_deferred()
 

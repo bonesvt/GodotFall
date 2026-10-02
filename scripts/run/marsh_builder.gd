@@ -313,13 +313,18 @@ static func _channel(root: Node3D, rng: RandomNumberGenerator, dress: RandomNumb
 	var far_end := FAR_LIP + BRIDGE_REACH
 	F.bridge_stub(root, Vector3(c, ROAD_Y, near_end + 5.0), 0.0)
 	F.bridge_stub(root, Vector3(c, ROAD_Y, far_end - 5.0), 180.0)
+	# What the tutorial points at (tutorial.gd): each crossing's pieces.
+	var crossing := {"lip": _road(NEAR_LIP + 14.0, 0.0), "wallrun": [], "grapple": [], "pillars": [], "log": []}
+	info["crossing"] = crossing
 	# Route 1: a barge ran aground against the old bridge; wallrun its painted side.
+	var before := root.get_child_count()
 	Z.barge(root, Vector3(c + SHIELD_X - 2.0, 0.5, CHANNEL_Z), 90.0)
+	crossing["wallrun"] = root.get_children().slice(before)
 	info["segments"].append({"type": "wallrun", "gap": gap, "rise": 0.0})
 	# Route 2: a crane on the far bank; grapple the anchor on its arm.
 	var anchor_z := near_end - gap * 0.6
 	F.pylon(root, Vector3(c + ANCHOR_X, BANK_Y, anchor_z - 9.0), 0.0)
-	Kit.box(root, Vector3(c + ANCHOR_X, ANCHOR_Y, anchor_z), Vector3(3, 2, 3), ORANGE)
+	crossing["grapple"].append(Kit.box(root, Vector3(c + ANCHOR_X, ANCHOR_Y, anchor_z), Vector3(3, 2, 3), ORANGE))
 	info["segments"].append({"type": "grapple", "gap": gap, "rise": 0.0})
 	# Route 3: what's left of the old bridge's piers, right of the new one.
 	var px := c + PILLAR_X
@@ -330,14 +335,16 @@ static func _channel(root: Node3D, rng: RandomNumberGenerator, dress: RandomNumb
 		var top: float = p[1]
 		var back := front - PILLAR
 		var h := top - CHANNEL_FLOOR + 1.0
-		Kit.box(root, Vector3(px, top - h * 0.5, (front + back) * 0.5), Vector3(PILLAR, h, PILLAR), CONCRETE, Vector3.ZERO, Art.material("concrete", Color(0.75, 0.78, 0.7)))
+		crossing["pillars"].append(Kit.box(root, Vector3(px, top - h * 0.5, (front + back) * 0.5), Vector3(PILLAR, h, PILLAR), CONCRETE, Vector3.ZERO, Art.material("concrete", Color(0.75, 0.78, 0.7))))
 		Kit.box(root, Vector3(px, top - 0.3, (front + back) * 0.5), Vector3(PILLAR - 0.4, 0.62, PILLAR - 0.4), CONCRETE, Vector3.ZERO, Art.material("moss"))
 		info["segments"].append({"type": "jump", "gap": last_edge - front, "rise": top - last_top})
 		last_edge = back
 		last_top = top
 	info["segments"].append({"type": "jump", "gap": last_edge - FAR_LIP, "rise": BANK_Y - last_top})
 	# Route 4: a titan drowned here in the war, face down across the channel. Walk its back.
+	before = root.get_child_count()
 	Z.titan_fallen(root, Vector3(c + LOG_X, BANK_Y, CHANNEL_Z), 90.0, Color(0.55, 0.62, 0.5))
+	crossing["log"] = root.get_children().slice(before)
 	for z in [NEAR_LIP + 4.0, FAR_LIP - 4.0, FAR_LIP - 9.0]:
 		L.hide(root, ground, dress, info, c + LOG_X + (3.5 if z < CHANNEL_Z else -3.5), z, Vector2(3.0, 5.0), true)
 	# Rocks and stumps along both banks.
