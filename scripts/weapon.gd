@@ -18,6 +18,31 @@ const SFX := preload("res://scripts/sfx.gd")
 
 ## Emitted on every shot that hits an enemy: "body", "head" or "kill".
 signal hit_confirmed(kind: String)
+## Emitted when an inspect starts, with what Eco says about the gun.
+signal inspected(line: String)
+
+## Inspect: Eco turns her father's pistol over, shows the cracked lock-on
+## sensor, taps it (it sparks and errors), then checks the sights.
+## Keyframes: [seconds, position offset (m), rotation offset (degrees x/y/z)].
+const INSPECT_KEYS := [
+	[0.0, Vector3.ZERO, Vector3.ZERO],
+	[0.4, Vector3(-0.12, 0.06, 0.08), Vector3(10, 55, 25)],
+	[1.15, Vector3(-0.13, 0.07, 0.07), Vector3(14, 62, 30)],
+	[1.5, Vector3(-0.1, 0.04, 0.06), Vector3(-5, -40, -70)],
+	[2.15, Vector3(-0.1, 0.05, 0.06), Vector3(-8, -46, -76)],
+	[2.45, Vector3(-0.07, 0.09, 0.1), Vector3(32, -10, -8)],
+	[2.9, Vector3(-0.07, 0.1, 0.1), Vector3(36, -6, -6)],
+	[3.3, Vector3.ZERO, Vector3.ZERO],
+]
+## When in the inspect Eco taps the dead sensor.
+const INSPECT_TAP := 1.8
+const INSPECT_LINES := [
+	"Dad's. The lock-on died with him.",
+	"Sensor's cracked clean through. Iron sights it is.",
+	"Tape's holding. Mostly.",
+	"Still pulls a hair left. I'll fix it. Someday.",
+	"Smart pistol. Not so smart anymore.",
+]
 
 @export_group("Damage")
 @export var damage := 20.0
@@ -92,6 +117,9 @@ var _punch := Vector2.ZERO
 var _slide_back := 0.0
 var _parts := {}  # animated pistol pieces -> rest position
 var _reload_events := 0
+var inspect_time := -1.0
+var _inspect_tapped := false
+var _inspect_line := -1
 var _pistol: Node3D
 
 ## The enemy the broken smart-lock is currently trying to lock onto, for the HUD.
@@ -130,10 +158,14 @@ func _physics_process(delta: float) -> void:
 			ammo = magazine_size
 	elif Input.is_action_just_pressed("reload") and ammo < magazine_size:
 		start_reload()
+	elif Input.is_action_just_pressed("inspect") and not is_inspecting():
+		inspect()
+	_update_inspect(delta)
 	_scan_lock(delta)
 
 	if Input.is_action_just_pressed("fire"):
 		buffer_timer = fire_buffer
+		stop_inspect()  # shooting always wins over showing off
 	if buffer_timer > 0.0 and cooldown <= 0.0 and reload_timer <= 0.0:
 		buffer_timer = 0.0
 		if ammo > 0:
@@ -321,6 +353,7 @@ func start_reload() -> void:
 		return
 	reload_timer = reload_time
 	_reload_events = 0
+	stop_inspect()
 
 
 func is_reloading() -> bool:
@@ -333,6 +366,56 @@ func refill() -> void:
 	bloom = 0.0
 	recoil_pending = 0.0
 	_set_part_visible("MagBase", true)
+	stop_inspect()
+
+
+func is_inspecting() -> bool:
+	return inspect_time >= 0.0
+
+
+func inspect() -> void:
+	if is_reloading():
+		return
+	inspect_time = 0.0
+	_inspect_tapped = false
+	# Never the same line twice in a row.
+	var pick := rng.randi_range(0, INSPECT_LINES.size() - 2)
+	if pick >= _inspect_line:
+		pick += 1
+	_inspect_line = pick
+	SFX.play(self, "reload_in", -10.0, 0.8)
+	inspected.emit(INSPECT_LINES[pick])
+
+
+func stop_inspect() -> void:
+	inspect_time = -1.0
+
+
+func _update_inspect(delta: float) -> void:
+	if not is_inspecting():
+		return
+	inspect_time += delta
+	if not _inspect_tapped and inspect_time >= INSPECT_TAP:
+		_inspect_tapped = true
+		SFX.play(self, "whack", -8.0, 1.5)
+		SFX.play(self, "lock_err", -12.0)
+		_kick_rot_vel += Vector3(-6.0, 0.0, 10.0)
+		_module_sparks(4)
+	if inspect_time >= INSPECT_KEYS.back()[0]:
+		stop_inspect()
+
+
+## Position and rotation (degrees) offsets of the inspect at time t.
+func _inspect_pose(t: float) -> Array:
+	if t < 0.0:
+		return [Vector3.ZERO, Vector3.ZERO]
+	for i in range(1, INSPECT_KEYS.size()):
+		var b: Array = INSPECT_KEYS[i]
+		if t <= b[0]:
+			var a: Array = INSPECT_KEYS[i - 1]
+			var w := smoothstep(0.0, 1.0, (t - a[0]) / (b[0] - a[0]))
+			return [a[1].lerp(b[1], w), a[2].lerp(b[2], w)]
+	return [Vector3.ZERO, Vector3.ZERO]
 
 
 ## 0 at the start of a reload, 1 at the end.
@@ -446,11 +529,14 @@ func _animate_viewmodel(delta: float) -> void:
 	pos += bob + Vector3(0.0, -_move_pose.y + _move_pose.z, 0.0)
 	pos += Vector3(_kick_pos.x * 0.02, _kick_pos.y * 0.02, _kick_pos.z * 0.04)
 	pos += Vector3(-0.06, -0.08, 0.04) * r
+	var inspect_pose := _inspect_pose(inspect_time)
+	var ir: Vector3 = inspect_pose[1]
+	pos += inspect_pose[0]
 	viewmodel.position = pos
 	viewmodel.rotation = Vector3(
-		deg_to_rad(_kick_rot.x) + _sway.y * 0.02 + 0.35 * r,
-		deg_to_rad(_kick_rot.y) + _sway.x * 0.025 - 0.25 * r,
-		deg_to_rad(_kick_rot.z) + _move_pose.x + _sway.x * 0.02 + 0.7 * r)
+		deg_to_rad(_kick_rot.x + ir.x) + _sway.y * 0.02 + 0.35 * r,
+		deg_to_rad(_kick_rot.y + ir.y) + _sway.x * 0.025 - 0.25 * r,
+		deg_to_rad(_kick_rot.z + ir.z) + _move_pose.x + _sway.x * 0.02 + 0.7 * r)
 
 	# Slide cycles back on each shot and locks open on an empty mag.
 	_slide_back = maxf(_slide_back - delta * 14.0, 0.0)

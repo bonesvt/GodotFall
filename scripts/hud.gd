@@ -29,7 +29,7 @@ const HELP := """WASD  move (auto-sprint forward)
 Space  jump / double jump / wall jump
 C or Ctrl  crouch, slide when running
 Q, E or right mouse  grapple (hold)
-Left mouse  shoot    R  reload
+Left mouse  shoot    R  reload    I  inspect
 T  respawn    G  reset grunt arena
 H  hide help    Esc  free mouse"""
 
@@ -96,6 +96,7 @@ func _ready() -> void:
 		weapon = player.get_node_or_null("Head/Camera3D/Weapon")
 		if weapon != null:
 			weapon.hit_confirmed.connect(_on_hit)
+			weapon.inspected.connect(func(line: String): flash_message(line, 3.0))
 		player.damaged.connect(_on_damaged)
 
 
