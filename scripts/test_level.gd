@@ -1,10 +1,18 @@
 extends Node3D
 ## Movement test level, built in code so it is easy to tweak.
 ## Spawn faces -Z. Ahead: wallrun corridor. Right: wall-jump course.
-## Left: slide ramp. Behind: grapple towers.
+## Left: slide ramp. Behind: grapple towers. Far right: grunt arena.
 
 const PLAYER_SCENE := preload("res://scenes/player.tscn")
 const HUD_SCRIPT := preload("res://scripts/hud.gd")
+const GRUNT_SCRIPT := preload("res://scripts/grunt.gd")
+
+## Grunt arena, well away from the movement courses.
+const ARENA_CENTER := Vector3(75, 0, 25)
+const GRUNT_SPAWNS := [
+	Vector3(-8, 0, -14), Vector3(8, 0, -16), Vector3(0, 0, -6),
+	Vector3(-14, 0, 2), Vector3(14, 0, 4), Vector3(0, 0, 14),
+]
 
 const GREY := Color(0.55, 0.57, 0.6)
 const BLUE := Color(0.25, 0.5, 0.9)
@@ -13,6 +21,9 @@ const RED := Color(0.85, 0.25, 0.25)
 const GREEN := Color(0.3, 0.75, 0.4)
 
 var checker: ImageTexture
+var player: CharacterBody3D
+var hud: CanvasLayer
+var grunts: Array[Node] = []
 
 
 func _ready() -> void:
@@ -62,17 +73,85 @@ func _ready() -> void:
 	# Tall freestanding wall for wallrun practice
 	_box(Vector3(-14, 5, 12), Vector3(1, 10, 30), BLUE)
 
-	var player := PLAYER_SCENE.instantiate()
+	_build_arena()
+
+	player = PLAYER_SCENE.instantiate()
 	player.name = "Player"
 	add_child(player)
 	player.global_position = Vector3(0, 0.1, 0)
 	player.spawn_transform = player.global_transform
 
-	var hud := CanvasLayer.new()
+	hud = CanvasLayer.new()
 	hud.set_script(HUD_SCRIPT)
 	hud.name = "HUD"
 	hud.player = player
+	hud.level = self
 	add_child(hud)
+
+	player.died.connect(_on_player_died)
+	reset_arena()
+
+
+func _unhandled_key_input(event: InputEvent) -> void:
+	if event.is_action_pressed("reset_arena"):
+		reset_arena()
+		hud.flash_message("Arena reset")
+
+
+# --- Grunt arena --------------------------------------------------------------
+
+func _build_arena() -> void:
+	var c := ARENA_CENTER
+	_sign(c + Vector3(-28, 5, 0), "GRUNT ARENA (G resets it)")
+	# Cover
+	_box(c + Vector3(-6, 0.6, -2), Vector3(3, 1.2, 1), GREEN)
+	_box(c + Vector3(6, 0.6, 0), Vector3(3, 1.2, 1), GREEN)
+	_box(c + Vector3(0, 1, 6), Vector3(2, 2, 2), GREEN)
+	_box(c + Vector3(-10, 1, -10), Vector3(2, 2, 2), GREEN)
+	_box(c + Vector3(10, 1, -8), Vector3(2, 2, 2), GREEN)
+	_box(c + Vector3(-4, 0.6, 10), Vector3(1, 1.2, 4), GREEN)
+	# Wallrun walls along both sides, and a high perch to grapple to
+	_box(c + Vector3(0, 4, -20), Vector3(36, 8, 1), BLUE)
+	_box(c + Vector3(0, 4, 20), Vector3(36, 8, 1), BLUE)
+	_box(c + Vector3(22, 3, 0), Vector3(1, 6, 16), BLUE)
+	_box(c + Vector3(28, 9, 0), Vector3(6, 1, 8), GREEN)
+
+
+func spawn_grunt(pos: Vector3, passive := false) -> Node:
+	var g := CharacterBody3D.new()
+	g.set_script(GRUNT_SCRIPT)
+	g.passive = passive
+	g.target = player
+	add_child(g)
+	g.global_position = pos
+	g.died.connect(_on_grunt_died)
+	grunts.append(g)
+	return g
+
+
+func reset_arena() -> void:
+	for g in grunts:
+		if is_instance_valid(g):
+			g.queue_free()
+	grunts.clear()
+	for p in GRUNT_SPAWNS:
+		var g := spawn_grunt(ARENA_CENTER + p + Vector3(0, 0.1, 0))
+		g.rotation.y = PI / 2.0  # face the arena entrance (-X)
+
+
+func grunts_alive() -> int:
+	return grunts.filter(func(g): return is_instance_valid(g) and not g.dead).size()
+
+
+func _on_grunt_died(_g: Node) -> void:
+	if grunts_alive() == 0:
+		hud.flash_message("Arena clear. Press G for another round", 4.0)
+
+
+func _on_player_died() -> void:
+	player.respawn()
+	reset_arena()
+	hud.flash_message("You died. Arena reset", 3.0)
 
 
 func _box(pos: Vector3, size: Vector3, color: Color, rot_deg := Vector3.ZERO) -> StaticBody3D:

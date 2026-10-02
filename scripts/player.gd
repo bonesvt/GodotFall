@@ -6,6 +6,10 @@ extends CharacterBody3D
 
 enum State { GROUND, AIR, SLIDE, WALLRUN, GRAPPLE }
 
+signal died
+signal respawned
+signal damaged(amount: float, from: Vector3)
+
 @export_group("Ground")
 @export var run_speed := 7.0
 @export var sprint_speed := 10.5
@@ -62,6 +66,12 @@ enum State { GROUND, AIR, SLIDE, WALLRUN, GRAPPLE }
 @export var base_fov := 90.0
 @export var speed_fov_bonus := 15.0
 
+@export_group("Health")
+@export var max_health := 100.0
+## Seconds without taking damage before health starts coming back.
+@export var regen_delay := 3.0
+@export var regen_rate := 30.0
+
 const STAND_HEIGHT := 1.8
 const CROUCH_HEIGHT := 1.0
 const STAND_EYE := 1.6
@@ -90,6 +100,8 @@ var cam_roll := 0.0
 var input_dir := Vector2.ZERO
 var wish_dir := Vector3.ZERO
 var rope: Node3D
+var health := 100.0
+var regen_timer := 0.0
 
 
 static func ensure_input_actions() -> void:
@@ -97,7 +109,8 @@ static func ensure_input_actions() -> void:
 		"move_forward": [KEY_W], "move_back": [KEY_S],
 		"move_left": [KEY_A], "move_right": [KEY_D],
 		"jump": [KEY_SPACE], "crouch": [KEY_C, KEY_CTRL],
-		"sprint": [KEY_SHIFT], "grapple": [KEY_Q, KEY_E], "reset": [KEY_R],
+		"sprint": [KEY_SHIFT], "grapple": [KEY_Q, KEY_E], "reset": [KEY_T],
+		"reload": [KEY_R], "reset_arena": [KEY_G], "fire": [],
 	}
 	for action in keys:
 		if InputMap.has_action(action):
@@ -110,6 +123,9 @@ static func ensure_input_actions() -> void:
 	var rmb := InputEventMouseButton.new()
 	rmb.button_index = MOUSE_BUTTON_RIGHT
 	InputMap.action_add_event("grapple", rmb)
+	var lmb := InputEventMouseButton.new()
+	lmb.button_index = MOUSE_BUTTON_LEFT
+	InputMap.action_add_event("fire", lmb)
 
 
 func _ready() -> void:
@@ -118,6 +134,7 @@ func _ready() -> void:
 	collision.shape = collision.shape.duplicate()
 	spawn_transform = global_transform
 	air_jumps_left = air_jumps
+	health = max_health
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 	_build_rope()
 
@@ -138,6 +155,9 @@ func _physics_process(delta: float) -> void:
 	wall_coyote_timer -= delta
 	grapple_cooldown_timer -= delta
 	jump_buffer_timer -= delta
+	regen_timer -= delta
+	if regen_timer <= 0.0 and health < max_health:
+		health = minf(health + regen_rate * delta, max_health)
 
 	input_dir = Input.get_vector("move_left", "move_right", "move_forward", "move_back")
 	wish_dir = (transform.basis * Vector3(input_dir.x, 0.0, input_dir.y)).normalized()
@@ -441,7 +461,21 @@ func respawn() -> void:
 	velocity = Vector3.ZERO
 	state = State.AIR
 	grapple_cooldown_timer = 0.0
+	health = max_health
+	regen_timer = 0.0
 	_set_crouch(false)
+	respawned.emit()
+
+
+func take_damage(amount: float, from := Vector3.ZERO) -> void:
+	if health <= 0.0:
+		return
+	health -= amount
+	regen_timer = regen_delay
+	damaged.emit(amount, from)
+	if health <= 0.0:
+		health = 0.0
+		died.emit()
 
 
 # --- Crouch, camera, rope -----------------------------------------------------
