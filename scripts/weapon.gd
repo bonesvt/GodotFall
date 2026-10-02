@@ -28,10 +28,10 @@ const INSPECT_KEYS := [
 	[0.0, Vector3.ZERO, Vector3.ZERO],
 	[0.4, Vector3(-0.12, 0.06, 0.08), Vector3(10, 55, 25)],
 	[1.15, Vector3(-0.13, 0.07, 0.07), Vector3(14, 62, 30)],
-	[1.5, Vector3(-0.1, 0.04, 0.06), Vector3(-5, -40, -70)],
-	[2.15, Vector3(-0.1, 0.05, 0.06), Vector3(-8, -46, -76)],
-	[2.45, Vector3(-0.07, 0.09, 0.1), Vector3(32, -10, -8)],
-	[2.9, Vector3(-0.07, 0.1, 0.1), Vector3(36, -6, -6)],
+	[1.5, Vector3(-0.05, 0.05, 0.05), Vector3(-4, -16, -60)],
+	[2.15, Vector3(-0.05, 0.06, 0.05), Vector3(-6, -20, -64)],
+	[2.45, Vector3(-0.07, 0.06, 0.1), Vector3(24, -8, -8)],
+	[2.9, Vector3(-0.07, 0.07, 0.1), Vector3(26, -5, -6)],
 	[3.3, Vector3.ZERO, Vector3.ZERO],
 ]
 ## When in the inspect Eco taps the dead sensor.
