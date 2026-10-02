@@ -7,18 +7,19 @@ extends RefCounted
 ## she gets close, and the run carries them until it ends (run_manager.gd banks
 ## them: all of it on an extraction, half on a lost run).
 ##
-## scatter() places crates and nodes in a zone after it's built, on the forest's
-## routes (zone 1) or on the platforms (later zones), so level builders need no
-## changes. They settle onto the ground themselves on their first physics frame.
+## scatter() places crates and nodes in a zone after it's built, beside a
+## laid-out zone's routes or on a platform chain's platforms, so level builders
+## need no changes. They settle onto the ground themselves on their first physics frame.
 
 const LootArt := preload("res://scripts/run/loot_art.gd")
 const LootCrate := preload("res://scripts/run/loot_crate.gd")
 const ResourceNode := preload("res://scripts/run/resource_node.gd")
 const Pickup := preload("res://scripts/run/material_pickup.gd")
 
-## How many of each a zone gets: forest, then the platform zones.
-const CRATES := [7, 4, 5]
-const NODES := [3, 2, 2]
+## How many of each a zone gets: the Pinewoods, Blackwater, the Boneyard
+## (where the alloy nodes are its dead titans' wreckage), then platform zones.
+const CRATES := [7, 7, 8, 5]
+const NODES := [3, 3, 4, 2]
 ## Loot keeps this far from the spawn and from other loot (m).
 const SPAWN_CLEAR := 14.0
 const SPACING := 16.0

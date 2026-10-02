@@ -124,13 +124,42 @@ The movement and grunt test level is still at `scenes/test_level.tscn` (open it 
    group, and dense patches also have an invisible `sight_blocker` body on collision layer 16
    (mask 0) that blocks grunt line of sight but not the player, grunts or the grapple.
    The routes are listed in `zone_info["routes"]`, and the map shot draws them.
-   **Zones 2 and 3** are seeded chains of platforms over a void, linked by gaps you
-   clear with a sprint jump, a double-jump climb, a wallrun along a blue wall, or the grapple
-   on an orange anchor. Grunt squads hold some platforms from behind cover (more of them in
-   later zones), and every platform has low walls or blocks you can use as cover too.
-   Falling, or getting gunned down, costs 25 pilot integrity and puts you back on the last
-   platform you stood on. At 0 the run is over.
-2. **Salvage.** Each zone has two caches on side platforms. One is guarded by a grunt squad
+   **Zone 2: Blackwater.** A flooded fen at dusk in the rain, where the militia runs its
+   fuel line. You start on the bank where Eco left her skiff and wade north through
+   knee-deep water and swamp cypress: the roadblock on the old causeway, a stilt village the
+   militia took from the fishers (lookouts on the porches, a squad dug in on the road), the
+   channel where the causeway bridge was blown (wallrun the side of a grounded barge, grapple
+   the crane, hop the old piers, or walk the back of a titan that drowned there in the war),
+   the pump station (pump house, storage tanks, watchtower, a squad in the yard), and the
+   beacon on a hummock past it. Three ways through: the **causeway** (loud, up the middle),
+   the **reeds** on the left (quiet: cattail beds the whole way, crouch under the stilt huts,
+   the drowned titan, the reed beds by the tanks), and the **pipeline** on the right (high:
+   climb onto the fuel main and run along it, across the stilt huts' tin roofs, grapple the
+   crane, then up the junk and the station's pipe onto the pump house roof). One cache is
+   guarded by the village's or the station's squad; the other is on a hut roof or the pump
+   house roof. Falling into the channel costs integrity like the ravine does.
+   **Zone 3: the Boneyard.** The old front line where the titans died, a burnt valley of
+   craters and wrecks under a smoky sky, where the militia strip the dead titans for parts.
+   You start behind the war's front-line trench: no-man's land (wire, craters, a titan dead on
+   its knees, the picket), the salvage yard (wall and gate, a gantry crane over a titan they're
+   stripping, the strip shed, container stacks, a watchtower), the rift (wallrun a titan's
+   tower shield wedged in it, grapple the crane, hop the precursor columns standing in it, or
+   walk a fallen precursor obelisk), the ruins of the precursor's shrine where the militia set
+   up a radio post (the god's eye still glows on the standing stone), and the beacon at the
+   edge of the burn, where the living forest starts again. Three ways through: the **haul
+   road** (loud), the **old trenches** (quiet: down the communication trench, out through a
+   wall slab the crane knocked flat, round the back of the strip shed, over the obelisk, up
+   the dead grass beside the ruins), and the **titan's back** (high: climb a dead titan lying
+   face down by its hand and arm, run along its back, up the containers onto the yard wall
+   and the stacks inside, grapple the crane, then a hut roof onto a ruin column). One cache
+   is guarded by the yard's or the ruins' squad; the other is on a container stack or a column.
+   Every zone has hiding spots (reed beds, dead grass, the trenches, the shadow under the stilt
+   huts) on the same `stealth_cover` / `sight_blocker` hooks as the forest, checkpoints along
+   each route, supply crates and alloy nodes beside the routes, and its own sky, haze and
+   ambience. Getting gunned down costs 25 pilot integrity and puts you back at the last
+   checkpoint. At 0 the run is over. (`ZoneBuilder.build_chain` still makes the old seeded
+   platform chains, for any zone past the third.)
+2. **Salvage.** Each zone has two caches. One is guarded by a grunt squad
    dug in facing you; kill them all to unlock it. Opening a cache
    pauses and offers three titan parts; press 1, 2 or 3 to keep one, or X to leave it.
 3. **Your titan is your build.** Four slots: chassis (armor, speed, dashes), weapon (damage),
@@ -154,8 +183,10 @@ The movement and grunt test level is still at `scenes/test_level.tscn` (open it 
 | Enter | Back to the temple (after a run ends) |
 
 Run code lives in `scripts/run/`: `run_manager.gd` (the loop), `run_state.gd` (what a run
-carries), `zone_builder.gd` (zone generation), `forest_builder.gd` (zone 1 and the forest's
-edge arena), `forest_kit.gd` (forest props and the enemy outpost kit with their colliders),
+carries), `zone_builder.gd` (picks each zone's builder), `forest_builder.gd` (zone 1 and the forest's
+edge arena), `marsh_builder.gd` (zone 2), `boneyard_builder.gd` (zone 3), `laid_out.gd` (the
+pieces those two share), `forest_kit.gd` (forest props and the enemy outpost kit with their colliders),
+`zone_kit.gd` (zones 2 and 3's props and their colliders),
 `terrain.gd` (height-grid ground with matching collision), `titan_parts.gd` (part catalog and
 stats), `titan.gd`, `boss.gd`, and the cache, guard squad and beacon scripts. The titan is its own
 node holding the run's parts, so it can later travel with you as a walking base.
@@ -169,6 +200,15 @@ pallets, generator, camo net, hunting blind and culvert) are made in Blender by
 uses the hub's broadleaf trees, bushes, ferns, grass, rocks and hills. To look at the level,
 `xvfb-run -a godot --path . -s res://tools/forest/shots.gd -- /some/dir` saves screenshots of
 each section, plus `0-map.png`, a top-down map with the three routes.
+
+Zones 2 and 3's models (swamp cypress, cattails, lily pads, stilt huts, boardwalks, docks,
+the pipeline, pump house, storage tanks, the grounded barge and Eco's skiff; the dead titans
+lying, kneeling and in pieces, trench revetments, wire, shipping containers, the salvage
+gantry and shed, scrap heaps, and the precursor's columns, fallen obelisk and eye shrine) are
+made by `tools/zones/build_props.py` (`blender -b --python tools/zones/build_props.py`, writes
+`assets/models/marsh/` and `assets/models/boneyard/`); it reuses the forest script's helpers,
+and both zones reuse the forest's outpost kit. `xvfb-run -a godot --path . -s
+res://tools/zones/shots.gd -- /some/dir [2|3]` saves screenshots and route maps of them.
 
 ## Art: PS3 look (with the old PS2 look on F9)
 Everything is stylized in the spirit of Jak and Daxter and Shadow of the Colossus,
