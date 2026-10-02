@@ -1062,9 +1062,18 @@ def timber_wall():
     g = wood_grain(s, 301, 9, vertical=True)
     boards = [(int(x0), -s, int(x0 + s / 6), 2 * s) for x0 in np.arange(0, s, s / 6)]  # no end joints: one board per column
     h, ids, _ = plates(s, boards, s * 0.01, seed=302, chip=s * 0.006)
-    img = mix(g, (82, 54, 36), (138, 96, 62)) * (1 + per_id(ids, 303, -0.1, 0.1))[..., None]
     # silver weathering in broad vertical streaks
-    silver = smooth(0.45, 0.8, norm01(noise(s, 6, 4, 304, cells_y=2))) * 0.55
+    silver = smooth(0.45, 0.8, norm01(noise(s, 6, 4, 304, cells_y=2))) * 0.45
+    # Slide each board up or down its own amount, so the grain and weathering
+    # of neighbouring boards never line up into horizontal bands.
+    r = np.random.default_rng(308)
+    w = s // 6
+    for i in range(6):
+        off = int(r.uniform(0, s))
+        cols = slice(i * w, (i + 1) * w if i < 5 else s)
+        g[:, cols] = np.roll(g[:, cols], off, axis=0)
+        silver[:, cols] = np.roll(silver[:, cols], off, axis=0)
+    img = mix(g, (82, 54, 36), (138, 96, 62)) * (1 + per_id(ids, 303, -0.1, 0.1))[..., None]
     img = img * (1 - silver[..., None]) + np.array([150, 140, 126]) * silver[..., None]
     x, y = coords(s)
     rail = np.zeros((s, s))
