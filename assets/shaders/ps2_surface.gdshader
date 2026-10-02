@@ -21,6 +21,9 @@ uniform float tex_scale = 0.5;
 uniform vec3 tex_offset = vec3(0.0);
 // true: textures stay put in the world (levels). false: they move with the model.
 uniform bool world_space = true;
+// Use the mesh's own UVs (times tex_scale) instead of box projection. Skinned
+// models (Eco) bake their UVs so textures stick to them as they animate.
+uniform bool use_uv = false;
 uniform vec4 emission : source_color = vec4(0.0, 0.0, 0.0, 1.0);
 uniform float emission_energy = 0.0;
 // Ignore lighting entirely (lights, screens, lava).
@@ -78,6 +81,7 @@ void fragment() {
 	} else {
 		uv = vec2(p.x, -p.y);
 	}
+	uv = use_uv ? UV : uv;
 	uv *= tex_scale;
 	vec3 tex = (use_top_tex && top) ? texture(top_tex, uv).rgb : texture(albedo_tex, uv).rgb;
 	vec3 col = tex * albedo.rgb * paint.rgb;
