@@ -16,8 +16,10 @@ uniform float wave_speed = 1.4;
 // How far strand tips sway, in metres. The mesh's vertex colour (red) says how
 // far each vertex is out along its lock, so roots stay put.
 uniform float sway = 0.006;
-uniform float light_wrap : hint_range(0.0, 1.0) = 0.4;
-uniform float light_softness : hint_range(0.01, 1.0) = 0.4;
+uniform float light_wrap : hint_range(0.0, 1.0) = 0.3;
+// Baked occlusion between the locks (vertex colour green).
+uniform float vertex_ao : hint_range(0.0, 1.0) = 0.8;
+uniform float light_softness : hint_range(0.01, 1.0) = 0.28;
 
 instance uniform float flash = 0.0;
 instance uniform vec4 paint : source_color = vec4(1.0);
@@ -34,21 +36,24 @@ void vertex() {
 
 void fragment() {
 	vec3 tex = texture(strand_tex, vec2(UV.x, UV.y * 0.35) * tex_scale).rgb;
-	vec3 base = tex * albedo.rgb * paint.rgb;
+	// Each lock gets its own shade (vertex colour blue) so they read apart.
+	float lock = COLOR.b;
+	vec3 base = tex * albedo.rgb * paint.rgb * mix(0.76, 1.12, lock);
 
 	float facing = clamp(dot(NORMAL, VIEW), 0.0, 1.0);
 	float fresnel = pow(1.0 - facing, 1.6);
 	// Phase of the travelling wave: height, a diagonal drift, time and view angle.
 	float phase = v_world.y * wave_scale + dot(v_world.xz, vec2(9.0, 6.0))
-			- TIME * wave_speed * 3.0 + fresnel * 4.0;
+			- TIME * wave_speed * 3.0 + fresnel * 4.0 + lock * 2.5;
 	vec3 rainbow = 0.5 + 0.5 * cos(6.28318 * (phase * 0.12 + vec3(0.0, 0.33, 0.67)));
 	rainbow = smoothstep(0.1, 0.9, rainbow);  // punchier, more saturated hues
 	// Bright crests that sweep through the hair.
 	float crest = smoothstep(0.3, 1.0, sin(phase) * 0.5 + 0.5);
 	float amount = clamp(iridescence * (0.3 + 0.6 * fresnel + 0.6 * crest), 0.0, 1.0);
 
-	ALBEDO = mix(base, base * rainbow * 1.25, amount * 0.75);
-	EMISSION = rainbow * amount * 0.22 + vec3(flash);
+	float ao = mix(1.0, COLOR.g, vertex_ao);
+	ALBEDO = mix(base, base * rainbow * 1.25, amount * 0.75) * ao;
+	EMISSION = rainbow * amount * 0.22 * ao + vec3(flash);
 	RIM = 0.6;
 	RIM_TINT = 0.8;
 }
@@ -60,6 +65,6 @@ void light() {
 	DIFFUSE_LIGHT += lit * ATTENUATION * LIGHT_COLOR / PI;
 	// A soft sheen band across the strands.
 	vec3 h = normalize(LIGHT + VIEW);
-	float sheen = pow(max(dot(NORMAL, h), 0.0), 24.0);
-	SPECULAR_LIGHT += sheen * 0.3 * ATTENUATION * LIGHT_COLOR;
+	float sheen = pow(max(dot(NORMAL, h), 0.0), 70.0);
+	SPECULAR_LIGHT += sheen * 0.55 * ATTENUATION * LIGHT_COLOR;
 }

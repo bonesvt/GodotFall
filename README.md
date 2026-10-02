@@ -242,37 +242,44 @@ Weak on purpose, so skill decides fights.
   reload and inspect (I). All feel; none of it changes the numbers above.
 
 ## Eco, the heroine
-A young mechanic who went rogue after the army turned her down as a Pilot. She fights with her
-late father's broken smart pistol and builds titans from scrap. Short white hair that shimmers in
-technicolor waves, striking aqua eyes, and a makeshift mechanic's outfit in the Jak and Daxter style.
+A young mechanic who went rogue after the militia turned her down as a Pilot. She fights with
+her late father's broken smart pistol and builds titans from scrap. Anime toon look: a short,
+daring dark-red bob with a fringe swept over her right eye, a fierce face with mature makeup,
+pilot goggles pushed up on her head, full hips and thighs, and a skin-tight pilot suit (halter
+with a keyhole and side cutouts, open back, legs cut high front and back, gloves and thigh-high
+boots with knee plates, teal glowing trims).
 
-- **Model**: `assets/models/eco.tscn` (or `Art.model("eco")`), a rigged mesh about 1.7 m tall,
+- **Model**: `assets/models/eco.tscn` (or `Art.model("eco")`), a rigged mesh 1.69 m tall,
   facing -Z with its origin at her feet. Drop it under a CharacterBody3D and she picks her
   animation from it: idle, walk or run (sped up to match), and on the player also fall, crouch
   and slide from its movement state. `idle_motion` turns the idle off.
-- **Physics**: spring bones swing her hair locks (fringe, sides, back) and the rag on her hip;
-  `SPRINGS` in `scripts/ps2/eco_model.gd` tunes stiffness, drag, gravity and swing limits, and
-  `springs_enabled` turns them off.
+- **Physics**: spring bones swing her hair (back, sides and fringe) and make her chest and
+  glutes jiggle with her steps, jumps and landings (not with her speed, so they don't trail
+  behind when she runs). `SPRINGS` in `scripts/ps2/eco_model.gd` tunes stiffness, drag,
+  gravity, swing limits and how much of her movement each spring feels; `jiggle` scales the
+  chest and glute bounce (0 turns it off) and `springs_enabled` turns them all off.
 - **First person**: the player's `EcoBody` node (`scripts/eco_fp_body.gd`) shows her body when
   you look down (head and arms hidden, kept under the camera in every pose) and casts her full
   shadow. `camera_above_neck` and `camera_ahead` place it; `show_body` and `cast_shadow` toggle it.
 - **Look at her**: open `scenes/eco_showcase.tscn` and press F6. Left/Right turn her, Space
   pauses the turntable, 1/2/3 switch between full body, face, and the first-person pistol.
-- **Hair**: `assets/shaders/eco_hair.gdshader`. `iridescence`, `wave_scale`, `wave_speed`
-  and `sway` on `assets/materials/eco/eco_hair.tres` tune the colour waves and the tip sway.
-- **How she's made** (`tools/eco/`): she is sculpted in code from signed distance fields,
-  then decimated, UV'd, rigged and animated in Blender, and exported to
-  `assets/models/eco/eco.glb`. Its import script swaps the Blender materials for the PS2
-  ones in `assets/materials/eco/`. To rebuild (needs numpy, scikit-image, pillow, Blender 4):
+- **Shading**: `assets/shaders/eco_toon.gdshaderinc` (used by `eco_toon`, `eco_toon_2side`
+  and `eco_toon_overlay`): two flat tones with a tinted shadow side, a thin rim light, a thin
+  sheen on the suit and boots, and glowing trims; `eco_outline.gdshader` draws the ink lines
+  as each material's next pass. The materials are `assets/materials/eco/eco_v_*.tres`
+  (`exposure`, `shade_tint`, `rim` and `sheen` are the main knobs).
+- **How she's made** (`tools/eco/build_eco_vroid.py`): built in Blender from a VRoid preset
+  (kept out of the repo; it's in the project files). The script removes the preset's fox ears,
+  tail and clothes, cuts and dyes the hair, sets the face, paints the makeup, bakes the suit
+  into her skin texture, adds the goggles and the glute spring bones, sets her proportions,
+  animates her and exports `assets/models/eco/eco.glb` plus `assets/textures/eco/v_*.png`.
+  Its import script (`eco_import.gd`) swaps the Blender materials for the toon ones and sets
+  her fierce expression from the face's blend shapes. To rebuild (Blender 4):
   ```
-  python3 tools/eco/paint_eco.py                     # face, eyes, fabrics
-  python3 tools/eco/sculpt.py /tmp/eco               # all parts (or name some)
-  blender -b --factory-startup -P tools/eco/build_eco.py -- /tmp/eco assets/models/eco/eco.glb
-  python3 tools/eco/sculpt.py /tmp/eco --fp          # first-person arm
-  blender -b --factory-startup -P tools/eco/build_eco.py -- /tmp/eco assets/models/eco/eco_fp_arm.glb --fp
+  blender -b --factory-startup -P tools/eco/build_eco_vroid.py -- <preset Untitled.glb> . [--preview /tmp/eco]
   ```
-  Shapes and joints live in `sculpt.py` and `rig.py`; add `--preview <prefix>` to the
-  Blender step for quick workbench renders.
+  The first-person arm (`eco_fp_arm.glb`) still comes from the older code-sculpted Eco
+  (`tools/eco/build_eco.py ... --fp`).
 - **Reference sheet renders**: `godot res://scenes/eco_showcase.tscn -- --shots=<folder> [--clean]`.
 
 ## Grunts
@@ -358,6 +365,8 @@ select the Player node and tweak values in the Inspector, or change the defaults
   `godot --headless --path . -s res://tests/combat_test.gd`
 - `tests/stealth_test.gd` headless stealth test (vision cone, sight range, cover, detection meter,
   gunshots, squad callouts, losing the pilot): `godot --headless --path . -s res://tests/stealth_test.gd`
+- `tests/eco_test.gd` Eco's model (toon materials, expression, animations, hair and jiggle
+  springs bounce and settle): `godot --headless --path . -s res://tests/eco_test.gd`
 - `tests/armory_test.gd` headless workbench test (prices, upgrades, attachments, titan parts and
   refits, saving, the bench screens changing your gun, crates, alloy nodes and grunt drops):
   `godot --headless --path . -s res://tests/armory_test.gd`

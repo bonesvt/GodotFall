@@ -15,6 +15,8 @@ import bpy
 import bmesh
 import numpy as np
 from mathutils import Matrix, Quaternion, Vector
+from mathutils import kdtree
+from mathutils.bvhtree import BVHTree
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from rig import J, BONES  # noqa: E402
@@ -35,8 +37,9 @@ PARTS = {
     "hand_L": ("eco_skin", "box", "arm"),
     "glove_R": ("eco_leather", "box", "arm"),
     "glove_L": ("eco_leather", "box", "arm"),
-    "shirt": ("eco_shirt", "box", "auto"),
-    "pants": ("eco_pants", "box", "lower"),
+    "bra": ("eco_shirt", "box", "auto"),
+    "shorts": ("eco_pants", "box", "lower"),
+    "socks": ("eco_shirt", "box", "auto"),
     "knee_pads": ("eco_leather_dark", "box", "lower"),
     "boots": ("eco_leather", "box", "auto"),
     "soles": ("eco_sole", "box", "auto"),
@@ -100,11 +103,9 @@ def load_part(name):
     obj = bpy.data.objects.new(name + "_mesh", me)  # keeps bone names (head, rag) unique
     bpy.context.collection.objects.link(obj)
     activate(obj)
-    # marching cubes winds faces inward for our sign convention
-    bpy.ops.object.mode_set(mode="EDIT")
-    bpy.ops.mesh.select_all(action="SELECT")
-    bpy.ops.mesh.normals_make_consistent(inside=False)
-    bpy.ops.object.mode_set(mode="OBJECT")
+    # Keep marching cubes' own winding (already outward). Recalculating normals
+    # guesses wrong on open pieces such as her bare midriff between the bra and
+    # the shorts, and turns them inside out.
     if len(faces) > target:
         mod = obj.modifiers.new("dec", "DECIMATE")
         mod.ratio = target / len(faces)
@@ -124,16 +125,31 @@ def enlarge_head(obj):
         v.co = HEAD_PIVOT + (v.co - HEAD_PIVOT) * HEAD_SCALE
 
 
+def _lock_lookup():
+    """Nearest sculpted vertex's lock shade (sculpt.py stores one per vertex
+    before decimation), in the blue channel for the hair shader."""
+    data = np.load(PARTS_DIR / "hair.npz")
+    if "lock" not in data:
+        return lambda co: 0.5
+    verts, shade = data["verts"], data["lock"]
+    tree = kdtree.KDTree(len(verts))
+    for i, v in enumerate(verts):
+        tree.insert(v.tolist(), i)
+    tree.balance()
+    return lambda co: float(shade[tree.find(co)[1]])
+
+
 def hair_tip_colors(obj):
     """Vertex colour red = how far out along its lock a hair vertex is (0 at the
     scalp, 1 at 4 cm), so the hair shader sways the tips and not the roots."""
     c, r = np.array([0, -0.012, 1.566]), np.array([0.085, 0.097, 0.097])
     attr = obj.data.color_attributes.new("Col", "FLOAT_COLOR", "POINT")
+    lock_shade = _lock_lookup()
     for i, v in enumerate(obj.data.vertices):
         q = (np.array(v.co[:]) - c) / r
         dist = (np.linalg.norm(q) - 1.0) * r.min()
         t = float(np.clip((dist - 0.008) / 0.04, 0.0, 1.0))
-        attr.data[i].color = (t, t, t, 1.0)
+        attr.data[i].color = (t, t, lock_shade(v.co), 1.0)
     obj.data.color_attributes.active_color = attr
 
 
@@ -189,6 +205,49 @@ def make_eyes():
         enlarge_head(glint)
         objs.append(glint)
     return objs
+
+
+# --- baked occlusion -------------------------------------------------------------
+
+AO_SKIP = ("eye_", "glint_", "lashes")
+
+
+def bake_ao(objs, rays=20, reach=0.07, strength=0.8):
+    """Ambient occlusion per vertex from every part at once (creases under the
+    jacket, belt and straps, between fingers and locks), stored in the "Col"
+    vertex colour: all channels, or green on the hair (red holds its tips).
+    Breaks up the soft, clay-like shading of the sculpted parts."""
+    verts, polys = [], []
+    for o in objs:
+        base = len(verts)
+        verts += [v.co.copy() for v in o.data.vertices]
+        polys += [[base + i for i in p.vertices] for p in o.data.polygons]
+    tree = BVHTree.FromPolygons(verts, polys)
+    rng = np.random.default_rng(1)
+    u = rng.random((rays, 2))
+    # cosine-weighted hemisphere around +Z
+    r, phi = np.sqrt(u[:, 0]), 2 * np.pi * u[:, 1]
+    dirs = np.stack([r * np.cos(phi), r * np.sin(phi), np.sqrt(1 - u[:, 0])], 1)
+    for o in objs:
+        if o.name.startswith(AO_SKIP):
+            continue
+        me = o.data
+        attr = me.color_attributes.get("Col") or me.color_attributes.new("Col", "FLOAT_COLOR", "POINT")
+        me.color_attributes.active_color = attr
+        for i, v in enumerate(me.vertices):
+            n = v.normal
+            frame = n.to_track_quat("Z", "Y").to_matrix()
+            origin = v.co + n * 0.0015
+            hits = 0
+            for d in dirs:
+                if tree.ray_cast(origin, frame @ Vector(d), reach)[0] is not None:
+                    hits += 1
+            ao = 1.0 - strength * hits / rays
+            c = attr.data[i].color
+            if o.name.startswith("hair"):
+                attr.data[i].color = (c[0], ao, c[2], 1.0)
+            else:
+                attr.data[i].color = (ao, ao, ao, 1.0)
 
 
 # --- armature and weights ------------------------------------------------------
@@ -549,6 +608,7 @@ def main():
     for eye in make_eyes():
         skin(eye, rig, "head")
         objs.append(eye)
+    bake_ao(objs)
     make_actions(rig)
     total = sum(len(o.data.polygons) for o in objs)
     print("total faces", total)
