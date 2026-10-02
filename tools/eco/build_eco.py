@@ -15,6 +15,7 @@ import bpy
 import bmesh
 import numpy as np
 from mathutils import Matrix, Quaternion, Vector
+from mathutils import kdtree
 from mathutils.bvhtree import BVHTree
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -102,11 +103,9 @@ def load_part(name):
     obj = bpy.data.objects.new(name + "_mesh", me)  # keeps bone names (head, rag) unique
     bpy.context.collection.objects.link(obj)
     activate(obj)
-    # marching cubes winds faces inward for our sign convention
-    bpy.ops.object.mode_set(mode="EDIT")
-    bpy.ops.mesh.select_all(action="SELECT")
-    bpy.ops.mesh.normals_make_consistent(inside=False)
-    bpy.ops.object.mode_set(mode="OBJECT")
+    # Keep marching cubes' own winding (already outward). Recalculating normals
+    # guesses wrong on open pieces such as her bare midriff between the bra and
+    # the shorts, and turns them inside out.
     if len(faces) > target:
         mod = obj.modifiers.new("dec", "DECIMATE")
         mod.ratio = target / len(faces)
@@ -126,16 +125,31 @@ def enlarge_head(obj):
         v.co = HEAD_PIVOT + (v.co - HEAD_PIVOT) * HEAD_SCALE
 
 
+def _lock_lookup():
+    """Nearest sculpted vertex's lock shade (sculpt.py stores one per vertex
+    before decimation), in the blue channel for the hair shader."""
+    data = np.load(PARTS_DIR / "hair.npz")
+    if "lock" not in data:
+        return lambda co: 0.5
+    verts, shade = data["verts"], data["lock"]
+    tree = kdtree.KDTree(len(verts))
+    for i, v in enumerate(verts):
+        tree.insert(v.tolist(), i)
+    tree.balance()
+    return lambda co: float(shade[tree.find(co)[1]])
+
+
 def hair_tip_colors(obj):
     """Vertex colour red = how far out along its lock a hair vertex is (0 at the
     scalp, 1 at 4 cm), so the hair shader sways the tips and not the roots."""
     c, r = np.array([0, -0.012, 1.566]), np.array([0.085, 0.097, 0.097])
     attr = obj.data.color_attributes.new("Col", "FLOAT_COLOR", "POINT")
+    lock_shade = _lock_lookup()
     for i, v in enumerate(obj.data.vertices):
         q = (np.array(v.co[:]) - c) / r
         dist = (np.linalg.norm(q) - 1.0) * r.min()
         t = float(np.clip((dist - 0.008) / 0.04, 0.0, 1.0))
-        attr.data[i].color = (t, t, t, 1.0)
+        attr.data[i].color = (t, t, lock_shade(v.co), 1.0)
     obj.data.color_attributes.active_color = attr
 
 

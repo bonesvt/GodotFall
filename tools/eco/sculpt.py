@@ -73,6 +73,34 @@ def _frame(axis_z, hint=V(1, 0, 0)):
     return np.column_stack([x, y, z])
 
 
+def _front(x, z, off=0.0):
+    return _on_torso(V(x, 1.0, z), off)
+
+
+def toned_stomach(P, d):
+    """Athletic abs: two columns of shallow pads either side of a centre line,
+    the lines across them, obliques curving down to the hips, and a navel."""
+    m = (P[:, 2] > 0.93) & (P[:, 2] < 1.2) & (P[:, 1] > 0.0) & (np.abs(P[:, 0]) < 0.13)
+    if not m.any():
+        return d
+    Q, e = P[m], d[m]
+    for z in (1.118, 1.078, 1.04):
+        for s in (1, -1):
+            c = _front(s * 0.018, z, -0.0035)
+            e = smin(e, ellipsoid(Q, c, V(0.0155, 0.007, 0.0165)), 0.006)
+    e = smax(e, -capsule(Q, _front(0, 1.16, 0.0005), _front(0, 1.0, 0.0005), 0.0028), 0.003)  # centre line
+    for z in (1.098, 1.059):
+        e = smax(e, -capsule(Q, _front(-0.03, z, 0.0004), _front(0.03, z, 0.0004), 0.0018), 0.003)
+    for s in (1, -1):  # obliques / hip lines
+        pts = [_front(s * x, z, 0.0004) for x, z in ((0.062, 1.09), (0.058, 1.03), (0.045, 0.98), (0.03, 0.94))]
+        for a, b in zip(pts[:-1], pts[1:]):
+            e = smax(e, -capsule(Q, a, b, 0.0022), 0.004)
+    e = smax(e, -sphere(Q, _front(0, 1.012, -0.001), 0.0052), 0.003)  # navel
+    d = d.copy()
+    d[m] = e
+    return d
+
+
 def body(P):
     d = smin(torso(P), neck(P), 0.03)
     for s, side in SIDES:
@@ -80,7 +108,7 @@ def body(P):
         d = smin(d, arm(P, s, side), 0.03)
         # kneecap
         d = smin(d, ellipsoid(P, J["knee." + side] + V(0, 0.043, 0.012), V(0.024, 0.014, 0.028)), 0.014)
-    d = smax(d, -sphere(P, V(0, 0.0735, 1.012), 0.0052), 0.003)  # navel
+    d = toned_stomach(P, d)
     # the thighs touch but stay separate surfaces below the crotch
     gap = np.maximum(np.abs(P[:, 0]) - 0.004, P[:, 2] - 0.765)
     return smax(d, -gap, 0.012)
@@ -258,12 +286,14 @@ def hair_strands():
     rng = np.random.default_rng(7)
     whorl, _ = scalp_point(28, 180)
     strands = []
-    rows = [(10, 5, 0), (28, 9, 20), (48, 12, 0), (68, 14, 13), (88, 14, 0), (106, 11, 16)]
+    rows = [(8, 6, 0), (20, 11, 16), (33, 15, 6), (40, 24, 4), (47, 19, 0), (61, 22, 8), (75, 23, 0), (89, 22, 9), (103, 18, 4), (114, 12, 15)]
     for theta, count, offset in rows:
         for i in range(count):
             phi = -180 + offset + 360.0 * i / count + rng.uniform(-6, 6)
             phi = (phi + 180) % 360 - 180
-            th = theta + rng.uniform(-4, 4)
+            if theta == 40 and abs(phi) > 60:
+                continue  # extra fringe row, front only
+            th = theta + rng.uniform(-3, 3)
             root, n = scalp_point(th, phi, 0.004)
             if root[2] < hairline_z(phi) + 0.004:
                 continue
@@ -278,37 +308,52 @@ def hair_strands():
                 flow = norm(flow * 0.7 + V(0.95, 0.15, -0.35))
             side = 60 <= abs(phi) <= 130
             back = abs(phi) > 130
+            k_r = rng.uniform(0.85, 1.15)
             if front:
-                L, r0, lift, flick, grav = rng.uniform(0.095, 0.12), 0.018, 0.35, 0.12, 0.3
+                L, r0, lift, flick, grav = rng.uniform(0.08, 0.1), 0.0125, 0.35, 0.12, 0.3
             elif th < 16:
-                L, r0, lift, flick, grav = rng.uniform(0.07, 0.085), 0.02, 0.15, 0.05, 0.5
+                L, r0, lift, flick, grav = rng.uniform(0.07, 0.085), 0.0135, 0.15, 0.05, 0.5
             elif th < 30:
-                L, r0, lift, flick, grav = rng.uniform(0.09, 0.11), 0.02, 0.3, 0.25, 0.4
+                L, r0, lift, flick, grav = rng.uniform(0.09, 0.115), 0.0135, 0.3, 0.25, 0.4
             elif side:
-                L, r0, lift, flick, grav = rng.uniform(0.065, 0.085), 0.017, 0.15, 0.35, 0.9
+                L, r0, lift, flick, grav = rng.uniform(0.065, 0.09), 0.0115, 0.15, 0.35, 0.9
             elif back:
-                L, r0, lift, flick, grav = rng.uniform(0.07, 0.09), 0.018, 0.2, 0.42, 0.8
+                L, r0, lift, flick, grav = rng.uniform(0.07, 0.095), 0.0125, 0.2, 0.42, 0.8
             else:
-                L, r0, lift, flick, grav = rng.uniform(0.085, 0.1), 0.019, 0.25, 0.3, 0.6
+                L, r0, lift, flick, grav = rng.uniform(0.085, 0.105), 0.013, 0.25, 0.3, 0.6
+            r0 *= k_r
             pts, radii = [root], [r0]
             dirv = norm(flow + n * lift)
-            steps = 7
+            steps = 9
             for k in range(steps):
                 t = (k + 1) / steps
                 p = pts[-1]
                 nn = scalp_normal(p)
                 dirv = norm(dirv + V(0, 0, -grav * 0.18) + nn * (flick * 0.5 * t * t))
-                if front and p[2] < 1.585:  # the fringe sweeps aside above her eyes
-                    dirv = norm(V(dirv[0] + 0.12, dirv[1], dirv[2] * 0.5))
+                if front and p[2] < 1.592:  # the fringe sweeps aside above her eyes
+                    dirv = norm(V(dirv[0] + 0.2, dirv[1], dirv[2] * 0.15))
                 p = p + dirv * L / steps
                 # keep the lock lying on the head rather than inside it
-                lim = 0.009 + 0.004 * t
+                lim = (0.012 if front else 0.009) + 0.004 * t
+                if front and p[2] < 1.6:
+                    lim += 0.006  # clear the brow ridge
                 dist = scalp_dist(p)
                 if dist < lim:
                     p = p + scalp_normal(p) * (lim - dist)
                 pts.append(p)
-                radii.append(r0 * (1.0 - 0.82 * t ** 1.3))
+                radii.append(r0 * (1.0 - 0.9 * t ** 1.15))
             strands.append((pts, radii, n))
+            # split tip: a thinner offshoot peeling away from the lock's last third
+            if rng.random() < 0.6:
+                j = 5
+                side_v = norm(np.cross(n, norm(pts[-1] - pts[j])) + rng.normal(0, 0.2, 3))
+                sub, sr = [pts[j]], [radii[j] * 0.7]
+                for k in range(1, 4):
+                    t = k / 3
+                    q = pts[min(j + k * 1, len(pts) - 1)] + side_v * 0.008 * t + n * 0.002 * t
+                    sub.append(q)
+                    sr.append(radii[j] * 0.7 * (1 - 0.88 * t))
+                strands.append((sub, sr, n))
     # sideburn locks in front of the ears
     for s, _ in SIDES:
         root, n = scalp_point(98, s * 76, 0.004)
@@ -338,7 +383,7 @@ def hair(P):
     phi = np.degrees(np.arctan2(P[:, 0], P[:, 1]))
     cap = smax(cap, hairline_z(phi) - P[:, 2], 0.006)
     d = cap
-    flat = 1.6  # locks are ribbons: this much wider than they are thick
+    flat = 2.0  # locks are ribbons: this much wider than they are thick
     for pts, radii, n in _STRANDS:
         lo = np.min(pts, axis=0) - 0.03
         hi = np.max(pts, axis=0) + 0.03
@@ -353,8 +398,8 @@ def hair(P):
         e = None
         for k in range(len(pts) - 1):
             seg = round_cone(Q, tp[k], tp[k + 1], radii[k] * flat, radii[k + 1] * flat) / flat
-            e = seg if e is None else smin(e, seg, 0.004)
-        d[m] = smin(d[m], e, 0.006)
+            e = seg if e is None else smin(e, seg, 0.003)
+        d[m] = smin(d[m], e, 0.0012)  # nearly hard joins keep a crease between locks
     return d
 
 
@@ -363,14 +408,14 @@ def hair(P):
 def sports_bra(P):
     """Racerback sports bra: scoop front, wide under-bust band."""
     d = torso(P, 0.0035)
-    d = smax(d, P[:, 2] - 1.40, 0.006)
-    d = smax(d, 1.135 - P[:, 2], 0.004)
+    d = smax(d, P[:, 2] - 1.40, 0.005)
+    d = smax(d, 1.163 - P[:, 2], 0.004)
     for s, side in SIDES:
-        d = smax(d, -ellipsoid(P, V(s * 0.15, -0.005, 1.37), V(0.068, 0.13, 0.1)), 0.006)   # armholes
-        d = smax(d, -ellipsoid(P, V(s * 0.13, -0.085, 1.36), V(0.09, 0.06, 0.11)), 0.006)   # racerback
+        d = smax(d, -ellipsoid(P, V(s * 0.145, -0.005, 1.34), V(0.075, 0.13, 0.085)), 0.005)  # armholes
+        d = smax(d, -ellipsoid(P, V(s * 0.115, -0.085, 1.34), V(0.095, 0.06, 0.12)), 0.005)  # racerback
         d = smax(d, -arm(P, s, side, 0.003), 0.004)
-    d = smax(d, -ellipsoid(P, V(0, 0.12, 1.405), V(0.07, 0.1, 0.085)), 0.006)           # scoop
-    band = np.maximum(torso(P, 0.0062), np.abs(P[:, 2] - 1.148) - 0.012)
+    d = smax(d, -ellipsoid(P, V(0, 0.12, 1.37), V(0.062, 0.1, 0.105)), 0.005)          # deep scoop
+    band = np.maximum(torso(P, 0.0058), np.abs(P[:, 2] - 1.171) - 0.0075)
     return smin(d, band, 0.002)
 
 
@@ -382,14 +427,14 @@ def _hips(P, grow=0.0):
 
 
 def shorts_hem(P):
-    return 0.712 + np.clip(np.abs(P[:, 0]) - 0.09, 0, 0.1) * 0.25
+    return 0.762 + np.clip(np.abs(P[:, 0]) - 0.09, 0, 0.1) * 0.3 - np.clip(-P[:, 1], 0, 0.1) * 0.08
 
 
 def shorts_top(P):
     return 0.99 - P[:, 1] * 0.1
 
 
-def _leg_gap(P, z=0.735, w=0.0065):
+def _leg_gap(P, z=0.774, w=0.0065):
     return np.maximum(np.abs(P[:, 0]) - w, P[:, 2] - z)
 
 
@@ -783,7 +828,11 @@ def skin_cut(verts):
     hidden = (sports_bra(verts) < 0.004) | (shorts(verts) < 0.006) | (socks(verts) < 0.003)
     for s, side in SIDES:
         hidden |= boot(verts, s, side) < 0.004
-    hidden |= jacket_outer(verts) < 0.0
+    hidden |= (jacket_outer(verts) < 0.0) & (jacket_open(verts) > 0.0) & (verts[:, 2] > 1.15)
+    # upper arms under the sleeves
+    for s, side in SIDES:
+        sh, el = J["shoulder." + side], J["elbow." + side]
+        hidden |= (round_cone(verts, sh, sh + (el - sh) * 0.78, 0.06, 0.05) < 0.0) & (np.abs(verts[:, 0]) > 0.14)
     hidden &= ~(verts[:, 2] > 1.43)  # keep the neck
     # forearms stay visible below the rolled sleeves
     for s, side in SIDES:
@@ -803,16 +852,16 @@ R_HAND = {side: _box([J["wrist." + side], J["hand_end." + side]], 0.075) for _, 
 
 PARTS = {
     # name: (sdf, lo, hi, voxel size, target triangles)
-    "body": (visible_body, V(-0.36, -0.2, -0.01), V(0.36, 0.2, 1.52), 0.004, 9000),
+    "body": (visible_body, V(-0.36, -0.2, -0.01), V(0.36, 0.2, 1.52), 0.003, 15000),
     "head": (head, V(-0.11, -0.13, 1.37), V(0.11, 0.13, 1.69), 0.0018, 6500),
     "lashes": (eyelash, V(-0.08, 0.05, 1.53), V(0.08, 0.1, 1.58), 0.0007, 600),
-    "hair": (hair, V(-0.16, -0.17, 1.42), V(0.17, 0.2, 1.75), 0.002, 10000),
+    "hair": (hair, V(-0.17, -0.18, 1.42), V(0.18, 0.21, 1.75), 0.0015, 22000),
     "hand_R": (lambda P: hand(P, 1.0, "R"), *R_HAND["R"], 0.0018, 2600),
     "hand_L": (lambda P: hand(P, -1.0, "L"), *R_HAND["L"], 0.0018, 2600),
     "glove_R": (lambda P: glove(P, 1.0, "R"), *R_HAND["R"], 0.0018, 2500),
     "glove_L": (lambda P: glove(P, -1.0, "L"), *R_HAND["L"], 0.0018, 2500),
     "bra": (sports_bra, V(-0.2, -0.13, 1.11), V(0.2, 0.14, 1.43), 0.0025, 4500),
-    "shorts": (shorts, V(-0.25, -0.2, 0.68), V(0.25, 0.17, 1.03), 0.0025, 6500),
+    "shorts": (shorts, V(-0.25, -0.2, 0.72), V(0.25, 0.17, 1.03), 0.0025, 6500),
     "socks": (socks, V(-0.16, -0.1, 0.24), V(0.16, 0.08, 0.33), 0.002, 1800),
     "knee_pads": (knee_pads, V(-0.17, -0.08, 0.38), V(0.17, 0.13, 0.56), 0.0022, 3000),
     "boots": (lambda P: np.minimum(boot(P, 1.0, "R"), boot(P, -1.0, "L")), V(-0.18, -0.1, 0.0), V(0.18, 0.18, 0.29), 0.0028, 4000),
@@ -854,6 +903,30 @@ def mesh_part(fn, lo, hi, res):
     return verts + lo, faces
 
 
+def hair_lock_shade(verts):
+    """A random shade per lock for each hair vertex (the lock it is nearest
+    to), so the build can tint locks apart instead of one smooth mass."""
+    strands = _STRANDS or hair_strands()
+    shades = np.random.default_rng(11).uniform(0, 1, len(strands))
+    best = np.full(len(verts), np.inf)
+    out = np.full(len(verts), 0.5)
+    for i, (pts, radii, _) in enumerate(strands):
+        for k in range(len(pts) - 1):
+            # distance relative to the lock's thickness there
+            dd = seg_dist_np(verts, pts[k], pts[k + 1]) / max(radii[k], 0.003)
+            m = dd < best
+            best[m] = dd[m]
+            out[m] = shades[i]
+    out[best > 6.0] = 0.5  # the scalp cap between locks
+    return out
+
+
+def seg_dist_np(P, a, b):
+    ab = b - a
+    t = np.clip(((P - a) @ ab) / (ab @ ab), 0, 1)
+    return np.linalg.norm(P - (a + t[:, None] * ab), axis=1)
+
+
 def main():
     out = Path(sys.argv[1])
     out.mkdir(parents=True, exist_ok=True)
@@ -870,7 +943,8 @@ def main():
             hidden = skin_cut(v)
             keep = ~hidden[f].all(1)
             f = f[keep]
-        np.savez(out / f"{name}.npz", verts=v, faces=f, target=tris)
+        extra = {"lock": hair_lock_shade(v)} if name == "hair" else {}
+        np.savez(out / f"{name}.npz", verts=v, faces=f, target=tris, **extra)
         print(f"{name}: {len(v)} verts {len(f)} faces ({time.time() - t:.1f}s)", flush=True)
 
 
