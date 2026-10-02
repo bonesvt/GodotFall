@@ -2,8 +2,11 @@ extends RefCounted
 ## Eco's armory: everything that carries over between runs, and the catalog the
 ## hub's workbenches sell from. Saved to a ConfigFile (user://armory.cfg).
 ##
-## Scrap is the currency. Runs pay it out (opened caches, zones cleared, grunts
-## dropped, a titan brought home) and the benches spend it:
+## Three materials pay for everything, all collected out in the levels
+## (scripts/run/loot.gd): scrap (grunts drop it, small crates hold it), alloy
+## (mined from resource nodes) and circuits (rare, from crates and grunts).
+## A run that ends in extraction banks everything you carried; a lost run
+## banks half. The benches spend them:
 ##   gunsmith bench   weapon upgrades (three modest tracks per gun) and
 ##                    attachments (one per slot, each a trade-off), plus finishes
 ##   weapon rack      buy and pick the sidearm you head out with
@@ -18,14 +21,20 @@ extends RefCounted
 const TitanParts := preload("res://scripts/run/titan_parts.gd")
 
 const DEFAULT_PATH := "user://armory.cfg"
+const MATERIALS := ["scrap", "alloy", "circuits"]
+const MATERIAL_NAMES := {"scrap": "Scrap", "alloy": "Alloy", "circuits": "Circuits"}
 ## What Eco has stashed when you first start.
-const STARTING_SCRAP := 60
+const STARTING_STASH := {"scrap": 60, "alloy": 10, "circuits": 1}
+## Share of what you carried that a lost run still banks.
+const LOST_RUN_KEEP := 0.5
+## Salvaged off the enemy titan when you win.
+const WIN_BONUS := {"scrap": 40, "alloy": 25, "circuits": 3}
 
 ## Pilot sidearms. `stats` use weapon.gd's property names; the smart pistol's
 ## are weapon.gd's defaults. `mag_step` is rounds per Magazine upgrade.
 const WEAPONS := {
 	"smart_pistol": {
-		"name": "Dad's Smart Pistol", "cost": 0, "model": "pistol",
+		"name": "Dad's Smart Pistol", "cost": {}, "model": "pistol",
 		"desc": "Semi-auto, suppressed. Weak on the body, brutal on the head.",
 		"smart": true, "automatic": false, "suppressed": true, "mag_step": 1,
 		"sound": "pistol", "sound_last": "pistol_last", "tracer": Color(0.75, 0.97, 1.0, 0.85),
@@ -44,7 +53,7 @@ const WEAPONS := {
 		],
 	},
 	"rivet_cannon": {
-		"name": "Rivet Cannon", "cost": 150, "model": "rivet_cannon",
+		"name": "Rivet Cannon", "cost": {"scrap": 120, "alloy": 20, "circuits": 3}, "model": "rivet_cannon",
 		"desc": "Five heavy rounds off a titan's rivet driver. Slow, loud, kicks like a mule.",
 		"smart": false, "automatic": false, "suppressed": false, "mag_step": 1,
 		"sound": "rivet_cannon", "sound_last": "rivet_cannon", "tracer": Color(1.0, 0.75, 0.4, 0.9),
@@ -61,7 +70,7 @@ const WEAPONS := {
 		],
 	},
 	"machine_pistol": {
-		"name": "Militia Machine Pistol", "cost": 120, "model": "machine_pistol",
+		"name": "Militia Machine Pistol", "cost": {"scrap": 100, "circuits": 2}, "model": "machine_pistol",
 		"desc": "Full auto, light rounds, sprays wide. Hold the trigger, mind the bloom.",
 		"smart": false, "automatic": true, "suppressed": false, "mag_step": 3,
 		"sound": "machine_pistol", "sound_last": "machine_pistol", "tracer": Color(1.0, 0.9, 0.6, 0.7),
@@ -87,7 +96,7 @@ const UPGRADES := {
 }
 const UPGRADE_ORDER := ["calibre", "action", "magazine"]
 const MAX_LEVEL := 3
-const UPGRADE_COST := [40, 80, 140]
+const UPGRADE_COST := [{"scrap": 40}, {"scrap": 70, "circuits": 2}, {"scrap": 110, "circuits": 5}]
 const CALIBRE_STEP := 0.06
 const ACTION_STEP := 0.08
 
@@ -97,24 +106,24 @@ const ATTACHMENT_SLOTS := ["muzzle", "mag", "grip"]
 const SLOT_NAMES := {"muzzle": "Muzzle", "mag": "Mag", "grip": "Grip"}
 const ATTACHMENTS := {
 	"muzzle": [
-		{"id": "stock", "name": "Stock", "desc": "As it came.", "cost": 0, "mods": {}},
-		{"id": "long_barrel", "name": "Long barrel", "desc": "Holds damage 40% further and tighter, but slower to fire.", "cost": 60,
+		{"id": "stock", "name": "Stock", "desc": "As it came.", "cost": {}, "mods": {}},
+		{"id": "long_barrel", "name": "Long barrel", "desc": "Holds damage 40% further and tighter, but slower to fire.", "cost": {"scrap": 50, "circuits": 1},
 			"mods": {"falloff_start": 1.4, "falloff_end": 1.4, "base_spread": 0.7, "fire_interval": 1.12}},
-		{"id": "compensator", "name": "Compensator", "desc": "Less kick and bloom, but sloppier on the move.", "cost": 60,
+		{"id": "compensator", "name": "Compensator", "desc": "Less kick and bloom, but sloppier on the move.", "cost": {"scrap": 50, "circuits": 1},
 			"mods": {"recoil_kick": 0.6, "bloom_per_shot": 0.8, "move_spread": 1.25, "air_spread": 1.25}},
 	],
 	"mag": [
-		{"id": "stock", "name": "Stock", "desc": "As it came.", "cost": 0, "mods": {}},
-		{"id": "extended", "name": "Extended mag", "desc": "40% more rounds, 20% slower reload.", "cost": 60,
+		{"id": "stock", "name": "Stock", "desc": "As it came.", "cost": {}, "mods": {}},
+		{"id": "extended", "name": "Extended mag", "desc": "40% more rounds, 20% slower reload.", "cost": {"scrap": 50, "circuits": 1},
 			"mods": {"magazine_size": 1.4, "reload_time": 1.2}},
-		{"id": "speed", "name": "Speed base", "desc": "30% faster reload, 20% fewer rounds.", "cost": 60,
+		{"id": "speed", "name": "Speed base", "desc": "30% faster reload, 20% fewer rounds.", "cost": {"scrap": 50, "circuits": 1},
 			"mods": {"magazine_size": 0.8, "reload_time": 0.7}},
 	],
 	"grip": [
-		{"id": "stock", "name": "Stock", "desc": "As it came.", "cost": 0, "mods": {}},
-		{"id": "wrap", "name": "Paracord wrap", "desc": "Steadier on the ground, bloom settles faster; worse in the air.", "cost": 50,
+		{"id": "stock", "name": "Stock", "desc": "As it came.", "cost": {}, "mods": {}},
+		{"id": "wrap", "name": "Paracord wrap", "desc": "Steadier on the ground, bloom settles faster; worse in the air.", "cost": {"scrap": 45, "circuits": 1},
 			"mods": {"move_spread": 0.75, "bloom_recovery": 1.3, "air_spread": 1.15}},
-		{"id": "skeleton", "name": "Skeleton grip", "desc": "Accurate in the air, but kicks harder.", "cost": 50,
+		{"id": "skeleton", "name": "Skeleton grip", "desc": "Accurate in the air, but kicks harder.", "cost": {"scrap": 45, "circuits": 1},
 			"mods": {"air_spread": 0.6, "move_spread": 0.85, "recoil_kick": 1.25}},
 	],
 }
@@ -130,16 +139,19 @@ const FINISHES := [
 ]
 
 ## Titan parts you can buy to start runs with (Mk I), by slot. Scrap is free.
-const TITAN_PART_COST := {"chassis": 120, "weapon": 100, "core": 90, "kit": 70}
+const TITAN_PART_COST := {
+	"chassis": {"alloy": 60, "scrap": 40},
+	"weapon": {"alloy": 40, "scrap": 40, "circuits": 2},
+	"core": {"alloy": 30, "circuits": 4},
+	"kit": {"alloy": 30, "scrap": 20},
+}
 ## Refits: per part id, levels 0..MAX_LEVEL, +REFIT_STEP to its scaling stats each.
 const REFIT_STEP := 0.06
-const REFIT_COST := [50, 100, 160]
-
-## Scrap a run pays out.
-const PAY := {"cache": 12, "zone": 20, "grunt": 2, "win": 60}
+const REFIT_COST := [{"alloy": 25}, {"alloy": 50, "circuits": 2}, {"alloy": 90, "circuits": 4}]
 
 var path := DEFAULT_PATH
-var scrap := STARTING_SCRAP
+## material -> amount banked
+var stash := STARTING_STASH.duplicate()
 var owned_weapons := ["smart_pistol"]
 var equipped := "smart_pistol"
 ## weapon id -> {track: level}
@@ -156,7 +168,7 @@ var owned_parts := []
 var titan_loadout := {"chassis": "scrap", "weapon": "scrap", "core": "scrap", "kit": "scrap"}
 ## part id -> refit level (ids are unique across slots except "scrap", so key by "slot:id")
 var refits := {}
-var lifetime_scrap := 0
+var lifetime := {}
 
 
 func _init(p_path := DEFAULT_PATH) -> void:
@@ -173,8 +185,8 @@ func load_file() -> void:
 	var cfg := ConfigFile.new()
 	if cfg.load(path) != OK:
 		return
-	scrap = cfg.get_value("armory", "scrap", scrap)
-	lifetime_scrap = cfg.get_value("armory", "lifetime_scrap", 0)
+	stash.merge(cfg.get_value("armory", "stash", {}), true)
+	lifetime = cfg.get_value("armory", "lifetime", {})
 	owned_weapons = cfg.get_value("weapons", "owned", owned_weapons)
 	equipped = cfg.get_value("weapons", "equipped", equipped)
 	upgrades = cfg.get_value("weapons", "upgrades", {})
@@ -190,8 +202,8 @@ func load_file() -> void:
 
 func save() -> void:
 	var cfg := ConfigFile.new()
-	cfg.set_value("armory", "scrap", scrap)
-	cfg.set_value("armory", "lifetime_scrap", lifetime_scrap)
+	cfg.set_value("armory", "stash", stash)
+	cfg.set_value("armory", "lifetime", lifetime)
 	cfg.set_value("weapons", "owned", owned_weapons)
 	cfg.set_value("weapons", "equipped", equipped)
 	cfg.set_value("weapons", "upgrades", upgrades)
@@ -204,24 +216,50 @@ func save() -> void:
 	cfg.save(path)
 
 
-func _spend(cost: int) -> bool:
-	if cost > scrap:
-		return false
-	scrap -= cost
+func amount(material: String) -> int:
+	return int(stash.get(material, 0))
+
+
+func can_afford(cost: Dictionary) -> bool:
+	for m in cost:
+		if amount(m) < int(cost[m]):
+			return false
 	return true
 
 
-## Pays out scrap and saves; returns the amount.
-func earn(amount: int) -> int:
-	scrap += amount
-	lifetime_scrap += amount
+func _spend(cost: Dictionary) -> bool:
+	if not can_afford(cost):
+		return false
+	for m in cost:
+		stash[m] = amount(m) - int(cost[m])
+	return true
+
+
+## Banks materials and saves.
+func bank(materials: Dictionary) -> void:
+	for m in materials:
+		stash[m] = amount(m) + int(materials[m])
+		lifetime[m] = int(lifetime.get(m, 0)) + int(materials[m])
 	save()
-	return amount
 
 
-## What a finished run is worth.
-static func payout(caches: int, zones_cleared: int, grunts: int, won: bool) -> int:
-	return caches * PAY["cache"] + zones_cleared * PAY["zone"] + grunts * PAY["grunt"] + (PAY["win"] if won else 0)
+## What a finished run banks from what you carried: everything plus the enemy
+## titan's salvage on a win, half (rounded down) otherwise.
+static func run_haul(carried: Dictionary, won: bool) -> Dictionary:
+	var haul := {}
+	for m in MATERIALS:
+		var n := int(carried.get(m, 0))
+		haul[m] = n + int(WIN_BONUS[m]) if won else int(floor(n * LOST_RUN_KEEP))
+	return haul
+
+
+## "40 scrap, 2 circuits", or "free".
+static func cost_text(cost: Dictionary) -> String:
+	var bits := []
+	for m in MATERIALS:
+		if int(cost.get(m, 0)) > 0:
+			bits.append("%d %s" % [cost[m], m])
+	return ", ".join(bits) if not bits.is_empty() else "free"
 
 
 # --- pilot weapons --------------------------------------------------------------
@@ -253,15 +291,14 @@ func upgrade_level(weapon: String, track: String) -> int:
 	return upgrades.get(weapon, {}).get(track, 0)
 
 
-## Cost of the next level of a track, or -1 when it's maxed.
-func upgrade_cost(weapon: String, track: String) -> int:
+## Cost of the next level of a track, or {} when it's maxed.
+func upgrade_cost(weapon: String, track: String) -> Dictionary:
 	var level := upgrade_level(weapon, track)
-	return UPGRADE_COST[level] if level < MAX_LEVEL else -1
+	return UPGRADE_COST[level] if level < MAX_LEVEL else {}
 
 
 func buy_upgrade(weapon: String, track: String) -> bool:
-	var cost := upgrade_cost(weapon, track)
-	if cost < 0 or not owns_weapon(weapon) or not _spend(cost):
+	if upgrade_level(weapon, track) >= MAX_LEVEL or not owns_weapon(weapon) or not _spend(upgrade_cost(weapon, track)):
 		return false
 	if not upgrades.has(weapon):
 		upgrades[weapon] = {}
@@ -389,15 +426,14 @@ func refit_level(slot: String, id: String) -> int:
 	return refits.get(part_key(slot, id), 0)
 
 
-func refit_cost(slot: String, id: String) -> int:
+func refit_cost(slot: String, id: String) -> Dictionary:
 	var level := refit_level(slot, id)
-	return REFIT_COST[level] if level < MAX_LEVEL else -1
+	return REFIT_COST[level] if level < MAX_LEVEL else {}
 
 
 ## Refits a part you own (scrap counts: everyone owns scrap).
 func buy_refit(slot: String, id: String) -> bool:
-	var cost := refit_cost(slot, id)
-	if cost < 0 or not owns_part(slot, id) or not _spend(cost):
+	if refit_level(slot, id) >= MAX_LEVEL or not owns_part(slot, id) or not _spend(refit_cost(slot, id)):
 		return false
 	refits[part_key(slot, id)] = refit_level(slot, id) + 1
 	save()

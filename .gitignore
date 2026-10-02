@@ -12,3 +12,4 @@ tools/hub/__pycache__/
 tools/pistol/__pycache__/
 !assets/models/smart_pistol/*.import
 !assets/models/sidearms/*.import
+tools/run/__pycache__/
