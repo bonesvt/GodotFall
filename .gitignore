@@ -4,6 +4,8 @@
 *.import
 export_presets.cfg
 !assets/textures/*.import
+!assets/textures/titans/*.import
+!assets/models/titans/*.import
 !assets/models/grunt/*.import
 !assets/models/eco/*.import
 tools/eco/__pycache__/
@@ -13,3 +15,4 @@ tools/pistol/__pycache__/
 !assets/models/smart_pistol/*.import
 !assets/models/sidearms/*.import
 tools/run/__pycache__/
+tools/titans/__pycache__/

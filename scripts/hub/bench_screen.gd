@@ -16,6 +16,7 @@ const Weapon := preload("res://scripts/weapon.gd")
 const Art := preload("res://scripts/ps2/ps2_assets.gd")
 const LootArt := preload("res://scripts/run/loot_art.gd")
 const SFX := preload("res://scripts/sfx.gd")
+const TitanStyle := preload("res://scripts/run/titan_style.gd")
 
 const TITLES := {"gunsmith": "ECO'S GUNSMITH BENCH", "rack": "WEAPON RACK", "workshop": "TITAN WORKSHOP"}
 const SUBTITLES := {
@@ -505,7 +506,10 @@ func _update_preview(row: Dictionary) -> void:
 			elif row["slot"] == "weapon":
 				gun = row["part"]
 		key = chassis + "/" + gun
-		make = func(): return Art.titan(chassis, gun)
+		make = func():
+			var t := Art.titan(chassis, gun)
+			TitanStyle.apply(t, chassis, TitanStyle.load_style(chassis))
+			return t
 	else:
 		var p: Dictionary = row.get("profile", armory.weapon_profile(weapon))
 		key = "%s/%s/%s/%d" % [p["id"], p["attachments"], p["finish"]["id"], p["tier"]]

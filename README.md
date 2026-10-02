@@ -288,6 +288,9 @@ through static. She only listens; she never talks back.
   a terrified last man, and HQ calling into silence once the squad is gone.
 - Bigger events cut off small talk; lines never repeat back to back, and every exchange plays before any repeats.
 - Speakers near the edge of range break up: fewer signal bars and garbled characters.
+- **Dialogue rating**: press **F8** to cycle E, T, M and AO (saved between sessions; default M).
+  E and T have their own clean line banks; AO currently uses the M bank. `scripts/radio/content_rating.gd`
+  holds the setting.
 - Lines live in `scripts/radio/radio_lines.gd`, one exchange per string (`"a: ... | b: ... | hq: ..."`).
   `radio_chatter.gd` emits `line_started(callsign, text, category)` for voice-over later.
 

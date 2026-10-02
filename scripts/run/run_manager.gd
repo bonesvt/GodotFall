@@ -29,6 +29,8 @@ const BenchScreen := preload("res://scripts/hub/bench_screen.gd")
 const Loot := preload("res://scripts/run/loot.gd")
 const Weapon := preload("res://scripts/weapon.gd")
 const Art := preload("res://scripts/ps2/ps2_assets.gd")
+const Garage := preload("res://scripts/hub/garage.gd")
+const TitanStyle := preload("res://scripts/run/titan_style.gd")
 
 const FALL_DAMAGE := 25
 ## Integrity lost when grunts take the pilot's health to zero.
@@ -77,6 +79,8 @@ var last_parts := {}
 ## The practice titan in the hub's titan yard, and whether you're in it.
 var hub_titan: Titan
 var hub_piloting := false
+## The paint shop screen while it is open (it pauses the hub).
+var garage: Garage
 ## Movement course clock: armed while standing on the start pad, running (>= 0)
 ## from leaving it until the finish tower, or until you touch the grass.
 var course_armed := false
@@ -245,6 +249,10 @@ func _hub_tick(delta: float) -> void:
 		if Input.is_action_just_pressed("interact") or Input.is_action_just_pressed("ui_cancel"):
 			close_bench()
 		return
+	if garage != null:
+		if Input.is_action_just_pressed("interact") or Input.is_action_just_pressed("ui_cancel"):
+			close_garage()
+		return
 	if hub_piloting:
 		if Input.is_action_just_pressed("interact"):
 			disembark_hub_titan()
@@ -269,10 +277,35 @@ func _hub_tick(delta: float) -> void:
 	if spot.has("screen"):
 		open_bench(spot["screen"])
 		return
+	if spot["id"] == "garage":
+		open_garage()
+		return
 	var lines: Array = spot["lines"]
 	var n: int = hub_reads.get(spot["id"], 0)
 	hub_reads[spot["id"]] = n + 1
 	hud.toast(lines[n % lines.size()], HUB_LINE_SECONDS)
+
+
+## Opens Eco's paint shop on the chassis of your last titan, pausing the hub.
+func open_garage() -> void:
+	garage = Garage.new(last_parts.get("chassis", {}).get("id", "atlas"))
+	add_child(garage)
+	get_tree().paused = true
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	hud.visible = false
+	pilot_hud.visible = false
+
+
+func close_garage() -> void:
+	garage.queue_free()
+	garage = null
+	get_tree().paused = false
+	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+	hud.visible = true
+	pilot_hud.visible = true
+	dress_hub()
+	if hub_titan != null:
+		hud.toast("Call your titan again (V) to see the new paint.", HUB_LINE_SECONDS)
 
 
 ## Opens a workbench screen ("gunsmith", "rack" or "workshop"), pausing the hub.
@@ -343,6 +376,8 @@ func dress_hub() -> void:
 			c.free()
 		var parts := armory.start_parts()
 		var titan := Art.titan(parts.get("chassis", {}).get("id", "scrap"), parts.get("weapon", {}).get("id", "scrap"))
+		var chassis: String = parts.get("chassis", {}).get("id", "scrap")
+		TitanStyle.apply(titan, chassis, TitanStyle.load_style(chassis))
 		titan.scale = Vector3.ONE * 0.6
 		stand.add_child(titan)
 

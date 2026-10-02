@@ -18,6 +18,7 @@ const PracticeTarget := preload("res://scripts/hub/practice_target.gd")
 const TitanDummy := preload("res://scripts/hub/titan_dummy.gd")
 const Ambient := preload("res://scripts/hub/ambient.gd")
 const Props := preload("res://scripts/hub/hub_props.gd")
+const TITAN_PAINT := preload("res://assets/shaders/titan_paint.gdshader")
 
 ## The boundary wall runs at x = +-WALL_X, z = WALL_BACK and z = WALL_FRONT.
 const WALL_X := 72.0
@@ -27,6 +28,8 @@ const WALL_H := 5.0
 
 const TITAN_PAD := Vector3(0, 0, 54)
 ## Where the titan can be called in and walked around (x, z, width, depth).
+## Eco's paint shop bench, at the yard's near edge.
+const PAINT_SHOP := Vector3(10, 0, 45)
 const TITAN_YARD := Rect2(-66.0, 40.0, 132.0, 50.0)
 ## The titan workshop, at the yard's west edge facing the temple.
 const WORKSHOP := Vector3(-16, 0, 47)
@@ -55,6 +58,7 @@ static func build(root: Node3D, info: Dictionary) -> void:
 	_range(root, info)
 	_course(root, info)
 	_titan_yard(root, info)
+	_paint_shop(root, info)
 	_greenery(root, rng)
 	_birds(root)
 
@@ -455,6 +459,43 @@ static func _workshop(root: Node3D, info: Dictionary) -> void:
 	K.interactable(info, "titan_workshop", w + Vector3(0.6, 0.1, -3.6), "[F] Work on the titan (starting parts, refits)", [], 2.6)
 	info["interactables"].back()["screen"] = "workshop"
 
+
+
+## Eco's paint shop at the edge of the yard: a bench of paint cans and a
+## swatch board. F opens the garage (scripts/hub/garage.gd).
+static func _paint_shop(root: Node3D, info: Dictionary) -> void:
+	var at := PAINT_SHOP
+	K.wood(root, at + Vector3(0, 0.5, 0), Vector3(3.2, 1.0, 1.2))
+	K.mesh(root, at + Vector3(0, 1.03, 0), Vector3(3.3, 0.06, 1.3), _gloss(Color(0.24, 0.25, 0.28)))
+	# Swatch board behind the bench, a patch of every colour she's tried.
+	K.mesh(root, at + Vector3(0, 2.1, 0.75), Vector3(3.2, 2.0, 0.12), Art.material("wood"))
+	var swatches := [Color(1.0, 0.6, 0.8), Color(0.44, 0.72, 0.93), Color(1.0, 0.5, 0.12), Color(0.55, 0.93, 0.78),
+		Color(0.48, 0.24, 0.78), Color(1.0, 0.82, 0.2), Color(0.86, 0.12, 0.16), Color(0.96, 0.97, 0.99)]
+	for i in swatches.size():
+		var x := -1.3 + i * 0.37
+		K.mesh(root, at + Vector3(x, 2.3 - (i % 2) * 0.5, 0.68), Vector3(0.3, 0.4, 0.04), _gloss(swatches[i]))
+	# Paint cans on the bench, lids the colour inside.
+	for i in 5:
+		var can := at + Vector3(-1.1 + i * 0.5, 1.22, -0.2 + (i % 2) * 0.25)
+		K.mesh(root, can, Vector3(0.3, 0.34, 0.3), _gloss(Color(0.78, 0.8, 0.82)))
+		K.mesh(root, can + Vector3(0, 0.18, 0), Vector3(0.31, 0.03, 0.31), _gloss(swatches[i]))
+	K.glow(root, at + Vector3(0, 3.25, 0.4), Vector3(1.4, 0.08, 0.2), Color(1.0, 0.85, 0.7))
+	var sign := Kit.label(root, at + Vector3(0, 3.7, 0.6), "PAINT SHOP", 40)
+	sign.modulate = Color(1.0, 0.62, 0.78)
+	K.interactable(info, "garage", at + Vector3(0, 0, -1.6), "[F] Paint and tune your titans", [
+		"Dad always said a titan runs better when you love how it looks.",
+	], 2.5)
+
+
+## Fresh glossy paint, in the titans' own paint shader.
+static func _gloss(color: Color) -> ShaderMaterial:
+	var mat := ShaderMaterial.new()
+	mat.shader = TITAN_PAINT
+	mat.set_shader_parameter("albedo", color)
+	mat.set_shader_parameter("wear", 0.0)
+	mat.set_shader_parameter("grime", 0.0)
+	mat.set_shader_parameter("gloss", 0.8)
+	return mat
 
 # --- trees, rocks, flowers --------------------------------------------------------
 
