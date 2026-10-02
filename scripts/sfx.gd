@@ -1,13 +1,14 @@
 extends RefCounted
-## Procedural sound effects. Every sound is synthesized from noise and simple
-## oscillators the first time it plays, then cached, so the game ships no audio
-## files. The palette is crunchy on purpose (22 kHz, light bit-crush) to sit
-## with the PS2 look.
+## Procedural sound effects. Every sound is synthesized from filtered noise
+## and simple oscillators the first time it plays, then cached, so the game
+## ships no audio files. Guns are built like real recordings: a sharp crack,
+## a low-passed blast and sub thump, the action cycling, and a short room tail,
+## pushed through soft saturation so they hit hard.
 ##
 ##   SFX.play(self, "pistol")                 # flat, follows the listener
 ##   SFX.play_at(parent, pos, "ricochet")     # positional, frees itself
 
-const RATE := 22050
+const RATE := 44100
 
 static var _cache := {}
 static var _rng := RandomNumberGenerator.new()
@@ -59,47 +60,68 @@ static func stream(id: String) -> AudioStreamWAV:
 static func _synth(id: String) -> PackedFloat32Array:
 	_rng.seed = hash(id)
 	match id:
-		# Eco's pistol: a sharp crack, a chesty thump, and the ring of a frame
-		# that has been dropped, bent back and taped together more than once.
+		# Eco's pistol: crack, blast, sub thump, the slide cycling, then the
+		# shot rolling off the walls.
 		"pistol":
-			return _mix([
-				_noise(0.05, 30.0, 0.9, 0.0),
-				_sweep(0.14, 170.0, 48.0, 22.0, 0.9),
-				_ring([2350.0, 3170.0, 4410.0], 0.32, 9.0, 0.16),
-			])
-		"pistol_last":  # empty-mag ping on the last round
-			return _mix([_synth("pistol"), _ring([3900.0, 5200.0], 0.45, 7.0, 0.3)])
-		"dry_click":
-			return _mix([_noise(0.02, 160.0, 0.5, 0.6), _ring([1800.0], 0.04, 80.0, 0.3)])
+			return _gunshot(1.0)
+		"pistol_last":  # last round: the slide slams back and locks open
+			return _master(_mix([_gunshot(1.0), _delay(_clack(1300.0, 210.0, 0.55), 0.055)]), 0.0)
+		"dry_click":  # trigger on an empty chamber
+			return _master(_mix([
+				_filter(_burst(0.012, 0.0002, 420.0, 0.7), "hp", 2500.0),
+				_delay(_filter(_burst(0.03, 0.0005, 160.0, 0.25), "bp", 1700.0, 4.0), 0.004),
+			]), 0.0)
 		"spark":  # crackle from the dead smart-lock module
-			return _crackle(0.22, 46, 0.6)
-		"lock_err":  # the smart-lock trying, and failing, to lock
-			return _mix([_square(0.06, 1320.0, 0.18), _square(0.09, 880.0, 0.18, 0.07), _square(0.12, 620.0, 0.16, 0.17)])
-		"reload_out":
-			return _mix([_noise(0.04, 90.0, 0.5, 0.3), _ring([620.0, 1240.0], 0.08, 40.0, 0.4)])
-		"reload_in":
-			return _mix([_noise(0.03, 120.0, 0.6, 0.4), _ring([980.0, 1470.0], 0.07, 45.0, 0.5)])
-		"whack":  # palm smack on the slide to get the old thing running again
-			return _mix([_sweep(0.09, 260.0, 90.0, 35.0, 0.8), _noise(0.03, 110.0, 0.5, 0.2), _ring([1650.0, 2480.0], 0.2, 16.0, 0.22)])
-		"hit_body":
-			return _mix([_sweep(0.06, 420.0, 160.0, 50.0, 0.6), _noise(0.03, 120.0, 0.35, 0.3)])
-		"hit_head":
-			return _mix([_ring([1760.0, 2640.0], 0.22, 14.0, 0.5), _noise(0.02, 200.0, 0.3, 0.5)])
-		"kill":  # two-note sting, rising
-			return _mix([_ring([1320.0, 1980.0], 0.12, 18.0, 0.35), _delay(_ring([1760.0, 2640.0], 0.3, 10.0, 0.4), 0.07)])
+			return _filter(_crackle(0.22, 46, 0.6), "hp", 1800.0)
+		"lock_err":  # the smart-lock trying, and failing, to lock: a glitchy chirp
+			return _filter(_mix([_square(0.04, 1320.0, 0.12), _square(0.05, 990.0, 0.12, 0.05), _crackle(0.12, 10, 0.25)]), "lp", 4000.0)
+		"reload_out":  # mag release and the mag sliding out
+			return _master(_mix([
+				_clack(2400.0, 0.0, 0.5),
+				_delay(_filter(_burst(0.09, 0.01, 30.0, 0.22), "bp", 2200.0, 1.5), 0.01),
+			]), 0.08)
+		"reload_in":  # fresh mag seated hard
+			return _master(_mix([_clack(1150.0, 160.0, 0.9), _delay(_clack(2800.0, 0.0, 0.3), 0.012)]), 0.08)
+		"whack":  # palm smack on the slide to wake the old thing up
+			return _master(_mix([
+				_filter(_burst(0.06, 0.0008, 60.0, 0.8), "lp", 900.0),
+				_sweep(0.09, 140.0, 70.0, 40.0, 0.7),
+				_filter(_burst(0.15, 0.0003, 30.0, 0.12), "bp", 2300.0, 8.0),
+			]), 0.1)
+		"hit_body":  # meaty thwack into armour and cloth
+			return _master(_mix([
+				_filter(_burst(0.05, 0.0005, 70.0, 0.9), "lp", 1400.0),
+				_sweep(0.07, 170.0, 70.0, 45.0, 0.6),
+			]), 0.0)
+		"hit_head":  # helmet cracking: a hard, bright tick with weight under it
+			return _master(_mix([
+				_filter(_burst(0.03, 0.0002, 140.0, 0.9), "hp", 3000.0),
+				_filter(_burst(0.07, 0.0002, 60.0, 0.35), "bp", 4600.0, 6.0),
+				_sweep(0.08, 200.0, 80.0, 40.0, 0.6),
+			]), 0.05)
+		"kill":  # a heavy confirm: sub drop and a crunch
+			return _master(_mix([
+				_sweep(0.3, 95.0, 38.0, 12.0, 1.0),
+				_filter(_burst(0.25, 0.001, 18.0, 0.6), "lp", 700.0),
+				_filter(_burst(0.06, 0.0003, 70.0, 0.35), "bp", 1800.0, 2.0),
+			]), 0.12)
 		"ricochet":
-			return _mix([_noise(0.025, 120.0, 0.4, 0.5), _sweep(0.2, 3400.0, 1300.0, 12.0, 0.18)])
-		"impact":
-			return _mix([_noise(0.05, 70.0, 0.45, 0.15), _sweep(0.05, 300.0, 120.0, 60.0, 0.3)])
-		"grunt_shot":  # enemy rifle: thinner and buzzier than Eco's pistol
-			return _mix([_noise(0.08, 28.0, 0.6, 0.25), _square(0.07, 210.0, 0.25)])
+			return _master(_mix([_filter(_burst(0.03, 0.0003, 120.0, 0.5), "bp", 2500.0, 2.0), _sweep(0.22, 3300.0, 1500.0, 12.0, 0.12)]), 0.1)
+		"impact":  # round hitting concrete
+			return _master(_mix([_filter(_burst(0.06, 0.0003, 70.0, 0.7), "bp", 1500.0, 1.2), _sweep(0.05, 140.0, 80.0, 60.0, 0.35)]), 0.06)
+		"grunt_shot":  # enemy rifle: thinner and drier than Eco's pistol
+			return _master(_mix([
+				_filter(_burst(0.03, 0.0003, 150.0, 0.8), "hp", 2200.0),
+				_filter(_burst(0.1, 0.001, 45.0, 0.7), "bp", 1100.0, 0.9),
+				_sweep(0.08, 150.0, 70.0, 40.0, 0.4),
+			]), 0.15)
 		# Titan weapons
 		"xo16":
 			return _mix([_sweep(0.08, 140.0, 55.0, 30.0, 0.9), _noise(0.05, 55.0, 0.6, 0.1), _ring([720.0], 0.05, 60.0, 0.15)])
 		"xo16_spin":
 			return _spin(0.45)
 		"tracker":
-			return _mix([_sweep(0.45, 95.0, 28.0, 7.0, 1.0), _noise(0.25, 14.0, 0.8, 0.04), _ring([410.0, 615.0], 0.3, 10.0, 0.12)])
+			return _reverb(_mix([_sweep(0.45, 95.0, 28.0, 7.0, 1.0), _noise(0.25, 14.0, 0.8, 0.04), _ring([410.0, 615.0], 0.3, 10.0, 0.12)]), 0.2)
 		"tracker_boom":
 			return _mix([_noise(0.7, 6.0, 0.9, 0.02), _sweep(0.5, 70.0, 25.0, 6.0, 0.8)])
 		"splitter":
@@ -115,6 +137,129 @@ static func _synth(id: String) -> PackedFloat32Array:
 
 
 # --- Building blocks ----------------------------------------------------------
+
+## The pistol shot. `weight` scales the low end.
+static func _gunshot(weight: float) -> PackedFloat32Array:
+	var dry := _mix([
+		_filter(_burst(0.03, 0.0003, 170.0, 1.0), "hp", 1800.0),          # crack
+		_filter(_burst(0.14, 0.0008, 34.0, 0.9), "lp", 2600.0),           # blast
+		_filter(_burst(0.18, 0.001, 22.0, 0.9 * weight), "lp", 200.0),     # body
+		_sweep(0.18, 115.0, 42.0, 24.0, 0.9 * weight),                     # sub thump
+		_delay(_clack(3000.0, 260.0, 0.28), 0.04),                         # slide cycling
+	])
+	return _master(dry, 0.22)
+
+
+## A short mechanical impact: a resonant click plus an optional low thunk.
+static func _clack(freq: float, thunk: float, amp: float) -> PackedFloat32Array:
+	var layers := [
+		_filter(_burst(0.03, 0.0002, 180.0, amp), "bp", freq, 3.0),
+		_filter(_burst(0.01, 0.0001, 500.0, amp * 0.6), "hp", 4000.0),
+	]
+	if thunk > 0.0:
+		layers.append(_sweep(0.05, thunk, thunk * 0.6, 60.0, amp * 0.6))
+	return _mix(layers)
+
+
+## Saturates for punch, adds a short room tail, and normalizes.
+static func _master(dry: PackedFloat32Array, room: float) -> PackedFloat32Array:
+	var out := dry
+	for i in out.size():
+		out[i] = tanh(out[i] * 1.8) / tanh(1.8)
+	if room > 0.0:
+		out = _reverb(out, room)
+	var peak := 0.0
+	for v in out:
+		peak = maxf(peak, absf(v))
+	if peak > 0.0:
+		for i in out.size():
+			out[i] *= 0.95 / peak
+	return out
+
+
+## Noise with a linear attack and exponential decay.
+static func _burst(length: float, attack: float, decay: float, amp: float) -> PackedFloat32Array:
+	var n := int(length * RATE)
+	var out := PackedFloat32Array()
+	out.resize(n)
+	for i in n:
+		var t := float(i) / RATE
+		var env := minf(t / maxf(attack, 0.00001), 1.0) * exp(-decay * t)
+		out[i] = _rng.randf_range(-1.0, 1.0) * amp * env
+	return out
+
+
+## RBJ biquad: "lp", "hp" or "bp" (constant peak gain).
+static func _filter(s: PackedFloat32Array, kind: String, freq: float, q := 0.707) -> PackedFloat32Array:
+	var w := TAU * freq / RATE
+	var cw := cos(w)
+	var alpha := sin(w) / (2.0 * q)
+	var b0 := 0.0
+	var b1 := 0.0
+	var b2 := 0.0
+	match kind:
+		"lp":
+			b0 = (1.0 - cw) * 0.5
+			b1 = 1.0 - cw
+			b2 = b0
+		"hp":
+			b0 = (1.0 + cw) * 0.5
+			b1 = -(1.0 + cw)
+			b2 = b0
+		_:
+			b0 = alpha
+			b2 = -alpha
+	var a0 := 1.0 + alpha
+	var a1 := -2.0 * cw
+	var a2 := 1.0 - alpha
+	var out := PackedFloat32Array()
+	out.resize(s.size())
+	var x1 := 0.0
+	var x2 := 0.0
+	var y1 := 0.0
+	var y2 := 0.0
+	for i in s.size():
+		var x := s[i]
+		var y := (b0 * x + b1 * x1 + b2 * x2 - a1 * y1 - a2 * y2) / a0
+		x2 = x1
+		x1 = x
+		y2 = y1
+		y1 = y
+		out[i] = y
+	return out
+
+
+## Small, dark room: four damped combs and two allpasses (Schroeder).
+static func _reverb(s: PackedFloat32Array, mix: float) -> PackedFloat32Array:
+	var tail := int(0.45 * RATE)
+	var n := s.size() + tail
+	var wet := PackedFloat32Array()
+	wet.resize(n)
+	for delay_ms in [29.7, 37.1, 41.1, 43.7]:
+		var d := int(delay_ms * RATE / 1000.0)
+		var buf := PackedFloat32Array()
+		buf.resize(n)
+		var low := 0.0
+		for i in n:
+			var x := s[i] if i < s.size() else 0.0
+			var fb := buf[i - d] if i >= d else 0.0
+			low += (fb - low) * 0.45
+			buf[i] = x + low * 0.72
+			wet[i] += buf[i] * 0.25
+	for delay_ms in [5.0, 1.7]:
+		var d := int(delay_ms * RATE / 1000.0)
+		var buf := PackedFloat32Array()
+		buf.resize(n)
+		for i in n:
+			var prev := buf[i - d] if i >= d else 0.0
+			buf[i] = wet[i] + prev * 0.5
+			wet[i] = prev - buf[i] * 0.5
+	var out := PackedFloat32Array()
+	out.resize(n)
+	for i in n:
+		out[i] = (s[i] if i < s.size() else 0.0) + wet[i] * mix
+	return out
+
 
 ## White noise with an exponential decay; `tone` 0 = full band, 1 = only highs.
 static func _noise(length: float, decay: float, amp: float, tone: float) -> PackedFloat32Array:
@@ -227,13 +372,12 @@ static func _mix(layers: Array) -> PackedFloat32Array:
 	return out
 
 
-## Soft-clips, bit-crushes to ~10 bits and packs 16-bit mono PCM.
+## Soft-clips and packs 16-bit mono PCM.
 static func _to_wav(s: PackedFloat32Array) -> AudioStreamWAV:
 	var data := PackedByteArray()
 	data.resize(s.size() * 2)
 	for i in s.size():
 		var v := tanh(s[i] * 1.2)
-		v = roundf(v * 512.0) / 512.0
 		data.encode_s16(i * 2, int(clampf(v, -1.0, 1.0) * 32000.0))
 	var wav := AudioStreamWAV.new()
 	wav.format = AudioStreamWAV.FORMAT_16_BITS
