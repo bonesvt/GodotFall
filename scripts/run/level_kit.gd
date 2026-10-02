@@ -5,7 +5,8 @@ extends RefCounted
 const Art := preload("res://scripts/ps2/ps2_assets.gd")
 
 
-static func box(parent: Node, pos: Vector3, size: Vector3, color: Color, rot_deg := Vector3.ZERO) -> StaticBody3D:
+## `material` overrides the colour lookup (the temple hub uses its own stone and wood).
+static func box(parent: Node, pos: Vector3, size: Vector3, color: Color, rot_deg := Vector3.ZERO, material: Material = null) -> StaticBody3D:
 	var body := StaticBody3D.new()
 	body.position = pos
 	body.rotation_degrees = rot_deg
@@ -16,7 +17,7 @@ static func box(parent: Node, pos: Vector3, size: Vector3, color: Color, rot_deg
 	body.add_child(col)
 	var mesh := BoxMesh.new()
 	mesh.size = size
-	mesh.material = Art.surface(color, size)
+	mesh.material = material if material != null else Art.surface(color, size)
 	var mi := MeshInstance3D.new()
 	mi.mesh = mesh
 	body.add_child(mi)

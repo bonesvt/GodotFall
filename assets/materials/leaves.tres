@@ -1,9 +1,12 @@
 [gd_resource type="ShaderMaterial" load_steps=3 format=3]
 
 [ext_resource type="Shader" path="res://assets/shaders/ps2_surface.gdshader" id="1_shader"]
-[ext_resource type="Texture2D" path="res://assets/textures/canvas.png" id="2_tex"]
+[ext_resource type="Texture2D" path="res://assets/textures/moss.png" id="2_tex"]
 
 [resource]
 shader = ExtResource("1_shader")
 shader_parameter/albedo_tex = ExtResource("2_tex")
-shader_parameter/tex_scale = 0.5
+shader_parameter/tex_scale = 0.6
+shader_parameter/albedo = Color(1.05, 1.12, 0.9, 1)
+shader_parameter/rim = 0.35
+shader_parameter/light_wrap = 0.55

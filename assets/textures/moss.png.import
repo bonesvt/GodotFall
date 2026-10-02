@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://cdf2qumpotbub"
-path="res://.godot/imported/canvas.png-12a01c7c0ecc362cebed9cc8109b1de9.ctex"
+uid="uid://dy6e7eu1uejcc"
+path="res://.godot/imported/moss.png-737d17828c2e4470a0e767c2c6f2fdee.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/textures/canvas.png"
-dest_files=["res://.godot/imported/canvas.png-12a01c7c0ecc362cebed9cc8109b1de9.ctex"]
+source_file="res://assets/textures/moss.png"
+dest_files=["res://.godot/imported/moss.png-737d17828c2e4470a0e767c2c6f2fdee.ctex"]
 
 [params]
 

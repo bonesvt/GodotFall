@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://cdf2qumpotbub"
-path="res://.godot/imported/canvas.png-12a01c7c0ecc362cebed9cc8109b1de9.ctex"
+uid="uid://dm2g1w0a1wdsb"
+path="res://.godot/imported/dirt.png-eff3bf0cf4f0b63edc466aba593ca4e6.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/textures/canvas.png"
-dest_files=["res://.godot/imported/canvas.png-12a01c7c0ecc362cebed9cc8109b1de9.ctex"]
+source_file="res://assets/textures/dirt.png"
+dest_files=["res://.godot/imported/dirt.png-eff3bf0cf4f0b63edc466aba593ca4e6.ctex"]
 
 [params]
 

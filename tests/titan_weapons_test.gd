@@ -30,14 +30,17 @@ func _run() -> void:
 	var world := Node3D.new()
 	root.add_child(world)
 	Kit.box(world, Vector3(0, -0.5, 0), Vector3(200, 1, 200), Color(0.5, 0.5, 0.5))
-	var target := Kit.box(world, Vector3(0, 4.5, -40), Vector3(8, 9, 8), Color(0.6, 0.2, 0.2))
+	# The target's collider sits under the node that takes the damage, like the
+	# enemy titan and the hub's practice dummies.
+	var dummy := Dummy.new()
+	world.add_child(dummy)
+	var target := Kit.box(dummy, Vector3(0, 4.5, -40), Vector3(8, 9, 8), Color(0.6, 0.2, 0.2))
 	target.add_to_group("titan_target")
 
 	for weapon in TitanParts.CATALOG["weapon"] + [TitanParts.SCRAP["weapon"]]:
 		var part := TitanParts.make_part("weapon", weapon, 1)
 		var parts := {"weapon": part}
-		var dummy := Dummy.new()
-		world.add_child(dummy)
+		dummy.dealt = 0.0
 		var titan := Titan.new()
 		titan.setup(TitanParts.assemble(parts))
 		titan.stats["ramp"] = 0.0  # measure base damage, not the Splitter's ramp
@@ -58,7 +61,6 @@ func _run() -> void:
 		_check("%s keeps its damage per second" % weapon["name"], dps > want * low and dps < want * 1.1, "%.0f of %.0f" % [dps, want])
 		_check("%s shows shots" % weapon["name"], titan.gun.shots > 0, titan.gun.shots)
 		titan.queue_free()
-		dummy.queue_free()
 		await _ticks(5)
 
 	print("RESULT: %s (%d failures)" % ["PASS" if failures == 0 else "FAIL", failures])

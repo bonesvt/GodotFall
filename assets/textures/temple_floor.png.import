@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://cdf2qumpotbub"
-path="res://.godot/imported/canvas.png-12a01c7c0ecc362cebed9cc8109b1de9.ctex"
+uid="uid://tiorayl7tsm0"
+path="res://.godot/imported/temple_floor.png-c33d263536541194ed14494e797ae149.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/textures/canvas.png"
-dest_files=["res://.godot/imported/canvas.png-12a01c7c0ecc362cebed9cc8109b1de9.ctex"]
+source_file="res://assets/textures/temple_floor.png"
+dest_files=["res://.godot/imported/temple_floor.png-c33d263536541194ed14494e797ae149.ctex"]
 
 [params]
 

@@ -172,29 +172,31 @@ func _fire(delta: float) -> void:
 	ramp_bonus = minf(ramp_bonus + delta * 0.5, float(stats["ramp"]))
 
 
-## A shot from the gun hit the enemy titan for `base` damage, before the
-## ramp and overdrive bonuses.
-func hit_enemy(base: float) -> void:
-	if boss == null:
+## A shot from the gun hit `target` (the enemy titan, or a practice dummy in
+## the hub) for `base` damage, before the ramp and overdrive bonuses.
+func hit_enemy(target: Node, base: float) -> void:
+	if target == null:
 		return
 	var dmg := base * (1.0 + ramp_bonus)
 	if overdrive_timer > 0.0:
 		dmg *= 2.0
-	boss.take_damage(dmg)
+	target.take_damage(dmg)
 	core_charge = minf(core_charge + dmg * CORE_PER_DAMAGE * float(stats["core_rate"]), 1.0)
 
 
-## The enemy under the crosshair, or null.
+## What's under the crosshair that can take titan fire (the enemy titan, or a
+## practice dummy in the hub), or null.
 func aimed_target() -> Node:
-	if boss == null:
-		return null
 	var from := camera.global_position
 	var query := PhysicsRayQueryParameters3D.create(from, from - head.global_basis.z * FIRE_RANGE)
 	query.exclude = [get_rid()]
 	var hit := get_world_3d().direct_space_state.intersect_ray(query)
 	if hit.is_empty() or not hit.collider.is_in_group("titan_target"):
 		return null
-	return boss
+	var node: Node = hit.collider
+	while node != null and not node.has_method("take_damage"):
+		node = node.get_parent()
+	return node
 
 
 func use_core() -> bool:

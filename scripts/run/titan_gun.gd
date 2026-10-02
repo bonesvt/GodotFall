@@ -135,13 +135,17 @@ func _shoot(dt: float) -> void:
 	var hit := titan.get_world_3d().direct_space_state.intersect_ray(query)
 	var end := from + dir * RANGE
 	var normal := -dir
-	var on_enemy := false
+	var target: Node = null
 	if not hit.is_empty():
 		end = hit.position
 		normal = hit.normal
-		on_enemy = hit.collider.is_in_group("titan_target")
+		if hit.collider.is_in_group("titan_target"):
+			target = hit.collider
+			while target != null and not target.has_method("take_damage"):
+				target = target.get_parent()
+	var on_enemy := target != null
 	if on_enemy:
-		titan.hit_enemy(float(titan.stats["dps"]) * dt)
+		titan.hit_enemy(target, float(titan.stats["dps"]) * dt)
 		since_hit = 0.0
 
 	var fx_parent: Node = titan.get_parent()

@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://cdf2qumpotbub"
-path="res://.godot/imported/canvas.png-12a01c7c0ecc362cebed9cc8109b1de9.ctex"
+uid="uid://5cqd82hviet5"
+path="res://.godot/imported/bark.png-a0f7faf5e7dedc59ce221772f48a5d04.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/textures/canvas.png"
-dest_files=["res://.godot/imported/canvas.png-12a01c7c0ecc362cebed9cc8109b1de9.ctex"]
+source_file="res://assets/textures/bark.png"
+dest_files=["res://.godot/imported/bark.png-a0f7faf5e7dedc59ce221772f48a5d04.ctex"]
 
 [params]
 
