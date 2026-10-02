@@ -90,14 +90,14 @@ func mine(delta: float) -> Dictionary:
 		var at := global_position + Vector3(randf_range(-0.4, 0.4), randf_range(0.4, 0.9), randf_range(-0.4, 0.4))
 		FX.star(get_parent(), at, Color(VEIN, 0.9), 0.18, 0.06, 6)
 		FX.debris(get_parent(), at, Vector3.UP, Color(0.5, 0.55, 0.6), 3, 2.5, 0.04, 0.35)
-		SFX.play_at(get_parent(), at, "impact", -4.0, randf_range(1.3, 1.6))
+		SFX.play_at(get_parent(), at, "whack", -4.0, randf_range(0.8, 1.0))
 	if progress < MINE_TIME:
 		return {}
 	depleted = true
 	_light.visible = false
 	_veins(Color(0.25, 0.3, 0.32), 0.0)
 	FX.blast(get_parent(), global_position + Vector3(0, 0.6, 0), VEIN, 1.2, 0.3)
-	SFX.play_at(get_parent(), global_position, "ricochet", -2.0, 0.7)
+	SFX.play_at(get_parent(), global_position, "debris_metal", -2.0)
 	return loot
 
 

@@ -47,7 +47,7 @@ func _physics_process(delta: float) -> void:
 		var to := pilot.global_position + Vector3(0, 0.9, 0) - global_position
 		if to.length() < COLLECT:
 			collector.collect_material(kind, amount)
-			SFX.play(collector, "bench_tick", -6.0, 1.4 + randf() * 0.2)
+			SFX.play(collector, "ui_click", -8.0, 1.3 + randf() * 0.2)
 			queue_free()
 			return
 		if to.length() < MAGNET:

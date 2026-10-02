@@ -67,7 +67,7 @@ func open() -> Dictionary:
 		t.tween_property(lid, "position", lid.position + Vector3(0.5, 0.35, 0.1), 0.35).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 		t.tween_property(lid, "rotation", Vector3(0.4, 0.3, -1.1), 0.35)
 	_tag(Color(0.4, 0.4, 0.42), 0.0)
-	SFX.play_at(get_parent(), global_position, "bench", -2.0, 0.8)
+	SFX.play_at(get_parent(), global_position, "cache_open", -2.0)
 	FX.puff(get_parent(), global_position + Vector3(0, 0.5, 0), Color(0.75, 0.68, 0.55, 0.5), 0.3, 0.6)
 	return loot
 

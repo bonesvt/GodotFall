@@ -34,6 +34,8 @@ const SPIN_SPEED := 0.4
 
 var armory: Armory
 var kind := "gunsmith"
+## What a purchase sounds like at each bench (recordings in assets/audio/sfx).
+const CONFIRM_SOUND := {"gunsmith": "workbench_tools", "rack": "reload_in", "workshop": "workbench_ratchet"}
 var tab := 0
 var selected := 0
 ## The gun the gunsmith works on (owned guns only).
@@ -152,7 +154,7 @@ func select(index: int) -> void:
 	if rows.is_empty():
 		return
 	selected = posmod(index, rows.size())
-	SFX.play(self, "bench_tick", -12.0)
+	SFX.play(self, "ui_hover", -10.0)
 	refresh()
 
 
@@ -160,7 +162,7 @@ func step(dir: int) -> void:
 	if rows.is_empty() or not rows[selected].has("step"):
 		return
 	rows[selected]["step"].call(dir)
-	SFX.play(self, "bench_tick", -10.0, 1.2)
+	SFX.play(self, "ui_switch", -8.0)
 	refresh()
 
 
@@ -169,7 +171,7 @@ func confirm() -> bool:
 	if rows.is_empty() or not rows[selected].has("confirm"):
 		return false
 	var ok: bool = rows[selected]["confirm"].call()
-	SFX.play(self, "bench" if ok else "bench_deny", -4.0)
+	SFX.play(self, CONFIRM_SOUND[kind] if ok else "ui_error", -4.0)
 	refresh()
 	return ok
 
