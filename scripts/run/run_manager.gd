@@ -6,8 +6,11 @@ extends Node3D
 ## fight with it. Falls and getting downed by grunts cost pilot integrity, which
 ## carries across zones; at zero the run is over, and so it is if your titan is
 ## destroyed.
+## Between runs you are in the hub, the temple Eco hides out in (hub_builder.gd):
+## the game opens there, the map table starts a run, and a finished run, won or
+## lost, goes back there.
 
-enum Phase { ZONE, CHOOSING, ARENA, FIGHT, OVER }
+enum Phase { ZONE, CHOOSING, ARENA, FIGHT, OVER, HUB }
 
 const PLAYER_SCENE := preload("res://scenes/player.tscn")
 const PILOT_HUD := preload("res://scripts/hud.gd")
@@ -16,6 +19,7 @@ const RunState := preload("res://scripts/run/run_state.gd")
 const TitanParts := preload("res://scripts/run/titan_parts.gd")
 const ZoneBuilder := preload("res://scripts/run/zone_builder.gd")
 const Titan := preload("res://scripts/run/titan.gd")
+const HubBuilder := preload("res://scripts/hub/hub_builder.gd")
 
 const FALL_DAMAGE := 25
 ## Integrity lost when grunts take the pilot's health to zero.
@@ -26,7 +30,11 @@ const OFFER_SIZE := 3
 const TITAN_DROP_HEIGHT := 80.0
 const EMBARK_RANGE := 6.0
 const CONTROLS := "F salvage / embark    V call titan / core    Shift titan dash    Left mouse titan fire"
+## How long a line Eco says about something in the hub stays up.
+const HUB_LINE_SECONDS := 4.5
 
+## Start in the hub. Off, the scene drops straight into a run (the run loop test does this).
+@export var start_in_hub := true
 ## 0 picks a random seed each run.
 @export var run_seed := 0
 
@@ -43,6 +51,20 @@ var titan: Titan
 var boss: Node3D
 var checkpoint := Vector3.ZERO
 var result := ""
+## How many times each hub interactable has been looked at, so its lines cycle.
+var hub_reads := {}
+var runs_started := 0
+var last_result := ""
+## The parts your last run ended with; the hub's practice titan is built from them.
+var last_parts := {}
+## The practice titan in the hub's titan yard, and whether you're in it.
+var hub_titan: Titan
+var hub_piloting := false
+## Movement course clock: armed while standing on the start pad, running (>= 0)
+## from leaving it until the finish tower, or until you touch the grass.
+var course_armed := false
+var course_time := -1.0
+var course_best := 0.0
 
 
 static func ensure_input_actions() -> void:
@@ -83,13 +105,17 @@ func _ready() -> void:
 	hud = RunHud.new()
 	hud.name = "RunHUD"
 	add_child(hud)
-	start_run(run_seed)
+	if start_in_hub:
+		enter_hub()
+	else:
+		start_run(run_seed)
 
 
 func start_run(seed_value: int) -> void:
 	if seed_value == 0:
 		seed_value = randi_range(1, 999999)
 	run = RunState.new(seed_value)
+	runs_started += 1
 	result = ""
 	titan = null
 	boss = null
@@ -100,14 +126,38 @@ func start_run(seed_value: int) -> void:
 	load_zone(0)
 
 
-func load_zone(index: int) -> void:
+func _fresh_level(level_name: String) -> void:
 	if zone_root != null:
 		remove_child(zone_root)
 		zone_root.free()
 	zone_root = Node3D.new()
-	zone_root.name = "Zone"
+	zone_root.name = level_name
 	zone_root.process_mode = Node.PROCESS_MODE_PAUSABLE
 	add_child(zone_root)
+
+
+## Back to the temple: no run in progress, walk around, start one at the map table.
+func enter_hub() -> void:
+	titan = null
+	boss = null
+	get_tree().paused = false
+	hud.summary_panel.visible = false
+	hud.choice_panel.visible = false
+	_set_pilot_active(true)
+	hub_titan = null
+	hub_piloting = false
+	course_armed = false
+	course_time = -1.0
+	_fresh_level("Hub")
+	zone_info = HubBuilder.build(zone_root)
+	phase = Phase.HUB
+	place_player(zone_info["spawn"])
+	if last_result != "":
+		hud.toast("Back at the temple.", HUB_LINE_SECONDS)
+
+
+func load_zone(index: int) -> void:
+	_fresh_level("Zone")
 	run.zone = index
 	if index < RunState.ZONE_COUNT:
 		zone_info = ZoneBuilder.build_zone(zone_root, run.rng, index)
@@ -142,8 +192,138 @@ func _physics_process(delta: float) -> void:
 			run.time += delta
 		Phase.OVER:
 			if Input.is_action_just_pressed("run_restart"):
-				start_run(0)
+				if start_in_hub:
+					enter_hub()
+				else:
+					start_run(0)
+		Phase.HUB:
+			_hub_tick(delta)
 	_update_hud()
+
+
+# --- Hub ----------------------------------------------------------------------
+
+func _hub_tick(delta: float) -> void:
+	if hub_piloting:
+		if Input.is_action_just_pressed("interact"):
+			disembark_hub_titan()
+		return
+	# Falling out of the world in the hub costs nothing: back inside the door.
+	if player.global_position.y < float(zone_info["floor_y"]) - KILL_DEPTH:
+		place_player(zone_info["spawn"])
+		return
+	_course_tick(delta)
+	if Input.is_action_just_pressed("titan_core") and in_titan_yard():
+		call_hub_titan()
+		return
+	if _hub_titan_in_reach() and Input.is_action_just_pressed("interact"):
+		embark_hub_titan()
+		return
+	var spot := nearest_hub_spot()
+	if spot.is_empty() or not Input.is_action_just_pressed("interact"):
+		return
+	if spot["id"] == "map_table":
+		start_run(run_seed)
+		return
+	var lines: Array = spot["lines"]
+	var n: int = hub_reads.get(spot["id"], 0)
+	hub_reads[spot["id"]] = n + 1
+	hud.toast(lines[n % lines.size()], HUB_LINE_SECONDS)
+
+
+func in_titan_yard() -> bool:
+	var yard: Rect2 = zone_info["titan_yard"]
+	return yard.has_point(Vector2(player.global_position.x, player.global_position.z))
+
+
+## Drops a practice titan, built from your last run's parts, in front of you
+## (or moves the one already there).
+func call_hub_titan() -> void:
+	if hub_titan != null:
+		hub_titan.queue_free()
+	hub_titan = Titan.new()
+	hub_titan.name = "PracticeTitan"
+	hub_titan.setup(TitanParts.assemble(last_parts))
+	hub_titan.parts = last_parts
+	var forward := -player.global_basis.z
+	forward.y = 0.0
+	var drop := player.global_position + forward.normalized() * 12.0
+	var yard: Rect2 = zone_info["titan_yard"]
+	drop.x = clampf(drop.x, yard.position.x + 6.0, yard.end.x - 6.0)
+	drop.z = clampf(drop.z, yard.position.y + 6.0, yard.end.y - 6.0)
+	zone_root.add_child(hub_titan)
+	hub_titan.global_position = Vector3(drop.x, TITAN_DROP_HEIGHT, drop.z)
+	hub_titan.rotation.y = player.rotation.y
+	hub_titan.landed.connect(func(): hud.toast("TITAN ON THE GROUND"))
+	hud.toast("STANDBY FOR TITANFALL")
+
+
+func _hub_titan_in_reach() -> bool:
+	return hub_titan != null and not hub_titan.dropping \
+		and hub_titan.global_position.distance_to(player.global_position) < EMBARK_RANGE
+
+
+func embark_hub_titan() -> void:
+	_set_pilot_active(false)
+	hub_titan.piloted = true
+	hub_titan.camera.make_current()
+	hub_piloting = true
+
+
+## Out of the titan: the pilot lands beside it, facing the way it faces.
+func disembark_hub_titan() -> void:
+	hub_titan.piloted = false
+	hub_piloting = false
+	var side := hub_titan.global_basis.x * 4.0
+	player.spawn_transform = Transform3D(hub_titan.global_basis.orthonormalized(), hub_titan.global_position + side + Vector3(0, 0.5, 0))
+	_set_pilot_active(true)
+	player.respawn()
+	player.spawn_transform = Transform3D(Basis(), zone_info["spawn"])
+
+
+func _on_course_pad(key: String) -> bool:
+	var course: Dictionary = zone_info["course"]
+	var top: Vector3 = course[key]
+	var half: Vector3 = course["half"]
+	var pos := player.global_position
+	return player.is_on_floor() and absf(pos.x - top.x) < half.x and absf(pos.z - top.z) < half.z and absf(pos.y - top.y) < 0.6
+
+
+func _course_tick(delta: float) -> void:
+	if _on_course_pad("start"):
+		course_armed = true
+		course_time = -1.0
+		return
+	if course_armed:
+		course_armed = false
+		course_time = 0.0
+		return
+	if course_time < 0.0:
+		return
+	course_time += delta
+	if _on_course_pad("finish"):
+		var best := course_best == 0.0 or course_time < course_best
+		if best:
+			course_best = course_time
+		hud.toast("COURSE %.2f s%s" % [course_time, "  NEW BEST" if best else "  (best %.2f s)" % course_best], HUB_LINE_SECONDS)
+		course_time = -1.0
+	elif player.is_on_floor() and player.global_position.y < 0.3:
+		hud.toast("Touched the grass. Back to the start pad.")
+		course_time = -1.0
+
+
+## The hub interactable the pilot is standing at, or {} if none.
+func nearest_hub_spot() -> Dictionary:
+	var best := {}
+	var best_d := INF
+	var pos := player.global_position
+	for spot in zone_info.get("interactables", []):
+		var at: Vector3 = spot["pos"]
+		var d := Vector2(pos.x - at.x, pos.z - at.z).length()
+		if d < float(spot["range"]) and absf(pos.y - at.y) < 2.5 and d < best_d:
+			best = spot
+			best_d = d
+	return best
 
 
 # --- Zones --------------------------------------------------------------------
@@ -177,6 +357,9 @@ func _check_fall() -> bool:
 
 ## Grunts emptied the pilot's health: lose integrity, back to the checkpoint.
 func _on_pilot_downed() -> void:
+	if phase == Phase.HUB:
+		place_player(zone_info["spawn"])
+		return
 	if phase != Phase.ZONE:
 		player.respawn()
 		return
@@ -313,6 +496,8 @@ func end_run(title: String, reason: String) -> void:
 		return
 	phase = Phase.OVER
 	result = title
+	last_result = title
+	last_parts = run.parts.duplicate()
 	if boss != null:
 		boss.active = false
 	if titan != null:
@@ -324,7 +509,7 @@ func end_run(title: String, reason: String) -> void:
 	for slot in TitanParts.SLOTS:
 		lines.append("%s: %s" % [TitanParts.SLOT_NAMES[slot], TitanParts.display_name(run.parts, slot)])
 	lines.append("")
-	lines.append("[Enter] new run")
+	lines.append("[Enter] back to the temple" if start_in_hub else "[Enter] new run")
 	hud.summary_label.text = "\n".join(lines)
 	hud.summary_panel.visible = true
 
@@ -332,6 +517,23 @@ func end_run(title: String, reason: String) -> void:
 # --- HUD ----------------------------------------------------------------------
 
 func _update_hud() -> void:
+	hud.build_label.visible = phase != Phase.HUB
+	if phase == Phase.HUB:
+		var status := "THE TEMPLE    Runs %d" % runs_started
+		if last_result != "":
+			status += "    Last run: %s" % last_result
+		if course_time >= 0.0:
+			status += "    COURSE %.1f s" % course_time
+		elif course_best > 0.0:
+			status += "    Course best %.2f s" % course_best
+		hud.status_label.text = status + "\nWalk up to the map table and press F to head out. F looks at things."
+		hud.prompt_label.text = _prompt()
+		hud.crosshair.visible = hub_piloting
+		hud.fight_label.visible = hub_piloting
+		if hub_piloting:
+			var dash_text := "%d/%d" % [hub_titan.dashes, int(hub_titan.stats["dashes"])]
+			hud.fight_label.text = "PRACTICE TITAN    DASH [Shift] %s    Left mouse fire\n[F] Climb out" % dash_text
+		return
 	var where := "ZONE %d/%d" % [run.zone + 1, RunState.ZONE_COUNT] if run.zone < RunState.ZONE_COUNT else "FINAL"
 	hud.status_label.text = "RUN %d    %s    PILOT %d    %s\n%s" % [
 		run.run_seed, where, run.pilot_hp, _clock(run.time), CONTROLS]
@@ -353,6 +555,20 @@ func _update_hud() -> void:
 
 func _prompt() -> String:
 	match phase:
+		Phase.HUB:
+			if hub_piloting:
+				return ""
+			if hub_titan != null and hub_titan.dropping:
+				return "Titanfall inbound"
+			if _hub_titan_in_reach():
+				return "[F] Embark"
+			if course_armed:
+				return "Leave the pad to start the clock"
+			var spot := nearest_hub_spot()
+			if not spot.is_empty():
+				return spot["prompt"]
+			if in_titan_yard():
+				return "[V] Call in your titan" if hub_titan == null else "[V] Call your titan here"
 		Phase.ZONE:
 			var cache := nearest_cache()
 			if cache != null:

@@ -29,6 +29,7 @@ func _ready() -> void:
 
 	prompt_label = _centered(26, 60)
 	toast_label = _centered(30, -220)
+	toast_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	fight_label = _centered(24, -170)
 	fight_label.set_anchors_and_offsets_preset(Control.PRESET_CENTER_BOTTOM)
 	fight_label.offset_left = -500

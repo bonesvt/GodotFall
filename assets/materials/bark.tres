@@ -1,0 +1,12 @@
+[gd_resource type="ShaderMaterial" load_steps=3 format=3]
+
+[ext_resource type="Shader" path="res://assets/shaders/ps2_surface.gdshader" id="1_shader"]
+[ext_resource type="Texture2D" path="res://assets/textures/bark.png" id="2_tex"]
+
+[resource]
+shader = ExtResource("1_shader")
+shader_parameter/albedo_tex = ExtResource("2_tex")
+shader_parameter/tex_scale = 1.0
+shader_parameter/ao_height = 2.5
+shader_parameter/ao_strength = 0.5
+shader_parameter/rim = 0.1

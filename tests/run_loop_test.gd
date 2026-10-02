@@ -15,6 +15,7 @@ var failures := 0
 func _initialize() -> void:
 	run_node = load("res://scenes/run.tscn").instantiate()
 	run_node.run_seed = SEED
+	run_node.start_in_hub = false
 	root.add_child(run_node)
 	_run.call_deferred()
 

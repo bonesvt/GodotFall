@@ -12,6 +12,7 @@ so one stone texture serves every zone.
 Re-running overwrites the PNGs. Paint over them by hand if you like; the game
 only cares about the file names.
 """
+import sys
 from pathlib import Path
 
 import numpy as np
@@ -369,8 +370,174 @@ def sky():
     print("wrote sky")
 
 
+# --- temple hub ------------------------------------------------------------
+
+def temple_stone():
+    """Temple walls: big weathered sandstone blocks in staggered courses, warm ochre
+    with cool shadowed mortar and moss creeping along the joints."""
+    s = 128
+    st = strokes(s, 4, 4, 161, 2)
+    img = mix(st, (168, 138, 98), (212, 182, 134))
+    cool = strokes(s, 3, 3, 162, 3)
+    img = img * (1 - 0.1 * cool[..., None]) + np.array([-8, -2, 8]) * cool[..., None]
+    courses = [(0, 0, 56, 32), (56, 0, 128, 32), (0, 32, 32, 64), (32, 32, 96, 64), (96, 32, 128, 64),
+               (0, 64, 72, 96), (72, 64, 128, 96), (0, 96, 40, 128), (40, 96, 104, 128), (104, 96, 128, 128)]
+    img = panels(img, courses, hi=1.2, lo=0.55, edge=3, grad=0.1)
+    y, x = np.mgrid[0:s, 0:s]
+    joint = np.zeros((s, s), bool)
+    for x0, y0, x1, y1 in courses:
+        joint |= (y >= y1 - 3) & (y < y1) & (x >= x0) & (x < x1)
+    moss = joint & (noise(s, 8, 2, 163) > 0.5)
+    img[moss] = mix(strokes(s, 6, 3, 164, 0)[moss], (70, 98, 48), (104, 134, 62))
+    r = np.random.default_rng(165)
+    for _ in range(5):
+        cx, cy = r.integers(0, s, 2)
+        for i in range(12):
+            cx = (cx + r.integers(-1, 2)) % s
+            cy = (cy + 1) % s
+            img[cy, cx] *= 0.55
+    save("temple_stone", img)
+
+
+def temple_floor():
+    """Temple floor and stair tops: worn square flagstones, warm in the middle,
+    darker and mossy in the gaps."""
+    s = 128
+    st = strokes(s, 4, 4, 171, 2)
+    img = mix(st, (150, 128, 96), (196, 172, 130))
+    img = panels(img, grid_rects(s, 2, 2, 1), hi=1.15, lo=0.62, edge=3, grad=0.06)
+    y, x = np.mgrid[0:s, 0:s]
+    gap = ((x % 64) < 2) | ((y % 64) < 2)
+    img[gap] = mix(noise(s, 8, 1, 172)[gap], (58, 70, 44), (88, 110, 58))
+    worn = blur((noise(s, 2, 2, 173) > 0.55).astype(float), 3)
+    img *= (1.0 + 0.1 * worn)[..., None]
+    scratches(img, 174, 6, (120, 100, 76), 6)
+    save("temple_floor", img)
+
+
+def temple_carving():
+    """Friezes and the idol: a carved band of the precursor god's eye glyph between
+    rows of step-fret, deep-cut so it reads in the haze."""
+    s = 128
+    st = strokes(s, 4, 4, 181, 2)
+    img = mix(st, (150, 132, 104), (196, 176, 136))
+    y, x = np.mgrid[0:s, 0:s]
+    lit, shade = 1.25, 0.45
+    # step-fret borders top and bottom
+    for y0 in (4, 108):
+        band = (y >= y0) & (y < y0 + 16)
+        fret = band & ((((x // 8) + ((y - y0) // 8)) % 2) == 0)
+        img[fret] *= shade
+        img[band & (y == y0)] *= lit
+    # the eye glyph, one per half tile: almond outline, ring, pupil, rays
+    for cx in (32, 96):
+        cy = 64
+        dx, dy = (x - cx) / 26.0, (y - cy) / 14.0
+        almond = np.abs(dy) + dx * dx * 0.9 < 1.0
+        outline = almond & ~(np.abs(dy) * 1.25 + dx * dx * 1.1 < 1.0)
+        rr = np.sqrt((x - cx) ** 2 + (y - cy) ** 2)
+        ring = (rr > 6.5) & (rr < 9.5)
+        pupil = rr < 3.5
+        rays = (np.abs(x - cx) < 2) & (np.abs(y - cy) > 16) & (np.abs(y - cy) < 26)
+        cut = outline | ring | pupil | rays
+        img[cut] *= shade
+        # light catches the upper lip of each cut
+        img[np.roll(cut, 1, axis=0) & ~cut] *= lit
+    save("temple_carving", img)
+
+
+def moss():
+    """Overgrowth: vines, hanging moss and the courtyard turf, soft leafy clumps."""
+    s = 64
+    a = blur(noise(s, 4, 3, 191), 1)
+    b = strokes(s, 6, 4, 192, 1)
+    img = mix(b, (52, 86, 40), (110, 150, 64))
+    img[a > 0.62] = mix(b[a > 0.62], (128, 168, 74), (160, 190, 92))
+    img[a < 0.3] *= 0.7
+    y, x = np.mgrid[0:s, 0:s]
+    img = dots(img, [(9, 14), (40, 6), (52, 44), (20, 50), (30, 28)], (196, 168, 80), 0)
+    save("moss", img)
+
+
+def wood():
+    """Her workbench, crates and shelves: warm planks with painted grain."""
+    s = 64
+    y, x = np.mgrid[0:s, 0:s]
+    n = noise(s, 4, 2, 201)
+    grain = (np.sin(y * 0.8 + n * 7.0) * 0.5 + 0.5)
+    img = mix(np.floor(grain * 3) / 2, (110, 72, 42), (158, 108, 62))
+    planks = [(0, y0, 64, y0 + 16) for y0 in (0, 16, 32, 48)]
+    img = panels(img, planks, hi=1.2, lo=0.6, edge=1, grad=0.08)
+    img = dots(img, [(4, 8), (60, 8), (4, 40), (60, 40)], (70, 66, 62), 0)
+    save("wood", img)
+
+
+def grass():
+    """The temple grounds: bright painted grass in soft clumps, with a few flowers."""
+    s = 128
+    a = strokes(s, 4, 4, 211, 2)
+    b = blur(noise(s, 8, 2, 212), 1)
+    img = mix(a, (86, 128, 52), (128, 168, 70))
+    img[b > 0.62] = mix(a[b > 0.62], (138, 176, 78), (160, 192, 92))
+    img[b < 0.32] *= 0.85
+    y, x = np.mgrid[0:s, 0:s]
+    blades = ((x * 7 + y * 3) % 23 == 0) & (noise(s, 16, 1, 213) > 0.5)
+    img[blades] *= 1.25
+    r = np.random.default_rng(214)
+    flowers = [tuple(r.integers(2, s - 2, 2)) for _ in range(10)]
+    img = dots(img, flowers[:5], (236, 226, 120), 0)
+    img = dots(img, flowers[5:], (226, 150, 170), 0)
+    save("grass", img)
+
+
+def dirt():
+    """Paths and the titan yard: packed earth with pebbles and tread ruts."""
+    s = 128
+    a = strokes(s, 4, 4, 221, 2)
+    img = mix(a, (120, 94, 66), (160, 128, 90))
+    r = np.random.default_rng(222)
+    img = dots(img, [tuple(r.integers(2, s - 2, 2)) for _ in range(24)], (176, 160, 134), 0)
+    y, x = np.mgrid[0:s, 0:s]
+    ruts = ((y % 64) > 18) & ((y % 64) < 24)
+    img[ruts] *= 0.85
+    save("dirt", img)
+
+
+def canvas():
+    """Tents and tarps: weathered tan canvas with seams and a couple of patches."""
+    s = 64
+    a = strokes(s, 3, 4, 231, 1)
+    img = mix(a, (176, 156, 112), (206, 188, 142))
+    y, x = np.mgrid[0:s, 0:s]
+    img[(x % 16) == 0] *= 0.75
+    img[((x % 16) == 1)] *= 1.1
+    weave = ((x + y) % 2 == 0)
+    img[weave] *= 1.03
+    img = panels(img, [(36, 10, 54, 26)], hi=1.1, lo=0.7, edge=1, grad=0.0)
+    img[10:26, 36:54] *= np.array([0.8, 0.95, 1.1])
+    img = panels(img, [(6, 40, 20, 56)], hi=1.1, lo=0.7, edge=1, grad=0.0)
+    img[40:56, 6:20] *= np.array([1.1, 0.85, 0.75])
+    save("canvas", img)
+
+
+def bark():
+    """Tree trunks and tent poles: deep vertical furrows in warm brown bark."""
+    s = 64
+    y, x = np.mgrid[0:s, 0:s]
+    n = noise(s, 4, 2, 241)
+    ridge = np.sin(x * 0.3 + n * 5.0 + np.sin(y * 0.12) * 1.2) * 0.5 + 0.5
+    grain = noise(s, 8, 3, 243)
+    img = mix(blur(ridge * 0.55 + grain * 0.45, 1), (84, 62, 44), (128, 94, 64))
+    moss = (noise(s, 3, 2, 242) > 0.66) & (ridge < 0.5)
+    img[moss] = (88, 112, 56)
+    save("bark", img)
+
+
 if __name__ == "__main__":
     OUT.mkdir(parents=True, exist_ok=True)
     for fn in (concrete, metal_floor, wall_panel, hazard, crate, barrier, lava, gunmetal, glove,
-               fabric, armor, titan_armor, titan_frame, sky):
-        fn()
+               fabric, armor, titan_armor, titan_frame, sky, temple_stone, temple_floor,
+               temple_carving, moss, wood, grass, dirt, canvas, bark):
+        # `make_textures.py moss wood` repaints only the named textures.
+        if len(sys.argv) < 2 or fn.__name__ in sys.argv[1:]:
+            fn()
