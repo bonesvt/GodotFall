@@ -41,7 +41,8 @@ func _rules() -> void:
 	_check("stock smart pistol matches weapon.gd", same, stock)
 
 	# Upgrades: each gun its own, capped, paid for.
-	_check("can't buy a gun you can't afford", not a.buy_weapon("rivet_cannon") and not a.owns_weapon("rivet_cannon"), a.stash)
+	_check("starts at level 1", a.pilot_level() == 1 and a.next_unlock() == "rivet_cannon", a.pilot_level())
+	_check("heavy revolver is locked below level 3", not a.buy_weapon("rivet_cannon") and not a.owns_weapon("rivet_cannon") and not a.equip("rivet_cannon"), a.stash)
 	a.stash = {"scrap": 2000, "alloy": 2000, "circuits": 200, "lock_cores": 0}
 	_check("smart pistol's only upgrade is smart rounds", Armory.upgrade_tracks("smart_pistol") == ["smart_rounds"] and Armory.max_level("smart_rounds") == 8, Armory.upgrade_tracks("smart_pistol"))
 	_check("no calibre on the smart pistol", not a.buy_upgrade("smart_pistol", "calibre"), a.upgrades)
@@ -50,12 +51,16 @@ func _rules() -> void:
 	for i in 4:
 		a.buy_upgrade("smart_pistol", "smart_rounds")
 	var up: Dictionary = a.weapon_profile("smart_pistol")
+	_check("level 5: revolver unlocked, auto handgun not yet", a.pilot_level() == 5 and a.owns_weapon("rivet_cannon") and not a.owns_weapon("machine_pistol"), a.pilot_level())
 	_check("4 levels: half the mag is smart", is_equal_approx(up["stats"]["smart_fraction"], 0.5), up["stats"]["smart_fraction"])
 	_check("smart rounds move the look tier", up["tier"] == 3, up["tier"])
 	_check("lock cores spent", a.amount("lock_cores") == 16, a.stash)
 	for i in 6:
 		a.buy_upgrade("smart_pistol", "smart_rounds")
 	up = a.weapon_profile("smart_pistol")
+	_check("every upgrade raises Eco's level", a.pilot_level() == 1 + 8, a.pilot_level())
+	_check("level 6+ unlocks the heavy revolver and auto handgun", a.owns_weapon("rivet_cannon") and a.owns_weapon("machine_pistol") and a.next_unlock() == "", [a.owns_weapon("rivet_cannon"), a.owns_weapon("machine_pistol")])
+	_check("unlocks between levels", Armory.unlocks_between(2, 6) == ["rivet_cannon", "machine_pistol"] and Armory.unlocks_between(1, 2).is_empty(), Armory.unlocks_between(2, 6))
 	_check("smart rounds cap at 8", a.upgrade_level("smart_pistol", "smart_rounds") == 8 and is_equal_approx(up["stats"]["smart_fraction"], 1.0), a.upgrade_level("smart_pistol", "smart_rounds"))
 	_check("a maxed gun is the top model tier", up["tier"] == Armory.MODEL_TIERS, up["tier"])
 	_check("smart rounds add no damage or rounds", is_equal_approx(up["stats"]["damage"], 20.0) and up["stats"]["magazine_size"] == 8, up["stats"])

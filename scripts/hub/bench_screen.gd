@@ -50,6 +50,11 @@ var browse_parts := {}
 var _title: Label
 var _tab_label: Label
 var _stash: HBoxContainer
+## "LEVEL 3   Next: Auto Handgun at level 6", gold for a moment on a level up.
+var _level: Label
+var _level_flash := 0.0
+## Guns unlocked by level ups while this screen was open (for the HUD after).
+var unlocked := []
 var _list: VBoxContainer
 var _detail: Label
 var _hint: Label
@@ -96,6 +101,8 @@ func _ready() -> void:
 	_title = _text(TITLES[kind], 30, ACCENT)
 	col.add_child(_title)
 	col.add_child(_text(SUBTITLES[kind], 15, DIM))
+	_level = _text("", 18, ACCENT)
+	col.add_child(_level)
 	_stash = HBoxContainer.new()
 	_stash.add_theme_constant_override("separation", 18)
 	col.add_child(_stash)
@@ -117,6 +124,9 @@ func _process(delta: float) -> void:
 	_spin_hold -= delta
 	if _spin_hold <= 0.0 and _turntable != null:
 		_turntable.rotate_y(delta * SPIN_SPEED)
+	if _level_flash > 0.0:
+		_level_flash -= delta
+		_level.modulate = Color(1, 1, 1).lerp(Color(1.4, 1.2, 0.5), clampf(_level_flash, 0.0, 1.0))
 
 
 func _input(event: InputEvent) -> void:
@@ -170,8 +180,14 @@ func step(dir: int) -> void:
 func confirm() -> bool:
 	if rows.is_empty() or not rows[selected].has("confirm"):
 		return false
+	var before: int = armory.pilot_level()
 	var ok: bool = rows[selected]["confirm"].call()
 	SFX.play(self, CONFIRM_SOUND[kind] if ok else "ui_error", -4.0)
+	var after: int = armory.pilot_level()
+	if after > before:
+		_level_flash = 1.6
+		SFX.play(self, "ui_confirm", -2.0)
+		unlocked.append_array(Armory.unlocks_between(before, after))
 	refresh()
 	return ok
 
@@ -201,6 +217,7 @@ func refresh() -> void:
 		tab_text = "%s      Q/E  %s" % [tab_text, Armory.WEAPONS[weapon]["name"]]
 	_tab_label.text = tab_text
 	_draw_stash()
+	_draw_level()
 	for c in _list.get_children():
 		c.queue_free()
 	for i in rows.size():
@@ -300,16 +317,21 @@ func _sidearm_rows() -> Array:
 	for id in Armory.WEAPONS:
 		var w: Dictionary = Armory.WEAPONS[id]
 		var owned := armory.owns_weapon(id)
+		var locked: bool = armory.level_locked(id)
 		var p := armory.weapon_profile(id)
-		out.append({
+		var row := {
 			"label": w["name"],
 			"value": "",
-			"cost": null if owned else w["cost"],
-			"state": "IN HAND" if id == armory.equipped else ("OWNED" if owned else ""),
+			"cost": null if owned or locked else w["cost"],
+			"state": "IN HAND" if id == armory.equipped else ("OWNED" if owned else ("LEVEL %d" % Armory.unlock_level(id) if locked else "")),
 			"note": "%s\n%s" % [w["desc"], _stat_line(p)],
 			"confirm": func(): return armory.buy_weapon(id) and armory.equip(id),
 			"profile": p,
-		})
+		}
+		if locked:
+			row["note"] = "Unlocks at level %d (you're level %d). Every upgrade you buy raises your level.\n%s" % [
+				Armory.unlock_level(id), armory.pilot_level(), row["note"]]
+		out.append(row)
 	return out
 
 
@@ -399,6 +421,16 @@ static func _stat_diff(a: Dictionary, b: Dictionary) -> String:
 
 
 # --- drawing ----------------------------------------------------------------------
+
+func _draw_level() -> void:
+	var text := "LEVEL %d" % armory.pilot_level()
+	for id in unlocked:
+		text += "   %s UNLOCKED AT THE RACK" % Armory.WEAPONS[id]["short"]
+	var next: String = armory.next_unlock()
+	if next != "" and unlocked.is_empty():
+		text += "   Next: %s at level %d. Every upgrade raises your level." % [Armory.WEAPONS[next]["name"], Armory.unlock_level(next)]
+	_level.text = text
+
 
 func _draw_stash() -> void:
 	for c in _stash.get_children():

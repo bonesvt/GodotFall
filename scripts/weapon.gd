@@ -421,7 +421,7 @@ func _shot_feel(fx_parent: Node) -> void:
 		FX.star(muzzle, muzzle.global_position, Color(1.0, 0.75, 0.35, 0.95), 0.09, 0.05, 8)
 		FX.light(fx_parent, muzzle.global_position, Color(1.0, 0.7, 0.35), 2.0, 5.0, 0.05)
 	if _drum != null:
-		_drum_turn += TAU / 5.0
+		_drum_turn += TAU / 6.0
 	if _hammer != null:
 		_hammer.rotation.x = deg_to_rad(-40.0)
 	FX.star(muzzle, muzzle.global_position, Color(0.85, 0.97, 1.0, 0.9), 0.045, 0.04, 6)
@@ -696,9 +696,15 @@ func _reload_choreography() -> void:
 	if _reload_events == 0 and p >= RELOAD_BEATS[0]:
 		_reload_events = 1
 		SFX.play(self, "reload_out", -3.0, SFX.vary())
-		var mag_at: Vector3 = _parts["MagBase"][0].global_position if _parts.has("MagBase") else viewmodel.global_transform * Vector3(0.0, -0.09, 0.06)
 		var down: Vector3 = -viewmodel.global_basis.y
-		FX.chunk(fx_parent, mag_at, Vector3(0.034, 0.1, 0.048), Color(0.82, 0.85, 0.9), player.velocity + down * 2.5 + player.head.global_basis.x * 0.6, 0.6)
+		if _drum != null:
+			# A revolver: the spent rivets tip out of the cylinder.
+			var at: Vector3 = _drum.global_position
+			for i in magazine_size - ammo:
+				FX.casing(fx_parent, at, player.velocity + down * 1.5 + player.head.global_basis.x * randf_range(-0.6, 0.6))
+		else:
+			var mag_at: Vector3 = _parts["MagBase"][0].global_position if _parts.has("MagBase") else viewmodel.global_transform * Vector3(0.0, -0.09, 0.06)
+			FX.chunk(fx_parent, mag_at, Vector3(0.034, 0.1, 0.048), Color(0.82, 0.85, 0.9), player.velocity + down * 2.5 + player.head.global_basis.x * 0.6, 0.6)
 		_set_part_visible("MagBase", false)
 		_kick_vel += Vector3(0.0, 0.8, 0.0)
 		_kick_rot_vel += Vector3(-10.0, 0.0, 0.0)

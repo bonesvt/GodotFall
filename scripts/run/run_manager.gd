@@ -321,6 +321,8 @@ func open_bench(kind: String) -> void:
 
 
 func close_bench() -> void:
+	for id in bench.unlocked:
+		hud.toast("LEVEL %d: %s UNLOCKED. PICK IT AT THE WEAPON RACK" % [armory.pilot_level(), Armory.WEAPONS[id]["name"].to_upper()], 5.0)
 	bench.queue_free()
 	bench = null
 	get_tree().paused = false
@@ -370,7 +372,7 @@ func dress_hub() -> void:
 			tag.text = "IN HAND" if id == armory.equipped else Armory.WEAPONS[id]["short"]
 			tag.modulate = Color(1.0, 0.8, 0.35) if id == armory.equipped else Color(0.9, 0.88, 0.82)
 		else:
-			tag.text = "LOCKED"
+			tag.text = "LEVEL %d" % Armory.unlock_level(id) if armory.level_locked(id) else "LOCKED"
 			tag.modulate = Color(0.6, 0.6, 0.62)
 	var stand: Node3D = zone_info.get("workshop_titan")
 	if stand != null:
@@ -765,7 +767,7 @@ func _whisper(category: String, delay := 0.0) -> void:
 func _update_hud() -> void:
 	hud.build_label.visible = phase != Phase.HUB
 	if phase == Phase.HUB:
-		var status := "THE TEMPLE    %s    Runs %d" % [_materials_text(armory.stash), runs_started]
+		var status := "THE TEMPLE    LEVEL %d    %s    Runs %d" % [armory.pilot_level(), _materials_text(armory.stash), runs_started]
 		if last_result != "":
 			status += "    Last run: %s" % last_result
 		if course_time >= 0.0:

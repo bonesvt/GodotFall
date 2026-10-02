@@ -11,7 +11,11 @@ extends RefCounted
 ## always kept. The benches spend them:
 ##   gunsmith bench   weapon upgrades (each gun has its own) and attachments
 ##                    (one per slot, each a trade-off), plus finishes
-##   weapon rack      buy and pick the sidearm you head out with
+##   weapon rack      pick the sidearm you head out with
+##
+## Eco's level is 1 plus every upgrade level she has bought: weapon upgrades,
+## titan refits and suit upgrades all count. It unlocks starting weapons:
+## the heavy revolver at level 3, the auto handgun at 6.
 ##   titan workshop   buy titan parts to start runs with instead of scrap, and
 ##                    refit any part so every copy of it you install is better
 ## Titan paint and part tweaks stay at Eco's paint shop.
@@ -61,32 +65,32 @@ const WEAPONS := {
 		],
 	},
 	"rivet_cannon": {
-		"name": "Rivet Cannon", "short": "RIVET CANNON", "cost": {"scrap": 120, "alloy": 20, "circuits": 3}, "model": "rivet_cannon",
-		"desc": "Five heavy rounds off a titan's rivet driver. Slow, loud, kicks like a mule.",
+		"name": "Heavy Revolver", "short": "HEAVY REVOLVER", "cost": {}, "unlock_level": 3, "model": "rivet_cannon",
+		"desc": "Six titan rivets in a hand-turned cylinder. Slow, loud, kicks like a mule.",
 		"smart": false, "automatic": false, "suppressed": false, "mag_step": 1,
 		"upgrades": ["calibre", "action", "magazine"],
 		"sound": "rivet_cannon", "sound_last": "rivet_cannon", "tracer": Color(1.0, 0.75, 0.4, 0.9),
 		"stats": {
 			"damage": 42.0, "headshot_multiplier": 2.0, "falloff_start": 22.0, "falloff_end": 50.0,
-			"falloff_min": 0.65, "fire_interval": 0.42, "magazine_size": 5, "reload_time": 2.1,
+			"falloff_min": 0.65, "fire_interval": 0.42, "magazine_size": 6, "reload_time": 2.1,
 			"base_spread": 0.15, "bloom_per_shot": 2.4, "bloom_recovery": 5.0, "max_bloom": 6.0,
 			"move_spread": 1.2, "air_spread": 1.6, "recoil_kick": 3.6,
 		},
 		"lines": [
 			"Built it round a rivet driver. It still thinks it's holding titans together.",
-			"Five shots. Make them count or make them run.",
+			"Six shots. Make them count or make them run.",
 			"The coils glow when it's angry. It's always a bit angry.",
 		],
 	},
 	"machine_pistol": {
-		"name": "Militia Machine Pistol", "short": "MACHINE PISTOL", "cost": {"scrap": 100, "circuits": 2}, "model": "machine_pistol",
-		"desc": "Full auto, light rounds, sprays wide. Hold the trigger, mind the bloom.",
+		"name": "Auto Handgun", "short": "AUTO HANDGUN", "cost": {}, "unlock_level": 6, "model": "machine_pistol",
+		"desc": "A militia machine pistol: full auto, fifteen rounds a second, sprays wide. Hold the trigger, mind the bloom.",
 		"smart": false, "automatic": true, "suppressed": false, "mag_step": 3,
 		"upgrades": ["calibre", "action", "magazine"],
 		"sound": "machine_pistol", "sound_last": "machine_pistol", "tracer": Color(1.0, 0.9, 0.6, 0.7),
 		"stats": {
 			"damage": 8.0, "headshot_multiplier": 1.75, "falloff_start": 10.0, "falloff_end": 25.0,
-			"falloff_min": 0.5, "fire_interval": 0.075, "magazine_size": 20, "reload_time": 1.7,
+			"falloff_min": 0.5, "fire_interval": 0.066, "magazine_size": 24, "reload_time": 1.7,
 			"base_spread": 0.5, "bloom_per_shot": 0.45, "bloom_recovery": 7.0, "max_bloom": 5.5,
 			"move_spread": 0.7, "air_spread": 1.0, "recoil_kick": 0.55,
 		},
@@ -224,7 +228,7 @@ func load_file() -> void:
 	owned_parts = cfg.get_value("titan", "owned", [])
 	titan_loadout.merge(cfg.get_value("titan", "loadout", {}), true)
 	refits = cfg.get_value("titan", "refits", {})
-	if not WEAPONS.has(equipped) or not equipped in owned_weapons:
+	if not WEAPONS.has(equipped) or not owns_weapon(equipped):
 		equipped = "smart_pistol"
 
 
@@ -300,15 +304,67 @@ static func cost_text(cost: Dictionary) -> String:
 
 # --- pilot weapons --------------------------------------------------------------
 
+## Level-unlocked guns are yours as soon as Eco's level reaches them.
 func owns_weapon(id: String) -> bool:
-	return id in owned_weapons
+	return id in owned_weapons or (WEAPONS[id]["cost"].is_empty() and not level_locked(id))
 
 
-## Buys the gun if you don't have it. Returns false if you can't afford it.
+# --- Eco's level -------------------------------------------------------------------
+
+## Every upgrade level bought: weapon upgrades, titan refits and suit upgrades.
+func upgrade_points() -> int:
+	var points := 0
+	for weapon in upgrades:
+		for track in upgrades[weapon]:
+			points += int(upgrades[weapon][track])
+	for key in refits:
+		points += int(refits[key])
+	# Suit upgrades (the suit locker), when the armory has them.
+	if "suit_tier" in self:
+		points += int(get("suit_tier"))
+	return points
+
+
+## Eco's level: 1 plus every upgrade she has bought.
+func pilot_level() -> int:
+	return 1 + upgrade_points()
+
+
+## The level a weapon unlocks at (1: from the start).
+static func unlock_level(id: String) -> int:
+	return int(WEAPONS[id].get("unlock_level", 1))
+
+
+## True while Eco's level is below the gun's unlock level.
+func level_locked(id: String) -> bool:
+	return pilot_level() < unlock_level(id)
+
+
+## The next weapon her level will unlock, or "" when they all are.
+func next_unlock() -> String:
+	var best := ""
+	for id in WEAPONS:
+		if level_locked(id) and (best == "" or unlock_level(id) < unlock_level(best)):
+			best = id
+	return best
+
+
+## Guns that unlock between two levels (for a "level up" note).
+static func unlocks_between(from_level: int, to_level: int) -> Array:
+	var out := []
+	for id in WEAPONS:
+		var at := unlock_level(id)
+		if at > from_level and at <= to_level:
+			out.append(id)
+	return out
+
+
+## Buys the gun if you don't have it. Returns false if you can't afford it, or
+## your level hasn't unlocked it yet.
 func buy_weapon(id: String) -> bool:
 	if owns_weapon(id):
 		return true
-	if not _spend(WEAPONS[id]["cost"]):
+	if level_locked(id) or not _spend(WEAPONS[id]["cost"]):
 		return false
 	owned_weapons.append(id)
 	save()
