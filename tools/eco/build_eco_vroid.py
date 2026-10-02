@@ -9,9 +9,10 @@ What it does to the preset, in its rest space (she faces -Y there, her left is +
 - cuts the hair to a chin-length bob with a swept fringe and dyes it dark red
 - a fiercer, older face: smaller irises and a longer chin (the angry brows and
   narrowed eyes are blend shapes, set on import), mature makeup painted in
-- paints the pilot suit onto her skin: halter bodysuit with a keyhole, open back
-  and high-cut legs, waist band, gloves, thigh-high boots with knee plates, teal
-  glow trims. Baked into v_body.png (+ a glow map and a sheen/suit mask)
+- fuller, rounder hips, glutes and thighs
+- paints the pilot suit onto her skin: halter bodysuit with a keyhole, side
+  cutouts, open back and legs cut high front and back, waist band, gloves,
+  thigh-high boots with knee plates, teal glow trims. Baked into v_body.png (+ glow, sheen/suit mask and normal maps)
 - goggles on her head, skinned to the head bone
 - glute bones beside the preset's bust bones, for the jiggle springs
 - a slightly smaller head and longer legs, 1.69 m tall, turned to face +Y
@@ -47,6 +48,14 @@ GEAR = (0.016, 0.016, 0.021)
 PLATE = (0.085, 0.09, 0.105)
 TRIM = (0.0, 0.62, 0.55)
 INK = (0.012, 0.009, 0.014)
+STRETCH = (0.085, 0.09, 0.115)   # the suit where it stretches thin over her curves
+
+SIDE_CUT = 0.075   # how far the sides of the halter drop beside the bust (rest-space metres)
+CHEEKY = 1.6       # how steeply the back leg openings rise toward the hips
+# fuller curves (rest-space metres, before she is scaled up by about 1.2)
+GLUTES = 0.026
+HIPS = 0.014
+THIGHS = 0.009
 
 # the fierce expression, applied as blend shapes on import (eco_import.gd)
 EXPRESSION = {"Fcl_BRW_Angry": 1.0, "Fcl_EYE_Angry": 0.55, "Fcl_MTH_Down": 0.1}
@@ -380,6 +389,57 @@ def strip_clothes():
     return boots
 
 
+# --- curves ------------------------------------------------------------------------
+
+def curves():
+    """Rounder, fuller hips, glutes and thighs. Each point moves out along its
+    own surface normal by a smooth, wide falloff (and the result is smoothed
+    over the mesh), so the body inflates into round shapes instead of being
+    pulled sideways or back into points. Inner thighs grow less, so her legs
+    don't merge."""
+    body = bpy.data.objects["Body"]
+    me = body.data
+    n = len(me.vertices)
+    P = np.empty(n * 3, np.float32)
+    me.vertices.foreach_get("co", P)
+    P = P.reshape(n, 3)
+    N = np.empty(n * 3, np.float32)
+    me.vertices.foreach_get("normal", N)
+    N = N.reshape(n, 3)
+    # the mesh is split along its UV seams: give every copy of a point the same normal
+    groups = {}
+    for i, k in enumerate(map(tuple, np.round(P, 5))):
+        groups.setdefault(k, []).append(i)
+    for ids in groups.values():
+        if len(ids) > 1:
+            N[ids] = N[ids].sum(0)
+    N /= np.maximum(np.linalg.norm(N, axis=1, keepdims=True), 1e-9)
+    x, y, z = P[:, 0], P[:, 1], P[:, 2]
+    ax = np.abs(x)
+    out = N[:, 0] * np.sign(x)    # how much the surface faces out to her side
+    glute = GLUTES * np.exp(-((ax - 0.062) / 0.055) ** 2 - ((z - 0.765) / 0.065) ** 2) * ss(-0.02, 0.04, y)
+    hip = HIPS * np.exp(-((z - 0.75) / 0.065) ** 2) * ss(0.15, 0.7, out)
+    thigh = THIGHS * ss(0.47, 0.57, z) * ss(0.78, 0.68, z) * (0.35 + 0.65 * ss(-0.5, 0.5, out))
+    D = N * (glute + hip + thigh)[:, None]
+    # smooth the push over the surface (welded across the seams)
+    me.calc_loop_triangles()
+    edges = np.array([e.vertices[:] for e in me.edges])
+    for _ in range(6):
+        acc = np.zeros_like(D)
+        cnt = np.zeros(n)
+        np.add.at(acc, edges[:, 0], D[edges[:, 1]])
+        np.add.at(acc, edges[:, 1], D[edges[:, 0]])
+        np.add.at(cnt, edges[:, 0], 1)
+        np.add.at(cnt, edges[:, 1], 1)
+        D = 0.5 * D + 0.5 * acc / np.maximum(cnt, 1)[:, None]
+        for ids in groups.values():
+            if len(ids) > 1:
+                D[ids] = D[ids].mean(0)
+    me.vertices.foreach_set("co", (P + D).ravel())
+    me.update()
+    print("curves: up to %.1f mm" % (np.linalg.norm(D, axis=1).max() * 1000))
+
+
 # --- goggles ---------------------------------------------------------------------
 
 def new_mat(name, col=(0.5, 0.5, 0.5)):
@@ -687,14 +747,18 @@ def suit_graph(nt, skin):
     ax = g.abs(x)
     tb = g.sstep(-0.025, 0.045, y)                    # 0 at the front, 1 at the back
     front = g.sub(1.0, g.sstep(-0.045, -0.025, y))
-    # neckline: a halter at the front, open back down to the waist
+    # neckline: a halter at the front, open back down to the waist. Beside the
+    # bust the sides are cut low (side cutouts), only where the surface turns
+    # to face sideways, so the cups still cover her front
     zf = g.sub(1.17, g.mul(1.34, g.mx(g.sub(ax, 0.028), 0.0)))
+    side_cut = g.mul(g.op("EXPONENT", g.neg(g.sq(g.div(g.sub(ax, 0.10), 0.036)))), g.sstep(-0.105, -0.065, y))
+    zf = g.sub(zf, g.mul(side_cut, SIDE_CUT))
     zb = g.mn(g.add(0.90, g.mul(0.17, g.sq(g.div(ax, 0.11)))), 1.065)
     d_top = g.mul(g.sub(g.lerp(zf, zb, tb), z), g.lerp(0.6, 1.0, tb))
     # high-cut legs: steep up over the hip at the front, fuller cover behind
     lx = g.mx(g.sub(ax, 0.02), 0.0)
     zlf = g.add(0.655, g.mul(1.4, lx))
-    zlb = g.add(0.665, g.mul(0.55, lx))
+    zlb = g.add(0.665, g.mul(CHEEKY, lx))   # cut high at the back too: the bottom of the glutes shows
     d_leg = g.mul(g.sub(z, g.lerp(zlf, zlb, tb)), g.lerp(0.54, 0.88, tb))
     d_torso = g.mn(d_top, d_leg)
     r = g.sqrt(g.add(g.sq(x), g.sq(g.sub(y, 0.022))))
@@ -721,14 +785,20 @@ def suit_graph(nt, skin):
     trim = g.mx(trim, g.mul(g.mx(g.band(z, 0.9045, 0.9058), g.band(z, 0.9542, 0.9555)), c_suit))
     seam = g.mul(g.mul(g.band(y, 0.012, 0.0135), g.sstep(0.05, 0.06, ax)), c_suit)
     col = g.mixc(col, PLATE, seam)
+    # the thin suit stretches paler over her bust and glutes: painted on, nothing under it
+    def bell(cx, cy, cz, r):
+        d2 = g.add(g.add(g.sq(g.sub(ax, cx)), g.sq(g.sub(y, cy))), g.sq(g.sub(z, cz)))
+        return g.op("EXPONENT", g.mul(d2, -1.0 / (2 * r * r)))
+    stretch = g.mx(bell(0.057, -0.105, 1.045, 0.03), bell(0.062, 0.06, 0.775, 0.042))
+    col = g.mixc(col, STRETCH, g.mul(g.mul(stretch, 0.55), g.mul(c_suit, g.sub(1.0, c_gear))))
     col = g.mixc(col, INK, ink)
     col = g.mixc(col, TRIM, trim)
     return col, trim, g.mx(c_suit, c_gear), ink, c_gear
 
 
 def bake_body(body, skin_img):
-    """Bake the suit into three textures: albedo, glow (teal trims) and a mask
-    (red: where a thin sheen may show, green: suit or skin)."""
+    """Bake the suit into four textures: albedo, glow (teal trims), a mask
+    (red: where a thin sheen may show, green: suit or skin) and a normal map."""
     sc = bpy.context.scene
     sc.render.engine = "CYCLES"
     sc.cycles.samples = 4
@@ -775,6 +845,36 @@ def bake_body(body, skin_img):
         img.save()
         results[name] = img
         print("baked", name)
+    # normal map: the suit clings to the soft contour of her bust apex (nothing
+    # under it), kept as subtle as in the reference renders
+    at = nt.nodes.new("ShaderNodeAttribute")
+    at.attribute_name = "rest"
+    sep = nt.nodes.new("ShaderNodeSeparateXYZ")
+    nt.links.new(at.outputs["Vector"], sep.inputs[0])
+    x, y, z = sep.outputs[0], sep.outputs[1], sep.outputs[2]
+    h = 0.0
+    for sx in (0.057, -0.057):
+        d2 = g.add(g.add(g.sq(g.sub(x, sx)), g.sq(g.sub(y, -0.121))), g.sq(g.sub(z, 1.047)))
+        h = g.add(h, g.op("EXPONENT", g.mul(d2, -1.0 / (2 * 0.0045 ** 2))))
+    bump = nt.nodes.new("ShaderNodeBump")
+    bump.inputs["Strength"].default_value = 1.0
+    bump.inputs["Distance"].default_value = 1.0
+    g.put(bump.inputs["Height"], g.mul(g.mul(h, cover), 0.0006))
+    bsdf = nt.nodes.new("ShaderNodeBsdfDiffuse")
+    nt.links.new(bump.outputs["Normal"], bsdf.inputs["Normal"])
+    nt.links.new(bsdf.outputs[0], out.inputs[0])
+    img = bpy.data.images.new("v_body_n", 1024, 1024, alpha=False)
+    img.colorspace_settings.name = "Non-Color"
+    node = nt.nodes.new("ShaderNodeTexImage")
+    node.image = img
+    nt.nodes.active = node
+    sc.render.bake.normal_space = "TANGENT"
+    bpy.ops.object.bake(type="NORMAL")
+    img.filepath_raw = os.path.join(TEX_OUT, "v_body_n.png")
+    img.file_format = "PNG"
+    img.save()
+    results["v_body_n"] = img
+    print("baked v_body_n")
     return results
 
 
@@ -879,8 +979,9 @@ FINGERS = ("Index", "Middle", "Ring", "Little")
 
 
 def base_pose():
-    """Arms down from the T-pose to a relaxed stance (she faces +Y, her right is +X)."""
-    return {"upperarm.R": [(Y, 79)], "upperarm.L": [(Y, -79)],
+    """Arms down from the T-pose to a relaxed stance, hands just clear of her
+    hips (she faces +Y, her right is +X)."""
+    return {"upperarm.R": [(Y, 76)], "upperarm.L": [(Y, -76)],
             "forearm.R": [(X, 14)], "forearm.L": [(X, 14)]}
 
 
@@ -909,6 +1010,17 @@ def key_pose(arm, frame, pose, keyed):
                 b = arm.pose.bones["J_Bip_%s_%s%d" % (s, f, j)]
                 ax = (b.matrix @ b.bone.matrix_local.inverted()).to_3x3() @ Vector(Y)
                 turn(arm, b.name, ax, sign * a * pose.get("_grip", 1.0))
+        # the thumb folds down toward the palm and across to the index knuckle
+        # (in the T-pose rest the palms face down)
+        bones = arm.data.bones
+        t1, t3 = bones["J_Bip_%s_Thumb1" % s].head_local, bones["J_Bip_%s_Thumb3" % s].head_local
+        tip_dir = (t3 - t1).normalized()
+        toward = (Vector((0, 0, -1)) + (bones["J_Bip_%s_Index1" % s].head_local - t1).normalized() * 0.7).normalized()
+        rest_axis = tip_dir.cross(toward).normalized()
+        for j, a in ((1, 16), (2, 22), (3, 18)):
+            b = arm.pose.bones["J_Bip_%s_Thumb%d" % (s, j)]
+            ax = (b.matrix @ b.bone.matrix_local.inverted()).to_3x3() @ rest_axis
+            turn(arm, b.name, ax, a * min(pose.get("_grip", 1.0), 1.6))
     for name in keyed:
         pb = arm.pose.bones[name]
         pb.keyframe_insert("rotation_quaternion", frame=frame)
@@ -923,7 +1035,7 @@ def hips_loc(ly, lz):
 def make_actions(arm):
     arm.animation_data_create()
     bpy.context.scene.render.fps = 30
-    keyed = [BONE[n] for n in ORDER] + ["J_Bip_%s_%s%d" % (s, f, j) for s in "RL" for f in FINGERS for j in (1, 2, 3)]
+    keyed = [BONE[n] for n in ORDER] + ["J_Bip_%s_%s%d" % (s, f, j) for s in "RL" for f in FINGERS + ("Thumb",) for j in (1, 2, 3)]
     acts = []
 
     def action(name):
@@ -956,6 +1068,8 @@ def make_actions(arm):
     for f in range(0, n + 1, 2):
         t = f / n * 2 * math.pi
         p = base_pose()
+        add(p, "upperarm.R", Y, -4)   # a little out from her sides, so the hands clear her hips
+        add(p, "upperarm.L", Y, 4)
         sw = math.sin(t)
         add(p, "thigh.R", X, 26 * sw)
         add(p, "thigh.L", X, -26 * sw)
@@ -979,6 +1093,8 @@ def make_actions(arm):
     for f in range(0, n + 1):
         t = f / n * 2 * math.pi
         p = base_pose()
+        add(p, "upperarm.R", Y, -11)   # out from her sides, so the hands clear her hips
+        add(p, "upperarm.L", Y, 11)
         sw = math.sin(t)
         add(p, "thigh.R", X, 44 * sw + 6)
         add(p, "thigh.L", X, -44 * sw + 6)
@@ -1102,6 +1218,7 @@ def main():
     short_hair()
     fierce_face()
     boots = strip_clothes()
+    curves()
     gog = goggles(arm)
     objs = [bpy.data.objects[n] for n in ("Body", "Face", "Hair")] + [boots, gog]
     textures_and_materials(objs, boots)

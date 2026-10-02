@@ -33,6 +33,10 @@ uniform vec3 sheen_color : source_color = vec3(0.77, 0.8, 0.86);
 // R: where the sheen may show; G: where shade_tint_2 applies. Only read when use_mask is on.
 uniform sampler2D mask_tex : hint_default_white, filter_linear_mipmap;
 uniform bool use_mask = false;
+// Tangent-space normal map (her suit's cling), only read when use_normal is on.
+uniform sampler2D normal_tex : hint_normal, filter_linear_mipmap;
+uniform bool use_normal = false;
+uniform float normal_depth = 1.0;
 // Glowing trims: a texture and/or a flat colour.
 uniform sampler2D glow_tex : source_color, hint_default_black, filter_linear_mipmap;
 uniform float glow_tex_energy = 1.6;
@@ -64,6 +68,10 @@ void fragment() {
 	v_sheen_mask = sheen * mask.r;
 	v_shade = mix(shade_tint, shade_tint_2, mask.g);
 	ALBEDO = col * exposure;
+	if (use_normal) {
+		NORMAL_MAP = texture(normal_tex, UV).rgb;
+		NORMAL_MAP_DEPTH = normal_depth;
+	}
 	ROUGHNESS = 1.0;
 	SPECULAR = 0.0;
 	float fres = 1.0 - clamp(dot(NORMAL, VIEW), 0.0, 1.0);

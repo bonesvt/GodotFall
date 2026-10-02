@@ -245,8 +245,9 @@ Weak on purpose, so skill decides fights.
 A young mechanic who went rogue after the militia turned her down as a Pilot. She fights with
 her late father's broken smart pistol and builds titans from scrap. Anime toon look: a short,
 daring dark-red bob with a fringe swept over her right eye, a fierce face with mature makeup,
-pilot goggles pushed up on her head, and a skin-tight pilot suit (halter with a keyhole, open
-back, high-cut legs, gloves and thigh-high boots with knee plates, teal glowing trims).
+pilot goggles pushed up on her head, full hips and thighs, and a skin-tight pilot suit (halter
+with a keyhole and side cutouts, open back, legs cut high front and back, gloves and thigh-high
+boots with knee plates, teal glowing trims).
 
 - **Model**: `assets/models/eco.tscn` (or `Art.model("eco")`), a rigged mesh 1.69 m tall,
   facing -Z with its origin at her feet. Drop it under a CharacterBody3D and she picks her

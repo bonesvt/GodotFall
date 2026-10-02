@@ -50,9 +50,9 @@ func _run() -> void:
 		await process_frame
 		for b in peak:
 			peak[b] = maxf(peak[b], _angle(sk, b))
-	_check("chest bounces on a hop", peak["J_Sec_L_Bust1"] > 6.0, peak["J_Sec_L_Bust1"])
-	_check("glutes bounce on a hop", peak["J_Sec_L_Glute1"] > 4.0, peak["J_Sec_L_Glute1"])
-	_check("bounce stays within its limit", peak["J_Sec_L_Bust1"] <= 14.5 and peak["J_Sec_L_Glute1"] <= 10.5, peak)
+	_check("chest bounces on a hop", peak["J_Sec_L_Bust1"] > 12.0, peak["J_Sec_L_Bust1"])
+	_check("glutes bounce on a hop", peak["J_Sec_L_Glute1"] > 8.0, peak["J_Sec_L_Glute1"])
+	_check("bounce stays within its limit", peak["J_Sec_L_Bust1"] <= 24.5 and peak["J_Sec_L_Glute1"] <= 18.5, peak)
 	await _frames(90)
 	_check("chest settles after the hop", _angle(sk, "J_Sec_L_Bust1") < 3.0, _angle(sk, "J_Sec_L_Bust1"))
 
@@ -64,7 +64,7 @@ func _run() -> void:
 		await process_frame
 		if f > 30:
 			most = maxf(most, _angle(sk, "J_Sec_L_Bust1"))
-	_check("running bounces without slamming the limit", most > 3.0 and most < 12.0, most)
+	_check("running bounces without slamming the limit", most > 6.0 and most < 22.0, most)
 
 	# jiggle 0 holds them still
 	eco.jiggle = 0.0
