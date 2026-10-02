@@ -14,6 +14,8 @@ extends RefCounted
 ##   weapon rack      buy and pick the sidearm you head out with
 ##   titan workshop   buy titan parts to start runs with instead of scrap, and
 ##                    refit any part so every copy of it you install is better
+##   suit locker      upgrade Eco's pilot suit, one tier at a time: each tier adds
+##                    armour, one passive and armour pieces you can see on her
 ## Titan paint and part tweaks stay at Eco's paint shop.
 ##
 ## Upgrades stay small on purpose: the smart pistol never gets more damage.
@@ -166,6 +168,35 @@ const FINISHES := [
 	{"id": "ember", "name": "Ember", "shell": Color(0.3, 0.26, 0.24), "blue": Color(1.1, 0.4, 0.15), "stripe": Color(1.3, 0.85, 0.3)},
 ]
 
+## Eco's suit upgrades, bought in order at the suit locker. Each tier keeps
+## everything before it and adds armour (a second bar over her health that
+## takes hits first and comes back after the same pause as her health), one
+## passive, and armour pieces you can see on her (eco_model.gd suit_tier;
+## the pieces are modelled in tools/eco/build_eco_vroid.py). `armor` is the
+## tier's total. The passives' numbers live in suit_profile().
+const SUIT_TIERS := [
+	{"name": "Scav Rig", "armor": 20, "cost": {"scrap": 80, "alloy": 10},
+		"passive": "Magnet pouches", "passive_desc": "Materials fly to you from twice as far.",
+		"look": "Forearm bracers, a belt with hip pouches.",
+		"line": "Bracers off a dead grunt, pouches off another. Waste not."},
+	{"name": "Seal Weave", "armor": 40, "cost": {"scrap": 120, "alloy": 25, "circuits": 2},
+		"passive": "Auto-seal", "passive_desc": "Health and armour start coming back after 2 s instead of 3.",
+		"look": "Layered shoulder plates, a seal injector strapped to her thigh.",
+		"line": "Sealant in the weave. It stings. It works."},
+	{"name": "Dampers", "armor": 60, "cost": {"scrap": 160, "alloy": 40, "circuits": 4},
+		"passive": "Hush dampers", "passive_desc": "Grunts take 30% longer to notice you, by sight or by footsteps.",
+		"look": "Shin guards, knee cops and hip plates.",
+		"line": "Rubber-backed plates. They'll never hear me coming."},
+	{"name": "Jump Kit", "armor": 80, "cost": {"scrap": 220, "alloy": 60, "circuits": 6},
+		"passive": "Jump kit", "passive_desc": "Wallruns last 40% longer and the grapple recharges 30% faster.",
+		"look": "A jump pack low on her back, an armoured collar.",
+		"line": "Dad's old jump kit, rewound. The Pilot program can keep theirs."},
+	{"name": "Dad's Colours", "armor": 100, "cost": {"scrap": 300, "alloy": 90, "circuits": 8, "lock_cores": 1},
+		"passive": "Second wind", "passive_desc": "Once per zone, a hit that would down you leaves you on 1 HP, untouchable for 1.5 s.",
+		"look": "Plates repainted in Dad's colours, crests on her shoulders, every trim gold.",
+		"line": "His colours. I earned them."},
+]
+
 ## Titan parts you can buy to start runs with (Mk I), by slot. Scrap is free.
 const TITAN_PART_COST := {
 	"chassis": {"alloy": 60, "scrap": 40},
@@ -197,6 +228,8 @@ var titan_loadout := {"chassis": "scrap", "weapon": "scrap", "core": "scrap", "k
 ## part id -> refit level (ids are unique across slots except "scrap", so key by "slot:id")
 var refits := {}
 var lifetime := {}
+## Eco's suit tier, 0 (bare pilot suit) to SUIT_TIERS.size().
+var suit_tier := 0
 
 
 func _init(p_path := DEFAULT_PATH) -> void:
@@ -224,6 +257,7 @@ func load_file() -> void:
 	owned_parts = cfg.get_value("titan", "owned", [])
 	titan_loadout.merge(cfg.get_value("titan", "loadout", {}), true)
 	refits = cfg.get_value("titan", "refits", {})
+	suit_tier = clampi(cfg.get_value("suit", "tier", 0), 0, SUIT_TIERS.size())
 	if not WEAPONS.has(equipped) or not equipped in owned_weapons:
 		equipped = "smart_pistol"
 
@@ -241,6 +275,7 @@ func save() -> void:
 	cfg.set_value("titan", "owned", owned_parts)
 	cfg.set_value("titan", "loadout", titan_loadout)
 	cfg.set_value("titan", "refits", refits)
+	cfg.set_value("suit", "tier", suit_tier)
 	cfg.save(path)
 
 
@@ -510,3 +545,38 @@ func refit_bonus() -> Dictionary:
 	for key in refits:
 		bonus[key] = 1.0 + REFIT_STEP * refits[key]
 	return bonus
+
+
+# --- Eco's suit -----------------------------------------------------------------
+
+## Cost of the next suit tier, or {} when the suit is maxed.
+func suit_cost() -> Dictionary:
+	return SUIT_TIERS[suit_tier]["cost"] if suit_tier < SUIT_TIERS.size() else {}
+
+
+func buy_suit_tier() -> bool:
+	if suit_tier >= SUIT_TIERS.size() or not _spend(suit_cost()):
+		return false
+	suit_tier += 1
+	save()
+	return true
+
+
+## What a suit tier does, for player.gd apply_suit(): armour plus every passive
+## up to that tier (defaults to the tier she has).
+func suit_profile(tier := -1) -> Dictionary:
+	return suit_profile_for(suit_tier if tier < 0 else tier)
+
+
+static func suit_profile_for(tier: int) -> Dictionary:
+	tier = clampi(tier, 0, SUIT_TIERS.size())
+	return {
+		"tier": tier,
+		"max_armor": float(SUIT_TIERS[tier - 1]["armor"]) if tier > 0 else 0.0,
+		"loot_magnet": 2.0 if tier >= 1 else 1.0,
+		"regen_delay": 2.0 if tier >= 2 else 3.0,
+		"notice_mult": 0.7 if tier >= 3 else 1.0,
+		"wallrun_time_mult": 1.4 if tier >= 4 else 1.0,
+		"grapple_cooldown_mult": 0.7 if tier >= 4 else 1.0,
+		"second_wind": tier >= 5,
+	}

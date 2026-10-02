@@ -4,8 +4,9 @@ extends Node3D
 ##   Left / Right   turn her        Space   pause the turntable
 ##   1              full body        2       face close-up
 ##   3              first-person pistol and glove
+##   S              next suit upgrade tier (0-5)
 ## Also renders the character sheet shots when run with
-##   godot res://scenes/eco_showcase.tscn -- --shots=<folder>
+##   godot res://scenes/eco_showcase.tscn -- --shots=<folder> [--clean] [--suit=<tier>] [--only=front,back]
 
 const Art := preload("res://scripts/ps2/ps2_assets.gd")
 
@@ -25,6 +26,8 @@ var cam: Camera3D
 var pistol: Node3D
 var turntable := true
 var _view := 0
+## Shot names to render (empty: all of them).
+var _only: PackedStringArray = []
 
 
 func _ready() -> void:
@@ -60,6 +63,11 @@ func _ready() -> void:
 				env.fog_enabled = false
 				env.glow_enabled = false
 				env.ambient_light_energy = 0.32
+		if arg.begins_with("--suit="):
+			eco.suit_tier = int(arg.trim_prefix("--suit="))
+		if arg.begins_with("--only="):
+			_only = arg.trim_prefix("--only=").split(",")
+	for arg in OS.get_cmdline_user_args():
 		if arg.begins_with("--shots="):
 			_render_shots(arg.trim_prefix("--shots="))
 
@@ -93,6 +101,8 @@ func _unhandled_input(event: InputEvent) -> void:
 			eco.rotation.y -= 0.3
 		KEY_RIGHT:
 			eco.rotation.y += 0.3
+		KEY_S:
+			eco.suit_tier = (eco.suit_tier + 1) % (eco.SUIT_TIERS + 1)
 		KEY_1, KEY_2, KEY_3:
 			_set_view(event.keycode - KEY_1)
 
@@ -109,6 +119,8 @@ func _render_shots(folder: String) -> void:
 		anim.pause()
 	DirAccess.make_dir_recursive_absolute(folder)
 	for shot in SHOTS:
+		if not _only.is_empty() and not shot[0] in _only:
+			continue
 		var fp: bool = shot[0] == "first_person"
 		pistol.visible = fp
 		eco.visible = not fp

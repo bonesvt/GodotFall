@@ -233,6 +233,9 @@ func _update_sight(delta: float) -> void:
 		return
 	has_sight = false
 	var gain := _sight_gain(from) + _hearing_gain()
+	var mult = target.get("notice_mult")  # Eco's suit dampers (player.gd)
+	if mult != null:
+		gain *= mult
 	if gain > 0.0:
 		detection += gain * SIGHT_TICK
 		since_stimulus = 0.0

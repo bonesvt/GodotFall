@@ -214,6 +214,7 @@ func load_zone(index: int) -> void:
 		evac_open = false
 		hud.toast("THE FOREST'S EDGE: TITANFALL STANDING BY")
 	place_player(zone_info["spawn"])
+	player.second_wind_ready = player.second_wind  # Eco's suit: once per zone
 
 
 func place_player(pos: Vector3) -> void:
@@ -310,7 +311,7 @@ func close_garage() -> void:
 		hud.toast("Call your titan again (V) to see the new paint.", HUB_LINE_SECONDS)
 
 
-## Opens a workbench screen ("gunsmith", "rack" or "workshop"), pausing the hub.
+## Opens a workbench screen ("gunsmith", "rack", "workshop" or "suit"), pausing the hub.
 func open_bench(kind: String) -> void:
 	bench = BenchScreen.new(armory, kind)
 	add_child(bench)
@@ -331,9 +332,11 @@ func close_bench() -> void:
 	dress_hub()
 
 
-## Puts the gun picked at the weapon rack, upgraded and fitted, in Eco's hand.
+## Puts the gun picked at the weapon rack, upgraded and fitted, in Eco's hand,
+## and her suit upgrade (suit locker) on her.
 func equip_loadout() -> void:
 	player.get_node("Head/Camera3D/Weapon").equip(armory.weapon_profile())
+	player.apply_suit(armory.suit_profile())
 
 
 ## Shows the armory on the benches: the equipped gun on the gunsmith's mat,

@@ -14,6 +14,9 @@ What it does to the preset, in its rest space (she faces -Y there, her left is +
   cutouts, open back and legs cut high front and back, waist band, gloves,
   thigh-high boots with knee plates, teal glow trims. Baked into v_body.png (+ glow, sheen/suit mask and normal maps)
 - goggles on her head, skinned to the head bone
+- the suit upgrades' armour (suit_t<tier>_* pieces: bracers, belt and pouches,
+  shoulder plates, injector, shin guards, hip plates, jump kit, collar,
+  crests), hidden in game until she has bought that tier
 - glute bones beside the preset's bust bones, for the jiggle springs
 - a slightly smaller head and longer legs, 1.69 m tall, turned to face +Y
 - idle/walk/run/fall/crouch/slide animations for the VRoid rig
@@ -531,6 +534,244 @@ def goggles(arm):
     mod = ob.modifiers.new("Armature", "ARMATURE")
     mod.object = arm
     return ob
+
+
+# --- suit armour --------------------------------------------------------------------
+
+# armour colours (linear)
+ARMOR = (0.11, 0.115, 0.13)       # gunmetal plates
+ARMOR_EDGE = (0.3, 0.29, 0.27)    # worn, bright edges
+STRAP = (0.02, 0.018, 0.02)
+POUCH = (0.11, 0.085, 0.055)      # scavenged canvas
+LEGACY = (0.62, 0.68, 0.8)        # Dad's colours (the game swaps this in at tier 5)
+
+
+def _body_bvh():
+    dg = bpy.context.evaluated_depsgraph_get()
+    return BVHTree.FromObject(bpy.data.objects["Body"], dg)
+
+
+def _armor_mats(me, names):
+    cols = {"eco_v_armor": ARMOR, "eco_v_armor_edge": ARMOR_EDGE, "eco_v_armor_strap": STRAP,
+            "eco_v_armor_pouch": POUCH, "eco_v_armor_glow": TRIM}
+    for n in names:
+        me.materials.append(new_mat(n, cols[n]))
+
+
+def shell(name, keep, planes=(), gap=0.004, thick=0.004, plate="eco_v_armor", edge="eco_v_armor_edge"):
+    """A plate that follows her body: the Body faces `keep(centre, normal)` picks,
+    welded, trimmed straight by `planes` ((point, normal): the normal side is cut
+    away), lifted `gap` off her skin and given `thick`ness. It keeps the body's
+    skin weights, so it moves exactly as she does. Its sides are the bright edge."""
+    body = bpy.data.objects["Body"]
+    ob = body.copy()
+    ob.data = body.data.copy()
+    ob.name = ob.data.name = name
+    bpy.context.scene.collection.objects.link(ob)
+    if "rest" in ob.data.attributes:
+        ob.data.attributes.remove(ob.data.attributes["rest"])
+    bm = bmesh.new()
+    bm.from_mesh(ob.data)
+    bm.normal_update()
+    skin = {i for i, m in enumerate(ob.data.materials) if m and ("Body_00_SKIN" in m.name or m.name == "eco_v_body")}
+    dead = [f for f in bm.faces if f.material_index not in skin or not keep(f.calc_center_median(), f.normal)]
+    bmesh.ops.delete(bm, geom=dead, context="FACES")
+    bmesh.ops.delete(bm, geom=[v for v in bm.verts if not v.link_faces], context="VERTS")
+    bmesh.ops.remove_doubles(bm, verts=bm.verts[:], dist=1e-5)
+    for co, no in planes:
+        bmesh.ops.bisect_plane(bm, geom=bm.verts[:] + bm.edges[:] + bm.faces[:], dist=1e-6,
+                               plane_co=Vector(co), plane_no=Vector(no), clear_outer=True)
+    # drop slivers the cuts leave behind
+    for comp in islands(bm):
+        if len(comp) < 6:
+            bmesh.ops.delete(bm, geom=comp, context="FACES")
+    bmesh.ops.delete(bm, geom=[v for v in bm.verts if not v.link_faces], context="VERTS")
+    bm.normal_update()
+    for v in bm.verts:
+        v.co += v.normal * gap
+    orig = set(bm.verts)
+    bmesh.ops.solidify(bm, geom=bm.faces[:], thickness=thick)
+    bm.normal_update()
+    for f in bm.faces:
+        vs = set(f.verts)
+        f.material_index = 1 if (vs & orig) and (vs - orig) else 0
+    bm.to_mesh(ob.data)
+    bm.free()
+    ob.data.materials.clear()
+    _armor_mats(ob.data, [plate, edge])
+    ob.data.update()
+    return ob
+
+
+def rigid(name, bm, mats, bone):
+    """A hard part (pouch, pack, vial) skinned whole to one bone."""
+    arm = [o for o in bpy.data.objects if o.type == "ARMATURE"][0]
+    me = bpy.data.meshes.new(name)
+    bm.normal_update()
+    bm.to_mesh(me)
+    bm.free()
+    _armor_mats(me, mats)
+    ob = bpy.data.objects.new(name, me)
+    bpy.context.scene.collection.objects.link(ob)
+    vg = ob.vertex_groups.new(name=bone)
+    vg.add(list(range(len(me.vertices))), 1.0, "REPLACE")
+    ob.parent = arm
+    ob.modifiers.new("Armature", "ARMATURE").object = arm
+    return ob
+
+
+def surface(bvh, origin, direction):
+    """Where a ray from `origin` along `direction` meets her body, and the normal there."""
+    hit = bvh.ray_cast(Vector(origin), Vector(direction).normalized())
+    return hit[0], hit[1]
+
+
+def box(bm, centre, axes, size, mat, bevel=0.004):
+    """A bevelled box: `axes` are its unit (x, y, z) directions, `size` full extents."""
+    M = Matrix((list(axes[0]) + [0], list(axes[1]) + [0], list(axes[2]) + [0], [0, 0, 0, 1])).transposed()
+    M = Matrix.Translation(Vector(centre)) @ M @ Matrix.Diagonal((*size, 1))
+    res = bmesh.ops.create_cube(bm, size=1.0, matrix=M)
+    vs = res["verts"]
+    faces = list({f for v in vs for f in v.link_faces})
+    if bevel > 0:
+        edges = list({e for v in vs for e in v.link_edges})
+        out = bmesh.ops.bevel(bm, geom=edges + vs, offset=bevel, segments=2, affect="EDGES", profile=0.5)
+        faces = list(set(faces) | set(out["faces"]))
+    for f in faces:
+        if f.is_valid:
+            f.material_index = mat
+    return faces
+
+
+def cylinder(bm, base, axis, radius, depth, mat, segments=16, radius2=None):
+    R = Vector((0, 0, 1)).rotation_difference(Vector(axis).normalized()).to_matrix().to_4x4()
+    M = Matrix.Translation(Vector(base) + Vector(axis).normalized() * depth / 2) @ R
+    res = bmesh.ops.create_cone(bm, cap_ends=True, segments=segments, radius1=radius,
+                                radius2=radius if radius2 is None else radius2, depth=depth, matrix=M)
+    vs = set(res["verts"])
+    for f in bm.faces:
+        if all(v in vs for v in f.verts):
+            f.material_index = mat
+
+
+def frame_at(p, n, up=(0, 0, 1)):
+    """Axes for a part sitting on the surface at p with normal n: x along the
+    surface (sideways), y = out of the surface, z up the surface."""
+    n = Vector(n).normalized()
+    z = (Vector(up) - n * n.dot(Vector(up))).normalized()
+    x = z.cross(n).normalized()
+    return x, n, z
+
+
+def suit_armor():
+    """Eco's suit upgrades (scripts/hub/armory.gd SUIT_TIERS), modelled on her in
+    rest space (she faces -Y, her left is +X, T-pose). Every piece is named
+    suit_t<tier>_<part>; the game shows the pieces of every tier she has bought
+    (eco_model.gd suit_tier). Each tier adds to the last:
+      1 Scav rig      forearm bracers, a belt with hip pouches
+      2 Seal weave    layered shoulder plates, a thigh strap with a seal injector
+      3 Dampers       shin guards and knee cops, hip plates
+      4 Jump kit      a jump pack low on her back, an armoured collar
+      5 Dad's colours crests on her shoulders (the game repaints the plates white
+                      and turns every trim gold)"""
+    bvh = _body_bvh()
+    out = []
+    for s, side in ((1, "l"), (-1, "r")):
+        S = Vector((s, 1, 1))
+
+        def m(v):
+            return Vector(v) * S if isinstance(v, Vector) else Vector((v[0] * s, v[1], v[2]))
+        # --- tier 1: bracers over the glove tops (the arm runs along X at z 1.145)
+        out.append(shell("suit_t1_bracer_" + side,
+                         lambda c, n: c.x * s > 0.3 and abs(c.z - 1.145) < 0.06 and abs(c.y - 0.022) < 0.06,
+                         planes=[(m((0.335, 0, 0)), m((-1, 0, 0))), (m((0.455, 0, 0)), m((1, 0, 0))),
+                                 ((0, 0, 1.128), (0, 0, -1))],
+                         gap=0.005, thick=0.005))
+        # --- tier 2: shoulder plates, two lames
+        out.append(shell("suit_t2_pauldron_" + side,
+                         lambda c, n: 0.06 < c.x * s < 0.2 and c.z > 1.1,
+                         planes=[(m((0.07, 0, 0)), m((-1, 0, 0))), (m((0.165, 0, 0)), m((1, 0, 0))),
+                                 ((0, 0, 1.13), (0, 0, -1))],
+                         gap=0.012, thick=0.006))
+        out.append(shell("suit_t2_pauldron_lame_" + side,
+                         lambda c, n: 0.1 < c.x * s < 0.25 and c.z > 1.1,
+                         planes=[(m((0.15, 0, 0)), m((-1, 0, 0))), (m((0.215, 0, 0)), m((1, 0, 0))),
+                                 ((0, 0, 1.128), (0, 0, -1))],
+                         gap=0.007, thick=0.005))
+        # --- tier 3: shin guards and knee cops (knee at z 0.467, leg centre x 0.069)
+        out.append(shell("suit_t3_shin_" + side,
+                         lambda c, n: c.y < 0.06 and 0.1 < c.z < 0.5 and c.x * s > 0.0,
+                         planes=[((0, 0, 0.17), (0, 0, -1)), ((0, 0, 0.425), (0, 0, 1)), ((0, 0.012, 0.467), (0, 0.998, 0.06))],
+                         gap=0.006, thick=0.006))
+        out.append(shell("suit_t3_knee_" + side,
+                         lambda c, n: c.y < 0.06 and 0.4 < c.z < 0.56 and c.x * s > 0.0,
+                         planes=[((0, 0, 0.43), (0, 0, -1)), ((0, 0, 0.52), (0, 0, 1)), ((0, -0.006, 0), (0, 1, 0))],
+                         gap=0.009, thick=0.006))
+        out.append(shell("suit_t3_hip_" + side,
+                         lambda c, n: c.x * s > 0.06 and 0.7 < c.z < 0.93,
+                         planes=[((0, 0, 0.745), (0, 0, -1)), ((0, 0, 0.9), (0, 0, 1)), (m((0.085, 0, 0)), m((-1, 0, 0))),
+                                 ((0, -0.05, 0), (0, -1, 0)), ((0, 0.05, 0), (0, 1, 0))],
+                         gap=0.009, thick=0.005))
+        out.append(shell("suit_t3_hip_lame_" + side,
+                         lambda c, n: c.x * s > 0.06 and 0.66 < c.z < 0.8,
+                         planes=[((0, 0, 0.705), (0, 0, -1)), ((0, 0, 0.755), (0, 0, 1)), (m((0.09, 0, 0)), m((-1, 0, 0))),
+                                 ((0, -0.042, 0), (0, -1, 0)), ((0, 0.042, 0), (0, 1, 0))],
+                         gap=0.007, thick=0.004))
+    # --- tier 1: the belt, sitting on the suit's waist band, and two hip pouches
+    out.append(shell("suit_t1_belt", lambda c, n: 0.89 < c.z < 0.97 and abs(c.x) < 0.25,
+                     planes=[((0, 0, 0.913), (0, 0, -1)), ((0, 0, 0.947), (0, 0, 1))],
+                     gap=0.004, thick=0.004, plate="eco_v_armor_strap"))
+    bm = bmesh.new()
+    for s in (1, -1):
+        p, n = surface(bvh, (s * 0.5, -0.015, 0.93), (-s, 0, 0))
+        x, y, z = frame_at(p, n)
+        box(bm, p + y * 0.022 + z * -0.008, (x, y, z), (0.07, 0.036, 0.06), 0)
+        box(bm, p + y * 0.024 + z * 0.02, (x, y, z), (0.074, 0.042, 0.016), 1, bevel=0.003)   # flap
+    out.append(rigid("suit_t1_pouches", bm, ["eco_v_armor_pouch", "eco_v_armor_strap"], "J_Bip_C_Hips"))
+    # --- tier 2: strap round her left thigh with the seal injector on the outside
+    out.append(shell("suit_t2_thigh_strap", lambda c, n: c.x > 0.0 and 0.6 < c.z < 0.68,
+                     planes=[((0, 0, 0.622), (0, 0, -1)), ((0, 0, 0.642), (0, 0, 1))],
+                     gap=0.003, thick=0.003, plate="eco_v_armor_strap"))
+    bm = bmesh.new()
+    p, n = surface(bvh, (0.5, -0.01, 0.632), (-1, 0, 0))
+    x, y, z = frame_at(p, n)
+    box(bm, p + y * 0.012, (x, y, z), (0.03, 0.014, 0.05), 0, bevel=0.003)
+    cylinder(bm, p + y * 0.026 - z * 0.03, z, 0.009, 0.06, 1)        # the vial (glows)
+    cylinder(bm, p + y * 0.026 - z * 0.036, z, 0.0105, 0.008, 2)     # caps
+    cylinder(bm, p + y * 0.026 + z * 0.028, z, 0.0105, 0.008, 2)
+    cylinder(bm, p + y * 0.026 + z * 0.036, z, 0.004, 0.014, 2)      # needle housing
+    out.append(rigid("suit_t2_injector", bm, ["eco_v_armor_strap", "eco_v_armor_glow", "eco_v_armor_edge"],
+                     "J_Bip_L_UpperLeg"))
+    # --- tier 4: jump pack low on her back, nozzles angled down and out
+    bm = bmesh.new()
+    p, n = surface(bvh, (0, 0.5, 0.95), (0, -1, 0))
+    n = Vector((0, 1, 0))
+    x, y, z = Vector((1, 0, 0)), n, Vector((0, 0, 1))
+    c = p + y * 0.03
+    box(bm, c, (x, y, z), (0.15, 0.045, 0.085), 0, bevel=0.008)
+    box(bm, c + y * 0.024 + z * 0.012, (x, y, z), (0.11, 0.01, 0.04), 1, bevel=0.003)   # vent plate
+    for s in (1, -1):
+        d = (Vector((s * 0.35, 0.35, -1))).normalized()
+        base = c + x * (s * 0.05) - z * 0.035
+        cylinder(bm, base, d, 0.016, 0.035, 1, radius2=0.021)
+        cylinder(bm, base + d * 0.034, d, 0.017, 0.004, 2)
+    box(bm, c + y * 0.026 + z * 0.012, (x, y, z), (0.08, 0.004, 0.006), 2, bevel=0)      # status strip
+    out.append(rigid("suit_t4_jumpkit", bm, ["eco_v_armor", "eco_v_armor_edge", "eco_v_armor_glow"], "J_Bip_C_Spine"))
+    out.append(shell("suit_t4_collar",
+                     lambda c, n: 1.13 < c.z < 1.24 and math.hypot(c.x, c.y - 0.022) < 0.075,
+                     planes=[((0, 0, 1.165), (0, 0, -1)), ((0, 0, 1.2), (0, 0, 1))],
+                     gap=0.006, thick=0.005))
+    # --- tier 5: Dad's crest on each shoulder plate
+    for s, side in ((1, "l"), (-1, "r")):
+        bm = bmesh.new()
+        p, n = surface(bvh, (s * 0.115, 0.022, 1.6), (0, 0, -1))
+        x, y, z = frame_at(p, n, up=(0, -1, 0))
+        cylinder(bm, p + y * 0.0175, y, 0.016, 0.003, 0, segments=6)
+        cylinder(bm, p + y * 0.0195, y, 0.008, 0.002, 1, segments=6)
+        out.append(rigid("suit_t5_crest_" + side, bm, ["eco_v_armor_edge", "eco_v_armor_glow"],
+                         "J_Bip_%s_UpperArm" % side.upper()))
+    print("suit armour: %d pieces" % len(out))
+    return out
 
 
 # --- rig: glute bones, proportions ------------------------------------------------
@@ -1222,6 +1463,7 @@ def main():
     gog = goggles(arm)
     objs = [bpy.data.objects[n] for n in ("Body", "Face", "Hair")] + [boots, gog]
     textures_and_materials(objs, boots)
+    objs += suit_armor()
     glute_bones(arm)
     prune_bones(arm)
     proportions(arm, objs)

@@ -1,0 +1,160 @@
+extends SceneTree
+## Headless test for Eco's suit upgrades: the tiers' rules (bought in order,
+## paid for, saved), armour soaking hits before health and coming back, the
+## passives (loot magnet, quicker regen, slower grunt notice, longer wallruns,
+## the second wind), the armour pieces showing on her model tier by tier, and
+## the suit locker in the hub.
+## Run: godot --headless --path . -s res://tests/suit_test.gd
+
+const Armory := preload("res://scripts/hub/armory.gd")
+const ECO := preload("res://assets/models/eco.tscn")
+
+const PATH := "user://test_suit.cfg"
+
+var run_node
+var failures := 0
+
+
+func _initialize() -> void:
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(PATH))
+	_rules()
+	run_node = load("res://scenes/run.tscn").instantiate()
+	run_node.run_seed = 77
+	run_node.armory_path = PATH
+	root.add_child(run_node)
+	_run.call_deferred()
+
+
+func _rules() -> void:
+	var a = Armory.open(PATH)
+	_check("starts in the bare suit", a.suit_tier == 0 and a.suit_profile()["max_armor"] == 0.0, a.suit_tier)
+	a.stash = {"scrap": 0, "alloy": 0, "circuits": 0, "lock_cores": 0}
+	_check("can't buy a tier you can't afford", not a.buy_suit_tier() and a.suit_tier == 0, a.stash)
+	a.stash = {"scrap": 5000, "alloy": 5000, "circuits": 500, "lock_cores": 0}
+	for i in 4:
+		a.buy_suit_tier()
+	_check("tiers buy in order", a.suit_tier == 4, a.suit_tier)
+	_check("Dad's Colours needs a lock core", not a.buy_suit_tier() and a.suit_tier == 4, a.stash)
+	a.stash["lock_cores"] = 1
+	_check("top tier", a.buy_suit_tier() and a.suit_tier == 5 and not a.buy_suit_tier(), a.suit_tier)
+	var spent := 0
+	for t in Armory.SUIT_TIERS:
+		spent += int(t["cost"].get("scrap", 0))
+	_check("every tier paid for", a.amount("scrap") == 5000 - spent, a.stash)
+	var armour := []
+	for t in Armory.SUIT_TIERS:
+		armour.append(t["armor"])
+	_check("each tier adds armour", armour == [20, 40, 60, 80, 100], armour)
+	var p0 := Armory.suit_profile_for(0)
+	var p5: Dictionary = a.suit_profile()
+	_check("bare suit has no passives", p0["loot_magnet"] == 1.0 and p0["regen_delay"] == 3.0 and p0["notice_mult"] == 1.0 and not p0["second_wind"], p0)
+	_check("tier 5 has every passive", p5["loot_magnet"] == 2.0 and p5["regen_delay"] == 2.0 and p5["notice_mult"] == 0.7 \
+			and p5["wallrun_time_mult"] == 1.4 and p5["grapple_cooldown_mult"] == 0.7 and p5["second_wind"] and p5["max_armor"] == 100.0, p5)
+	var b = Armory.open(PATH)
+	_check("suit tier saves and loads", b.suit_tier == 5, b.suit_tier)
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(PATH))
+
+
+func _model() -> void:
+	var eco = ECO.instantiate()
+	root.add_child(eco)
+	await process_frame
+	var pieces: Array = eco.find_children("suit_t*", "MeshInstance3D", true, false)
+	var tiers := {}
+	for p in pieces:
+		tiers[eco.piece_tier(String(p.name))] = true
+	_check("armour pieces for all 5 tiers in the model", tiers.keys().size() == 5 and pieces.size() >= 20, tiers.keys())
+	_check("bare suit hides all armour", pieces.all(func(p): return not p.visible), "")
+	eco.suit_tier = 3
+	var shown: Array = pieces.filter(func(p): return p.visible)
+	_check("tier 3 shows tiers 1-3 only", not shown.is_empty() and shown.all(func(p): return eco.piece_tier(String(p.name)) <= 3) \
+			and shown.size() == pieces.filter(func(p): return eco.piece_tier(String(p.name)) <= 3).size(), shown.size())
+	_check("tier 3 plates are gunmetal", pieces[0].get_surface_override_material(0) == null, "")
+	eco.suit_tier = 5
+	_check("tier 5 shows everything", pieces.all(func(p): return p.visible), "")
+	var plate: MeshInstance3D = eco.find_child("suit_t1_bracer_l", true, false)
+	_check("tier 5 repaints the plates in Dad's colours", plate.get_surface_override_material(0) == eco.LEGACY_PLATE, "")
+	_check("tier 5 turns the trims gold", plate.get_instance_shader_parameter("trim_gold") == 1.0, "")
+	eco.free()
+
+
+func _run() -> void:
+	await _model()
+	await _ticks(20)
+	var player = run_node.player
+	var armory = run_node.armory
+	armory.stash = {"scrap": 5000, "alloy": 5000, "circuits": 500, "lock_cores": 5}
+
+	# The suit locker in the hub.
+	var spot: Dictionary = {}
+	for s in run_node.zone_info["interactables"]:
+		if s.get("screen", "") == "suit":
+			spot = s
+	_check("hub has a suit locker", not spot.is_empty(), "")
+	run_node.open_bench("suit")
+	await _ticks(2)
+	var bench = run_node.bench
+	_check("locker lists 5 tiers", bench.rows.size() == 5, bench.rows.size())
+	bench.select(2)
+	_check("can't skip ahead to tier 3", not bench.confirm() and armory.suit_tier == 0, armory.suit_tier)
+	bench.select(0)
+	_check("buy tier 1", bench.confirm() and armory.suit_tier == 1, armory.suit_tier)
+	bench.select(1)
+	_check("buy tier 2", bench.confirm() and armory.suit_tier == 2, armory.suit_tier)
+	await _ticks(2)
+	var preview = bench._turntable.get_child(0).get_child(0)
+	_check("the preview wears the browsed tier", preview.suit_tier == 2, preview.suit_tier)
+	run_node.close_bench()
+	await _ticks(2)
+	_check("closing the locker puts the suit on", player.max_armor == 40.0 and player.armor == 40.0 and player.regen_delay == 2.0 and player.loot_magnet == 2.0, [player.max_armor, player.armor])
+	var fp = player.get_node("EcoBody")
+	_check("her own body wears it too", fp.shadow == null or fp.shadow.suit_tier == 2, "")
+
+	# Armour soaks hits before health, then comes back after health.
+	player.take_damage(30.0)
+	_check("armour takes the hit", player.armor == 10.0 and player.health == player.max_health, [player.armor, player.health])
+	player.take_damage(30.0)
+	_check("the rest goes to health", player.armor == 0.0 and is_equal_approx(player.health, player.max_health - 20.0), [player.armor, player.health])
+	await _ticks(int(120 * 4.5))
+	_check("health then armour come back", player.health == player.max_health and player.armor > 0.0, [player.health, player.armor])
+
+	# Up to Dad's Colours: dampers, jump kit, second wind.
+	for i in 3:
+		armory.buy_suit_tier()
+	run_node.equip_loadout()
+	_check("dampers and jump kit", player.notice_mult == 0.7 and is_equal_approx(player.wallrun_max_time, 1.8 * 1.4) and is_equal_approx(player.grapple_cooldown, 2.5 * 0.7), [player.notice_mult, player.wallrun_max_time])
+	run_node.equip_loadout()
+	_check("equipping again doesn't stack", is_equal_approx(player.wallrun_max_time, 1.8 * 1.4), player.wallrun_max_time)
+	var downed := [false]
+	player.died.connect(func(): downed[0] = true)
+	player.second_wind_ready = true
+	player.take_damage(1000.0)
+	_check("second wind keeps her up", not downed[0] and player.health == 1.0 and player.untouchable_timer > 0.0, player.health)
+	player.take_damage(50.0)
+	_check("untouchable right after", player.health == 1.0, player.health)
+	player.untouchable_timer = 0.0
+	player.armor = 0.0
+	player.take_damage(1000.0)
+	_check("only once", downed[0], player.health)
+
+	# Out on a run the second wind is ready again in each zone.
+	run_node.start_run(77)
+	await _ticks(10)
+	_check("second wind ready in the zone", run_node.player.second_wind_ready, "")
+	var grunt = run_node.zone_info["grunts"][0]
+	_check("grunts see the dampers", grunt.target.get("notice_mult") == 0.7, "")
+
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(PATH))
+	print("RESULT: %s (%d failures)" % ["PASS" if failures == 0 else "FAIL", failures])
+	quit(failures)
+
+
+func _ticks(n: int) -> void:
+	for i in n:
+		await physics_frame
+
+
+func _check(what: String, ok: bool, value) -> void:
+	if not ok:
+		failures += 1
+	print("%s  %s  (%s)" % ["ok  " if ok else "FAIL", what, value])

@@ -83,6 +83,7 @@ static func build(root: Node3D) -> Dictionary:
 	_idol(root, info)
 	_eco_corner(root, info)
 	_workbench(root, info)
+	_suit_locker(root, info)
 	_fathers_titan(root, info)
 	_map_table(root, info)
 	_overgrowth(root)
@@ -327,6 +328,21 @@ static func _workbench(root: Node3D, info: Dictionary) -> void:
 	K.light(root, r + Vector3(-1.2, 2.6, 0), LAMP, 0.9, 4.5)
 	K.interactable(info, "weapon_rack", r + Vector3(-1.5, 0.1, 0), "[F] Pick a sidearm", [], 2.3)
 	info["interactables"].back()["screen"] = "rack"
+
+
+## On the left wall, past the rubble: the scavenged armour locker where Eco
+## upgrades her suit (bench_screen.gd "suit").
+static func _suit_locker(root: Node3D, info: Dictionary) -> void:
+	var l := Vector3(-HALF + 0.42, F, -3.6)
+	K.metal(root, l + Vector3(0, 1.05, 0), Vector3(0.62, 2.1, 1.3))
+	# two doors, one hanging open on a broken hinge, and the glow of a charge strip
+	K.metal(root, l + Vector3(0.33, 1.05, 0.33), Vector3(0.05, 1.9, 0.6))
+	K.metal(root, l + Vector3(0.62, 1.05, -0.62), Vector3(0.05, 1.9, 0.6), Vector3(0, 55, 0))
+	K.glow(root, l + Vector3(0.32, 1.95, -0.3), Vector3(0.02, 0.05, 0.5), Color(0.0, 0.8, 0.75))
+	K.wood(root, l + Vector3(0.75, 0.25, 0.9), Vector3(0.5, 0.5, 0.5), Vector3(0, 18, 0))
+	K.light(root, l + Vector3(1.2, 2.4, 0), LAMP, 0.9, 4.5)
+	K.interactable(info, "suit_locker", l + Vector3(1.3, 0.1, 0), "[F] Upgrade your suit (armour, passives)", [], 2.4)
+	info["interactables"].back()["screen"] = "suit"
 
 
 ## An invisible box collider (for modelled props).

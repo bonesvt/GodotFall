@@ -86,6 +86,22 @@ enemy titan's salvage when you win); a lost run banks half. The HUD shows what y
   runs with (Mk I, instead of scrap; salvage can still replace them) and **refit** parts
   (+6% per level to every copy you install, salvaged ones and scrap included). The titan
   in the gantry is the one you'd start with.
+- **Suit locker** (left wall, past the rubble): upgrade Eco's suit, five tiers bought in
+  order. Each tier adds **armour** (a second bar over her health: it takes hits first and
+  comes back after the same pause, once health is full), one **passive**, and armour you
+  can see on her:
+
+  | Tier | Armour | Passive | Looks |
+  | --- | --- | --- | --- |
+  | 1 Scav Rig | 20 | Magnet pouches: materials fly to you from twice as far | forearm bracers, belt with hip pouches |
+  | 2 Seal Weave | 40 | Auto-seal: health and armour come back after 2 s, not 3 | layered shoulder plates, seal injector on her thigh |
+  | 3 Dampers | 60 | Hush dampers: grunts notice you 30% slower (sight and footsteps) | shin guards, knee cops, hip plates |
+  | 4 Jump Kit | 80 | Wallruns last 40% longer, grapple recharges 30% faster | jump pack low on her back, armoured collar |
+  | 5 Dad's Colours | 100 | Second wind: once per zone a downing hit leaves you on 1 HP, untouchable 1.5 s | plates in Dad's colours, shoulder crests, every trim gold |
+
+  Tier 5 also costs a lock core. The armour pieces are part of `eco.glb` (`suit_t<tier>_*`
+  meshes, modelled by `suit_armor()` in `tools/eco/build_eco_vroid.py`);
+  `eco_model.gd` `suit_tier` shows them.
 
 On the screens: W/S pick a row, A/D browse, Space buy or fit, Tab or Q/E switch section,
 F or Esc to leave. Progress saves to `user://armory.cfg` (`scripts/hub/armory.gd` has every
@@ -280,7 +296,8 @@ boots with knee plates, teal glowing trims).
   ```
   The first-person arm (`eco_fp_arm.glb`) still comes from the older code-sculpted Eco
   (`tools/eco/build_eco.py ... --fp`).
-- **Reference sheet renders**: `godot res://scenes/eco_showcase.tscn -- --shots=<folder> [--clean]`.
+- **Reference sheet renders**: `godot res://scenes/eco_showcase.tscn -- --shots=<folder> [--clean] [--suit=<tier>] [--only=front,back]`.
+  In the showcase, S cycles her suit upgrade tiers.
 
 ## Grunts
 - 60 HP, headshots count above the shoulders. Visor glows red during a 0.4 s wind-up before each shot.
@@ -370,6 +387,9 @@ select the Player node and tweak values in the Inspector, or change the defaults
 - `tests/armory_test.gd` headless workbench test (prices, upgrades, attachments, titan parts and
   refits, saving, the bench screens changing your gun, crates, alloy nodes and grunt drops):
   `godot --headless --path . -s res://tests/armory_test.gd`
+- `tests/suit_test.gd` Eco's suit upgrades (tiers bought in order, armour soaking hits and
+  coming back, each passive, the second wind, armour pieces per tier, the suit locker):
+  `godot --headless --path . -s res://tests/suit_test.gd`
 - `tools/hub/bench_shots.gd` screenshots of the benches, their screens, the guns and the loot
   (needs a renderer): `xvfb-run -a godot --path . -s res://tools/hub/bench_shots.gd -- out_dir`
 - `tests/run_loop_test.gd` headless run loop test (generator limits, a bot pilot clearing the

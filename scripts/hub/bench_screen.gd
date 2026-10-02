@@ -6,6 +6,8 @@ extends CanvasLayer
 ##   rack       SIDEARMS      buy guns and pick the one you head out with
 ##   workshop   LOADOUT       the titan parts a run starts with (Mk I) instead of scrap
 ##              REFITS        upgrade any part you own, salvaged copies included
+##   suit       SUIT          Eco's suit upgrades, bought in order (armour, a
+##                            passive and armour you can see on her, per tier)
 ## The run manager opens it (pausing the hub) and closes it on F or Esc.
 ##   W/S or Up/Down    pick a row       A/D or Left/Right    browse a row's options
 ##   Space or Enter    buy / fit / pick                Tab or Q/E    switch tab / gun
@@ -18,13 +20,14 @@ const LootArt := preload("res://scripts/run/loot_art.gd")
 const SFX := preload("res://scripts/sfx.gd")
 const TitanStyle := preload("res://scripts/run/titan_style.gd")
 
-const TITLES := {"gunsmith": "ECO'S GUNSMITH BENCH", "rack": "WEAPON RACK", "workshop": "TITAN WORKSHOP"}
+const TITLES := {"gunsmith": "ECO'S GUNSMITH BENCH", "rack": "WEAPON RACK", "workshop": "TITAN WORKSHOP", "suit": "SUIT LOCKER"}
 const SUBTITLES := {
 	"gunsmith": "Small steps. Dad's pistol was never about the numbers.",
 	"rack": "Pick what goes in your hand on the next run.",
 	"workshop": "Start runs with real parts, and make every copy of a part better.",
+	"suit": "Armour from the scrap pile. Every tier keeps the last.",
 }
-const TABS := {"gunsmith": ["UPGRADES", "ATTACHMENTS"], "rack": ["SIDEARMS"], "workshop": ["LOADOUT", "REFITS"]}
+const TABS := {"gunsmith": ["UPGRADES", "ATTACHMENTS"], "rack": ["SIDEARMS"], "workshop": ["LOADOUT", "REFITS"], "suit": ["SUIT"]}
 const INK := Color(0.98, 0.94, 0.86)
 const DIM := Color(0.98, 0.94, 0.86, 0.55)
 const ACCENT := Color(1.0, 0.72, 0.35)
@@ -35,7 +38,8 @@ const SPIN_SPEED := 0.4
 var armory: Armory
 var kind := "gunsmith"
 ## What a purchase sounds like at each bench (recordings in assets/audio/sfx).
-const CONFIRM_SOUND := {"gunsmith": "workbench_tools", "rack": "reload_in", "workshop": "workbench_ratchet"}
+const CONFIRM_SOUND := {"gunsmith": "workbench_tools", "rack": "reload_in", "workshop": "workbench_ratchet", "suit": "workbench_ratchet"}
+const ECO := preload("res://assets/models/eco.tscn")
 var tab := 0
 var selected := 0
 ## The gun the gunsmith works on (owned guns only).
@@ -223,6 +227,8 @@ func _rows() -> Array:
 			return _loadout_rows()
 		["workshop", "REFITS"]:
 			return _refit_rows()
+		["suit", "SUIT"]:
+			return _suit_rows()
 	return []
 
 
@@ -361,6 +367,30 @@ func _refit_rows() -> Array:
 	return out
 
 
+func _suit_rows() -> Array:
+	var out := []
+	for i in Armory.SUIT_TIERS.size():
+		var t: Dictionary = Armory.SUIT_TIERS[i]
+		var tier := i + 1
+		var owned := armory.suit_tier >= tier
+		var next := armory.suit_tier == tier - 1
+		var row := {
+			"label": "%d  %s" % [tier, t["name"]],
+			"value": "%d armour" % t["armor"],
+			"note": "%s: %s\nLooks: %s\n\"%s\"" % [t["passive"], t["passive_desc"], t["look"], t["line"]],
+			"suit_tier": tier,
+			"confirm": func(): return armory.buy_suit_tier() if next else owned,
+		}
+		if owned:
+			row["state"] = "WEARING" if tier == armory.suit_tier else "OWNED"
+		elif next:
+			row["cost"] = t["cost"]
+		else:
+			row["state"] = "NEEDS TIER %d" % (tier - 1)
+		out.append(row)
+	return out
+
+
 func _with_attachment(slot: String, id: String) -> Dictionary:
 	var saved: Dictionary = armory.fitted.get(weapon, {}).duplicate()
 	if not armory.fitted.has(weapon):
@@ -484,15 +514,18 @@ func _build_stage() -> SubViewport:
 	stage.add_child(_turntable)
 	_camera = Camera3D.new()
 	stage.add_child(_camera)
-	_frame_camera(kind == "workshop")
+	_frame_camera(kind)
 	lamp.position = _camera.position * 0.6 + Vector3(0, 1, 0)
 	return sub
 
 
-func _frame_camera(titan: bool) -> void:
-	if titan:
+func _frame_camera(bench_kind: String) -> void:
+	if bench_kind == "workshop":
 		_camera.fov = 38.0
 		_camera.look_at_from_position(Vector3(-7.5, 5.8, -15.5), Vector3(0, 3.7, 0))
+	elif bench_kind == "suit":
+		_camera.fov = 30.0
+		_camera.look_at_from_position(Vector3(0.0, 1.0, 3.6), Vector3(0, 0.88, 0))
 	else:
 		_camera.fov = 30.0
 		_camera.look_at_from_position(Vector3(0.0, 0.08, 1.15), Vector3(0, -0.02, 0))
@@ -503,7 +536,17 @@ func _frame_camera(titan: bool) -> void:
 func _update_preview(row: Dictionary) -> void:
 	var key := ""
 	var make: Callable
-	if kind == "workshop":
+	if kind == "suit":
+		var tier: int = row.get("suit_tier", armory.suit_tier)
+		key = "suit/%d" % tier
+		make = func():
+			var eco = ECO.instantiate()
+			eco.suit_tier = tier
+			eco.rotation.y = PI  # she faces -Z; turn her to the camera
+			var holder := Node3D.new()
+			holder.add_child(eco)
+			return holder
+	elif kind == "workshop":
 		var chassis: String = browse_parts.get("chassis", armory.titan_loadout["chassis"])
 		var gun: String = browse_parts.get("weapon", armory.titan_loadout["weapon"])
 		if row.has("slot"):

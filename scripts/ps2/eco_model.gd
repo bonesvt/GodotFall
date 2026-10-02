@@ -18,6 +18,15 @@ extends "res://scripts/ps2/ps2_model.gd"
 @export var springs_enabled := true
 ## How far her chest and glutes may bounce (1 = as tuned, 0 = not at all).
 @export_range(0.0, 2.0) var jiggle := 1.0
+## Her suit upgrade (scripts/hub/armory.gd SUIT_TIERS): 0 is the bare pilot
+## suit; each tier shows its armour pieces (the glb's suit_t<tier>_* meshes,
+## from tools/eco/build_eco_vroid.py) on top of the tiers before it. Tier 5
+## repaints the plates in Dad's colours and turns every trim gold.
+@export_range(0, 5) var suit_tier := 0:
+	set(value):
+		suit_tier = clampi(value, 0, SUIT_TIERS)
+		if is_inside_tree():
+			apply_suit()
 
 ## Spring bones (the VRoid rig's J_Sec_* bones; the glute ones are added by
 ## tools/eco/build_eco_vroid.py): how hard each pulls back to its pose, how
@@ -45,6 +54,9 @@ const SPRINGS := {
 	"J_Sec_L_Bust1": BUST, "J_Sec_R_Bust1": BUST,
 	"J_Sec_L_Glute1": GLUTE, "J_Sec_R_Glute1": GLUTE,
 }
+
+const SUIT_TIERS := 5
+const LEGACY_PLATE := preload("res://assets/materials/eco/eco_v_armor_legacy.tres")
 
 ## Movement states of scripts/player.gd (enum State).
 enum PlayerState { GROUND, AIR, SLIDE, WALLRUN, GRAPPLE }
@@ -77,8 +89,29 @@ func _ready() -> void:
 		_springs.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return a["bone"] < b["bone"])
 		_last_origin = skeleton.global_position
 	set_process(_anim != null or not _springs.is_empty())
+	apply_suit()
 	if _anim != null and idle_motion:
 		_anim.play("idle")
+
+
+## The tier a suit_t<tier>_* mesh belongs to (0 for everything else).
+static func piece_tier(mesh_name: String) -> int:
+	return int(mesh_name.substr(6, 1)) if mesh_name.begins_with("suit_t") else 0
+
+
+## Shows the armour of every tier up to suit_tier, in Dad's colours at the top tier.
+func apply_suit() -> void:
+	var legacy := suit_tier >= SUIT_TIERS
+	for node in find_children("*", "MeshInstance3D", true, false):
+		var mi := node as MeshInstance3D
+		var tier := piece_tier(String(mi.name))
+		if tier > 0 and mi.mesh != null:
+			mi.visible = tier <= suit_tier
+			for i in mi.mesh.get_surface_count():
+				var m := mi.mesh.surface_get_material(i)
+				if m != null and m.resource_name == "eco_v_armor":
+					mi.set_surface_override_material(i, LEGACY_PLATE if legacy else null)
+		mi.set_instance_shader_parameter("trim_gold", 1.0 if legacy else 0.0)
 
 
 ## The animation she should play now, with its playback speed.
