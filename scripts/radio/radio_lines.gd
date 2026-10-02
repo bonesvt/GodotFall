@@ -10,7 +10,9 @@ extends RefCounted
 ## Tone: rated M. The militia are cruel, contemptuous bullies in a war that
 ## made them worse. They laughed Eco out of the recruiting tent for being a
 ## woman, mock her dead father, and want her dead. Profanity and violent
-## threats are fine; no sexual threats or sexual content, no slurs.
+## threats are fine, and so is crude leering and gendered insults (bitch,
+## skank, slut, sparingly). Never sexual violence or assault threats, nothing
+## explicit, no c-word, no real-world hate slurs.
 
 const LINES := {
 	# Unaware, nothing going on.
@@ -33,6 +35,14 @@ const LINES := {
 	],
 	# Gossip about Eco, not knowing she's listening.
 	"rumor_eco": [
+		"a: Remember her at recruitment? Whole tent was staring. | b: Shame about the attitude. | a: Attitude's fixable.",
+		"a: Recruiter said she'd look better on a poster than in a cockpit. | b: He wasn't wrong.",
+		"a: Bet she's a lot less mouthy with a rifle in her face.",
+		"a: When we catch her, I call dibs on the goggles. And the shorts. | b: Get in line, {a}.",
+		"a: Saw her through the scope yesterday. | b: Why didn't you shoot? | a: Enjoying the view. | b: Enjoy it from the stockade, idiot.",
+		"a: Little slut thinks she's a Pilot. | b: She thinks a lot of things. Won't be thinking much longer.",
+		"a: Commander wants her in a cage for the parade. | b: Front row seats. I'll bring snacks.",
+		"a: She used to bring the mechanics coffee, you know. Smiled at everybody. | b: Not smiling now. | a: She will be. Ear to ear, when I'm done with her.",
 		"a: You hear the scrapper bitch is still out here? | b: The one we laughed out of the recruiting tent? | a: That's her. Says she's gonna build a Titan. | b: Out of what, her daddy's bones?",
 		"a: Her old man flew an Atlas, right? | b: Yeah. Burned alive in the cockpit. | a: And she still wants in. | b: Some people just don't learn.",
 		"hq: All units, bounty is up on the scavenger. Female, white hair. | a: How much? | hq: Enough. Bring back the head if the rest is too heavy.",
@@ -77,6 +87,9 @@ const LINES := {
 	],
 	# First contact.
 	"alerted": [
+		"a: There she is, boys! Told you she'd come crawling back to us!",
+		"a: Contact! It's the skank with the white hair! | b: Weapons free!",
+		"a: Hey gorgeous! Miss us? | b: Stop flirting and shoot her!",
 		"a: Contact! It's the scavenger! | b: Kill the bitch!",
 		"a: Eyes on her! White hair! | hq: Weapons free. Cut her down.",
 		"a: It's the mechanic! | b: Let's finish what the war started with her old man!",
@@ -88,6 +101,11 @@ const LINES := {
 	],
 	# Mid fight.
 	"combat": [
+		"a: C'mere, gorgeous! Don't make me mess up that pretty face!",
+		"a: Kill the little skank before she reaches the cache!",
+		"a: Come on, sweetheart, just give up! We'll make it quick! | b: Speak for yourself!",
+		"a: You'd have looked real nice on that recruiting poster, girl! Now look at you!",
+		"a: Stop running, slut! | b: She's not stopping, {a}!",
 		"a: Hold still, bitch! | b: She's not gonna hold still, {a}! Lead her!",
 		"a: You should've stayed in the motor pool! | b: Less mouth, more bullets!",
 		"a: Flank her! Box her in! | b: Moving!",
@@ -101,6 +119,8 @@ const LINES := {
 	],
 	# Eco is wallrunning, sliding or in the air while they're fighting her.
 	"pilot_moving": [
+		"a: Skank's on the walls again! | b: Then knock her off!",
+		"a: Quit showing off and hold still, gorgeous!",
 		"a: She's on the walls! What the hell?! | b: Shoot the damn walls!",
 		"a: She's moving like a Pilot! | b: She's NOT a Pilot! | a: Tell her that!",
 		"a: I can't hit her when she does that! | b: Then aim where she's going, idiot!",
@@ -110,6 +130,7 @@ const LINES := {
 	],
 	# A grunt shot Eco.
 	"hurt": [
+		"a: Tagged her! Aw, did I mess up your pretty face?",
 		"a: Got a piece of her! | b: Do it again! Make her bleed!",
 		"a: Tagged her! She's bleeding! | b: Keep on her!",
 		"a: Ha! How's that feel, girl?",
@@ -127,6 +148,8 @@ const LINES := {
 	],
 	# Only one grunt left nearby.
 	"last_man": [
+		"a: I was joking! The stuff I said about you, it was just jokes! Locker room talk!",
+		"a: Please! I've got a mom! I'll leave! I'll never look at you again, I swear!",
 		"a: HQ, it's just me left! Requesting backup! | hq: Negative. Hold the line. | a: Hold it with WHAT?!",
 		"a: Guys? ...Guys? Oh God. Oh God, they're all dead.",
 		"a: Okay! Okay, lady, I take it back! Everything I said at recruitment! Please!",
@@ -136,6 +159,7 @@ const LINES := {
 	],
 	# They lost track of her.
 	"lost": [
+		"a: Come back, gorgeous! We were just getting acquainted!",
 		"a: Lost her! | b: How do you lose one goddamn girl?!",
 		"a: Where'd she go? | hq: Find her or don't come back.",
 		"a: No visual. She ran. | b: Let her run. She'll bleed out somewhere.",
