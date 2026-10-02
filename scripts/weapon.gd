@@ -202,7 +202,7 @@ func _physics_process(delta: float) -> void:
 			ammo = magazine_size
 	elif Input.is_action_just_pressed("reload") and ammo < magazine_size:
 		start_reload()
-	elif Input.is_action_just_pressed("inspect") and not is_inspecting():
+	elif Input.is_action_just_pressed("inspect") and not is_inspecting() and not holstered:
 		inspect()
 	_update_inspect(delta)
 	_scan_lock(delta)

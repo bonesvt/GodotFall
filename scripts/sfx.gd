@@ -148,6 +148,19 @@ static func _synth(id: String) -> PackedFloat32Array:
 				_ring([4180.0, 6650.0], 0.18, 20.0, 0.08),
 				_filter(_whoosh(0.16, 0.3), "hp", 900.0),
 			]), 0.02, 1.0)
+		"knife_draw":  # drawn with a flip: a bright ringing shing over a quick whirr
+			return _master(_mix([
+				_filter(_whoosh(0.22, 0.25), "hp", 1200.0),
+				_delay(_sweep(0.16, 2600.0, 6800.0, 14.0, 0.07), 0.12),
+				_delay(_ring([3520.0, 5280.0, 7040.0], 0.45, 9.0, 0.09), 0.16),
+			]), 0.06, 1.0)
+		"knife_spin":  # spun round her fingers: a fluttering whirr
+			return _master(_mix([_filter(_spin(0.6), "bp", 1600.0, 0.8), _filter(_whoosh(0.6, 0.15), "hp", 1500.0)]), 0.02, 1.0)
+		"knife_catch":  # caught by the grip: a leather slap and a small ring
+			return _master(_mix([
+				_filter(_burst(0.04, 0.0005, 80.0, 0.7), "lp", 1100.0),
+				_delay(_ring([4180.0], 0.25, 16.0, 0.05), 0.005),
+			]), 0.04)
 		"knife_hit":  # blade punching through cloth and plate
 			return _master(_mix([
 				_filter(_burst(0.04, 0.0003, 90.0, 0.8), "bp", 2400.0, 1.5),
