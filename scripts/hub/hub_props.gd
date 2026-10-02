@@ -24,6 +24,9 @@ const SCENES := {
 	"hill_b": preload("res://assets/models/hub/hill_b.glb"),
 	"idol": preload("res://assets/models/hub/idol.glb"),
 	"tent": preload("res://assets/models/hub/tent.glb"),
+	"gunsmith_bench": preload("res://assets/models/hub/gunsmith_bench.glb"),
+	"weapon_rack": preload("res://assets/models/hub/weapon_rack.glb"),
+	"titan_workshop": preload("res://assets/models/hub/titan_workshop.glb"),
 }
 
 const MATERIALS := {

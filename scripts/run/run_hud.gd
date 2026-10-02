@@ -21,7 +21,7 @@ var _toast_time := 0.0
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	status_label = _label(20)
-	status_label.position = Vector2(20, 150)
+	status_label.position = Vector2(20, 270)  # under the controls help (hud.gd)
 
 	build_label = _label(18)
 	build_label.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)

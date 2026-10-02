@@ -117,6 +117,8 @@ static func _synth(id: String) -> PackedFloat32Array:
 			return _filter(_crackle(0.22, 46, 0.6), "hp", 1800.0)
 		"lock_err":  # the smart-lock trying, and failing, to lock: a glitchy chirp
 			return _filter(_mix([_square(0.04, 1320.0, 0.12), _square(0.05, 990.0, 0.12, 0.05), _crackle(0.12, 10, 0.25)]), "lp", 4000.0)
+		"lock_on":  # a smart round has a lock: two clean rising beeps, no glitch
+			return _filter(_mix([_square(0.05, 1760.0, 0.1), _square(0.07, 2640.0, 0.1, 0.06)]), "lp", 5000.0)
 		"reload_out":  # mag release, a pneumatic kick out, the screen blanks
 			return _master(_mix([
 				_tick(3800.0, 0.7),
@@ -186,6 +188,30 @@ static func _synth(id: String) -> PackedFloat32Array:
 			]), 0.0, 1.0)
 		"knife_catch":  # the grip landing in a gloved palm
 			return _master(_filter(_burst(0.05, 0.001, 90.0, 0.8), "lp", 900.0), 0.0, 1.0)
+		# Eco's other sidearms (the hub's weapon rack).
+		"rivet_cannon":  # a hand cannon: a big crack, a chesty boom, coils pinging as they heat
+			return _master(_mix([
+				_gunshot(1.6),
+				_filter(_burst(0.35, 0.002, 9.0, 0.35), "lp", 900.0),
+				_delay(_ring([1850.0, 2770.0], 0.25, 14.0, 0.07), 0.06),
+				_delay(_clack(1900.0, 180.0, 0.35), 0.12),
+			]), 0.3, 1.6)
+		"machine_pistol":  # militia machine pistol: a short, snappy, papery bark
+			return _master(_mix([
+				_filter(_burst(0.025, 0.0003, 190.0, 0.9), "hp", 2400.0),
+				_filter(_burst(0.07, 0.0006, 55.0, 0.6), "bp", 1300.0, 0.8),
+				_sweep(0.07, 160.0, 80.0, 45.0, 0.35),
+				_delay(_tick(3400.0, 0.3), 0.02),
+			]), 0.12)
+		"bench":  # a part bolted on at the workbench: ratchet clicks and a clunk
+			return _master(_mix([
+				_tick(3000.0, 0.5), _delay(_tick(3300.0, 0.45), 0.05), _delay(_tick(3100.0, 0.45), 0.1),
+				_delay(_clack(1500.0, 140.0, 0.5), 0.16),
+			]), 0.1)
+		"bench_deny":  # can't afford it: a flat double buzz
+			return _filter(_mix([_square(0.07, 180.0, 0.2), _square(0.07, 150.0, 0.2, 0.1)]), "lp", 1800.0)
+		"bench_tick":  # moving through the bench's menu
+			return _tick(4200.0, 0.25)
 		"grunt_shot":  # enemy rifle: thinner and drier than Eco's pistol
 			return _master(_mix([
 				_filter(_burst(0.03, 0.0003, 150.0, 0.8), "hp", 2200.0),

@@ -16,6 +16,8 @@ var failures := 0
 func _initialize() -> void:
 	run_node = load("res://scenes/run.tscn").instantiate()
 	run_node.run_seed = 99
+	run_node.armory_path = "user://test_hub_armory.cfg"
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(run_node.armory_path))
 	root.add_child(run_node)
 	_run.call_deferred()
 
@@ -41,6 +43,15 @@ func _run() -> void:
 		if spot["id"] == "map_table" or spot["id"] == "garage":
 			continue
 		await _stand_at(spot["pos"])
+		if spot.has("screen"):
+			# Workbenches open their screen (pausing the hub) and F closes it.
+			await _press("interact")
+			await _ticks(2)
+			_check("%s opens its bench" % spot["id"], run_node.bench != null and run_node.bench.kind == spot["screen"] and paused, spot["id"])
+			await _press("interact")
+			await _ticks(2)
+			_check("%s bench closes" % spot["id"], run_node.bench == null and not paused, spot["id"])
+			continue
 		_check("prompt at %s" % spot["id"], run_node.nearest_hub_spot().get("id") == spot["id"] and run_node.hud.prompt_label.text == spot["prompt"], run_node.hud.prompt_label.text)
 		await _press("interact")
 		await _ticks(2)
@@ -49,7 +60,7 @@ func _run() -> void:
 			await _press("interact")
 			await _ticks(2)
 			_check("%s lines cycle" % spot["id"], run_node.hud.toast_label.text == spot["lines"][1], run_node.hud.toast_label.text)
-	for id in ["map_table", "idol", "titan", "workbench", "bedroll", "letter", "garage"]:
+	for id in ["map_table", "idol", "titan", "gunsmith", "weapon_rack", "titan_workshop", "bedroll", "letter", "garage"]:
 		_check("hub has %s" % id, id in ids, ids)
 	_check("spot left for Eco at her bench", info.get("eco_spot") is Marker3D, info.get("eco_spot"))
 

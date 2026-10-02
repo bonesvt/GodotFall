@@ -45,6 +45,8 @@ const FIRE := Color(1.0, 0.55, 0.18)
 const LAMP := Color(1.0, 0.78, 0.45)
 ## The idol is carved from a darker, cooler stone than the temple.
 const IDOL := Color(0.5, 0.64, 0.6)
+## Her benches are old, oiled timber, darker than the crates.
+const BENCH_WOOD := Color(0.72, 0.6, 0.52)
 
 
 ## Returns {spawn, floor_y, interactables, map_table, eco_spot, half_size}.
@@ -296,39 +298,46 @@ static func _eco_corner(root: Node3D, info: Dictionary) -> void:
 	], 2.2)
 
 
-## Right of the door: her workbench, with her father's smart pistol opened up
-## under a work lamp. eco_spot marks where she stands at it.
+## Right of the door: her gunsmith bench (tools/hub/build_benches.py), where
+## the gun in her hand lies on the mat (the run manager puts it there), and
+## the weapon rack on the wall beside it. Both open workbench screens
+## (bench_screen.gd). eco_spot marks where she stands at the bench.
 static func _workbench(root: Node3D, info: Dictionary) -> void:
-	var b := Vector3(HALF - 1.0, F, 1.0)
-	K.wood(root, b + Vector3(0, 0.95, 0), Vector3(1.4, 0.12, 3.4))
-	for dz in [-1.5, 1.5]:
-		K.wood(root, b + Vector3(0, 0.45, dz), Vector3(1.2, 0.9, 0.15))
-	K.wood(root, b + Vector3(0.2, 0.3, 0), Vector3(1.0, 0.1, 3.0))
-	# Pegboard of tools on the wall behind it.
-	K.wood(root, Vector3(HALF - 0.1, F + 2.1, b.z), Vector3(0.12, 1.4, 3.0))
-	for i in 6:
-		K.metal(root, Vector3(HALF - 0.22, F + 1.7 + (i % 2) * 0.6, b.z - 1.1 + i * 0.45), Vector3(0.06, 0.5 - (i % 3) * 0.1, 0.08))
-	# The pistol, stripped: frame, slide, and the burnt-out lock module.
-	K.metal(root, b + Vector3(-0.1, 1.06, -0.5), Vector3(0.18, 0.1, 0.5), Vector3(0, 20, 0))
-	K.metal(root, b + Vector3(0.25, 1.05, -0.1), Vector3(0.12, 0.08, 0.35), Vector3(0, -10, 0))
-	K.glow(root, b + Vector3(0.2, 1.04, 0.35), Vector3(0.14, 0.04, 0.1), Color(0.8, 0.12, 0.08))
-	# Vise and a parts tray.
-	K.metal(root, b + Vector3(0, 1.15, 1.2), Vector3(0.3, 0.3, 0.4))
-	K.metal(root, b + Vector3(0.1, 1.04, 0.7), Vector3(0.5, 0.06, 0.4))
-	# Work lamp.
-	K.metal(root, b + Vector3(0.5, 1.6, -1.2), Vector3(0.06, 1.2, 0.06))
-	K.glow(root, b + Vector3(0.3, 2.15, -1.0), Vector3(0.3, 0.12, 0.3), LAMP)
-	K.light(root, b + Vector3(0.0, 2.0, -0.6), LAMP, 1.4, 6.0)
+	var b := Vector3(HALF - 0.72, F, 1.0)
+	var bench := Props.spawn(root, "gunsmith_bench", b, -90.0, 1.0, {"wood": BENCH_WOOD})
+	_solid(root, b + Vector3(0, 0.5, 0), Vector3(1.25, 1.0, 3.45))
+	info["gun_marker"] = bench.find_child("GunMarker", true, false)
+	var lamp: Node3D = bench.find_child("LampMarker", true, false)
+	K.light(root, lamp.global_position if lamp.is_inside_tree() else b + Vector3(-0.02, 1.95, -0.8), LAMP, 1.4, 6.0)
 	var spot := Marker3D.new()
 	spot.name = "EcoSpot"
-	spot.position = b + Vector3(-1.2, 0.0, 0.0)
+	spot.position = b + Vector3(-1.4, 0.0, 0.6)
 	spot.rotation_degrees = Vector3(0, -90, 0)
 	root.add_child(spot)
 	info["eco_spot"] = spot
-	K.interactable(info, "workbench", b + Vector3(-1.2, 0.1, 0), "[F] Look at the workbench", [
-		"Dad's smart pistol. The auto-lock board is fried, so I aim the hard way.",
-		"Everything I drag back gets sorted here. Most of it is junk. Most of it.",
-	], 2.5)
+	K.interactable(info, "gunsmith", b + Vector3(-1.3, 0.1, 0), "[F] Work on your gun (upgrades, attachments)", [], 2.5)
+	info["interactables"].back()["screen"] = "gunsmith"
+	# The rack on the wall past the bench, toward the battery bank.
+	var r := Vector3(HALF - 0.08, F, -3.4)
+	var rack := Props.spawn(root, "weapon_rack", r, -90.0, 1.0, {"wood": BENCH_WOOD})
+	_solid(root, r + Vector3(-0.3, 0.35, 0), Vector3(0.6, 0.7, 2.6))
+	info["rack_slots"] = []
+	for i in 3:
+		info["rack_slots"].append(rack.find_child("Slot%dMarker" % i, true, false))
+	K.light(root, r + Vector3(-1.2, 2.6, 0), LAMP, 0.9, 4.5)
+	K.interactable(info, "weapon_rack", r + Vector3(-1.5, 0.1, 0), "[F] Pick a sidearm", [], 2.3)
+	info["interactables"].back()["screen"] = "rack"
+
+
+## An invisible box collider (for modelled props).
+static func _solid(root: Node3D, center: Vector3, size: Vector3) -> void:
+	var body := StaticBody3D.new()
+	var shape := CollisionShape3D.new()
+	shape.shape = BoxShape3D.new()
+	shape.shape.size = size
+	body.add_child(shape)
+	body.position = center
+	root.add_child(body)
 
 
 ## Her father's titan, or what came back of it: slumped against the right wall
