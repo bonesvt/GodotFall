@@ -1,0 +1,192 @@
+extends CharacterBody3D
+## The titan you assembled this run. It drops from orbit, you embark, you fight.
+## Chassis sets armor, speed and dashes; weapon sets damage; the core is a
+## charged ability; the kit tweaks the rest (see titan_parts.gd).
+## Firing is a hitscan placeholder until the real weapons land.
+
+signal landed
+signal destroyed
+
+const GRAVITY := 30.0
+const ACCEL := 40.0
+const DASH_SPEED := 28.0
+const DASH_TIME := 0.25
+const DASH_RECHARGE := 5.0
+const DROP_SPEED := 70.0
+## Seconds for the core to charge from time alone; dealing damage speeds it up.
+const CORE_TIME := 35.0
+const CORE_PER_DAMAGE := 1.0 / 4000.0
+const FIRE_RANGE := 200.0
+const HEIGHT := 7.0
+const EYE := 6.2
+
+var stats := {}
+var hp := 0.0
+var max_hp := 0.0
+var dashes := 0
+var dash_recharge := 0.0
+var dash_timer := 0.0
+var dash_dir := Vector3.ZERO
+var core_charge := 0.0
+var overdrive_timer := 0.0
+var ramp_bonus := 0.0
+var on_target := false
+var dropping := true
+var piloted := false
+var dead := false
+var boss: Node
+var head: Node3D
+var camera: Camera3D
+var mouse_sensitivity := 0.0022
+
+
+func setup(p_stats: Dictionary) -> void:
+	stats = p_stats
+	max_hp = stats["hp"]
+	hp = max_hp
+	dashes = stats["dashes"]
+
+
+func _ready() -> void:
+	var shape := CapsuleShape3D.new()
+	shape.radius = 1.4
+	shape.height = HEIGHT
+	var col := CollisionShape3D.new()
+	col.shape = shape
+	col.position.y = HEIGHT * 0.5
+	add_child(col)
+	_part(Vector3(2.8, 2.6, 2.0), Vector3(0, 4.6, 0), Color(0.35, 0.42, 0.5))  # torso
+	_part(Vector3(1.0, 3.2, 1.0), Vector3(-0.8, 1.6, 0), Color(0.3, 0.32, 0.35))  # legs
+	_part(Vector3(1.0, 3.2, 1.0), Vector3(0.8, 1.6, 0), Color(0.3, 0.32, 0.35))
+	_part(Vector3(1.2, 0.6, 0.4), Vector3(0, 5.2, -1.1), Color(1.0, 0.75, 0.2))  # visor
+	head = Node3D.new()
+	head.position.y = EYE
+	add_child(head)
+	camera = Camera3D.new()
+	camera.fov = 85.0
+	camera.near = 0.1
+	head.add_child(camera)
+
+
+func _part(size: Vector3, pos: Vector3, color: Color) -> void:
+	var mesh := BoxMesh.new()
+	mesh.size = size
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = color
+	mesh.material = mat
+	var mi := MeshInstance3D.new()
+	mi.mesh = mesh
+	mi.position = pos
+	add_child(mi)
+
+
+func _unhandled_input(event: InputEvent) -> void:
+	if not piloted:
+		return
+	if event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
+		rotate_y(-event.relative.x * mouse_sensitivity)
+		head.rotation.x = clampf(head.rotation.x - event.relative.y * mouse_sensitivity, -1.2, 1.2)
+	elif event.is_action_pressed("ui_cancel"):
+		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	elif event is InputEventMouseButton and event.pressed and Input.mouse_mode != Input.MOUSE_MODE_CAPTURED:
+		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+
+
+func _physics_process(delta: float) -> void:
+	if dropping:
+		velocity = Vector3(0, -DROP_SPEED, 0)
+		move_and_slide()
+		if is_on_floor():
+			dropping = false
+			velocity = Vector3.ZERO
+			landed.emit()
+		return
+	if not piloted or dead:
+		velocity = Vector3(0, velocity.y - GRAVITY * delta, 0)
+		move_and_slide()
+		return
+
+	_move(delta)
+	_recharge(delta)
+	_fire(delta)
+	if Input.is_action_just_pressed("titan_core"):
+		use_core()
+
+
+func _move(delta: float) -> void:
+	var input := Input.get_vector("move_left", "move_right", "move_forward", "move_back")
+	var wish := (transform.basis * Vector3(input.x, 0.0, input.y)).normalized()
+	if Input.is_action_just_pressed("titan_dash") and dashes > 0 and dash_timer <= 0.0:
+		dashes -= 1
+		dash_timer = DASH_TIME
+		dash_dir = wish if wish != Vector3.ZERO else -transform.basis.z
+	var h := Vector3(velocity.x, 0.0, velocity.z)
+	if dash_timer > 0.0:
+		dash_timer -= delta
+		h = dash_dir * DASH_SPEED
+	else:
+		h = h.move_toward(wish * float(stats["speed"]), ACCEL * delta)
+	velocity = Vector3(h.x, 0.0 if is_on_floor() else velocity.y - GRAVITY * delta, h.z)
+	move_and_slide()
+
+
+func _recharge(delta: float) -> void:
+	overdrive_timer -= delta
+	if dashes < int(stats["dashes"]):
+		dash_recharge += delta * float(stats["dash_rate"])
+		if dash_recharge >= DASH_RECHARGE:
+			dash_recharge = 0.0
+			dashes += 1
+	core_charge = minf(core_charge + delta / CORE_TIME * float(stats["core_rate"]), 1.0)
+
+
+func _fire(delta: float) -> void:
+	on_target = Input.is_action_pressed("titan_fire") and aimed_target() != null
+	if not on_target:
+		ramp_bonus = 0.0
+		return
+	ramp_bonus = minf(ramp_bonus + delta * 0.5, float(stats["ramp"]))
+	var dmg := float(stats["dps"]) * (1.0 + ramp_bonus) * delta
+	if overdrive_timer > 0.0:
+		dmg *= 2.0
+	boss.take_damage(dmg)
+	core_charge = minf(core_charge + dmg * CORE_PER_DAMAGE * float(stats["core_rate"]), 1.0)
+
+
+## The enemy under the crosshair, or null.
+func aimed_target() -> Node:
+	if boss == null:
+		return null
+	var from := camera.global_position
+	var query := PhysicsRayQueryParameters3D.create(from, from - camera.global_basis.z * FIRE_RANGE)
+	query.exclude = [get_rid()]
+	var hit := get_world_3d().direct_space_state.intersect_ray(query)
+	if hit.is_empty() or not hit.collider.is_in_group("titan_target"):
+		return null
+	return boss
+
+
+func use_core() -> bool:
+	if core_charge < 1.0 or stats["core"] == "none":
+		return false
+	core_charge = 0.0
+	match stats["core"]:
+		"laser":
+			if boss != null:
+				boss.take_damage(float(stats["core_power"]))
+		"shield":
+			hp = minf(hp + max_hp * float(stats["core_power"]), max_hp)
+		"overdrive":
+			overdrive_timer = float(stats["core_power"])
+			dashes = int(stats["dashes"])
+	return true
+
+
+func take_damage(amount: float) -> void:
+	if dead:
+		return
+	hp -= amount
+	if hp <= 0.0:
+		hp = 0.0
+		dead = true
+		destroyed.emit()
