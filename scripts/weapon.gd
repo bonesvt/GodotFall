@@ -142,6 +142,8 @@ var inspect_lines: Array = INSPECT_LINES
 ## slot -> attachment id, and the finish's colours (empty: as modelled).
 var attachments := {}
 var finish := {}
+## Upgrade look, 0 (stock) to 5, passed to the model's `tier` if it has one.
+var tier := 0
 
 var player: CharacterBody3D
 var ammo := 0
@@ -236,6 +238,7 @@ func equip(profile: Dictionary) -> void:
 	inspect_lines = profile.get("lines", inspect_lines)
 	attachments = profile.get("attachments", {})
 	finish = profile.get("finish", {})
+	tier = profile.get("tier", 0)
 	var stats: Dictionary = profile.get("stats", {})
 	for key in stats:
 		set(key, int(stats[key]) if key == "magazine_size" else float(stats[key]))
@@ -724,6 +727,7 @@ func _build_viewmodel() -> void:
 	add_child(viewmodel)
 	var pistol := Art.model(model_id)
 	viewmodel.add_child(pistol)
+	_set_tier(pistol, tier)
 	_fit_attachments(pistol, model_id, attachments)
 	_apply_finish(pistol, finish)
 	for mi in pistol.find_children("*", "GeometryInstance3D", true, false):
@@ -772,6 +776,7 @@ func _build_viewmodel() -> void:
 static func gun_model(profile: Dictionary) -> Node3D:
 	var model := Art.model(profile.get("model", "pistol"))
 	model.get_node("Arm").free()
+	_set_tier(model, profile.get("tier", 0))
 	_fit_attachments(model, profile.get("model", "pistol"), profile.get("attachments", {}))
 	_apply_finish(model, profile.get("finish", {}))
 	return model
@@ -780,12 +785,19 @@ static func gun_model(profile: Dictionary) -> Node3D:
 ## Bolts the fitted attachments onto the gun: muzzle pieces at the Muzzle
 ## (which moves to the end of them), mag pieces under the magazine (so they
 ## drop out with it on a reload), grip pieces round the grip.
-static func _fit_attachments(model: Node3D, model_id: String, attachments: Dictionary) -> void:
+## Picks the gun's upgraded look on models that have one (a `tier` property).
+static func _set_tier(model: Node3D, p_tier: int) -> void:
+	for node in [model, model.get_node_or_null("Gun")]:
+		if node != null and "tier" in node:
+			node.tier = p_tier
+
+
+static func _fit_attachments(model: Node3D, p_model_id: String, p_attachments: Dictionary) -> void:
 	var gun: Node3D = model.get_node_or_null("Gun")
 	if gun == null:
 		return
-	for slot in attachments:
-		var id: String = attachments[slot]
+	for slot in p_attachments:
+		var id: String = p_attachments[slot]
 		if not ATTACHMENT_MODELS.has(id):
 			continue
 		var piece: Node3D = ATTACHMENT_MODELS[id].instantiate()
@@ -802,7 +814,7 @@ static func _fit_attachments(model: Node3D, model_id: String, attachments: Dicti
 				var mag := gun.find_child("MagBase", true, false) as Node3D
 				var parent: Node3D = mag if mag != null else gun
 				parent.add_child(piece)
-				piece.transform = GRIP_XFORM * Transform3D(Basis.IDENTITY, Vector3(0, MAG_BOTTOM.get(model_id, -0.07), 0))
+				piece.transform = GRIP_XFORM * Transform3D(Basis.IDENTITY, Vector3(0, MAG_BOTTOM.get(p_model_id, -0.07), 0))
 			"grip":
 				gun.add_child(piece)
 				piece.transform = GRIP_XFORM
@@ -814,8 +826,8 @@ static var _finish_cache := {}
 
 
 ## Repaints the gun's shell, accent and stripe in the finish's colours.
-static func _apply_finish(model: Node3D, finish: Dictionary) -> void:
-	if finish.is_empty():
+static func _apply_finish(model: Node3D, p_finish: Dictionary) -> void:
+	if p_finish.is_empty():
 		return
 	for mi in model.find_children("*", "MeshInstance3D", true, false):
 		var mesh: Mesh = (mi as MeshInstance3D).mesh
@@ -828,10 +840,10 @@ static func _apply_finish(model: Node3D, finish: Dictionary) -> void:
 			var slot_name: String = mat.resource_path.get_file().get_basename()
 			if not FINISH_SLOTS.has(slot_name):
 				continue
-			var key := "%s/%s" % [finish.get("id", ""), slot_name]
+			var key := "%s/%s" % [p_finish.get("id", ""), slot_name]
 			if not _finish_cache.has(key):
 				var painted: ShaderMaterial = mat.duplicate()
-				painted.set_shader_parameter("albedo", finish[FINISH_SLOTS[slot_name]])
+				painted.set_shader_parameter("albedo", p_finish[FINISH_SLOTS[slot_name]])
 				_finish_cache[key] = painted
 			(mi as MeshInstance3D).set_surface_override_material(i, _finish_cache[key])
 

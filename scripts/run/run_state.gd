@@ -18,8 +18,10 @@ var caches_opened := 0
 var time := 0.0
 ## Refit multipliers from the hub's titan workshop ("slot:id" -> factor).
 var refits := {}
-## Grunts the pilot dropped this run; pays scrap.
+## Grunts the pilot dropped this run.
 var kills := 0
+## Materials picked up this run (scrap, alloy, circuits), banked when it ends.
+var materials := {"scrap": 0, "alloy": 0, "circuits": 0}
 
 
 func _init(seed_value: int) -> void:

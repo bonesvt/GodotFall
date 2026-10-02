@@ -96,6 +96,8 @@ const UPGRADES := {
 }
 const UPGRADE_ORDER := ["calibre", "action", "magazine"]
 const MAX_LEVEL := 3
+## Upgraded looks a gun has beyond stock.
+const MODEL_TIERS := 5
 const UPGRADE_COST := [{"scrap": 40}, {"scrap": 70, "circuits": 2}, {"scrap": 110, "circuits": 5}]
 const CALIBRE_STEP := 0.06
 const ACTION_STEP := 0.08
@@ -307,6 +309,16 @@ func buy_upgrade(weapon: String, track: String) -> bool:
 	return true
 
 
+## The gun's look tier, 0 (stock) to MODEL_TIERS: every upgrade level bought
+## moves it on, so a maxed gun (all three tracks at MAX_LEVEL) is the top model.
+## The smart pistol has a model per tier (the gun's `tier` property picks it).
+func weapon_tier(id: String) -> int:
+	var total := 0
+	for track in UPGRADE_ORDER:
+		total += upgrade_level(id, track)
+	return ceili(float(total) * MODEL_TIERS / (MAX_LEVEL * UPGRADE_ORDER.size()))
+
+
 static func attachment(slot: String, id: String) -> Dictionary:
 	for a in ATTACHMENTS[slot]:
 		if a["id"] == id:
@@ -370,6 +382,7 @@ func weapon_profile(id := "") -> Dictionary:
 	stats["magazine_size"] = maxi(1, roundi(stats["magazine_size"]))
 	var profile := base.duplicate()
 	profile["id"] = id
+	profile["tier"] = weapon_tier(id)
 	profile["stats"] = stats
 	profile["attachments"] = parts
 	profile["finish"] = finish(finish_of(id))
