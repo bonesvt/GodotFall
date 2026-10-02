@@ -69,6 +69,10 @@ enum Awareness { UNAWARE, SUSPICIOUS, ALERTED }
 ## Detection lost per second once the pilot has been gone for calm_delay.
 @export var calm_rate := 0.15
 @export var calm_delay := 2.0
+## Detection multiplier for a pilot standing in tall grass ("stealth_cover").
+@export var grass_notice := 0.5
+## A pilot crouched in tall grass can't be seen at all past this distance.
+@export var grass_hide_range := 4.0
 ## Detection at which the grunt turns to look.
 @export var suspicious_at := 0.35
 ## Damage multiplier for hits on a grunt that hasn't noticed the pilot at all
@@ -209,6 +213,8 @@ func _ground_ahead(dir: Vector3) -> bool:
 
 
 const SIGHT_TICK := 0.2
+## Foliage that only blocks sight (forest_kit.gd SIGHT_LAYER); vision rays hit it.
+const SIGHT_LAYER := 16
 
 
 func _update_sight(delta: float) -> void:
@@ -261,6 +267,8 @@ func _sight_gain(from: Vector3) -> float:
 		rate *= partial_notice
 	if target.crouching and target.state != Pilot.State.SLIDE:
 		rate *= crouch_notice
+	if _pilot_in_grass():
+		rate *= grass_notice
 	rate *= 1.0 + clampf(target.horizontal_speed() / target.sprint_speed, 0.0, 2.0)
 	return rate
 
@@ -284,14 +292,30 @@ func _hearing_gain() -> float:
 ## How many of the pilot's head and chest this grunt has a clear line to (0-2).
 func _visible_points(from: Vector3) -> int:
 	var eye := 0.8 if target.crouching else 1.55
+	if target.crouching and _pilot_in_grass() \
+			and global_position.distance_to(target.global_position) > grass_hide_range:
+		return 0  # lying low in the tall grass
 	var count := 0
 	for h in [eye, eye * 0.6]:
-		var query := PhysicsRayQueryParameters3D.create(from, target.global_position + Vector3.UP * h)
+		var query := PhysicsRayQueryParameters3D.create(from, target.global_position + Vector3.UP * h, 1 | SIGHT_LAYER)
 		query.exclude = [get_rid()]
 		var hit := get_world_3d().direct_space_state.intersect_ray(query)
 		if not hit.is_empty() and hit.collider == target:
 			count += 1
 	return count
+
+
+## True while the pilot stands in tall grass (an Area3D in group "stealth_cover").
+func _pilot_in_grass() -> bool:
+	var q := PhysicsPointQueryParameters3D.new()
+	q.position = target.global_position + Vector3.UP * 0.5
+	q.collide_with_areas = true
+	q.collide_with_bodies = false
+	q.collision_mask = SIGHT_LAYER
+	for hit in get_world_3d().direct_space_state.intersect_point(q, 8):
+		if hit.collider.is_in_group("stealth_cover"):
+			return true
+	return false
 
 
 ## Unaware grunts sweep their gaze around their post; suspicious ones turn to

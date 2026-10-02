@@ -5,6 +5,7 @@ extends SceneTree
 ## Run: godot --headless --path . -s res://tests/stealth_test.gd
 
 const Grunt := preload("res://scripts/grunt.gd")
+const F := preload("res://scripts/run/forest_kit.gd")
 
 var level
 var player
@@ -133,6 +134,30 @@ func _run() -> void:
 	await _seconds(2.0)
 	_check("hidden pilot is lost and searched for", not g.alerted and g.awareness == Grunt.Awareness.SUSPICIOUS, g.awareness)
 	wall.queue_free()
+	_clear()
+
+	# Forest foliage: tall grass hides a crouched pilot and muffles a standing one;
+	# dense foliage blocks sight like a wall.
+	_place(SPOT)
+	var grunt_far = _grunt(Vector3(-12, 0, 0), Vector3(1, 0, 0))
+	grunt_far.passive = true
+	await _ticks(3)
+	var open_rate: float = grunt_far._sight_gain(grunt_far.global_position + Grunt.EYE)
+	var grass = F.stealth_cover(level, SPOT + Vector3(0, 0.8, 0), Vector3(3, 2.4, 3))
+	await _ticks(3)
+	var grass_rate: float = grunt_far._sight_gain(grunt_far.global_position + Grunt.EYE)
+	Input.action_press("crouch")
+	await _ticks(10)
+	var lying: int = grunt_far._visible_points(grunt_far.global_position + Grunt.EYE)
+	Input.action_release("crouch")
+	_check("standing in tall grass is noticed slower", grass_rate > 0.0 and grass_rate < open_rate * 0.6, [grass_rate, open_rate])
+	_check("crouched in tall grass is hidden", lying == 0, lying)
+	grass.queue_free()
+	var bush = F.sight_blocker(level, SPOT + Vector3(-4, 1.4, 0), Vector3(1, 2.8, 3))
+	await _ticks(10)
+	var through: int = grunt_far._visible_points(grunt_far.global_position + Grunt.EYE)
+	_check("dense foliage blocks sight", through == 0, through)
+	bush.queue_free()
 	_clear()
 
 	# Sneak attacks: hits on an unaware grunt do double damage.
