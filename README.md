@@ -209,6 +209,21 @@ Grunts start **unaware** and have to notice you first.
 - **Around the crosshair**: an arc points at every grunt noticing you, including ones behind you, and fills toward red.
 - **Alerted** grunts fight exactly as before, and call in every squadmate within 16 m. Getting shot always alerts. Out of sight for 10 s, they lose you and go back to searching.
 
+## Enemy radio
+Get within about 45 m of grunts and Eco picks up their squad net. A small **INTERCEPT** box
+above your health shows who's talking (amber callsigns, militia HQ in red) as the lines type out
+through static. She only listens; she never talks back.
+- **Calm squads** trade banter, gossip about "the Pilot reject" (they don't know she's listening), and pass
+  around salvage rumours naming real titan parts.
+- **Squad state drives the calls**: "something moved" when one turns suspicious, a stand-down when it
+  gives up, one contact call when she's spotted, fight taunts (and panic when she's wallrunning or
+  sliding), cheers when they hit her, "lost her" when they lose track, man-down calls naming the dead,
+  a terrified last man, and HQ calling into silence once the squad is gone.
+- Bigger events cut off small talk; lines never repeat back to back, and every exchange plays before any repeats.
+- Speakers near the edge of range break up: fewer signal bars and garbled characters.
+- Lines live in `scripts/radio/radio_lines.gd`, one exchange per string (`"a: ... | b: ... | hq: ..."`).
+  `radio_chatter.gd` emits `line_started(callsign, text, category)` for voice-over later.
+
 ## Test level
 - Ahead: **wallrun corridor** (two long parallel walls).
 - Right: **wall-jump course**, zig-zag panels over red "lava" between two platforms.
@@ -233,6 +248,10 @@ select the Player node and tweak values in the Inspector, or change the defaults
   in `assets/audio/sfx/` (for example `pistol.wav`) to replace one with a recording
 - `scripts/run/titan_gun.gd` titan weapon personalities (XO-16 spin-up, Tracker shells, Splitter beam, jamming scrap rifle)
 - `scripts/hud.gd` crosshair, hitmarkers, health, ammo, speedometer, state and cooldown readout
+- `scripts/radio/` enemy radio: `radio_chatter.gd` (listens to grunt awareness and deaths, picks lines),
+  `radio_popup.gd` (the intercept box), `radio_lines.gd` (every line, by situation)
+- `tests/radio_test.gd` headless radio test (range, squad states, kills, no repeats, popup):
+  `godot --headless --path . -s res://tests/radio_test.gd`
 - `tests/movement_test.gd` headless smoke test:
   `godot --headless --path . -s res://tests/movement_test.gd`
 - `tests/combat_test.gd` headless combat smoke test:
