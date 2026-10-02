@@ -3,6 +3,7 @@ extends Node3D
 ## A guarded cache stays locked until its hold objective completes.
 
 const Kit := preload("res://scripts/run/level_kit.gd")
+const Art := preload("res://scripts/ps2/ps2_assets.gd")
 
 const INTERACT_RANGE := 3.0
 const READY_COLOR := Color(1.0, 0.75, 0.2)
@@ -12,19 +13,12 @@ const OPENED_COLOR := Color(0.35, 0.35, 0.38)
 var locked := false
 var opened := false
 var _label: Label3D
-var _mat: StandardMaterial3D
+var _model: Node3D
 
 
 func _ready() -> void:
-	var mesh := BoxMesh.new()
-	mesh.size = Vector3(1.6, 1.0, 1.0)
-	_mat = StandardMaterial3D.new()
-	_mat.emission_enabled = true
-	mesh.material = _mat
-	var mi := MeshInstance3D.new()
-	mi.mesh = mesh
-	mi.position.y = 0.5
-	add_child(mi)
+	_model = Art.model("salvage_cache")
+	add_child(_model)
 	_label = Kit.label(self, Vector3(0, 2.2, 0), "", 64)
 	_refresh()
 
@@ -63,6 +57,5 @@ func _refresh() -> void:
 	elif locked:
 		color = LOCKED_COLOR
 		_label.text = "SALVAGE (LOCKED)"
-	_mat.albedo_color = color
-	_mat.emission = color * 0.4
+	_model.set_param("paint", color, "Light")
 	_label.modulate = color.lightened(0.3)

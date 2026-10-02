@@ -1,0 +1,397 @@
+[gd_scene load_steps=46 format=3]
+
+[ext_resource type="Script" path="res://scripts/ps2/ps2_model.gd" id="1_qi3m0"]
+[ext_resource type="Material" path="res://assets/materials/titan_frame.tres" id="2_irdq0"]
+[ext_resource type="Shader" path="res://assets/shaders/ps2_surface.gdshader" id="3_bwske"]
+[ext_resource type="Texture2D" path="res://assets/textures/titan_armor.png" id="4_dnhwt"]
+[ext_resource type="Material" path="res://assets/materials/titan_glow.tres" id="5_oruyj"]
+
+[sub_resource type="BoxMesh" id="BoxMesh_qt8cd"]
+material = ExtResource("2_irdq0")
+size = Vector3(1.508, 0.6, 0.99)
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_aanjw"]
+material = ExtResource("2_irdq0")
+top_radius = 0.36
+bottom_radius = 0.36
+height = 0.9
+radial_segments = 8
+rings = 0
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_e6yfw"]
+render_priority = 0
+shader = ExtResource("3_bwske")
+shader_parameter/use_top_tex = null
+shader_parameter/albedo = Color(0.62, 0.7, 0.8, 1)
+shader_parameter/tex_scale = 0.35
+shader_parameter/tex_offset = null
+shader_parameter/world_space = false
+shader_parameter/emission = null
+shader_parameter/emission_energy = null
+shader_parameter/unshaded = null
+shader_parameter/albedo_tex = ExtResource("4_dnhwt")
+
+[sub_resource type="BoxMesh" id="BoxMesh_q1xro"]
+material = SubResource("ShaderMaterial_e6yfw")
+size = Vector3(0.8, 1.38, 0.9)
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_m32vv"]
+material = ExtResource("2_irdq0")
+top_radius = 0.336
+bottom_radius = 0.336
+height = 0.92
+radial_segments = 8
+rings = 0
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_10ft6"]
+render_priority = 0
+shader = ExtResource("3_bwske")
+shader_parameter/use_top_tex = null
+shader_parameter/albedo = Color(0.465, 0.525, 0.6, 1)
+shader_parameter/tex_scale = 0.35
+shader_parameter/tex_offset = null
+shader_parameter/world_space = false
+shader_parameter/emission = null
+shader_parameter/emission_energy = null
+shader_parameter/unshaded = null
+shader_parameter/albedo_tex = ExtResource("4_dnhwt")
+
+[sub_resource type="BoxMesh" id="BoxMesh_plfjr"]
+material = SubResource("ShaderMaterial_10ft6")
+size = Vector3(0.64, 0.56, 0.2)
+
+[sub_resource type="BoxMesh" id="BoxMesh_tgfpa"]
+material = SubResource("ShaderMaterial_e6yfw")
+size = Vector3(0.9, 1.2, 1.05)
+
+[sub_resource type="BoxMesh" id="BoxMesh_k6y0j"]
+material = ExtResource("2_irdq0")
+size = Vector3(1.1, 0.33, 1.8)
+
+[sub_resource type="PrismMesh" id="PrismMesh_sjfl4"]
+material = ExtResource("2_irdq0")
+size = Vector3(1.1, 0.3, 0.5)
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_rk2it"]
+material = ExtResource("2_irdq0")
+top_radius = 0.36
+bottom_radius = 0.36
+height = 0.9
+radial_segments = 8
+rings = 0
+
+[sub_resource type="BoxMesh" id="BoxMesh_ii664"]
+material = SubResource("ShaderMaterial_e6yfw")
+size = Vector3(0.8, 1.38, 0.9)
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_0qi7n"]
+material = ExtResource("2_irdq0")
+top_radius = 0.336
+bottom_radius = 0.336
+height = 0.92
+radial_segments = 8
+rings = 0
+
+[sub_resource type="BoxMesh" id="BoxMesh_duoks"]
+material = SubResource("ShaderMaterial_10ft6")
+size = Vector3(0.64, 0.56, 0.2)
+
+[sub_resource type="BoxMesh" id="BoxMesh_1fehq"]
+material = SubResource("ShaderMaterial_e6yfw")
+size = Vector3(0.9, 1.2, 1.05)
+
+[sub_resource type="BoxMesh" id="BoxMesh_20axc"]
+material = ExtResource("2_irdq0")
+size = Vector3(1.1, 0.33, 1.8)
+
+[sub_resource type="PrismMesh" id="PrismMesh_1bvm0"]
+material = ExtResource("2_irdq0")
+size = Vector3(1.1, 0.3, 0.5)
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_1tbxx"]
+material = ExtResource("2_irdq0")
+top_radius = 0.572
+bottom_radius = 0.572
+height = 0.6
+radial_segments = 8
+rings = 0
+
+[sub_resource type="BoxMesh" id="BoxMesh_a8u25"]
+material = SubResource("ShaderMaterial_e6yfw")
+size = Vector3(2.6, 2, 1.8)
+
+[sub_resource type="PrismMesh" id="PrismMesh_un0pq"]
+material = SubResource("ShaderMaterial_e6yfw")
+size = Vector3(2.34, 0.5, 1.8)
+
+[sub_resource type="BoxMesh" id="BoxMesh_yfkr1"]
+material = SubResource("ShaderMaterial_10ft6")
+size = Vector3(1.43, 1.24, 0.14)
+
+[sub_resource type="BoxMesh" id="BoxMesh_rvvix"]
+material = ExtResource("2_irdq0")
+size = Vector3(0.12, 1, 0.18)
+
+[sub_resource type="BoxMesh" id="BoxMesh_d1r8e"]
+material = ExtResource("2_irdq0")
+size = Vector3(0.12, 1, 0.18)
+
+[sub_resource type="BoxMesh" id="BoxMesh_rl1be"]
+material = ExtResource("5_oruyj")
+size = Vector3(0.884, 0.16, 0.12)
+
+[sub_resource type="BoxMesh" id="BoxMesh_40r5q"]
+material = SubResource("ShaderMaterial_10ft6")
+size = Vector3(1.3, 0.14, 0.3)
+
+[sub_resource type="BoxMesh" id="BoxMesh_mbgsn"]
+material = ExtResource("2_irdq0")
+size = Vector3(1.82, 1.5, 0.8)
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_ogvfy"]
+material = ExtResource("2_irdq0")
+top_radius = 0.18
+bottom_radius = 0.18
+height = 0.6
+radial_segments = 6
+rings = 0
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_voabx"]
+material = ExtResource("2_irdq0")
+top_radius = 0.18
+bottom_radius = 0.18
+height = 0.6
+radial_segments = 6
+rings = 0
+
+[sub_resource type="BoxMesh" id="BoxMesh_q8cq6"]
+material = ExtResource("5_oruyj")
+size = Vector3(0.78, 0.3, 0.12)
+
+[sub_resource type="BoxMesh" id="BoxMesh_vlpgo"]
+material = SubResource("ShaderMaterial_e6yfw")
+size = Vector3(0.95, 0.75, 1.25)
+
+[sub_resource type="SphereMesh" id="SphereMesh_pc60b"]
+material = ExtResource("2_irdq0")
+radius = 0.38
+height = 0.76
+radial_segments = 8
+rings = 5
+
+[sub_resource type="BoxMesh" id="BoxMesh_g2aei"]
+material = ExtResource("2_irdq0")
+size = Vector3(0.5, 1.1, 0.5)
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_r1pom"]
+material = ExtResource("2_irdq0")
+top_radius = 0.3
+bottom_radius = 0.3
+height = 0.6
+radial_segments = 8
+rings = 0
+
+[sub_resource type="BoxMesh" id="BoxMesh_uqx7t"]
+material = SubResource("ShaderMaterial_e6yfw")
+size = Vector3(0.7, 0.7, 1.5)
+
+[sub_resource type="BoxMesh" id="BoxMesh_d1d08"]
+material = ExtResource("2_irdq0")
+size = Vector3(0.55, 0.55, 0.5)
+
+[sub_resource type="BoxMesh" id="BoxMesh_j87l1"]
+material = SubResource("ShaderMaterial_10ft6")
+size = Vector3(0.95, 0.75, 1.25)
+
+[sub_resource type="SphereMesh" id="SphereMesh_n4gf1"]
+material = ExtResource("2_irdq0")
+radius = 0.38
+height = 0.76
+radial_segments = 8
+rings = 5
+
+[sub_resource type="BoxMesh" id="BoxMesh_t0kqr"]
+material = ExtResource("2_irdq0")
+size = Vector3(0.5, 1.1, 0.5)
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_0tyfe"]
+material = ExtResource("2_irdq0")
+top_radius = 0.3
+bottom_radius = 0.3
+height = 0.6
+radial_segments = 8
+rings = 0
+
+[sub_resource type="BoxMesh" id="BoxMesh_wgax3"]
+material = SubResource("ShaderMaterial_e6yfw")
+size = Vector3(0.7, 0.7, 1.5)
+
+[node name="Titan_atlas" type="Node3D"]
+script = ExtResource("1_qi3m0")
+stride = 4.5
+swing_degrees = 22.0
+
+[node name="Pelvis" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3, 0)
+mesh = SubResource("BoxMesh_qt8cd")
+
+[node name="LegL" type="Node3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.114, 3, 0)
+
+[node name="Hip" type="MeshInstance3D" parent="LegL"]
+transform = Transform3D(-4.37114e-08, -1, 0, 1, -4.37114e-08, 0, 0, 0, 1, 0, 0, 0)
+mesh = SubResource("CylinderMesh_aanjw")
+
+[node name="Thigh" type="MeshInstance3D" parent="LegL"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.75, 0)
+mesh = SubResource("BoxMesh_q1xro")
+
+[node name="Knee" type="MeshInstance3D" parent="LegL"]
+transform = Transform3D(-4.37114e-08, -1, 0, 1, -4.37114e-08, 0, 0, 0, 1, 0, -1.5, 0)
+mesh = SubResource("CylinderMesh_m32vv")
+
+[node name="KneePlate" type="MeshInstance3D" parent="LegL"]
+transform = Transform3D(1, 0, 0, 0, 0.984808, 0.173648, 0, -0.173648, 0.984808, 0, -1.5, -0.44)
+mesh = SubResource("BoxMesh_plfjr")
+
+[node name="Shin" type="MeshInstance3D" parent="LegL"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -2.16, 0.04)
+mesh = SubResource("BoxMesh_tgfpa")
+
+[node name="Foot" type="MeshInstance3D" parent="LegL"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -2.835, -0.25)
+mesh = SubResource("BoxMesh_k6y0j")
+
+[node name="Toe" type="MeshInstance3D" parent="LegL"]
+transform = Transform3D(1, 0, 0, 0, -4.37114e-08, 1, 0, -1, -4.37114e-08, 0, -2.91, -1.35)
+mesh = SubResource("PrismMesh_sjfl4")
+
+[node name="LegR" type="Node3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.114, 3, 0)
+
+[node name="Hip" type="MeshInstance3D" parent="LegR"]
+transform = Transform3D(-4.37114e-08, -1, 0, 1, -4.37114e-08, 0, 0, 0, 1, 0, 0, 0)
+mesh = SubResource("CylinderMesh_rk2it")
+
+[node name="Thigh" type="MeshInstance3D" parent="LegR"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.75, 0)
+mesh = SubResource("BoxMesh_ii664")
+
+[node name="Knee" type="MeshInstance3D" parent="LegR"]
+transform = Transform3D(-4.37114e-08, -1, 0, 1, -4.37114e-08, 0, 0, 0, 1, 0, -1.5, 0)
+mesh = SubResource("CylinderMesh_0qi7n")
+
+[node name="KneePlate" type="MeshInstance3D" parent="LegR"]
+transform = Transform3D(1, 0, 0, 0, 0.984808, 0.173648, 0, -0.173648, 0.984808, 0, -1.5, -0.44)
+mesh = SubResource("BoxMesh_duoks")
+
+[node name="Shin" type="MeshInstance3D" parent="LegR"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -2.16, 0.04)
+mesh = SubResource("BoxMesh_1fehq")
+
+[node name="Foot" type="MeshInstance3D" parent="LegR"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -2.835, -0.25)
+mesh = SubResource("BoxMesh_20axc")
+
+[node name="Toe" type="MeshInstance3D" parent="LegR"]
+transform = Transform3D(1, 0, 0, 0, -4.37114e-08, 1, 0, -1, -4.37114e-08, 0, -2.91, -1.35)
+mesh = SubResource("PrismMesh_1bvm0")
+
+[node name="Waist" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3.5, 0)
+mesh = SubResource("CylinderMesh_1tbxx")
+
+[node name="Torso" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 4.75, 0)
+mesh = SubResource("BoxMesh_a8u25")
+
+[node name="ChestLower" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, -1, 8.74228e-08, 0, -8.74228e-08, -1, 0, 3.55, 0)
+mesh = SubResource("PrismMesh_un0pq")
+
+[node name="Hatch" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 4.65, -0.95)
+mesh = SubResource("BoxMesh_yfkr1")
+
+[node name="HatchHinge" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.78, 4.65, -0.95)
+mesh = SubResource("BoxMesh_rvvix")
+
+[node name="@MeshInstance3D@5" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.78, 4.65, -0.95)
+mesh = SubResource("BoxMesh_d1r8e")
+
+[node name="Eye" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 5.43, -0.94)
+mesh = SubResource("BoxMesh_rl1be")
+
+[node name="Brow" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 5.65, -0.95)
+mesh = SubResource("BoxMesh_40r5q")
+
+[node name="Back" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 4.7, 1.25)
+mesh = SubResource("BoxMesh_mbgsn")
+
+[node name="Vent" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.52, 5.45, 1.45)
+mesh = SubResource("CylinderMesh_ogvfy")
+
+[node name="@MeshInstance3D@6" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.52, 5.45, 1.45)
+mesh = SubResource("CylinderMesh_voabx")
+
+[node name="Core" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 4.35, 1.67)
+mesh = SubResource("BoxMesh_q8cq6")
+
+[node name="ArmL" type="Node3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.65, 5.35, 0)
+
+[node name="Pad" type="MeshInstance3D" parent="ArmL"]
+transform = Transform3D(0.984808, -0.173648, 0, 0.173648, 0.984808, 0, 0, 0, 1, -0.1, 0.1, 0)
+mesh = SubResource("BoxMesh_vlpgo")
+
+[node name="Shoulder" type="MeshInstance3D" parent="ArmL"]
+mesh = SubResource("SphereMesh_pc60b")
+
+[node name="Upper" type="MeshInstance3D" parent="ArmL"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.75, 0)
+mesh = SubResource("BoxMesh_g2aei")
+
+[node name="Elbow" type="MeshInstance3D" parent="ArmL"]
+transform = Transform3D(-4.37114e-08, -1, 0, 1, -4.37114e-08, 0, 0, 0, 1, 0, -1.4, 0)
+mesh = SubResource("CylinderMesh_r1pom")
+
+[node name="Forearm" type="MeshInstance3D" parent="ArmL"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -1.45, -0.55)
+mesh = SubResource("BoxMesh_uqx7t")
+
+[node name="Fist" type="MeshInstance3D" parent="ArmL"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -1.45, -1.45)
+mesh = SubResource("BoxMesh_d1d08")
+
+[node name="ArmR" type="Node3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.65, 5.35, 0)
+
+[node name="Pad" type="MeshInstance3D" parent="ArmR"]
+transform = Transform3D(0.984808, 0.173648, 0, -0.173648, 0.984808, 0, 0, 0, 1, 0.1, 0.1, 0)
+mesh = SubResource("BoxMesh_j87l1")
+
+[node name="Shoulder" type="MeshInstance3D" parent="ArmR"]
+mesh = SubResource("SphereMesh_n4gf1")
+
+[node name="Upper" type="MeshInstance3D" parent="ArmR"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.75, 0)
+mesh = SubResource("BoxMesh_t0kqr")
+
+[node name="Elbow" type="MeshInstance3D" parent="ArmR"]
+transform = Transform3D(-4.37114e-08, -1, 0, 1, -4.37114e-08, 0, 0, 0, 1, 0, -1.4, 0)
+mesh = SubResource("CylinderMesh_0tyfe")
+
+[node name="Forearm" type="MeshInstance3D" parent="ArmR"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -1.45, -0.55)
+mesh = SubResource("BoxMesh_wgax3")
+
+[node name="WeaponMount" type="Node3D" parent="ArmR"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -1.45, -1.2)

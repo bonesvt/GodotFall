@@ -1,0 +1,83 @@
+[gd_scene load_steps=14 format=3]
+
+[ext_resource type="Script" path="res://scripts/ps2/ps2_model.gd" id="1_vtm2g"]
+[ext_resource type="Material" path="res://assets/materials/titan_frame.tres" id="2_b6hq1"]
+[ext_resource type="Material" path="res://assets/materials/anchor.tres" id="3_xpeox"]
+[ext_resource type="Material" path="res://assets/materials/light.tres" id="4_mmjd5"]
+[ext_resource type="Material" path="res://assets/materials/gunmetal.tres" id="5_clag2"]
+
+[sub_resource type="BoxMesh" id="BoxMesh_qrjpw"]
+material = ExtResource("2_b6hq1")
+size = Vector3(1.6, 0.7, 1)
+
+[sub_resource type="BoxMesh" id="BoxMesh_wq5cm"]
+material = ExtResource("3_xpeox")
+size = Vector3(1.7, 0.24, 1.1)
+
+[sub_resource type="BoxMesh" id="BoxMesh_k3cg4"]
+material = ExtResource("4_mmjd5")
+size = Vector3(1.4, 0.08, 0.04)
+
+[sub_resource type="BoxMesh" id="BoxMesh_b2du6"]
+material = ExtResource("4_mmjd5")
+size = Vector3(1.4, 0.08, 0.04)
+
+[sub_resource type="BoxMesh" id="BoxMesh_8j6pc"]
+material = ExtResource("5_clag2")
+size = Vector3(0.08, 0.1, 0.5)
+
+[sub_resource type="BoxMesh" id="BoxMesh_wwt6k"]
+material = ExtResource("5_clag2")
+size = Vector3(0.08, 0.1, 0.5)
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_1c8ni"]
+material = ExtResource("5_clag2")
+top_radius = 0.03
+bottom_radius = 0.03
+height = 0.9
+radial_segments = 4
+rings = 0
+
+[sub_resource type="SphereMesh" id="SphereMesh_rmufw"]
+material = ExtResource("4_mmjd5")
+radius = 0.07
+height = 0.14
+radial_segments = 8
+rings = 5
+
+[node name="SalvageCache" type="Node3D"]
+script = ExtResource("1_vtm2g")
+stride = 1.6
+swing_degrees = 28.0
+
+[node name="Base" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.35, 0)
+mesh = SubResource("BoxMesh_qrjpw")
+
+[node name="Lid" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.82, 0)
+mesh = SubResource("BoxMesh_wq5cm")
+
+[node name="Light" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.55, -0.51)
+mesh = SubResource("BoxMesh_k3cg4")
+
+[node name="@MeshInstance3D@22" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.55, 0.51)
+mesh = SubResource("BoxMesh_b2du6")
+
+[node name="Handle" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.86, 0.5, 0)
+mesh = SubResource("BoxMesh_8j6pc")
+
+[node name="@MeshInstance3D@23" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.86, 0.5, 0)
+mesh = SubResource("BoxMesh_wwt6k")
+
+[node name="Mast" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.62, 1.35, 0.32)
+mesh = SubResource("CylinderMesh_1c8ni")
+
+[node name="LightTip" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.62, 1.82, 0.32)
+mesh = SubResource("SphereMesh_rmufw")

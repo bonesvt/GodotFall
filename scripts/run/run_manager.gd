@@ -262,6 +262,7 @@ func call_titan() -> void:
 	titan = Titan.new()
 	titan.name = "Titan"
 	titan.setup(run.titan_stats())
+	titan.parts = run.parts
 	titan.boss = boss
 	var forward := -player.global_basis.z
 	forward.y = 0.0

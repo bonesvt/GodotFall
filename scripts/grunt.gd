@@ -6,6 +6,7 @@ extends CharacterBody3D
 
 const Pilot := preload("res://scripts/player.gd")
 const FX := preload("res://scripts/fx.gd")
+const Art := preload("res://scripts/ps2/ps2_assets.gd")
 
 signal died(grunt: Node)
 
@@ -49,8 +50,7 @@ var dead := false
 var post := Vector3.ZERO
 var rng := RandomNumberGenerator.new()
 
-var body_mat: StandardMaterial3D
-var visor_mat: StandardMaterial3D
+var model: Node3D
 var hurt_timer := 0.0
 
 
@@ -104,12 +104,12 @@ func _physics_process(delta: float) -> void:
 
 func _process(delta: float) -> void:
 	hurt_timer -= delta
-	if body_mat == null:
+	if model == null:
 		return
-	body_mat.emission_enabled = hurt_timer > 0.0
+	model.set_param("flash", 0.7 if hurt_timer > 0.0 else 0.0)
 	var glow := 0.0 if windup_timer < 0.0 else 1.0 - windup_timer / windup
-	visor_mat.albedo_color = Color(0.9, 0.7, 0.2).lerp(Color(1.0, 0.1, 0.05), glow)
-	visor_mat.emission_energy_multiplier = 0.5 + glow * 4.0
+	model.set_param("paint", Color(0.9, 0.7, 0.2).lerp(Color(1.0, 0.1, 0.05), glow), "Visor")
+	model.set_param("glow", 0.5 + glow * 4.0, "Visor")
 
 
 ## True when there is floor a short step in this direction (keeps grunts on platforms).
@@ -238,42 +238,5 @@ func _build_body() -> void:
 	col.position.y = 0.9
 	add_child(col)
 
-	body_mat = StandardMaterial3D.new()
-	body_mat.albedo_color = Color(0.35, 0.38, 0.3)
-	body_mat.emission = Color(1, 1, 1)
-	body_mat.emission_energy_multiplier = 1.5
-	var torso := CapsuleMesh.new()
-	torso.radius = 0.33
-	torso.height = 1.45
-	torso.material = body_mat
-	_mesh(torso, Vector3(0, 0.72, 0))
-
-	var head_mat := StandardMaterial3D.new()
-	head_mat.albedo_color = Color(0.25, 0.27, 0.22)
-	var head := SphereMesh.new()
-	head.radius = 0.2
-	head.height = 0.4
-	head.material = head_mat
-	_mesh(head, Vector3(0, 1.62, 0))
-
-	visor_mat = StandardMaterial3D.new()
-	visor_mat.emission_enabled = true
-	visor_mat.emission = Color(1.0, 0.2, 0.1)
-	var visor := BoxMesh.new()
-	visor.size = Vector3(0.3, 0.08, 0.1)
-	visor.material = visor_mat
-	_mesh(visor, Vector3(0, 1.65, -0.16))
-
-	var gun_mat := StandardMaterial3D.new()
-	gun_mat.albedo_color = Color(0.12, 0.12, 0.12)
-	var gun := BoxMesh.new()
-	gun.size = Vector3(0.08, 0.12, 0.7)
-	gun.material = gun_mat
-	_mesh(gun, Vector3(0.3, 1.2, -0.3))
-
-
-func _mesh(mesh: Mesh, pos: Vector3) -> void:
-	var mi := MeshInstance3D.new()
-	mi.mesh = mesh
-	mi.position = pos
-	add_child(mi)
+	model = Art.model("grunt")
+	add_child(model)

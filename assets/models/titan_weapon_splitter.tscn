@@ -1,0 +1,65 @@
+[gd_scene load_steps=12 format=3]
+
+[ext_resource type="Script" path="res://scripts/ps2/ps2_model.gd" id="1_0rwau"]
+[ext_resource type="Shader" path="res://assets/shaders/ps2_surface.gdshader" id="2_l2qww"]
+[ext_resource type="Texture2D" path="res://assets/textures/titan_armor.png" id="3_g1fhp"]
+[ext_resource type="Material" path="res://assets/materials/titan_frame.tres" id="4_1ub22"]
+[ext_resource type="Material" path="res://assets/materials/titan_glow.tres" id="5_8bj58"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_pg0c6"]
+render_priority = 0
+shader = ExtResource("2_l2qww")
+shader_parameter/use_top_tex = null
+shader_parameter/albedo = Color(0.5, 0.52, 0.55, 1)
+shader_parameter/tex_scale = 0.35
+shader_parameter/tex_offset = null
+shader_parameter/world_space = false
+shader_parameter/emission = null
+shader_parameter/emission_energy = null
+shader_parameter/unshaded = null
+shader_parameter/albedo_tex = ExtResource("3_g1fhp")
+
+[sub_resource type="BoxMesh" id="BoxMesh_atljt"]
+material = SubResource("ShaderMaterial_pg0c6")
+size = Vector3(0.5, 0.62, 2.6)
+
+[sub_resource type="BoxMesh" id="BoxMesh_7jdfn"]
+material = ExtResource("4_1ub22")
+size = Vector3(0.12, 0.18, 1)
+
+[sub_resource type="BoxMesh" id="BoxMesh_odoyv"]
+material = ExtResource("4_1ub22")
+size = Vector3(0.12, 0.18, 1)
+
+[sub_resource type="BoxMesh" id="BoxMesh_hvwxc"]
+material = ExtResource("5_8bj58")
+size = Vector3(0.52, 0.08, 1.8)
+
+[sub_resource type="BoxMesh" id="BoxMesh_1g03a"]
+material = ExtResource("4_1ub22")
+size = Vector3(0.35, 0.45, 0.6)
+
+[node name="TitanWeapon_splitter" type="Node3D"]
+script = ExtResource("1_0rwau")
+stride = 1.6
+swing_degrees = 28.0
+
+[node name="Body" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -1.1)
+mesh = SubResource("BoxMesh_atljt")
+
+[node name="Prong" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.16, 0, -2.85)
+mesh = SubResource("BoxMesh_7jdfn")
+
+[node name="@MeshInstance3D@20" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.16, 0, -2.85)
+mesh = SubResource("BoxMesh_odoyv")
+
+[node name="Glow" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.2, -1.1)
+mesh = SubResource("BoxMesh_hvwxc")
+
+[node name="Cell" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.45, -0.4)
+mesh = SubResource("BoxMesh_1g03a")

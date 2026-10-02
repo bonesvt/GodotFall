@@ -6,6 +6,7 @@ extends Node3D
 
 const Pilot := preload("res://scripts/player.gd")
 const FX := preload("res://scripts/fx.gd")
+const Art := preload("res://scripts/ps2/ps2_assets.gd")
 
 ## Emitted on every shot that hits an enemy: "body", "head" or "kill".
 signal hit_confirmed(kind: String)
@@ -188,15 +189,11 @@ func _recover_recoil(delta: float) -> void:
 func _build_viewmodel() -> void:
 	viewmodel = Node3D.new()
 	add_child(viewmodel)
-	var dark := StandardMaterial3D.new()
-	dark.albedo_color = Color(0.15, 0.16, 0.18)
-	dark.metallic = 0.6
-	dark.roughness = 0.4
-	_part(Vector3(0.0, 0.0, 0.0), Vector3(0.05, 0.07, 0.26), dark)      # slide
-	_part(Vector3(0.0, -0.08, 0.08), Vector3(0.045, 0.13, 0.06), dark)  # grip
-	muzzle = Node3D.new()
-	muzzle.position = Vector3(0.0, 0.0, -0.14)
-	viewmodel.add_child(muzzle)
+	var pistol := Art.model("pistol")
+	viewmodel.add_child(pistol)
+	for mi in pistol.find_children("*", "GeometryInstance3D", true, false):
+		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	muzzle = pistol.get_node("Muzzle")
 
 	var mat := StandardMaterial3D.new()
 	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
@@ -209,14 +206,3 @@ func _build_viewmodel() -> void:
 	flash.mesh = sphere
 	flash.visible = false
 	muzzle.add_child(flash)
-
-
-func _part(pos: Vector3, size: Vector3, mat: Material) -> void:
-	var mesh := BoxMesh.new()
-	mesh.size = size
-	mesh.material = mat
-	var mi := MeshInstance3D.new()
-	mi.mesh = mesh
-	mi.position = pos
-	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	viewmodel.add_child(mi)
