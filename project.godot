@@ -26,10 +26,17 @@ ps2_vertex_snap={
 "type": "float",
 "value": 0.0
 }
+ps3_look={
+"type": "float",
+"value": 1.0
+}
 
 [rendering]
 
-anti_aliasing/quality/msaa_3d=0
-scaling_3d/scale=0.5
-lights_and_shadows/directional_shadow/size=1024
-lights_and_shadows/directional_shadow/soft_shadow_filter_quality=0
+textures/default_filters/anisotropic_filtering_level=4
+anti_aliasing/quality/msaa_3d=2
+lights_and_shadows/directional_shadow/size=4096
+lights_and_shadows/directional_shadow/soft_shadow_filter_quality=3
+lights_and_shadows/positional_shadow/soft_shadow_filter_quality=3
+environment/ssao/quality=2
+environment/volumetric_fog/volume_size=96

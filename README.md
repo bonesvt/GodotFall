@@ -19,7 +19,7 @@ Pilot movement, first combat (a weak starter pistol and grunt enemies), and the 
 | T | Respawn |
 | G | Reset the grunt arena |
 | H | Toggle help |
-| F9 | Toggle the PS2 look |
+| F9 | Switch between the PS3 look and the old PS2 look |
 
 ## The temple (hub)
 Pressing Play (`scenes/run.tscn`) opens in the hub: the small abandoned temple Eco hides
@@ -170,21 +170,33 @@ uses the hub's broadleaf trees, bushes, ferns, grass, rocks and hills. To look a
 `xvfb-run -a godot --path . -s res://tools/forest/shots.gd -- /some/dir` saves screenshots of
 each section, plus `0-map.png`, a top-down map with the three routes.
 
-## PS2-style art
-Everything is low-poly and textured in a classic PS2 style. **F9** toggles the look
-on and off in game, to compare.
+## Art: PS3 look (with the old PS2 look on F9)
+Everything is stylized in the spirit of Jak and Daxter and Shadow of the Colossus,
+rendered at roughly PS3-era quality. **F9** flips back to the original PS2 look to compare.
 
-- **Look**: 3D renders at half resolution and is upscaled (Project Settings > Rendering >
-  Scaling 3D), then `assets/shaders/ps2_screen.gdshader` reduces it to 16-bit colour with
-  ordered dithering and faint interlace lines. The HUD stays sharp. Vertices snap to a
-  coarse grid for a slight wobble (Project Settings > Shader Globals > `ps2_vertex_snap`,
-  0 turns it off). Levels get a painted sky with mountains, distance fog, flat ambient
-  light and low-res shadows.
-- **Textures** (`assets/textures/`): 64 to 128 px, 16 colours each, nearest filtered.
-  Painted by `tools/make_textures.py` (needs pillow and numpy); you can also paint over
-  the PNGs by hand.
+- **PS3 look** (default): full resolution with 4x MSAA and 16x anisotropic filtering;
+  normal-mapped textures with roughness and bare-metal masks; GGX highlights and sky
+  reflections; sky-tinted ambient light with SSAO; soft 4-split sun shadows (4096 px);
+  volumetric haze that catches the sun; ACES tone mapping, soft bloom and a gentle
+  vignette. `scripts/ps2/look.gd` holds the Environment and sun settings for both looks.
+- **PS2 look** (F9): 3D renders at half resolution, `assets/shaders/ps2_screen.gdshader`
+  reduces it to 16-bit colour with ordered dithering and faint interlace lines, textures
+  drop to a blurry 128 px mip, lighting goes back to banded two-tone, and vertices snap
+  to a coarse grid if Project Settings > Shader Globals > `ps2_vertex_snap` is above 0.
+  The `ps3_look` shader global (1 or 0) is what the surface shader reads.
+- **Textures** (`assets/textures/`): 1024 px for big level surfaces (stone, steel, grass,
+  dirt, temple, titan hull) and 512 px for props and characters, all tiling. Each comes
+  as `<name>.png` (RGB albedo, A roughness) and `<name>_n.png` (RG normal, B 255 for
+  paint/stone/cloth and 0 for bare metal). Painted from height fields by
+  `tools/make_textures.py` (needs pillow and numpy; `--half` for a quick look). The
+  titans' paint-wear mask is `tools/titans/make_wear.py` (1024 px).
 - **Materials** (`assets/materials/`) all use `assets/shaders/ps2_surface.gdshader`, which
-  box-projects the texture so models need no UVs.
+  box-projects the textures (cross-faded on curved models) so models need no UVs. Knobs:
+  `normal_strength`, `roughness` (scales the texture's), `metallic` (metal everywhere:
+  chrome, gold, gun steel), `metal_mask` (how much the texture's bare-metal mask counts),
+  `translucency` (leaves, grass, canvas glow when backlit).
+- `xvfb-run -a godot --path . -s res://tools/look_shots.gd -- /some/dir` renders the hub,
+  the forest and the arena in both looks side by side.
 - **Level boxes** keep being built by colour (`Kit.box`), and `scripts/ps2/ps2_assets.gd`
   picks the material: grey is concrete with steel-plate tops (small grey pieces become
   cover barriers and crates), blue is wallrun panels, orange is grapple-anchor hazard

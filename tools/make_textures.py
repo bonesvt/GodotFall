@@ -1,13 +1,24 @@
 #!/usr/bin/env python3
 """Paints the game's textures into assets/textures/.
 
-The style is hand-painted PS2 (think Jak and Daxter, Shadow of the Colossus):
-small textures (64 to 128 px) with soft banded brush strokes, bevelled panel
-edges with painted highlights and shadows, warm/cool colour shifts, and no
-photo noise. Every texture tiles. Grey textures are tinted in the material,
-so one stone texture serves every zone.
+The style is stylized PS3 (think Jak 3, Ratchet & Clank Future, Uncharted's
+painted ruins): the same warm, saturated palette and chunky shapes as the old
+PS2 set, but at 512 to 1024 px with real surface detail. Every texture is
+built from a height field, so each one comes as two files:
 
-    python3 tools/make_textures.py      (needs pillow and numpy)
+  <name>.png     RGB albedo, A roughness (0 glossy .. 255 matte)
+  <name>_n.png   RG tangent normal (OpenGL, green up), B dielectric mask
+                 (255 paint/stone/cloth, 0 bare metal; the material's
+                 `metal_mask` says how much it counts)
+
+Every texture tiles. Grey textures are tinted in the material, so one stone
+texture serves every zone. The shader (assets/shaders/ps2_surface.gdshader)
+reads both; with the PS2 look on (F9) it drops the normal map and samples a
+low mip so the old blurry look comes back.
+
+    python3 tools/make_textures.py            (needs pillow and numpy)
+    python3 tools/make_textures.py moss wood  (repaints only those)
+    python3 tools/make_textures.py --half     (half size, for quick looks)
 
 Re-running overwrites the PNGs. Paint over them by hand if you like; the game
 only cares about the file names.
@@ -16,76 +27,132 @@ import sys
 from pathlib import Path
 
 import numpy as np
-from PIL import Image
+from PIL import Image, ImageDraw, ImageFont
 
 OUT = Path(__file__).resolve().parent.parent / "assets" / "textures"
+BIG = 1024
+SMALL = 512
 
 
-# --- painting helpers ------------------------------------------------------
+# --- noise and filters (tileable) ------------------------------------------
 
-def noise(size, cells, octaves=3, seed=0):
-    """Tileable value noise in 0..1."""
+def noise(size, cells, octaves=3, seed=0, cells_y=None, gain=0.5):
+    """Tileable value noise in 0..1. `cells_y` stretches it (streaks, grain)."""
     r = np.random.default_rng(seed)
     total = np.zeros((size, size))
     amp, norm = 1.0, 0.0
+    cy0 = cells if cells_y is None else cells_y
     for o in range(octaves):
-        c = cells * (2 ** o)
-        grid = r.random((c, c))
-        coords = np.arange(size) * c / size
-        i0 = np.floor(coords).astype(int)
-        f = coords - i0
-        f = f * f * (3 - 2 * f)
-        i1 = (i0 + 1) % c
-        a = grid[np.ix_(i0, i0)]
-        b = grid[np.ix_(i0, i1)]
-        cc = grid[np.ix_(i1, i0)]
-        d = grid[np.ix_(i1, i1)]
-        fx = f[None, :]
-        fy = f[:, None]
-        total += amp * ((a * (1 - fx) + b * fx) * (1 - fy) + (cc * (1 - fx) + d * fx) * fy)
+        cx, cy = cells * (2 ** o), cy0 * (2 ** o)
+        grid = r.random((cy, cx))
+        ax = np.arange(size) * cx / size
+        ay = np.arange(size) * cy / size
+        ix0, iy0 = np.floor(ax).astype(int), np.floor(ay).astype(int)
+        fx, fy = ax - ix0, ay - iy0
+        fx, fy = fx * fx * (3 - 2 * fx), fy * fy * (3 - 2 * fy)
+        ix1, iy1 = (ix0 + 1) % cx, (iy0 + 1) % cy
+        a = grid[np.ix_(iy0, ix0)]
+        b = grid[np.ix_(iy0, ix1)]
+        c = grid[np.ix_(iy1, ix0)]
+        d = grid[np.ix_(iy1, ix1)]
+        fx, fy = fx[None, :], fy[:, None]
+        total += amp * ((a * (1 - fx) + b * fx) * (1 - fy) + (c * (1 - fx) + d * fx) * fy)
         norm += amp
-        amp *= 0.5
+        amp *= gain
     return total / norm
 
 
+def norm01(a):
+    return (a - a.min()) / (a.max() - a.min() + 1e-9)
+
+
 def blur(a, r=1):
-    """Tile-wrapping box blur."""
-    out = np.zeros_like(a, dtype=float)
-    n = 0
-    for dy in range(-r, r + 1):
-        for dx in range(-r, r + 1):
-            out += np.roll(np.roll(a, dy, axis=0), dx, axis=1)
-            n += 1
-    return out / n
+    """Tile-wrapping blur. Small radii are a box blur (as the old painter had),
+    bigger ones a gaussian of about that radius done in frequency space."""
+    if r <= 0:
+        return a.astype(float)
+    if r <= 2:
+        out = np.zeros_like(a, dtype=float)
+        n = 0
+        for dy in range(-r, r + 1):
+            for dx in range(-r, r + 1):
+                out += np.roll(np.roll(a, dy, axis=0), dx, axis=1)
+                n += 1
+        return out / n
+    return gauss(a, r * 0.6)
 
 
-def strokes(size, cells, levels, seed, soften=1):
-    """Soft banded 'brush strokes': noise posterized into a few values, then softened."""
-    n = noise(size, cells, 2, seed)
-    n = (n - n.min()) / (n.max() - n.min() + 1e-6)
-    q = np.floor(n * levels) / max(levels - 1, 1)
-    return blur(q, soften) if soften else q
+def gauss(a, sigma):
+    if a.ndim == 3:
+        return np.stack([gauss(a[..., c], sigma) for c in range(a.shape[2])], axis=-1)
+    h, w = a.shape
+    fy = np.fft.fftfreq(h)[:, None]
+    fx = np.fft.rfftfreq(w)[None, :]
+    k = np.exp(-2 * (np.pi * sigma) ** 2 * (fx * fx + fy * fy))
+    return np.fft.irfft2(np.fft.rfft2(a) * k, s=a.shape)
+
+
+def worley(size, cells, seed, jitter=0.9):
+    """Tileable cellular noise: distance to nearest and second-nearest point
+    (in cell units) and the id of the nearest cell."""
+    r = np.random.default_rng(seed)
+    pts = 0.5 + (r.random((cells, cells, 2)) - 0.5) * jitter
+    y, x = np.mgrid[0:size, 0:size] * (cells / size)
+    ix, iy = np.floor(x).astype(int), np.floor(y).astype(int)
+    d1 = np.full((size, size), 9.0)
+    d2 = np.full((size, size), 9.0)
+    ids = np.zeros((size, size), int)
+    for dy in (-1, 0, 1):
+        for dx in (-1, 0, 1):
+            cx, cy = (ix + dx) % cells, (iy + dy) % cells
+            px = ix + dx + pts[cy, cx, 0]
+            py = iy + dy + pts[cy, cx, 1]
+            d = np.hypot(x - px, y - py)
+            closer = d < d1
+            d2 = np.where(closer, d1, np.minimum(d2, d))
+            ids = np.where(closer, cy * cells + cx, ids)
+            d1 = np.where(closer, d, d1)
+    return d1, d2, ids
+
+
+def warp(a, amount, seed, cells=4):
+    """Domain-warps a map by tileable noise (in pixels)."""
+    s = a.shape[0]
+    wx = (noise(s, cells, 3, seed) - 0.5) * 2 * amount
+    wy = (noise(s, cells, 3, seed + 1) - 0.5) * 2 * amount
+    y, x = np.mgrid[0:s, 0:s]
+    return a[(y + wy).astype(int) % s, (x + wx).astype(int) % s]
+
+
+def smooth(e0, e1, x):
+    t = np.clip((x - e0) / (e1 - e0), 0, 1)
+    return t * t * (3 - 2 * t)
 
 
 def mix(t, c1, c2):
-    t = t[..., None]
+    t = np.asarray(t, float)[..., None]
     return np.array(c1, float) * (1 - t) + np.array(c2, float) * t
 
 
-def panels(img, rects, hi=1.28, lo=0.62, edge=2, grad=0.12):
-    """Bevel each rect (x0, y0, x1, y1): lit top/left edge, shaded bottom/right edge,
-    and a soft top-to-bottom gradient inside, like a painted plate."""
-    s = img.shape[0]
+def strokes(size, cells, levels, seed, soften=1):
+    """Soft banded 'brush strokes': noise posterized into a few values, then
+    softened. Keeps the painted feel under the new detail."""
+    n = norm01(noise(size, cells, 2, seed))
+    q = np.floor(n * levels) / max(levels - 1, 1)
+    return gauss(q, soften * size / 128.0) if soften else q
+
+
+def coords(s):
     y, x = np.mgrid[0:s, 0:s]
-    for x0, y0, x1, y1 in rects:
-        inside = (x >= x0) & (x < x1) & (y >= y0) & (y < y1)
-        t = (y - y0) / max(y1 - y0 - 1, 1)
-        img[inside] *= (1.0 + grad - 2 * grad * t[inside])[..., None]
-        top = inside & ((y < y0 + edge) | (x < x0 + edge))
-        bottom = inside & ((y >= y1 - edge) | (x >= x1 - edge))
-        img[top] *= hi
-        img[bottom & ~top] *= lo
-    return img
+    return x, y
+
+
+# --- shapes ------------------------------------------------------------------
+
+def rects_px(s, rects, base=128):
+    """Scales a layout drawn on a `base` px tile to `s` px."""
+    k = s / base
+    return [tuple(int(round(v * k)) for v in r) for r in rects]
 
 
 def grid_rects(size, cols, rows, gap=0):
@@ -94,233 +161,510 @@ def grid_rects(size, cols, rows, gap=0):
             for r in range(rows) for c in range(cols)]
 
 
-def dots(img, points, color, r=1):
-    s = img.shape[0]
-    y, x = np.mgrid[0:s, 0:s]
-    for px, py in points:
-        m = (np.abs(x - px) <= r) & (np.abs(y - py) <= r)
-        img[m] = color
-        img[(x == px - r) & (y == py - r)] = np.array(color) * 1.4
-    return img
+def plates(s, rects, bevel, seed=0, chip=0.0, round_=True):
+    """Height of raised plates: 1 on the face, rolling off over `bevel` px to 0
+    in the seams. `chip` (px) roughens the bevel so edges look knocked about.
+    Returns (height, id map, edge distance in px)."""
+    x, y = coords(s)
+    h = np.zeros((s, s))
+    ids = np.full((s, s), -1)
+    dist = np.zeros((s, s))
+    rough = (noise(s, 24, 3, seed + 900) - 0.5) * 2 * chip if chip else 0.0
+    for i, (x0, y0, x1, y1) in enumerate(rects):
+        inside = (x >= x0) & (x < x1) & (y >= y0) & (y < y1)
+        d = np.minimum(np.minimum(x - x0, x1 - 1 - x), np.minimum(y - y0, y1 - 1 - y)).astype(float)
+        d = d + rough
+        t = np.clip(d / bevel, 0, 1)
+        prof = 1 - (1 - t) ** 2 if round_ else t
+        h = np.where(inside, prof, h)
+        ids = np.where(inside, i, ids)
+        dist = np.where(inside, d, dist)
+    return h, ids, dist
 
 
-def scratches(img, seed, count, color, length=6):
+def per_id(ids, seed, lo=-1.0, hi=1.0):
+    """A random value per plate id (for tone variation between plates)."""
     r = np.random.default_rng(seed)
-    s = img.shape[0]
+    vals = r.uniform(lo, hi, ids.max() + 2)
+    return vals[ids + 1]
+
+
+def lines_mask(s, segs, width):
+    """Anti-aliased lines (tile-wrapped). segs: list of point lists in px."""
+    im = Image.new("L", (s * 3, s * 3), 0)
+    dr = ImageDraw.Draw(im)
+    for pts in segs:
+        for ox in (0, s, 2 * s):
+            for oy in (0, s, 2 * s):
+                dr.line([(px + ox, py + oy) for px, py in pts], fill=255, width=max(1, int(width)), joint="curve")
+    a = np.asarray(im, float) / 255.0
+    a = a.reshape(3, s, 3, s).max(axis=(0, 2))
+    return gauss(a, max(width * 0.25, 0.6))
+
+
+def walks(s, count, length, step, seed, wander=0.6, down=True):
+    """Random-walk polylines (cracks, scratches)."""
+    r = np.random.default_rng(seed)
+    out = []
     for _ in range(count):
-        x, y = r.integers(0, s, 2)
-        dx, dy = r.choice([-1, 1]), r.choice([-1, 0, 1])
-        for i in range(length):
-            img[(y + dy * i // 2) % s, (x + dx * i) % s] = color
-    return img
+        px, py = r.uniform(0, s, 2)
+        ang = r.uniform(0, np.pi * 2) if not down else np.pi / 2 + r.uniform(-0.6, 0.6)
+        pts = [(px, py)]
+        for _ in range(length):
+            ang += r.uniform(-wander, wander)
+            px += np.cos(ang) * step
+            py += np.sin(ang) * step
+            pts.append((px, py))
+        out.append(pts)
+    return out
 
 
-def save(name, img):
-    img = np.clip(img, 0, 255).astype(np.uint8)
-    Image.fromarray(img, "RGB").save(OUT / f"{name}.png")
-    print("wrote", name)
+def scratch_segs(s, count, seed, length=0.08):
+    r = np.random.default_rng(seed)
+    out = []
+    for _ in range(count):
+        x, y = r.uniform(0, s, 2)
+        a = r.uniform(0, np.pi)
+        l = s * length * r.uniform(0.4, 1.0)
+        out.append([(x, y), (x + np.cos(a) * l, y + np.sin(a) * l)])
+    return out
+
+
+def dome(s, points, radius):
+    """Round bumps (rivets, bolts, pebbles) at px points, tile-wrapped."""
+    x, y = coords(s)
+    h = np.zeros((s, s))
+    for px, py in points:
+        dx = (x - px + s / 2) % s - s / 2
+        dy = (y - py + s / 2) % s - s / 2
+        d = np.sqrt(dx * dx + dy * dy) / radius
+        h = np.maximum(h, np.sqrt(np.clip(1 - d * d, 0, 1)))
+    return h
+
+
+def text_mask(s, text, cx, cy, size, font_px=None, stencil=True):
+    """Stencilled lettering, centred at px (cx, cy)."""
+    font = ImageFont.load_default(size=font_px or size)
+    im = Image.new("L", (s, s), 0)
+    dr = ImageDraw.Draw(im)
+    dr.text((cx, cy), text, fill=255, font=font, anchor="mm")
+    a = np.asarray(im, float) / 255.0
+    if stencil:
+        # stencil bridges: thin horizontal gaps through the letters
+        _, y = coords(s)
+        a *= ~((np.abs(y - cy) < size * 0.04))
+    return a
+
+
+def cavity(h, r):
+    """How far a point sits below its neighbourhood (grooves, seams, pits)."""
+    return np.clip(gauss(h, r) - h, 0, None)
+
+
+def convex(h, r):
+    """How far a point stands above its neighbourhood (edges, bumps)."""
+    return np.clip(h - gauss(h, r), 0, None)
+
+
+def grime(s, seed, amount=0.25, cells=3):
+    """Low, soft dirt blotches (multiply)."""
+    g = norm01(noise(s, cells, 4, seed))
+    return 1.0 - amount * smooth(0.45, 0.9, g)
+
+
+def rain_streaks(s, seed, amount=0.15):
+    """Vertical dirt runs down a wall face (multiply)."""
+    st = norm01(noise(s, 24, 3, seed, cells_y=2))
+    return 1.0 - amount * smooth(0.55, 0.95, st)
+
+
+def grain(s, seed, amount=6.0, cells=128):
+    """Fine colour grain so close-ups never look flat."""
+    return (noise(s, cells, 2, seed) - 0.5)[..., None] * 2 * amount
+
+
+# --- output --------------------------------------------------------------------
+
+def save(name, img, height=None, rough=None, depth=4.0, metal=None, ao=0.6, ao_radius=None):
+    """Writes <name>.png (RGB albedo + A roughness) and <name>_n.png (normal +
+    dielectric mask). `depth` is how many pixels tall a height of 1 is: bigger
+    is bumpier. Seams and pits are darkened by `ao`."""
+    s = img.shape[0]
+    img = np.asarray(img, float)
+    if height is not None:
+        h = height * depth
+        if ao > 0:
+            r = ao_radius or max(s / 128.0, 2.0)
+            occ = np.clip(cavity(h, r) / max(depth * 0.35, 1e-3), 0, 1)
+            img = img * (1 - ao * occ)[..., None]
+        gx = (np.roll(h, -1, 1) - np.roll(h, 1, 1)) * 0.5
+        gy = (np.roll(h, -1, 0) - np.roll(h, 1, 0)) * 0.5
+        n = np.stack([-gx, gy, np.ones_like(h)], axis=-1)
+        n /= np.linalg.norm(n, axis=-1, keepdims=True)
+    else:
+        n = np.zeros((s, s, 3))
+        n[..., 2] = 1
+    rough = np.full((s, s), 0.8) if rough is None else np.broadcast_to(rough, (s, s))
+    metal = np.zeros((s, s)) if metal is None else np.broadcast_to(metal, (s, s))
+    rgba = np.concatenate([np.clip(img, 0, 255), np.clip(rough, 0, 1)[..., None] * 255], axis=-1)
+    Image.fromarray(rgba.astype(np.uint8), "RGBA").save(OUT / f"{name}.png", optimize=True)
+    nm = np.stack([n[..., 0] * 0.5 + 0.5, n[..., 1] * 0.5 + 0.5, 1 - np.clip(metal, 0, 1)], axis=-1)
+    Image.fromarray((nm * 255 + 0.5).astype(np.uint8), "RGB").save(OUT / f"{name}_n.png", optimize=True)
+    print("wrote", name, s)
 
 
 # --- level surfaces --------------------------------------------------------
 
 def concrete():
-    """Platform sides: big weathered stone blocks, warm light grey (tinted per zone)."""
-    s = 128
+    """Platform sides and rocks: big weathered stone blocks, warm light grey
+    (tinted per zone), chipped edges, pitting, cracks and rain streaks."""
+    s = BIG
+    rects = rects_px(s, [(0, 0, 80, 48), (80, 0, 128, 48), (0, 48, 48, 96), (48, 48, 128, 96), (0, 96, 96, 128), (96, 96, 128, 128)])
+    h, ids, _ = plates(s, rects, s * 0.03, seed=1, chip=s * 0.012)
+    tone = per_id(ids, 2, -0.06, 0.06)
     st = strokes(s, 4, 4, 1, 2)
-    img = mix(st, (150, 146, 138), (196, 192, 182))
+    img = mix(st, (150, 146, 138), (192, 188, 178))
     cool = strokes(s, 3, 3, 2, 3)
-    img = img * (1 - 0.12 * cool[..., None]) + np.array([-6, 0, 10]) * cool[..., None]
-    rows = [(0, 0, 80, 48), (80, 0, 128, 48), (0, 48, 48, 96), (48, 48, 128, 96), (0, 96, 96, 128), (96, 96, 128, 128)]
-    img = panels(img, rows, hi=1.22, lo=0.6, edge=3, grad=0.08)
-    # a few painted cracks
-    r = np.random.default_rng(3)
-    for _ in range(4):
-        x, y = r.integers(0, s, 2)
-        for i in range(14):
-            x = (x + r.integers(-1, 2)) % s
-            y = (y + 1) % s
-            img[y, x] *= 0.55
-    save("concrete", img)
+    img = img * (1 - 0.1 * cool[..., None]) + np.array([-6, 0, 10]) * cool[..., None]
+    img *= (1 + tone)[..., None]
+    # surface: soft lumps, pits and fine grit
+    lumps = noise(s, 8, 5, 4)
+    d1, _, _ = worley(s, 24, 5)
+    pits = smooth(0.1, 0.0, d1) * smooth(0.6, 0.7, noise(s, 6, 2, 6))
+    hh = h + (lumps - 0.5) * 0.25 - pits * 0.25 + (noise(s, 128, 2, 7) - 0.5) * 0.06
+    crack = lines_mask(s, walks(s, 7, 40, s / 160, 3), s / 340)
+    hh -= crack * 0.6
+    img *= (1 - 0.3 * crack)[..., None]
+    img *= rain_streaks(s, 8, 0.12)[..., None] * grime(s, 9, 0.18)[..., None]
+    img *= (1 + 0.12 * np.clip(convex(hh, s / 200) * 6, 0, 1))[..., None]  # dusty lit edges
+    img += grain(s, 10, 5)
+    rough = 0.85 + 0.1 * pits - 0.08 * convex(hh, s / 200)
+    save("concrete", img, hh, rough, depth=s / 90)
 
 
 def metal_floor():
-    """Platform tops: big painted steel plates with bevels and bright rivets."""
-    s = 128
+    """Platform tops: big painted steel plates, raised diamond tread on every
+    other plate, domed rivets, scuffed bare steel where boots wear it down."""
+    s = BIG
+    rects = grid_rects(s, 2, 2)
+    h, ids, dist = plates(s, rects, s * 0.02, seed=11, chip=s * 0.004)
+    tone = per_id(ids, 12, -0.05, 0.05)
     st = strokes(s, 4, 4, 11, 2)
-    img = mix(st, (150, 156, 160), (192, 196, 198))
-    img = panels(img, grid_rects(s, 2, 2), hi=1.25, lo=0.55, edge=3, grad=0.1)
-    pts = [(x, y) for x in (8, 56, 72, 120) for y in (8, 56, 72, 120)]
-    img = dots(img, pts, (215, 218, 220), 1)
-    # diagonal tread lines on alternating plates
-    y, x = np.mgrid[0:s, 0:s]
-    tread = ((x + y) % 12 == 0) & (((x // 64) + (y // 64)) % 2 == 0) & (x % 64 > 6) & (x % 64 < 58) & (y % 64 > 6) & (y % 64 < 58)
-    img[tread] *= 1.12
-    scratches(img, 12, 10, (205, 205, 200), 7)
-    save("metal_floor", img)
+    img = mix(st, (146, 152, 156), (184, 188, 190))
+    img *= (1 + tone)[..., None]
+    x, y = coords(s)
+    half = s // 2
+    alt = (((x // half) + (y // half)) % 2 == 0) & (dist > s * 0.04)
+    # diamond plate: two crossing sets of short raised lozenges
+    p = s / 32
+    u, v = (x % p) / p - 0.5, (y % p) / p - 0.5
+    lz1 = np.clip(1 - (np.abs(u + v) * 4.5 + np.abs(u - v) * 1.4), 0, 1)
+    u2, v2 = ((x + p / 2) % p) / p - 0.5, ((y + p / 2) % p) / p - 0.5
+    lz2 = np.clip(1 - (np.abs(u2 - v2) * 4.5 + np.abs(u2 + v2) * 1.4), 0, 1)
+    tread = np.where(alt, np.maximum(lz1, lz2) ** 0.6, 0)
+    hh = h + tread * 0.18
+    off = s * 0.035
+    pts = [(cx, cy) for cx in (off, half - off, half + off, s - off) for cy in (off, half - off, half + off, s - off)]
+    pts += [(cx, cy) for cy in (off, half - off, half + off, s - off) for cx in np.linspace(off, s - off, 9)[1:-1:2]]
+    riv = dome(s, pts, s * 0.009)
+    hh = np.maximum(hh, h + riv * 0.35)
+    # wear: bare steel on raised tread, rivets and the most-walked middle
+    walk = smooth(0.4, 0.75, noise(s, 3, 3, 13))
+    wear = np.clip(tread * 1.2 * walk + riv * 0.8 + convex(hh, s / 300) * 8, 0, 1)
+    wear = np.clip(wear * (noise(s, 64, 2, 14) * 1.6), 0, 1)
+    bare = mix(noise(s, 96, 2, 15), (170, 172, 176), (210, 212, 214))
+    img = img * (1 - wear[..., None]) + bare * wear[..., None]
+    sc = lines_mask(s, scratch_segs(s, 90, 16, 0.05), s / 700)
+    img = img * (1 - 0.35 * sc[..., None]) + np.array([215, 215, 212]) * 0.35 * sc[..., None]
+    img *= grime(s, 17, 0.2)[..., None]
+    seam = np.clip(1 - h, 0, 1)
+    img *= (1 - 0.3 * seam)[..., None]
+    img += grain(s, 18, 4)
+    rough = 0.55 - 0.25 * wear - 0.15 * sc + 0.2 * seam
+    save("metal_floor", img, hh, rough, depth=s / 110, metal=np.clip(wear + sc, 0, 1))
 
 
 def wall_panel():
-    """Wallrun walls: rich blue plates with a bold white chevron guide stripe."""
-    s = 128
+    """Wallrun walls: rich blue enamel plates with a bold white chevron guide
+    stripe, bolted seams, and paint flaked back to steel at the edges."""
+    s = BIG
+    rects = grid_rects(s, 2, 2)
+    h, ids, dist = plates(s, rects, s * 0.025, seed=21, chip=s * 0.006)
+    tone = per_id(ids, 22, -0.05, 0.05)
     st = strokes(s, 4, 4, 21, 2)
-    img = mix(st, (40, 92, 190), (70, 130, 225))
-    img = panels(img, grid_rects(s, 2, 2), hi=1.3, lo=0.6, edge=3)
-    y, x = np.mgrid[0:s, 0:s]
-    stripe = (y >= 52) & (y < 76)
-    img[stripe] = mix(st[stripe], (225, 230, 236), (250, 250, 250))
-    img[(y == 52) | (y == 53)] = (255, 255, 255)
-    img[(y == 74) | (y == 75)] = (150, 160, 180)
-    chevron = stripe & (((x + 1.3 * np.abs(y - 63.5)).astype(int) % 32) < 10)
-    img[chevron] = (30, 70, 160)
-    img[chevron & (((x + 1.3 * np.abs(y - 63.5)).astype(int) % 32) == 0)] = (90, 140, 220)
-    scratches(img, 22, 8, (150, 185, 235), 5)
-    save("wall_panel", img)
+    img = mix(st, (36, 88, 186), (62, 124, 220)) * (1 + tone)[..., None]
+    x, y = coords(s)
+    k = s / 128
+    stripe = (y >= 52 * k) & (y < 76 * k)
+    img = np.where(stripe[..., None], mix(st, (222, 228, 236), (246, 248, 250)), img)
+    phase = ((x + 1.3 * np.abs(y - 63.5 * k)) % (32 * k))
+    chevron = stripe & (phase < 10 * k)
+    img = np.where(chevron[..., None], np.array([28, 66, 156], float), img)
+    # the stripe is a raised decal strip with a lip
+    strip_h = smooth(52 * k, 53.5 * k, y) * smooth(76 * k, 74.5 * k, y) * 0.12
+    hh = h + strip_h
+    bolts = [(cx, cy) for cx in np.arange(s / 16, s, s / 8) for cy in (s * 0.03, s * 0.47, s * 0.53, s * 0.97)]
+    b = dome(s, bolts, s * 0.008)
+    hh = np.maximum(hh, h + b * 0.3)
+    # chipped paint
+    chip_mask = smooth(0.74, 0.77, noise(s, 24, 4, 23) + np.clip(1 - dist / (s * 0.03), 0, 1) ** 2 * 0.3)
+    chip_mask = np.clip(chip_mask + b * 0.8, 0, 1)
+    steel = mix(noise(s, 96, 2, 24), (150, 156, 164), (196, 200, 206))
+    img = img * (1 - chip_mask[..., None]) + steel * chip_mask[..., None]
+    hh -= chip_mask * 0.05
+    img *= rain_streaks(s, 25, 0.14)[..., None] * grime(s, 26, 0.12)[..., None]
+    img *= (1 - 0.35 * np.clip(1 - h, 0, 1))[..., None]
+    img += grain(s, 27, 4)
+    rough = 0.38 + 0.15 * noise(s, 8, 3, 28) + 0.2 * chip_mask
+    save("wall_panel", img, hh, rough, depth=s / 120, metal=chip_mask)
 
 
 def hazard():
-    """Grapple anchors: saturated yellow-orange and charcoal stripes in a bevelled frame."""
-    s = 64
-    y, x = np.mgrid[0:s, 0:s]
+    """Grapple anchors: saturated yellow-orange and charcoal stripes on a heavy
+    steel plate, paint worn through on the edges."""
+    s = SMALL
+    x, y = coords(s)
     st = strokes(s, 3, 3, 31, 1)
-    stripe = ((x + y) % 32) < 16
-    img = np.where(stripe[..., None], mix(st, (240, 150, 30), (255, 196, 60)), mix(st, (36, 34, 40), (60, 58, 66)))
-    img = panels(img, [(0, 0, 64, 64)], hi=1.3, lo=0.55, edge=4, grad=0.15)
-    save("hazard", img)
+    stripe = ((x + y) % (s / 2)) < (s / 4)
+    img = np.where(stripe[..., None], mix(st, (238, 148, 28), (255, 192, 56)), mix(st, (34, 32, 38), (58, 56, 64)))
+    h, _, dist = plates(s, [(0, 0, s, s)], s * 0.07, seed=31, chip=s * 0.01)
+    edge_wear = smooth(0.72, 0.76, noise(s, 16, 4, 32) + np.clip(1 - dist / (s * 0.09), 0, 1) ** 2 * 0.35)
+    steel = mix(noise(s, 64, 2, 33), (140, 142, 148), (190, 192, 196))
+    img = img * (1 - edge_wear[..., None]) + steel * edge_wear[..., None]
+    hh = h + (noise(s, 16, 4, 34) - 0.5) * 0.06 - edge_wear * 0.04
+    img *= grime(s, 35, 0.2)[..., None]
+    img += grain(s, 36, 5, 64)
+    rough = 0.5 + 0.15 * noise(s, 8, 2, 37) - 0.15 * edge_wear
+    save("hazard", img, hh, rough, depth=s / 60, metal=edge_wear)
 
 
 def crate():
-    """Cover: chunky olive military crate, bevelled planks and a painted stencil."""
-    s = 64
+    """Cover: chunky olive militia crate, painted planks with grain showing
+    through, steel corner brackets and a stencilled marking."""
+    s = SMALL
+    k = s / 64
+    planks = [(int(x0 * k), int(6 * k), int((x0 + 13) * k), int(58 * k)) for x0 in (6, 19, 32, 45)]
+    frame, _, _ = plates(s, [(0, 0, s, s)], 6 * k, seed=41)
+    ph, ids, _ = plates(s, planks, 1.5 * k, seed=42, chip=k * 0.6)
+    x, y = coords(s)
+    inner = (x >= 6 * k) & (x < 58 * k) & (y >= 6 * k) & (y < 58 * k)
+    # the frame is proud of the planks
+    hh = np.where(inner, 0.55 * ph, 0.55 + 0.45 * frame)
+    gr = warp(np.sin(x / s * 2 * np.pi * 3 + noise(s, 4, 3, 43) * 8) * 0.5 + 0.5, 6 * k, 44)
+    grain_v = warp(norm01(noise(s, 4, 4, 45, cells_y=1)), 3 * k, 46)
+    wood_grain = np.clip(0.6 * grain_v + 0.4 * gr, 0, 1)
     st = strokes(s, 3, 4, 41, 1)
-    img = mix(st, (96, 112, 58), (128, 142, 76))
-    planks = [(x0, 6, x0 + 13, 58) for x0 in (6, 19, 32, 45)]
-    img = panels(img, planks, hi=1.15, lo=0.75, edge=1, grad=0.1)
-    img = panels(img, [(0, 0, 64, 64)], hi=1.3, lo=0.55, edge=6, grad=0.0)
-    y, x = np.mgrid[0:s, 0:s]
-    sten = (y >= 36) & (y < 46) & (x >= 22) & (x < 42) & ~(((x - 22) % 7 == 6) | (y == 40))
-    img[sten] = (232, 220, 160)
-    img = dots(img, [(3, 3), (60, 3), (3, 60), (60, 60)], (200, 205, 170), 1)
-    save("crate", img)
+    img = mix(st, (92, 108, 56), (124, 138, 72))
+    img *= (1 - 0.18 * wood_grain + per_id(ids, 47, -0.05, 0.05) * inner)[..., None]
+    hh += wood_grain * 0.04 * inner
+    sten = text_mask(s, "MIL-07", 32 * k, 41 * k, 9 * k)
+    img = img * (1 - 0.85 * sten[..., None]) + np.array([228, 216, 156]) * 0.85 * sten[..., None]
+    # steel corner brackets with bolts
+    c = 12 * k
+    corner = ((x < c) | (x >= s - c)) & ((y < c) | (y >= s - c))
+    bolts = dome(s, [(4 * k, 4 * k), (s - 4 * k, 4 * k), (4 * k, s - 4 * k), (s - 4 * k, s - 4 * k)], 1.8 * k)
+    hh = np.where(corner, 1.05, hh) + bolts * 0.15
+    steel = mix(noise(s, 48, 2, 48), (84, 86, 82), (128, 130, 124))
+    img = np.where(corner[..., None], steel, img)
+    wear = smooth(0.62, 0.7, noise(s, 20, 4, 49) + convex(hh, 2 * k) * 6)
+    img = img * (1 - 0.5 * wear[..., None]) + np.array([150, 140, 110]) * 0.5 * wear[..., None]
+    img *= grime(s, 50, 0.22)[..., None]
+    img += grain(s, 51, 5, 64)
+    metal = np.clip(corner * 1.0, 0, 1)
+    rough = np.where(corner, 0.45, 0.75 + 0.1 * wood_grain)
+    save("crate", img, hh, rough, depth=s / 45, metal=metal)
 
 
 def barrier():
-    """Low cover walls: smooth painted stone with a hazard band along the top edge."""
-    s = 64
+    """Low cover walls: smooth cast concrete with a hazard band along the top,
+    form-work lines, grime gathering at the foot."""
+    s = SMALL
+    x, y = coords(s)
     st = strokes(s, 3, 4, 141, 1)
-    img = mix(st, (170, 166, 156), (204, 200, 188))
-    y, x = np.mgrid[0:s, 0:s]
+    img = mix(st, (168, 164, 154), (202, 198, 186))
     t = y / (s - 1)
-    img *= (1.08 - 0.25 * t)[..., None]  # painted grime gathering at the foot
-    band = y < 12
-    stripe = ((x + y) % 16) < 8
-    img[band & stripe] = (250, 196, 40)
-    img[band & ~stripe] = (40, 38, 44)
-    img[y == 0] *= 1.4
-    img[(y == 12) | (y == 13)] *= 0.55
-    save("barrier", img)
+    img *= (1.06 - 0.25 * t)[..., None]
+    band = y < s * 0.19
+    stripe = ((x + y) % (s / 4)) < (s / 8)
+    img = np.where((band & stripe)[..., None], np.array([248, 192, 36], float), img)
+    img = np.where((band & ~stripe)[..., None], np.array([40, 38, 44], float), img)
+    paint_wear = band & (noise(s, 24, 4, 142) > 0.62)
+    img = np.where(paint_wear[..., None], mix(st, (150, 146, 138), (180, 176, 166)), img)
+    # form-work tie holes and a seam
+    holes = dome(s, [(s * 0.25, s * 0.6), (s * 0.75, s * 0.6)], s * 0.025)
+    seam = lines_mask(s, [[(0, s * 0.62), (s, s * 0.62)]], s / 200)
+    lump = noise(s, 8, 5, 143)
+    hh = (lump - 0.5) * 0.3 - holes * 0.8 - seam * 0.5 - paint_wear * 0.04
+    hh += smooth(s * 0.19, s * 0.18, y) * 0.06  # band is painted on a cap
+    pits = smooth(0.2, 0.0, worley(s, 30, 144)[0]) * 0.4
+    hh -= pits
+    img *= rain_streaks(s, 145, 0.12)[..., None]
+    img += grain(s, 146, 5, 64)
+    rough = np.where(band & ~paint_wear, 0.55, 0.88)
+    save("barrier", img, hh, rough, depth=s / 60)
 
 
 def lava():
-    s = 64
-    a = strokes(s, 3, 5, 51, 2)
-    b = strokes(s, 6, 3, 52, 1)
-    t = np.clip(a * 0.8 + b * 0.4 - 0.2, 0, 1)
-    img = mix(t, (150, 20, 10), (255, 190, 60))
-    save("lava", img)
+    """Molten rock: cooling black crust plates floating on glowing orange melt."""
+    s = SMALL
+    d1, d2, ids = worley(s, 7, 51)
+    edge = d2 - d1
+    heat = smooth(0.18, 0.0, edge)
+    flow = norm01(noise(s, 4, 4, 52))
+    heat = np.clip(heat + smooth(0.6, 0.95, flow) * 0.6, 0, 1)
+    crust = mix(noise(s, 32, 3, 53), (46, 20, 14), (86, 36, 22))
+    melt = mix(norm01(noise(s, 6, 3, 54)), (220, 60, 12), (255, 200, 70))
+    img = crust * (1 - heat[..., None]) + melt * heat[..., None]
+    hh = smooth(0.0, 0.2, edge) * 0.6 + (noise(s, 32, 3, 55) - 0.5) * 0.2
+    save("lava", img, hh, 0.9 - 0.5 * heat, depth=s / 50, ao=0.0)
 
 
 # --- character and prop surfaces --------------------------------------------
 
 def gunmetal():
-    """Guns and props: blue-black steel with bright painted edge highlights."""
-    s = 64
+    """Guns and props: blue-black steel, finely brushed, bevelled panel lines,
+    slide serrations, bright worn edges."""
+    s = SMALL
+    rects = grid_rects(s, 1, 2)
+    h, _, dist = plates(s, rects, s * 0.025, seed=61)
     st = strokes(s, 3, 3, 61, 1)
-    img = mix(st, (52, 58, 72), (78, 86, 104))
-    img = panels(img, grid_rects(s, 1, 2), hi=1.6, lo=0.6, edge=2, grad=0.2)
-    y, x = np.mgrid[0:s, 0:s]
-    img[(x % 8 < 2) & (y > 4) & (y < 14)] *= 0.6  # slide serrations
-    save("gunmetal", img)
+    img = mix(st, (56, 62, 76), (70, 78, 94))
+    x, y = coords(s)
+    brushed = norm01(noise(s, 256, 2, 62, cells_y=4))
+    img *= (0.92 + 0.16 * brushed)[..., None]
+    serr = (x % (s / 32) < s / 64) & (y > s * 0.06) & (y < s * 0.22)
+    hh = h - serr * 0.25 + (brushed - 0.5) * 0.02
+    edge = np.clip(1 - dist / (s * 0.03), 0, 1) * (dist > 0)
+    wear = np.clip(edge * smooth(0.4, 0.6, noise(s, 32, 3, 63)) + convex(hh, 2) * 4, 0, 1)
+    img = img * (1 - 0.6 * wear[..., None]) + np.array([150, 160, 176]) * 0.6 * wear[..., None]
+    sc = lines_mask(s, scratch_segs(s, 40, 64, 0.06), 1)
+    img = img + sc[..., None] * 40
+    img += grain(s, 65, 3, 64)
+    rough = 0.42 - 0.12 * wear - 0.06 * brushed + 0.2 * serr
+    save("gunmetal", img, hh, rough, depth=s / 120, metal=wear)
 
 
 def glove():
-    """Gloves and boots: warm brown leather with a painted sheen."""
-    s = 64
+    """Gloves, boots, brass and dark straps: warm brown leather with a pebbled
+    grain, creases and raised stitching."""
+    s = SMALL
     st = strokes(s, 3, 4, 71, 2)
     img = mix(st, (70, 50, 36), (112, 82, 58))
-    y, x = np.mgrid[0:s, 0:s]
-    img *= (1.15 - 0.3 * (y / s))[..., None]
-    img[(y % 32 == 16) & (x % 4 < 2)] = (170, 140, 100)  # stitching
-    save("glove", img)
+    x, y = coords(s)
+    img *= (1.12 - 0.24 * (y / s))[..., None]
+    d1, _, _ = worley(s, 90, 72)
+    pebble = 1 - smooth(0.0, 0.55, d1)
+    crease = lines_mask(s, walks(s, 14, 12, s / 60, 73, 0.3, down=False), s / 300)
+    stitch_row = (np.abs(y % (s / 2) - s / 4) < s / 120) & (x % (s / 16) < s / 26)
+    stitch = gauss(stitch_row.astype(float), 1)
+    hh = pebble * 0.25 - crease * 0.6 + stitch * 0.6 + (noise(s, 6, 3, 74) - 0.5) * 0.3
+    img = img * (1 - 0.2 * crease[..., None])
+    img = img * (1 - stitch[..., None]) + np.array([176, 146, 104]) * stitch[..., None]
+    img *= (1 + 0.12 * convex(hh, 3)[..., None] * 4)
+    img += grain(s, 75, 4, 96)
+    rough = 0.55 + 0.15 * (1 - pebble) - 0.15 * convex(hh, 3) * 4
+    save("glove", img, hh, rough, depth=s / 120)
 
 
 def fabric():
-    """Grunt fatigues: soft, chunky olive camo blobs, like painted cloth."""
-    s = 64
-    a = blur(noise(s, 3, 2, 81), 1)
-    b = blur(noise(s, 4, 2, 82), 1)
-    img = np.ones((s, s, 3)) * np.array([104, 112, 70], float)
-    img[a > 0.56] = (78, 88, 52)
-    img[(b > 0.6) & (a <= 0.56)] = (134, 128, 88)
-    img[a < 0.32] = (60, 64, 44)
-    img = np.stack([blur(img[..., c], 1) for c in range(3)], axis=-1)
-    y, x = np.mgrid[0:s, 0:s]
-    img *= (1.0 + 0.04 * ((x + y) % 2))[..., None]
-    save("fabric", img)
+    """Fatigues, tape, grips and suits: soft olive camo blobs on a twill weave."""
+    s = SMALL
+    a = gauss(noise(s, 3, 3, 81), s / 128)
+    b = gauss(noise(s, 4, 3, 82), s / 128)
+    a, b = warp(a, s / 40, 83), warp(b, s / 40, 84)
+    img = np.ones((s, s, 3)) * np.array([102, 110, 68], float)
+    img = np.where((a > 0.56)[..., None], np.array([76, 86, 50], float), img)
+    img = np.where(((b > 0.6) & (a <= 0.56))[..., None], np.array([132, 126, 86], float), img)
+    img = np.where((a < 0.32)[..., None], np.array([58, 62, 42], float), img)
+    img = gauss(img, s / 256)
+    x, y = coords(s)
+    p = s / 96
+    twill = np.sin((x + y) / p * np.pi) * 0.5 + 0.5
+    weft = np.sin(y / (p * 0.5) * np.pi) * 0.5 + 0.5
+    weave = twill * 0.7 + weft * 0.3
+    fuzz = noise(s, 128, 2, 85)
+    hh = weave * 0.5 + fuzz * 0.2 + (noise(s, 4, 3, 86) - 0.5) * 0.6
+    img *= (0.92 + 0.12 * weave)[..., None]
+    img += grain(s, 87, 4, 128)
+    save("fabric", img, hh, 0.9, depth=s / 200, ao=0.3)
 
 
 def armor():
-    """Grunt plates and helmets: sage green ceramic with bevelled edges."""
-    s = 64
+    """Grunt plates and helmets: sage ceramic armour, bevelled, with scuffs."""
+    s = SMALL
+    h, ids, dist = plates(s, [(0, 0, s, s // 2), (0, s // 2, s, s)], s * 0.04, seed=91, chip=s * 0.008)
     st = strokes(s, 3, 4, 91, 1)
-    img = mix(st, (108, 124, 98), (142, 156, 126))
-    img = panels(img, [(0, 0, 64, 32), (0, 32, 64, 64)], hi=1.35, lo=0.6, edge=2, grad=0.18)
-    scratches(img, 92, 5, (190, 200, 175), 4)
-    save("armor", img)
+    img = mix(st, (106, 122, 96), (140, 154, 124)) * (1 + per_id(ids, 92, -0.04, 0.04))[..., None]
+    sc = lines_mask(s, scratch_segs(s, 30, 93, 0.08), 1.5)
+    edge = np.clip(1 - dist / (s * 0.04), 0, 1) * smooth(0.5, 0.65, noise(s, 24, 3, 94))
+    img = img * (1 - 0.5 * sc[..., None]) + np.array([196, 204, 180]) * 0.5 * sc[..., None]
+    img = img * (1 - 0.5 * edge[..., None]) + np.array([200, 204, 190]) * 0.5 * edge[..., None]
+    hh = h - sc * 0.1 + (noise(s, 8, 4, 95) - 0.5) * 0.05
+    img *= grime(s, 96, 0.15)[..., None]
+    img += grain(s, 97, 3, 64)
+    save("armor", img, hh, 0.38 + 0.25 * sc + 0.1 * edge, depth=s / 80)
 
 
 def titan_armor():
-    """Titan hull: big pale plates (tinted per chassis) with bold bevels, painted
-    edge wear, rivet rows and a unit number."""
-    s = 128
+    """Titan hull and gun shrouds: big pale plates (tinted per chassis) with
+    deep seams, domed rivet rows, chipped edges back to steel and a unit
+    number."""
+    s = BIG
+    rects = rects_px(s, [(0, 0, 88, 64), (88, 0, 128, 64), (0, 64, 40, 128), (40, 64, 128, 96), (40, 96, 128, 128)])
+    h, ids, dist = plates(s, rects, s * 0.025, seed=101, chip=s * 0.005)
     st = strokes(s, 4, 4, 101, 2)
-    img = mix(st, (176, 176, 172), (214, 214, 208))
-    plates = [(0, 0, 88, 64), (88, 0, 128, 64), (0, 64, 40, 128), (40, 64, 128, 96), (40, 96, 128, 128)]
-    img = panels(img, plates, hi=1.25, lo=0.5, edge=3, grad=0.14)
-    # painted wear: pale chips just inside the lit edges
-    wear = (noise(s, 16, 1, 102) > 0.72)
-    y, x = np.mgrid[0:s, 0:s]
-    near_edge = np.zeros((s, s), bool)
-    for x0, y0, x1, y1 in plates:
-        near_edge |= ((y >= y0 + 3) & (y < y0 + 6) & (x >= x0) & (x < x1)) | ((x >= x0 + 3) & (x < x0 + 6) & (y >= y0) & (y < y1))
-    img[wear & near_edge] = (236, 234, 226)
-    rivets = [(xx, yy) for yy in (8, 56, 72, 120) for xx in range(10, s, 16)]
-    img = dots(img, rivets, (120, 120, 118), 1)
-    digits = (y >= 72) & (y < 88) & (x >= 60) & (x < 84) & ((((x - 60) // 4) % 2 == 0) | ((y - 72) % 8 < 2))
-    img[digits] = (250, 250, 240)
-    save("titan_armor", img)
+    img = mix(st, (176, 176, 172), (212, 212, 206)) * (1 + per_id(ids, 103, -0.04, 0.04))[..., None]
+    k = s / 128
+    rivets = [(xx * k, yy * k) for yy in (6, 58, 70, 122) for xx in range(10, 128, 16)]
+    riv = dome(s, rivets, 1.6 * k)
+    hh = np.maximum(h, riv * 1.15)
+    near = np.clip(1 - dist / (s * 0.035), 0, 1) * (dist > 0)
+    chip = smooth(0.74, 0.77, noise(s, 20, 4, 102) + near ** 2 * 0.3)
+    steel = mix(noise(s, 96, 2, 104), (128, 132, 138), (180, 184, 190))
+    img = img * (1 - chip[..., None]) + steel * chip[..., None]
+    hh -= chip * 0.04
+    digits = text_mask(s, "07", 72 * k, 80 * k, 14 * k, stencil=True)
+    img = img * (1 - 0.9 * digits[..., None]) + np.array([248, 246, 236]) * 0.9 * digits[..., None]
+    img *= rain_streaks(s, 105, 0.1)[..., None] * grime(s, 106, 0.12)[..., None]
+    img *= (1 - 0.3 * np.clip(1 - h, 0, 1))[..., None]
+    img += grain(s, 107, 3)
+    rough = 0.4 + 0.12 * noise(s, 8, 3, 108) + 0.15 * chip
+    save("titan_armor", img, hh, rough, depth=s / 110, metal=chip)
 
 
 def titan_frame():
-    """Titan joints and inner frame: dark machinery with lit ribs and hoses."""
-    s = 64
+    """Titan joints and inner frame: dark machinery ribs, a braided hose and
+    bolt heads."""
+    s = SMALL
     st = strokes(s, 3, 3, 111, 1)
-    img = mix(st, (50, 52, 60), (74, 76, 86))
-    y, x = np.mgrid[0:s, 0:s]
-    img[(y % 8) == 0] *= 1.6
-    img[(y % 8) == 7] *= 0.55
-    hose = (np.abs(x - 20) < 4)
-    img[hose] = mix(np.clip(1 - np.abs(x[hose] - 20) / 4, 0, 1), (60, 44, 30), (130, 96, 60))
-    img = dots(img, [(44, 8 + i * 16) for i in range(4)], (170, 170, 180), 1)
-    save("titan_frame", img)
+    img = mix(st, (48, 50, 58), (72, 74, 84))
+    x, y = coords(s)
+    rib = (np.cos((y % (s / 8)) / (s / 8) * 2 * np.pi) * 0.5 + 0.5) ** 2
+    hh = rib * 0.6
+    hc, hr = s * 0.31, s * 0.065
+    dx = np.abs(x - hc)
+    hose = np.sqrt(np.clip(1 - (dx / hr) ** 2, 0, 1))
+    braid = (np.sin((y + dx * 0.8) / (s / 64) * np.pi) * np.sin((y - dx * 0.8) / (s / 64) * np.pi)) * 0.5 + 0.5
+    hh = np.where(dx < hr, 0.6 + hose * 0.9 + braid * 0.08 * hose, hh)
+    hose_col = mix(hose * (0.6 + 0.4 * braid), (56, 40, 28), (138, 102, 64))
+    img = np.where((dx < hr)[..., None], hose_col, img * (0.8 + 0.4 * rib)[..., None])
+    bolts = dome(s, [(s * 0.69, s / 8 + i * s / 4) for i in range(4)], s * 0.025)
+    hh = np.maximum(hh, bolts * 1.0)
+    img = img * (1 - bolts[..., None]) + np.array([168, 168, 178]) * bolts[..., None]
+    img *= grime(s, 112, 0.2)[..., None]
+    img += grain(s, 113, 3, 64)
+    metal = np.where(dx < hr, 0.0, 1.0)
+    rough = np.where(dx < hr, 0.7, 0.45 - 0.15 * bolts)
+    save("titan_frame", img, hh, rough, depth=s / 60, metal=metal)
 
 
 def sky():
     """Panorama layers in the red/green/blue channels, tinted per zone by the sky shader:
-    R = cloud density (soft, painted), G = far mountain range, B = near ridge."""
-    w, h = 512, 128
+    R = cloud density (soft, billowing), G = far mountain range, B = near ridge."""
+    w, h = 2048, 512
     clouds = np.zeros((h, w))
     r = np.random.default_rng(121)
-    for o, (cx, cy) in enumerate([(12, 3), (24, 6), (48, 12)]):
+    for o, (cx, cy) in enumerate([(12, 3), (24, 6), (48, 12), (96, 24), (192, 48)]):
         grid = r.random((cy + 1, cx))
         ys = np.linspace(0, cy, h)
         xs = np.arange(w) * cx / w
@@ -338,232 +682,344 @@ def sky():
         d = grid[np.ix_(y1, x1)]
         v = (a * (1 - fx) + b * fx) * (1 - fy[:, None]) + (c * (1 - fx) + d * fx) * fy[:, None]
         clouds += v * 0.5 ** o
-    clouds /= 1.75
+    clouds /= 1.94
     rows = np.linspace(0, 1, h)[:, None]
     band = np.clip(1.0 - np.abs(rows - 0.5) * 2.0, 0, 1)
     clouds = np.clip((clouds - 0.42) * 2.6, 0, 1) * band
-    clouds = np.round(clouds * 6) / 6  # painted bands, softened below
-    for _ in range(2):
-        clouds = (clouds + np.roll(clouds, 1, 0) + np.roll(clouds, -1, 0) + np.roll(clouds, 1, 1) + np.roll(clouds, -1, 1)) / 5
+    clouds = clouds ** 0.85
 
     def ridge(seed, base, amp, cells):
         rr = np.random.default_rng(seed)
-        pts = rr.random(cells)
-        xs = np.arange(w) * cells / w
-        i0 = np.floor(xs).astype(int)
-        f = xs - i0
-        f = f * f * (3 - 2 * f)
-        line = pts[i0] * (1 - f) + pts[(i0 + 1) % cells] * f
-        fine = rr.random(cells * 6)
-        xs2 = np.arange(w) * cells * 6 / w
-        j0 = np.floor(xs2).astype(int)
-        f2 = xs2 - j0
-        line += 0.2 * (fine[j0] * (1 - f2) + fine[(j0 + 1) % (cells * 6)] * f2)
+        xs = np.arange(w) / w
+        line = np.zeros(w)
+        a = 1.0
+        for o in range(6):
+            c = cells * 2 ** o
+            pts = rr.random(c)
+            p = xs * c
+            i0 = np.floor(p).astype(int)
+            f = p - i0
+            f = f * f * (3 - 2 * f)
+            line += a * (pts[i0 % c] * (1 - f) + pts[(i0 + 1) % c] * f)
+            a *= 0.45
+        line /= 1.8
         height = base + amp * line
         y_from_bottom = (h - 1 - np.arange(h))[:, None]
-        return (y_from_bottom < height[None, :] * h).astype(float)
+        edge = (height[None, :] * h - y_from_bottom)
+        return np.clip(edge / 1.5, 0, 1)
 
     far = ridge(131, 0.10, 0.36, 7)
     near = ridge(132, 0.04, 0.16, 12)
     img = np.stack([clouds, far, near], axis=-1) * 255
-    Image.fromarray(img.astype(np.uint8), "RGB").save(OUT / "sky.png")
+    Image.fromarray(img.astype(np.uint8), "RGB").save(OUT / "sky.png", optimize=True)
     print("wrote sky")
 
 
-# --- Eco (the heroine) ---------------------------------------------------------
+# --- Eco (the heroine) and shared skin --------------------------------------
 
 def skin():
-    """Eco's skin: smooth, warm painted tone with soft blush strokes (tinted in the material)."""
-    s = 64
+    """Skin: smooth warm tone with soft blush and very fine pores (tinted in the material)."""
+    s = SMALL
     st = strokes(s, 2, 3, 141, 2)
-    img = mix(st, (226, 206, 192), (246, 230, 218))
-    warm = blur(noise(s, 3, 2, 142), 2)
+    img = mix(st, (226, 206, 192), (244, 228, 216))
+    warm = gauss(noise(s, 3, 2, 142), s / 32)
     img[..., 0] += 10 * warm
-    save("skin", img)
+    d1, _, _ = worley(s, 160, 143)
+    pores = smooth(0.25, 0.0, d1)
+    img *= (1 - 0.03 * pores)[..., None]
+    img += grain(s, 144, 2, 128)
+    hh = -pores * 0.4 + (noise(s, 32, 3, 145) - 0.5) * 0.2
+    save("skin", img, hh, 0.55 + 0.1 * pores, depth=s / 400, ao=0.1)
 
 
 def hair():
-    """Eco's hair: white strands with soft lavender shadows; the shader adds the colour waves."""
-    s = 64
+    """Hair: white strands with soft lavender shadows; the shader adds the colour waves."""
+    s = SMALL
     r = np.random.default_rng(151)
-    cols = np.repeat(r.random(16), 4)
-    cols = blur(np.tile(cols, (s, 1)), 1)
+    cols = np.repeat(r.random(128), s // 128)
+    cols = gauss(np.tile(cols, (s, 1)), 1.0)
+    fine = norm01(noise(s, 256, 2, 152, cells_y=2))
     bands = strokes(s, 2, 3, 152, 1)
-    t = np.clip(cols * 0.75 + bands * 0.35, 0, 1)
-    img = mix(t, (196, 196, 214), (252, 252, 255))
-    y, x = np.mgrid[0:s, 0:s]
-    img[(x % 16 == 5)] *= 0.92  # strand partings
-    save("hair", img)
+    t = np.clip(cols * 0.55 + fine * 0.25 + bands * 0.3, 0, 1)
+    img = mix(t, (194, 194, 214), (252, 252, 255))
+    hh = cols * 0.6 + fine * 0.4
+    save("hair", img, hh, 0.45, depth=s / 200, ao=0.2)
 
 
 # --- temple hub ------------------------------------------------------------
 
+TEMPLE_COURSES = [(0, 0, 56, 32), (56, 0, 128, 32), (0, 32, 32, 64), (32, 32, 96, 64), (96, 32, 128, 64),
+                  (0, 64, 72, 96), (72, 64, 128, 96), (0, 96, 40, 128), (40, 96, 104, 128), (104, 96, 128, 128)]
+
+
 def temple_stone():
-    """Temple walls: big weathered sandstone blocks in staggered courses, warm ochre
-    with cool shadowed mortar and moss creeping along the joints."""
-    s = 128
+    """Temple walls: big weathered sandstone blocks in staggered courses, warm
+    ochre, worn round at the corners, eroded in layers, moss in the joints."""
+    s = BIG
+    rects = rects_px(s, TEMPLE_COURSES)
+    h, ids, dist = plates(s, rects, s * 0.04, seed=161, chip=s * 0.02)
     st = strokes(s, 4, 4, 161, 2)
-    img = mix(st, (168, 138, 98), (212, 182, 134))
+    img = mix(st, (166, 136, 96), (208, 178, 130)) * (1 + per_id(ids, 166, -0.07, 0.07))[..., None]
     cool = strokes(s, 3, 3, 162, 3)
     img = img * (1 - 0.1 * cool[..., None]) + np.array([-8, -2, 8]) * cool[..., None]
-    courses = [(0, 0, 56, 32), (56, 0, 128, 32), (0, 32, 32, 64), (32, 32, 96, 64), (96, 32, 128, 64),
-               (0, 64, 72, 96), (72, 64, 128, 96), (0, 96, 40, 128), (40, 96, 104, 128), (104, 96, 128, 128)]
-    img = panels(img, courses, hi=1.2, lo=0.55, edge=3, grad=0.1)
-    y, x = np.mgrid[0:s, 0:s]
-    joint = np.zeros((s, s), bool)
-    for x0, y0, x1, y1 in courses:
-        joint |= (y >= y1 - 3) & (y < y1) & (x >= x0) & (x < x1)
-    moss = joint & (noise(s, 8, 2, 163) > 0.5)
-    img[moss] = mix(strokes(s, 6, 3, 164, 0)[moss], (70, 98, 48), (104, 134, 62))
-    r = np.random.default_rng(165)
-    for _ in range(5):
-        cx, cy = r.integers(0, s, 2)
-        for i in range(12):
-            cx = (cx + r.integers(-1, 2)) % s
-            cy = (cy + 1) % s
-            img[cy, cx] *= 0.55
-    save("temple_stone", img)
+    x, y = coords(s)
+    # sandstone bedding: horizontal erosion layers
+    layers = np.sin(y / s * 2 * np.pi * 22 + noise(s, 6, 3, 167) * 6) * 0.5 + 0.5
+    erosion = norm01(noise(s, 10, 5, 168))
+    hh = h + (erosion - 0.5) * 0.35 + layers * 0.06
+    d1, _, _ = worley(s, 50, 169)
+    pits = smooth(0.1, 0.0, d1) * smooth(0.6, 0.7, noise(s, 5, 2, 170))
+    hh -= pits * 0.3
+    crack = lines_mask(s, walks(s, 8, 30, s / 140, 165), s / 300)
+    hh -= crack * 0.5
+    img *= (1 - 0.22 * crack - 0.06 * pits + 0.05 * layers)[..., None]
+    # moss settles in the joints and on the upper faces of blocks
+    joint = np.clip(1 - h, 0, 1)
+    mossy = smooth(0.25, 0.6, gauss(joint, s / 120)) * smooth(0.58, 0.7, noise(s, 8, 4, 163))
+    mortar = smooth(0.2, 0.6, joint)
+    img = img * (1 - 0.35 * mortar[..., None]) + np.array([120, 104, 82]) * 0.35 * mortar[..., None]
+    moss_col = mix(noise(s, 64, 3, 164), (64, 92, 44), (108, 140, 64))
+    img = img * (1 - mossy[..., None]) + moss_col * mossy[..., None]
+    hh = np.maximum(hh, mossy * (0.55 + noise(s, 96, 2, 171) * 0.2))
+    img *= rain_streaks(s, 172, 0.12)[..., None] * grime(s, 173, 0.15)[..., None]
+    img += grain(s, 174, 5)
+    rough = 0.88 + 0.07 * mossy
+    save("temple_stone", img, hh, rough, depth=s / 80)
 
 
 def temple_floor():
-    """Temple floor and stair tops: worn square flagstones, warm in the middle,
-    darker and mossy in the gaps."""
-    s = 128
+    """Temple floor and stair tops: worn square flagstones, smoothed in the
+    middle by centuries of feet, mossy in the gaps."""
+    s = BIG
+    rects = grid_rects(s, 2, 2, s // 128)
+    h, ids, _ = plates(s, rects, s * 0.035, seed=171, chip=s * 0.015)
     st = strokes(s, 4, 4, 171, 2)
-    img = mix(st, (150, 128, 96), (196, 172, 130))
-    img = panels(img, grid_rects(s, 2, 2, 1), hi=1.15, lo=0.62, edge=3, grad=0.06)
-    y, x = np.mgrid[0:s, 0:s]
-    gap = ((x % 64) < 2) | ((y % 64) < 2)
-    img[gap] = mix(noise(s, 8, 1, 172)[gap], (58, 70, 44), (88, 110, 58))
-    worn = blur((noise(s, 2, 2, 173) > 0.55).astype(float), 3)
-    img *= (1.0 + 0.1 * worn)[..., None]
-    scratches(img, 174, 6, (120, 100, 76), 6)
-    save("temple_floor", img)
+    img = mix(st, (148, 126, 94), (194, 170, 128)) * (1 + per_id(ids, 175, -0.06, 0.06))[..., None]
+    worn = gauss((noise(s, 2, 2, 173) > 0.55).astype(float), s / 40)
+    lumps = noise(s, 8, 5, 176)
+    hh = h * (1 - 0.1 * worn) + (lumps - 0.5) * 0.2 * (1 - worn)
+    crack = lines_mask(s, walks(s, 6, 34, s / 150, 177, 0.5, down=False), s / 320)
+    hh -= crack * 0.5
+    img *= (1 + 0.1 * worn - 0.22 * crack)[..., None]
+    gap = np.clip(1 - h, 0, 1)
+    mossy = smooth(0.25, 0.6, gauss(gap, s / 200)) * smooth(0.55, 0.68, noise(s, 12, 3, 172))
+    grout = smooth(0.2, 0.6, gap)
+    img = img * (1 - 0.4 * grout[..., None]) + np.array([96, 84, 66]) * 0.4 * grout[..., None]
+    moss_col = mix(noise(s, 64, 3, 178), (56, 70, 42), (90, 112, 58))
+    img = img * (1 - mossy[..., None]) + moss_col * mossy[..., None]
+    hh = np.maximum(hh, mossy * 0.45 * (0.8 + noise(s, 96, 2, 179) * 0.4))
+    sc = lines_mask(s, scratch_segs(s, 40, 174, 0.05), 1.5)
+    img *= (1 - 0.15 * sc)[..., None]
+    img += grain(s, 180, 5)
+    rough = 0.82 - 0.2 * worn + 0.1 * mossy
+    save("temple_floor", img, hh, rough, depth=s / 90)
 
 
 def temple_carving():
-    """Friezes and the idol: a carved band of the precursor god's eye glyph between
-    rows of step-fret, deep-cut so it reads in the haze."""
-    s = 128
+    """Friezes and the idol: a carved band of the precursor god's eye glyph
+    between rows of step-fret, cut deep so it reads in the haze."""
+    s = BIG
+    k = s / 128
     st = strokes(s, 4, 4, 181, 2)
-    img = mix(st, (150, 132, 104), (196, 176, 136))
-    y, x = np.mgrid[0:s, 0:s]
-    lit, shade = 1.25, 0.45
-    # step-fret borders top and bottom
+    img = mix(st, (150, 132, 104), (194, 174, 134))
+    x, y = coords(s)
+    cut = np.zeros((s, s))
     for y0 in (4, 108):
-        band = (y >= y0) & (y < y0 + 16)
-        fret = band & ((((x // 8) + ((y - y0) // 8)) % 2) == 0)
-        img[fret] *= shade
-        img[band & (y == y0)] *= lit
-    # the eye glyph, one per half tile: almond outline, ring, pupil, rays
-    for cx in (32, 96):
-        cy = 64
-        dx, dy = (x - cx) / 26.0, (y - cy) / 14.0
+        band = (y >= y0 * k) & (y < (y0 + 16) * k)
+        fret = band & ((((x // (8 * k)) + ((y - y0 * k) // (8 * k))) % 2) == 0)
+        cut = np.maximum(cut, fret.astype(float))
+        rim = (np.abs(y - y0 * k) < k * 0.8) | (np.abs(y - (y0 + 16) * k) < k * 0.8)
+        cut = np.maximum(cut, rim * 0.7)
+    for cx in (32 * k, 96 * k):
+        cy = 64 * k
+        dx, dy = (x - cx) / (26 * k), (y - cy) / (14 * k)
         almond = np.abs(dy) + dx * dx * 0.9 < 1.0
         outline = almond & ~(np.abs(dy) * 1.25 + dx * dx * 1.1 < 1.0)
         rr = np.sqrt((x - cx) ** 2 + (y - cy) ** 2)
-        ring = (rr > 6.5) & (rr < 9.5)
-        pupil = rr < 3.5
-        rays = (np.abs(x - cx) < 2) & (np.abs(y - cy) > 16) & (np.abs(y - cy) < 26)
-        cut = outline | ring | pupil | rays
-        img[cut] *= shade
-        # light catches the upper lip of each cut
-        img[np.roll(cut, 1, axis=0) & ~cut] *= lit
-    save("temple_carving", img)
+        ring = (rr > 6.5 * k) & (rr < 9.5 * k)
+        pupil = rr < 3.5 * k
+        rays = (np.abs(x - cx) < 2 * k) & (np.abs(y - cy) > 16 * k) & (np.abs(y - cy) < 26 * k)
+        cut = np.maximum(cut, (outline | ring | pupil | rays).astype(float))
+    # chiselled: the cut walls slope, and the stone around is weathered
+    cut_s = gauss(cut, k * 0.7)
+    weather = noise(s, 10, 5, 182)
+    hh = 1 - cut_s * 0.9 + (weather - 0.5) * 0.25
+    d1, _, _ = worley(s, 50, 183)
+    hh -= smooth(0.22, 0.0, d1) * 0.2
+    img *= (1 - 0.35 * cut_s)[..., None]
+    dirt = gauss(cut, k * 2.5) * smooth(0.3, 0.8, noise(s, 8, 3, 184))
+    img = img * (1 - 0.4 * dirt[..., None]) + np.array([76, 90, 52]) * 0.4 * dirt[..., None]
+    img *= rain_streaks(s, 185, 0.1)[..., None]
+    img += grain(s, 186, 5)
+    save("temple_carving", img, hh, 0.85, depth=s / 50, ao=0.7, ao_radius=k * 3)
 
 
 def moss():
-    """Overgrowth: vines, hanging moss and the courtyard turf, soft leafy clumps."""
-    s = 64
-    a = blur(noise(s, 4, 3, 191), 1)
+    """Overgrowth, leaves, hill forests: leafy clumps with lit tips and deep
+    shadows between them, a few yellow flowers."""
+    s = SMALL
+    d1, d2, ids = worley(s, 28, 191)
+    clump = np.clip(1 - d1 * 1.35, 0, 1) ** 0.7
+    d1b, _, _ = worley(s, 70, 193)
+    leaf = np.clip(1 - d1b * 1.5, 0, 1)
+    hh = clump * 0.7 + leaf * 0.3 + (noise(s, 8, 3, 194) - 0.5) * 0.3
     b = strokes(s, 6, 4, 192, 1)
-    img = mix(b, (52, 86, 40), (110, 150, 64))
-    img[a > 0.62] = mix(b[a > 0.62], (128, 168, 74), (160, 190, 92))
-    img[a < 0.3] *= 0.7
-    y, x = np.mgrid[0:s, 0:s]
-    img = dots(img, [(9, 14), (40, 6), (52, 44), (20, 50), (30, 28)], (196, 168, 80), 0)
-    save("moss", img)
+    tone = per_id(ids, 195, -0.12, 0.12)
+    img = mix(np.clip(b * 0.5 + hh * 0.7 + tone, 0, 1), (44, 76, 34), (138, 178, 78))
+    img *= (0.7 + 0.4 * hh)[..., None]
+    r = np.random.default_rng(196)
+    fl = dome(s, [tuple(r.uniform(0, s, 2)) for _ in range(14)], s / 160)
+    img = img * (1 - fl[..., None]) + np.array([214, 188, 86]) * fl[..., None]
+    img += grain(s, 197, 4, 96)
+    save("moss", img, hh, 0.75 - 0.2 * leaf, depth=s / 60, ao=0.5)
 
 
 def wood():
-    """Her workbench, crates and shelves: warm planks with painted grain."""
-    s = 64
-    y, x = np.mgrid[0:s, 0:s]
-    n = noise(s, 4, 2, 201)
-    grain = (np.sin(y * 0.8 + n * 7.0) * 0.5 + 0.5)
-    img = mix(np.floor(grain * 3) / 2, (110, 72, 42), (158, 108, 62))
-    planks = [(0, y0, 64, y0 + 16) for y0 in (0, 16, 32, 48)]
-    img = panels(img, planks, hi=1.2, lo=0.6, edge=1, grad=0.08)
-    img = dots(img, [(4, 8), (60, 8), (4, 40), (60, 40)], (70, 66, 62), 0)
-    save("wood", img)
+    """Workbench, crates, shelves, rope: warm planks with flowing grain, knots
+    and dark nail heads."""
+    s = SMALL
+    x, y = coords(s)
+    knots = [(s * 0.3, s * 0.12), (s * 0.78, s * 0.62), (s * 0.12, s * 0.86)]
+    ky = y.astype(float)
+    for cx, cy in knots:
+        dx, dy = x - cx, (y - cy) * 2.5
+        d = np.sqrt(dx * dx + dy * dy) + 1
+        ky = ky + (s * 0.02) * np.exp(-d / (s * 0.04)) * np.sign(dy) * 4
+    n = noise(s, 3, 4, 201)
+    rings = np.sin(ky / s * 2 * np.pi * 14 + n * 10) * 0.5 + 0.5
+    rings = warp(rings, s / 60, 207, 8)
+    streak = norm01(noise(s, 2, 4, 208, cells_y=48))
+    fibre = norm01(noise(s, 8, 3, 203, cells_y=128))
+    grain_t = np.clip(rings * 0.35 + streak * 0.4 + fibre * 0.25, 0, 1)
+    img = mix(grain_t, (118, 80, 50), (156, 110, 68))
+    planks = [(0, int(y0), s, int(y0 + s / 4)) for y0 in np.arange(0, s, s / 4)]
+    h, ids, _ = plates(s, planks, s * 0.012, seed=204, chip=s * 0.004)
+    img *= (1 + per_id(ids, 205, -0.08, 0.08))[..., None]
+    knot = np.zeros((s, s))
+    for cx, cy in knots:
+        knot = np.maximum(knot, np.exp(-((x - cx) ** 2 + ((y - cy) * 1.6) ** 2) / (s * 0.012) ** 2))
+    img *= (1 - 0.5 * knot)[..., None]
+    nails = dome(s, [(s * 0.03, y0 + s / 8) for y0 in np.arange(0, s, s / 4)] +
+                 [(s * 0.97, y0 + s / 8) for y0 in np.arange(0, s, s / 4)], s * 0.01)
+    img = img * (1 - nails[..., None]) + np.array([62, 60, 58]) * nails[..., None]
+    hh = h + (grain_t - 0.5) * 0.12 - knot * 0.1 + nails * 0.2
+    img += grain(s, 206, 4, 96)
+    save("wood", img, hh, 0.7 - 0.2 * nails, depth=s / 80, metal=nails)
 
 
 def grass():
-    """The temple grounds: bright painted grass in soft clumps, with a few flowers."""
-    s = 128
+    """Ground grass: dense painted blades in clumps, sun-bleached tips, dark
+    roots, a few flowers."""
+    s = BIG
     a = strokes(s, 4, 4, 211, 2)
-    b = blur(noise(s, 8, 2, 212), 1)
-    img = mix(a, (86, 128, 52), (128, 168, 70))
-    img[b > 0.62] = mix(a[b > 0.62], (138, 176, 78), (160, 192, 92))
-    img[b < 0.32] *= 0.85
-    y, x = np.mgrid[0:s, 0:s]
-    blades = ((x * 7 + y * 3) % 23 == 0) & (noise(s, 16, 1, 213) > 0.5)
-    img[blades] *= 1.25
-    r = np.random.default_rng(214)
-    flowers = [tuple(r.integers(2, s - 2, 2)) for _ in range(10)]
-    img = dots(img, flowers[:5], (236, 226, 120), 0)
-    img = dots(img, flowers[5:], (226, 150, 170), 0)
-    save("grass", img)
+    img = mix(a, (80, 122, 48), (122, 162, 66))
+    r = np.random.default_rng(212)
+    n = 2600
+    segs = []
+    px, py = r.uniform(0, s, n), r.uniform(0, s, n)
+    ang = -np.pi / 2 + r.uniform(-0.9, 0.9, n)
+    ln = r.uniform(s * 0.012, s * 0.03, n)
+    for i in range(n):
+        segs.append([(px[i], py[i]), (px[i] + np.cos(ang[i]) * ln[i], py[i] + np.sin(ang[i]) * ln[i])])
+    blades = lines_mask(s, segs, max(s / 512, 1.5))
+    clump = smooth(0.35, 0.75, noise(s, 8, 3, 213))
+    hh = blades * 0.6 + clump * 0.4 + (noise(s, 6, 3, 214) - 0.5) * 0.3
+    lit = mix(clump, (128, 168, 72), (166, 196, 92))
+    img = img * (1 - 0.6 * blades[..., None]) + lit * 0.6 * blades[..., None]
+    img *= (0.72 + 0.4 * hh)[..., None]
+    dry = smooth(0.62, 0.8, noise(s, 5, 3, 215))
+    img = img * (1 - 0.35 * dry[..., None]) + np.array([150, 150, 74]) * 0.35 * dry[..., None]
+    fl = [tuple(r.uniform(0, s, 2)) for _ in range(30)]
+    f1 = dome(s, fl[:15], s / 260)
+    f2 = dome(s, fl[15:], s / 260)
+    img = img * (1 - f1[..., None]) + np.array([236, 224, 116]) * f1[..., None]
+    img = img * (1 - f2[..., None]) + np.array([226, 148, 168]) * f2[..., None]
+    img += grain(s, 216, 5)
+    save("grass", img, hh, 0.82, depth=s / 120, ao=0.55)
 
 
 def dirt():
-    """Paths and the titan yard: packed earth with pebbles and tread ruts."""
-    s = 128
+    """Paths, the titan yard, grass sides: packed earth, pebbles, tread ruts
+    and dried cracks."""
+    s = BIG
     a = strokes(s, 4, 4, 221, 2)
-    img = mix(a, (120, 94, 66), (160, 128, 90))
-    r = np.random.default_rng(222)
-    img = dots(img, [tuple(r.integers(2, s - 2, 2)) for _ in range(24)], (176, 160, 134), 0)
-    y, x = np.mgrid[0:s, 0:s]
-    ruts = ((y % 64) > 18) & ((y % 64) < 24)
-    img[ruts] *= 0.85
-    save("dirt", img)
+    img = mix(a, (116, 90, 62), (156, 124, 86))
+    lumps = noise(s, 10, 5, 223)
+    x, y = coords(s)
+    rut_c = (y % (s / 2)) - s * 0.165
+    ruts = np.exp(-(rut_c / (s * 0.035)) ** 2)
+    tread = ruts * (np.sin(x / (s / 48) * np.pi) * 0.5 + 0.5)
+    d1, d2, ids = worley(s, 64, 222)
+    d1 = warp(d1, s / 300, 232, 32)
+    pebble = smooth(0.42, 0.18, d1) * (per_id(ids, 224, 0, 1) > 0.8)
+    d1s, _, ids_s = worley(s, 110, 225)
+    grit = np.clip(1 - d1s * 2.6, 0, 1) ** 0.6 * (per_id(ids_s, 226, 0, 1) > 0.6)
+    crack_cells = worley(s, 9, 227)
+    dry = smooth(0.06, 0.0, crack_cells[1] - crack_cells[0]) * smooth(0.5, 0.75, noise(s, 4, 3, 228))
+    hh = (lumps - 0.5) * 0.5 - ruts * 0.35 + tread * 0.08 + pebble * 0.5 + grit * 0.2 - dry * 0.4
+    peb_col = mix(per_id(ids, 229, 0, 1), (132, 118, 98), (176, 162, 138))
+    img = img * (1 - 0.8 * pebble[..., None]) + peb_col * 0.8 * pebble[..., None]
+    img *= (1 - 0.12 * ruts - 0.3 * dry + 0.12 * grit)[..., None]
+    img *= grime(s, 230, 0.15)[..., None]
+    img += grain(s, 231, 6)
+    rough = 0.92 - 0.25 * pebble
+    save("dirt", img, hh, rough, depth=s / 90, ao=0.55)
 
 
 def canvas():
-    """Tents and tarps: weathered tan canvas with seams and a couple of patches."""
-    s = 64
+    """Tents, tarps, grunt gold and chrome base: weathered tan canvas weave,
+    stitched seams and a couple of patches."""
+    s = SMALL
     a = strokes(s, 3, 4, 231, 1)
-    img = mix(a, (176, 156, 112), (206, 188, 142))
-    y, x = np.mgrid[0:s, 0:s]
-    img[(x % 16) == 0] *= 0.75
-    img[((x % 16) == 1)] *= 1.1
-    weave = ((x + y) % 2 == 0)
-    img[weave] *= 1.03
-    img = panels(img, [(36, 10, 54, 26)], hi=1.1, lo=0.7, edge=1, grad=0.0)
-    img[10:26, 36:54] *= np.array([0.8, 0.95, 1.1])
-    img = panels(img, [(6, 40, 20, 56)], hi=1.1, lo=0.7, edge=1, grad=0.0)
-    img[40:56, 6:20] *= np.array([1.1, 0.85, 0.75])
-    save("canvas", img)
+    img = mix(a, (174, 154, 110), (204, 186, 140))
+    x, y = coords(s)
+    p = s / 128
+    warp_t = np.sin(x / p * np.pi) * 0.5 + 0.5
+    weft = np.sin(y / p * np.pi) * 0.5 + 0.5
+    weave = np.where(((x // p + y // p) % 2) == 0, warp_t, weft)
+    seam_x = (x % (s / 4)) < s / 128
+    seam = gauss(seam_x.astype(float), 2)
+    stitch = gauss(((np.abs((x % (s / 4)) - s / 64) < s / 400) & (y % (s / 32) < s / 64)).astype(float), 0.8)
+    k = s / 64
+    p1, _, _ = plates(s, [(int(36 * k), int(10 * k), int(54 * k), int(26 * k))], 1.0 * k, seed=232)
+    p2, _, _ = plates(s, [(int(6 * k), int(40 * k), int(20 * k), int(56 * k))], 1.0 * k, seed=233)
+    img = np.where((p1 > 0)[..., None], img * np.array([0.8, 0.95, 1.1]), img)
+    img = np.where((p2 > 0)[..., None], img * np.array([1.1, 0.85, 0.75]), img)
+    hh = weave * 0.3 + p1 * 0.4 + p2 * 0.4 - seam * 0.5 + stitch * 0.4 + (noise(s, 4, 3, 234) - 0.5) * 0.6
+    img *= (0.93 + 0.1 * weave)[..., None] * (1 - 0.25 * seam)[..., None]
+    img *= grime(s, 235, 0.2)[..., None] * rain_streaks(s, 236, 0.12)[..., None]
+    img += grain(s, 237, 4, 96)
+    save("canvas", img, hh, 0.88, depth=s / 150, ao=0.4)
 
 
 def bark():
-    """Tree trunks and tent poles: deep vertical furrows in warm brown bark."""
-    s = 64
-    y, x = np.mgrid[0:s, 0:s]
-    n = noise(s, 4, 2, 241)
-    ridge = np.sin(x * 0.3 + n * 5.0 + np.sin(y * 0.12) * 1.2) * 0.5 + 0.5
-    grain = noise(s, 8, 3, 243)
-    img = mix(blur(ridge * 0.55 + grain * 0.45, 1), (84, 62, 44), (128, 94, 64))
-    moss = (noise(s, 3, 2, 242) > 0.66) & (ridge < 0.5)
-    img[moss] = (88, 112, 56)
-    save("bark", img)
+    """Tree trunks and tent poles: deep vertical furrows in warm brown bark,
+    plated ridges, moss low in the cracks."""
+    s = SMALL
+    n = noise(s, 4, 3, 241)
+    # irregular vertical furrows: thin dark cracks along ridged noise,
+    # stretched up the trunk, between broad raised bark plates
+    furrow = norm01(noise(s, 16, 4, 248, cells_y=2))
+    ridge = 1 - np.abs(furrow * 2 - 1)
+    ridge = warp(ridge, s / 60, 249, 6)
+    crevice = smooth(0.7, 0.96, ridge)
+    fibre = norm01(noise(s, 32, 3, 243, cells_y=4))
+    plate = 1 - crevice
+    hh = plate * 0.8 + fibre * 0.15 + n * 0.2
+    img = mix(np.clip(plate * 0.7 + fibre * 0.3, 0, 1), (44, 30, 22), (138, 102, 70))
+    mossy = smooth(0.62, 0.75, noise(s, 3, 3, 242)) * (1 - plate * 0.6)
+    img = img * (1 - mossy[..., None]) + np.array([84, 110, 52]) * mossy[..., None]
+    img += grain(s, 247, 4, 96)
+    save("bark", img, hh, 0.9, depth=s / 40, ao=0.6)
 
 
 if __name__ == "__main__":
+    args = [a for a in sys.argv[1:] if not a.startswith("--")]
+    if "--half" in sys.argv:
+        BIG, SMALL = BIG // 2, SMALL // 2
     OUT.mkdir(parents=True, exist_ok=True)
     for fn in (concrete, metal_floor, wall_panel, hazard, crate, barrier, lava, gunmetal, glove,
                fabric, armor, titan_armor, titan_frame, sky, temple_stone, temple_floor,
                temple_carving, moss, wood, grass, dirt, canvas, bark, skin, hair):
-        # `make_textures.py moss wood` repaints only the named textures.
-        if len(sys.argv) < 2 or fn.__name__ in sys.argv[1:]:
+        if not args or fn.__name__ in args:
             fn()

@@ -7,6 +7,7 @@ extends RefCounted
 ##   blue   -> wallrun panels       orange -> grapple anchor hazard stripes
 ##   green  -> military crates      red    -> lava
 
+const Look := preload("res://scripts/ps2/look.gd")
 const SKY_SHADER := preload("res://assets/shaders/ps2_sky.gdshader")
 const SKY_LAYERS := preload("res://assets/textures/sky.png")
 
@@ -127,10 +128,12 @@ static func surface(color: Color, size: Vector3) -> Material:
 	return _cache[key]
 
 
-## Stylized PS2 sky, haze and light for a level, a blend of Jak and Daxter's warm
+## Stylized sky, haze and light for a level, a blend of Jak and Daxter's warm
 ## painted colour and Shadow of the Colossus's haze and bloom: a painted sky with
 ## a haloed sun, distance haze fading into mist in the void below the platforms,
 ## warm low sun with cool ambient shadows, soft bloom and a light colour grade.
+## look.gd then adds the PS3 look's sky light, SSAO, sun shafts and soft
+## shadows (or keeps the old PS2 settings when F9 has switched back).
 static func environment(parent: Node, top: Color, horizon: Color) -> void:
 	var sun_color := Color(1.0, 0.9, 0.72)
 	var sky_mat := ShaderMaterial.new()
@@ -181,4 +184,6 @@ static func environment(parent: Node, top: Color, horizon: Color) -> void:
 	sun.shadow_opacity = 0.75
 	sun.directional_shadow_mode = DirectionalLight3D.SHADOW_ORTHOGONAL
 	sun.directional_shadow_max_distance = 60.0
+	Look.apply_env(env, Look.is_ps3())
+	Look.apply_sun(sun, Look.is_ps3())
 	parent.add_child(sun)

@@ -3,23 +3,24 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://tiorayl7tsm0"
-path="res://.godot/imported/temple_floor.png-c33d263536541194ed14494e797ae149.ctex"
+path.bptc="res://.godot/imported/temple_floor.png-c33d263536541194ed14494e797ae149.bptc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 
 [deps]
 
 source_file="res://assets/textures/temple_floor.png"
-dest_files=["res://.godot/imported/temple_floor.png-c33d263536541194ed14494e797ae149.ctex"]
+dest_files=["res://.godot/imported/temple_floor.png-c33d263536541194ed14494e797ae149.bptc.ctex"]
 
 [params]
 
-compress/mode=0
-compress/high_quality=false
+compress/mode=2
+compress/high_quality=true
 compress/lossy_quality=0.7
 compress/hdr_compression=1
-compress/normal_map=0
+compress/normal_map=2
 compress/channel_pack=0
 mipmaps/generate=true
 mipmaps/limit=-1

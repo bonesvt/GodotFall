@@ -15,7 +15,7 @@ render_mode diffuse_lambert;
 uniform vec4 albedo : source_color = vec4(0.5, 0.6, 0.8, 1.0);
 // What shows through where the paint is chipped.
 uniform vec4 chip_color : source_color = vec4(0.55, 0.55, 0.56, 1.0);
-uniform sampler2D wear_tex : filter_linear_mipmap, repeat_enable;
+uniform sampler2D wear_tex : filter_linear_mipmap_anisotropic, repeat_enable;
 uniform float tex_scale = 0.35;
 // 0 = factory fresh, 1 = more chip than paint.
 uniform float wear : hint_range(0.0, 1.0) = 0.25;
@@ -96,7 +96,10 @@ void fragment() {
 		EMISSION = emit + refl;
 		RIM = rim;
 		RIM_TINT = 0.5;
-		ROUGHNESS = 1.0;
+		// Physical finish for the sky reflections of the PS3 look: polished
+		// paint is smooth, grime and chips rough it up, chips are bare steel.
+		ROUGHNESS = mix(0.75, 0.18, shine) + mask.b * 0.08;
+		METALLIC = chip * 0.85;
 		v_shine = shine;
 	}
 }
