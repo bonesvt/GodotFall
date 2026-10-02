@@ -12,7 +12,7 @@ const SCENES := {
 	"circuits": preload("res://assets/models/loot/circuit_chip.glb"),
 }
 ## Glow colour per material (pickups, labels, the HUD).
-const COLORS := {"scrap": Color(1.0, 0.75, 0.35), "alloy": Color(0.45, 0.85, 1.0), "circuits": Color(0.45, 1.0, 0.5)}
+const COLORS := {"scrap": Color(1.0, 0.75, 0.35), "alloy": Color(0.45, 0.85, 1.0), "circuits": Color(0.45, 1.0, 0.5), "lock_cores": Color(1.0, 0.45, 0.7)}
 
 
 static func model(id: String) -> Node3D:

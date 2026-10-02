@@ -687,7 +687,11 @@ func _set_pilot_active(on: bool) -> void:
 
 
 ## Their titan is down: it topples, and the dropship comes in over the evac pad.
+## Eco pulls its targeting core first (Armory.BOSS_DROP: what the smart
+## pistol's upgrades run on), and keeps it even if the run is lost after.
 func _on_boss_defeated() -> void:
+	for m in Armory.BOSS_DROP:
+		collect_material(m, Armory.BOSS_DROP[m])
 	if not zone_info.has("evac"):
 		end_run("RUN COMPLETE", "Enemy titan destroyed.")
 		return
@@ -700,7 +704,7 @@ func _on_boss_defeated() -> void:
 	var hover := ship.position
 	ship.position = hover + Vector3(0, 60, 40)
 	evac.create_tween().tween_property(ship, "position", hover, 4.0).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
-	hud.toast("ENEMY TITAN DOWN. GET TO THE EVAC PAD", 5.0)
+	hud.toast("ENEMY TITAN DOWN. LOCK CORE SALVAGED. GET TO THE EVAC PAD", 5.0)
 
 
 func _evac_tick() -> void:
@@ -737,7 +741,7 @@ func end_run(title: String, reason: String) -> void:
 	for slot in TitanParts.SLOTS:
 		lines.append("%s: %s" % [TitanParts.SLOT_NAMES[slot], TitanParts.display_name(run.parts, slot)])
 	lines.append("")
-	lines.append("BANKED: %s%s" % [_materials_text(haul), "  (titan salvage included)" if won else "  (half of what you carried)"])
+	lines.append("BANKED: %s%s" % [_materials_text(haul), "  (titan salvage included)" if won else "  (half of what you carried, lock cores kept)"])
 	lines.append("")
 	lines.append("[Enter] back to the temple" if start_in_hub else "[Enter] new run")
 	hud.summary_label.text = "\n".join(lines)
@@ -843,7 +847,7 @@ func _fight_text() -> String:
 
 
 func _materials_text(m: Dictionary) -> String:
-	return "SCRAP %d  ALLOY %d  CIRCUITS %d" % [int(m.get("scrap", 0)), int(m.get("alloy", 0)), int(m.get("circuits", 0))]
+	return "SCRAP %d  ALLOY %d  CIRCUITS %d  LOCK CORES %d" % [int(m.get("scrap", 0)), int(m.get("alloy", 0)), int(m.get("circuits", 0)), int(m.get("lock_cores", 0))]
 
 
 func _clock(t: float) -> String:

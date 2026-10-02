@@ -1,7 +1,7 @@
 extends CanvasLayer
 ## The hub's workbench screens, over a turntable preview. One screen, three
 ## benches, each with its own tabs (armory.gd holds the rules and prices):
-##   gunsmith   UPGRADES      three tracks for the gun in hand's model
+##   gunsmith   UPGRADES      the gun in hand's own upgrade tracks
 ##              ATTACHMENTS   muzzle, mag and grip (each a trade-off), and finish
 ##   rack       SIDEARMS      buy guns and pick the one you head out with
 ##   workshop   LOADOUT       the titan parts a run starts with (Mk I) instead of scrap
@@ -227,14 +227,15 @@ func _rows() -> Array:
 func _upgrade_rows() -> Array:
 	var out := []
 	var now := armory.weapon_profile(weapon)
-	for track in Armory.UPGRADE_ORDER:
+	for track in Armory.upgrade_tracks(weapon):
 		var level := armory.upgrade_level(weapon, track)
-		var maxed := level >= Armory.MAX_LEVEL
+		var most := Armory.max_level(track)
+		var maxed := level >= most
 		var cost: Dictionary = armory.upgrade_cost(weapon, track)
 		var info: Dictionary = Armory.UPGRADES[track]
 		out.append({
 			"label": info["name"],
-			"value": "■".repeat(level) + "□".repeat(Armory.MAX_LEVEL - level),
+			"value": "■".repeat(level) + "□".repeat(most - level),
 			"cost": null if maxed else cost,
 			"note": "%s.\n%s\nLook: tier %d of %d." % [info["desc"], _stat_line(now), now["tier"], Armory.MODEL_TIERS],
 			"confirm": func(): return armory.buy_upgrade(weapon, track),
@@ -370,8 +371,11 @@ func _with_attachment(slot: String, id: String) -> Dictionary:
 
 static func _stat_line(p: Dictionary) -> String:
 	var s: Dictionary = p["stats"]
-	return "Damage %.1f (head x%.2f)   Mag %d   Reload %.2f s   %d shots/s" % [
+	var line := "Damage %.1f (head x%.2f)   Mag %d   Reload %.2f s   %d shots/s" % [
 		s["damage"], s["headshot_multiplier"], s["magazine_size"], s["reload_time"], roundi(1.0 / s["fire_interval"])]
+	if s.get("smart_fraction", 0.0) > 0.0:
+		line += "\nSmart rounds: %d of every %d" % [roundi(s["smart_fraction"] * s["magazine_size"]), s["magazine_size"]]
+	return line
 
 
 ## What changes between two profiles' stats, as "+12% range, -1 mag".

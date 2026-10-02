@@ -2,33 +2,40 @@ extends RefCounted
 ## Eco's armory: everything that carries over between runs, and the catalog the
 ## hub's workbenches sell from. Saved to a ConfigFile (user://armory.cfg).
 ##
-## Three materials pay for everything, all collected out in the levels
+## Materials pay for everything, all collected out in the levels
 ## (scripts/run/loot.gd): scrap (grunts drop it, small crates hold it), alloy
 ## (mined from resource nodes) and circuits (rare, from crates and grunts).
-## A run that ends in extraction banks everything you carried; a lost run
-## banks half. The benches spend them:
-##   gunsmith bench   weapon upgrades (three modest tracks per gun) and
-##                    attachments (one per slot, each a trade-off), plus finishes
+## Lock cores only come from beating a boss: the enemy titan's targeting core,
+## the same tech that ran Dad's smart lock. A run that ends in extraction banks
+## everything you carried; a lost run banks half, but a lock core you earned is
+## always kept. The benches spend them:
+##   gunsmith bench   weapon upgrades (each gun has its own) and attachments
+##                    (one per slot, each a trade-off), plus finishes
 ##   weapon rack      buy and pick the sidearm you head out with
 ##   titan workshop   buy titan parts to start runs with instead of scrap, and
 ##                    refit any part so every copy of it you install is better
 ## Titan paint and part tweaks stay at Eco's paint shop.
 ##
-## Upgrades stay small on purpose: the smart pistol is weak and skill-heavy, and
-## a maxed track is +18% at most. Starting parts are Mk I, so salvage still
+## Upgrades stay small on purpose: the smart pistol never gets more damage.
+## Its upgrades rebuild the smart lock instead, one eighth of the mag at a time,
+## and they cost lock cores, so a smart mag is earned boss by boss. Starting parts are Mk I, so salvage still
 ## matters; refits apply to salvaged parts too.
 
 const TitanParts := preload("res://scripts/run/titan_parts.gd")
 
 const DEFAULT_PATH := "user://armory.cfg"
-const MATERIALS := ["scrap", "alloy", "circuits"]
-const MATERIAL_NAMES := {"scrap": "Scrap", "alloy": "Alloy", "circuits": "Circuits"}
+const MATERIALS := ["scrap", "alloy", "circuits", "lock_cores"]
+const MATERIAL_NAMES := {"scrap": "Scrap", "alloy": "Alloy", "circuits": "Circuits", "lock_cores": "Lock cores"}
+## Boss materials: a lost run keeps all of these.
+const BOSS_MATERIALS := ["lock_cores"]
+## What beating a boss drops (run_manager.gd adds it to what you carry).
+const BOSS_DROP := {"lock_cores": 1}
 ## What Eco has stashed when you first start.
-const STARTING_STASH := {"scrap": 60, "alloy": 10, "circuits": 1}
+const STARTING_STASH := {"scrap": 60, "alloy": 10, "circuits": 1, "lock_cores": 0}
 ## Share of what you carried that a lost run still banks.
 const LOST_RUN_KEEP := 0.5
 ## Salvaged off the enemy titan when you win.
-const WIN_BONUS := {"scrap": 40, "alloy": 25, "circuits": 3}
+const WIN_BONUS := {"scrap": 40, "alloy": 25, "circuits": 3, "lock_cores": 0}
 
 ## Pilot sidearms. `stats` use weapon.gd's property names; the smart pistol's
 ## are weapon.gd's defaults. `mag_step` is rounds per Magazine upgrade.
@@ -37,6 +44,7 @@ const WEAPONS := {
 		"name": "Dad's Smart Pistol", "short": "SMART PISTOL", "cost": {}, "model": "pistol",
 		"desc": "Semi-auto, suppressed. Weak on the body, brutal on the head.",
 		"smart": true, "automatic": false, "suppressed": true, "mag_step": 1,
+		"upgrades": ["smart_rounds"],
 		"sound": "pistol", "sound_last": "pistol_last", "tracer": Color(0.75, 0.97, 1.0, 0.85),
 		"stats": {
 			"damage": 20.0, "headshot_multiplier": 2.25, "falloff_start": 15.0, "falloff_end": 35.0,
@@ -56,6 +64,7 @@ const WEAPONS := {
 		"name": "Rivet Cannon", "short": "RIVET CANNON", "cost": {"scrap": 120, "alloy": 20, "circuits": 3}, "model": "rivet_cannon",
 		"desc": "Five heavy rounds off a titan's rivet driver. Slow, loud, kicks like a mule.",
 		"smart": false, "automatic": false, "suppressed": false, "mag_step": 1,
+		"upgrades": ["calibre", "action", "magazine"],
 		"sound": "rivet_cannon", "sound_last": "rivet_cannon", "tracer": Color(1.0, 0.75, 0.4, 0.9),
 		"stats": {
 			"damage": 42.0, "headshot_multiplier": 2.0, "falloff_start": 22.0, "falloff_end": 50.0,
@@ -73,6 +82,7 @@ const WEAPONS := {
 		"name": "Militia Machine Pistol", "short": "MACHINE PISTOL", "cost": {"scrap": 100, "circuits": 2}, "model": "machine_pistol",
 		"desc": "Full auto, light rounds, sprays wide. Hold the trigger, mind the bloom.",
 		"smart": false, "automatic": true, "suppressed": false, "mag_step": 3,
+		"upgrades": ["calibre", "action", "magazine"],
 		"sound": "machine_pistol", "sound_last": "machine_pistol", "tracer": Color(1.0, 0.9, 0.6, 0.7),
 		"stats": {
 			"damage": 8.0, "headshot_multiplier": 1.75, "falloff_start": 10.0, "falloff_end": 25.0,
@@ -88,19 +98,35 @@ const WEAPONS := {
 	},
 }
 
-## Upgrade tracks, levels 0..MAX_LEVEL for every gun. Each level costs UPGRADE_COST[level].
+## Upgrade tracks. Each gun lists its own in WEAPONS "upgrades"; a track has
+## one cost per level, so its length is the track's max level.
+const UPGRADE_COST := [{"scrap": 40}, {"scrap": 70, "circuits": 2}, {"scrap": 110, "circuits": 5}]
 const UPGRADES := {
-	"calibre": {"name": "Calibre", "desc": "+6% damage per level"},
-	"action": {"name": "Action", "desc": "8% faster reload per level"},
-	"magazine": {"name": "Magazine", "desc": "more rounds per level"},
+	"calibre": {"name": "Calibre", "desc": "+6% damage per level", "costs": UPGRADE_COST},
+	"action": {"name": "Action", "desc": "8% faster reload per level", "costs": UPGRADE_COST},
+	"magazine": {"name": "Magazine", "desc": "more rounds per level", "costs": UPGRADE_COST},
+	# Dad's smart pistol: each level rebuilds a bit more of the smart lock, so
+	# one more eighth of every fresh mag is smart rounds (weapon.gd fires them
+	# first; they home in on a locked target).
+	"smart_rounds": {"name": "Smart rounds", "desc": "+12.5% of each mag fires smart rounds that lock on", "costs": [
+		{"scrap": 40, "lock_cores": 1},
+		{"scrap": 60, "lock_cores": 1},
+		{"scrap": 80, "circuits": 1, "lock_cores": 1},
+		{"scrap": 100, "circuits": 2, "lock_cores": 1},
+		{"scrap": 130, "circuits": 2, "lock_cores": 2},
+		{"scrap": 160, "circuits": 3, "lock_cores": 2},
+		{"scrap": 200, "circuits": 4, "lock_cores": 2},
+		{"scrap": 250, "circuits": 5, "lock_cores": 3},
+	]},
 }
-const UPGRADE_ORDER := ["calibre", "action", "magazine"]
+## Generic tracks' max level (refits use it too).
 const MAX_LEVEL := 3
 ## Upgraded looks a gun has beyond stock.
 const MODEL_TIERS := 5
-const UPGRADE_COST := [{"scrap": 40}, {"scrap": 70, "circuits": 2}, {"scrap": 110, "circuits": 5}]
 const CALIBRE_STEP := 0.06
 const ACTION_STEP := 0.08
+## Share of each mag that turns smart per Smart rounds level.
+const SMART_STEP := 0.125
 
 ## Attachments: one per slot per gun. Bought once, usable on every gun.
 ## `mods` multiply weapon stats (magazine_size rounds, never below 1).
@@ -246,12 +272,18 @@ func bank(materials: Dictionary) -> void:
 
 
 ## What a finished run banks from what you carried: everything plus the enemy
-## titan's salvage on a win, half (rounded down) otherwise.
+## titan's salvage on a win, half (rounded down) otherwise. Boss materials are
+## kept whole either way: you beat the boss, it's yours.
 static func run_haul(carried: Dictionary, won: bool) -> Dictionary:
 	var haul := {}
 	for m in MATERIALS:
 		var n := int(carried.get(m, 0))
-		haul[m] = n + int(WIN_BONUS[m]) if won else int(floor(n * LOST_RUN_KEEP))
+		if won:
+			haul[m] = n + int(WIN_BONUS[m])
+		elif m in BOSS_MATERIALS:
+			haul[m] = n
+		else:
+			haul[m] = int(floor(n * LOST_RUN_KEEP))
 	return haul
 
 
@@ -260,7 +292,9 @@ static func cost_text(cost: Dictionary) -> String:
 	var bits := []
 	for m in MATERIALS:
 		if int(cost.get(m, 0)) > 0:
-			bits.append("%d %s" % [cost[m], m])
+			var n := int(cost[m])
+			var word: String = MATERIAL_NAMES[m].to_lower()
+			bits.append("%d %s" % [n, word.trim_suffix("s") if n == 1 and m != "scrap" and m != "alloy" else word])
 	return ", ".join(bits) if not bits.is_empty() else "free"
 
 
@@ -289,6 +323,15 @@ func equip(id: String) -> bool:
 	return true
 
 
+## The upgrade tracks a gun has, in bench order.
+static func upgrade_tracks(weapon: String) -> Array:
+	return WEAPONS[weapon]["upgrades"]
+
+
+static func max_level(track: String) -> int:
+	return UPGRADES[track]["costs"].size()
+
+
 func upgrade_level(weapon: String, track: String) -> int:
 	return upgrades.get(weapon, {}).get(track, 0)
 
@@ -296,11 +339,12 @@ func upgrade_level(weapon: String, track: String) -> int:
 ## Cost of the next level of a track, or {} when it's maxed.
 func upgrade_cost(weapon: String, track: String) -> Dictionary:
 	var level := upgrade_level(weapon, track)
-	return UPGRADE_COST[level] if level < MAX_LEVEL else {}
+	return UPGRADES[track]["costs"][level] if level < max_level(track) else {}
 
 
 func buy_upgrade(weapon: String, track: String) -> bool:
-	if upgrade_level(weapon, track) >= MAX_LEVEL or not owns_weapon(weapon) or not _spend(upgrade_cost(weapon, track)):
+	if not track in upgrade_tracks(weapon) or upgrade_level(weapon, track) >= max_level(track) \
+			or not owns_weapon(weapon) or not _spend(upgrade_cost(weapon, track)):
 		return false
 	if not upgrades.has(weapon):
 		upgrades[weapon] = {}
@@ -310,13 +354,15 @@ func buy_upgrade(weapon: String, track: String) -> bool:
 
 
 ## The gun's look tier, 0 (stock) to MODEL_TIERS: every upgrade level bought
-## moves it on, so a maxed gun (all three tracks at MAX_LEVEL) is the top model.
+## moves it on, so a maxed gun (every track maxed) is the top model.
 ## The smart pistol has a model per tier (Art.pistol_model picks it).
 func weapon_tier(id: String) -> int:
 	var total := 0
-	for track in UPGRADE_ORDER:
+	var most := 0
+	for track in upgrade_tracks(id):
 		total += upgrade_level(id, track)
-	return ceili(float(total) * MODEL_TIERS / (MAX_LEVEL * UPGRADE_ORDER.size()))
+		most += max_level(track)
+	return ceili(float(total) * MODEL_TIERS / most) if most > 0 else 0
 
 
 static func attachment(slot: String, id: String) -> Dictionary:
@@ -370,9 +416,14 @@ func weapon_profile(id := "") -> Dictionary:
 		id = equipped
 	var base: Dictionary = WEAPONS[id]
 	var stats: Dictionary = base["stats"].duplicate()
-	stats["damage"] *= 1.0 + CALIBRE_STEP * upgrade_level(id, "calibre")
-	stats["reload_time"] *= 1.0 - ACTION_STEP * upgrade_level(id, "action")
-	stats["magazine_size"] += int(base["mag_step"]) * upgrade_level(id, "magazine")
+	var tracks := upgrade_tracks(id)
+	if "calibre" in tracks:
+		stats["damage"] *= 1.0 + CALIBRE_STEP * upgrade_level(id, "calibre")
+	if "action" in tracks:
+		stats["reload_time"] *= 1.0 - ACTION_STEP * upgrade_level(id, "action")
+	if "magazine" in tracks:
+		stats["magazine_size"] += int(base["mag_step"]) * upgrade_level(id, "magazine")
+	stats["smart_fraction"] = SMART_STEP * upgrade_level(id, "smart_rounds") if "smart_rounds" in tracks else 0.0
 	var parts := {}
 	for slot in ATTACHMENT_SLOTS:
 		var a := attachment(slot, fitted_attachment(id, slot))

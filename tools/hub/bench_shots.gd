@@ -18,7 +18,7 @@ func _initialize() -> void:
 	DirAccess.make_dir_recursive_absolute(out)
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(PATH))
 	var a = Armory.open(PATH)
-	a.stash = {"scrap": 2000, "alloy": 400, "circuits": 80}
+	a.stash = {"scrap": 2000, "alloy": 400, "circuits": 80, "lock_cores": 6}
 	a.buy_weapon("rivet_cannon")
 	a.buy_weapon("machine_pistol")
 	a.fit("rivet_cannon", "muzzle", "compensator")
@@ -69,10 +69,19 @@ func _go() -> void:
 		run_node.armory.equip(id)
 		run_node.equip_loadout()
 		await _shot("9-hand-" + id, Vector3(-20, 0.2, 10), Vector3(-30, 1.4, 10))
-	# The smart pistol fully upgraded: its tier 5 model, in hand and on the bench.
-	for up in Armory.UPGRADES:
-		while run_node.armory.buy_upgrade("smart_pistol", up):
-			pass
+	# Smart rounds half done (what 6 lock cores buy), then fully upgraded: its
+	# tier 5 model, in hand and on the bench.
+	while run_node.armory.buy_upgrade("smart_pistol", "smart_rounds"):
+		pass
+	run_node.armory.equip("smart_pistol")
+	run_node.equip_loadout()
+	run_node.open_bench("gunsmith")
+	await _frames(12)
+	await _save("4a-screen-smart-rounds")
+	run_node.close_bench()
+	run_node.armory.stash["lock_cores"] = 40
+	while run_node.armory.buy_upgrade("smart_pistol", "smart_rounds"):
+		pass
 	run_node.armory.equip("smart_pistol")
 	run_node.equip_loadout()
 	await _shot("9-hand-smart_pistol-tier5", Vector3(-20, 0.2, 10), Vector3(-30, 1.4, 10))
@@ -92,6 +101,19 @@ func _go() -> void:
 	await _frames(25)
 	await _shot("11-crate-open", crate.global_position + Vector3(2.6, 0.2, 2.6), crate.global_position + Vector3(0, 0.3, 0), false)
 	await _shot("12-alloy-node", node.global_position + Vector3(-4.0, 0.6, 1.0), node.global_position + Vector3(0, 0.7, 0))
+	# A smart round locked on a grunt, a few dumb rounds left under the smart ones.
+	var spawn: Vector3 = run_node.zone_info["spawn"]
+	var mark = run_node.zone_info["grunts"][1]
+	mark.passive = true
+	mark.set_physics_process(false)  # stand still for the picture
+	var forward := Vector3(-1, 0, 0)
+	mark.global_position = spawn + forward * 9.0
+	var weapon = run_node.player.get_node("Head/Camera3D/Weapon")
+	weapon.smart_left = 6
+	weapon.ammo = 9
+	await _shot("13-smart-lock", spawn, spawn + forward * 9.0 + Vector3(0, 1.4, 0.9), false)
+	await _frames(50)
+	await _save("13-smart-lock")
 	quit()
 
 

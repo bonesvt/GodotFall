@@ -58,19 +58,25 @@ press **F** at the map table ("HEAD OUT") to start a run. When a run ends, won o
     and get propped back up.
 
 ### Workbenches and materials
-Out on runs you collect three materials, and the hub's workbenches spend them:
+Out on runs you collect four materials, and the hub's workbenches spend them:
 - **Scrap**: grunts drop it when they die; small **supply crates** beside the routes hold
   more (press **F** to pry one open).
 - **Alloy**: hold **F** at an **alloy node** (a titan wreck half sunk in the ground, glowing
   blue) to mine it.
 - **Circuits**: rare, from crates and now and then a grunt.
+- **Lock cores**: only from beating a boss (Eco pulls the enemy titan's targeting core).
+  Kept even if the run is lost afterwards.
 
 Pickups fly to you when you get close. Extracting banks everything you carried (plus the
 enemy titan's salvage when you win); a lost run banks half. The HUD shows what you have.
 
-- **Gunsmith bench** (the workbench right of the door): **upgrades** for the gun in hand
-  (Calibre, Action, Magazine; three small steps each, so the pistol stays skill-first; every
-  step moves the gun's look tier from 0 to 5) and **attachments** (muzzle, mag, grip, each a
+- **Gunsmith bench** (the workbench right of the door): **upgrades** for the gun in hand,
+  each gun its own. Dad's smart pistol has **Smart rounds**, 8 levels paid in lock cores:
+  each makes another eighth of every mag smart. Smart rounds fire first (pink pips on the
+  HUD); while one is chambered the lock works again, closing on the grunt nearest the
+  crosshair, and the shot flies to its chest (never its head, so headshots stay yours).
+  The other guns have Calibre, Action and Magazine (three small steps each). Every step
+  moves the gun's look tier from 0 to 5. The bench also fits **attachments** (muzzle, mag, grip, each a
   trade-off: long barrel, compensator, extended mag, speed base, paracord wrap, skeleton
   grip) plus free paint **finishes**. Q/E switches guns.
 - **Weapon rack** (on the wall past the bench): buy and pick your sidearm. Dad's smart

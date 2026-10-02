@@ -95,6 +95,8 @@ static func _synth(id: String) -> PackedFloat32Array:
 			return _filter(_crackle(0.22, 46, 0.6), "hp", 1800.0)
 		"lock_err":  # the smart-lock trying, and failing, to lock: a glitchy chirp
 			return _filter(_mix([_square(0.04, 1320.0, 0.12), _square(0.05, 990.0, 0.12, 0.05), _crackle(0.12, 10, 0.25)]), "lp", 4000.0)
+		"lock_on":  # a smart round has a lock: two clean rising beeps, no glitch
+			return _filter(_mix([_square(0.05, 1760.0, 0.1), _square(0.07, 2640.0, 0.1, 0.06)]), "lp", 5000.0)
 		"reload_out":  # mag release, a pneumatic kick out, the screen blanks
 			return _master(_mix([
 				_tick(3800.0, 0.7),

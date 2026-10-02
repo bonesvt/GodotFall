@@ -247,6 +247,9 @@ func _draw_lock_attempt() -> void:
 		return
 	var p: Vector2 = cam.unproject_position(at)
 	var lt: float = weapon.lock_time
+	if weapon.smart_ready():
+		_draw_smart_lock(p, weapon.lock_progress())
+		return
 	# Brackets close in for a moment, then spring back open as the lock fails.
 	var close := clampf(lt / 0.35, 0.0, 1.0)
 	var fail := clampf((lt - 0.35) / 0.15, 0.0, 1.0)
@@ -265,7 +268,27 @@ func _draw_lock_attempt() -> void:
 		crosshair.draw_string(font, p + Vector2(-size * 0.5, size * 0.5 + 16), "LOCK ERR", HORIZONTAL_ALIGNMENT_LEFT, -1, 13, c)
 
 
-## One pip per round above the ammo counter; the last round glows red.
+## A smart round is chambered and the lock works: the brackets close, turn
+## pink and lock solid, with a diamond on the target.
+func _draw_smart_lock(p: Vector2, close: float) -> void:
+	var locked := close >= 1.0
+	var size := lerpf(64.0, 30.0, close * close)
+	var c := Color(0.45, 0.85, 1.0, 0.85).lerp(Color(1.0, 0.45, 0.75, 1.0), 1.0 if locked else close * 0.5)
+	var arm := 10.0
+	for corner in [Vector2(-1, -1), Vector2(1, -1), Vector2(1, 1), Vector2(-1, 1)]:
+		var k: Vector2 = p + corner * size * 0.5
+		for w in [[4.0, Color(0, 0, 0, 0.5)], [2.0, c]]:
+			crosshair.draw_line(k, k - Vector2(corner.x * arm, 0), w[1], w[0])
+			crosshair.draw_line(k, k - Vector2(0, corner.y * arm), w[1], w[0])
+	if locked:
+		var d := 6.0
+		crosshair.draw_colored_polygon(PackedVector2Array([p + Vector2(0, -d), p + Vector2(d, 0), p + Vector2(0, d), p + Vector2(-d, 0)]), c)
+		var font := ThemeDB.fallback_font
+		crosshair.draw_string(font, p + Vector2(-size * 0.5, size * 0.5 + 16), "LOCKED", HORIZONTAL_ALIGNMENT_LEFT, -1, 13, c)
+
+
+## One pip per round above the ammo counter; the last round glows red. Smart
+## rounds (the top of the mag, fired first) are pink.
 func _draw_ammo_pips() -> void:
 	var n: int = weapon.magazine_size
 	var right := Vector2(crosshair.size.x - 32.0, crosshair.size.y - 88.0)
@@ -274,6 +297,8 @@ func _draw_ammo_pips() -> void:
 		var rect := Rect2(x - 3.0, right.y - 18.0, 6.0, 18.0)
 		var loaded: bool = i < weapon.ammo and not weapon.is_reloading()
 		var c := Color(1.0, 0.85, 0.45) if weapon.ammo > 1 else Color(1.0, 0.3, 0.2)
+		if i >= weapon.ammo - weapon.smart_left:
+			c = Color(1.0, 0.45, 0.75)
 		crosshair.draw_rect(rect, Color(0, 0, 0, 0.6), true)
 		if loaded:
 			crosshair.draw_rect(rect.grow(-1.0), c, true)

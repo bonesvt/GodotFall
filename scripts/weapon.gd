@@ -17,6 +17,14 @@ extends Node3D
 ## the rail, and a twirl on every reload. None of this changes the numbers
 ## above; it is all feel.
 ##
+## Smart rounds: the gunsmith's upgrades rebuild the lock one eighth of the mag
+## at a time (`smart_fraction`). Those rounds sit at the top of every fresh mag,
+## so they fire first. While one is chambered the lock works again: it picks the
+## grunt nearest the crosshair inside LOCK_CONE, closes in LOCK_TIME, and the
+## round flies to its chest whatever the spread. Never its head: headshots are
+## still Eco's own work. With no smart rounds left the module is the broken
+## thing it always was.
+##
 ## The hub's workbenches (scripts/hub/armory.gd) can swap this for another
 ## sidearm, upgrade it and bolt attachments on: equip() takes the profile they
 ## build and rebuilds the stats and the viewmodel. Without one the defaults
@@ -208,6 +216,19 @@ var _charm_vel := Vector2.ZERO
 var _charm_last_pos := Vector3.ZERO
 var _charm_last_vel := Vector3.ZERO
 
+## Smart rounds: what share of a fresh mag is smart, and how many are left at
+## the top of this one.
+var smart_fraction := 0.0
+var smart_left := 0
+## The working lock: cone half-angle (degrees), range (m), seconds to lock.
+const LOCK_CONE := 11.0
+const LOCK_RANGE := 40.0
+const LOCK_TIME := 0.3
+const SMART_TRACER := Color(1.0, 0.45, 0.75, 0.95)
+## What rounds and the lock can hit: everything but the foliage that only
+## blocks grunts' sight (forest_kit.gd SIGHT_LAYER), which you walk through.
+const SHOT_MASK := 0xFFFFFFFF & ~16
+
 ## The enemy the broken smart-lock is currently trying to lock onto, for the HUD.
 ## True while the knife has Eco's hands: the pistol drops out of the way and
 ## can't fire.
@@ -276,6 +297,7 @@ func _physics_process(delta: float) -> void:
 		_reload_choreography()
 		if reload_timer <= 0.0:
 			ammo = magazine_size
+			smart_left = smart_capacity()
 	elif Input.is_action_just_pressed("reload") and ammo < magazine_size:
 		start_reload()
 	elif Input.is_action_just_pressed("inspect") and not is_inspecting() and not holstered:
@@ -327,7 +349,11 @@ func current_spread() -> float:
 
 
 func fire() -> void:
+	var homing := is_locked()
+	var smart_shot := smart_left > 0
 	ammo -= 1
+	if smart_shot:
+		smart_left -= 1
 	shots_fired += 1
 	cooldown = fire_interval
 	since_shot = 0.0
@@ -338,7 +364,10 @@ func fire() -> void:
 	var a := rng.randf() * TAU
 	var dir := (-basis.z + basis.x * cos(a) * r + basis.y * sin(a) * r).normalized()
 	var from := cam.global_position
-	var query := PhysicsRayQueryParameters3D.create(from, from + dir * max_range)
+	if homing:
+		# A smart round with a lock flies to the target's chest, spread or not.
+		dir = (lock_point(lock_target) - from).normalized()
+	var query := PhysicsRayQueryParameters3D.create(from, from + dir * max_range, SHOT_MASK)
 	query.exclude = [player.get_rid()]
 	var hit := get_world_3d().direct_space_state.intersect_ray(query)
 	var end: Vector3 = from + dir * max_range
@@ -359,7 +388,12 @@ func fire() -> void:
 	# Heard after the round lands, so the first shot still catches its target unaware.
 	get_tree().call_group("enemies", "hear_gunshot", player.global_position)
 
-	FX.tracer(fx_parent, muzzle.global_position, end, tracer_color, 0.012, 0.06)
+	if smart_shot:
+		FX.tracer(fx_parent, muzzle.global_position, end, SMART_TRACER, 0.016, 0.09)
+		if homing:
+			FX.star(fx_parent, end, Color(1.0, 0.5, 0.8), 0.3, 0.08, 6)
+	else:
+		FX.tracer(fx_parent, muzzle.global_position, end, tracer_color, 0.012, 0.06)
 	bloom = minf(bloom + bloom_per_shot, max_bloom)
 	var k := deg_to_rad(recoil_kick)
 	player.head.rotation.x = clampf(player.head.rotation.x + k, -1.55, 1.55)
@@ -407,7 +441,7 @@ func _shot_feel(fx_parent: Node) -> void:
 	FX.casing(fx_parent, port, player.velocity + right * 2.2 + Vector3.UP * 2.0)
 	# The dead smart-lock module coughs sparks, more often as the mag runs dry.
 	var empty_frac := 1.0 - float(ammo) / magazine_size
-	if smart and (rng.randf() < lerpf(spark_chance.x, spark_chance.y, empty_frac) or last):
+	if smart and smart_left == 0 and (rng.randf() < lerpf(spark_chance.x, spark_chance.y, empty_frac) or last):
 		_module_sparks(3 if not last else 6)
 
 
@@ -459,21 +493,85 @@ func _hitstop() -> void:
 	Engine.time_scale = 1.0
 
 
-## The broken smart-lock still searches for targets under the crosshair,
-## brackets them for a moment, then errors out. Purely cosmetic.
+## Smart rounds this gun loads at the top of a fresh mag.
+func smart_capacity() -> int:
+	return clampi(roundi(smart_fraction * magazine_size), 0, magazine_size)
+
+
+## True while a smart round is chambered: the lock really works.
+func smart_ready() -> bool:
+	return smart and smart_left > 0 and ammo > 0
+
+
+## True when the next shot will home in on lock_target.
+func is_locked() -> bool:
+	return smart_ready() and is_instance_valid(lock_target) and lock_time >= LOCK_TIME
+
+
+## 0..1 how far the working lock has closed on lock_target.
+func lock_progress() -> float:
+	return clampf(lock_time / LOCK_TIME, 0.0, 1.0) if lock_target != null else 0.0
+
+
+## Where a smart round aims on a target: centre mass, below the head line.
+static func lock_point(target: Node3D) -> Vector3:
+	return target.global_position + Vector3.UP * 1.0
+
+
+## The working lock: the living grunt nearest the crosshair inside the cone,
+## in range and in sight.
+func _find_lock() -> Node3D:
+	var from: Vector3 = player.camera.global_position
+	var forward: Vector3 = -player.head.global_basis.z
+	var best: Node3D = null
+	var best_angle := deg_to_rad(LOCK_CONE)
+	for e in get_tree().get_nodes_in_group("enemies"):
+		if not (e is Node3D) or not e.has_method("is_headshot") or e.get("dead") == true:
+			continue
+		var to: Vector3 = lock_point(e) - from
+		if to.length() > LOCK_RANGE:
+			continue
+		var angle := forward.angle_to(to)
+		# Keep the current target a little longer, so the lock doesn't flick.
+		if e == lock_target:
+			angle -= deg_to_rad(2.0)
+		if angle >= best_angle:
+			continue
+		var query := PhysicsRayQueryParameters3D.create(from, lock_point(e), SHOT_MASK)
+		query.exclude = [player.get_rid()]
+		var hit := get_world_3d().direct_space_state.intersect_ray(query)
+		if not hit.is_empty() and hit.collider != e:
+			continue
+		best = e
+		best_angle = angle
+	return best
+
+
+## With a smart round chambered the lock works (see _find_lock). Otherwise the
+## broken module still searches for targets under the crosshair, brackets them
+## for a moment, then errors out: purely cosmetic.
 func _scan_lock(delta: float) -> void:
 	_lock_beep -= delta
 	_lock_scan -= delta
 	if lock_target != null:
+		var was_locked := lock_time >= LOCK_TIME
 		lock_time += delta
-		if not is_instance_valid(lock_target) or not lock_target.is_in_group("enemies"):
+		if not is_instance_valid(lock_target) or not lock_target.is_in_group("enemies") or lock_target.get("dead") == true:
 			lock_target = null
+		elif smart_ready() and not was_locked and lock_time >= LOCK_TIME:
+			SFX.play(self, "lock_on", -8.0)
 	if _lock_scan > 0.0:
 		return
-	_lock_scan = 0.1
+	_lock_scan = 0.05 if smart_ready() else 0.1
+	if smart_ready():
+		var target := _find_lock()
+		if target != lock_target:
+			lock_target = target
+			lock_time = 0.0
+		return
 	var cam: Camera3D = player.camera
 	var from := cam.global_position
-	var query := PhysicsRayQueryParameters3D.create(from, from - player.head.global_basis.z * 60.0)
+	var query := PhysicsRayQueryParameters3D.create(from, from - player.head.global_basis.z * 60.0, SHOT_MASK)
 	query.exclude = [player.get_rid()]
 	var hit := get_world_3d().direct_space_state.intersect_ray(query)
 	var found: Node3D = null
@@ -519,6 +617,7 @@ func is_reloading() -> bool:
 
 func refill() -> void:
 	ammo = magazine_size
+	smart_left = smart_capacity()
 	reload_timer = 0.0
 	bloom = 0.0
 	recoil_pending = 0.0
