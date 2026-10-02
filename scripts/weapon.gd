@@ -16,6 +16,11 @@ extends Node3D
 ## every shot, a holo sight that pulses, her father's dog tag swinging off
 ## the rail, and a twirl on every reload. None of this changes the numbers
 ## above; it is all feel.
+##
+## The hub's workbenches (scripts/hub/armory.gd) can swap this for another
+## sidearm, upgrade it and bolt attachments on: equip() takes the profile they
+## build and rebuilds the stats and the viewmodel. Without one the defaults
+## below are the smart pistol, untouched.
 
 const Pilot := preload("res://scripts/player.gd")
 const FX := preload("res://scripts/fx.gd")
@@ -55,6 +60,21 @@ const LED_COUNT := 6
 const LED_CYAN := Color(0.3, 0.95, 1.0)
 const LED_AMBER := Color(1.0, 0.6, 0.15)
 const LED_RED := Color(1.0, 0.18, 0.12)
+## Where attachments mount, in the gun's own space: the grip's centre and angle
+## (every gun shares the smart pistol's grip so Eco's glove fits), and how far
+## down the grip each gun's magazine ends.
+const GRIP_XFORM := Transform3D(Basis(Vector3.RIGHT, deg_to_rad(-16.0)), Vector3(0.0, -0.088, 0.072))
+const MAG_BOTTOM := {"pistol": -0.07, "rivet_cannon": -0.07, "machine_pistol": -0.11}
+const ATTACHMENT_MODELS := {
+	"long_barrel": preload("res://assets/models/sidearms/att_muzzle_long.glb"),
+	"compensator": preload("res://assets/models/sidearms/att_muzzle_comp.glb"),
+	"extended": preload("res://assets/models/sidearms/att_mag_ext.glb"),
+	"speed": preload("res://assets/models/sidearms/att_mag_speed.glb"),
+	"wrap": preload("res://assets/models/sidearms/att_grip_wrap.glb"),
+	"skeleton": preload("res://assets/models/sidearms/att_grip_skeleton.glb"),
+}
+## Paint slots a finish recolours, by material file name.
+const FINISH_SLOTS := {"pistol_shell": "shell", "pistol_blue": "blue", "pistol_stripe": "stripe"}
 const INSPECT_LINES := [
 	"Dad's. The lock-on died with him.",
 	"Tracker screen's smashed. Holo sight it is.",
@@ -107,6 +127,22 @@ const INSPECT_LINES := [
 ## Chance the dead smart-lock sparks on a shot, full mag to empty mag.
 @export var spark_chance := Vector2(0.15, 0.6)
 
+## Which gun this is (armory.gd WEAPONS id), and how it behaves.
+var weapon_id := "smart_pistol"
+var model_id := "pistol"
+## The dead smart-lock module: lock brackets, errors and sparks.
+var smart := true
+## Hold to fire instead of one click per shot.
+var automatic := false
+var suppressed := true
+var shot_sound := "pistol"
+var shot_sound_last := "pistol_last"
+var tracer_color := Color(0.75, 0.97, 1.0, 0.85)
+var inspect_lines: Array = INSPECT_LINES
+## slot -> attachment id, and the finish's colours (empty: as modelled).
+var attachments := {}
+var finish := {}
+
 var player: CharacterBody3D
 var ammo := 0
 var cooldown := 0.0
@@ -156,6 +192,9 @@ var _ammo_pop := 0.0
 var _boot := -1.0  # seconds into the ammo screen booting after a reload
 # Dog tag pendulum (angles in radians around the charm pivot's x and z)
 var _charm: Node3D
+var _drum: Node3D
+var _drum_turn := 0.0
+var _hammer: Node3D
 var _charm_angle := Vector2.ZERO
 var _charm_vel := Vector2.ZERO
 var _charm_last_pos := Vector3.ZERO
@@ -182,6 +221,34 @@ func _ready() -> void:
 		player.respawned.connect(refill)
 
 
+## Becomes the gun a workbench profile describes (armory.gd weapon_profile()):
+## stats by property name, behaviour flags, model, attachments and finish.
+## Reloads it full.
+func equip(profile: Dictionary) -> void:
+	weapon_id = profile.get("id", weapon_id)
+	model_id = profile.get("model", model_id)
+	smart = profile.get("smart", smart)
+	automatic = profile.get("automatic", automatic)
+	suppressed = profile.get("suppressed", suppressed)
+	shot_sound = profile.get("sound", shot_sound)
+	shot_sound_last = profile.get("sound_last", shot_sound_last)
+	tracer_color = profile.get("tracer", tracer_color)
+	inspect_lines = profile.get("lines", inspect_lines)
+	attachments = profile.get("attachments", {})
+	finish = profile.get("finish", {})
+	var stats: Dictionary = profile.get("stats", {})
+	for key in stats:
+		set(key, int(stats[key]) if key == "magazine_size" else float(stats[key]))
+	if not smart:
+		lock_target = null
+		glitch = 0.0
+	if viewmodel != null:
+		viewmodel.free()
+		viewmodel = null
+		_build_viewmodel()
+	refill()
+
+
 func _physics_process(delta: float) -> void:
 	cooldown -= delta
 	buffer_timer -= delta
@@ -200,9 +267,10 @@ func _physics_process(delta: float) -> void:
 	elif Input.is_action_just_pressed("inspect") and not is_inspecting():
 		inspect()
 	_update_inspect(delta)
-	_scan_lock(delta)
+	if smart:
+		_scan_lock(delta)
 
-	if Input.is_action_just_pressed("fire"):
+	if Input.is_action_just_pressed("fire") or (automatic and Input.is_action_pressed("fire") and ammo > 0):
 		buffer_timer = fire_buffer
 		stop_inspect()  # shooting always wins over showing off
 	if buffer_timer > 0.0 and cooldown <= 0.0 and reload_timer <= 0.0:
@@ -220,7 +288,7 @@ func _process(delta: float) -> void:
 	flash_timer -= delta
 	flash.visible = flash_timer > 0.0
 	glitch = maxf(glitch - delta * 3.0, 0.0)
-	if rng.randf() < delta * 0.4:
+	if smart and rng.randf() < delta * 0.4:
 		glitch = rng.randf_range(0.3, 1.0)  # the old module never quite settles
 	if _pistol != null and _pistol.has_method("set_param"):
 		# The smashed tracker screen flickers when the module glitches or
@@ -277,7 +345,7 @@ func fire() -> void:
 	# Heard after the round lands, so the first shot still catches its target unaware.
 	get_tree().call_group("enemies", "hear_gunshot", player.global_position)
 
-	FX.tracer(fx_parent, muzzle.global_position, end, Color(0.75, 0.97, 1.0, 0.85), 0.012, 0.06)
+	FX.tracer(fx_parent, muzzle.global_position, end, tracer_color, 0.012, 0.06)
 	bloom = minf(bloom + bloom_per_shot, max_bloom)
 	var k := deg_to_rad(recoil_kick)
 	player.head.rotation.x = clampf(player.head.rotation.x + k, -1.55, 1.55)
@@ -289,7 +357,7 @@ func fire() -> void:
 ## Everything a shot does that you see, hear and feel but that doesn't score.
 func _shot_feel(fx_parent: Node) -> void:
 	var last := ammo == 0
-	SFX.play(self, "pistol_last" if last else "pistol", 1.0, SFX.vary(0.04))
+	SFX.play(self, shot_sound_last if last else shot_sound, 1.0, SFX.vary(0.04))
 	# Viewmodel: snaps back and up, rolls a little to a random side.
 	_kick_vel += Vector3(rng.randf_range(-0.15, 0.15), 0.25, 1.6)
 	_kick_rot_vel += Vector3(14.0, rng.randf_range(-3.0, 3.0), rng.randf_range(-6.0, 6.0))
@@ -300,6 +368,14 @@ func _shot_feel(fx_parent: Node) -> void:
 	# Muzzle: suppressed, so no fireball. A small white star, a ring of light
 	# snapping out round the barrel, and gas curling out of the hot vents.
 	var forward: Vector3 = -muzzle.global_basis.z
+	if not suppressed:
+		# An open muzzle: a proper fireball and a flash that lights the room.
+		FX.star(muzzle, muzzle.global_position, Color(1.0, 0.75, 0.35, 0.95), 0.09, 0.05, 8)
+		FX.light(fx_parent, muzzle.global_position, Color(1.0, 0.7, 0.35), 2.0, 5.0, 0.05)
+	if _drum != null:
+		_drum_turn += TAU / 5.0
+	if _hammer != null:
+		_hammer.rotation.x = deg_to_rad(-40.0)
 	FX.star(muzzle, muzzle.global_position, Color(0.85, 0.97, 1.0, 0.9), 0.045, 0.04, 6)
 	FX.shock_ring(fx_parent, muzzle.global_position + forward * 0.01, forward, Color(0.6, 0.95, 1.0, 0.9), 0.06, 0.1)
 	FX.light(fx_parent, muzzle.global_position, Color(0.55, 0.9, 1.0), 0.9, 3.0, 0.05)
@@ -317,7 +393,7 @@ func _shot_feel(fx_parent: Node) -> void:
 	FX.casing(fx_parent, port, player.velocity + right * 2.2 + Vector3.UP * 2.0)
 	# The dead smart-lock module coughs sparks, more often as the mag runs dry.
 	var empty_frac := 1.0 - float(ammo) / magazine_size
-	if rng.randf() < lerpf(spark_chance.x, spark_chance.y, empty_frac) or last:
+	if smart and (rng.randf() < lerpf(spark_chance.x, spark_chance.y, empty_frac) or last):
 		_module_sparks(3 if not last else 6)
 
 
@@ -433,12 +509,12 @@ func inspect() -> void:
 	inspect_time = 0.0
 	_inspect_tapped = false
 	# Never the same line twice in a row.
-	var pick := rng.randi_range(0, INSPECT_LINES.size() - 2)
-	if pick >= _inspect_line:
+	var pick := rng.randi_range(0, maxi(inspect_lines.size() - 2, 0))
+	if pick >= _inspect_line and inspect_lines.size() > 1:
 		pick += 1
 	_inspect_line = pick
 	inspect_time = -0.001  # so the opening twirl fires on the first update
-	inspected.emit(INSPECT_LINES[pick])
+	inspected.emit(inspect_lines[pick])
 
 
 func stop_inspect() -> void:
@@ -460,9 +536,10 @@ func _update_inspect(delta: float) -> void:
 	if not _inspect_tapped and inspect_time >= INSPECT_TAP:
 		_inspect_tapped = true
 		SFX.play(self, "whack", -8.0, 1.5)
-		SFX.play(self, "lock_err", -12.0)
 		_kick_rot_vel += Vector3(-6.0, 0.0, 10.0)
-		_module_sparks(4)
+		if smart:
+			SFX.play(self, "lock_err", -12.0)
+			_module_sparks(4)
 	if inspect_time >= INSPECT_KEYS.back()[0]:
 		inspect_time = -1.0  # done; the closing twirl finishes on its own
 
@@ -640,10 +717,15 @@ func _recover_recoil(delta: float) -> void:
 
 
 func _build_viewmodel() -> void:
+	_parts.clear()
+	_leds.clear()
+	_ammo_label = null
 	viewmodel = Node3D.new()
 	add_child(viewmodel)
-	var pistol := Art.model("pistol")
+	var pistol := Art.model(model_id)
 	viewmodel.add_child(pistol)
+	_fit_attachments(pistol, model_id, attachments)
+	_apply_finish(pistol, finish)
 	for mi in pistol.find_children("*", "GeometryInstance3D", true, false):
 		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	muzzle = pistol.find_child("Muzzle", true, false)
@@ -667,6 +749,9 @@ func _build_viewmodel() -> void:
 	_charm = pistol.find_child("Charm", true, false) as Node3D
 	if _charm != null:
 		_charm_last_pos = _charm.global_position
+	_drum = pistol.find_child("Drum", true, false) as Node3D
+	_hammer = pistol.find_child("Hammer", true, false) as Node3D
+	_drum_turn = 0.0
 	_build_ammo_screen()
 
 	var mat := StandardMaterial3D.new()
@@ -680,6 +765,75 @@ func _build_viewmodel() -> void:
 	flash.mesh = sphere
 	flash.visible = false
 	muzzle.add_child(flash)
+
+
+## The gun model a profile describes, attachments on and painted, without
+## Eco's arm: what the workbenches show.
+static func gun_model(profile: Dictionary) -> Node3D:
+	var model := Art.model(profile.get("model", "pistol"))
+	model.get_node("Arm").free()
+	_fit_attachments(model, profile.get("model", "pistol"), profile.get("attachments", {}))
+	_apply_finish(model, profile.get("finish", {}))
+	return model
+
+
+## Bolts the fitted attachments onto the gun: muzzle pieces at the Muzzle
+## (which moves to the end of them), mag pieces under the magazine (so they
+## drop out with it on a reload), grip pieces round the grip.
+static func _fit_attachments(model: Node3D, model_id: String, attachments: Dictionary) -> void:
+	var gun: Node3D = model.get_node_or_null("Gun")
+	if gun == null:
+		return
+	for slot in attachments:
+		var id: String = attachments[slot]
+		if not ATTACHMENT_MODELS.has(id):
+			continue
+		var piece: Node3D = ATTACHMENT_MODELS[id].instantiate()
+		piece.name = "Attachment_" + slot
+		match slot:
+			"muzzle":
+				var tip_at := gun.find_child("Muzzle", true, false) as Node3D
+				tip_at.get_parent().add_child(piece)
+				piece.transform = tip_at.transform
+				var tip := piece.find_child("Tip", true, false) as Node3D
+				if tip != null:
+					tip_at.transform = tip_at.transform * tip.transform
+			"mag":
+				var mag := gun.find_child("MagBase", true, false) as Node3D
+				var parent: Node3D = mag if mag != null else gun
+				parent.add_child(piece)
+				piece.transform = GRIP_XFORM * Transform3D(Basis.IDENTITY, Vector3(0, MAG_BOTTOM.get(model_id, -0.07), 0))
+			"grip":
+				gun.add_child(piece)
+				piece.transform = GRIP_XFORM
+		for mi in piece.find_children("*", "GeometryInstance3D", true, false):
+			mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+
+
+static var _finish_cache := {}
+
+
+## Repaints the gun's shell, accent and stripe in the finish's colours.
+static func _apply_finish(model: Node3D, finish: Dictionary) -> void:
+	if finish.is_empty():
+		return
+	for mi in model.find_children("*", "MeshInstance3D", true, false):
+		var mesh: Mesh = (mi as MeshInstance3D).mesh
+		if mesh == null:
+			continue
+		for i in mesh.get_surface_count():
+			var mat := mesh.surface_get_material(i)
+			if mat == null or not mat is ShaderMaterial:
+				continue
+			var slot_name: String = mat.resource_path.get_file().get_basename()
+			if not FINISH_SLOTS.has(slot_name):
+				continue
+			var key := "%s/%s" % [finish.get("id", ""), slot_name]
+			if not _finish_cache.has(key):
+				var painted: ShaderMaterial = mat.duplicate()
+				painted.set_shader_parameter("albedo", finish[FINISH_SLOTS[slot_name]])
+				_finish_cache[key] = painted
+			(mi as MeshInstance3D).set_surface_override_material(i, _finish_cache[key])
 
 
 ## Digits on the sloped screen at the back of the slide.
@@ -781,6 +935,11 @@ func _animate_viewmodel(delta: float) -> void:
 	for part in ["Slide"]:
 		if _parts.has(part):
 			_parts[part][0].position = _parts[part][1] + Vector3(0, 0, 0.035 * slide)
+	# The rivet cannon's drum indexes round a chamber per shot; its hammer falls and resets.
+	if _drum != null:
+		_drum.rotation.z = lerp_angle(_drum.rotation.z, _drum_turn, 1.0 - exp(-30.0 * delta))
+	if _hammer != null:
+		_hammer.rotation.x = lerpf(_hammer.rotation.x, 0.0, 1.0 - exp(-12.0 * delta))
 
 
 ## Camera punch: a visual kick on the camera that springs back to zero.

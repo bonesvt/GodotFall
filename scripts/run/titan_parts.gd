@@ -111,11 +111,13 @@ static func describe(part: Dictionary) -> String:
 
 
 ## Turns the installed parts into the numbers the titan runs on.
-static func assemble(parts: Dictionary) -> Dictionary:
-	var chassis: Dictionary = parts.get("chassis", SCRAP["chassis"])
-	var weapon: Dictionary = parts.get("weapon", SCRAP["weapon"])
-	var core: Dictionary = parts.get("core", SCRAP["core"])
-	var kit: Dictionary = parts.get("kit", SCRAP["kit"])
+## `refits` ("slot:id" -> multiplier, from the hub's titan workshop) scales a
+## part's tier-scaled stats, scrap included.
+static func assemble(parts: Dictionary, refits := {}) -> Dictionary:
+	var chassis: Dictionary = _refit("chassis", parts.get("chassis", SCRAP["chassis"]), refits)
+	var weapon: Dictionary = _refit("weapon", parts.get("weapon", SCRAP["weapon"]), refits)
+	var core: Dictionary = _refit("core", parts.get("core", SCRAP["core"]), refits)
+	var kit: Dictionary = _refit("kit", parts.get("kit", SCRAP["kit"]), refits)
 	var stats := {
 		"hp": float(chassis["hp"]),
 		"speed": float(chassis["speed"]),
@@ -136,3 +138,14 @@ static func assemble(parts: Dictionary) -> Dictionary:
 		"coolant":
 			stats["core_rate"] *= 1.0 + kit["power"]
 	return stats
+
+
+static func _refit(slot: String, part: Dictionary, refits: Dictionary) -> Dictionary:
+	var key := "%s:%s" % [slot, part["id"]]
+	if not refits.has(key):
+		return part
+	part = part.duplicate()
+	for stat in SCALING:
+		if part.has(stat):
+			part[stat] = part[stat] * float(refits[key])
+	return part

@@ -32,6 +32,8 @@ const MATERIALS := {
 
 const MODELS := {
 	"pistol": preload("res://assets/models/smart_pistol.tscn"),
+	"rivet_cannon": preload("res://assets/models/rivet_cannon.tscn"),
+	"machine_pistol": preload("res://assets/models/machine_pistol.tscn"),
 	"eco": preload("res://assets/models/eco.tscn"),
 	"grunt": preload("res://assets/models/grunt.tscn"),
 	"salvage_cache": preload("res://assets/models/salvage_cache.tscn"),

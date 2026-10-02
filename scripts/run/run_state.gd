@@ -16,6 +16,10 @@ var falls := 0
 var downs := 0
 var caches_opened := 0
 var time := 0.0
+## Refit multipliers from the hub's titan workshop ("slot:id" -> factor).
+var refits := {}
+## Grunts the pilot dropped this run; pays scrap.
+var kills := 0
 
 
 func _init(seed_value: int) -> void:
@@ -28,4 +32,4 @@ func install(part: Dictionary) -> void:
 
 
 func titan_stats() -> Dictionary:
-	return TitanParts.assemble(parts)
+	return TitanParts.assemble(parts, refits)
