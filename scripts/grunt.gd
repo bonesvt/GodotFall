@@ -28,6 +28,9 @@ signal died(grunt: Node)
 @export var gravity := 20.0
 ## When true the grunt just stands there (used by tests and target practice).
 @export var passive := false
+## When above 0 the grunt holds near its post (behind its cover) instead of
+## chasing, wandering at most this far from it.
+@export var leash := 0.0
 
 const HEAD_Y := 1.5  # hits higher than this above the feet are headshots
 const EYE := Vector3(0, 1.6, 0)
@@ -43,6 +46,7 @@ var windup_timer := -1.0
 var strafe_dir := 1.0
 var strafe_timer := 0.0
 var dead := false
+var post := Vector3.ZERO
 var rng := RandomNumberGenerator.new()
 
 var body_mat: StandardMaterial3D
@@ -53,6 +57,7 @@ var hurt_timer := 0.0
 func _ready() -> void:
 	add_to_group("enemies")
 	health = max_health
+	post = global_position
 	fire_timer = rng.randf_range(0.5, fire_interval)
 	strafe_dir = 1.0 if rng.randf() < 0.5 else -1.0
 	_build_body()
@@ -78,6 +83,17 @@ func _physics_process(delta: float) -> void:
 			want = _movement(dir, dist, delta)
 			_combat(delta)
 
+	if leash > 0.0:
+		var home := post - global_position
+		home.y = 0.0
+		if home.length() > leash:
+			want = home.normalized()
+		elif want != Vector3.ZERO and (home - want).length() > leash:
+			want = Vector3.ZERO  # that step would leave the post
+	if want != Vector3.ZERO and not _ground_ahead(want):
+		want = Vector3.ZERO
+		strafe_dir = -strafe_dir
+
 	hvel = hvel.move_toward(want * move_speed, 20.0 * delta)
 	velocity.x = hvel.x
 	velocity.z = hvel.z
@@ -94,6 +110,16 @@ func _process(delta: float) -> void:
 	var glow := 0.0 if windup_timer < 0.0 else 1.0 - windup_timer / windup
 	visor_mat.albedo_color = Color(0.9, 0.7, 0.2).lerp(Color(1.0, 0.1, 0.05), glow)
 	visor_mat.emission_energy_multiplier = 0.5 + glow * 4.0
+
+
+## True when there is floor a short step in this direction (keeps grunts on platforms).
+func _ground_ahead(dir: Vector3) -> bool:
+	if not is_on_floor():
+		return true
+	var from := global_position + dir * 0.9 + Vector3.UP * 0.5
+	var query := PhysicsRayQueryParameters3D.create(from, from + Vector3.DOWN * 2.0)
+	query.exclude = [get_rid()]
+	return not get_world_3d().direct_space_state.intersect_ray(query).is_empty()
 
 
 func _update_sight(delta: float) -> void:

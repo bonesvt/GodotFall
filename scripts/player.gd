@@ -24,10 +24,13 @@ signal damaged(amount: float, from: Vector3)
 @export var auto_sprint := true
 
 @export_group("Air")
-@export var gravity := 20.0
-@export var jump_velocity := 7.0
+@export var gravity := 28.0
+## Extra gravity while falling, so jumps snap down instead of hanging.
+@export var fall_gravity_mult := 1.35
+@export var max_fall_speed := 45.0
+@export var jump_velocity := 8.4
 @export var air_jumps := 1
-@export var double_jump_velocity := 7.0
+@export var double_jump_velocity := 8.2
 @export var air_wish_speed := 8.0
 @export var air_accel := 30.0
 @export var coyote_time := 0.12
@@ -50,7 +53,7 @@ signal damaged(amount: float, from: Vector3)
 @export var wallrun_max_time := 1.8
 @export var wallrun_entry_lift := 2.5
 @export var wall_jump_push := 7.5
-@export var wall_jump_up := 7.0
+@export var wall_jump_up := 8.0
 @export var wall_coyote_time := 0.15
 @export var wallrun_camera_tilt := 12.0
 
@@ -65,6 +68,9 @@ signal damaged(amount: float, from: Vector3)
 @export var mouse_sensitivity := 0.0022
 @export var base_fov := 90.0
 @export var speed_fov_bonus := 15.0
+## How far the camera dips per m/s of landing speed, and the cap.
+@export var land_dip_per_speed := 0.018
+@export var land_dip_max := 0.3
 
 @export_group("Health")
 @export var max_health := 100.0
@@ -100,6 +106,8 @@ var cam_roll := 0.0
 var input_dir := Vector2.ZERO
 var wish_dir := Vector3.ZERO
 var rope: Node3D
+var land_dip := 0.0
+var fall_speed := 0.0
 var health := 100.0
 var regen_timer := 0.0
 
@@ -226,7 +234,8 @@ func _air_state(delta: float) -> void:
 	coyote_timer -= delta
 	ground_time = 0.0
 	_set_crouch(Input.is_action_pressed("crouch"))
-	velocity.y -= gravity * delta
+	var g := gravity * (fall_gravity_mult if velocity.y < 0.0 else 1.0)
+	velocity.y = maxf(velocity.y - g * delta, -max_fall_speed)
 	_air_strafe(delta)
 
 	if jump_buffer_timer > 0.0:
@@ -237,6 +246,7 @@ func _air_state(delta: float) -> void:
 		elif air_jumps_left > 0:
 			_double_jump()
 
+	fall_speed = -velocity.y
 	move_and_slide()
 
 	if is_on_floor():
@@ -383,6 +393,9 @@ func _wall_jump() -> void:
 
 func _land() -> void:
 	ground_time = 0.0
+	# Camera dips on hard landings so falls have weight.
+	land_dip = minf(maxf(fall_speed - 4.0, 0.0) * land_dip_per_speed, land_dip_max)
+	fall_speed = 0.0
 	air_jumps_left = air_jumps
 	var hspeed := Vector3(velocity.x, 0.0, velocity.z).length()
 	if Input.is_action_pressed("crouch") and hspeed >= slide_min_speed:
@@ -493,7 +506,8 @@ func _set_crouch(want: bool) -> void:
 
 func _update_camera(delta: float) -> void:
 	var eye := CROUCH_EYE if crouching else STAND_EYE
-	head.position.y = lerpf(head.position.y, eye, 1.0 - exp(-14.0 * delta))
+	land_dip = lerpf(land_dip, 0.0, 1.0 - exp(-7.0 * delta))
+	head.position.y = lerpf(head.position.y, eye - land_dip, 1.0 - exp(-18.0 * delta))
 
 	var target_roll := 0.0
 	if state == State.WALLRUN:

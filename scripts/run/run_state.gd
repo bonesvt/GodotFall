@@ -13,6 +13,7 @@ var zone := 0
 var parts := {}
 var pilot_hp := PILOT_MAX
 var falls := 0
+var downs := 0
 var caches_opened := 0
 var time := 0.0
 

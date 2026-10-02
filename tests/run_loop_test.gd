@@ -30,6 +30,8 @@ func _run() -> void:
 	_check("zone 1 loaded", run_node.run.zone == 0 and run_node.phase == run_node.Phase.ZONE, run_node.run.zone)
 	_check("zone has two caches", info["caches"].size() == 2, info["caches"].size())
 	_check("one cache is guarded", info["objectives"].size() == 1 and info["objectives"][0].cache.locked, info["objectives"].size())
+	_check("zone has grunts", info["grunts"].size() >= 2, info["grunts"].size())
+	_check("grunts hunt the pilot", info["grunts"].all(func(g): return g.target == player), "")
 
 	# The hardest gaps the generator makes, flown by the pilot: sprint, jump at the edge, double jump.
 	var jump: Vector2 = ZoneBuilder.GAPS["jump"]
@@ -50,17 +52,32 @@ func _run() -> void:
 	_check("part installed", run_node.run.parts.get(picked["slot"]) == picked, run_node.run.parts.keys())
 	_check("choice resumes the run", run_node.phase == run_node.Phase.ZONE and not paused and open_cache.opened, run_node.phase)
 
-	# Guarded cache is locked until the uplink is held
+	# Guarded cache is locked until its squad is dead
 	var objective: Node3D = info["objectives"][0]
 	await _use_cache(objective.cache)
 	_check("guarded cache stays locked", run_node.phase == run_node.Phase.ZONE and not objective.cache.opened, run_node.phase)
-	_place(objective.global_position + Vector3(0, 0.1, 0))
-	await _ticks(int((objective.hold_time + 0.5) * 120.0))
-	_check("holding the uplink unlocks the cache", objective.done and not objective.cache.locked, objective.progress)
+	_check("guard squad posted", objective.alive() >= 2, objective.alive())
+	# Let the squad see the pilot and fight for a few seconds: they hold their cover and stay on the platform.
+	await _ticks(600)
+	var stayed: bool = objective.grunts.all(func(g): return g.alerted and g.global_position.distance_to(g.post) < g.leash + 0.6)
+	_check("guards engage and hold their cover", stayed, objective.grunts.map(func(g): return g.global_position.distance_to(g.post)))
+	_check("guards shoot the pilot", player.health < player.max_health or run_node.run.downs > 0, player.health)
+	for g in objective.grunts:
+		g.take_damage(1000.0, g.global_position)
+	await _ticks(2)
+	_check("clearing the guards unlocks the cache", objective.done and not objective.cache.locked, objective.alive())
 	await _use_cache(objective.cache)
 	await _press("choice_2")
 	await _ticks(2)
 	_check("second part installed", run_node.run.caches_opened == 2 and run_node.run.parts.size() >= 1, run_node.run.parts.size())
+
+	# Getting gunned down costs integrity and respawns on a platform
+	run_node.run.pilot_hp = 100
+	run_node.run.downs = 0
+	player.take_damage(1000.0)
+	await _ticks(2)
+	_check("downed costs integrity", run_node.run.pilot_hp == 75 and run_node.run.downs == 1 and player.health == player.max_health, run_node.run.pilot_hp)
+	run_node.run.pilot_hp = 100
 
 	# Falling costs integrity and respawns on a platform
 	_place(Vector3(0, float(info["floor_y"]) - 30.0, 0))
@@ -76,7 +93,8 @@ func _run() -> void:
 				continue
 			if cache.locked:
 				for o in info["objectives"]:
-					o.progress = o.hold_time
+					for g in o.grunts:
+						g.take_damage(1000.0, g.global_position)
 				await _ticks(2)
 			await _use_cache(cache)
 			await _press("choice_1")
@@ -168,8 +186,11 @@ func _generator_checks() -> void:
 					bad.append([s, zone, "jump rise", seg["rise"]])
 			if info["caches"].size() != 2 or info["segments"].size() != 5 + zone:
 				bad.append([s, zone, "layout"])
+			for g in info["grunts"]:
+				if not _on_a_platform(g.post, info["platforms"], 0.8):
+					bad.append([s, zone, "grunt off platform", g.post])
 			tmp.free()
-	_check("generated gaps stay clearable", bad.is_empty(), bad)
+	_check("generated gaps stay clearable, grunts stand on platforms", bad.is_empty(), bad)
 
 	var a := RandomNumberGenerator.new()
 	var b := RandomNumberGenerator.new()
@@ -182,6 +203,15 @@ func _generator_checks() -> void:
 	_check("same seed, same zone", str(pa) == str(pb), pa.size())
 	ta.free()
 	tb.free()
+
+
+func _on_a_platform(pos: Vector3, platforms: Array, margin: float) -> bool:
+	for p in platforms:
+		var top: Vector3 = p["top"]
+		var size: Vector2 = p["size"]
+		if absf(pos.x - top.x) < size.x * 0.5 - margin and absf(pos.z - top.z) < size.y * 0.5 - margin and absf(pos.y - top.y) < 0.5:
+			return true
+	return false
 
 
 ## Builds a gap like the generator's off to the side of the zone and flies the pilot over it.

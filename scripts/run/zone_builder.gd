@@ -1,18 +1,21 @@
 extends RefCounted
 ## Builds run zones from the run's RNG.
 ## A zone is a chain of platforms over a void heading -Z, linked by traversal
-## gaps (jump, wallrun, grapple, climb). Two side platforms hold salvage caches,
-## one of them guarded by a hold objective. The last platform has the extraction
-## beacon. The arena is the flat end-of-run map where the titan fight happens.
+## gaps (jump, wallrun, grapple, climb). Grunt squads hold some platforms from
+## behind cover, and every platform past the spawn has cover for the pilot too.
+## Two side platforms hold salvage caches, one of them guarded by a squad that
+## must be cleared to unlock it. The last platform has the extraction beacon. The arena is the flat end-of-run map where the titan fight happens.
 
 const Kit := preload("res://scripts/run/level_kit.gd")
 const SalvageCache := preload("res://scripts/run/salvage_cache.gd")
-const HoldObjective := preload("res://scripts/run/hold_objective.gd")
+const SquadObjective := preload("res://scripts/run/squad_objective.gd")
+const GruntScript := preload("res://scripts/grunt.gd")
 const ExtractBeacon := preload("res://scripts/run/extract_beacon.gd")
 const Boss := preload("res://scripts/run/boss.gd")
 
 ## Gap ranges in metres between platform edges, kept inside what the pilot can
-## clear: a sprint jump covers about 7 m, a wallrun about 18 m, the grapple 45 m.
+## clear: a sprint jump covers about 6 m (9 m with the double jump), a wallrun
+## about 18 m, the grapple 45 m.
 const GAPS := {
 	"jump": Vector2(4.0, 6.5),
 	"wallrun": Vector2(13.0, 17.0),
@@ -23,6 +26,11 @@ const WEIGHTS := {"jump": 3.0, "wallrun": 2.0, "grapple": 1.5, "climb": 1.5}
 ## A double jump peaks around 2.4 m, so climbs rise a little under that.
 const CLIMB_RISE := 2.0
 const SIDE_GAP := 5.0
+## Chance that a path platform holds a grunt squad, per zone.
+const SQUAD_CHANCE := [0.45, 0.6, 0.75]
+## Cover keeps this much of each platform's centre line clear for running and landing.
+const LANE_HALF := 1.5
+const COVER := Color(0.42, 0.44, 0.4)
 
 const GREY := Color(0.55, 0.57, 0.6)
 const BLUE := Color(0.25, 0.5, 0.9)
@@ -44,7 +52,7 @@ static func build_zone(root: Node3D, rng: RandomNumberGenerator, zone_index: int
 	var tint: Color = ZONE_TINTS[zone_index % ZONE_TINTS.size()]
 	var info := {
 		"spawn": Vector3(0, 0.1, 3.0), "platforms": [], "segments": [],
-		"caches": [], "objectives": [], "beacon": null, "floor_y": 0.0,
+		"caches": [], "objectives": [], "beacon": null, "floor_y": 0.0, "grunts": [],
 	}
 	var cur := Vector3.ZERO
 	var cur_size := Vector2(14, 14)
@@ -100,6 +108,7 @@ static func build_zone(root: Node3D, rng: RandomNumberGenerator, zone_index: int
 		})
 
 		var path_index := i + 1
+		_path_cover(root, rng, info, next, next_size, zone_index)
 		if path_index == guarded_at or path_index == open_at:
 			_side_cache(root, rng, info, next, next_size, tint, path_index == guarded_at, zone_index)
 		cur = next
@@ -154,6 +163,54 @@ static func _platform(root: Node3D, info: Dictionary, top: Vector3, size: Vector
 	info["platforms"].append({"top": top, "size": size})
 
 
+## Cover on a path platform: a couple of pieces near the front for the pilot to
+## land behind, and sometimes a grunt squad dug in behind cover at the back.
+static func _path_cover(root: Node3D, rng: RandomNumberGenerator, info: Dictionary,
+		top: Vector3, size: Vector2, zone_index: int) -> void:
+	var facing := Vector3(0, 0, 1)  # the pilot arrives from +Z
+	var half_x := size.x * 0.5
+	for k in rng.randi_range(1, 2):
+		var lateral := (-1.0 if k % 2 == 0 else 1.0) * rng.randf_range(LANE_HALF + 1.1, half_x - 1.2)
+		_cover_piece(root, rng, top, facing, lateral, size.y * 0.2)
+	if rng.randf() >= SQUAD_CHANCE[mini(zone_index, SQUAD_CHANCE.size() - 1)]:
+		return
+	var count := rng.randi_range(1, 2 + mini(zone_index, 1))
+	for k in count:
+		var lateral := (-1.0 if k % 2 == 0 else 1.0) * rng.randf_range(LANE_HALF + 1.1, half_x - 1.2)
+		var depth := -size.y * 0.25 + (0.0 if k < 2 else 1.5)
+		_cover_post(root, rng, info, top, facing, lateral, depth, zone_index, false)
+
+
+## A piece of cover with a grunt posted behind it. Returns the grunt.
+static func _cover_post(root: Node3D, rng: RandomNumberGenerator, info: Dictionary, top: Vector3,
+		facing: Vector3, lateral: float, depth: float, zone_index: int, guard: bool) -> Node:
+	_cover_piece(root, rng, top, facing, lateral, depth)
+	var right := facing.cross(Vector3.UP)
+	var g := CharacterBody3D.new()
+	g.set_script(GruntScript)
+	g.leash = 2.0 if guard else 2.5
+	g.sight_range = 35.0 + zone_index * 5.0
+	g.damage = 8.0 + zone_index * 2.0
+	root.add_child(g)
+	g.position = top + right * lateral + facing * (depth - 1.1) + Vector3(0, 0.1, 0)
+	g.post = g.position
+	g.rotation.y = atan2(-facing.x, -facing.z)
+	info["grunts"].append(g)
+	return g
+
+
+## Low wall (crouch or slide behind it) or a tall block (full cover).
+static func _cover_piece(root: Node3D, rng: RandomNumberGenerator, top: Vector3,
+		facing: Vector3, lateral: float, depth: float) -> void:
+	var right := facing.cross(Vector3.UP)
+	var tall := rng.randf() < 0.3
+	var width := 1.4 if tall else 2.2
+	var height := 2.6 if tall else 1.2
+	var thick := 1.4 if tall else 0.5
+	var size := (right * width + facing * thick).abs() + Vector3(0, height, 0)
+	Kit.box(root, top + right * lateral + facing * depth + Vector3(0, height * 0.5, 0), size, COVER)
+
+
 static func _side_cache(root: Node3D, rng: RandomNumberGenerator, info: Dictionary,
 		at: Vector3, at_size: Vector2, tint: Color, guarded: bool, zone_index: int) -> void:
 	var side := -1.0 if rng.randf() < 0.5 else 1.0
@@ -165,10 +222,18 @@ static func _side_cache(root: Node3D, rng: RandomNumberGenerator, info: Dictiona
 	cache.position = top + Vector3(side * 2.5, 0, 0)
 	info["caches"].append(cache)
 	if guarded:
+		# The squad digs in facing the path platform the pilot comes from.
 		cache.set_locked(true)
-		var objective := HoldObjective.new()
-		objective.hold_time = 5.0 + zone_index * 1.5
+		var facing := Vector3(-side, 0, 0)
+		var squad := []
+		var count := 2 + mini(zone_index, 2)
+		for k in count:
+			var lateral := (-1.0 if k % 2 == 0 else 1.0) * rng.randf_range(LANE_HALF + 1.1, size.y * 0.5 - 1.2)
+			var depth := 0.8 - float(k >> 1) * 2.2
+			squad.append(_cover_post(root, rng, info, top, facing, lateral, depth, zone_index, true))
+		var objective := SquadObjective.new()
 		root.add_child(objective)
-		objective.position = top - Vector3(side * 1.0, 0, 0)
+		objective.position = top
 		objective.cache = cache
+		objective.set_squad(squad)
 		info["objectives"].append(objective)
