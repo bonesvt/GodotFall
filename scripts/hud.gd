@@ -41,7 +41,7 @@ Q, E or right mouse  grapple (hold)
 Left mouse  shoot    R  reload    I  inspect
 Z or mouse thumb  knife (kills unaware grunts)
 T  respawn    G  reset grunt arena
-H  hide help    F8  dialogue rating    Esc  free mouse"""
+H  hide help    O  dialogue rating    Esc  free mouse"""
 
 
 func _ready() -> void:
@@ -133,7 +133,7 @@ func _label(size: int) -> Label:
 func _unhandled_key_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo and event.physical_keycode == KEY_H:
 		help_label.visible = not help_label.visible
-	if event is InputEventKey and event.pressed and not event.echo and event.physical_keycode == KEY_F8:
+	if event is InputEventKey and event.pressed and not event.echo and event.physical_keycode == KEY_O:
 		var r: String = ContentRating.cycle()
 		flash_message("Dialogue rating: %s" % RadioLines.RATING_NAMES[r], 2.5)
 

@@ -3,7 +3,7 @@ extends Node
 ## giving herself away, so she talks back under her breath once an exchange
 ## goes off the air, and mutters to herself through the fight and the quiet
 ## stretches. Lines come from eco_whisper_lines.gd, picked by the dialogue
-## rating (F8), and show as a soft caption under the crosshair
+## rating (O key), and show as a soft caption under the crosshair
 ## (whisper_caption.gd) with a breathy whisper sound under it.
 ##
 ## The HUD creates this next to the radio. Other systems can call
