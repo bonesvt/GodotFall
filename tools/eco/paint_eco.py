@@ -44,11 +44,15 @@ def face():
 
     layers = []
     for s in (1, -1):
-        layers.append(blob(s * 0.05, 1.522, 0.022, 0.013, (226, 128, 110), 120, 14))  # blush
-        layers.append(blob(s * 0.037, 1.566, 0.025, 0.008, (150, 96, 92), 110, 6))    # lid shadow
+        layers.append(blob(s * 0.052, 1.528, 0.02, 0.011, (226, 120, 108), 100, 12))  # blush
+        layers.append(blob(s * 0.04, 1.565, 0.026, 0.008, (120, 70, 82), 150, 6))     # smoky lid
+        layers.append(blob(s * 0.062, 1.515, 0.014, 0.022, (160, 98, 80), 80, 10))     # cheekbone contour
         layers.append(blob(s * 0.072, 1.5, 0.016, 0.03, (180, 120, 95), 70, 14))       # jaw shade
     layers.append(blob(0, 1.512, 0.012, 0.008, (222, 135, 112), 110, 6))               # nose tip
-    layers.append(blob(0, 1.462, 0.022, 0.012, (180, 122, 96), 60, 10))                # under lip
+    for s in (1, -1):
+        layers.append(blob(s * 0.013, 1.536, 0.005, 0.02, (168, 104, 86), 70, 5))     # bridge shadow
+    layers.append(blob(0, 1.503, 0.011, 0.004, (140, 78, 66), 110, 4))                # under the nose
+    layers.append(blob(0, 1.465, 0.02, 0.011, (180, 122, 96), 60, 10))                # under lip
     for m, c in layers:
         img = paint_over(img, c, m)
 
@@ -57,33 +61,33 @@ def face():
     # lips: muted rose, fuller lower lip with a soft highlight
     lip = Image.new("L", (S, S), 0)
     ld = ImageDraw.Draw(lip)
-    pts_top = [face_px(x, z) for x, z in ((-0.02, 1.4805), (-0.008, 1.4855), (0, 1.4835), (0.008, 1.4855), (0.02, 1.4805), (0, 1.4795))]
-    pts_bot = [face_px(x, z) for x, z in ((-0.018, 1.4795), (0, 1.4795), (0.018, 1.4795), (0.012, 1.4725), (0, 1.4705), (-0.012, 1.4725))]
+    pts_top = [face_px(x, z) for x, z in ((-0.0205, 1.4845), (-0.008, 1.4905), (0, 1.4878), (0.008, 1.4905), (0.0205, 1.4845), (0, 1.4835))]
+    pts_bot = [face_px(x, z) for x, z in ((-0.019, 1.4835), (0, 1.4835), (0.019, 1.4835), (0.013, 1.4755), (0, 1.473), (-0.013, 1.4755))]
     ld.polygon(pts_top, fill=230)
     ld.polygon(pts_bot, fill=210)
-    img = paint_over(img, (182, 98, 96), soft(lip, 1.6))
+    img = paint_over(img, (172, 78, 86), soft(lip, 1.4))
     hl = Image.new("L", (S, S), 0)
-    x0, y0 = face_px(-0.007, 1.4765)
-    x1, y1 = face_px(0.007, 1.4738)
+    x0, y0 = face_px(-0.008, 1.4805)
+    x1, y1 = face_px(0.008, 1.4772)
     ImageDraw.Draw(hl).ellipse((x0, y0, x1, y1), fill=120)
     img = paint_over(img, (230, 168, 160), soft(hl, 2))
     line = Image.new("L", (S, S), 0)
-    ImageDraw.Draw(line).line([face_px(x, 1.4795 + 0.0012 * np.cos(x * 120)) for x in np.linspace(-0.02, 0.02, 12)], fill=200, width=2)
+    ImageDraw.Draw(line).line([face_px(x, 1.4835 + 0.0012 * np.cos(x * 120)) for x in np.linspace(-0.02, 0.02, 12)], fill=200, width=2)
     img = paint_over(img, (110, 55, 58), soft(line, 0.8))
 
     # brows: silver-white like her hair, with a soft lavender underside so they read
     for s in (1, -1):
-        pts = [(s * x, 1.578 + 0.0045 * np.sin((x - 0.014) / 0.046 * np.pi) + (x - 0.014) * 0.06)
-               for x in np.linspace(0.014, 0.062, 14)]
+        pts = [(s * x, 1.5675 + 0.003 * np.sin((x - 0.012) / 0.05 * np.pi) + (x - 0.012) * 0.17 - max(0.0, x - 0.05) * 0.25)
+               for x in np.linspace(0.012, 0.062, 14)]
         shade = Image.new("L", (S, S), 0)
-        ImageDraw.Draw(shade).line([face_px(x, z - 0.0016) for x, z in pts], fill=170, width=9)
+        ImageDraw.Draw(shade).line([face_px(x, z - 0.0016) for x, z in pts], fill=120, width=6)
         img = paint_over(img, (150, 120, 150), soft(shade, 2.5))
         brow = Image.new("L", (S, S), 0)
         bd = ImageDraw.Draw(brow)
         for k in range(len(pts) - 1):
-            w = int(round(9 - 6 * k / len(pts)))
+            w = int(round(6 - 4 * k / len(pts)))
             bd.line([face_px(*pts[k]), face_px(*pts[k + 1])], fill=240, width=w, joint="curve")
-        img = paint_over(img, (246, 244, 252), soft(brow, 1.0))
+        img = paint_over(img, (214, 212, 226), soft(brow, 0.8))
         # strokes for hair texture
         sd = ImageDraw.Draw(img)
         for x, z in pts[1::2]:
@@ -93,12 +97,12 @@ def face():
     # lower lash line and a winged liner at the outer corner of each eye
     for s in (1, -1):
         ll = Image.new("L", (S, S), 0)
-        pts = [face_px(s * 0.0365 + s * dx, 1.553 - 0.0118 * np.sqrt(max(0.0, 1 - (dx / 0.022) ** 2)) - 0.001)
+        pts = [face_px(s * 0.0365 + s * dx, 1.553 - 0.0098 * np.sqrt(max(0.0, 1 - (dx / 0.021) ** 2)) - 0.0012 + dx * 0.12)
                for dx in np.linspace(-0.016, 0.02, 10)]
         ImageDraw.Draw(ll).line(pts, fill=150, width=3)
         img = paint_over(img, (90, 50, 50), soft(ll, 1.0))
         wing = Image.new("L", (S, S), 0)
-        ImageDraw.Draw(wing).line([face_px(s * 0.056, 1.5555), face_px(s * 0.066, 1.562)], fill=230, width=4)
+        ImageDraw.Draw(wing).line([face_px(s * 0.054, 1.557), face_px(s * 0.069, 1.5665)], fill=240, width=5)
         img = paint_over(img, (40, 24, 28), soft(wing, 0.8))
 
     # freckles over the nose and cheeks, and a grease smudge on her left cheek

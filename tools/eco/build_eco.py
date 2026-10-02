@@ -1,5 +1,6 @@
 """Assembles Eco in Blender from the sculpted parts: decimates them, adds the
-eyes, UVs, the armature with skin weights, idle and walk animations, and
+eyes, UVs, the armature with skin weights and spring bones (hair, rag),
+idle/walk/run/fall/crouch/slide animations, and
 exports assets/models/eco/eco.glb. Run through Blender:
 
     blender -b --factory-startup -P tools/eco/build_eco.py -- <parts_dir> <out.glb> [--preview <png_prefix>]
@@ -29,28 +30,28 @@ PARTS = {
     "body": ("eco_skin", "box", "auto"),
     "head": ("eco_face", "face", "head"),
     "lashes": ("eco_lash", "box", "head"),
-    "hair": ("eco_hair", "box", "head"),
-    "hand_R": ("eco_skin", "box", "auto"),
-    "hand_L": ("eco_skin", "box", "auto"),
-    "glove_R": ("eco_leather", "box", "auto"),
-    "glove_L": ("eco_leather", "box", "auto"),
+    "hair": ("eco_hair", "box", "hair"),
+    "hand_R": ("eco_skin", "box", "arm"),
+    "hand_L": ("eco_skin", "box", "arm"),
+    "glove_R": ("eco_leather", "box", "arm"),
+    "glove_L": ("eco_leather", "box", "arm"),
     "shirt": ("eco_shirt", "box", "auto"),
-    "pants": ("eco_pants", "box", "auto"),
-    "knee_pads": ("eco_leather_dark", "box", "auto"),
+    "pants": ("eco_pants", "box", "lower"),
+    "knee_pads": ("eco_leather_dark", "box", "lower"),
     "boots": ("eco_leather", "box", "auto"),
     "soles": ("eco_sole", "box", "auto"),
     "toe_caps": ("eco_metal", "box", "auto"),
     "jacket": ("eco_jacket", "box", "auto"),
     "jacket_trim": ("eco_jacket_dark", "box", "auto"),
-    "bandage": ("eco_bandage", "box", "auto"),
-    "belt": ("eco_leather", "box", "auto"),
-    "buckle": ("eco_brass", "box", "auto"),
-    "pouches": ("eco_leather", "box", "auto"),
-    "straps": ("eco_leather_dark", "box", "auto"),
+    "bandage": ("eco_bandage", "box", "arm"),
+    "belt": ("eco_leather", "box", "lower"),
+    "buckle": ("eco_brass", "box", "lower"),
+    "pouches": ("eco_leather", "box", "lower"),
+    "straps": ("eco_leather_dark", "box", "lower"),
     "plate": ("eco_titan", "box", "auto"),
     "plate_stripe": ("eco_titan_stripe", "box", "auto"),
-    "metal": ("eco_metal", "box", "auto"),
-    "rag": ("eco_rag", "box", "auto"),
+    "metal": ("eco_metal", "box", "lower"),
+    "rag": ("eco_rag", "box", "rag"),
     "goggle_rims": ("eco_brass", "box", "head"),
     "goggle_lenses": ("eco_lens", "box", "head"),
     "goggle_strap": ("eco_leather_dark", "box", "head"),
@@ -96,7 +97,7 @@ def load_part(name):
     me = bpy.data.meshes.new(name)
     me.from_pydata(verts.tolist(), [], faces.tolist())
     me.validate()
-    obj = bpy.data.objects.new(name, me)
+    obj = bpy.data.objects.new(name + "_mesh", me)  # keeps bone names (head, rag) unique
     bpy.context.collection.objects.link(obj)
     activate(obj)
     # marching cubes winds faces inward for our sign convention
@@ -192,6 +193,21 @@ def make_eyes():
 
 # --- armature and weights ------------------------------------------------------
 
+def _head_scaled(p):
+    return tuple(HEAD_PIVOT + (Vector(p) - HEAD_PIVOT) * HEAD_SCALE)
+
+
+# Spring bones: animated by the game (scripts/ps2/eco_model.gd), never keyed here.
+# name: (head, tail, parent), in the sculpt's (unscaled) coordinates.
+SPRINGS = {
+    "hair_front": ((0.0, 0.05, 1.645), (-0.02, 0.105, 1.565), "head"),
+    "hair_back": ((0.0, -0.07, 1.625), (0.0, -0.115, 1.5), "head"),
+    "hair_side.R": ((0.06, 0.0, 1.635), (0.105, 0.005, 1.52), "head"),
+    "hair_side.L": ((-0.06, 0.0, 1.635), (-0.105, 0.005, 1.52), "head"),
+    "rag": ((0.075, -0.16, 0.975), (0.075, -0.17, 0.83), "hips"),
+}
+
+
 def make_armature():
     arm = bpy.data.armatures.new("EcoRig")
     rig = bpy.data.objects.new("Eco", arm)
@@ -206,6 +222,13 @@ def make_armature():
         if parent:
             b.parent = arm.edit_bones[parent]
             b.use_connect = False
+    for name, (h, t, parent) in SPRINGS.items():
+        b = arm.edit_bones.new(name)
+        if parent == "head":
+            h, t = _head_scaled(h), _head_scaled(t)
+        b.head, b.tail, b.roll = Vector(h), Vector(t), 0.0
+        b.parent = arm.edit_bones[parent]
+        b.use_connect = False
     bpy.ops.object.mode_set(mode="OBJECT")
     return rig
 
@@ -219,7 +242,7 @@ def seg_dist(P, a, b):
     return np.linalg.norm(P - (a + t[:, None] * ab), axis=1)
 
 
-def auto_weights(P):
+def auto_weights(P, no_arms=False, only_arms=False):
     names = [s[0] for s in SEGMENTS]
     D = np.stack([seg_dist(P, a, b) for _, a, b in SEGMENTS], 1)
     x = P[:, 0]
@@ -230,7 +253,15 @@ def auto_weights(P):
             D[:, i] += np.where(x > 0.03, 1.0, 0.0)
         if n.startswith(("upperarm", "forearm", "hand")):
             # arms only move what hangs off the shoulder
-            D[:, i] += np.where(np.abs(x) < 0.14, 0.5, 0.0)
+            D[:, i] += np.where((np.abs(x) < 0.15) | ((np.abs(x) < 0.215) & (P[:, 2] < 1.0)), 0.5, 0.0)
+        if only_arms and not n.startswith(("upperarm", "forearm", "hand")):
+            D[:, i] += 1.0
+        if no_arms and n.startswith(("upperarm", "forearm", "hand")):
+            # belt gear and trousers never follow the hanging hands
+            D[:, i] += np.where(P[:, 2] < 1.1, 1.0, 0.0)
+        if n.startswith("thigh"):
+            # the pelvis and seat stay with the hips, so raised knees don't tear them
+            D[:, i] += np.clip((P[:, 2] - 0.8) / 0.12, 0, 1) * 0.07
         if n in ("head",):
             D[:, i] += np.where(P[:, 2] < 1.43, 1.0, 0.0)
     D = np.maximum(D, 0.004)
@@ -251,8 +282,26 @@ def skin(obj, rig, rule):
         names = ["head", "neck"]
         w_head = np.clip((P[:, 2] - 1.425) / 0.04, 0, 1)
         W = np.stack([w_head, 1 - w_head], 1)
+    elif rule == "hair":
+        # locks follow the head at the root and the spring bones toward the tips
+        tip = np.array([d.color[0] for d in me.color_attributes["Col"].data])
+        Q = (P - np.array(HEAD_PIVOT)) / HEAD_SCALE + np.array(HEAD_PIVOT)  # unscaled
+        phi = np.degrees(np.arctan2(Q[:, 0], Q[:, 1] + 0.012))
+        fringe = np.clip(1 - np.abs(phi) / 55, 0, 1) * np.clip((Q[:, 2] - 1.5) / 0.04, 0, 1)
+        side_r = np.clip(1 - np.abs(phi - 95) / 55, 0, 1)
+        side_l = np.clip(1 - np.abs(phi + 95) / 55, 0, 1)
+        back = np.clip(1 - (180 - np.abs(phi)) / 70, 0, 1)
+        R4 = np.stack([fringe, back, side_r, side_l], 1) + 1e-6
+        R4 /= R4.sum(1, keepdims=True)
+        follow = (tip ** 1.3) * 0.85
+        names = ["head", "hair_front", "hair_back", "hair_side.R", "hair_side.L"]
+        W = np.concatenate([(1 - follow)[:, None], R4 * follow[:, None]], 1)
+    elif rule == "rag":
+        w = np.clip((0.97 - P[:, 2]) / 0.13, 0, 1) ** 1.2
+        names = ["hips", "rag"]
+        W = np.stack([1 - w, w], 1)
     else:
-        names, W = auto_weights(P)
+        names, W = auto_weights(P, rule == "lower", rule == "arm")
     for i, n in enumerate(names):
         idx = np.nonzero(W[:, i] > 1e-4)[0]
         if len(idx) == 0:
@@ -289,6 +338,8 @@ X, Y, Z = (1, 0, 0), (0, 1, 0), (0, 0, 1)
 
 def key_pose(rig, frame, pose):
     for pb in rig.pose.bones:
+        if pb.name in SPRINGS:
+            continue
         rots = pose.get(pb.name, [])
         combine(pb, rots)
         pb.keyframe_insert("rotation_quaternion", frame=frame)
@@ -361,7 +412,100 @@ def make_actions(rig):
         # hips local Y is world up for the upward hips bone
         p["_hips_loc"] = (0, hips_drop, 0)
         key_pose(rig, f, p)
-    for act in (idle, walk):
+    run = bpy.data.actions.new("run")
+    rig.animation_data.action = run
+    n = 22  # one stride (two steps) in 22 frames, about 4.4 m: authored at 6 m/s
+    for f in range(0, n + 1, 1):
+        t = f / n * 2 * math.pi
+        p = base_pose()
+        sw = math.sin(t)
+        add(p, "thigh.R", X, 44 * sw + 6)
+        add(p, "thigh.L", X, -44 * sw + 6)
+        add(p, "shin.R", X, -95 * max(0.0, math.sin(t - 1.4)) - 14)
+        add(p, "shin.L", X, -95 * max(0.0, math.sin(t + math.pi - 1.4)) - 14)
+        add(p, "foot.R", X, 16 * math.cos(t))
+        add(p, "foot.L", X, -16 * math.cos(t))
+        add(p, "upperarm.R", X, -40 * sw)
+        add(p, "upperarm.L", X, 40 * sw)
+        add(p, "forearm.R", X, 72 + 12 * max(0.0, -sw))
+        add(p, "forearm.L", X, 72 + 12 * max(0.0, sw))
+        add(p, "spine", X, -9)
+        add(p, "head", X, 7)
+        add(p, "hips", Z, 9 * sw)
+        add(p, "chest", Z, -13 * sw)
+        add(p, "head", Z, 4 * sw)
+        p["_hips_loc"] = (0, -0.035 + 0.03 * abs(math.sin(t)), 0)
+        key_pose(rig, f, p)
+    # poses held while airborne, crouched and sliding (gentle motion so they loop)
+    fall = bpy.data.actions.new("fall")
+    rig.animation_data.action = fall
+    n = 30
+    for f in range(0, n + 1, 5):
+        t = f / n * 2 * math.pi
+        p = base_pose()
+        add(p, "thigh.R", X, 38 + 4 * math.sin(t))
+        add(p, "shin.R", X, -62)
+        add(p, "thigh.L", X, -8 - 4 * math.sin(t))
+        add(p, "shin.L", X, -38)
+        add(p, "foot.R", X, -10)
+        add(p, "foot.L", X, -20)
+        add(p, "upperarm.R", Y, -38 + 5 * math.sin(t))
+        add(p, "upperarm.L", Y, 38 - 5 * math.sin(t))
+        add(p, "upperarm.R", X, 18)
+        add(p, "upperarm.L", X, -10)
+        add(p, "forearm.R", X, 30)
+        add(p, "forearm.L", X, 30)
+        add(p, "spine", X, -6)
+        add(p, "head", X, 6)
+        key_pose(rig, f, p)
+    crouch = bpy.data.actions.new("crouch")
+    rig.animation_data.action = crouch
+    n = 60
+    for f in range(0, n + 1, 10):
+        t = f / n * 2 * math.pi
+        breath = math.sin(t)
+        p = base_pose()
+        for sd, sgn in (("R", 1), ("L", -1)):
+            add(p, "thigh." + sd, X, 74)
+            add(p, "thigh." + sd, Y, -9 * sgn)
+            add(p, "shin." + sd, X, -112)
+            add(p, "foot." + sd, X, 36)
+        add(p, "spine", X, -26 - 1.5 * breath)
+        add(p, "chest", X, -6)
+        add(p, "neck", X, 14)
+        add(p, "head", X, 16)
+        add(p, "upperarm.R", X, 34)
+        add(p, "upperarm.L", X, 26)
+        add(p, "forearm.R", X, 48)
+        add(p, "forearm.L", X, 54)
+        p["_hips_loc"] = (0, -0.4, 0.13)
+        key_pose(rig, f, p)
+    slide = bpy.data.actions.new("slide")
+    rig.animation_data.action = slide
+    n = 30
+    for f in range(0, n + 1, 5):
+        t = f / n * 2 * math.pi
+        p = base_pose()
+        add(p, "thigh.R", X, 62)
+        add(p, "shin.R", X, -18)
+        add(p, "foot.R", X, -12)
+        add(p, "thigh.L", X, 30)
+        add(p, "thigh.L", Y, 18)
+        add(p, "shin.L", X, -118)
+        add(p, "foot.L", X, 20)
+        add(p, "spine", X, 18 + 1.5 * math.sin(t))
+        add(p, "chest", X, 6)
+        add(p, "neck", X, -10)
+        add(p, "head", X, -14)
+        add(p, "upperarm.L", Y, 52)
+        add(p, "upperarm.L", X, -16)
+        add(p, "forearm.L", X, 20)
+        add(p, "upperarm.R", X, 40)
+        add(p, "upperarm.R", Y, -14)
+        add(p, "forearm.R", X, 50)
+        p["_hips_loc"] = (0, -0.5, 0.05)
+        key_pose(rig, f, p)
+    for act in (idle, walk, run, fall, crouch, slide):
         for fc in act.fcurves:
             for kp in fc.keyframe_points:
                 kp.interpolation = "BEZIER"
@@ -451,8 +595,9 @@ def preview(rig):
         cam_data.angle = math.radians(lens_deg)
         scene.render.filepath = f"{PREVIEW}_{name}.png"
         bpy.ops.render.render(write_still=True)
-    for f, name in ((8, "walk8"), (24, "walk24")):
-        rig.animation_data.action = bpy.data.actions["walk"]
+    for act, f, name in (("walk", 8, "walk8"), ("walk", 24, "walk24"), ("run", 6, "run6"),
+                         ("fall", 0, "fall"), ("crouch", 0, "crouch"), ("slide", 0, "slide")):
+        rig.animation_data.action = bpy.data.actions[act]
         scene.frame_set(f)
         cam.location = (2.6, 2.0, 1.0)
         cam.rotation_euler = (Vector((0, 0, 0.86)) - Vector(cam.location)).to_track_quat("-Z", "Y").to_euler()

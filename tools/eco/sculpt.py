@@ -28,12 +28,12 @@ SIDES = ((1.0, "R"), (-1.0, "L"))
 
 def torso(P, grow=0.0):
     g = grow
-    d = ellipsoid(P, V(0, 0, 0.9), V(0.15, 0.105, 0.1) + g)
-    d = smin(d, ellipsoid(P, V(0, 0.0, 1.05), V(0.108, 0.078, 0.11) + g), 0.05)
+    d = ellipsoid(P, V(0, 0, 0.9), V(0.165, 0.11, 0.105) + g)
+    d = smin(d, ellipsoid(P, V(0, 0.0, 1.05), V(0.098, 0.074, 0.11) + g), 0.05)
     d = smin(d, ellipsoid(P, V(0, -0.006, 1.235), V(0.132, 0.088, 0.13) + g), 0.05)
     for s, _ in SIDES:
         d = smin(d, ellipsoid(P, V(s * 0.05, 0.052, 1.228), V(0.054, 0.04, 0.048) + g), 0.03)
-        d = smin(d, ellipsoid(P, V(s * 0.062, -0.052, 0.86), V(0.07, 0.058, 0.078) + g), 0.03)
+        d = smin(d, ellipsoid(P, V(s * 0.066, -0.06, 0.85), V(0.084, 0.07, 0.088) + g), 0.035)
     d = smin(d, capsule(P, V(-0.14, -0.016, 1.355), V(0.14, -0.016, 1.355), 0.052 + g), 0.04)
     return d
 
@@ -45,9 +45,10 @@ def neck(P, grow=0.0):
 def leg(P, s, side, grow=0.0):
     g = grow
     hip, knee, ankle, toe = J["hip." + side], J["knee." + side], J["ankle." + side], J["toe." + side]
-    d = round_cone(P, hip, knee, 0.084 + g, 0.051 + g)
-    d = smin(d, round_cone(P, knee, ankle, 0.049 + g, 0.032 + g), 0.02)
-    d = smin(d, ellipsoid(P, V(s * 0.09, -0.028, 0.32), V(0.044, 0.044, 0.1) + g), 0.03)
+    d = round_cone(P, hip, knee, 0.096 + g, 0.054 + g)
+    d = smin(d, ellipsoid(P, V(s * 0.1, 0.008, 0.7), V(0.075, 0.07, 0.13) + g), 0.04)
+    d = smin(d, round_cone(P, knee, ankle, 0.051 + g, 0.032 + g), 0.02)
+    d = smin(d, ellipsoid(P, V(s * 0.09, -0.03, 0.32), V(0.048, 0.048, 0.1) + g), 0.03)
     d = smin(d, round_cone(P, ankle, toe, 0.036 + g, 0.028 + g), 0.02)
     return d
 
@@ -169,25 +170,32 @@ EYE_R = 0.0205
 
 def head(P):
     d = ellipsoid(P, V(0, -0.012, 1.566), V(0.085, 0.097, 0.097))
-    d = smin(d, ellipsoid(P, V(0, 0.024, 1.506), V(0.066, 0.068, 0.07)), 0.035)
-    d = smin(d, ellipsoid(P, V(0, 0.058, 1.459), V(0.027, 0.026, 0.022)), 0.026)
+    d = smin(d, ellipsoid(P, V(0, 0.022, 1.512), V(0.06, 0.066, 0.064)), 0.035)
+    d = smin(d, ellipsoid(P, V(0, 0.055, 1.464), V(0.022, 0.024, 0.019)), 0.026)
     for s, _ in SIDES:
-        d = smin(d, ellipsoid(P, V(s * 0.047, 0.05, 1.527), V(0.03, 0.028, 0.024)), 0.02)
-        d = smin(d, ellipsoid(P, V(s * 0.037, 0.073, 1.579), V(0.027, 0.013, 0.011), rot(V(0, 1, 0), s * 8)), 0.014)
+        d = smin(d, ellipsoid(P, V(s * 0.053, 0.046, 1.537), V(0.025, 0.023, 0.015)), 0.018)
+        d = smin(d, ellipsoid(P, V(s * 0.037, 0.074, 1.575), V(0.027, 0.013, 0.01), rot(V(0, 1, 0), -s * 12)), 0.014)
         d = smin(d, ellipsoid(P, V(s * 0.085, -0.008, 1.54), V(0.011, 0.019, 0.027), rot(V(0, 0, 1), s * 18)), 0.01)
     # nose
-    d = smin(d, round_cone(P, V(0, 0.08, 1.556), V(0, 0.097, 1.514), 0.0065, 0.0105), 0.012)
+    d = smin(d, round_cone(P, V(0, 0.081, 1.556), V(0, 0.099, 1.516), 0.0055, 0.0088), 0.011)
     for s, _ in SIDES:
-        d = smin(d, sphere(P, V(s * 0.0085, 0.088, 1.508), 0.0075), 0.008)
+        d = smin(d, sphere(P, V(s * 0.0078, 0.09, 1.511), 0.0064), 0.008)
     # lips
-    d = smin(d, ellipsoid(P, V(0, 0.077, 1.484), V(0.019, 0.011, 0.0065)), 0.008)
-    d = smin(d, ellipsoid(P, V(0, 0.073, 1.4735), V(0.016, 0.012, 0.0072)), 0.008)
-    d = smax(d, -ellipsoid(P, V(0, 0.086, 1.4795), V(0.02, 0.012, 0.0012)), 0.002)  # mouth line
+    d = smin(d, ellipsoid(P, V(0, 0.077, 1.4885), V(0.0195, 0.012, 0.0072)), 0.008)
+    d = smin(d, ellipsoid(P, V(0, 0.073, 1.4775), V(0.0175, 0.013, 0.0085)), 0.008)
+    d = smax(d, -ellipsoid(P, V(0, 0.086, 1.4835), V(0.02, 0.012, 0.0012)), 0.002)  # mouth line
+    # tapered V jawline from the jaw angle to a narrow chin
+    for s, _ in SIDES:
+        a, b = V(s * 0.026, 0, 1.446), V(s * 0.072, 0, 1.502)
+        n = norm(V(s * (b[2] - a[2]), 0, -(abs(b[0]) - abs(a[0]))))
+        cut = (P - a) @ n
+        cut = cut - np.clip(-P[:, 1] / 0.03, 0, 1) * 0.05
+        d = smax(d, cut, 0.018)
     # neck, blended in under the jaw
     d = smin(d, round_cone(P, V(0, -0.01, 1.4), V(0, -0.006, 1.49), 0.043, 0.041), 0.03)
     # almond eye openings, outer corners lifted
     for s, _ in SIDES:
-        sock = ellipsoid(P, EYE_C[s] + V(0, 0.024, 0.0005), V(0.0215, 0.022, 0.0118), rot(V(0, 1, 0), -s * 9))
+        sock = ellipsoid(P, EYE_C[s] + V(0, 0.024, 0.0002), V(0.021, 0.022, 0.0098), rot(V(0, 1, 0), -s * 14))
         d = smax(d, -sock, 0.004)
     return d
 
@@ -197,9 +205,9 @@ def eyelash(P):
     d = None
     for s, _ in SIDES:
         c = EYE_C[s]
-        pts = [c + V(-s * 0.019, 0.016, 0.004), c + V(-s * 0.004, 0.0205, 0.0115),
-               c + V(s * 0.012, 0.018, 0.012), c + V(s * 0.024, 0.01, 0.009), c + V(s * 0.032, 0.006, 0.013)]
-        rr = (0.0012, 0.0019, 0.0021, 0.0018, 0.0008)
+        pts = [c + V(-s * 0.019, 0.016, 0.0005), c + V(-s * 0.005, 0.0205, 0.0088),
+               c + V(s * 0.011, 0.018, 0.0108), c + V(s * 0.022, 0.011, 0.0095), c + V(s * 0.033, 0.006, 0.0165)]
+        rr = (0.0012, 0.002, 0.0023, 0.002, 0.0008)
         for k in range(len(pts) - 1):
             e = round_cone(P, pts[k], pts[k + 1], rr[k], rr[k + 1])
             d = e if d is None else smin(d, e, 0.002)
@@ -358,22 +366,27 @@ def shirt(P):
 
 
 def pants(P):
-    d = ellipsoid(P, V(0, 0, 0.9), V(0.162, 0.118, 0.112))
-    d = smin(d, ellipsoid(P, V(0, 0.0, 1.02), V(0.126, 0.094, 0.06)), 0.04)
+    d = ellipsoid(P, V(0, 0, 0.9), V(0.178, 0.122, 0.116))
+    d = smin(d, ellipsoid(P, V(0, 0.0, 1.02), V(0.122, 0.09, 0.06)), 0.04)
     for s, side in SIDES:
-        d = smin(d, ellipsoid(P, V(s * 0.062, -0.054, 0.86), V(0.08, 0.066, 0.086)), 0.03)
+        d = smin(d, ellipsoid(P, V(s * 0.066, -0.06, 0.85), V(0.095, 0.081, 0.097)), 0.035)
         hip, knee, ankle = J["hip." + side], J["knee." + side], J["ankle." + side]
-        d = smin(d, round_cone(P, hip, knee, 0.1, 0.07), 0.05)
-        d = smin(d, round_cone(P, knee + V(0, -0.006, 0), ankle + V(0, -0.006, 0.1), 0.074, 0.064), 0.03)
+        d = smin(d, round_cone(P, hip, knee, 0.11, 0.072), 0.05)
+        d = smin(d, ellipsoid(P, V(s * 0.1, 0.008, 0.7), V(0.087, 0.082, 0.14)), 0.04)
+        d = smin(d, round_cone(P, knee + V(0, -0.006, 0), ankle + V(0, -0.006, 0.1), 0.063, 0.056), 0.03)
+        d = smin(d, ellipsoid(P, V(s * 0.09, -0.03, 0.32), V(0.057, 0.057, 0.11)), 0.03)
         # cargo pocket with a flap on the outer thigh
-        d = smin(d, rbox(P, V(s * 0.124, 0.006, 0.6), V(0.016, 0.048, 0.06), rot(V(0, 1, 0), -s * 5), 0.012), 0.008)
-        d = smin(d, rbox(P, V(s * 0.13, 0.006, 0.655), V(0.012, 0.052, 0.014), rot(V(0, 1, 0), -s * 5), 0.006), 0.004)
+        d = smin(d, rbox(P, V(s * 0.152, 0.006, 0.6), V(0.016, 0.048, 0.06), rot(V(0, 1, 0), -s * 5), 0.012), 0.008)
+        d = smin(d, rbox(P, V(s * 0.158, 0.006, 0.655), V(0.012, 0.052, 0.014), rot(V(0, 1, 0), -s * 5), 0.006), 0.004)
         # bunched folds above the boots
         m = (P[:, 2] < 0.36) & (np.abs(P[:, 0] - s * 0.09) < 0.12)
         ang = np.arctan2(P[m, 0] - s * 0.09, P[m, 1])
         d[m] -= 0.0026 * np.sin(P[m, 2] * 120.0 + 2.5 * np.sin(ang * 2 + s)) * np.clip((0.36 - P[m, 2]) * 10, 0, 1)
         # knee seam ridge
         d = smin(d, ring(P, knee + V(0, 0.0, 0.07), rot(V(1, 0, 0), 6), 0.07, 0.072, 0.003, 0.004), 0.004)
+    # keep a gap between the legs below the crotch so strides don't stretch a web
+    gap = np.maximum(np.abs(P[:, 0]) - 0.007, P[:, 2] - 0.72)
+    d = smax(d, -gap, 0.012)
     d = smax(d, P[:, 2] - 1.035, 0.006)
     d = smax(d, 0.17 - P[:, 2], 0.004)
     return d
@@ -506,7 +519,7 @@ def bandage(P):
 
 def belt(P):
     R = rot(V(1, 0, 0), -7)
-    d = ring(P, V(0, -0.002, 0.995), R, 0.152, 0.112, 0.0055, 0.016)
+    d = ring(P, V(0, -0.002, 0.995), R, 0.158, 0.114, 0.0055, 0.016)
     return d
 
 
@@ -517,18 +530,18 @@ def buckle(P):
 
 
 def pouches(P):
-    d = rbox(P, V(0.148, -0.03, 0.955), V(0.022, 0.036, 0.042), rot(V(0, 0, 1), -25), 0.012)
-    d = smin(d, rbox(P, V(0.153, -0.03, 0.99), V(0.025, 0.04, 0.012), rot(V(0, 0, 1), -25), 0.006), 0.004)
+    d = rbox(P, V(0.192, -0.03, 0.95), V(0.022, 0.036, 0.042), rot(V(0, 0, 1), -25), 0.012)
+    d = smin(d, rbox(P, V(0.197, -0.03, 0.985), V(0.025, 0.04, 0.012), rot(V(0, 0, 1), -25), 0.006), 0.004)
     # holster on the right thigh
     R = rot(V(0, 1, 0), -6)
-    d = np.minimum(d, rbox(P, V(0.137, 0.005, 0.71), V(0.016, 0.034, 0.072), R, 0.01))
+    d = np.minimum(d, rbox(P, V(0.219, 0.008, 0.7), V(0.016, 0.034, 0.072), R, 0.01))
     return d
 
 
 def leather_dark(P):
     """Straps: crossbody strap (left shoulder to right hip), holster thigh strap,
     goggle strap is separate (on the head)."""
-    d = ring(P, V(0.088, 0.0, 0.73), np.eye(3), 0.104, 0.104, 0.004, 0.011)
+    d = ring(P, V(0.104, 0.006, 0.745), np.eye(3), 0.12, 0.112, 0.004, 0.011)
     for front in (True, False):
         pts = []
         for t in np.linspace(0, 1, 28):
@@ -589,7 +602,7 @@ def metal(P):
         e = sphere(P, q, 0.0045)
         d = e if d is None else np.minimum(d, e)
     # wrench hanging on the left hip
-    w0, w1 = V(-0.152, 0.03, 0.965), V(-0.168, 0.035, 0.81)
+    w0, w1 = V(-0.196, 0.03, 0.96), V(-0.214, 0.035, 0.805)
     ax = norm(w1 - w0)
     d = np.minimum(d, rbox(P, (w0 + w1) / 2, V(0.004, 0.01, 0.078), _frame(ax, V(1, 0, 0)), 0.003))
     head = cylinder(P, w1 - V(0.005, 0, 0), w1 + V(0.005, 0, 0), 0.022)
@@ -597,12 +610,12 @@ def metal(P):
     head = smax(head, -rbox(P, w1 + V(0, 0, -0.02), V(0.012, 0.009, 0.02)), 0.002)
     d = np.minimum(d, head)
     # pistol grip in the holster, and the buckle prong
-    d = np.minimum(d, rbox(P, V(0.138, -0.01, 0.8), V(0.012, 0.02, 0.032), rot(V(1, 0, 0), -14), 0.006))
+    d = np.minimum(d, rbox(P, V(0.214, -0.004, 0.79), V(0.012, 0.02, 0.032), rot(V(1, 0, 0), -14), 0.006))
     return d
 
 
 def rag(P):
-    c = V(0.072, -0.118, 0.915)
+    c = V(0.075, -0.16, 0.9)
     q = P - c
     sheet = np.abs(q[:, 1] - 0.006 * np.sin(q[:, 0] * 90) + 0.01 * (q[:, 2] / 0.08) ** 2) - 0.0025
     box = np.maximum(np.abs(q[:, 0]) - 0.028 - q[:, 2] * -0.08, np.abs(q[:, 2] + 0.02) - 0.07)
@@ -726,6 +739,7 @@ def skin_cut(verts):
     for s, side in SIDES:
         hidden |= boot(verts, s, side) < 0.004
     hidden |= jacket_outer(verts) < 0.0
+    hidden |= (np.abs(verts[:, 0]) < 0.03) & (verts[:, 2] < 0.76) & (verts[:, 2] > 0.2)  # inner thighs
     hidden &= ~(verts[:, 2] > 1.43)  # keep the neck
     # forearms stay visible below the rolled sleeves
     for s, side in SIDES:
@@ -754,7 +768,7 @@ PARTS = {
     "glove_R": (lambda P: glove(P, 1.0, "R"), *R_HAND["R"], 0.0018, 2500),
     "glove_L": (lambda P: glove(P, -1.0, "L"), *R_HAND["L"], 0.0018, 2500),
     "shirt": (shirt, V(-0.2, -0.13, 0.95), V(0.2, 0.14, 1.43), 0.003, 5000),
-    "pants": (pants, V(-0.25, -0.16, 0.14), V(0.25, 0.16, 1.07), 0.0035, 6500),
+    "pants": (pants, V(-0.29, -0.19, 0.14), V(0.29, 0.16, 1.07), 0.0035, 6500),
     "knee_pads": (knee_pads, V(-0.16, 0.0, 0.38), V(0.16, 0.12, 0.56), 0.0025, 1200),
     "boots": (lambda P: np.minimum(boot(P, 1.0, "R"), boot(P, -1.0, "L")), V(-0.18, -0.1, 0.0), V(0.18, 0.18, 0.29), 0.0028, 4000),
     "soles": (soles, V(-0.18, -0.12, -0.01), V(0.18, 0.2, 0.06), 0.0025, 1500),
@@ -764,12 +778,12 @@ PARTS = {
     "bandage": (bandage, V(-0.36, -0.06, 0.88), V(-0.18, 0.1, 1.15), 0.0018, 1500),
     "belt": (belt, V(-0.18, -0.14, 0.96), V(0.18, 0.14, 1.03), 0.0022, 2000),
     "buckle": (buckle, V(-0.04, 0.09, 0.95), V(0.04, 0.14, 1.01), 0.0012, 400),
-    "pouches": (pouches, V(0.09, -0.1, 0.62), V(0.2, 0.06, 1.02), 0.0025, 1500),
+    "pouches": (pouches, V(0.12, -0.1, 0.6), V(0.26, 0.07, 1.02), 0.0025, 1500),
     "straps": (leather_dark, V(-0.2, -0.16, 0.6), V(0.22, 0.16, 1.46), 0.0025, 3000),
     "plate": (shoulder_plate, V(-0.29, -0.12, 1.3), V(-0.1, 0.1, 1.46), 0.0018, 2000),
     "plate_stripe": (plate_stripe, V(-0.29, -0.12, 1.3), V(-0.1, 0.1, 1.46), 0.0018, 600),
-    "metal": (metal, V(-0.22, -0.12, 0.76), V(0.17, 0.08, 1.44), 0.0018, 2000),
-    "rag": (rag, V(0.02, -0.15, 0.8), V(0.12, -0.08, 0.96), 0.0018, 600),
+    "metal": (metal, V(-0.26, -0.12, 0.74), V(0.25, 0.08, 1.44), 0.0018, 2000),
+    "rag": (rag, V(0.02, -0.2, 0.78), V(0.13, -0.12, 0.96), 0.0018, 600),
     "goggle_rims": (goggle_rims, V(-0.08, 0.02, 1.63), V(0.08, 0.1, 1.71), 0.0012, 1500),
     "goggle_lenses": (goggle_lenses, V(-0.07, 0.03, 1.64), V(0.07, 0.1, 1.71), 0.0012, 400),
     "goggle_strap": (goggle_strap, V(-0.13, -0.15, 1.52), V(0.13, 0.11, 1.7), 0.0018, 1500),

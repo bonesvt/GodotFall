@@ -117,9 +117,15 @@ late father's broken smart pistol and builds titans from scrap. Short white hair
 technicolor waves, striking aqua eyes, and a makeshift mechanic's outfit in the Jak and Daxter style.
 
 - **Model**: `assets/models/eco.tscn` (or `Art.model("eco")`), a rigged mesh about 1.7 m tall,
-  facing -Z with its origin at her feet. Drop it under a CharacterBody3D and she plays her walk
-  cycle, sped up to match; standing, she idles (breathing, glancing around). `idle_motion`
-  turns the idle off.
+  facing -Z with its origin at her feet. Drop it under a CharacterBody3D and she picks her
+  animation from it: idle, walk or run (sped up to match), and on the player also fall, crouch
+  and slide from its movement state. `idle_motion` turns the idle off.
+- **Physics**: spring bones swing her hair locks (fringe, sides, back) and the rag on her hip;
+  `SPRINGS` in `scripts/ps2/eco_model.gd` tunes stiffness, drag, gravity and swing limits, and
+  `springs_enabled` turns them off.
+- **First person**: the player's `EcoBody` node (`scripts/eco_fp_body.gd`) shows her body when
+  you look down (head and arms hidden, kept under the camera in every pose) and casts her full
+  shadow. `camera_above_neck` and `camera_ahead` place it; `show_body` and `cast_shadow` toggle it.
 - **Look at her**: open `scenes/eco_showcase.tscn` and press F6. Left/Right turn her, Space
   pauses the turntable, 1/2/3 switch between full body, face, and the first-person pistol.
 - **Hair**: `assets/shaders/eco_hair.gdshader`. `iridescence`, `wave_scale`, `wave_speed`
