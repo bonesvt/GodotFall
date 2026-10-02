@@ -284,12 +284,16 @@ select the Player node and tweak values in the Inspector, or change the defaults
 - `tools/pistol/build_pistol.py` builds Eco's smart pistol in Blender
   (`blender --background --python tools/pistol/build_pistol.py -- assets/models/smart_pistol/smart_pistol.glb`);
   `tools/bake_models.gd -- smart_pistol` then puts it in her hand (`assets/models/smart_pistol.tscn`)
-- `scripts/sfx.gd` procedural sound effects, synthesized at runtime; drop `<id>.wav` or `<id>.ogg`
-  in `assets/audio/sfx/` (for example `pistol.wav`) to replace one with a recording
+- `scripts/sfx.gd` sound effects: plays the CC0 recording `assets/audio/sfx/<id>.ogg` when there is
+  one and otherwise synthesizes the sound at runtime; `SFX.variant("step_grass")` picks a random
+  numbered take. Sources and credits: `assets/audio/sfx/README.md`; rebuild specs in `tools/audio/`
+- `scripts/ambience.gd` looping background beds from `assets/audio/ambience/` (forest, temple hub)
 - `scripts/run/titan_gun.gd` titan weapon personalities (XO-16 spin-up, Tracker shells, Splitter beam, jamming scrap rifle)
 - `scripts/hud.gd` crosshair, hitmarkers, health, ammo, speedometer, state and cooldown readout
 - `scripts/radio/` enemy radio: `radio_chatter.gd` (listens to grunt awareness and deaths, picks lines),
   `radio_popup.gd` (the intercept box), `radio_lines.gd` (every line, by situation)
+- `tests/audio_test.gd` checks every recorded sound loads and the ambience beds loop:
+  `godot --headless --path . -s res://tests/audio_test.gd`
 - `tests/radio_test.gd` headless radio test (range, squad states, kills, no repeats, popup):
   `godot --headless --path . -s res://tests/radio_test.gd`
 - `tests/movement_test.gd` headless smoke test:

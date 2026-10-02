@@ -6,6 +6,11 @@ extends CharacterBody3D
 
 enum State { GROUND, AIR, SLIDE, WALLRUN, GRAPPLE }
 
+const SFX := preload("res://scripts/sfx.gd")
+## Metres between footsteps on the ground and when running along a wall.
+const STRIDE := 2.4
+const WALL_STRIDE := 1.9
+
 signal died
 signal respawned
 signal damaged(amount: float, from: Vector3)
@@ -112,6 +117,7 @@ var land_dip := 0.0
 var fall_speed := 0.0
 var health := 100.0
 var regen_timer := 0.0
+var step_dist := 0.0
 
 
 static func ensure_input_actions() -> void:
@@ -193,6 +199,7 @@ func _physics_process(delta: float) -> void:
 		State.GRAPPLE:
 			_grapple_state(delta)
 
+	_footsteps(delta)
 	_update_camera(delta)
 	_update_rope()
 
@@ -398,6 +405,10 @@ func _wall_jump() -> void:
 
 func _land() -> void:
 	ground_time = 0.0
+	if fall_speed > 3.0:
+		var hard := fall_speed > 14.0
+		SFX.play(self, "land_heavy" if hard else "land", -16.0 + minf(fall_speed, 20.0) * 0.4, SFX.vary(0.06))
+	step_dist = STRIDE * 0.5
 	# Camera dips on hard landings so falls have weight.
 	land_dip = minf(maxf(fall_speed - 4.0, 0.0) * land_dip_per_speed, land_dip_max)
 	fall_speed = 0.0
@@ -557,6 +568,33 @@ func _update_rope() -> void:
 	var up := Vector3.UP if absf(dir.normalized().y) < 0.99 else Vector3.FORWARD
 	var b := Basis.looking_at(dir, up)
 	rope.global_transform = Transform3D(Basis(b.x, b.y, b.z * length), from)
+
+
+# --- Footsteps ----------------------------------------------------------------
+
+func _footsteps(delta: float) -> void:
+	var on_wall := state == State.WALLRUN
+	if not (state == State.GROUND or on_wall):
+		return
+	var speed := horizontal_speed()
+	if speed < 1.0 or crouching:
+		return
+	step_dist += speed * delta
+	var stride := WALL_STRIDE if on_wall else STRIDE
+	if step_dist >= stride:
+		step_dist -= stride
+		SFX.play(self, SFX.variant("step_" + _surface()), -17.0 + minf(speed / sprint_speed, 1.0) * 4.0, SFX.vary(0.08))
+
+
+## What Eco is standing or running on: "grass", "wood" and "metal" come from a
+## `surface` meta on the body (terrain, hub props); anything else is stone.
+func _surface() -> String:
+	var hit := get_last_slide_collision()
+	if hit != null:
+		var body := hit.get_collider()
+		if body != null and body.has_meta("surface"):
+			return str(body.get_meta("surface"))
+	return "concrete"
 
 
 # --- Info for the HUD ---------------------------------------------------------

@@ -20,6 +20,8 @@ const DASH_SPEED := 28.0
 const DASH_TIME := 0.25
 const DASH_RECHARGE := 5.0
 const DROP_SPEED := 70.0
+## Metres between footfalls.
+const STRIDE := 4.5
 ## Seconds for the core to charge from time alone; dealing damage speeds it up.
 const CORE_TIME := 35.0
 const CORE_PER_DAMAGE := 1.0 / 4000.0
@@ -47,6 +49,9 @@ var dropping := true
 ## appears.
 var piloted := false:
 	set(value):
+		if value and not piloted:
+			SFX.play(self, "titan_embark", -4.0)
+			SFX.play(self, "titan_boot", -10.0)
 		piloted = value
 		if model != null:
 			for part in model.get_children():
@@ -64,6 +69,7 @@ var mouse_sensitivity := 0.0022
 var gun: TitanGun
 ## Camera shake; shots and impacts add to it, it decays on its own.
 var shake := 0.0
+var step_dist := 0.0
 var _shake_t := 0.0
 
 
@@ -129,6 +135,8 @@ func _physics_process(delta: float) -> void:
 		if is_on_floor():
 			dropping = false
 			velocity = Vector3.ZERO
+			SFX.play_at(get_parent(), global_position, "titan_clang", 6.0, 0.7)
+			SFX.play_at(get_parent(), global_position, "debris_rock", 4.0, 0.8)
 			landed.emit()
 		return
 	if not piloted or dead:
@@ -150,6 +158,7 @@ func _move(delta: float) -> void:
 	if Input.is_action_just_pressed("titan_dash") and dashes > 0 and dash_timer <= 0.0:
 		dashes -= 1
 		dash_timer = DASH_TIME
+		SFX.play(self, "titan_hiss_short", -6.0, SFX.vary(0.08))
 		dash_dir = wish if wish != Vector3.ZERO else -transform.basis.z
 	var h := Vector3(velocity.x, 0.0, velocity.z)
 	if dash_timer > 0.0:
@@ -159,6 +168,20 @@ func _move(delta: float) -> void:
 		h = h.move_toward(wish * float(stats["speed"]), ACCEL * delta)
 	velocity = Vector3(h.x, 0.0 if is_on_floor() else velocity.y - GRAVITY * delta, h.z)
 	move_and_slide()
+	_footfalls(delta, h.length())
+
+
+## Heavy steps while walking, with a servo whine now and then.
+func _footfalls(delta: float, speed: float) -> void:
+	if not is_on_floor() or speed < 1.0 or dash_timer > 0.0:
+		return
+	step_dist += speed * delta
+	if step_dist < STRIDE:
+		return
+	step_dist -= STRIDE
+	SFX.play(self, SFX.variant("titan_step"), -8.0, SFX.vary(0.06))
+	if randf() < 0.35:
+		SFX.play(self, SFX.variant("titan_servo"), -20.0, SFX.vary(0.1))
 
 
 func _recharge(delta: float) -> void:
@@ -214,6 +237,7 @@ func use_core() -> bool:
 	core_charge = 0.0
 	match stats["core"]:
 		"laser":
+			SFX.play(self, "titan_doom_laser", -4.0)
 			if boss != null:
 				boss.take_damage(float(stats["core_power"]))
 				var to: Vector3 = boss.global_position + Vector3.UP * 5.0
@@ -224,8 +248,10 @@ func use_core() -> bool:
 				SFX.play(self, "tracker_boom", 4.0, 0.6)
 				shake = 1.0
 		"shield":
+			SFX.play(self, "titan_core_charge", -6.0)
 			hp = minf(hp + max_hp * float(stats["core_power"]), max_hp)
 		"overdrive":
+			SFX.play(self, "titan_hiss", -4.0)
 			overdrive_timer = float(stats["core_power"])
 			dashes = int(stats["dashes"])
 	return true
@@ -239,4 +265,5 @@ func take_damage(amount: float) -> void:
 	if hp <= 0.0:
 		hp = 0.0
 		dead = true
+		SFX.play_at(get_parent(), global_position, "explosion_big", 6.0)
 		destroyed.emit()

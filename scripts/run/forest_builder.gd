@@ -36,6 +36,7 @@ const SquadObjective := preload("res://scripts/run/squad_objective.gd")
 const GruntScript := preload("res://scripts/grunt.gd")
 const ExtractBeacon := preload("res://scripts/run/extract_beacon.gd")
 const Boss := preload("res://scripts/run/boss.gd")
+const Ambience := preload("res://scripts/ambience.gd")
 
 const NAME := "THE PINEWOODS"
 const CELL := 2.0
@@ -182,6 +183,7 @@ static func _on(x: float, z: float, up := 0.0) -> Vector3:
 ## stealth_cover (the hiding areas).
 static func build_zone(root: Node3D, rng: RandomNumberGenerator) -> Dictionary:
 	Kit.environment(root, Color(0.3, 0.46, 0.6), Color(0.78, 0.82, 0.7))
+	Ambience.start(root, {"forest_day": -10.0, "forest_wind": -17.0, "forest_birds": -19.0})
 	var info := {
 		"name": NAME,
 		"spawn": _on(trail_x(4.0), 4.0, 0.1), "platforms": [], "segments": [],
@@ -808,6 +810,7 @@ static func edge_ground(x: float, z: float) -> float:
 ## its beam, hidden until the enemy titan is down).
 static func build_edge(root: Node3D) -> Dictionary:
 	Kit.environment(root, Color(0.3, 0.38, 0.58), Color(0.92, 0.74, 0.58))
+	Ambience.start(root, {"forest_wind": -13.0, "forest_night": -21.0})
 	var info := {
 		"name": "THE FOREST'S EDGE",
 		"spawn": Vector3(0, 0.1, 30.0), "platforms": [], "segments": [],

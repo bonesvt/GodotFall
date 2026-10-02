@@ -1,0 +1,388 @@
+{
+ "pistol": {
+  "layers": [
+   {
+    "src": "Silencers - 1.wav",
+    "start": 0.0,
+    "dur": 0.42,
+    "fadeout": 0.2,
+    "hp": 90
+   },
+   {
+    "src": "hollywood-style-pistol-silencer-sound-effect/silencer.wav",
+    "dur": 0.3,
+    "gain": -6,
+    "fadeout": 0.15
+   },
+   {
+    "src": "clipload2.wav",
+    "gain": -14,
+    "delay": 0.035,
+    "hp": 1500,
+    "fadeout": 0.06
+   }
+  ]
+ },
+ "pistol_last": {
+  "layers": [
+   {
+    "src": "Silencers - 1.wav",
+    "start": 0.0,
+    "dur": 0.42,
+    "fadeout": 0.2,
+    "hp": 90
+   },
+   {
+    "src": "hollywood-style-pistol-silencer-sound-effect/silencer.wav",
+    "dur": 0.3,
+    "gain": -6,
+    "fadeout": 0.15
+   },
+   {
+    "src": "gun_reload_lock_or_click_sound.mp3",
+    "gain": -6,
+    "delay": 0.05,
+    "hp": 400
+   },
+   {
+    "src": "/beep_03.ogg",
+    "gain": -20,
+    "delay": 0.14,
+    "fadeout": 0.08
+   }
+  ]
+ },
+ "dry_click": {
+  "layers": [
+   {
+    "src": "gun_reload_lock_or_click_sound.mp3",
+    "hp": 300,
+    "fadeout": 0.08,
+    "dur": 0.18
+   }
+  ]
+ },
+ "spark": {
+  "layers": [
+   {
+    "src": "electricity-sound-effects-0/spark.wav",
+    "start": 0.1,
+    "dur": 0.24,
+    "hp": 1200
+   }
+  ]
+ },
+ "lock_err": {
+  "layers": [
+   {
+    "src": "glitch_002.ogg",
+    "gain": -3
+   },
+   {
+    "src": "electricity-sound-effects-0/continuousspark.wav",
+    "gain": -10,
+    "hp": 2000,
+    "delay": 0.02
+   }
+  ]
+ },
+ "reload_out": {
+  "layers": [
+   {
+    "src": "handgun-reload-sound-effect/reload.wav",
+    "start": 0.55,
+    "dur": 0.32,
+    "fadeout": 0.08
+   }
+  ]
+ },
+ "reload_in": {
+  "layers": [
+   {
+    "src": "handgun-reload-sound-effect/reload.wav",
+    "start": 1.0,
+    "dur": 0.4,
+    "fadeout": 0.1
+   }
+  ]
+ },
+ "twirl": {
+  "layers": [
+   {
+    "src": "swosh-05.flac",
+    "start": 0.03,
+    "dur": 0.34,
+    "fadeout": 0.1,
+    "lp": 7000
+   }
+  ]
+ },
+ "flourish": {
+  "layers": [
+   {
+    "src": "pings and scrapes - Marker #25.wav",
+    "start": 0.04,
+    "dur": 0.55,
+    "fadeout": 0.3,
+    "hp": 1500
+   }
+  ]
+ },
+ "whack": {
+  "layers": [
+   {
+    "src": "metal_slam_01.ogg",
+    "start": 0.03,
+    "dur": 0.3,
+    "lp": 2500,
+    "fadeout": 0.12
+   },
+   {
+    "src": "hit25.mp3.flac",
+    "start": 0.25,
+    "dur": 0.3,
+    "gain": -4,
+    "fadeout": 0.1
+   }
+  ]
+ },
+ "hit_body": {
+  "layers": [
+   {
+    "src": "hit25.mp3.flac",
+    "start": 0.25,
+    "dur": 0.38,
+    "fadeout": 0.12
+   }
+  ]
+ },
+ "hit_head": {
+  "layers": [
+   {
+    "src": "bfh1_metal_hit_03.ogg",
+    "start": 0.02,
+    "dur": 0.28,
+    "fadeout": 0.1
+   },
+   {
+    "src": "hit25.mp3.flac",
+    "start": 0.25,
+    "dur": 0.3,
+    "gain": -6,
+    "fadeout": 0.1
+   }
+  ]
+ },
+ "kill": {
+  "layers": [
+   {
+    "src": "Deep Break 1.wav",
+    "start": 0.0,
+    "dur": 0.6,
+    "fadeout": 0.2
+   }
+  ]
+ },
+ "ricochet": {
+  "layers": [
+   {
+    "src": "bfh1_rock_hit_01.ogg",
+    "gain": -4
+   },
+   {
+    "src": "pings and scrapes - Marker #25.wav",
+    "start": 0.04,
+    "dur": 0.32,
+    "pitch": 1.35,
+    "gain": -3,
+    "delay": 0.01,
+    "fadeout": 0.2,
+    "hp": 2000
+   }
+  ]
+ },
+ "impact": {
+  "layers": [
+   {
+    "src": "bfh1_rock_hit_01.ogg"
+   },
+   {
+    "src": "bfh1_rock_falling_04.ogg",
+    "gain": -10,
+    "delay": 0.02,
+    "dur": 0.25
+   }
+  ]
+ },
+ "knife_swish": {
+  "layers": [
+   {
+    "src": "swish-3.wav",
+    "fadeout": 0.05
+   }
+  ]
+ },
+ "knife_draw": {
+  "layers": [
+   {
+    "src": "knife-unsheathe-02.wav",
+    "start": 0.1,
+    "dur": 0.38,
+    "fadeout": 0.1
+   }
+  ]
+ },
+ "knife_hit": {
+  "layers": [
+   {
+    "src": "wet_towel_on_body-05.flac",
+    "start": 0.03,
+    "dur": 0.34,
+    "fadeout": 0.12
+   }
+  ]
+ },
+ "knife_spin": {
+  "layers": [
+   {
+    "src": "swish-11.wav",
+    "gain": -2
+   },
+   {
+    "src": "swish-12.wav",
+    "delay": 0.13,
+    "gain": -4
+   },
+   {
+    "src": "swish-13.wav",
+    "delay": 0.26,
+    "gain": -3
+   }
+  ]
+ },
+ "knife_catch": {
+  "layers": [
+   {
+    "src": "step_lth2.ogg",
+    "lp": 3000,
+    "fadeout": 0.06
+   }
+  ]
+ },
+ "grunt_shot": {
+  "layers": [
+   {
+    "src": "Prepared SFX Library/AK-47/C_28P.wav",
+    "start": 0.58,
+    "dur": 0.9,
+    "fadeout": 0.5
+   }
+  ]
+ },
+ "xo16": {
+  "layers": [
+   {
+    "src": "Prepared SFX Library/Carl Gustav M45/G_31P.wav",
+    "start": 0.3,
+    "dur": 0.28,
+    "pitch": 0.72,
+    "fadeout": 0.14
+   }
+  ]
+ },
+ "xo16_spin": {
+  "layers": [
+   {
+    "src": "ROBOTIC_Transformation_Sweep_03_Up_stereo.wav",
+    "dur": 0.5,
+    "fadeout": 0.15
+   }
+  ]
+ },
+ "tracker": {
+  "layers": [
+   {
+    "src": "missile-sound/missile.wav",
+    "start": 0.05,
+    "dur": 0.9,
+    "fadeout": 0.4
+   }
+  ]
+ },
+ "tracker_boom": {
+  "layers": [
+   {
+    "src": "Chunky Explosion.mp3",
+    "dur": 1.6,
+    "fadeout": 0.8
+   }
+  ]
+ },
+ "splitter": {
+  "layers": [
+   {
+    "src": "groundhit.wav",
+    "dur": 0.2,
+    "fadeout": 0.08
+   },
+   {
+    "src": "electricity-sound-effects-0/continuousspark.wav",
+    "gain": -6
+   }
+  ]
+ },
+ "scrap": {
+  "layers": [
+   {
+    "src": "Prepared SFX Library/1911/A_42P.wav",
+    "start": 0.92,
+    "dur": 0.45,
+    "pitch": 0.85,
+    "fadeout": 0.25
+   },
+   {
+    "src": "rattle1.wav",
+    "gain": -10,
+    "delay": 0.03,
+    "dur": 0.3
+   }
+  ]
+ },
+ "scrap_jam": {
+  "layers": [
+   {
+    "src": "clank1.wav",
+    "start": 0.04,
+    "dur": 0.45,
+    "fadeout": 0.15
+   },
+   {
+    "src": "rattle1.wav",
+    "gain": -4,
+    "delay": 0.08
+   }
+  ]
+ },
+ "titan_hit": {
+  "layers": [
+   {
+    "src": "metal_slam_01.ogg",
+    "start": 0.03,
+    "dur": 0.4,
+    "fadeout": 0.15
+   },
+   {
+    "src": "bfh1_metal_hit_03.ogg",
+    "gain": -6
+   }
+  ]
+ },
+ "boot": {
+  "layers": [
+   {
+    "src": "/terminal_02.ogg",
+    "fadeout": 0.06
+   }
+  ]
+ }
+}
