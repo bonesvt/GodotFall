@@ -8,6 +8,9 @@ extends SceneTree
 ## Re-running overwrites the .tscn files. You can also edit the saved scenes
 ## in the editor; every part is a plain MeshInstance3D with a primitive mesh.
 ## Models face -Z with their origin at the feet, like the gameplay nodes.
+## Pass model names after "--" to rebuild only those, e.g.
+##   godot -s res://tools/bake_models.gd -- smart_pistol grunt
+## (Eco herself is sculpted in Blender: see tools/eco/.)
 
 const MODEL_SCRIPT := preload("res://scripts/ps2/ps2_model.gd")
 const OUT := "res://assets/models/"
@@ -17,15 +20,21 @@ var M := {}
 
 func _init() -> void:
 	for m in ["gunmetal", "glove", "pilot_suit", "grunt_fabric", "grunt_armor", "visor",
-			"titan_armor", "titan_frame", "titan_glow", "light", "anchor", "cover"]:
+			"titan_armor", "titan_frame", "titan_glow", "light", "anchor", "cover",
+			"skin", "canvas"]:
 		M[m] = load("res://assets/materials/%s.tres" % m)
-	_pistol()
-	for id in TITANS:
-		_titan(id, TITANS[id])
-	for id in ["xo16", "tracker", "splitter", "scrap"]:
-		_titan_weapon(id)
-	_cache()
-	_beacon()
+	var only := OS.get_cmdline_user_args()
+	var want := func(id: String) -> bool: return only.is_empty() or only.has(id)
+	if want.call("smart_pistol"):
+		_smart_pistol()
+	if want.call("titans"):
+		for id in TITANS:
+			_titan(id, TITANS[id])
+		for id in ["xo16", "tracker", "splitter", "scrap"]:
+			_titan_weapon(id)
+	if want.call("props"):
+		_cache()
+		_beacon()
 	quit()
 
 
@@ -80,6 +89,18 @@ func _part(parent: Node3D, name: String, kind: String, size: Vector3, pos: Vecto
 		"prism":
 			mesh = PrismMesh.new()
 			mesh.size = size
+		"ell":  # smooth ellipsoid: x radius, scaled per axis by the node (see _ell)
+			mesh = SphereMesh.new()
+			mesh.radius = size.x
+			mesh.height = size.x * 2.0
+			mesh.radial_segments = 12
+			mesh.rings = 7
+		"torus":  # x inner radius, y outer radius
+			mesh = TorusMesh.new()
+			mesh.inner_radius = size.x
+			mesh.outer_radius = size.y
+			mesh.rings = 12
+			mesh.ring_segments = 6
 	mesh.material = mat
 	var mi := MeshInstance3D.new()
 	mi.name = name
@@ -87,6 +108,24 @@ func _part(parent: Node3D, name: String, kind: String, size: Vector3, pos: Vecto
 	mi.position = pos
 	mi.rotation_degrees = rot_deg
 	parent.add_child(mi)
+	return mi
+
+
+## Ellipsoid: a smooth sphere of radius r stretched by `stretch`.
+func _ell(parent: Node3D, name: String, r: float, stretch: Vector3, pos: Vector3,
+		mat: Material, rot_deg := Vector3.ZERO) -> MeshInstance3D:
+	var mi := _part(parent, name, "ell", Vector3(r, 0, 0), pos, mat, rot_deg)
+	mi.scale = stretch
+	return mi
+
+
+## Cone from `base` toward `dir`, tapering to a point (hair spikes, built along
+## +Y so the hair shader can sway their tips).
+func _spike(parent: Node3D, name: String, base: Vector3, dir: Vector3, length: float,
+		radius: float, mat: Material) -> MeshInstance3D:
+	dir = dir.normalized()
+	var mi := _part(parent, name, "cone", Vector3(radius, length, 0.0), base + dir * length * 0.5, mat)
+	mi.quaternion = Quaternion(Vector3.UP, dir)
 	return mi
 
 
@@ -110,6 +149,8 @@ func _save(root: Node3D, file: String) -> void:
 func _own(node: Node, owner_node: Node) -> void:
 	for c in node.get_children():
 		c.owner = owner_node
+		if c.scene_file_path != "":
+			continue  # an instanced scene keeps its own nodes
 		if c is GeometryInstance3D:
 			# Height of each vertex above the model's feet, for the shader's fake occlusion.
 			var xf := Transform3D.IDENTITY
@@ -122,34 +163,20 @@ func _own(node: Node, owner_node: Node) -> void:
 		_own(c, owner_node)
 
 
-# --- starter pistol (first-person viewmodel) -------------------------------
+# --- Eco's sidearm: her father's smart pistol (first-person viewmodel) -------
+# The gun itself is modelled in Blender (tools/pistol/build_pistol.py ->
+# assets/models/smart_pistol/smart_pistol.glb); this puts it in Eco's hand.
 
-func _pistol() -> void:
-	var r := _root("P08Pistol")
-	var g := _painted("gunmetal", Color(0.7, 0.7, 0.72))
-	var dark := _painted("gunmetal", Color(0.42, 0.42, 0.45))
-	_part(r, "Slide", "box", Vector3(0.042, 0.048, 0.25), Vector3(0, 0.012, -0.005), g)
-	_part(r, "SlideTop", "box", Vector3(0.03, 0.01, 0.23), Vector3(0, 0.039, -0.005), dark)
-	_part(r, "Frame", "box", Vector3(0.038, 0.03, 0.19), Vector3(0, -0.026, -0.02), dark)
-	_part(r, "Barrel", "cyl", Vector3(0.011, 0.02, 6), Vector3(0, 0.012, -0.135), dark, Vector3(90, 0, 0))
-	_part(r, "FrontSight", "box", Vector3(0.006, 0.012, 0.01), Vector3(0, 0.048, -0.118), dark)
-	_part(r, "RearSight", "box", Vector3(0.03, 0.012, 0.012), Vector3(0, 0.048, 0.105), dark)
-	_part(r, "Hammer", "box", Vector3(0.012, 0.022, 0.014), Vector3(0, 0.03, 0.128), dark, Vector3(-25, 0, 0))
-	_part(r, "Grip", "box", Vector3(0.036, 0.12, 0.052), Vector3(0, -0.088, 0.072), dark, Vector3(-16, 0, 0))
-	_part(r, "MagBase", "box", Vector3(0.04, 0.012, 0.058), Vector3(0, -0.15, 0.09), g, Vector3(-16, 0, 0))
-	_part(r, "GuardBottom", "box", Vector3(0.012, 0.008, 0.055), Vector3(0, -0.062, -0.012), dark)
-	_part(r, "GuardFront", "box", Vector3(0.012, 0.03, 0.008), Vector3(0, -0.048, -0.04), dark)
-	_part(r, "Trigger", "box", Vector3(0.008, 0.022, 0.008), Vector3(0, -0.046, 0.0), g, Vector3(15, 0, 0))
-	# gloved hand wrapped round the grip, and the sleeve running back out of view
-	var glove: Material = M["glove"]
-	_part(r, "Palm", "box", Vector3(0.05, 0.085, 0.06), Vector3(0.012, -0.09, 0.098), glove, Vector3(-16, 0, 0))
-	_part(r, "Fingers", "box", Vector3(0.052, 0.07, 0.026), Vector3(0.004, -0.092, 0.036), glove, Vector3(-16, 0, 0))
-	_part(r, "Thumb", "box", Vector3(0.02, 0.02, 0.07), Vector3(-0.024, -0.04, 0.05), glove, Vector3(0, -8, 0))
-	_part(r, "Wrist", "box", Vector3(0.06, 0.06, 0.07), Vector3(0.016, -0.14, 0.15), glove, Vector3(-40, 0, 0))
-	_part(r, "Sleeve", "cyl", Vector3(0.042, 0.34, 6), Vector3(0.03, -0.24, 0.29), M["pilot_suit"], Vector3(-50, 0, 0))
-	_part(r, "Cuff", "cyl", Vector3(0.046, 0.04, 6), Vector3(0.02, -0.17, 0.2), M["gunmetal"], Vector3(-50, 0, 0))
-	_pivot(r, "Muzzle", Vector3(0, 0.012, -0.145))
-	_save(r, "pistol_p08.tscn")
+func _smart_pistol() -> void:
+	var r := _root("SmartPistol")
+	var gun: Node3D = load("res://assets/models/smart_pistol/smart_pistol.glb").instantiate()
+	gun.name = "Gun"
+	r.add_child(gun)
+	# Eco's arm: fingerless glove round the grip, sleeve rolled up (sculpted in tools/eco/)
+	var arm: Node3D = load("res://assets/models/eco/eco_fp_arm.glb").instantiate()
+	arm.name = "Arm"
+	r.add_child(arm)
+	_save(r, "smart_pistol.tscn")
 
 
 # --- grunt -----------------------------------------------------------------
@@ -295,3 +322,4 @@ func _beacon() -> void:
 	_part(r, "Light", "sphere", Vector3(0.25, 0, 0), Vector3(0, 2.9, 0), M["light"])
 	_part(r, "LightRing", "cyl", Vector3(0.4, 0.08, 8), Vector3(0, 2.6, 0), M["light"])
 	_save(r, "extract_beacon.tscn")
+

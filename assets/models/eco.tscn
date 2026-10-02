@@ -1,0 +1,9 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/ps2/eco_model.gd" id="1_script"]
+[ext_resource type="PackedScene" path="res://assets/models/eco/eco.glb" id="2_glb"]
+
+[node name="Eco" type="Node3D"]
+script = ExtResource("1_script")
+
+[node name="Model" parent="." instance=ExtResource("2_glb")]

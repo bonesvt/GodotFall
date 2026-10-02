@@ -69,7 +69,26 @@ scatters a prop.
 ## Scrap Titan run loop
 The movement and grunt test level is still at `scenes/test_level.tscn` (open it and press F6).
 
-1. **Three zones.** Each is a seeded chain of platforms over a void, linked by gaps you
+1. **Zone 1: the Pinewoods.** A laid-out forest level. Follow the trail north from the
+   drop clearing: a picket behind a fallen log, then the enemy's wall across the valley
+   (closed gate under a watchtower; get in through the breach a falling pine made, or grapple
+   over), their outpost behind it (huts, antenna, fuel tank, a squad in the yard), a ravine
+   with the bridge blown (wallrun the hanging blast shield, grapple the crane, or hop the rock
+   pillars; grunts watch from the far lip), a logging camp on the rise (sawmill, log piles,
+   a second tower), and the extraction beacon in a clearing. One cache is guarded by the
+   outpost's or the camp's squad, the other sits up a climb (a hut roof or the sawmill roof);
+   the run seed picks which, and how many grunts hold each spot. Falling into the ravine
+   costs integrity and puts you back at the last checkpoint on the trail.
+   Three ways through: the **trail** (loud: gate or breach, the outpost yard, the crossings,
+   the camp's front), the **creek** on the left (quiet: tall grass along the banks, the
+   culvert under the wall, the tent row behind the outpost, a fallen pine over the ravine,
+   and a hunting blind overlooking the camp), and the **ridge** on the right (high: jump
+   from its end onto the wall top, across the roofs, the crane, the sawmill roof). Tall grass
+   and camo nets mark hiding spots for stealth: each has an Area3D in the `stealth_cover`
+   group, and dense patches also have an invisible `sight_blocker` body on collision layer 16
+   (mask 0) that blocks grunt line of sight but not the player, grunts or the grapple.
+   The routes are listed in `zone_info["routes"]`, and the map shot draws them.
+   **Zones 2 and 3** are seeded chains of platforms over a void, linked by gaps you
    clear with a sprint jump, a double-jump climb, a wallrun along a blue wall, or the grapple
    on an orange anchor. Grunt squads hold some platforms from behind cover (more of them in
    later zones), and every platform has low walls or blocks you can use as cover too.
@@ -81,10 +100,13 @@ The movement and grunt test level is still at `scenes/test_level.tscn` (open it 
 3. **Your titan is your build.** Four slots: chassis (armor, speed, dashes), weapon (damage),
    core (charged ability: laser burst, shield, overdrive) and kit (extra dash, plating,
    coolant). Empty slots stay scrap. Parts roll Mk I to III, and later zones roll higher.
-4. **Titanfall.** Extract from zone 3 into the arena, press V to call your titan in, walk to
-   it and press F to embark. Fight the enemy titan (a placeholder): hold left mouse on it to
-   fire, Shift to dash out of its red slam circles, V when the core is ready.
-5. Kill it and the run is complete. Lose the titan and the run is over. Enter takes you back to the temple.
+4. **Titanfall at the forest's edge.** Extract from zone 3 and you step out of the treeline
+   onto a meadow where the enemy was building a forward base. Press V to call your titan in,
+   walk to it and press F to embark. Fight the enemy titan (a placeholder): hold left mouse
+   on it to fire, Shift to dash out of its red slam circles, V when the core is ready.
+5. **Extract.** Kill it and the evac dropship comes in over the pad past where it stood;
+   walk your titan into the beam and the run is complete. Lose the titan and the run is over.
+   Enter takes you back to the temple.
 
 | Key | Action |
 |---|---|
@@ -96,9 +118,21 @@ The movement and grunt test level is still at `scenes/test_level.tscn` (open it 
 | Enter | Back to the temple (after a run ends) |
 
 Run code lives in `scripts/run/`: `run_manager.gd` (the loop), `run_state.gd` (what a run
-carries), `zone_builder.gd` (zone and arena generation), `titan_parts.gd` (part catalog and
+carries), `zone_builder.gd` (zone generation), `forest_builder.gd` (zone 1 and the forest's
+edge arena), `forest_kit.gd` (forest props and the enemy outpost kit with their colliders),
+`terrain.gd` (height-grid ground with matching collision), `titan_parts.gd` (part catalog and
 stats), `titan.gd`, `boss.gd`, and the cache, guard squad and beacon scripts. The titan is its own
 node holding the run's parts, so it can later travel with you as a walking base.
+
+The forest's models (pines, snags, fallen logs, stumps, and the enemy's wall slabs, gate,
+watchtower, huts, sandbags, crates, floodlights, antenna, fuel tank, log piles, sawmill, blown
+bridge, crane pylon, wrecked truck, evac pad, dropship, log bridge, tall grass, barrels,
+pallets, generator, camo net, hunting blind and culvert) are made in Blender by
+`tools/forest/build_props.py` (`blender -b --python tools/forest/build_props.py`, writes
+`assets/models/forest/*.glb`); it reuses the hub script's shape helpers, and the forest also
+uses the hub's broadleaf trees, bushes, ferns, grass, rocks and hills. To look at the level,
+`xvfb-run -a godot --path . -s res://tools/forest/shots.gd -- /some/dir` saves screenshots of
+each section, plus `0-map.png`, a top-down map with the three routes.
 
 ## PS2-style art
 Everything is low-poly and textured in a classic PS2 style. **F9** toggles the look
@@ -119,7 +153,7 @@ on and off in game, to compare.
   picks the material: grey is concrete with steel-plate tops (small grey pieces become
   cover barriers and crates), blue is wallrun panels, orange is grapple-anchor hazard
   stripes, green is crates, red is lava.
-- **Models** (`assets/models/*.tscn`): P-08 pistol with a gloved hand, grunt (legs swing
+- **Models** (`assets/models/*.tscn`): Eco (see below), her smart pistol held in her gloved hand, grunt (legs swing
   as it walks, visor glows on wind-up), four titan chassis (Atlas, Ogre, Stryder, Scrap)
   and four titan guns (XO-16, 40mm Tracker, Splitter, scrap rifle). Your titan is built
   from the chassis and weapon you salvaged. Plus the red enemy titan, salvage cache and
@@ -143,7 +177,9 @@ at about 2.5 m.
 - **Grapple**: 45 m range, pulls you to the point, 2.5 s cooldown.
 - **Air strafing**: you keep momentum in the air but can steer.
 
-## Starter pistol (P-08 placeholder)
+## Starter pistol (Eco's father's broken smart pistol)
+The model is the smart pistol Eco took from her father: its auto-lock sensor is dead, cracked
+and taped back on, so every shot is aimed by hand.
 Weak on purpose, so skill decides fights.
 - **Damage**: 20 to the body, 45 to the head. A grunt has 60 HP: three body shots, or a headshot plus a body shot.
 - **Falloff**: full damage to 15 m, down to 60% at 35 m.
@@ -152,6 +188,44 @@ Weak on purpose, so skill decides fights.
   Paced shots land, spam doesn't. The crosshair gap shows the real cone.
 - **Movement**: sprinting and jumping add spread. **Wallrunning and sliding don't**, so shooting off a wall is a pilot skill.
 - Recoil kicks the view up and mostly settles back. Hitmarkers: white body, gold head, red kill.
+- **Eco's build**: an integrated suppressor (a quiet "thup" and the crisp clack of the slide), vents that
+  glow hotter the faster you shoot, LEDs on the slide that show the ammo left and race to the muzzle on
+  each shot, a holo sight that pulses, her father's dog tag swinging off the rail, and a twirl on every
+  reload and inspect (I). All feel; none of it changes the numbers above.
+
+## Eco, the heroine
+A young mechanic who went rogue after the army turned her down as a Pilot. She fights with her
+late father's broken smart pistol and builds titans from scrap. Short white hair that shimmers in
+technicolor waves, striking aqua eyes, and a makeshift mechanic's outfit in the Jak and Daxter style.
+
+- **Model**: `assets/models/eco.tscn` (or `Art.model("eco")`), a rigged mesh about 1.7 m tall,
+  facing -Z with its origin at her feet. Drop it under a CharacterBody3D and she picks her
+  animation from it: idle, walk or run (sped up to match), and on the player also fall, crouch
+  and slide from its movement state. `idle_motion` turns the idle off.
+- **Physics**: spring bones swing her hair locks (fringe, sides, back) and the rag on her hip;
+  `SPRINGS` in `scripts/ps2/eco_model.gd` tunes stiffness, drag, gravity and swing limits, and
+  `springs_enabled` turns them off.
+- **First person**: the player's `EcoBody` node (`scripts/eco_fp_body.gd`) shows her body when
+  you look down (head and arms hidden, kept under the camera in every pose) and casts her full
+  shadow. `camera_above_neck` and `camera_ahead` place it; `show_body` and `cast_shadow` toggle it.
+- **Look at her**: open `scenes/eco_showcase.tscn` and press F6. Left/Right turn her, Space
+  pauses the turntable, 1/2/3 switch between full body, face, and the first-person pistol.
+- **Hair**: `assets/shaders/eco_hair.gdshader`. `iridescence`, `wave_scale`, `wave_speed`
+  and `sway` on `assets/materials/eco/eco_hair.tres` tune the colour waves and the tip sway.
+- **How she's made** (`tools/eco/`): she is sculpted in code from signed distance fields,
+  then decimated, UV'd, rigged and animated in Blender, and exported to
+  `assets/models/eco/eco.glb`. Its import script swaps the Blender materials for the PS2
+  ones in `assets/materials/eco/`. To rebuild (needs numpy, scikit-image, pillow, Blender 4):
+  ```
+  python3 tools/eco/paint_eco.py                     # face, eyes, fabrics
+  python3 tools/eco/sculpt.py /tmp/eco               # all parts (or name some)
+  blender -b --factory-startup -P tools/eco/build_eco.py -- /tmp/eco assets/models/eco/eco.glb
+  python3 tools/eco/sculpt.py /tmp/eco --fp          # first-person arm
+  blender -b --factory-startup -P tools/eco/build_eco.py -- /tmp/eco assets/models/eco/eco_fp_arm.glb --fp
+  ```
+  Shapes and joints live in `sculpt.py` and `rig.py`; add `--preview <prefix>` to the
+  Blender step for quick workbench renders.
+- **Reference sheet renders**: `godot res://scenes/eco_showcase.tscn -- --shots=<folder> [--clean]`.
 
 ## Grunts
 - 60 HP, headshots count above the shoulders. Visor glows red during a 0.4 s wind-up before each shot.
@@ -175,15 +249,25 @@ select the Player node and tweak values in the Inspector, or change the defaults
 - `scripts/test_level.gd` builds the test level in code
 - `scripts/weapon.gd` starter pistol (hitscan, bloom, falloff, recoil, viewmodel)
 - `scripts/grunt.gd` grunt AI and hitbox
-- `scripts/fx.gd` tracers and impact sparks
+- `scripts/fx.gd` stylized combat effects: tracers, muzzle stars, smoke, debris, casings, blasts
+- `tools/pistol/build_pistol.py` builds Eco's smart pistol in Blender
+  (`blender --background --python tools/pistol/build_pistol.py -- assets/models/smart_pistol/smart_pistol.glb`);
+  `tools/bake_models.gd -- smart_pistol` then puts it in her hand (`assets/models/smart_pistol.tscn`)
+- `scripts/sfx.gd` procedural sound effects, synthesized at runtime; drop `<id>.wav` or `<id>.ogg`
+  in `assets/audio/sfx/` (for example `pistol.wav`) to replace one with a recording
+- `scripts/run/titan_gun.gd` titan weapon personalities (XO-16 spin-up, Tracker shells, Splitter beam, jamming scrap rifle)
 - `scripts/hud.gd` crosshair, hitmarkers, health, ammo, speedometer, state and cooldown readout
 - `tests/movement_test.gd` headless smoke test:
   `godot --headless --path . -s res://tests/movement_test.gd`
 - `tests/combat_test.gd` headless combat smoke test:
   `godot --headless --path . -s res://tests/combat_test.gd`
 - `tests/run_loop_test.gd` headless run loop test (generator limits, a bot pilot clearing the
-  hardest gap of each kind, salvage, extraction, titanfall, the fight, win and loss):
+  hardest gap of each kind and all three real ravine crossings and the culvert, log-bridge and ridge
+  flanks in the forest, salvage,
+  extraction, titanfall, the fight, evac, win and loss):
   `godot --headless --path . -s res://tests/run_loop_test.gd`
+- `tests/titan_weapons_test.gd` checks every titan weapon still deals its damage per second:
+  `godot --headless --path . -s res://tests/titan_weapons_test.gd`
 - `scripts/hub/hub_builder.gd` builds the temple in code, `hub_grounds.gd` the grounds,
   `hub_kit.gd` shared shape helpers, `hub_props.gd` the Blender props; `practice_target.gd`, `titan_dummy.gd` and
   `ambient.gd` (fire flicker, swaying cloth, birds) are the hub's moving parts

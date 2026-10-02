@@ -33,6 +33,16 @@ func _run() -> void:
 	_check("one cache is guarded", info["objectives"].size() == 1 and info["objectives"][0].cache.locked, info["objectives"].size())
 	_check("zone has grunts", info["grunts"].size() >= 2, info["grunts"].size())
 	_check("grunts hunt the pilot", info["grunts"].all(func(g): return g.target == player), "")
+	_check("zone 1 is the forest", info.get("name", "") == "THE PINEWOODS" and info["checkpoints"].size() >= 5, info.get("name", ""))
+	var floating := []
+	for g in info["grunts"]:
+		if not _ground_below(g.post, g.get_rid()):
+			floating.append(g.post)
+	_check("forest grunts stand on something", floating.is_empty(), floating)
+	var kinds: Array = info["routes"].map(func(r): return r["kind"])
+	_check("forest has a loud, a quiet and a high route", kinds == ["loud", "quiet", "high"], kinds)
+	var blockers: int = run_node.zone_root.get_children().filter(func(n): return n.is_in_group("sight_blocker")).size()
+	_check("forest has tall grass to hide in, some of it blocking sight", info["stealth_cover"].size() >= 40 and blockers >= 15, [info["stealth_cover"].size(), blockers])
 
 	# The hardest gaps the generator makes, flown by the pilot: sprint, jump at the edge, double jump.
 	var jump: Vector2 = ZoneBuilder.GAPS["jump"]
@@ -41,6 +51,8 @@ func _run() -> void:
 	await _fly_gap("widest climb", climb.y, ZoneBuilder.CLIMB_RISE, 3.0, 12)
 	await _fly_gap("widest wallrun", ZoneBuilder.GAPS["wallrun"].y, 1.0, 3.0, 0, "wallrun")
 	await _fly_gap("widest grapple", ZoneBuilder.GAPS["grapple"].y, 3.0, 3.0, 0, "grapple")
+	await _forest_crossings()
+	await _forest_flanks()
 
 	# Open salvage, pick the first part
 	var open_cache: Node3D = info["caches"][0] if not info["caches"][0].locked else info["caches"][1]
@@ -80,11 +92,11 @@ func _run() -> void:
 	_check("downed costs integrity", run_node.run.pilot_hp == 75 and run_node.run.downs == 1 and player.health == player.max_health, run_node.run.pilot_hp)
 	run_node.run.pilot_hp = 100
 
-	# Falling costs integrity and respawns on a platform
-	_place(Vector3(0, float(info["floor_y"]) - 30.0, 0))
+	# Falling into the ravine costs integrity and respawns at the last checkpoint
+	_place(Vector3(0, run_node.kill_y() - 20.0, ZoneBuilder.ForestBuilder.RAVINE_Z))
 	await _ticks(3)
 	_check("fall costs integrity", run_node.run.pilot_hp == 75 and run_node.run.falls == 1, run_node.run.pilot_hp)
-	_check("fall respawns above the void", player.global_position.y > float(info["floor_y"]) - 1.0, player.global_position)
+	_check("fall respawns above the ravine", player.global_position.y > run_node.kill_y() + 5.0, player.global_position)
 
 	# Extract through the zones, taking a part from every cache
 	for zone in range(0, 3):
@@ -124,9 +136,12 @@ func _run() -> void:
 	await _ticks(240)
 	_check("boss fights back", titan.hp < titan.max_hp, titan.hp)
 	boss.hp = 1.0
-	await _ticks(10)
+	await _ticks(120)  # the slowest gun (40mm Tracker) fires about every 0.4 s
 	Input.action_release("titan_fire")
-	_check("killing the boss completes the run", run_node.phase == run_node.Phase.OVER and run_node.result == "RUN COMPLETE", run_node.result)
+	_check("killing the boss opens the evac", run_node.phase == run_node.Phase.FIGHT and run_node.evac_open and run_node.zone_info["evac_node"].visible, run_node.phase)
+	titan.global_position = run_node.zone_info["evac"] + Vector3(0, 0.5, 0)
+	await _ticks(3)
+	_check("titan on the evac pad completes the run", run_node.phase == run_node.Phase.OVER and run_node.result == "RUN COMPLETE", run_node.result)
 
 	# New run
 	await _press("run_restart")
@@ -176,7 +191,7 @@ func _generator_checks() -> void:
 	for s in range(1, 41):
 		var rng := RandomNumberGenerator.new()
 		rng.seed = s
-		for zone in 3:
+		for zone in range(1, 3):
 			var tmp := Node3D.new()
 			var info := ZoneBuilder.build_zone(tmp, rng, zone)
 			for seg in info["segments"]:
@@ -193,6 +208,22 @@ func _generator_checks() -> void:
 			tmp.free()
 	_check("generated gaps stay clearable, grunts stand on platforms", bad.is_empty(), bad)
 
+	# The forest is laid out by hand; its crossings still have to fit the movement.
+	bad = []
+	for s in range(1, 7):
+		var rng := RandomNumberGenerator.new()
+		rng.seed = s
+		var tmp := Node3D.new()
+		var info := ZoneBuilder.build_zone(tmp, rng, 0)
+		for seg in info["segments"]:
+			var limits: Vector2 = ZoneBuilder.GAPS[seg["type"]]
+			if seg["gap"] > limits.y or (seg["type"] == "jump" and seg["rise"] > 0.5):
+				bad.append([s, seg])
+		if info["caches"].size() != 2 or info["objectives"].size() != 1 or info["grunts"].size() < 6:
+			bad.append([s, "layout", info["caches"].size(), info["objectives"].size(), info["grunts"].size()])
+		tmp.free()
+	_check("forest crossings stay clearable, one guarded cache", bad.is_empty(), bad)
+
 	var a := RandomNumberGenerator.new()
 	var b := RandomNumberGenerator.new()
 	a.seed = 99
@@ -204,6 +235,12 @@ func _generator_checks() -> void:
 	_check("same seed, same zone", str(pa) == str(pb), pa.size())
 	ta.free()
 	tb.free()
+
+
+func _ground_below(pos: Vector3, exclude: RID) -> bool:
+	var query := PhysicsRayQueryParameters3D.create(pos + Vector3(0, 0.5, 0), pos - Vector3(0, 1.0, 0))
+	query.exclude = [exclude]
+	return not run_node.get_world_3d().direct_space_state.intersect_ray(query).is_empty()
 
 
 func _on_a_platform(pos: Vector3, platforms: Array, margin: float) -> bool:
@@ -235,10 +272,120 @@ func _fly_gap(what: String, gap: float, rise: float, drift: float, double_jump_a
 	await _ticks(2)
 	var edge_z := from.z - size.y * 0.5
 	var start := Vector3(from.x, 0.1, from.z + size.y * 0.5 - 0.5)
+	var landed := await _cross(start, edge_z, to, to_size.y * 0.5, kind, mid.x - 4.5, anchor, double_jump_after, to.z + size.y * 0.5 + 2.0)
+	_check("pilot clears the %s (%.1f m, rise %.1f)" % [what, gap, rise], landed, player.global_position)
+	holder.queue_free()
+	await _reset_after_flight()
+
+
+## The real ravine in zone 1, by each of its three routes.
+func _forest_crossings() -> void:
+	var FB = ZoneBuilder.ForestBuilder
+	var c: float = FB.trail_x(FB.RAVINE_Z)
+	var near_end: float = FB.NEAR_LIP - FB.BRIDGE_REACH
+	var far_end: float = FB.FAR_LIP + FB.BRIDGE_REACH
+	var far_deck := Vector3(c, 0.0, far_end - 5.0)
+	var anchor := Vector3(c + FB.ANCHOR_X, FB.ANCHOR_Y, near_end - (near_end - far_end) * 0.6)
+	var ok: bool = await _cross(Vector3(c, 0.1, near_end + 8.0), near_end, far_deck, 5.0, "wallrun", c + FB.SHIELD_X, Vector3.ZERO, 0, far_end)
+	_check("forest: wallrun the blast shield over the ravine", ok, player.global_position)
+	await _reset_after_flight()
+	ok = await _cross(Vector3(c + 2.0, 0.1, near_end + 8.0), near_end, far_deck, 5.0, "grapple", 0.0, anchor, 0, far_end)
+	_check("forest: grapple the crane over the ravine", ok, player.global_position)
+	await _reset_after_flight()
+	# Pillar hops: keep running, jump at each edge.
+	var px: float = c + FB.PILLAR_X
+	var hops := []
+	var edge: float = FB.NEAR_LIP
+	for p in FB.PILLARS:
+		hops.append([edge, Vector3(px, p[1], p[0] - FB.PILLAR * 0.5), FB.PILLAR * 0.5])
+		edge = p[0] - FB.PILLAR
+	hops.append([edge, FB._on(px, FB.FAR_LIP - 6.0), 5.0])
+	_place(FB._on(px, FB.NEAR_LIP + 8.0, 0.1))
+	player.rotation.y = 0.0
+	await _ticks(2)
+	ok = true
+	for hop in hops:
+		ok = ok and await _hop(hop[0], hop[1], hop[2])
+	Input.action_release("move_forward")
+	_check("forest: hop the rock pillars over the ravine", ok, player.global_position)
+	await _reset_after_flight()
+
+
+## The flank routes' key moves: under the wall through the culvert, along the
+## fallen pine over the ravine, and off the end of the ridge over the wall.
+func _forest_flanks() -> void:
+	var FB = ZoneBuilder.ForestBuilder
+	var cw: float = FB.trail_x(FB.WALL_Z)
+	var cr: float = FB.trail_x(FB.RAVINE_Z)
+	_place(FB._on(FB.creek_x(-50.0), -50.0, 0.1))
+	await _ticks(2)
+	var ok: bool = await _walk(FB._on(cw + FB.CULVERT_X, FB.WALL_Z - 6.0), func(p): return p.z < FB.WALL_Z - 3.0)
+	_check("forest: walk the creek through the culvert under the wall", ok, player.global_position)
+	await _reset_after_flight()
+	_place(FB._on(cr + FB.LOG_X, FB.NEAR_LIP + 8.0, 0.1))
+	await _ticks(2)
+	ok = await _walk(FB._on(cr + FB.LOG_X, FB.FAR_LIP - 8.0), func(p): return p.z < FB.FAR_LIP - 4.0)
+	_check("forest: walk the fallen pine over the ravine", ok and run_node.run.falls == 0, player.global_position)
+	await _reset_after_flight()
+	_place(FB._on(FB.ridge_x(-46.0), -46.0, 0.1))
+	await _ticks(2)
+	var jumped := [false]
+	ok = await _walk(FB._on(FB.ridge_x(FB.RIDGE_END), FB.WALL_Z - 8.0), func(p):
+		if not jumped[0] and p.z < FB.RIDGE_END + 0.6:
+			jumped[0] = true
+			_press("jump")
+			create_timer(0.15).timeout.connect(func(): _press("jump"))
+		return p.z < FB.WALL_Z - 1.0 and player.is_on_floor())
+	_check("forest: run the ridge and jump over the wall", ok and run_node.run.falls == 0, player.global_position)
+	await _reset_after_flight()
+
+
+## Holds forward toward `to` until done(position) is true, a fall, or a timeout.
+func _walk(to: Vector3, done: Callable) -> bool:
+	for i in 900:
+		var err: Vector3 = to - player.global_position
+		err.y = 0.0
+		if err.length() > 0.5:
+			player.rotation.y = atan2(-err.x, -err.z)
+		Input.action_press("move_forward")
+		await _ticks(1)
+		if done.call(player.global_position):
+			Input.action_release("move_forward")
+			return true
+		if run_node.run.falls > 0:
+			break
+	Input.action_release("move_forward")
+	return false
+
+
+## Runs forward from where the pilot stands, jumps at edge_z, lands on `to`.
+func _hop(edge_z: float, to: Vector3, half_z: float) -> bool:
+	var jumped := false
+	for i in 360:
+		var err: Vector3 = to - player.global_position
+		err.y = 0.0
+		player.rotation.y = atan2(-err.x, -err.z) if err.length() > 0.5 else player.rotation.y
+		Input.action_press("move_forward")
+		if not jumped and player.is_on_floor() and player.global_position.z < edge_z + 0.6:
+			await _press("jump")
+			jumped = true
+		await _ticks(1)
+		var p: Vector3 = player.global_position
+		if jumped and player.is_on_floor() and absf(p.y - to.y) < 0.4 and absf(p.z - to.z) < half_z + 0.3:
+			return true
+		if p.y < -6.0:
+			return false
+	return false
+
+
+## Flies the pilot from `start` over a gap that begins at edge_z onto `to`.
+## kind is jump, wallrun (along a wall at wall_x, kicking off at kick_z) or grapple (to `anchor`).
+func _cross(start: Vector3, edge_z: float, to: Vector3, to_half_z: float, kind: String, wall_x: float, anchor: Vector3, double_jump_after: int, kick_z := 0.0) -> bool:
 	_place(start)
-	var aim := Vector3(to.x, 0.0, edge_z) - start
+	await _ticks(2)
+	var aim := Vector3(to.x, start.y, edge_z) - start
 	if kind == "wallrun":
-		aim = Vector3(mid.x - 4.0, 0.0, edge_z - 3.0) - start  # run at the wall
+		aim = Vector3(wall_x + 0.5, start.y, edge_z - 3.0) - start  # run at the wall
 	player.rotation.y = atan2(-aim.x, -aim.z)
 	Input.action_press("move_forward")
 	for i in 240:
@@ -261,7 +408,7 @@ func _fly_gap(what: String, gap: float, rise: float, drift: float, double_jump_a
 			player.rotation.y = 0.0
 			for i in 240:
 				await _ticks(1)
-				if player.state_name() != "WALLRUN" or player.global_position.z < to.z + size.y * 0.5 + 2.0:
+				if player.state_name() != "WALLRUN" or player.global_position.z < kick_z:
 					break
 			await _press("jump")
 			await _ticks(20)
@@ -285,7 +432,6 @@ func _fly_gap(what: String, gap: float, rise: float, drift: float, double_jump_a
 			player.get_node("Head").rotation.x = 0.0
 			await _press("jump")
 	# Steer onto the platform like a player would: air-strafe toward its middle.
-	var landed := false
 	for i in 300:
 		await _ticks(1)
 		var err: Vector3 = to - player.global_position
@@ -298,12 +444,14 @@ func _fly_gap(what: String, gap: float, rise: float, drift: float, double_jump_a
 		if OS.get_environment("RUN_TEST_DEBUG") != "" and i % 10 == 0:
 			print("  ", i, " ", player.state_name(), " ", player.global_position, " ", player.velocity)
 		var p: Vector3 = player.global_position
-		if player.is_on_floor() and absf(p.y - to.y) < 0.3 and absf(p.z - to.z) < to_size.y * 0.5 + 0.4:
-			landed = true
-			break
+		if player.is_on_floor() and absf(p.y - to.y) < 0.3 and absf(p.z - to.z) < to_half_z + 0.4:
+			Input.action_release("move_forward")
+			return true
 	Input.action_release("move_forward")
-	_check("pilot clears the %s (%.1f m, rise %.1f)" % [what, gap, rise], landed, player.global_position)
-	holder.queue_free()
+	return false
+
+
+func _reset_after_flight() -> void:
 	_place(run_node.zone_info["spawn"])
 	run_node.run.pilot_hp = 100
 	run_node.run.falls = 0
