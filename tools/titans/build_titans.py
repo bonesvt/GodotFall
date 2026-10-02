@@ -53,6 +53,12 @@ SHARED = {
 	"hose": (0.55, 0.12, 0.08),
 	"soot": (0.05, 0.045, 0.04),
 	"photo": (0.78, 0.7, 0.55),
+	"sticker_pink": (1.0, 0.42, 0.68),
+	"sticker_yellow": (1.0, 0.84, 0.18),
+	"sticker_mint": (0.42, 0.95, 0.78),
+	"sticker_white": (0.97, 0.95, 0.92),
+	"plush_lilac": (0.74, 0.62, 0.95),
+	"plush_pink": (1.0, 0.6, 0.78),
 	"tape": (0.85, 0.82, 0.7),
 	"glow_core": ((0.4, 0.85, 1.0), (0.4, 0.85, 1.0)),
 	"glow_lamp": ((1.0, 0.9, 0.65), (1.0, 0.9, 0.65)),
@@ -63,22 +69,22 @@ SHARED = {
 # Chassis: torso w/d/h, leg thickness, shoulder scale, hip height (same as the
 # old primitive titans) plus the livery and parts.
 TITANS = {
-	"atlas": {"w": 2.6, "d": 1.8, "h": 2.0, "leg": 0.8, "sh": 1.0, "hip": 3.0,
+	"atlas": {"w": 2.2, "d": 1.6, "h": 1.85, "leg": 0.68, "sh": 0.88, "hip": 3.1,
 		"paint": (0.16, 0.48, 0.86), "stripe": (1.0, 0.38, 0.02), "trim": (0.92, 0.87, 0.74),
 		"lamps": "twin"},
 	"ogre": {"w": 3.2, "d": 2.2, "h": 2.2, "leg": 1.0, "sh": 1.3, "hip": 2.9,
 		"paint": (1.0, 0.66, 0.02), "stripe": (0.1, 0.22, 0.12), "trim": (0.16, 0.3, 0.16),
 		"lamps": "twin", "slabs": True, "stacks": 2, "nose": 0.28},
-	"stryder": {"w": 2.0, "d": 1.4, "h": 1.6, "leg": 0.55, "sh": 0.8, "hip": 3.4,
+	"stryder": {"w": 1.45, "d": 1.05, "h": 1.25, "leg": 0.42, "sh": 0.6, "hip": 3.55,
 		"paint": (0.92, 0.92, 0.9), "stripe": (0.86, 0.1, 0.08), "trim": (0.3, 0.32, 0.36),
-		"lamps": "twin", "fins": True, "jet": True, "nose": 0.45},
+		"lamps": "twin", "fins": True, "jet": True, "nose": 0.55, "open": True},
 	"scrap": {"w": 2.5, "d": 1.8, "h": 1.9, "leg": 0.75, "sh": 1.0, "hip": 3.0,
 		"paint": (0.3, 0.4, 0.16), "stripe": (1.0, 0.4, 0.05), "trim": (0.6, 0.55, 0.45),
 		"lamps": "twin", "scrap": True, "stacks": 2},
 	"enemy": {"w": 3.2, "d": 2.2, "h": 2.2, "leg": 1.0, "sh": 1.3, "hip": 2.9,
 		"paint": (0.66, 0.02, 0.04), "stripe": (0.93, 0.86, 0.68), "trim": (0.18, 0.18, 0.2),
 		"lamps": "red", "blades": True, "stacks": 2, "nose": 0.4},
-	"wreck": {"w": 2.6, "d": 1.8, "h": 2.0, "leg": 0.8, "sh": 1.0, "hip": 3.0,
+	"wreck": {"w": 2.2, "d": 1.6, "h": 1.85, "leg": 0.68, "sh": 0.88, "hip": 3.1,
 		"paint": (0.1, 0.32, 0.7), "stripe": (1.0, 0.38, 0.04), "trim": (0.85, 0.82, 0.72),
 		"lamps": "twin", "wreck": True},
 }
@@ -337,7 +343,9 @@ def torso(m, P, L, ty):
 		m.add("Torso", scoop, "dark", kit.xform(tuple(loc)))
 
 	# Bubble canopy over the pilot (her eye sits inside it), on a trim ring.
-	if not scrap:
+	if P.get("open"):
+		open_seat(m, P, L, ty)
+	elif not scrap:
 		def bubble(co, half):
 			u, v, t = nz(co, half)
 			f = max(0.0, -t)
@@ -441,11 +449,41 @@ def pelvis(m, P, L):
 		m.add("Pelvis", tube([(s * w * 0.22, hip - 0.1, -d * 0.18), (s * w * 0.2, hip + 0.75, -d * 0.22)], 0.05, 10, smooth_path=False), "chrome")
 
 
+def open_seat(m, P, L, ty):
+	"""Stryder's open cockpit: she rides it like a racing bike. A bucket seat
+	and headrest behind her, a low wraparound windscreen, chrome side rails
+	and a halo hoop over the seat back."""
+	w, d, h = P["w"], P["d"], P["h"]
+	top = ty + h * 0.5
+	m.add("Torso", smooth((0.62, 0.16, 0.6), (0, 0, 0), cuts=1), "seat", kit.xform((0, top + 0.02, 0.15)))
+	back = smooth((0.62, 0.95, 0.2), (0, 0, 0), lambda co, hh: co.__setitem__(0, co.x * (0.8 if co.y > 0 else 1.0)), cuts=1)
+	m.add("Torso", back, "seat", kit.xform((0, top + 0.5, 0.48), (-12, 0, 0)))
+	m.add("Torso", smooth((0.4, 0.26, 0.2), (0, 0, 0), cuts=1), L["paint"], kit.xform((0, 6.3, 0.5), (-12, 0, 0)))
+	halo = [(-0.42, top + 0.05, 0.62), (-0.36, 6.55, 0.62), (0, 6.78, 0.6), (0.36, 6.55, 0.62), (0.42, top + 0.05, 0.62)]
+	m.add("Torso", tube(halo, 0.045, 10), "chrome")
+	for s in (-1, 1):
+		m.add("Torso", tube([(s * w * 0.38, top - 0.2, -d * 0.6), (s * 0.4, top + 0.12, -0.2), (s * 0.4, top + 0.12, 0.3), (s * 0.42, top - 0.1, 0.7)], 0.035, 10), "chrome")
+	shield = smooth((0.8, 0.42, 0.05), (0, 0, 0), lambda co, hh: co.__setitem__(2, co.z + abs(co.x) ** 2 * 0.6), cuts=2)
+	m.add("Torso", shield, "glass", kit.xform((0, top + 0.2, -0.62), (-38, 0, 0)))
+
+
 def cockpit(m, P, L):
 	"""What Eco sees from the seat: the canopy rim at the edges of her view,
 	a little dash with glowing dials, and Dad's photo taped to the frame.
 	Hidden unless she's piloting (titan_import.gd hides it, titan.gd shows it)."""
-	eye = kit.Vector((0, 6.2, 0))
+	if P.get("open"):
+		top = P["hip"] + 0.75 + P["h"]
+		# Low dash right behind the windscreen, and a mirror stalk for the dice.
+		# The windscreen's chrome edge, just in view at the bottom.
+		edge = [(-0.42, top + 0.1, -0.7), (-0.2, top + 0.3, -0.85), (0.2, top + 0.3, -0.85), (0.42, top + 0.1, -0.7)]
+		m.add("Cockpit", tube(edge, 0.02, 8), "chrome")
+		m.add("Cockpit", smooth((0.4, 0.1, 0.2), (0, 0, 0), cuts=1), "dark", kit.xform((0, top - 0.05, -0.6), (-20, 0, 0)))
+		for i, x in enumerate((-0.1, 0.0, 0.1)):
+			m.add("Cockpit", cyl(0.035, 0.03, (x, top + 0.01, -0.6), "y", 16, rot=(-30, 0, 0)), ("glow_core", "glow_lamp", "glow_red")[i])
+		m.add("Cockpit", tube([(-0.42, top + 0.05, -0.45), (-0.55, 6.25, -0.6), (-0.5, 6.45, -0.7)], 0.02, 6), "chrome")
+		m.add("Cockpit", smooth((0.2, 0.1, 0.03), (0, 0, 0), cuts=1), "glass", kit.xform((-0.5, 6.48, -0.71), (0, 25, 0)))
+		cute_cockpit(m, (-0.5, 6.43, -0.7), (-0.12, top + 0.0, -0.62))
+		return
 	rim = [(-0.85, 5.5, -0.75), (-0.74, 6.3, -0.9), (-0.42, 6.9, -0.72), (0.42, 6.9, -0.72), (0.74, 6.3, -0.9), (0.85, 5.5, -0.75)]
 	m.add("Cockpit", tube(rim, 0.045, 10), L["paint"])
 	m.add("Cockpit", tube([(x * 1.04, y, z + 0.04) for x, y, z in rim], 0.025, 8), "chrome")
@@ -458,6 +496,102 @@ def cockpit(m, P, L):
 	# Dad's photo: a faded print taped to the left pillar.
 	m.add("Cockpit", rbox((0.16, 0.2, 0.01), (0, 0, 0), r=0.0), "photo", kit.xform((-0.66, 5.95, -0.86), (8, 30, -10)))
 	m.add("Cockpit", rbox((0.06, 0.12, 0.012), (0, 0, 0), r=0.0), "tape", kit.xform((-0.66, 6.06, -0.858), (8, 30, 30)))
+	if not P.get("wreck") and P["lamps"] != "red":
+		cute_cockpit(m, (-0.3, 6.88, -0.72), (-0.2, 5.44, -0.98))
+
+
+# --- the cute stuff ---------------------------------------------------------------
+# Eco's touches: stickers on the paint, a ribbon on the antenna, a tool pouch
+# with her wrench, fuzzy dice and a plush bunny in the cockpit. Only on the
+# titans she builds (not the enemy, not Dad's wreck).
+
+def fuzzy_dice(m, anchor):
+	a = kit.Vector(anchor)
+	for i, dx in enumerate((-0.05, 0.06)):
+		end = a + kit.Vector((dx, -0.22 - i * 0.05, 0))
+		m.add("Cockpit", tube([tuple(a), tuple(end)], 0.005, 4, smooth_path=False), "dark")
+		m.add("Cockpit", rbox((0.075, 0.075, 0.075), (0, 0, 0), r=0.018, seg=2), "plush_pink", kit.xform(tuple(end - kit.Vector((0, 0.04, 0))), (20 * i, 30 + 25 * i, 10)))
+
+
+def bunny(m, group, base, scale=1.0, mat="plush_lilac"):
+	b = kit.Vector(base)
+	k = scale
+	m.add(group, sphere(0.06 * k, tuple(b + kit.Vector((0, 0.05 * k, 0))), (1, 1.05, 0.9), 12, 8), mat)
+	m.add(group, sphere(0.05 * k, tuple(b + kit.Vector((0, 0.14 * k, 0))), (1, 0.95, 0.95), 12, 8), mat)
+	for s in (-1, 1):
+		m.add(group, sphere(0.018 * k, tuple(b + kit.Vector((s * 0.022 * k, 0.21 * k, 0))), (0.8, 3.2, 0.7), 8, 6), mat)
+		m.add(group, sphere(0.008 * k, tuple(b + kit.Vector((s * 0.018 * k, 0.15 * k, -0.045 * k))), (1, 1, 0.5), 6, 4), "dark")
+	m.add(group, sphere(0.01 * k, tuple(b + kit.Vector((0, 0.13 * k, -0.05 * k))), (1, 0.7, 0.6), 6, 4), "sticker_pink")
+
+
+def cute_cockpit(m, dice_anchor, plush_base):
+	fuzzy_dice(m, dice_anchor)
+	bunny(m, "Cockpit", plush_base)
+
+
+def sticker(m, group, p, direction, shape, size, mat, roll=0.0):
+	loc, n = m.hit(group, p, direction)
+	if loc is None:
+		return
+	pts = {"heart": kit.heart_outline, "star": kit.star_outline, "dot": kit.circle_outline}[shape](size)
+	m.add(group, kit.flat(pts, 0.012), mat, kit.facing(loc, n, roll), smooth=False)
+
+
+def flower(m, group, p, direction, size, petal, centre):
+	loc, n = m.hit(group, p, direction)
+	if loc is None:
+		return
+	for i in range(5):
+		a = math.tau * i / 5
+		m.add(group, kit.flat(kit.circle_outline(size * 0.42), 0.01), petal,
+			kit.facing(loc, n, 0.0, 0.004) @ kit.Matrix.Translation((math.cos(a) * size * 0.5, math.sin(a) * size * 0.5, 0)), smooth=False)
+	m.add(group, kit.flat(kit.circle_outline(size * 0.32), 0.012), centre, kit.facing(loc, n, 0.0, 0.009), smooth=False)
+
+
+def decorate(m, P, L, ty, legs, arms):
+	w, d, h, sh, lw, hip = P["w"], P["d"], P["h"], P["sh"], P["leg"], P["hip"]
+	top = ty + h * 0.5
+	# Flank stickers: a big heart, stars, a flower.
+	k = h * 0.16
+	sticker(m, "Torso", (-w, ty + h * 0.02, d * 0.1), (1, 0, 0), "heart", k * 1.4, "sticker_pink", 12)
+	sticker(m, "Torso", (-w, ty + h * 0.26, -d * 0.2), (1, 0, 0), "star", k * 0.9, "sticker_yellow", -8)
+	sticker(m, "Torso", (-w, ty - h * 0.18, -d * 0.32), (1, 0, 0), "star", k * 0.6, "sticker_mint", 20)
+	flower(m, "Torso", (w, ty + h * 0.05, d * 0.05), (-1, 0, 0), k * 1.4, "sticker_white", "sticker_yellow")
+	sticker(m, "Torso", (w, ty + h * 0.26, -d * 0.25), (-1, 0, 0), "heart", k * 0.7, "sticker_pink", -15)
+	# On the nose, beside the stripes, where everyone sees it.
+	sticker(m, "Torso", (w * 0.3, ty + h * 0.08, 0), (0, -0.4, 1), "heart", k * 0.8, "sticker_pink", -12)
+	sticker(m, "Torso", (-w * 0.32, ty + h * 0.12, 0), (0, -0.4, 1), "star", k * 0.6, "sticker_yellow", 10)
+	# Shoulders: a star on the left fender, a heart on the right.
+	for s in (-1, 1):
+		g = "ArmL" if s < 0 else "ArmR"
+		a = kit.Vector(arms[s])
+		sticker(m, g, (a.x + s * 2.0, a.y + 0.15 * sh, a.z), (-s, 0, 0), "star" if s < 0 else "heart", 0.3 * sh, "sticker_yellow" if s < 0 else "sticker_pink", s * 10)
+	# Her side of the right forearm (seen from the cockpit): a little heart and stars.
+	a = kit.Vector(arms[1])
+	for dz, shape, mat, size in ((-0.25, "heart", "sticker_pink", 0.08), (-0.6, "star", "sticker_yellow", 0.07), (-0.9, "dot", "sticker_mint", 0.04)):
+		sticker(m, "ArmR", (a.x - 0.16 * sh, a.y - 1.0, a.z + dz * sh), (0, -1, 0), shape, size * max(sh, 0.8), mat, 15)
+	# Tool pouch strapped to the right thigh, wrench sticking out.
+	g = kit.Vector(legs[1])
+	px = g.x + lw * 0.58
+	py = g.y - hip * 0.22
+	m.add("LegR", smooth((0.16, 0.36, 0.34), (0, 0, 0), cuts=1), "seat", kit.xform((px, py, 0.02)))
+	m.add("LegR", tube([(px - lw * 0.62, py + 0.05, -lw * 0.62), (px + 0.1, py + 0.05, -0.2), (px + 0.1, py + 0.05, 0.25), (px - lw * 0.62, py + 0.05, lw * 0.62)], 0.018, 6), "dark")
+	m.add("LegR", cyl(0.025, 0.36, (px + 0.02, py + 0.3, 0.06), "y", 8), "chrome")
+	ring = [(px + 0.02 + math.cos(t) * 0.05, py + 0.5 + math.sin(t) * 0.05, 0.06) for t in [math.radians(a) for a in range(-50, 231, 28)]]
+	m.add("LegR", tube(ring, 0.017, 6, smooth_path=False), "chrome")
+	sticker(m, "LegR", (px + 0.5, py, 0.0), (-1, 0, 0), "heart", 0.06, "sticker_pink")
+	# Knee and shin stickers.
+	g = kit.Vector(legs[-1])
+	sticker(m, "LegL", (g.x - lw * 2, g.y - hip * 0.7, 0.0), (1, 0, 0), "star", lw * 0.3, "sticker_mint", 18)
+	for s in (-1, 1):
+		gl = kit.Vector(legs[s])
+		sticker(m, "LegL" if s < 0 else "LegR", (gl.x + lw * 0.3 * s, gl.y - hip * 0.82, 0), (0, 0, 1), "heart" if s > 0 else "star", lw * 0.2, "sticker_white", 0)
+	# Pink ribbon bow just under the antenna tip.
+	tip = kit.Vector((-w * 0.38, top + 1.05, d * 0.5 + 0.18))
+	for s in (-1, 1):
+		m.add("Engine", sphere(0.07, tuple(tip + kit.Vector((s * 0.07, 0, 0))), (1.0, 0.6, 0.35), 10, 6), "plush_pink")
+		m.add("Engine", tube([tuple(tip), tuple(tip + kit.Vector((s * 0.04, -0.14, 0)))], 0.015, 4, smooth_path=False), "plush_pink")
+	m.add("Engine", sphere(0.03, tuple(tip), (1, 1, 0.7), 8, 6), "plush_pink")
 
 
 def titan(id, P):
@@ -478,6 +612,8 @@ def titan(id, P):
 	for s in (-1, 1):
 		leg(m, P, L, s, legs[s])
 		arm(m, P, L, s, arms[s])
+	if id in ("atlas", "ogre", "stryder", "scrap"):
+		decorate(m, P, L, ty, legs, arms)
 	objs = m.build()
 	for name in ("LegL", "LegR", "ArmL", "ArmR"):
 		objs[name].name = name + "Mesh"

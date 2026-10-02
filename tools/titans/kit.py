@@ -66,6 +66,16 @@ class Model:
 		self.groups.setdefault(group, []).append((bm, mats))
 		return bm
 
+	def hit(self, group, p, direction):
+		"""kit.hit against every piece added to `group` so far (nearest wins)."""
+		d = Vector(direction).normalized()
+		best = (None, None, 1e9)
+		for bm, _ in self.groups.get(group, []):
+			loc, n, _, dist = BVHTree.FromBMesh(bm).ray_cast(Vector(p) - d * 4.0, d, 8.0)
+			if loc is not None and dist < best[2]:
+				best = (loc, n, dist)
+		return best[0], best[1]
+
 	def build(self, ao=True):
 		"""Turns every group into a Blender object (Godot coords converted)."""
 		objs = {}
@@ -298,6 +308,48 @@ def studs(target, points, direction, r=0.035):
 		bmesh.ops.transform(b, matrix=Matrix.Translation(loc) @ rot @ Matrix.Diagonal((1, 1, 0.45, 1)), verts=b.verts)
 		out = b if out is None else merge(out, b)
 	return out if out is not None else bmesh.new()
+
+
+def flat(points, depth):
+	"""A thin plate from a 2D outline (x, y), `depth` thick along z (front +z)."""
+	bm = bmesh.new()
+	vs = [bm.verts.new((x, y, depth * 0.5)) for x, y in points]
+	f = bm.faces.new(vs)
+	ext = bmesh.ops.extrude_face_region(bm, geom=[f])
+	for v in [e for e in ext["geom"] if isinstance(e, bmesh.types.BMVert)]:
+		v.co.z -= depth
+	bmesh.ops.recalc_face_normals(bm, faces=bm.faces[:])
+	bmesh.ops.triangulate(bm, faces=[f for f in bm.faces if len(f.verts) > 4])
+	return bm
+
+
+def heart_outline(r, n=28):
+	pts = []
+	for i in range(n):
+		t = math.tau * i / n
+		x = 16 * math.sin(t) ** 3
+		y = 13 * math.cos(t) - 5 * math.cos(2 * t) - 2 * math.cos(3 * t) - math.cos(4 * t)
+		pts.append((x * r / 17.0, y * r / 17.0))
+	return pts
+
+
+def star_outline(r, points=5, inner=0.45):
+	return [((r if i % 2 == 0 else r * inner) * math.sin(math.pi * i / points),
+		(r if i % 2 == 0 else r * inner) * math.cos(math.pi * i / points)) for i in range(points * 2)]
+
+
+def circle_outline(r, n=16):
+	return [(r * math.cos(math.tau * i / n), r * math.sin(math.tau * i / n)) for i in range(n)]
+
+
+def facing(loc, normal, roll=0.0, lift=0.004):
+	"""Transform placing a +z-facing plate flat on a surface at `loc`."""
+	n = Vector(normal).normalized()
+	up = Vector((0, 1, 0)) if abs(n.y) < 0.9 else Vector((0, 0, -1))
+	x = up.cross(n).normalized()
+	y = n.cross(x)
+	m = Matrix((x, y, n)).transposed().to_4x4()
+	return Matrix.Translation(Vector(loc) + n * lift) @ m @ Matrix.Rotation(math.radians(roll), 4, "Z")
 
 
 def row(a, b, n):

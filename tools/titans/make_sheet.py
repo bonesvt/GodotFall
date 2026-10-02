@@ -11,9 +11,9 @@ SHOTS, OUT = sys.argv[1], sys.argv[2]
 FONT = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
 BODY = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
 TITANS = [
-	("atlas", "ATLAS", "sky blue + orange, the all-rounder, XO-16"),
+	("atlas", "ATLAS", "leaner all-rounder, sky blue + orange, XO-16"),
 	("ogre", "OGRE", "mustard + army green, armoured fenders, Tracker"),
-	("stryder", "STRYDER", "white + red, long nose, tail fins, jet, Splitter"),
+	("stryder", "STRYDER", "slim exo-frame, open seat + windscreen, Splitter"),
 	("scrap", "SCRAP", "olive open-tub buggy: roll cage, seat, tyre knees"),
 	("enemy", "ENEMY TITAN", "candy crimson + cream, nose blades, red eyes"),
 	("wreck", "DAD'S TITAN (HUB)", "Atlas blue + orange stripe, wrecked"),
@@ -44,9 +44,9 @@ def main():
 	title = ImageFont.truetype(FONT, 56)
 	name = ImageFont.truetype(FONT, 30)
 	note = ImageFont.truetype(BODY, 22)
-	d.text((pad, 24), "TITANS / JAK GARAGE PASS 2: SLEEK", font=title, fill=INK)
+	d.text((pad, 24), "TITANS / PASS 3: LEAN + ECO'S TOUCHES", font=title, fill=INK)
 	d.rectangle((pad, 94, pad + 520, 100), fill=ACCENT)
-	d.text((pad + 980, 46), "swept candy-paint bodies, bubble canopies, chrome joints, racing stripes", font=note, fill=DIM)
+	d.text((W - pad - 760, 34), "stickers, ribbon, tool pouch + wrench, fuzzy dice, plush bunny", font=note, fill=DIM)
 	for i, (id, nm, desc) in enumerate(TITANS):
 		x = pad + (i % cols) * (card_w + pad)
 		y = head + (i // cols) * (card_h + label + pad)

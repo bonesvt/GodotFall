@@ -27,6 +27,8 @@ const FINISHES := [
 	["soot", {"gloss": 0.05, "reflection": 0.0, "wear": 0.0, "grime": 0.0, "ao_strength": 0.0}],
 	["photo", {"gloss": 0.2, "reflection": 0.05, "wear": 0.0, "grime": 0.3, "ao_strength": 0.0}],
 	["tape", {"gloss": 0.1, "reflection": 0.0, "wear": 0.0, "grime": 0.4, "ao_strength": 0.0}],
+	["sticker", {"gloss": 0.6, "reflection": 0.25, "wear": 0.15, "grime": 0.1, "ao_strength": 0.4}],
+	["plush", {"gloss": 0.0, "reflection": 0.0, "wear": 0.0, "grime": 0.0, "rim": 0.6}],
 	["glass", {"gloss": 1.0, "reflection": 0.55, "wear": 0.0, "grime": 0.0, "shininess": 140.0, "ao_strength": 0.3}],
 	["glow_dead", {"gloss": 0.9, "reflection": 0.6, "wear": 0.0, "grime": 0.5}],
 	["glow", {"unshaded": true, "emission_energy": 2.0, "wear": 0.0, "grime": 0.0, "ao_strength": 0.0}],
