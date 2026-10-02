@@ -412,17 +412,20 @@ def empty(name, pos, parent=None):
 
 
 def set_parent(child, parent):
-	"""Parents keeping the world placement, with the offset baked into the
-	child's own transform (or mesh data) so glTF gets clean local transforms."""
+	"""Parents keeping the world placement (offset goes in the child's own
+	transform, so glTF gets clean local transforms)."""
+	bpy.context.view_layer.update()
 	world = child.matrix_world.copy()
 	child.parent = parent
 	child.matrix_parent_inverse = Matrix.Identity(4)
-	local = parent.matrix_world.inverted() @ world
-	if child.type == "MESH":
-		child.data.transform(local)
-		child.matrix_basis = Matrix.Identity(4)
-	else:
-		child.matrix_basis = local
+	child.matrix_basis = parent.matrix_world.inverted() @ world
+
+
+def set_origin(ob, pos):
+	"""Moves a mesh object's origin to a Godot-space point, geometry staying put."""
+	t = G2B @ Vector(pos)
+	ob.data.transform(Matrix.Translation(-t))
+	ob.matrix_world = Matrix.Translation(t)
 
 
 # --- baking ----------------------------------------------------------------------

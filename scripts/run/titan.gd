@@ -10,6 +10,7 @@ signal destroyed
 
 const Art := preload("res://scripts/ps2/ps2_assets.gd")
 const TitanGun := preload("res://scripts/run/titan_gun.gd")
+const TitanStyle := preload("res://scripts/run/titan_style.gd")
 const FX := preload("res://scripts/fx.gd")
 const SFX := preload("res://scripts/sfx.gd")
 
@@ -81,7 +82,10 @@ func _ready() -> void:
 	col.shape = shape
 	col.position.y = HEIGHT * 0.5
 	add_child(col)
-	model = Art.titan(parts.get("chassis", {}).get("id", "scrap"), parts.get("weapon", {}).get("id", "scrap"))
+	var chassis: String = parts.get("chassis", {}).get("id", "scrap")
+	model = Art.titan(chassis, parts.get("weapon", {}).get("id", "scrap"))
+	# Eco's paint job and tweaks for this chassis, from the hub garage.
+	TitanStyle.apply(model, chassis, TitanStyle.load_style(chassis))
 	add_child(model)
 	head = Node3D.new()
 	head.position.y = EYE

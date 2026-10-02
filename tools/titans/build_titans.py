@@ -227,14 +227,14 @@ def arm(m, P, L, side, pivot):
 
 		pad = smooth((1.1, 0.78, 1.45), (0, 0, 0), fender)
 		band(pad, 0, -0.08, 0.08, 1, lambda c, n: n.y > -0.2)
-		m.add(g, pad, paint, kit.xform(at(side * 0.12 * sh, 0.14 * sh, 0), (0, 0, side * -12), (sh, sh, sh)))
+		m.add(g + "Fender", pad, paint, kit.xform(at(side * 0.12 * sh, 0.14 * sh, 0), (0, 0, side * -12), (sh, sh, sh)))
 		if P.get("slabs"):
 			slab = smooth((0.85, 0.24, 1.15), (0, 0, 0), lambda co, h: co.__setitem__(0, co.x * (0.85 if co.y < 0 else 1.0)), cuts=1)
-			m.add(g, slab, L["trim"], kit.xform(at(side * 0.16 * sh, 0.6 * sh, 0.05), (0, 0, side * -14), (sh, sh, sh)))
+			m.add(g + "Fender", slab, L["trim"], kit.xform(at(side * 0.16 * sh, 0.6 * sh, 0.05), (0, 0, side * -14), (sh, sh, sh)))
 		if P.get("fins"):
 			fin = smooth((0.1, 0.7, 0.9), (0, 0, 0), lambda co, h: co.__setitem__(2, co.z + (0.4 if co.y > 0 else 0.0)), cuts=1)
 			band(fin, 1, 0.12, 0.45, 1)
-			m.add(g, fin, paint, kit.xform(at(side * 0.42 * sh, 0.62 * sh, 0.25), (0, 0, side * -18), (sh, sh, sh)))
+			m.add(g + "Fender", fin, paint, kit.xform(at(side * 0.42 * sh, 0.62 * sh, 0.25), (0, 0, side * -18), (sh, sh, sh)))
 	# Upper arm: dark sleeve, chrome ram up the front.
 	m.add(g, smooth((0.5 * sh, 1.1, 0.5 * sh), (0, 0, 0), cuts=1), "dark", kit.xform(at(0, -0.75, 0)))
 	m.add(g, tube([at(0, -0.3, -0.32 * sh), at(0, -1.2, -0.32 * sh)], 0.055 * sh, 12, smooth_path=False), "chrome")
@@ -398,8 +398,8 @@ def torso(m, P, L, ty):
 			pts = [(x, ey + h * 0.2, back + 0.5), (x, top + 0.1, back + 0.65), (x, top + 0.45, back + 0.55)]
 			m.add("Engine", tube(pts, 0.1, 12), "chrome")
 	ant = [(-w * 0.36, top - 0.1, back), (-w * 0.38, top + 1.2, back + 0.2)]
-	m.add("Engine", tube(ant, 0.018, 6, smooth_path=False), "dark")
-	m.add("Engine", sphere(0.05, ant[1]), "glow_red" if not wreck else "dark")
+	m.add("Antenna", tube(ant, 0.018, 6, smooth_path=False), "dark")
+	m.add("Antenna", sphere(0.05, ant[1]), "glow_red" if not wreck else "dark")
 
 	if P.get("blades"):
 		for s in (-1, 1):
@@ -509,8 +509,8 @@ def fuzzy_dice(m, anchor):
 	a = kit.Vector(anchor)
 	for i, dx in enumerate((-0.05, 0.06)):
 		end = a + kit.Vector((dx, -0.22 - i * 0.05, 0))
-		m.add("Cockpit", tube([tuple(a), tuple(end)], 0.005, 4, smooth_path=False), "dark")
-		m.add("Cockpit", rbox((0.075, 0.075, 0.075), (0, 0, 0), r=0.018, seg=2), "plush_pink", kit.xform(tuple(end - kit.Vector((0, 0.04, 0))), (20 * i, 30 + 25 * i, 10)))
+		m.add("CockpitCharms", tube([tuple(a), tuple(end)], 0.005, 4, smooth_path=False), "dark")
+		m.add("CockpitCharms", rbox((0.075, 0.075, 0.075), (0, 0, 0), r=0.018, seg=2), "plush_pink", kit.xform(tuple(end - kit.Vector((0, 0.04, 0))), (20 * i, 30 + 25 * i, 10)))
 
 
 def bunny(m, group, base, scale=1.0, mat="plush_lilac"):
@@ -526,7 +526,12 @@ def bunny(m, group, base, scale=1.0, mat="plush_lilac"):
 
 def cute_cockpit(m, dice_anchor, plush_base):
 	fuzzy_dice(m, dice_anchor)
-	bunny(m, "Cockpit", plush_base)
+	bunny(m, "CockpitCharms", plush_base)
+
+
+def decals_of(group):
+	"""Stickers live in their own nodes so the garage can peel them off."""
+	return "Decals" if group == "Torso" else group + "Decals"
 
 
 def sticker(m, group, p, direction, shape, size, mat, roll=0.0):
@@ -534,18 +539,19 @@ def sticker(m, group, p, direction, shape, size, mat, roll=0.0):
 	if loc is None:
 		return
 	pts = {"heart": kit.heart_outline, "star": kit.star_outline, "dot": kit.circle_outline}[shape](size)
-	m.add(group, kit.flat(pts, 0.012), mat, kit.facing(loc, n, roll), smooth=False)
+	m.add(decals_of(group), kit.flat(pts, 0.012), mat, kit.facing(loc, n, roll), smooth=False)
 
 
 def flower(m, group, p, direction, size, petal, centre):
 	loc, n = m.hit(group, p, direction)
 	if loc is None:
 		return
+	into = decals_of(group)
 	for i in range(5):
 		a = math.tau * i / 5
-		m.add(group, kit.flat(kit.circle_outline(size * 0.42), 0.01), petal,
+		m.add(into, kit.flat(kit.circle_outline(size * 0.42), 0.01), petal,
 			kit.facing(loc, n, 0.0, 0.004) @ kit.Matrix.Translation((math.cos(a) * size * 0.5, math.sin(a) * size * 0.5, 0)), smooth=False)
-	m.add(group, kit.flat(kit.circle_outline(size * 0.32), 0.012), centre, kit.facing(loc, n, 0.0, 0.009), smooth=False)
+	m.add(into, kit.flat(kit.circle_outline(size * 0.32), 0.012), centre, kit.facing(loc, n, 0.0, 0.009), smooth=False)
 
 
 def decorate(m, P, L, ty, legs, arms):
@@ -563,8 +569,10 @@ def decorate(m, P, L, ty, legs, arms):
 	sticker(m, "Torso", (-w * 0.32, ty + h * 0.12, 0), (0, -0.4, 1), "star", k * 0.6, "sticker_yellow", 10)
 	# Shoulders: a star on the left fender, a heart on the right.
 	for s in (-1, 1):
-		g = "ArmL" if s < 0 else "ArmR"
+		g = ("ArmL" if s < 0 else "ArmR") + "Fender"
 		a = kit.Vector(arms[s])
+		if g not in m.groups:
+			continue
 		sticker(m, g, (a.x + s * 2.0, a.y + 0.15 * sh, a.z), (-s, 0, 0), "star" if s < 0 else "heart", 0.3 * sh, "sticker_yellow" if s < 0 else "sticker_pink", s * 10)
 	# Her side of the right forearm (seen from the cockpit): a little heart and stars.
 	a = kit.Vector(arms[1])
@@ -574,12 +582,12 @@ def decorate(m, P, L, ty, legs, arms):
 	g = kit.Vector(legs[1])
 	px = g.x + lw * 0.58
 	py = g.y - hip * 0.22
-	m.add("LegR", smooth((0.16, 0.36, 0.34), (0, 0, 0), cuts=1), "seat", kit.xform((px, py, 0.02)))
-	m.add("LegR", tube([(px - lw * 0.62, py + 0.05, -lw * 0.62), (px + 0.1, py + 0.05, -0.2), (px + 0.1, py + 0.05, 0.25), (px - lw * 0.62, py + 0.05, lw * 0.62)], 0.018, 6), "dark")
-	m.add("LegR", cyl(0.025, 0.36, (px + 0.02, py + 0.3, 0.06), "y", 8), "chrome")
+	m.add("LegRPouch", smooth((0.16, 0.36, 0.34), (0, 0, 0), cuts=1), "seat", kit.xform((px, py, 0.02)))
+	m.add("LegRPouch", tube([(px - lw * 0.62, py + 0.05, -lw * 0.62), (px + 0.1, py + 0.05, -0.2), (px + 0.1, py + 0.05, 0.25), (px - lw * 0.62, py + 0.05, lw * 0.62)], 0.018, 6), "dark")
+	m.add("LegRPouch", cyl(0.025, 0.36, (px + 0.02, py + 0.3, 0.06), "y", 8), "chrome")
 	ring = [(px + 0.02 + math.cos(t) * 0.05, py + 0.5 + math.sin(t) * 0.05, 0.06) for t in [math.radians(a) for a in range(-50, 231, 28)]]
-	m.add("LegR", tube(ring, 0.017, 6, smooth_path=False), "chrome")
-	sticker(m, "LegR", (px + 0.5, py, 0.0), (-1, 0, 0), "heart", 0.06, "sticker_pink")
+	m.add("LegRPouch", tube(ring, 0.017, 6, smooth_path=False), "chrome")
+	sticker(m, "LegRPouch", (px + 0.5, py, 0.0), (-1, 0, 0), "heart", 0.06, "sticker_pink")
 	# Knee and shin stickers.
 	g = kit.Vector(legs[-1])
 	sticker(m, "LegL", (g.x - lw * 2, g.y - hip * 0.7, 0.0), (1, 0, 0), "star", lw * 0.3, "sticker_mint", 18)
@@ -589,9 +597,9 @@ def decorate(m, P, L, ty, legs, arms):
 	# Pink ribbon bow just under the antenna tip.
 	tip = kit.Vector((-w * 0.38, top + 1.05, d * 0.5 + 0.18))
 	for s in (-1, 1):
-		m.add("Engine", sphere(0.07, tuple(tip + kit.Vector((s * 0.07, 0, 0))), (1.0, 0.6, 0.35), 10, 6), "plush_pink")
-		m.add("Engine", tube([tuple(tip), tuple(tip + kit.Vector((s * 0.04, -0.14, 0)))], 0.015, 4, smooth_path=False), "plush_pink")
-	m.add("Engine", sphere(0.03, tuple(tip), (1, 1, 0.7), 8, 6), "plush_pink")
+		m.add("Ribbon", sphere(0.07, tuple(tip + kit.Vector((s * 0.07, 0, 0))), (1.0, 0.6, 0.35), 10, 6), "plush_pink")
+		m.add("Ribbon", tube([tuple(tip), tuple(tip + kit.Vector((s * 0.04, -0.14, 0)))], 0.015, 4, smooth_path=False), "plush_pink")
+	m.add("Ribbon", sphere(0.03, tuple(tip), (1, 1, 0.7), 8, 6), "plush_pink")
 
 
 def titan(id, P):
@@ -617,13 +625,32 @@ def titan(id, P):
 	objs = m.build()
 	for name in ("LegL", "LegR", "ArmL", "ArmR"):
 		objs[name].name = name + "Mesh"
+	pivots = {}
 	for s in (-1, 1):
-		lp = kit.empty("LegL" if s < 0 else "LegR", legs[s])
-		kit.set_parent(objs["LegL" if s < 0 else "LegR"], lp)
+		pivots["LegL" if s < 0 else "LegR"] = kit.empty("LegL" if s < 0 else "LegR", legs[s])
 		ap = kit.empty("ArmL" if s < 0 else "ArmR", arms[s])
-		kit.set_parent(objs["ArmL" if s < 0 else "ArmR"], ap)
+		pivots["ArmL" if s < 0 else "ArmR"] = ap
 		if s > 0:
 			kit.empty("WeaponMount", (arms[s][0], arms[s][1] - 1.45, -1.2 * sh), ap)
+	# Customisable bits get their own nodes (see scripts/run/titan_style.gd):
+	# fenders scale about their own centre and carry their stickers; the
+	# ribbon rides the antenna; charms hang inside the cockpit.
+	for s in (-1, 1):
+		side = "ArmL" if s < 0 else "ArmR"
+		fender = objs.get(side + "Fender")
+		if fender is not None:
+			kit.set_origin(fender, (arms[s][0] + s * 0.12 * sh, arms[s][1] + 0.2 * sh, 0.0))
+	for name, ob in objs.items():
+		if name in ("LegLMesh", "LegRMesh", "ArmLMesh", "ArmRMesh"):
+			kit.set_parent(ob, pivots[name[:4]])
+		elif name.endswith("FenderDecals"):
+			kit.set_parent(ob, objs[name[:-len("Decals")]])
+		elif name[:4] in pivots:
+			kit.set_parent(ob, pivots[name[:4]])
+		elif name == "Ribbon":
+			kit.set_parent(ob, objs["Antenna"])
+		elif name == "CockpitCharms":
+			kit.set_parent(ob, objs["Cockpit"])
 	kit.export(os.path.join(OUT, "titan_%s.glb" % id))
 
 
