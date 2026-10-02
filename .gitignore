@@ -16,3 +16,4 @@ tools/pistol/__pycache__/
 !assets/models/sidearms/*.import
 tools/run/__pycache__/
 tools/titans/__pycache__/
+tools/__pycache__/
