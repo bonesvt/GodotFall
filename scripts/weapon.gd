@@ -162,6 +162,11 @@ var _charm_last_pos := Vector3.ZERO
 var _charm_last_vel := Vector3.ZERO
 
 ## The enemy the broken smart-lock is currently trying to lock onto, for the HUD.
+## True while the knife has Eco's hands: the pistol drops out of the way and
+## can't fire.
+var holstered := false
+var _holster := 0.0
+
 var lock_target: Node3D
 ## Seconds spent trying to lock the current target.
 var lock_time := 0.0
@@ -197,7 +202,7 @@ func _physics_process(delta: float) -> void:
 			ammo = magazine_size
 	elif Input.is_action_just_pressed("reload") and ammo < magazine_size:
 		start_reload()
-	elif Input.is_action_just_pressed("inspect") and not is_inspecting():
+	elif Input.is_action_just_pressed("inspect") and not is_inspecting() and not holstered:
 		inspect()
 	_update_inspect(delta)
 	_scan_lock(delta)
@@ -205,7 +210,7 @@ func _physics_process(delta: float) -> void:
 	if Input.is_action_just_pressed("fire"):
 		buffer_timer = fire_buffer
 		stop_inspect()  # shooting always wins over showing off
-	if buffer_timer > 0.0 and cooldown <= 0.0 and reload_timer <= 0.0:
+	if buffer_timer > 0.0 and cooldown <= 0.0 and reload_timer <= 0.0 and not holstered:
 		buffer_timer = 0.0
 		if ammo > 0:
 			fire()
@@ -761,7 +766,11 @@ func _animate_viewmodel(delta: float) -> void:
 	var p := reload_progress()
 	var r := smoothstep(0.0, 0.14, p) * (1.0 - smoothstep(0.86, 1.0, p))
 
+	_holster = move_toward(_holster, 1.0 if holstered else 0.0, delta * 7.0)
+	var h := smoothstep(0.0, 1.0, _holster)
+
 	var pos := Vector3(0.22, -0.2, -0.42)
+	pos += Vector3(0.05, -0.2, 0.08) * h
 	pos += Vector3(-_sway.x * 0.006, _sway.y * 0.006, 0.0)
 	pos += bob + Vector3(0.0, -_move_pose.y + _move_pose.z, 0.0)
 	pos += Vector3(_kick_pos.x * 0.02, _kick_pos.y * 0.02, _kick_pos.z * 0.04)
@@ -771,7 +780,7 @@ func _animate_viewmodel(delta: float) -> void:
 	pos += inspect_pose[0]
 	viewmodel.position = pos
 	viewmodel.rotation = Vector3(
-		deg_to_rad(_kick_rot.x + ir.x) + _sway.y * 0.02 + 0.35 * r,
+		deg_to_rad(_kick_rot.x + ir.x) + _sway.y * 0.02 + 0.35 * r - 0.5 * h,
 		deg_to_rad(_kick_rot.y + ir.y) + _sway.x * 0.025 - 0.25 * r,
 		deg_to_rad(_kick_rot.z + ir.z) + _move_pose.x + _sway.x * 0.02 + 0.7 * r)
 

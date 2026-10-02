@@ -102,6 +102,8 @@ var wall_coyote_timer := 0.0
 var grapple_point := Vector3.ZERO
 var grapple_cooldown_timer := 0.0
 var crouching := false
+## Ground speed multiplier (Eco runs lighter with only the knife out).
+var speed_mult := 1.0
 var cam_roll := 0.0
 var input_dir := Vector2.ZERO
 var wish_dir := Vector3.ZERO
@@ -118,7 +120,7 @@ static func ensure_input_actions() -> void:
 		"move_left": [KEY_A], "move_right": [KEY_D],
 		"jump": [KEY_SPACE], "crouch": [KEY_C, KEY_CTRL],
 		"sprint": [KEY_SHIFT], "grapple": [KEY_Q, KEY_E], "reset": [KEY_T],
-		"reload": [KEY_R], "reset_arena": [KEY_G], "inspect": [KEY_I], "melee": [KEY_V, KEY_F], "fire": [],
+		"reload": [KEY_R], "reset_arena": [KEY_G], "inspect": [KEY_I], "melee": [KEY_Z], "fire": [],
 	}
 	for action in keys:
 		if InputMap.has_action(action):
@@ -134,6 +136,9 @@ static func ensure_input_actions() -> void:
 	var lmb := InputEventMouseButton.new()
 	lmb.button_index = MOUSE_BUTTON_LEFT
 	InputMap.action_add_event("fire", lmb)
+	var thumb := InputEventMouseButton.new()
+	thumb.button_index = MOUSE_BUTTON_XBUTTON1
+	InputMap.action_add_event("melee", thumb)
 
 
 func _ready() -> void:
@@ -207,7 +212,7 @@ func _ground_state(delta: float) -> void:
 	_set_crouch(want_crouch)
 
 	var sprinting := (auto_sprint or Input.is_action_pressed("sprint")) and input_dir.y < -0.3
-	var target := crouch_speed if crouching else (sprint_speed if sprinting else run_speed)
+	var target := (crouch_speed if crouching else (sprint_speed if sprinting else run_speed)) * speed_mult
 	var speed := hvel.length()
 	if wish_dir != Vector3.ZERO:
 		if speed > target:
