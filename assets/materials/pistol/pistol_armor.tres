@@ -1,7 +1,8 @@
-[gd_resource type="ShaderMaterial" load_steps=3 format=3]
+[gd_resource type="ShaderMaterial" load_steps=4 format=3]
 
 [ext_resource type="Shader" path="res://assets/shaders/ps2_surface.gdshader" id="1_shader"]
 [ext_resource type="Texture2D" path="res://assets/textures/titan_armor.png" id="2_tex"]
+[ext_resource type="Texture2D" path="res://assets/textures/titan_armor_n.png" id="3_n"]
 
 [resource]
 resource_name = "pistol_armor"
@@ -11,3 +12,4 @@ shader_parameter/world_space = false
 shader_parameter/albedo = Color(1.05, 0.6, 0.24, 1)
 shader_parameter/tex_scale = 4.0
 shader_parameter/rim = 0.35
+shader_parameter/normal_tex = ExtResource("3_n")
