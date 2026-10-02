@@ -281,7 +281,8 @@ select the Player node and tweak values in the Inspector, or change the defaults
 - `scripts/weapon.gd` starter pistol (hitscan, bloom, falloff, recoil, viewmodel)
 - `scripts/grunt.gd` grunt AI and hitbox
 - `scripts/fx.gd` stylized combat effects: tracers, muzzle stars, smoke, debris, casings, blasts
-- `tools/pistol/build_pistol.py` builds Eco's smart pistol in Blender
+- `tools/pistol/build_pistol.py` builds Eco's smart pistol in Blender (`--tier 1`..`5` builds her upgrades;
+  `weapon.gd` `tier` / `set_tier()` and `ps2_assets.gd` `pistol_model(tier)` pick one)
   (`blender --background --python tools/pistol/build_pistol.py -- assets/models/smart_pistol/smart_pistol.glb`);
   `tools/bake_models.gd -- smart_pistol` then puts it in her hand (`assets/models/smart_pistol.tscn`)
 - `scripts/sfx.gd` procedural sound effects, synthesized at runtime; drop `<id>.wav` or `<id>.ogg`
