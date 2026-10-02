@@ -5,6 +5,7 @@ extends SceneTree
 ## Run: godot --headless --path . -s res://tests/hub_test.gd
 
 const HubBuilder := preload("res://scripts/hub/hub_builder.gd")
+const Grounds := preload("res://scripts/hub/hub_grounds.gd")
 
 var run_node
 var player
@@ -64,10 +65,82 @@ func _run() -> void:
 	Input.action_release("move_forward")
 	_check("run up the fallen pillar onto the gallery", _on_gallery(), player.global_position)
 
-	# Falling off the cliff puts you back inside the door, free.
+	# Grounds: walled in on every side.
+	for probe in [Vector3(-90, 3, 0), Vector3(90, 3, 0), Vector3(0, 3, -110), Vector3(0, 3, 115)]:
+		var ray := PhysicsRayQueryParameters3D.create(Vector3(0, 3, 0) if probe.z < 0 else Vector3(0, 3, 40), probe)
+		var hit := root.get_world_3d().direct_space_state.intersect_ray(ray)
+		_check("grounds closed toward %s" % probe, not hit.is_empty(), probe)
+
+	# Shooting range: the pistol knocks targets down and the board counts them.
+	var targets: Array = info["range_targets"]
+	var target: Node3D = targets[0]
+	await _stand_at(Vector3(Grounds.RANGE_LINE + 1.5, 0.1, target.global_position.z))
+	player.rotation.y = PI / 2.0  # face -X, downrange
+	await _ticks(2)
+	var cam: Camera3D = player.get_node("Head/Camera3D")
+	var aim: Vector3 = target.global_position + Vector3(0, 1.15, 0) - cam.global_position
+	player.head.rotation.x = atan2(aim.y, Vector2(aim.x, aim.z).length())
+	var weapon = player.get_node("Head/Camera3D/Weapon")
+	weapon.base_spread = 0.0
+	weapon.refill()
+	await _ticks(30)
+	await _press("fire")
+	await _ticks(5)
+	_check("pistol knocks a range target down", target.down and info["range_score"]["hits"] == 1, info["range_score"])
+	await _ticks(400)
+	_check("range target pops back up", not target.down, target.down)
+
+	# Movement course clock: armed on the start pad, runs once you leave, stops at the finish.
+	var course: Dictionary = info["course"]
+	await _stand_at(course["start"])
+	_check("start pad arms the clock", run_node.course_armed, run_node.course_armed)
+	_place(course["start"] + Vector3(4.5, 0.6, 0))
+	await _ticks(20)
+	_check("leaving the pad starts the clock", run_node.course_time > 0.0, run_node.course_time)
+	await _stand_at(course["finish"])
+	_check("finish tower stops the clock", run_node.course_time < 0.0 and run_node.course_best > 0.0, run_node.course_best)
+	await _stand_at(course["start"])
+	_place(course["start"] + Vector3(-5, 0.5, 0))
+	await _ticks(40)
+	_check("touching the grass resets the run", run_node.course_time < 0.0, run_node.course_time)
+
+	# Titan yard: call the practice titan, embark, walk, shoot a dummy, climb out.
+	var pad: Vector3 = info["titan_pad"]
+	await _stand_at(pad + Vector3(9, 0, -6))
+	player.rotation.y = PI  # face +Z, toward the pad
+	await _ticks(2)
+	_check("yard prompt", run_node.hud.prompt_label.text.contains("Call in your titan"), run_node.hud.prompt_label.text)
+	await _press("titan_core")
+	await _ticks(300)
+	var practice = run_node.hub_titan
+	_check("practice titan lands in the yard", practice != null and not practice.dropping, practice)
+	_place(practice.global_position + Vector3(0, 0.5, -3.0))
+	await _ticks(5)
+	await _press("interact")
+	await _ticks(3)
+	_check("embark the practice titan", run_node.hub_piloting and practice.camera.current and not player.visible, run_node.hub_piloting)
+	var t0: Vector3 = practice.global_position
+	Input.action_press("move_forward")
+	await _ticks(90)
+	Input.action_release("move_forward")
+	_check("practice titan walks", practice.global_position.distance_to(t0) > 3.0, practice.global_position)
+	var dummy: Node3D = info["dummies"][1]
+	var to_dummy: Vector3 = dummy.global_position - practice.global_position
+	practice.rotation.y = atan2(-to_dummy.x, -to_dummy.z)
+	practice.head.rotation.x = atan2(4.5 - practice.EYE, Vector2(to_dummy.x, to_dummy.z).length())
+	var hp0: float = dummy.hp
+	Input.action_press("titan_fire")
+	await _ticks(60)
+	Input.action_release("titan_fire")
+	_check("titan gun hits a dummy", dummy.hp < hp0, dummy.hp)
+	await _press("interact")
+	await _ticks(3)
+	_check("climb out of the titan", not run_node.hub_piloting and player.visible and player.get_node("Head/Camera3D").current and player.global_position.distance_to(practice.global_position) < 8.0, player.global_position)
+
+	# Falling out of the world puts you back inside the door, free.
 	_place(Vector3(0, -40, 40))
 	await _ticks(3)
-	_check("falling off the cliff returns you to the door", player.global_position.distance_to(info["spawn"]) < 1.0 and run_node.phase == run_node.Phase.HUB, player.global_position)
+	_check("falling out of the world returns you to the door", player.global_position.distance_to(info["spawn"]) < 1.0 and run_node.phase == run_node.Phase.HUB, player.global_position)
 
 	# Map table starts a run.
 	await _stand_at(info["map_table"] + Vector3(0, 0.1, 1.4))

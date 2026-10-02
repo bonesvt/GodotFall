@@ -472,11 +472,59 @@ def wood():
     save("wood", img)
 
 
+def grass():
+    """The temple grounds: bright painted grass in soft clumps, with a few flowers."""
+    s = 128
+    a = strokes(s, 4, 4, 211, 2)
+    b = blur(noise(s, 8, 2, 212), 1)
+    img = mix(a, (86, 128, 52), (128, 168, 70))
+    img[b > 0.62] = mix(a[b > 0.62], (138, 176, 78), (160, 192, 92))
+    img[b < 0.32] *= 0.85
+    y, x = np.mgrid[0:s, 0:s]
+    blades = ((x * 7 + y * 3) % 23 == 0) & (noise(s, 16, 1, 213) > 0.5)
+    img[blades] *= 1.25
+    r = np.random.default_rng(214)
+    flowers = [tuple(r.integers(2, s - 2, 2)) for _ in range(10)]
+    img = dots(img, flowers[:5], (236, 226, 120), 0)
+    img = dots(img, flowers[5:], (226, 150, 170), 0)
+    save("grass", img)
+
+
+def dirt():
+    """Paths and the titan yard: packed earth with pebbles and tread ruts."""
+    s = 128
+    a = strokes(s, 4, 4, 221, 2)
+    img = mix(a, (120, 94, 66), (160, 128, 90))
+    r = np.random.default_rng(222)
+    img = dots(img, [tuple(r.integers(2, s - 2, 2)) for _ in range(24)], (176, 160, 134), 0)
+    y, x = np.mgrid[0:s, 0:s]
+    ruts = ((y % 64) > 18) & ((y % 64) < 24)
+    img[ruts] *= 0.85
+    save("dirt", img)
+
+
+def canvas():
+    """Tents and tarps: weathered tan canvas with seams and a couple of patches."""
+    s = 64
+    a = strokes(s, 3, 4, 231, 1)
+    img = mix(a, (176, 156, 112), (206, 188, 142))
+    y, x = np.mgrid[0:s, 0:s]
+    img[(x % 16) == 0] *= 0.75
+    img[((x % 16) == 1)] *= 1.1
+    weave = ((x + y) % 2 == 0)
+    img[weave] *= 1.03
+    img = panels(img, [(36, 10, 54, 26)], hi=1.1, lo=0.7, edge=1, grad=0.0)
+    img[10:26, 36:54] *= np.array([0.8, 0.95, 1.1])
+    img = panels(img, [(6, 40, 20, 56)], hi=1.1, lo=0.7, edge=1, grad=0.0)
+    img[40:56, 6:20] *= np.array([1.1, 0.85, 0.75])
+    save("canvas", img)
+
+
 if __name__ == "__main__":
     OUT.mkdir(parents=True, exist_ok=True)
     for fn in (concrete, metal_floor, wall_panel, hazard, crate, barrier, lava, gunmetal, glove,
                fabric, armor, titan_armor, titan_frame, sky, temple_stone, temple_floor,
-               temple_carving, moss, wood):
+               temple_carving, moss, wood, grass, dirt, canvas):
         # `make_textures.py moss wood` repaints only the named textures.
         if len(sys.argv) < 2 or fn.__name__ in sys.argv[1:]:
             fn()

@@ -141,7 +141,8 @@ func _recharge(delta: float) -> void:
 
 
 func _fire(delta: float) -> void:
-	on_target = Input.is_action_pressed("titan_fire") and aimed_target() != null
+	var target: Node = aimed_target() if Input.is_action_pressed("titan_fire") else null
+	on_target = target != null
 	if not on_target:
 		ramp_bonus = 0.0
 		return
@@ -149,21 +150,23 @@ func _fire(delta: float) -> void:
 	var dmg := float(stats["dps"]) * (1.0 + ramp_bonus) * delta
 	if overdrive_timer > 0.0:
 		dmg *= 2.0
-	boss.take_damage(dmg)
+	target.take_damage(dmg)
 	core_charge = minf(core_charge + dmg * CORE_PER_DAMAGE * float(stats["core_rate"]), 1.0)
 
 
-## The enemy under the crosshair, or null.
+## What's under the crosshair that can take titan fire (the enemy titan, or a
+## practice dummy in the hub), or null.
 func aimed_target() -> Node:
-	if boss == null:
-		return null
 	var from := camera.global_position
 	var query := PhysicsRayQueryParameters3D.create(from, from - camera.global_basis.z * FIRE_RANGE)
 	query.exclude = [get_rid()]
 	var hit := get_world_3d().direct_space_state.intersect_ray(query)
 	if hit.is_empty() or not hit.collider.is_in_group("titan_target"):
 		return null
-	return boss
+	var node: Node = hit.collider
+	while node != null and not node.has_method("take_damage"):
+		node = node.get_parent()
+	return node
 
 
 func use_core() -> bool:

@@ -41,13 +41,25 @@ press **F** at the map table ("HEAD OUT") to start a run. When a run ends, won o
   arm torn off and lying beside it, core dark, wired to a bank of salvaged batteries.
 - **The gallery**: a ledge 4.5 m up the left wall. Run up the fallen pillar from the nave,
   or double-jump up the rubble by the door. Her stash of scrap is up there.
-- **Outside**: a courtyard with trees and a broken colonnade on a cliff, a lookout ledge
-  through the breach in the right wall, ruins standing in the haze. Falling off costs
-  nothing; you are put back inside the door.
+- **The grounds** (`scripts/hub/hub_grounds.gd`): a big grassy clearing round the temple,
+  closed in by a ruined boundary wall, thick jungle and green hills, so there is no void.
+  - **Plaza** in front of the door, with the god's eye on a plinth and lamp posts.
+  - **Eco's camp** (east, also out through the breach): tents, a campfire with smoke,
+    laundry and banners in the breeze, a salvage tarp over titan scrap, a pond.
+  - **Shooting range** (west): a covered firing line and nine pop-up targets from 8 to
+    40 m. Shoot one and it drops, then springs back up; the board counts hits and headshots.
+  - **Movement course** (behind the temple): three jumps, a wallrun, a climb, a grapple to
+    the finish tower and a long slide back down. Stand on the start pad, leave it and the
+    clock runs until the finish; touch the grass and it resets. Your best time shows on
+    the HUD.
+  - **Titan yard** (past the plaza): press **V** in the yard to drop a practice titan
+    (built from your last run's parts, scrap if none), **F** to climb in and out. Walk it
+    round titan-sized cover, dash, and shoot the four scrap titan dummies; they topple
+    and get propped back up.
 
 Press **F** near anything to have Eco say something about it; press again for more.
-Built in code by `scripts/hub/hub_builder.gd` (temple stone, carvings, moss and wood
-textures come from `tools/make_textures.py`).
+Built in code by `scripts/hub/hub_builder.gd` and `hub_grounds.gd` (temple stone,
+carvings, moss, wood, grass, dirt and canvas textures come from `tools/make_textures.py`).
 
 ## Scrap Titan run loop
 The movement and grunt test level is still at `scenes/test_level.tscn` (open it and press F6).
@@ -167,7 +179,10 @@ select the Player node and tweak values in the Inspector, or change the defaults
 - `tests/run_loop_test.gd` headless run loop test (generator limits, a bot pilot clearing the
   hardest gap of each kind, salvage, extraction, titanfall, the fight, win and loss):
   `godot --headless --path . -s res://tests/run_loop_test.gd`
-- `scripts/hub/hub_builder.gd` builds the temple hub in code
+- `scripts/hub/hub_builder.gd` builds the temple in code, `hub_grounds.gd` the grounds,
+  `hub_kit.gd` shared shape helpers; `practice_target.gd`, `titan_dummy.gd` and
+  `ambient.gd` (fire flicker, swaying cloth, birds) are the hub's moving parts
 - `tests/hub_test.gd` headless hub test (opens in the hub, walking the nave, every look-at
-  spot, the climb to the gallery, map table starts a run, runs return to the hub):
+  spot, the climb to the gallery, the grounds are closed in, range targets, the course
+  clock, the practice titan and dummies, map table starts a run, runs return to the hub):
   `godot --headless --path . -s res://tests/hub_test.gd`
