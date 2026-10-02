@@ -34,6 +34,7 @@ func _run() -> void:
 	_check("fierce expression set", face != null and face.get_blend_shape_value(face.find_blend_shape_by_name("Fcl_BRW_Angry")) == 1.0, face)
 
 	var anim := eco.find_child("AnimationPlayer", true, false) as AnimationPlayer
+	eco._anim = null  # play her animations by hand (on her own she would only idle)
 	for a in ["idle", "walk", "run", "fall", "crouch", "slide"]:
 		_check("has %s animation" % a, anim.has_animation(a), a)
 
@@ -55,7 +56,7 @@ func _run() -> void:
 	await _frames(90)
 	_check("chest settles after the hop", _angle(sk, "J_Sec_L_Bust1") < 3.0, _angle(sk, "J_Sec_L_Bust1"))
 
-	# running forward at 6 m/s: the jiggle follows her steps, not her speed
+	# running forward at 6 m/s: the jiggle bounces with her steps, not dragged back by her speed
 	anim.play("run")
 	var most := 0.0
 	for f in 90:
@@ -63,7 +64,7 @@ func _run() -> void:
 		await process_frame
 		if f > 30:
 			most = maxf(most, _angle(sk, "J_Sec_L_Bust1"))
-	_check("running doesn't drag the chest back", most < 9.0, most)
+	_check("running bounces without slamming the limit", most > 3.0 and most < 12.0, most)
 
 	# jiggle 0 holds them still
 	eco.jiggle = 0.0

@@ -31,8 +31,8 @@ const HAIR_TIP := {"stiffness": 0.12, "drag": 0.2, "gravity": 0.6, "limit": 20.0
 # the fringe hangs over her face: it may lift off it, but swinging far back would go into her head
 const FRINGE := {"stiffness": 0.16, "drag": 0.22, "gravity": 0.5, "limit": 12.0, "inertia": 0.35}
 const FRINGE_TIP := {"stiffness": 0.14, "drag": 0.22, "gravity": 0.5, "limit": 10.0, "inertia": 0.35}
-const BUST := {"stiffness": 0.12, "drag": 0.07, "gravity": 0.15, "limit": 14.0, "inertia": 0.12, "jiggle": true}
-const GLUTE := {"stiffness": 0.16, "drag": 0.08, "gravity": 0.15, "limit": 10.0, "inertia": 0.12, "jiggle": true}
+const BUST := {"stiffness": 0.2, "drag": 0.12, "gravity": 0.15, "limit": 14.0, "inertia": 0.12, "jiggle": true}
+const GLUTE := {"stiffness": 0.24, "drag": 0.14, "gravity": 0.15, "limit": 10.0, "inertia": 0.12, "jiggle": true}
 const SPRINGS := {
 	# locks 01-02 hang at the back, 03-04 at the sides, 05-09 are the fringe;
 	# the side and fringe locks bend once more at their second joint
