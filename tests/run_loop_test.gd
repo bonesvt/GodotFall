@@ -73,6 +73,8 @@ func _run() -> void:
 	# The pilot is behind the squad, so they haven't noticed yet. One of them
 	# spots the pilot and calls the rest in; they fight for a few seconds,
 	# hold their cover and stay on the platform.
+	for i in objective.grunts.size():
+		objective.grunts[i].rng.seed = 11 + i  # their hit rolls are random; keep this deterministic
 	objective.grunts[0].alert()
 	_check("one guard's callout alerts the squad", objective.grunts.all(func(g): return g.alerted), "")
 	await _ticks(600)
