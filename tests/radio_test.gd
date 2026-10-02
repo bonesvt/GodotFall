@@ -3,6 +3,7 @@ extends SceneTree
 ## Run: godot --headless --path . -s res://tests/radio_test.gd
 
 const Lines := preload("res://scripts/radio/radio_lines.gd")
+const Rating := preload("res://scripts/radio/content_rating.gd")
 
 var level
 var player
@@ -28,7 +29,9 @@ func _run() -> void:
 	radio = level.hud.radio
 	_check("HUD has a radio", radio != null, radio)
 	_check("radio popup is on the HUD", radio.popup != null and radio.popup.is_inside_tree(), "")
+	Rating.set_rating("M", false)
 	_bank_checks()
+	_rating_checks()
 	_pick_checks()
 
 	# Nobody in earshot: silence.
@@ -167,6 +170,40 @@ func _run() -> void:
 		print("   %s: %s" % [l["callsign"], l["text"]])
 	print("RADIO TEST %s (%d failures)" % ["PASSED" if failures == 0 else "FAILED", failures])
 	quit(1 if failures > 0 else 0)
+
+
+func _rating_checks() -> void:
+	var m_cats := Lines.LINES.keys()
+	var banned := {
+		"E": ["kill", "dead", "die", "damn", "hell", "bitch", "skank", "slut", "shit", "head"],
+		"T": ["bitch", "skank", "slut", "shit", "gorgeous", "pretty face"],
+	}
+	for r in Lines.RATINGS:
+		var bank: Dictionary = Lines.bank(r)
+		var missing := m_cats.filter(func(c): return not bank.has(c))
+		_check("%s bank has every category" % r, missing.is_empty(), missing)
+		var problems := []
+		for cat in bank:
+			var need := 0 if cat == "no_answer" else 1
+			if cat != "man_down" and not bank[cat].any(func(e): return Lines.roles(e).size() <= need):
+				problems.append("%s: nothing for a lone grunt" % cat)
+			for entry in bank[cat]:
+				for line in Lines.parse(entry):
+					if not line[0] in ["a", "b", "c", "hq"]:
+						problems.append(entry)
+				var plain := RegEx.create_from_string("\\{\\w+\\}").sub(entry.to_lower(), "", true)
+				for word in banned.get(r, []):
+					if RegEx.create_from_string("\\b%s\\b" % word).search(plain) != null:
+						problems.append("%s: '%s' in %s" % [r, word, entry])
+		_check("%s bank is well formed and clean for its rating" % r, problems.is_empty(), problems)
+	Rating.set_rating("E", false)
+	var e_line: Array = radio._pick("combat", 3)
+	var e_texts := []
+	for entry in Lines.LINES_E["combat"]:
+		e_texts.append(str(Lines.parse(entry)))
+	_check("E rating picks from the E bank", str(e_line) in e_texts, e_line)
+	Rating.set_rating("M", false)
+	_check("rating cycles E, T, M, AO", Lines.RATINGS == ["E", "T", "M", "AO"], Lines.RATINGS)
 
 
 func _bank_checks() -> void:
