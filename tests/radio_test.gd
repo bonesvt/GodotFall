@@ -173,7 +173,7 @@ func _run() -> void:
 
 
 func _rating_checks() -> void:
-	var m_cats := Lines.LINES.keys()
+	var m_cats := Lines.bank("M").keys()
 	var banned := {
 		"E": ["kill", "dead", "die", "damn", "hell", "bitch", "skank", "slut", "shit", "head"],
 		"T": ["bitch", "skank", "slut", "shit", "gorgeous", "pretty face"],
@@ -199,7 +199,7 @@ func _rating_checks() -> void:
 	Rating.set_rating("E", false)
 	var e_line: Array = radio._pick("combat", 3)
 	var e_texts := []
-	for entry in Lines.LINES_E["combat"]:
+	for entry in Lines.bank("E")["combat"]:
 		e_texts.append(str(Lines.parse(entry)))
 	_check("E rating picks from the E bank", str(e_line) in e_texts, e_line)
 	Rating.set_rating("M", false)
@@ -208,9 +208,9 @@ func _rating_checks() -> void:
 
 func _bank_checks() -> void:
 	var bad := []
-	for cat in Lines.LINES:
+	for cat in Lines.bank("M"):
 		_check("priority set for %s" % cat, radio.PRIORITY.has(cat), cat)
-		for entry in Lines.LINES[cat]:
+		for entry in Lines.bank("M")[cat]:
 			for line in Lines.parse(entry):
 				if not line[0] in ["a", "b", "c", "hq"] or line[1].strip_edges() == "":
 					bad.append(entry)

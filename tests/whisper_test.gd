@@ -4,6 +4,7 @@ extends SceneTree
 
 const Lines := preload("res://scripts/radio/eco_whisper_lines.gd")
 const Rating := preload("res://scripts/radio/content_rating.gd")
+const Bank := preload("res://scripts/radio/dialogue_bank.gd")
 
 var level
 var player
@@ -125,7 +126,7 @@ func _run() -> void:
 	Rating.set_rating("E", false)
 	whispers.say("titanfall")
 	await _secs(0.08)
-	_check("E line from the E bank", Lines.LINES_E["titanfall"].has(whispers.history[-1]["text"]), whispers.history[-1]["text"])
+	_check("E line from the E bank", Lines.bank("E")["titanfall"].has(whispers.history[-1]["text"]), whispers.history[-1]["text"])
 	await _hush()
 	_check("E has no idle banter reaction", not whispers.say("idle"), "")
 	Rating.set_rating("M", false)
@@ -139,7 +140,7 @@ func _run() -> void:
 	var plain_ok := true
 	for i in 40:
 		var t: String = whispers._pick("rumor_eco", "Nothing in particular.")["text"]
-		var raw: Array = Lines.LINES["rumor_eco"].filter(func(e): return e.ends_with(t))
+		var raw: Array = Lines.bank("M")["rumor_eco"].filter(func(e): return e.ends_with(t))
 		if raw.is_empty() or ">" in raw[0]:
 			plain_ok = false
 	_check("unrelated gossip gets a plain answer", plain_ok, "")
@@ -160,6 +161,22 @@ func _run() -> void:
 
 
 func _bank_checks() -> void:
+	# The dialogue files: every speaker and rating has one, AO falls back to
+	# M, and no file uses a category name the game doesn't know (a typo
+	# would silently never play).
+	for speaker in ["radio", "eco"]:
+		var known: Array = Bank.bank(speaker, "M").keys()
+		_check("%s M file has lines" % speaker, known.size() > 5, known.size())
+		_check("%s AO falls back to M" % speaker, Bank.bank(speaker, "AO") == Bank.bank(speaker, "M"), "")
+		for rating in ["E", "T"]:
+			var cats: Array = Bank.bank(speaker, rating).keys()
+			_check("%s %s file has lines" % [speaker, rating], cats.size() > 5, cats.size())
+			var unknown := cats.filter(func(c): return not known.has(c))
+			_check("%s %s categories all known" % [speaker, rating], unknown.is_empty(), unknown)
+	var parsed: Dictionary = Bank.parse("# note\n[kill]\n  Stay down.  \n\n[empty]\n# gone\n[kill]\nNext!\n")
+	_check("file format parses", parsed == {"kill": ["Stay down.", "Next!"]}, parsed)
+	_check("keys trim and lowercase", whispers._keys("Goggles | old man > Hi") == ["goggles", "old man"] and whispers._text("Goggles | old man > Hi") == "Hi", "")
+	_check("keywords match whole words", whispers._mentions("whole tent was staring", "tent") and not whispers._mentions("pay attention", "tent"), "")
 	var swears := ["fuck", "shit", "bitch", "ass", "damn", "hell", "christ"]
 	for rating in ["E", "T", "M"]:
 		var bank: Dictionary = Lines.bank(rating)
@@ -171,8 +188,8 @@ func _bank_checks() -> void:
 					var banned: bool = rating == "E" or (rating == "T" and w in ["fuck", "shit", "bitch", "christ"])
 					if banned and (" %s" % w in low) and not (w == "hell" and "hello" in low):
 						_check("%s line clean: %s" % [rating, line], false, w)
-	for cat in Lines.LINES:
-		for line in Lines.LINES[cat]:
+	for cat in Lines.bank("M"):
+		for line in Lines.bank("M")[cat]:
 			var low := String(line).to_lower()
 			if "cunt" in low or "rape" in low:
 				_check("M line keeps house rules: %s" % line, false, "")
@@ -181,10 +198,10 @@ func _bank_checks() -> void:
 ## A keyed line only answers gossip that mentions one of its keywords.
 func _fits(said: Array, answer: String) -> bool:
 	var context := " ".join(said).to_lower()
-	for e in Lines.LINES["rumor_eco"]:
+	for e in Lines.bank("M")["rumor_eco"]:
 		if e.ends_with(answer):
 			var keys: Array = whispers._keys(e)
-			return keys.is_empty() or keys.any(func(k): return context.contains(k))
+			return keys.is_empty() or keys.any(func(k): return whispers._mentions(context, k))
 	return false
 
 

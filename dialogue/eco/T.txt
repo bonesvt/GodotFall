@@ -1,0 +1,157 @@
+# Eco's whispers, rated T (Teen).
+#
+# Edit, add or delete lines freely; press O in game to reload (it also
+# switches rating). Format:
+#   [category]      lines below belong to this situation (names are fixed,
+#                   see the list in dialogue/README.md)
+#   one whisper per line
+#   word|other words > line   only said when the radio exchange she's
+#                   answering mentions one of those words (whole words);
+#                   picked over the plain lines when it does
+#   lines starting with # are notes and are ignored
+
+
+# After the militia gossip about her on the radio.
+[rumor_eco]
+Aww. Talk about me some more, boys. I'm blushing.
+Wow. Riveting. Tell me more.
+You know I can hear you, right? ...No? Cute.
+Big words for a guy who can't find me.
+goggles > My goggles? Ew. Get your own.
+old man|father|daddy|atlas > Say his name again. I dare you.
+tent|recruiter|recruiters|recruiting|recruitment > Laughed me out of the tent. Cute. Who's laughing now?
+poster > Poster girl? Wanted poster, babe. Get it right.
+bounty > Only that much? Rude. I'm worth way more.
+pistol|lock > Broken pistol, broken patrols. Funny how that works.
+note|thanks for the parts > You're welcome. Leave more next time.
+patrols > Yep. That was me.
+titan > Out of your scrap, dummy. Thanks for donating.
+
+# After radio talk about salvage and titan parts.
+[rumor_salvage]
+Ooh. Thanks for the tip, boys.
+Broadcasting where the parts are. On an open net. Adorable.
+Mine now. Finders keepers.
+
+# After the grunts' idle radio banter.
+[idle]
+Wow. Riveting stuff, boys.
+Do you ever talk about anything else? Besides me. Obviously.
+
+# A grunt gets suspicious.
+[suspicious]
+Nope. Nothing here. Keep walking.
+Don't you dare look over here.
+It's the wind, genius.
+Damn it. Of course he heard that.
+
+# A suspicious grunt gives up.
+[stand_down]
+Good boy. Back to your rations.
+Told you. Nothing here.
+Still a ghost. Obviously.
+
+# She gets spotted.
+[alerted]
+Oh, NOW you see me.
+Ugh. Fine. We do it loud.
+Damn. Okay. Hi, boys.
+Rude. I was being sneaky.
+
+# The grunts lose track of her.
+[lost]
+Lost me? Aww. Poor baby.
+Marco... Polo. Ha.
+Keep looking. I'm right here, dummy.
+
+# A grunt calls a man down.
+[man_down]
+Oops.
+One down. Who's next?
+Count them, HQ. I'm winning.
+
+# Only one grunt is left.
+[last_man]
+Just you and me now. Cozy.
+Run. Please run. It's funnier.
+
+# HQ calls and nobody answers.
+[no_answer]
+Nobody's answering, HQ. Weird, huh?
+Quiet net. Finally.
+
+# She kills a grunt.
+[kill]
+Stay down, sweetie.
+That's for the tent.
+Auto-lock? Who needs it.
+Too easy.
+Next!
+
+# She lands a headshot.
+[headshot]
+Headshot. With a broken gun. Yeah, I'm that good.
+Lock's fried. My aim isn't.
+
+# Silent knife takedown.
+[takedown]
+Shh. Nap time.
+Night night.
+Boo.
+
+# She's badly hurt (under 40% health).
+[hurt]
+Ow! Okay. Rude.
+Hell, that stings. I'm fine. I'm fine!
+Get up, Eco. You're too pretty to die here.
+Bleeding. Great. Love that for me.
+
+# Her magazine runs dry.
+[dry]
+Click? Oh, come on.
+Empty. Damn.
+
+# She goes down.
+[downed]
+Ow. Okay. That didn't count.
+Again. And this time, no peeking.
+Still breathing. Ha.
+
+# Quiet moments with nobody hunting her.
+[quiet]
+Miss you, Dad. Don't make it weird.
+Your titan's in pieces, Dad. I'll put it back together. Prettier, too.
+Old god, if you're listening... a little help? No? Typical.
+Hands are shaking. Stop it, hands.
+He used to hum while he welded. Terribly. ...I'd give anything to hear it.
+Nobody's coming. Fine. Didn't want company anyway.
+
+# Entering a new zone.
+[zone_start]
+New ground. Same idiots.
+Okay. Quiet feet. Cute and quiet.
+Let's go shopping.
+
+# Fitting a titan part.
+[part_installed]
+Ooh. That'll fit.
+Come on, baby. One more piece.
+Ugly weld. Gorgeous mechanic. Evens out.
+
+# Calling in her titan.
+[titanfall]
+Here we go, Dad. Watch this.
+Standby for titanfall. ...I've always wanted to say that.
+Hold together, baby. Please hold together.
+
+# The enemy titan goes down.
+[boss_down]
+Down. It's DOWN. Ha!
+...Did you see that, Dad? Tell me you saw that.
+Not a Pilot, huh? Say it again. I'll wait.
+
+# Back at the temple after a run.
+[home]
+Home sweet temple.
+Evening, old god. Miss me?
+Back in one piece. Mostly.

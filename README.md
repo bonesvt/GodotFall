@@ -348,6 +348,8 @@ select the Player node and tweak values in the Inspector, or change the defaults
 - `scripts/hud.gd` crosshair, hitmarkers, health, ammo, speedometer, state and cooldown readout
 - `scripts/radio/` enemy radio: `radio_chatter.gd` (listens to grunt awareness and deaths, picks lines),
   `radio_popup.gd` (the intercept box), `radio_lines.gd` (every line, by situation)
+- `dialogue/` every radio and whisper line as plain text, one file per rating; edit and press O in
+  game to reload. Format and situation names: `dialogue/README.md`
 - Eco's whispers (`scripts/radio/`): she can't answer the militia on their net, so she talks back
   under her breath once an exchange ends, and mutters through kills, takedowns, getting hurt, quiet
   stretches and the run's beats. `eco_whispers.gd` (triggers, cooldowns, breath sound),

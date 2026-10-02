@@ -1,0 +1,125 @@
+# Eco's whispers, rated E (Everyone 10+).
+#
+# Edit, add or delete lines freely; press O in game to reload (it also
+# switches rating). Format:
+#   [category]      lines below belong to this situation (names are fixed,
+#                   see the list in dialogue/README.md)
+#   one whisper per line
+#   word|other words > line   only said when the radio exchange she's
+#                   answering mentions one of those words (whole words);
+#                   picked over the plain lines when it does
+#   lines starting with # are notes and are ignored
+
+
+# After the militia gossip about her on the radio.
+[rumor_eco]
+Aww. Talk about me some more. I'm blushing.
+You know I can hear you, right? Cute.
+tent|recruiter|recruiters|recruiting|recruitment > Sent me home? Cute. Watch me now.
+goggles > My goggles? Ew. Get your own.
+note|thanks for the parts > You're welcome. Leave more next time.
+titan > Watch me.
+junk > Junk to you. Titan parts to me.
+
+# After radio talk about salvage and titan parts.
+[rumor_salvage]
+Ooh. Thanks for the tip.
+Finders keepers.
+
+# A grunt gets suspicious.
+[suspicious]
+Nope. Nothing here.
+Don't you dare look over here.
+It's the wind, genius.
+
+# A suspicious grunt gives up.
+[stand_down]
+Told you. Nothing here.
+Still sneaky. Obviously.
+
+# She gets spotted.
+[alerted]
+Oh, NOW you see me.
+Rude. I was being sneaky.
+Okay. Plan B.
+
+# The grunts lose track of her.
+[lost]
+Lost me? Aww.
+Marco... Polo.
+
+# A grunt calls a man down.
+[man_down]
+Oops.
+
+# Only one grunt is left.
+[last_man]
+Just you and me now.
+
+# HQ calls and nobody answers.
+[no_answer]
+Quiet net. Finally.
+
+# She kills a grunt.
+[kill]
+Stay down.
+Auto-lock? Who needs it.
+Next!
+
+# She lands a headshot.
+[headshot]
+With a broken gun, too.
+Lock's fried. My aim isn't.
+
+# Silent knife takedown.
+[takedown]
+Shh. Nap time.
+Boo.
+
+# She's badly hurt (under 40% health).
+[hurt]
+Ow! Rude.
+Get up, Eco.
+I'm fine. I'm fine!
+
+# Her magazine runs dry.
+[dry]
+Click? Oh, come on.
+Empty. Ugh.
+
+# She goes down.
+[downed]
+That didn't count.
+Again. No peeking.
+
+# Quiet moments with nobody hunting her.
+[quiet]
+Miss you, Dad. Don't make it weird.
+Your titan's in pieces, Dad. I'll put it back together. Prettier, too.
+He used to hum while he welded. Terribly. ...I miss it.
+Nobody's coming. Fine. Didn't want company anyway.
+
+# Entering a new zone.
+[zone_start]
+New ground. Quiet feet.
+Let's go shopping.
+
+# Fitting a titan part.
+[part_installed]
+Ooh. That'll fit.
+One more piece.
+
+# Calling in her titan.
+[titanfall]
+Here we go, Dad. Watch this.
+Standby for titanfall. ...I've always wanted to say that.
+
+# The enemy titan goes down.
+[boss_down]
+Down. It's DOWN. Ha!
+...Did you see that, Dad?
+
+# Back at the temple after a run.
+[home]
+Home sweet temple.
+Back in one piece.
