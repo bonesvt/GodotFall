@@ -313,7 +313,7 @@ through static. She only listens; she never talks back.
   a terrified last man, and HQ calling into silence once the squad is gone.
 - Bigger events cut off small talk; lines never repeat back to back, and every exchange plays before any repeats.
 - Speakers near the edge of range break up: fewer signal bars and garbled characters.
-- **Dialogue rating**: press **F8** to cycle E, T, M and AO (saved between sessions; default M).
+- **Dialogue rating**: press **O** to cycle E, T, M and AO (saved between sessions; default M). Not F8: that stops the game when it runs from the Godot editor.
   E and T have their own clean line banks; AO currently uses the M bank. `scripts/radio/content_rating.gd`
   holds the setting.
 - Lines live in `scripts/radio/radio_lines.gd`, one exchange per string (`"a: ... | b: ... | hq: ..."`).
@@ -348,6 +348,13 @@ select the Player node and tweak values in the Inspector, or change the defaults
 - `scripts/hud.gd` crosshair, hitmarkers, health, ammo, speedometer, state and cooldown readout
 - `scripts/radio/` enemy radio: `radio_chatter.gd` (listens to grunt awareness and deaths, picks lines),
   `radio_popup.gd` (the intercept box), `radio_lines.gd` (every line, by situation)
+- Eco's whispers (`scripts/radio/`): she can't answer the militia on their net, so she talks back
+  under her breath once an exchange ends, and mutters through kills, takedowns, getting hurt, quiet
+  stretches and the run's beats. `eco_whispers.gd` (triggers, cooldowns, breath sound),
+  `eco_whisper_lines.gd` (every line, by situation and rating; `keyword>` lines answer what the radio
+  actually said), `whisper_caption.gd` (the caption under the crosshair). Voice acting can replace
+  the breath: `assets/audio/voice/eco/<category>_<n>.ogg`
+- `tests/whisper_test.gd` headless whisper test: `godot --headless --path . -s res://tests/whisper_test.gd`
 - `tests/audio_test.gd` checks every recorded sound loads and the ambience beds loop:
   `godot --headless --path . -s res://tests/audio_test.gd`
 - `tests/radio_test.gd` headless radio test (range, squad states, kills, no repeats, popup):

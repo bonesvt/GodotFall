@@ -189,6 +189,7 @@ func enter_hub() -> void:
 	place_player(zone_info["spawn"])
 	if last_result != "":
 		hud.toast("Back at the temple.", HUB_LINE_SECONDS)
+		_whisper("home", 2.0)
 
 
 func load_zone(index: int) -> void:
@@ -204,6 +205,7 @@ func load_zone(index: int) -> void:
 		phase = Phase.ZONE
 		var zone_name: String = zone_info.get("name", "")
 		hud.toast("ZONE %d / %d%s" % [index + 1, RunState.ZONE_COUNT, ": " + zone_name if zone_name != "" else ""])
+		_whisper("zone_start", 2.5)
 	else:
 		zone_info = ZoneBuilder.build_arena(zone_root)
 		boss = zone_info["boss"]
@@ -621,6 +623,7 @@ func choose(index: int) -> void:
 		var part: Dictionary = offer[index]
 		run.install(part)
 		hud.toast("INSTALLED: %s" % part["display"])
+		_whisper("part_installed", 1.0)
 	open_cache.mark_opened()
 	run.caches_opened += 1
 	open_cache = null
@@ -661,6 +664,7 @@ func call_titan() -> void:
 	titan.destroyed.connect(_on_titan_destroyed)
 	titan.landed.connect(func(): hud.toast("TITAN ON THE GROUND"))
 	hud.toast("STANDBY FOR TITANFALL")
+	_whisper("titanfall", 1.0)
 
 
 func _titan_in_reach() -> bool:
@@ -705,6 +709,7 @@ func _on_boss_defeated() -> void:
 	ship.position = hover + Vector3(0, 60, 40)
 	evac.create_tween().tween_property(ship, "position", hover, 4.0).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
 	hud.toast("ENEMY TITAN DOWN. LOCK CORE SALVAGED. GET TO THE EVAC PAD", 5.0)
+	_whisper("boss_down", 1.5)
 
 
 func _evac_tick() -> void:
@@ -749,6 +754,13 @@ func end_run(title: String, reason: String) -> void:
 
 
 # --- HUD ----------------------------------------------------------------------
+
+## Eco mutters about a beat of the run (eco_whisper_lines.gd).
+func _whisper(category: String, delay := 0.0) -> void:
+	var w: Node = pilot_hud.get("whispers") if pilot_hud != null else null
+	if w != null:
+		w.say(category, delay)
+
 
 func _update_hud() -> void:
 	hud.build_label.visible = phase != Phase.HUB
