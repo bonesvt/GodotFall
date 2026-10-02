@@ -132,6 +132,43 @@ static func blast(parent: Node, pos: Vector3, color: Color, radius := 2.0, life 
 	puff(parent, pos, Color(0.25, 0.22, 0.2, 0.7), radius * 0.4, life * 3.0, Vector3(0, 1.2, 0))
 
 
+## A thin ring of light that snaps outward around `axis`: the suppressor's
+## pressure pop at the muzzle.
+static func shock_ring(parent: Node, pos: Vector3, axis: Vector3, color: Color, radius := 0.05, life := 0.09) -> void:
+	var torus := TorusMesh.new()
+	torus.inner_radius = 0.8
+	torus.outer_radius = 1.0
+	torus.rings = 16
+	torus.ring_segments = 3
+	var mat := _material(color)
+	torus.material = mat
+	var mi := MeshInstance3D.new()
+	mi.mesh = torus
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	parent.add_child(mi)
+	var up := axis.normalized()
+	var side := up.cross(Vector3.UP if absf(up.y) < 0.99 else Vector3.RIGHT).normalized()
+	mi.global_transform = Transform3D(Basis(side, up, side.cross(up)), pos)
+	mi.scale = Vector3(radius * 0.3, radius * 0.1, radius * 0.3)
+	var tween := mi.create_tween().set_parallel()
+	tween.tween_property(mi, "scale", Vector3(radius, radius * 0.25, radius), life).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_EXPO)
+	tween.tween_property(mat, "albedo_color:a", 0.0, life).set_ease(Tween.EASE_IN)
+	tween.chain().tween_callback(mi.queue_free)
+
+
+## A solid piece thrown off and tumbling away: an ejected magazine.
+static func chunk(parent: Node, pos: Vector3, size: Vector3, color: Color, velocity: Vector3, life := 0.7) -> void:
+	var mesh := BoxMesh.new()
+	mesh.size = size
+	mesh.material = _material(color)
+	var mi := MeshInstance3D.new()
+	mi.mesh = mesh
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	parent.add_child(mi)
+	mi.global_position = pos
+	_throw(mi, pos, velocity, life, 12.0)
+
+
 ## A brief point light: muzzle flashes light up the walls around you.
 static func light(parent: Node, pos: Vector3, color: Color, energy := 2.0, range_m := 4.0, life := 0.05) -> void:
 	var l := OmniLight3D.new()

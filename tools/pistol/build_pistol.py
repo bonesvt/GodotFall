@@ -6,11 +6,17 @@ Her father's smart pistol, cleaned up: a sleek two-tone slide and frame in
 his titan's colours, a sloped ammo screen facing the shooter, a holo sight on
 top, and the auto-tracking screen on the left side smashed in.
 
+Eco has kept building on it since: an integrated suppressor shroud with
+glowing vent ports, a strip of LEDs along the top of the slide, hex bolts
+she machined herself, tape wrapped round the grip, a cable she rerouted to
+the ammo screen, and her father's dog tag hanging off the rail.
+
 Everything is authored in Godot's frame (x right, y up, -z forward, metres)
 and converted on the way in, so the numbers line up with the viewmodel code.
 The grip keeps the old position and angle so Eco's glove (eco_fp_arm.glb)
 still closes round it. Object names are what the game looks up: Slide,
-MagBase, AmmoReadout, TrackerScreen, TrackerGlass, HoloGlass, Muzzle.
+MagBase, AmmoReadout, TrackerScreen, TrackerGlass, HoloGlass, Muzzle, Vents,
+Led0..Led5, Charm (the dog tag's pivot).
 Materials are placeholders named pistol_*; the import script swaps them for
 assets/materials/pistol/*.tres.
 """
@@ -37,6 +43,10 @@ COLORS = {
 	"pistol_tracker": (0.05, 0.03, 0.03),
 	"pistol_holo": (0.4, 0.95, 1.0),
 	"pistol_emitter": (1.0, 0.3, 0.2),
+	"pistol_vent": (1.0, 0.45, 0.15),
+	"pistol_led": (0.3, 0.95, 1.0),
+	"pistol_tape": (0.62, 0.2, 0.16),
+	"pistol_tag": (0.9, 0.9, 0.86),
 }
 
 
@@ -102,6 +112,14 @@ def cylinder(name, radius, depth, center, mat, axis="z", segments=16, bevel=0.0)
 	return obj_from_bm(name, bm, mat, xform(center, rot), bevel)
 
 
+def prism(name, radius, depth, center, mat, segments=8, bevel=0.0):
+	"""A flat-topped prism along z (the barrel axis), like a machined shroud."""
+	bm = bmesh.new()
+	bmesh.ops.create_cone(bm, cap_ends=True, segments=segments, radius1=radius, radius2=radius, depth=depth)
+	bmesh.ops.rotate(bm, verts=bm.verts, cent=(0, 0, 0), matrix=Matrix.Rotation(math.pi / segments, 4, "Z"))
+	return obj_from_bm(name, bm, mat, xform(center), bevel)
+
+
 def join(name, objs):
 	bpy.ops.object.select_all(action="DESELECT")
 	for o in objs:
@@ -152,9 +170,111 @@ def frame():
 			v.co.z += 0.016  # undercut nose
 	f = obj_from_bm("Frame", bm, "pistol_dark", bevel=0.003, segments=2)
 	rail = [box("Rail%d" % i, (0.03, 0.004, 0.006), (0, -0.031, -0.095 + i * 0.012), "pistol_dark", bevel=0.001) for i in range(4)]
-	barrel = cylinder("Barrel", 0.0085, 0.022, (0, 0.008, -0.132), "pistol_dark", axis="z", bevel=0.001)
-	bore = cylinder("Bore", 0.0048, 0.024, (0, 0.008, -0.134), "pistol_screen", axis="z")
-	return [f, barrel, bore] + rail
+	return [f] + rail
+
+
+SHROUD_Y = 0.01
+SHROUD_R = 0.0165
+SHROUD_FRONT = -0.205
+
+
+def suppressor():
+	"""Integrated suppressor: an octagonal shroud out of the slide's nose, an end
+	cap with an orange band, and vent ports that glow when the gun runs hot."""
+	length = 0.088
+	z0 = SHROUD_FRONT + length / 2
+	shroud = prism("Shroud", SHROUD_R, length, (0, SHROUD_Y, z0), "pistol_dark", bevel=0.0012)
+	cap = prism("ShroudCap", SHROUD_R * 1.04, 0.009, (0, SHROUD_Y, SHROUD_FRONT - 0.0035), "pistol_shell", bevel=0.0015)
+	band = prism("ShroudBand", SHROUD_R * 1.03, 0.003, (0, SHROUD_Y, SHROUD_FRONT + 0.008), "pistol_stripe")
+	bore = cylinder("Bore", 0.0045, 0.012, (0, SHROUD_Y, SHROUD_FRONT - 0.004), "pistol_screen", axis="z")
+	# Ports on the three upper faces, four rows down the shroud.
+	apothem = SHROUD_R * math.cos(math.pi / 8)
+	vents = []
+	for face in (-45, 0, 45):
+		a = math.radians(face)
+		for row in range(4):
+			z = SHROUD_FRONT + 0.02 + row * 0.014
+			pos = (math.sin(a) * apothem, SHROUD_Y + math.cos(a) * apothem, z)
+			vents.append(box("Vent", (0.0034, 0.0012, 0.0095), pos, "pistol_vent", rot=(0, 0, -face)))
+	return [shroud, cap, band, bore], join("Vents", vents)
+
+
+def slide_top(z):
+	"""Height of the slide's top at z: it slopes down toward the raked nose."""
+	return 0.027 + 0.013 * (z + 0.1185) / 0.227
+
+
+def leds():
+	"""Six LED pairs along the top of the slide, front of the holo sight."""
+	out = []
+	slope = math.degrees(math.atan(0.013 / 0.227))
+	for i in range(6):
+		z = -0.004 - i * 0.0155
+		pair = [box("Led", (0.0042, 0.0016, 0.0105), (s * 0.0115, slide_top(z) + 0.0003, z), "pistol_led", rot=(slope, 0, 0), bevel=0.0005) for s in (-1, 1)]
+		out.append(join("Led%d" % i, pair))
+	return out
+
+
+def bolts():
+	"""Hex bolts she machined herself, on the frame and the shroud."""
+	out = []
+	for side in (-1, 1):
+		for y, z in ((-0.012, -0.095), (-0.012, -0.03), (-0.012, 0.045)):
+			bm = bmesh.new()
+			bmesh.ops.create_cone(bm, cap_ends=True, segments=6, radius1=0.0021, radius2=0.0021, depth=0.0014)
+			out.append(obj_from_bm("Bolt", bm, "pistol_shell", xform((side * 0.0183, y, z), (0, 90, 0)), smooth=False))
+	return out
+
+
+def cable():
+	"""A cable rerouted from the frame to the ammo screen, in a loose loop."""
+	cu = bpy.data.curves.new("Cable", "CURVE")
+	cu.dimensions = "3D"
+	cu.bevel_depth = 0.0017
+	cu.bevel_resolution = 2
+	sp = cu.splines.new("BEZIER")
+	pts = [Vector((0.0178, -0.006, 0.056)), Vector((0.029, -0.002, 0.084)), Vector((0.027, 0.022, 0.1)), Vector((0.0155, 0.029, 0.11))]
+	sp.bezier_points.add(len(pts) - 1)
+	for bp, p in zip(sp.bezier_points, pts):
+		bp.co = G2B @ p
+		bp.handle_left_type = bp.handle_right_type = "AUTO"
+	ob = bpy.data.objects.new("Cable", cu)
+	bpy.context.collection.objects.link(ob)
+	cu.materials.append(bpy.data.materials["pistol_stripe"])
+	bpy.ops.object.select_all(action="DESELECT")
+	ob.select_set(True)
+	bpy.context.view_layer.objects.active = ob
+	bpy.ops.object.convert(target="MESH")
+	return ob
+
+
+def grip_tape():
+	"""Tape wrapped round the bottom of the grip, a little crooked."""
+	bands = []
+	for i, y in enumerate((-0.044, -0.034)):
+		b = box("Tape", (0.0352, 0.0075, 0.0515), (0, y, 0), "pistol_tape", rot=(random.uniform(-7, 7), 0, random.uniform(-3, 3)), bevel=0.001)
+		b.data.transform(G2B @ xform(GRIP_POS, GRIP_ROT) @ G2B.inverted())
+		bands.append(b)
+	return bands
+
+
+def charm():
+	"""Her father's dog tag on a short chain, hanging from the front of the rail.
+	The Charm pivot is what the game swings."""
+	loop_at = Vector((0, -0.034, -0.1))
+	pivot = empty("Charm", loop_at)
+	parts = [
+		box("Ring", (0.0014, 0.006, 0.006), (0, -0.003, 0), "pistol_shell", bevel=0.0006),
+		box("Link", (0.0014, 0.007, 0.003), (0, -0.009, 0), "pistol_shell", bevel=0.0006),
+		box("Tag", (0.0018, 0.028, 0.018), (0, -0.026, 0), "pistol_tag", bevel=0.0025, segments=3),
+		box("TagDot", (0.0022, 0.005, 0.005), (0, -0.018, 0), "pistol_stripe", bevel=0.001),
+	]
+	for p in parts:
+		p.data.transform(G2B @ Matrix.Translation(loop_at) @ G2B.inverted())
+	tag = join("CharmTag", parts)
+	tag.parent = pivot
+	tag.matrix_parent_inverse = pivot.matrix_world.inverted()
+	return pivot
 
 
 def guard_and_trigger():
@@ -239,7 +359,7 @@ def tracker_screen():
 
 
 def holo_sight():
-	base = box("HoloBase", (0.026, 0.005, 0.032), (0, 0.0425, 0.035), "pistol_dark", bevel=0.0015)
+	base = box("HoloBase", (0.026, 0.012, 0.032), (0, 0.039, 0.035), "pistol_dark", bevel=0.0015)
 	posts = [box("HoloPost", (0.0032, 0.03, 0.008), (s * 0.0128, 0.058, 0.028), "pistol_shell", bevel=0.0012) for s in (-1, 1)]
 	hood = box("HoloHood", (0.0288, 0.0035, 0.014), (0, 0.0735, 0.03), "pistol_shell", bevel=0.0012)
 	emitter = box("HoloEmitter", (0.006, 0.004, 0.005), (0, 0.047, 0.047), "pistol_emitter", bevel=0.001)
@@ -263,14 +383,19 @@ def build():
 	body = slide()
 	lower = frame() + guard_and_trigger()
 	grip_parts, mag = grip()
+	shroud_parts, _ = suppressor()
+	leds()
+	charm()
 	ammo_housing, ammo_glass, _ = ammo_screen()
 	tracker_housing, _ = tracker_screen()
 	holo_parts, _, _ = holo_sight()
 	join("Slide", body)
 	join("Frame", lower + grip_parts)
+	join("Shroud", shroud_parts)
+	join("Details", bolts() + grip_tape() + [cable()])
 	join("AmmoScreen", ammo_housing)
 	join("HoloSight", holo_parts)
-	empty("Muzzle", (0, 0.008, -0.145))
+	empty("Muzzle", (0, SHROUD_Y, SHROUD_FRONT - 0.009))
 	for ob in bpy.data.objects:
 		ob.select_set(ob.type == "MESH" or ob.type == "EMPTY")
 	bpy.ops.export_scene.gltf(

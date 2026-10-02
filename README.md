@@ -110,6 +110,10 @@ Weak on purpose, so skill decides fights.
   Paced shots land, spam doesn't. The crosshair gap shows the real cone.
 - **Movement**: sprinting and jumping add spread. **Wallrunning and sliding don't**, so shooting off a wall is a pilot skill.
 - Recoil kicks the view up and mostly settles back. Hitmarkers: white body, gold head, red kill.
+- **Eco's build**: an integrated suppressor (a quiet "thup" and the crisp clack of the slide), vents that
+  glow hotter the faster you shoot, LEDs on the slide that show the ammo left and race to the muzzle on
+  each shot, a holo sight that pulses, her father's dog tag swinging off the rail, and a twirl on every
+  reload and inspect (I). All feel; none of it changes the numbers above.
 
 ## Eco, the heroine
 A young mechanic who went rogue after the army turned her down as a Pilot. She fights with her
@@ -171,7 +175,8 @@ select the Player node and tweak values in the Inspector, or change the defaults
 - `tools/pistol/build_pistol.py` builds Eco's smart pistol in Blender
   (`blender --background --python tools/pistol/build_pistol.py -- assets/models/smart_pistol/smart_pistol.glb`);
   `tools/bake_models.gd -- smart_pistol` then puts it in her hand (`assets/models/smart_pistol.tscn`)
-- `scripts/sfx.gd` procedural sound effects, synthesized at runtime (no audio files)
+- `scripts/sfx.gd` procedural sound effects, synthesized at runtime; drop `<id>.wav` or `<id>.ogg`
+  in `assets/audio/sfx/` (for example `pistol.wav`) to replace one with a recording
 - `scripts/run/titan_gun.gd` titan weapon personalities (XO-16 spin-up, Tracker shells, Splitter beam, jamming scrap rifle)
 - `scripts/hud.gd` crosshair, hitmarkers, health, ammo, speedometer, state and cooldown readout
 - `tests/movement_test.gd` headless smoke test:

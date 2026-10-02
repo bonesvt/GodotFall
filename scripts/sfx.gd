@@ -5,10 +5,19 @@ extends RefCounted
 ## a low-passed blast and sub thump, the action cycling, and a short room tail,
 ## pushed through soft saturation so they hit hard.
 ##
+## Eco's pistol has an integrated suppressor, so its shot is a tight "thup"
+## and a hiss of gas, and the crisp metal of the action is the loudest part,
+## with a faint electric whine from the rail coil on top.
+##
+## To use a recorded sound instead, drop `<id>.wav` or `<id>.ogg` into
+## res://assets/audio/sfx/ (for example pistol.wav); it replaces the recipe.
+##
 ##   SFX.play(self, "pistol")                 # flat, follows the listener
 ##   SFX.play_at(parent, pos, "ricochet")     # positional, frees itself
 
 const RATE := 44100
+## Recorded overrides: <id>.wav or <id>.ogg in here replace the recipe.
+const OVERRIDES := "res://assets/audio/sfx/"
 
 static var _cache := {}
 static var _rng := RandomNumberGenerator.new()
@@ -49,10 +58,20 @@ static func vary(amount := 0.06) -> float:
 	return 1.0 + _rng.randf_range(-amount, amount)
 
 
-static func stream(id: String) -> AudioStreamWAV:
+static func stream(id: String) -> AudioStream:
 	if not _cache.has(id):
-		_cache[id] = _to_wav(_synth(id))
+		_cache[id] = _recorded(id)
+		if _cache[id] == null:
+			_cache[id] = _to_wav(_synth(id))
 	return _cache[id]
+
+
+static func _recorded(id: String) -> AudioStream:
+	for ext in ["wav", "ogg"]:
+		var path: String = OVERRIDES + id + "." + ext
+		if ResourceLoader.exists(path):
+			return load(path)
+	return null
 
 
 # --- Recipes ------------------------------------------------------------------
@@ -60,28 +79,42 @@ static func stream(id: String) -> AudioStreamWAV:
 static func _synth(id: String) -> PackedFloat32Array:
 	_rng.seed = hash(id)
 	match id:
-		# Eco's pistol: crack, blast, sub thump, the slide cycling, then the
-		# shot rolling off the walls.
+		# Eco's pistol, suppressed: a tight thup, the action clacking, and a
+		# whisper of coil whine. Almost no room tail; the gun is quiet.
 		"pistol":
-			return _gunshot(1.0)
-		"pistol_last":  # last round: the slide slams back and locks open
-			return _master(_mix([_gunshot(1.0), _delay(_clack(1300.0, 210.0, 0.55), 0.055)]), 0.0)
+			return _suppressed(false)
+		"pistol_last":  # last round: the slide locks back and the screen chirps empty
+			return _suppressed(true)
 		"dry_click":  # trigger on an empty chamber
 			return _master(_mix([
-				_filter(_burst(0.012, 0.0002, 420.0, 0.7), "hp", 2500.0),
+				_tick(4200.0, 0.6),
 				_delay(_filter(_burst(0.03, 0.0005, 160.0, 0.25), "bp", 1700.0, 4.0), 0.004),
+				_delay(_blips([880.0, 660.0], 0.03, 0.08), 0.02),
 			]), 0.0)
 		"spark":  # crackle from the dead smart-lock module
 			return _filter(_crackle(0.22, 46, 0.6), "hp", 1800.0)
 		"lock_err":  # the smart-lock trying, and failing, to lock: a glitchy chirp
 			return _filter(_mix([_square(0.04, 1320.0, 0.12), _square(0.05, 990.0, 0.12, 0.05), _crackle(0.12, 10, 0.25)]), "lp", 4000.0)
-		"reload_out":  # mag release and the mag sliding out
+		"reload_out":  # mag release, a pneumatic kick out, the screen blanks
 			return _master(_mix([
-				_clack(2400.0, 0.0, 0.5),
-				_delay(_filter(_burst(0.09, 0.01, 30.0, 0.22), "bp", 2200.0, 1.5), 0.01),
-			]), 0.08)
-		"reload_in":  # fresh mag seated hard
-			return _master(_mix([_clack(1150.0, 160.0, 0.9), _delay(_clack(2800.0, 0.0, 0.3), 0.012)]), 0.08)
+				_tick(3800.0, 0.7),
+				_delay(_tick(2400.0, 0.45), 0.012),
+				_delay(_filter(_burst(0.14, 0.004, 26.0, 0.35), "bp", 3200.0, 0.8), 0.01),
+				_delay(_blips([1320.0, 990.0, 740.0], 0.028, 0.07), 0.03),
+			]), 0.04, 1.4)
+		"reload_in":  # fresh mag seated: a solid clack and a magnetic snap
+			return _master(_mix([
+				_tick(2900.0, 0.8),
+				_sweep(0.06, 260.0, 140.0, 55.0, 0.55),
+				_delay(_sweep(0.05, 1800.0, 3600.0, 50.0, 0.12), 0.006),
+				_delay(_tick(5200.0, 0.3), 0.016),
+			]), 0.04, 1.4)
+		"boot":  # the ammo screen booting back up: a quick rising arpeggio
+			return _master(_blips([990.0, 1320.0, 1760.0, 2640.0], 0.03, 0.22), 0.05, 1.0)
+		"twirl":  # air around the gun as she spins it
+			return _master(_whoosh(0.34, 0.35), 0.0, 1.0)
+		"flourish":  # a quick bright glint at the end of a trick
+			return _master(_mix([_ring([3135.0, 4700.0, 6270.0], 0.35, 14.0, 0.18), _sweep(0.12, 2600.0, 5200.0, 25.0, 0.05)]), 0.12, 1.0)
 		"whack":  # palm smack on the slide to wake the old thing up
 			return _master(_mix([
 				_filter(_burst(0.06, 0.0008, 60.0, 0.8), "lp", 900.0),
@@ -150,6 +183,65 @@ static func _gunshot(weight: float) -> PackedFloat32Array:
 	return _master(dry, 0.22)
 
 
+## Eco's suppressed shot. The suppressor eats the crack and the boom, so what
+## is left is a muffled pressure pop, gas hissing out of the baffles, and the
+## slide: a crisp metal clack back and a clack home. `last` locks the slide
+## open and adds the screen's empty chirp.
+static func _suppressed(last: bool) -> PackedFloat32Array:
+	var layers := [
+		_filter(_filter(_burst(0.08, 0.0006, 62.0, 1.7), "lp", 1100.0), "hp", 150.0),  # thup
+		_sweep(0.09, 190.0, 95.0, 40.0, 0.3),                                         # body
+		_filter(_burst(0.13, 0.004, 34.0, 0.42), "bp", 1700.0, 0.8),                 # pfft
+		_filter(_burst(0.05, 0.002, 60.0, 0.08), "hp", 6500.0),                      # gas air
+		_delay(_tick(3600.0, 0.55), 0.004),                                          # slide back
+		_delay(_ring([2960.0, 4430.0, 6180.0], 0.07, 75.0, 0.12), 0.004),            # steel ring
+		_sweep(0.07, 5400.0, 2700.0, 50.0, 0.05),                                    # coil whine
+	]
+	if last:
+		layers.append(_delay(_tick(2100.0, 0.75), 0.05))   # slide locks open, heavier
+		layers.append(_delay(_sweep(0.05, 320.0, 180.0, 60.0, 0.2), 0.05))
+		layers.append(_delay(_blips([1480.0, 990.0], 0.05, 0.09), 0.1))
+	else:
+		layers.append(_delay(_tick(2700.0, 0.42), 0.038))  # slide home
+		layers.append(_delay(_sweep(0.04, 240.0, 150.0, 70.0, 0.12), 0.038))
+	return _master(_mix(layers), 0.07, 1.3)
+
+
+## A crisp, tight metal click centred on `freq`.
+static func _tick(freq: float, amp: float) -> PackedFloat32Array:
+	return _mix([
+		_filter(_burst(0.025, 0.0001, 260.0, amp), "bp", freq, 5.0),
+		_filter(_burst(0.008, 0.0001, 700.0, amp * 0.5), "hp", 6000.0),
+	])
+
+
+## Clean sine beeps one after another, like a small screen chirping.
+static func _blips(freqs: Array, each: float, amp: float) -> PackedFloat32Array:
+	var out := PackedFloat32Array()
+	for f in freqs:
+		var n := int(each * RATE)
+		for i in n:
+			var t := float(i) / RATE
+			var env := minf(t * 800.0, 1.0) * minf((each - t) * 400.0, 1.0)
+			out.append(sin(TAU * f * t) * amp * env)
+	return out
+
+
+## Air rushing past: noise in a band that swells and fades, a few passes.
+static func _whoosh(length: float, amp: float) -> PackedFloat32Array:
+	var n := int(length * RATE)
+	var raw := _burst(length, 0.0, 0.0, 1.0)
+	var low := _filter(raw, "bp", 700.0, 0.9)
+	var high := _filter(raw, "bp", 1900.0, 1.2)
+	var out := PackedFloat32Array()
+	out.resize(n)
+	for i in n:
+		var t := float(i) / n
+		var swell := pow(sin(PI * t), 2.0) * (0.6 + 0.4 * sin(TAU * 3.0 * t))
+		out[i] = (low[i] * (1.0 - t) + high[i] * t) * swell * amp
+	return out
+
+
 ## A short mechanical impact: a resonant click plus an optional low thunk.
 static func _clack(freq: float, thunk: float, amp: float) -> PackedFloat32Array:
 	var layers := [
@@ -162,10 +254,10 @@ static func _clack(freq: float, thunk: float, amp: float) -> PackedFloat32Array:
 
 
 ## Saturates for punch, adds a short room tail, and normalizes.
-static func _master(dry: PackedFloat32Array, room: float) -> PackedFloat32Array:
+static func _master(dry: PackedFloat32Array, room: float, drive := 1.8) -> PackedFloat32Array:
 	var out := dry
 	for i in out.size():
-		out[i] = tanh(out[i] * 1.8) / tanh(1.8)
+		out[i] = tanh(out[i] * drive) / tanh(drive)
 	if room > 0.0:
 		out = _reverb(out, room)
 	var peak := 0.0

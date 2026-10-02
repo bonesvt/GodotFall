@@ -8,9 +8,14 @@ extends Node3D
 ## screen is smashed, so she aims with the holo sight like anyone else. The
 ## ammo screen on the back of the slide counts her rounds, the broken tracker
 ## spits sparks (more as the mag runs dry) and still tries to lock onto
-## enemies before throwing an error, and every reload ends with Eco smacking
-## the slide to get it running again. None of this changes the
-## numbers above; it is all feel.
+## enemies before throwing an error.
+##
+## Eco has been building on it ever since, and it shows off: an integrated
+## suppressor whose vents glow hotter the faster she shoots, a strip of LEDs
+## on the slide that doubles as an ammo bar and races toward the muzzle on
+## every shot, a holo sight that pulses, her father's dog tag swinging off
+## the rail, and a twirl on every reload. None of this changes the numbers
+## above; it is all feel.
 
 const Pilot := preload("res://scripts/player.gd")
 const FX := preload("res://scripts/fx.gd")
@@ -22,8 +27,9 @@ signal hit_confirmed(kind: String)
 ## Emitted when an inspect starts, with what Eco says about the gun.
 signal inspected(line: String)
 
-## Inspect: Eco turns her father's pistol over, shows the smashed tracking
-## screen, taps it (it sparks and errors), then checks the holo sight.
+## Inspect: Eco twirls her father's pistol, turns it over to show the smashed
+## tracking screen, taps it (it sparks and errors), checks the holo sight,
+## then twirls it back into her grip.
 ## Keyframes: [seconds, position offset (m), rotation offset (degrees x/y/z)].
 const INSPECT_KEYS := [
 	[0.0, Vector3.ZERO, Vector3.ZERO],
@@ -37,6 +43,18 @@ const INSPECT_KEYS := [
 ]
 ## When in the inspect Eco taps the dead sensor.
 const INSPECT_TAP := 0.95
+## The inspect's twirls: [start time, direction].
+const INSPECT_TWIRLS := [[0.0, -1.0], [2.9, 1.0]]
+## Seconds a full twirl of the gun round Eco's trigger finger takes.
+const TWIRL_TIME := 0.42
+## The point the gun spins round, in the gun's own space (her trigger finger).
+const TWIRL_PIVOT := Vector3(0.0, -0.035, -0.004)
+## Reload beats, as a share of the reload: mag out, mag in, twirl, screen boots.
+const RELOAD_BEATS := [0.12, 0.42, 0.5, 0.82]
+const LED_COUNT := 6
+const LED_CYAN := Color(0.3, 0.95, 1.0)
+const LED_AMBER := Color(1.0, 0.6, 0.15)
+const LED_RED := Color(1.0, 0.18, 0.12)
 const INSPECT_LINES := [
 	"Dad's. The lock-on died with him.",
 	"Tracker screen's smashed. Holo sight it is.",
@@ -123,6 +141,25 @@ var _inspect_tapped := false
 var _inspect_line := -1
 var _pistol: Node3D
 var _ammo_label: Label3D
+var _gun: Node3D  # the gun alone, without Eco's arm: this is what twirls
+var _gun_rest := Transform3D.IDENTITY
+var _twirl := -1.0  # seconds into the current twirl, or -1
+var _twirl_dir := -1.0
+var _leds: Array[GeometryInstance3D] = []
+var _vents: GeometryInstance3D
+var _holo: GeometryInstance3D
+## 0..1 how hot the suppressor is; every shot adds some, it cools off quickly.
+var heat := 0.0
+var _since_fx := 10.0  # seconds since the last shot, for the LED race
+var _holo_pulse := 0.0
+var _ammo_pop := 0.0
+var _boot := -1.0  # seconds into the ammo screen booting after a reload
+# Dog tag pendulum (angles in radians around the charm pivot's x and z)
+var _charm: Node3D
+var _charm_angle := Vector2.ZERO
+var _charm_vel := Vector2.ZERO
+var _charm_last_pos := Vector3.ZERO
+var _charm_last_vel := Vector3.ZERO
 
 ## The enemy the broken smart-lock is currently trying to lock onto, for the HUD.
 var lock_target: Node3D
@@ -191,6 +228,9 @@ func _process(delta: float) -> void:
 		var hunt := 3.0 if lock_target != null and fmod(lock_time, 0.25) < 0.12 else 0.0
 		_pistol.set_param("glow", 1.0 + glitch * 4.0 + hunt, "TrackerGlass")
 	_update_ammo_screen()
+	_update_lights(delta)
+	_update_twirl(delta)
+	_swing_charm(delta)
 
 
 ## Current cone half-angle in degrees.
@@ -235,7 +275,7 @@ func fire() -> void:
 		else:
 			_impact_fx(fx_parent, end, hit.normal)
 
-	FX.tracer(fx_parent, muzzle.global_position, end, Color(1.0, 0.85, 0.4, 0.9), 0.015, 0.06)
+	FX.tracer(fx_parent, muzzle.global_position, end, Color(0.75, 0.97, 1.0, 0.85), 0.012, 0.06)
 	bloom = minf(bloom + bloom_per_shot, max_bloom)
 	var k := deg_to_rad(recoil_kick)
 	player.head.rotation.x = clampf(player.head.rotation.x + k, -1.55, 1.55)
@@ -247,7 +287,7 @@ func fire() -> void:
 ## Everything a shot does that you see, hear and feel but that doesn't score.
 func _shot_feel(fx_parent: Node) -> void:
 	var last := ammo == 0
-	SFX.play(self, "pistol_last" if last else "pistol", 0.0, SFX.vary())
+	SFX.play(self, "pistol_last" if last else "pistol", 1.0, SFX.vary(0.04))
 	# Viewmodel: snaps back and up, rolls a little to a random side.
 	_kick_vel += Vector3(rng.randf_range(-0.15, 0.15), 0.25, 1.6)
 	_kick_rot_vel += Vector3(14.0, rng.randf_range(-3.0, 3.0), rng.randf_range(-6.0, 6.0))
@@ -255,11 +295,21 @@ func _shot_feel(fx_parent: Node) -> void:
 	# Camera: a punch that springs back on its own, plus a FOV dip.
 	_punch += Vector2(deg_to_rad(camera_punch), deg_to_rad(rng.randf_range(-0.5, 0.5) * camera_punch))
 	player.camera.fov -= fov_kick
-	# Muzzle: a star that faces you, a puff of smoke and a flash of light.
-	FX.star(muzzle, muzzle.global_position, Color(1.0, 0.75, 0.3, 0.95), 0.11, 0.05, 6)
-	FX.star(muzzle, muzzle.global_position, Color(1.0, 1.0, 0.85), 0.05, 0.04, 4)
-	FX.light(fx_parent, muzzle.global_position, Color(1.0, 0.7, 0.35), 1.6, 5.0, 0.06)
-	FX.puff(fx_parent, muzzle.global_position, Color(0.75, 0.72, 0.68, 0.35), 0.03, 0.35, player.velocity * 0.9 + Vector3(0, 0.4, 0))
+	# Muzzle: suppressed, so no fireball. A small white star, a ring of light
+	# snapping out round the barrel, and gas curling out of the hot vents.
+	var forward: Vector3 = -muzzle.global_basis.z
+	FX.star(muzzle, muzzle.global_position, Color(0.85, 0.97, 1.0, 0.9), 0.045, 0.04, 6)
+	FX.shock_ring(fx_parent, muzzle.global_position + forward * 0.01, forward, Color(0.6, 0.95, 1.0, 0.9), 0.06, 0.1)
+	FX.light(fx_parent, muzzle.global_position, Color(0.55, 0.9, 1.0), 0.9, 3.0, 0.05)
+	FX.puff(fx_parent, muzzle.global_position, Color(0.8, 0.85, 0.9, 0.22), 0.02, 0.3, player.velocity * 0.9 + forward * 0.4)
+	if _vents != null:
+		for i in 2:
+			var at := _vents.global_position + forward * rng.randf_range(-0.03, 0.03)
+			FX.puff(fx_parent, at, Color(0.9, 0.9, 0.92, 0.18 + heat * 0.2), 0.008, 0.45, player.velocity * 0.9 + Vector3(0, 0.25, 0))
+	heat = minf(heat + 0.22, 1.0)
+	_since_fx = 0.0
+	_holo_pulse = 1.0
+	_ammo_pop = 1.0
 	var port: Vector3 = viewmodel.global_transform * Vector3(0.03, 0.04, -0.05)
 	var right: Vector3 = player.head.global_basis.x
 	FX.casing(fx_parent, port, player.velocity + right * 2.2 + Vector3.UP * 2.0)
@@ -372,7 +422,7 @@ func refill() -> void:
 
 
 func is_inspecting() -> bool:
-	return inspect_time >= 0.0
+	return inspect_time > -1.0
 
 
 func inspect() -> void:
@@ -385,18 +435,26 @@ func inspect() -> void:
 	if pick >= _inspect_line:
 		pick += 1
 	_inspect_line = pick
-	SFX.play(self, "reload_in", -10.0, 0.8)
+	inspect_time = -0.001  # so the opening twirl fires on the first update
 	inspected.emit(INSPECT_LINES[pick])
 
 
 func stop_inspect() -> void:
 	inspect_time = -1.0
+	if _twirl >= 0.0 and not is_reloading():
+		_twirl = -1.0  # snap back into the grip to shoot
 
 
 func _update_inspect(delta: float) -> void:
 	if not is_inspecting():
 		return
+	var before := inspect_time
 	inspect_time += delta
+	for tw in INSPECT_TWIRLS:
+		if before < tw[0] + 0.001 and inspect_time >= tw[0]:
+			twirl(tw[1])
+	if before < 2.45 and inspect_time >= 2.45:
+		_holo_pulse = 1.0  # she checks the sight; it flares for her
 	if not _inspect_tapped and inspect_time >= INSPECT_TAP:
 		_inspect_tapped = true
 		SFX.play(self, "whack", -8.0, 1.5)
@@ -404,7 +462,7 @@ func _update_inspect(delta: float) -> void:
 		_kick_rot_vel += Vector3(-6.0, 0.0, 10.0)
 		_module_sparks(4)
 	if inspect_time >= INSPECT_KEYS.back()[0]:
-		stop_inspect()
+		inspect_time = -1.0  # done; the closing twirl finishes on its own
 
 
 ## Position and rotation (degrees) offsets of the inspect at time t.
@@ -425,27 +483,150 @@ func reload_progress() -> float:
 	return 1.0 - reload_timer / reload_time if is_reloading() else 0.0
 
 
-## Mag out, fresh mag in, then Eco smacks the slide to wake the old gun up.
+## Mag kicks out, fresh mag in, Eco twirls the gun round her finger, and the
+## ammo screen boots back up counting the new rounds in.
 func _reload_choreography() -> void:
 	var p := reload_progress()
 	var fx_parent: Node = player.get_parent()
-	if _reload_events == 0 and p >= 0.14:
+	if _reload_events == 0 and p >= RELOAD_BEATS[0]:
 		_reload_events = 1
 		SFX.play(self, "reload_out", -3.0, SFX.vary())
-		var mag_at: Vector3 = viewmodel.global_transform * Vector3(0.0, -0.09, 0.06)
-		FX.debris(fx_parent, mag_at, Vector3.DOWN, Color(0.28, 0.28, 0.3), 1, 0.5, 0.05, 0.5)
+		var mag_at: Vector3 = _parts["MagBase"][0].global_position if _parts.has("MagBase") else viewmodel.global_transform * Vector3(0.0, -0.09, 0.06)
+		var down: Vector3 = -viewmodel.global_basis.y
+		FX.chunk(fx_parent, mag_at, Vector3(0.034, 0.1, 0.048), Color(0.82, 0.85, 0.9), player.velocity + down * 2.5 + player.head.global_basis.x * 0.6, 0.6)
 		_set_part_visible("MagBase", false)
-	elif _reload_events == 1 and p >= 0.52:
+		_kick_vel += Vector3(0.0, 0.8, 0.0)
+		_kick_rot_vel += Vector3(-10.0, 0.0, 0.0)
+	elif _reload_events == 1 and p >= RELOAD_BEATS[1]:
 		_reload_events = 2
 		SFX.play(self, "reload_in", -2.0, SFX.vary())
 		_set_part_visible("MagBase", true)
-		_kick_vel += Vector3(0.0, 0.5, 0.0)
-	elif _reload_events == 2 and p >= 0.76:
+		_kick_vel += Vector3(0.0, 0.6, 0.0)
+		_kick_rot_vel += Vector3(12.0, 0.0, -6.0)
+	elif _reload_events == 2 and p >= RELOAD_BEATS[2]:
 		_reload_events = 3
-		SFX.play(self, "whack", 0.0, SFX.vary(0.05))
-		_kick_rot_vel += Vector3(-8.0, 0.0, 22.0)
-		_kick_vel += Vector3(-0.4, -0.6, 0.0)
-		_module_sparks(5)
+		twirl(-1.0)
+	elif _reload_events == 3 and p >= RELOAD_BEATS[3]:
+		_reload_events = 4
+		_boot = 0.0
+		_holo_pulse = 1.0
+		SFX.play(self, "boot", -9.0)
+		SFX.play(self, "flourish", -12.0, SFX.vary(0.05))
+		if _holo != null:
+			FX.star(viewmodel, _holo.global_position, Color(0.7, 1.0, 1.0, 0.9), 0.03, 0.12, 4)
+
+
+## Spins the gun once round Eco's trigger finger. `direction` -1 dips the
+## muzzle first, 1 flips it up and back.
+func twirl(direction := -1.0) -> void:
+	_twirl = 0.0
+	_twirl_dir = direction
+	SFX.play(self, "twirl", -6.0, SFX.vary(0.08))
+
+
+func is_twirling() -> bool:
+	return _twirl >= 0.0
+
+
+func _update_twirl(delta: float) -> void:
+	if _gun == null:
+		return
+	if _twirl < 0.0:
+		_gun.transform = _gun_rest
+		return
+	_twirl += delta
+	var u := clampf(_twirl / TWIRL_TIME, 0.0, 1.0)
+	# Fast off the finger, slowing as it comes round, a little overshoot to settle.
+	var turn := 1.0 - pow(1.0 - u, 3.0)
+	turn += sin(u * PI) * 0.04 * (1.0 - u)
+	var angle := TAU * turn * _twirl_dir
+	var spin := Transform3D(Basis(Vector3.RIGHT, angle), Vector3.ZERO)
+	_gun.transform = _gun_rest * Transform3D(Basis.IDENTITY, TWIRL_PIVOT) * spin * Transform3D(Basis.IDENTITY, -TWIRL_PIVOT)
+	# Light trails off the muzzle and the LEDs while it spins.
+	if u < 0.85:
+		FX.star(viewmodel, muzzle.global_position, Color(LED_CYAN, 0.7), 0.012, 0.14, 4)
+		if not _leds.is_empty():
+			FX.star(viewmodel, _leds[LED_COUNT - 1].global_position, Color(LED_CYAN, 0.5), 0.008, 0.1, 4)
+	if u >= 1.0:
+		_twirl = -1.0
+		_gun.transform = _gun_rest
+		_kick_rot_vel += Vector3(8.0 * _twirl_dir, 0.0, 0.0)  # caught: a little bounce
+
+
+## Vents, LEDs, holo sight: everything on the gun that lights up.
+func _update_lights(delta: float) -> void:
+	_since_fx += delta
+	if _since_fx > 0.12:
+		heat = maxf(heat - delta * 0.9, 0.0)
+	_holo_pulse = maxf(_holo_pulse - delta * 5.0, 0.0)
+	_ammo_pop = maxf(_ammo_pop - delta * 9.0, 0.0)
+	if _boot >= 0.0:
+		_boot += delta
+	if not is_reloading() and _boot > 0.4:
+		_boot = -1.0
+	var now := Time.get_ticks_msec() / 1000.0
+
+	if _vents != null:
+		# Cold vents barely show; hot ones glow orange and shimmer.
+		var shimmer := 1.0 + sin(now * 37.0) * 0.12 * heat
+		_vents.set_instance_shader_parameter("glow", (0.12 + heat * heat * 7.0) * shimmer)
+		_vents.set_instance_shader_parameter("paint", Color(1.0, 0.6, 0.4).lerp(Color(1.0, 0.85, 0.6), heat))
+	if _holo != null:
+		_holo.set_instance_shader_parameter("pulse", _holo_pulse)
+		_holo.set_instance_shader_parameter("glitch", glitch * 0.5)
+
+	if _leds.is_empty():
+		return
+	# The LEDs are an ammo bar: one goes dark from the front for every
+	# 1/6 of the mag spent. Amber when low, red and blinking when empty.
+	var lit := ceili(float(ammo) / magazine_size * LED_COUNT)
+	var color := LED_CYAN
+	if ammo == 0:
+		color = LED_RED
+	elif ammo <= 2:
+		color = LED_AMBER
+	var breathe := 0.85 + 0.15 * sin(now * 2.2)
+	for i in LED_COUNT:
+		var level := breathe if i < lit else 0.06
+		if ammo == 0 and not is_reloading():
+			level = 1.2 if fmod(now, 0.5) < 0.3 and i == 0 else 0.06
+		# A pulse races from the back of the slide to the muzzle on each shot.
+		level += 7.0 * exp(-pow((_since_fx / 0.022 - i) / 1.3, 2.0))
+		if is_reloading():
+			color = LED_CYAN
+			if _boot < 0.0:
+				level = 0.05 + 0.4 * float(i == int(now * 14.0) % LED_COUNT)  # waiting: a lone scanner
+			else:
+				level = 2.5 * float(_boot * 30.0 > i) + 4.0 * exp(-pow((_boot / 0.03 - i) / 1.0, 2.0))
+		if is_inspecting():
+			level += 2.0 * exp(-pow(fmod(now * 10.0, LED_COUNT + 3.0) - i, 2.0))  # showing off: a chase
+		if glitch > 0.6 and rng.randf() < 0.3:
+			level *= 0.2
+		_leds[i].set_instance_shader_parameter("glow", level)
+		_leds[i].set_instance_shader_parameter("paint", color)
+
+
+## Her father's dog tag hangs off the rail and swings with everything the gun
+## does: shots, landings, turns and twirls.
+func _swing_charm(delta: float) -> void:
+	if _charm == null or delta <= 0.0:
+		return
+	delta = minf(delta, 0.05)
+	var pos := _charm.global_position
+	var vel := (pos - _charm_last_pos) / delta
+	var accel := ((vel - _charm_last_vel) / delta).limit_length(60.0)
+	_charm_last_pos = pos
+	_charm_last_vel = vel
+	# Which way is "down" for the tag right now: gravity minus how the gun is
+	# being thrown around, in the space the tag swings in.
+	var pull: Vector3 = _charm.get_parent().global_basis.inverse() * (Vector3.DOWN * 9.8 - accel)
+	if pull.length() < 0.5:
+		return
+	var target := Vector2(atan2(-pull.z, -pull.y), atan2(pull.x, -pull.y))
+	var err := Vector2(wrapf(target.x - _charm_angle.x, -PI, PI), wrapf(target.y - _charm_angle.y, -PI, PI))
+	_charm_vel += (err * 90.0 - _charm_vel * 3.5) * delta
+	_charm_angle += _charm_vel * delta
+	_charm.rotation = Vector3(_charm_angle.x, 0.0, _charm_angle.y)
 
 
 func _recover_recoil(delta: float) -> void:
@@ -470,14 +651,28 @@ func _build_viewmodel() -> void:
 		var node := pistol.find_child(part, true, false) as Node3D
 		if node != null:
 			_parts[part] = [node, node.position, node.rotation]
+	_gun = pistol.get_node_or_null("Gun") as Node3D
+	if _gun != null:
+		_gun_rest = _gun.transform
+	for i in LED_COUNT:
+		var led := pistol.find_child("Led%d" % i, true, false) as GeometryInstance3D
+		if led != null:
+			_leds.append(led)
+	if _leds.size() != LED_COUNT:
+		_leds.clear()
+	_vents = pistol.find_child("Vents", true, false) as GeometryInstance3D
+	_holo = pistol.find_child("HoloGlass", true, false) as GeometryInstance3D
+	_charm = pistol.find_child("Charm", true, false) as Node3D
+	if _charm != null:
+		_charm_last_pos = _charm.global_position
 	_build_ammo_screen()
 
 	var mat := StandardMaterial3D.new()
 	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	mat.albedo_color = Color(1.0, 0.8, 0.35)
+	mat.albedo_color = Color(0.85, 0.97, 1.0)
 	var sphere := SphereMesh.new()
-	sphere.radius = 0.05
-	sphere.height = 0.1
+	sphere.radius = 0.018
+	sphere.height = 0.036
 	sphere.material = mat
 	flash = MeshInstance3D.new()
 	flash.mesh = sphere
@@ -503,9 +698,15 @@ func _build_ammo_screen() -> void:
 func _update_ammo_screen() -> void:
 	if _ammo_label == null:
 		return
+	_ammo_label.scale = Vector3.ONE * (1.0 + _ammo_pop * 0.3)
 	if is_reloading():
-		_ammo_label.text = "--" if fmod(reload_timer, 0.3) < 0.18 else ""
-		_ammo_label.modulate = Color(0.4, 0.95, 1.0)
+		if _boot >= 0.0:
+			# Booting: counts the fresh rounds in.
+			_ammo_label.text = "%02d" % mini(int(_boot / 0.022), magazine_size)
+			_ammo_label.modulate = Color(0.4, 0.95, 1.0).lerp(Color.WHITE, 0.5)
+		else:
+			_ammo_label.text = "--" if fmod(reload_timer, 0.3) < 0.18 else ""
+			_ammo_label.modulate = Color(0.4, 0.95, 1.0)
 		return
 	_ammo_label.text = "%02d" % ammo
 	if ammo == 0:
@@ -514,6 +715,7 @@ func _update_ammo_screen() -> void:
 		_ammo_label.modulate = Color(1.0, 0.65, 0.2)
 	else:
 		_ammo_label.modulate = Color(0.4, 0.95, 1.0)
+	_ammo_label.modulate = _ammo_label.modulate.lerp(Color.WHITE, _ammo_pop * 0.7)
 
 
 func _set_part_visible(part: String, on: bool) -> void:
