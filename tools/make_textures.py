@@ -1057,7 +1057,7 @@ def wood_grain(s, seed, rings=14, vertical=False):
 
 def timber_wall():
     """Old temple timber: tall weathered boards of a dark tropical hardwood,
-    silvered where the weather got at them, pegged to a cross rail."""
+    silvered where the weather got at them, pegged top and bottom."""
     s = BIG
     g = wood_grain(s, 301, 9, vertical=True)
     boards = [(int(x0), 0, int(x0 + s / 6), s) for x0 in np.arange(0, s, s / 6)]
@@ -1067,10 +1067,8 @@ def timber_wall():
     silver = smooth(0.45, 0.8, norm01(noise(s, 6, 4, 304, cells_y=2))) * 0.55
     img = img * (1 - silver[..., None]) + np.array([150, 140, 126]) * silver[..., None]
     x, y = coords(s)
-    # a cross rail with wooden pegs, two thirds up
-    rail = smooth(s * 0.012, 0, np.abs(y - s * 0.32) - s * 0.035)
-    img = img * (1 - 0.25 * rail[..., None])
-    pegs = dome(s, [(x0 + s / 12, s * 0.32) for x0 in np.arange(0, s, s / 6)], s * 0.012)
+    rail = np.zeros((s, s))
+    pegs = dome(s, [(x0 + s / 12, y0) for x0 in np.arange(0, s, s / 6) for y0 in (s * 0.04, s * 0.96)], s * 0.008)
     img = img * (1 - pegs[..., None]) + np.array([60, 40, 28]) * pegs[..., None]
     crack = lines_mask(s, walks(s, 5, 14, s / 160, 305, 0.1), s / 500) * 0.5
     hh = h * 0.9 + rail * 0.15 + pegs * 0.2 + (g - 0.5) * 0.18 - crack * 0.4

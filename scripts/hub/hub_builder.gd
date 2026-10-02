@@ -64,7 +64,7 @@ static func build(root: Node3D) -> Dictionary:
 	# the sun shaft, fire bowls and lamps carry the light.
 	for node in root.get_children():
 		if node is WorldEnvironment:
-			node.environment.ambient_light_energy = 0.3
+			node.environment.ambient_light_energy = 0.4 if home_style == "timber" else 0.3
 			node.environment.fog_density = 0.0028
 			node.environment.fog_light_color = Color(0.7, 0.8, 0.84)
 			node.environment.fog_aerial_perspective = 0.35
@@ -86,6 +86,8 @@ static func build(root: Node3D) -> Dictionary:
 	_shell(root)
 	_pillars(root)
 	_beams(root)
+	if home_style == "timber":
+		_timber_frame(root)
 	_gallery(root)
 	_idol(root, info)
 	K.style = "stone"
@@ -449,6 +451,23 @@ static func _beams(root: Node3D) -> void:
 				K.glow(root, Vector3(s * 5.18, F + 4.5, z), Vector3(0.04, 6.0, 0.1), EYE)
 
 
+## Dark framing over the timber walls: posts on the pillar lines, a plate
+## along the top and a rail at gallery height, so the walls read as built.
+static func _timber_frame(root: Node3D) -> void:
+	var dark := Art.material("timber_carving", Color(0.55, 0.48, 0.42))
+	for s in [-1.0, 1.0]:
+		var x: float = s * (HALF - 0.12)
+		for z in [6.6, 3.0, -3.0, -9.0, -15.0, -21.0, -29.2]:
+			if s > 0.0 and z > -22.0 and z < -14.0:
+				continue  # the breach
+			K.mesh(root, Vector3(x, F + WALL_H * 0.5, z), Vector3(0.3, WALL_H, 0.6), dark)
+		K.mesh(root, Vector3(x, F + WALL_H - 0.3, (FRONT_Z + BACK_Z) * 0.5), Vector3(0.3, 0.5, FRONT_Z - BACK_Z), dark)
+		K.mesh(root, Vector3(x, F + 1.0, (FRONT_Z + BACK_Z) * 0.5), Vector3(0.24, 0.18, FRONT_Z - BACK_Z), dark)
+	for x in [-HALF + 0.6, -DOOR_HALF - 0.3, DOOR_HALF + 0.3, HALF - 0.6]:
+		K.mesh(root, Vector3(x, F + WALL_H * 0.5, FRONT_Z - 0.12), Vector3(0.6, WALL_H, 0.3), dark)
+	K.mesh(root, Vector3(0, F + DOOR_H + 0.2, FRONT_Z - 0.15), Vector3(DOOR_HALF * 2 + 1.2, 0.5, 0.35), dark)
+
+
 # --- making it a home -----------------------------------------------------------
 
 ## What Eco has done to make the place hers: rugs, a curtain round her bed,
@@ -460,9 +479,9 @@ static func _home(root: Node3D, info: Dictionary) -> void:
 		K.mesh(root, Vector3(pos.x, F + 0.02, pos.z), Vector3(size.x - 0.4, 0.03, size.y - 0.4), Art.material("fabric", tint.lightened(0.25)), Vector3(0, yaw, 0))
 		K.mesh(root, Vector3(pos.x, F + 0.025, pos.z), Vector3(size.x - 0.8, 0.03, size.y - 0.8), Art.material("fabric", tint), Vector3(0, yaw, 0))
 	# A long runner from the door down the nave, a rug by the bed, one by the couch.
-	rug.call(Vector3(0, 0, 0.0), Vector2(2.4, 11.0), Color(0.62, 0.24, 0.18))
-	rug.call(Vector3(-7.6, 0, 4.4), Vector2(4.0, 3.2), Color(0.25, 0.4, 0.5), 4.0)
-	rug.call(Vector3(2.9, 0, -5.6), Vector2(3.6, 3.0), Color(0.72, 0.5, 0.2), -6.0)
+	rug.call(Vector3(0, 0, 0.0), Vector2(2.4, 11.0), Color(0.9, 0.42, 0.3))
+	rug.call(Vector3(-7.6, 0, 4.4), Vector2(4.0, 3.2), Color(0.42, 0.62, 0.72), 4.0)
+	rug.call(Vector3(2.9, 0, -5.6), Vector2(3.6, 3.0), Color(1.0, 0.75, 0.35), -6.0)
 	_string_lights(root)
 	_lanterns(root)
 	_curtain(root)
@@ -471,6 +490,7 @@ static func _home(root: Node3D, info: Dictionary) -> void:
 	_plants(root)
 	_drawings(root)
 	_roof_tarp(root)
+	_porch(root)
 	# Warm fill so the hall reads as lived in rather than a ruin.
 	K.light(root, Vector3(-6.0, F + 3.0, 4.0), LAMP, 0.8, 9.0)
 	K.light(root, Vector3(4.0, F + 3.0, -5.0), LAMP, 0.8, 9.0)
@@ -631,6 +651,24 @@ static func _drawings(root: Node3D) -> void:
 	K.mesh(root, c, Vector3(0.24, 0.3, 0.04), Art.material("wood"), Vector3(-10, 160, 0))
 	var photo := K.mesh(root, c + Vector3(0, 0, -0.025), Vector3(0.18, 0.22, 0.01), Art.material("light"), Vector3(-10, 160, 0))
 	photo.set_instance_shader_parameter("paint", Color(0.55, 0.48, 0.36))
+
+
+## A little porch over the door: a plank awning on two posts, lanterns
+## hanging under it and a mat on the top step.
+static func _porch(root: Node3D) -> void:
+	var z0 := FRONT_Z + WALL_T
+	var y := F + DOOR_H + 0.4
+	for x in [-3.4, 3.4]:
+		K.wood(root, Vector3(x, (y + 0.0) * 0.5, z0 + 3.0), Vector3(0.3, y, 0.3))
+	K.wood(root, Vector3(0, y, z0 + 3.0), Vector3(7.4, 0.3, 0.35))
+	for i in 6:
+		var z := z0 + 0.2 + i * 0.55
+		K.mesh(root, Vector3(0, y + 0.3 - i * 0.08, z), Vector3(7.8, 0.08, 0.6), Art.material("wood"), Vector3(-8, 0, 0))
+	for x in [-2.2, 2.2]:
+		K.mesh(root, Vector3(x, y - 0.6, z0 + 2.6), Vector3(0.02, 1.0, 0.02), Art.material("gunmetal"))
+		K.glow(root, Vector3(x, y - 1.25, z0 + 2.6), Vector3(0.35, 0.45, 0.35), Color(1.0, 0.6, 0.3), Vector3(0, 45, 0))
+		K.light(root, Vector3(x, y - 1.6, z0 + 2.8), LAMP, 0.8, 6.0)
+	K.mesh(root, Vector3(0, F + 0.02, z0 + 0.6), Vector3(2.0, 0.03, 1.0), Art.material("fabric", Color(0.8, 0.55, 0.3)))
 
 
 ## Canvas stretched over the front half of the roof hole, weighted with
