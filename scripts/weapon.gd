@@ -4,11 +4,12 @@ extends Node3D
 ## and bloom that punishes spamming. Shooting during a wallrun or slide
 ## is as accurate as standing still, so good movement keeps you accurate.
 ##
-## Personality: this is Eco's late father's smart pistol, auto-lock long dead,
-## kept alive with tape and know-how. It kicks hard and rings like bent metal,
-## the dead lock module spits sparks (more as the mag runs dry) and still tries
-## to lock onto enemies before throwing an error, and every reload ends with
-## Eco smacking the slide to get it running again. None of this changes the
+## Personality: this is Eco's late father's smart pistol. Its auto-tracking
+## screen is smashed, so she aims with the holo sight like anyone else. The
+## ammo screen on the back of the slide counts her rounds, the broken tracker
+## spits sparks (more as the mag runs dry) and still tries to lock onto
+## enemies before throwing an error, and every reload ends with Eco smacking
+## the slide to get it running again. None of this changes the
 ## numbers above; it is all feel.
 
 const Pilot := preload("res://scripts/player.gd")
@@ -21,13 +22,13 @@ signal hit_confirmed(kind: String)
 ## Emitted when an inspect starts, with what Eco says about the gun.
 signal inspected(line: String)
 
-## Inspect: Eco turns her father's pistol over, shows the cracked lock-on
-## sensor, taps it (it sparks and errors), then checks the sights.
+## Inspect: Eco turns her father's pistol over, shows the smashed tracking
+## screen, taps it (it sparks and errors), then checks the holo sight.
 ## Keyframes: [seconds, position offset (m), rotation offset (degrees x/y/z)].
 const INSPECT_KEYS := [
 	[0.0, Vector3.ZERO, Vector3.ZERO],
-	[0.4, Vector3(-0.12, 0.06, 0.08), Vector3(10, 55, 25)],
-	[1.15, Vector3(-0.13, 0.07, 0.07), Vector3(14, 62, 30)],
+	[0.4, Vector3(-0.15, 0.08, 0.15), Vector3(10, 58, 22)],
+	[1.15, Vector3(-0.16, 0.09, 0.15), Vector3(14, 64, 26)],
 	[1.5, Vector3(-0.05, 0.05, 0.05), Vector3(-4, -16, -60)],
 	[2.15, Vector3(-0.05, 0.06, 0.05), Vector3(-6, -20, -64)],
 	[2.45, Vector3(-0.07, 0.06, 0.1), Vector3(24, -8, -8)],
@@ -35,10 +36,10 @@ const INSPECT_KEYS := [
 	[3.3, Vector3.ZERO, Vector3.ZERO],
 ]
 ## When in the inspect Eco taps the dead sensor.
-const INSPECT_TAP := 1.8
+const INSPECT_TAP := 0.95
 const INSPECT_LINES := [
 	"Dad's. The lock-on died with him.",
-	"Sensor's cracked clean through. Iron sights it is.",
+	"Tracker screen's smashed. Holo sight it is.",
 	"Tape's holding. Mostly.",
 	"Still pulls a hair left. I'll fix it. Someday.",
 	"Smart pistol. Not so smart anymore.",
@@ -121,6 +122,7 @@ var inspect_time := -1.0
 var _inspect_tapped := false
 var _inspect_line := -1
 var _pistol: Node3D
+var _ammo_label: Label3D
 
 ## The enemy the broken smart-lock is currently trying to lock onto, for the HUD.
 var lock_target: Node3D
@@ -184,9 +186,11 @@ func _process(delta: float) -> void:
 	if rng.randf() < delta * 0.4:
 		glitch = rng.randf_range(0.3, 1.0)  # the old module never quite settles
 	if _pistol != null and _pistol.has_method("set_param"):
-		# The dead lens flickers when the module glitches or hunts for a lock.
-		var hunt := 0.6 if lock_target != null and fmod(lock_time, 0.25) < 0.12 else 0.0
-		_pistol.set_param("glow", 1.0 + glitch * 2.5 + hunt, "SensorLens")
+		# The smashed tracker screen flickers when the module glitches or
+		# hunts for a lock it will never get.
+		var hunt := 3.0 if lock_target != null and fmod(lock_time, 0.25) < 0.12 else 0.0
+		_pistol.set_param("glow", 1.0 + glitch * 4.0 + hunt, "TrackerGlass")
+	_update_ammo_screen()
 
 
 ## Current cone half-angle in degrees.
@@ -295,10 +299,8 @@ func _impact_fx(fx_parent: Node, pos: Vector3, normal: Vector3) -> void:
 
 func _module_sparks(count: int) -> void:
 	var at: Vector3 = viewmodel.global_transform * Vector3(-0.025, 0.035, -0.02)
-	for part in ["SensorLens", "SensorHousing"]:
-		if _parts.has(part):
-			at = _parts[part][0].global_position + player.head.global_basis.y * 0.012
-			break
+	if _parts.has("TrackerImpact"):
+		at = _parts["TrackerImpact"][0].global_position
 	for i in count:
 		FX.star(viewmodel, at + Vector3(rng.randf_range(-0.01, 0.01), rng.randf_range(0.0, 0.02), 0), Color(0.55, 0.85, 1.0), 0.025, 0.08, 4)
 	FX.debris(viewmodel, at, Vector3.UP, Color(0.7, 0.9, 1.0), count, 0.6, 0.006, 0.18)
@@ -461,14 +463,14 @@ func _build_viewmodel() -> void:
 	viewmodel.add_child(pistol)
 	for mi in pistol.find_children("*", "GeometryInstance3D", true, false):
 		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	muzzle = pistol.get_node("Muzzle")
-	# Pieces are looked up by name so this works with the P-08 and with the
-	# smart pistol model (Upper/Nose/Stripe slide, SensorLens lock module).
+	muzzle = pistol.find_child("Muzzle", true, false)
+	# Animated pieces of the smart pistol (tools/pistol/build_pistol.py), by name.
 	_pistol = pistol
-	for part in ["Slide", "SlideTop", "Upper", "Nose", "Stripe", "Hammer", "MagBase", "SensorLens", "SensorHousing"]:
-		var node := pistol.get_node_or_null(part) as Node3D
+	for part in ["Slide", "MagBase", "TrackerImpact", "AmmoReadout"]:
+		var node := pistol.find_child(part, true, false) as Node3D
 		if node != null:
 			_parts[part] = [node, node.position, node.rotation]
+	_build_ammo_screen()
 
 	var mat := StandardMaterial3D.new()
 	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
@@ -481,6 +483,37 @@ func _build_viewmodel() -> void:
 	flash.mesh = sphere
 	flash.visible = false
 	muzzle.add_child(flash)
+
+
+## Digits on the sloped screen at the back of the slide.
+func _build_ammo_screen() -> void:
+	if not _parts.has("AmmoReadout"):
+		return
+	_ammo_label = Label3D.new()
+	_ammo_label.font_size = 64
+	_ammo_label.pixel_size = 0.00018
+	_ammo_label.outline_size = 0
+	_ammo_label.shaded = false
+	_ammo_label.double_sided = false
+	_ammo_label.render_priority = 2
+	_ammo_label.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_parts["AmmoReadout"][0].add_child(_ammo_label)
+
+
+func _update_ammo_screen() -> void:
+	if _ammo_label == null:
+		return
+	if is_reloading():
+		_ammo_label.text = "--" if fmod(reload_timer, 0.3) < 0.18 else ""
+		_ammo_label.modulate = Color(0.4, 0.95, 1.0)
+		return
+	_ammo_label.text = "%02d" % ammo
+	if ammo == 0:
+		_ammo_label.modulate = Color(1.0, 0.25, 0.2) if fmod(Time.get_ticks_msec() / 1000.0, 0.5) < 0.3 else Color(0.4, 0.08, 0.06)
+	elif ammo <= 2:
+		_ammo_label.modulate = Color(1.0, 0.65, 0.2)
+	else:
+		_ammo_label.modulate = Color(0.4, 0.95, 1.0)
 
 
 func _set_part_visible(part: String, on: bool) -> void:
@@ -541,11 +574,9 @@ func _animate_viewmodel(delta: float) -> void:
 	# Slide cycles back on each shot and locks open on an empty mag.
 	_slide_back = maxf(_slide_back - delta * 14.0, 0.0)
 	var slide := 1.0 if ammo == 0 and not is_reloading() else _slide_back
-	for part in ["Slide", "SlideTop", "Upper", "Nose", "Stripe"]:
+	for part in ["Slide"]:
 		if _parts.has(part):
 			_parts[part][0].position = _parts[part][1] + Vector3(0, 0, 0.035 * slide)
-	if _parts.has("Hammer"):
-		_parts["Hammer"][0].rotation = _parts["Hammer"][2] + Vector3(0.9 * slide, 0, 0)
 
 
 ## Camera punch: a visual kick on the camera that springs back to zero.
