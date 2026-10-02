@@ -9,8 +9,9 @@ The grunt is a soldier of the future the way Eco remembers the men who
 laughed her out of the recruiting office: a crass, vain bully in showy power
 armour. Chrome muscle cuirass with a gold chain over it, huge stacked
 pauldrons, a closed helmet whose LED face display leers at you (half-lidded
-eyes, one brow cocked, a lopsided grin, a wink), and a free left hand that
-points and laughs or beckons (grunt_model.gd plays the gestures).
+eyes, one brow cocked, a lopsided grin, a wink, a kiss, a tongue, a laugh),
+and a free left hand with three shapes (point, fist, middle finger) for the
+crude taunts grunt_model.gd plays.
 
 Every light is a "Visor*" part: grunt.gd tints all of them, so the whole
 display and every glow strip flares red during the shot wind-up.
@@ -314,16 +315,37 @@ def arm_l_gauntlet(P):
     return np.minimum(d, ellipsoid(P, el, V(0.06, 0.06, 0.06)))  # elbow cop
 
 
-def glove_l(P):
-    """Left hand: fist with the index finger out (points, beckons, wags)."""
+def _fist_l(P):
     h, wr = HAND[-1.0], WRIST[-1.0]
     ax = norm(h - wr)
     g = ellipsoid(P, h, V(0.048, 0.04, 0.052), _frame(ax, V(1, 0, 0)))
     g = smin(g, round_cone(P, wr, h, 0.048, 0.044), 0.02)
-    knuckle = h + ax * 0.035 + V(0.0, 0.015, 0.0)
-    g = smin(g, capsule(P, knuckle, knuckle + POINT_DIR * 0.075, 0.014), 0.01)       # index finger
     g = smin(g, capsule(P, h + V(0.03, 0.02, 0.0), h + V(0.035, 0.05, -0.02), 0.014), 0.01)  # thumb
     return g
+
+
+def glove_l_fist(P):
+    """Left hand, plain fist (grabs, scratches, pumps)."""
+    h = HAND[-1.0]
+    g = _fist_l(P)
+    for i in range(4):  # knuckles
+        g = smin(g, ellipsoid(P, h + V(-0.012 + 0.008 * i, 0.03, -0.03 + 0.003 * i), V(0.014, 0.014, 0.014)), 0.01)
+    return g
+
+
+def glove_l_point(P):
+    """Left hand, index finger out (points, beckons, wags)."""
+    h, wr = HAND[-1.0], WRIST[-1.0]
+    knuckle = h + norm(h - wr) * 0.035 + V(0.0, 0.015, 0.0)
+    return smin(_fist_l(P), capsule(P, knuckle, knuckle + POINT_DIR * 0.075, 0.014), 0.01)
+
+
+def glove_l_bird(P):
+    """Left hand, middle finger up (straight along the forearm)."""
+    h, wr = HAND[-1.0], WRIST[-1.0]
+    ax = norm(h - wr)
+    knuckle = h + ax * 0.04
+    return smin(_fist_l(P), capsule(P, knuckle, knuckle + ax * 0.085, 0.015), 0.01)
 
 
 # --- head ----------------------------------------------------------------------------------
@@ -428,6 +450,38 @@ def led_grin(P):
     return _led(P, f)
 
 
+def led_laugh_r(P):
+    """His right eye squeezed shut laughing (with the wink shape on the left)."""
+    return _led(P, lambda x, z: _polyline2d(x, z, [(0.018, EYE_Z - 0.004), (0.042, EYE_Z + 0.01),
+                                                    (0.066, EYE_Z - 0.004)], 0.0035))
+
+
+def led_kiss(P):
+    """Puckered lips, blowing a kiss."""
+    def f(x, z):
+        r = np.sqrt((x - 0.012) ** 2 + ((z - 1.565) * 1.15) ** 2)
+        return np.abs(r - 0.011) - 0.0035
+    return _led(P, f)
+
+
+def led_tongue(P):
+    """Tongue lolling out of the grin."""
+    def f(x, z):
+        e = np.sqrt(((x - 0.012) / 0.017) ** 2 + ((z - 1.551) / 0.017) ** 2) - 1.0
+        return np.maximum(e * 0.015, z - 1.553)
+    return _led(P, f)
+
+
+def led_laugh_mouth(P):
+    """Wide open laughing mouth."""
+    def f(x, z):
+        top = _seg2d(x, z, (-0.05, 1.575), (0.052, 1.578), 0.0035)
+        r = np.sqrt((x / 0.05) ** 2 + ((z - 1.576) / 0.032) ** 2)
+        arc = np.maximum(np.abs(r - 1.0) * 0.03 - 0.0035, z - 1.576)
+        return np.minimum(top, arc)
+    return _led(P, f)
+
+
 def led_wink(P):
     """Wink: the left eye squeezed into a ^ (shown only while winking)."""
     return _led(P, lambda x, z: _polyline2d(x, z, [(-0.066, EYE_Z - 0.004), (-0.042, EYE_Z + 0.01),
@@ -469,7 +523,9 @@ PARTS.update({
     "armplate_l": ("ArmL", "grunt_plate", arm_l_plate, 0.004, 300),
     "forearm_l": ("ElbowL", "grunt_suit", arm_l_fore, 0.005, 400),
     "gauntlet_l": ("ElbowL", "grunt_plate", arm_l_gauntlet, 0.004, 500),
-    "glove_l": ("ElbowL", "grunt_dark", glove_l, 0.003, 700),
+    "glove_l_point": ("ElbowL", "grunt_dark", glove_l_point, 0.003, 700),
+    "glove_l_bird": ("ElbowL", "grunt_dark", glove_l_bird, 0.003, 700),
+    "glove_l_fist": ("ElbowL", "grunt_dark", glove_l_fist, 0.003, 700),
     "helmet": ("Head", "grunt_plate", helmet, 0.004, 2400),
     "helmet_trim": ("Head", "grunt_accent", helmet_trim, 0.003, 600),
     "jaw": ("Head", "grunt_metal", jaw, 0.003, 600),
@@ -480,6 +536,10 @@ PARTS.update({
     "visor_brows": ("Head", "grunt_visor", led_brows, 0.0015, 250),
     "visor_grin": ("Head", "grunt_visor", led_grin, 0.0015, 300),
     "visor_wink": ("Head", "grunt_visor", led_wink, 0.0015, 150),
+    "visor_laugh_r": ("Head", "grunt_visor", led_laugh_r, 0.0015, 150),
+    "visor_kiss": ("Head", "grunt_visor", led_kiss, 0.0015, 200),
+    "visor_tongue": ("Head", "grunt_visor", led_tongue, 0.0015, 200),
+    "visor_laugh_mouth": ("Head", "grunt_visor", led_laugh_mouth, 0.0015, 300),
 })
 
 BOUNDS = (V(-0.62, -0.45, -0.02), V(0.62, 0.72, 1.92))
