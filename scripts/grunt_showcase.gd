@@ -3,6 +3,7 @@ extends Node3D
 ## Open scenes/grunt_showcase.tscn and press F6.
 ##   Left / Right   turn him         Space   pause the turntable
 ##   1  full body   2  face   3  squad (idle swagger, walking, winding up a shot)
+##   P / B / W / O  make him point and laugh, beckon, wink, look you over
 ## Renders the reference sheet shots when run with
 ##   godot res://scenes/grunt_showcase.tscn -- --shots=<folder> [--clean]
 
@@ -17,7 +18,11 @@ const SHOTS := [
 	["back", 160.0, Vector3(0, 1.05, -3.4), Vector3(0, 0.95, 0), 34.0],
 	["face", -25.0, Vector3(0, 1.62, -0.85), Vector3(0, 1.6, 0), 30.0],
 	["squad", 0.0, Vector3(0.9, 1.45, -4.3), Vector3(0.2, 1.0, 1.0), 42.0],
+	["point", 28.0, Vector3(0, 1.3, -2.4), Vector3(0, 1.15, 0), 40.0],
+	["beckon", -20.0, Vector3(0, 1.3, -2.4), Vector3(0, 1.15, 0), 40.0],
+	["wink", -10.0, Vector3(0, 1.6, -0.85), Vector3(0, 1.58, 0), 30.0],
 ]
+const GESTURE_SHOTS := ["point", "beckon", "wink"]
 
 
 ## A body that walks on the spot, so the model plays its walk.
@@ -123,11 +128,19 @@ func _unhandled_input(event: InputEvent) -> void:
 			grunt.rotation.y += 0.3
 		KEY_1, KEY_2, KEY_3:
 			_set_view(event.keycode - KEY_1)
+		KEY_P:
+			grunt.model.play_gesture("point")
+		KEY_B:
+			grunt.model.play_gesture("beckon")
+		KEY_W:
+			grunt.model.play_gesture("wink")
+		KEY_O:
+			grunt.model.play_gesture("ogle")
 
 
 func _render_shots(folder: String) -> void:
 	turntable = false
-	grunt.model._ogle_wait = 1e9  # keep his head up for the stills
+	grunt.model._gesture_wait = 1e9  # no random taunts in the stills
 	DirAccess.make_dir_recursive_absolute(folder)
 	for shot in SHOTS:
 		var is_squad: bool = shot[0] == "squad"
@@ -138,6 +151,9 @@ func _render_shots(folder: String) -> void:
 		cam.look_at_from_position(shot[2], shot[3])
 		for i in 40:
 			await get_tree().process_frame
+		if shot[0] in GESTURE_SHOTS:
+			grunt.model.play_gesture(shot[0])
+			await get_tree().create_timer(grunt.model.GESTURES[shot[0]] * 0.45).timeout
 		var img := get_viewport().get_texture().get_image()
 		img.save_png(folder.path_join("%s.png" % shot[0]))
 		print("shot ", shot[0])

@@ -6,7 +6,7 @@ vertex colour and exports assets/models/grunt/grunt.glb. Run through Blender:
 
 He is a rigid-part puppet: the pivots below are plain nodes in the glTF that
 scripts/ps2/grunt_model.gd moves (legs swing from the hips, shins bend at
-the knee, torso swaggers, head tilts back). Material names (grunt_*) are
+the knee, torso swaggers, head tilts, the free left arm gestures). Material names (grunt_*) are
 swapped for assets/materials/grunt/*.tres on import by grunt_import.gd."""
 import math
 import sys
@@ -31,19 +31,19 @@ SEGMENTS = {
     "KneeL": ("LegL", (-0.135, 0.02, 0.48)),
     "Torso": (None, (0.0, 0.0, 1.0)),
     "Head": ("Torso", (0.0, 0.0, 1.47)),
+    "ArmL": ("Torso", (-0.25, -0.01, 1.4)),
+    "ElbowL": ("ArmL", (-0.33, -0.02, 1.15)),
 }
 # sculpt segment names -> pivot
 SEG_OF = {"ThighR": "LegR", "ThighL": "LegL", "ShinR": "KneeR", "ShinL": "KneeL",
-          "Hips": "Hips", "Torso": "Torso", "Head": "Head"}
+          "Hips": "Hips", "Torso": "Torso", "Head": "Head", "ArmL": "ArmL", "ElbowL": "ElbowL"}
 
 PREVIEW_COLORS = {
-    "grunt_uniform": (0.42, 0.45, 0.3), "grunt_armor": (0.3, 0.36, 0.24),
-    "grunt_skin": (0.86, 0.55, 0.42), "grunt_leather": (0.36, 0.24, 0.15),
-    "grunt_dark": (0.14, 0.13, 0.12), "grunt_metal": (0.35, 0.36, 0.38),
-    "grunt_brass": (0.9, 0.7, 0.3), "grunt_ribbon": (0.75, 0.15, 0.15),
-    "grunt_visor": (1.0, 0.75, 0.25), "grunt_cigar": (0.45, 0.3, 0.18),
-    "grunt_stubble": (0.5, 0.45, 0.45), "grunt_teeth": (0.95, 0.92, 0.8),
-    "grunt_glass": (0.15, 0.12, 0.1),
+    "grunt_suit": (0.2, 0.21, 0.25), "grunt_plate": (0.85, 0.82, 0.75),
+    "grunt_accent": (0.75, 0.15, 0.12), "grunt_chrome": (0.75, 0.78, 0.82),
+    "grunt_metal": (0.32, 0.33, 0.36), "grunt_dark": (0.12, 0.12, 0.13),
+    "grunt_gold": (0.95, 0.75, 0.25), "grunt_glass": (0.05, 0.05, 0.06),
+    "grunt_visor": (1.0, 0.75, 0.25),
 }
 AO_SKIP = ("Visor",)
 
