@@ -60,8 +60,8 @@ static func water(root: Node3D, center: Vector3, size: Vector2, color: Color) ->
 	plane.size = size
 	var mat := StandardMaterial3D.new()
 	mat.albedo_color = color
-	mat.roughness = 0.08
-	mat.metallic_specular = 0.9
+	mat.roughness = 0.22
+	mat.metallic_specular = 0.3
 	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	plane.material = mat
 	mi.mesh = plane

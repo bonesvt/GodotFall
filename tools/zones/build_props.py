@@ -134,7 +134,7 @@ def reeds(name, seed):
         if k % 3 == 0:
             top = base + lean * 0.8 + Vector((0, 0, h * 0.95))
             cyl(bm, base, top, 0.012, sides=3)
-            cyl(heads, top, top + Vector((0, 0, 0.28)), 0.045, sides=5)
+            cyl(heads, top, top + Vector((0, 0, 0.22)), 0.032, sides=5)
     part(bm, "blades", "grass_blade")
     part(heads, "heads", "bark")
     export(name)

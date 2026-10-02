@@ -201,16 +201,16 @@ static func _fallen_top() -> Vector3:
 # --- the zone ------------------------------------------------------------------
 
 static func build_zone(root: Node3D, rng: RandomNumberGenerator) -> Dictionary:
-	L.environment(root, Color(0.36, 0.3, 0.32), Color(0.88, 0.6, 0.42), 0.0065, Color(1.0, 0.7, 0.45), 1.15, -20.0)
+	L.environment(root, Color(0.34, 0.31, 0.33), Color(0.8, 0.62, 0.48), 0.0065, Color(1.0, 0.7, 0.45), 1.15, -20.0)
 	Ambience.start(root, {"wind_soft": -11.0, "forest_wind": -17.0, "radio_static_loop": -32.0})
 	var info := L.info(NAME, _road(8.0, 0.0, 0.1), RIFT_FLOOR, KILL_Y)
 	var guard_yard := rng.randf() < 0.5
 	var dress := RandomNumberGenerator.new()
 	dress.seed = rng.randi()
 
-	L.terrain(root, ground, GRID_X, GRID_Z, CELL, Color(0.78, 0.7, 0.6), Color(0.72, 0.66, 0.6), "dirt", "gravel")
+	L.terrain(root, ground, GRID_X, GRID_Z, CELL, Color(0.6, 0.6, 0.64), Color(0.66, 0.64, 0.64), "dirt", "gravel")
 	L.fences(root, func(z): return Vector2(trail_x(z) - half_width(z) - 6.0, trail_x(z) + half_width(z) + 6.0), 30.0, -268.0)
-	L.strip(root, ground, trail_x, 20.0, END_Z - 4.0, 2.2, Art.material("dirt", Color(0.7, 0.62, 0.52)),
+	L.strip(root, ground, trail_x, 20.0, END_Z - 4.0, 2.2, Art.material("dirt", Color(0.58, 0.55, 0.54)),
 			func(z): return (z < NEAR_LIP + 2.0 and z > FAR_LIP - 2.0) or absf(z - FRONT_Z) < 2.5)
 	var keep_out: Array = []
 	_trenches(root, dress, info, keep_out)
