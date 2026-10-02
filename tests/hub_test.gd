@@ -6,6 +6,7 @@ extends SceneTree
 
 const HubBuilder := preload("res://scripts/hub/hub_builder.gd")
 const Grounds := preload("res://scripts/hub/hub_grounds.gd")
+const TitanStyle := preload("res://scripts/run/titan_style.gd")
 
 var run_node
 var player
@@ -37,7 +38,7 @@ func _run() -> void:
 	var ids := []
 	for spot in info["interactables"]:
 		ids.append(spot["id"])
-		if spot["id"] == "map_table":
+		if spot["id"] == "map_table" or spot["id"] == "garage":
 			continue
 		await _stand_at(spot["pos"])
 		_check("prompt at %s" % spot["id"], run_node.nearest_hub_spot().get("id") == spot["id"] and run_node.hud.prompt_label.text == spot["prompt"], run_node.hud.prompt_label.text)
@@ -48,9 +49,28 @@ func _run() -> void:
 			await _press("interact")
 			await _ticks(2)
 			_check("%s lines cycle" % spot["id"], run_node.hud.toast_label.text == spot["lines"][1], run_node.hud.toast_label.text)
-	for id in ["map_table", "idol", "titan", "workbench", "bedroll", "letter"]:
+	for id in ["map_table", "idol", "titan", "workbench", "bedroll", "letter", "garage"]:
 		_check("hub has %s" % id, id in ids, ids)
 	_check("spot left for Eco at her bench", info.get("eco_spot") is Marker3D, info.get("eco_spot"))
+
+	# The paint shop: F opens the garage and pauses the hub, a change is saved
+	# for the chassis, and F closes it again.
+	TitanStyle.path = "user://titan_style_hub_test.cfg"
+	DirAccess.remove_absolute(TitanStyle.path)
+	for spot in info["interactables"]:
+		if spot["id"] == "garage":
+			await _stand_at(spot["pos"])
+	await _press("interact")
+	await _ticks(2)
+	var garage = run_node.garage
+	_check("paint shop opens the garage", garage != null and paused, [garage, paused])
+	if garage != null:
+		garage.change(1, "livery")
+		_check("garage saves the paint job", TitanStyle.load_style(garage.chassis)["livery"] == garage.style["livery"] and garage.style["livery"] != "factory", garage.style)
+		await _press("interact")
+		await _ticks(2)
+		_check("F closes the garage", run_node.garage == null and not paused and run_node.phase == run_node.Phase.HUB, [run_node.garage, paused])
+	DirAccess.remove_absolute(TitanStyle.path)
 
 	# The gallery: run up the fallen pillar from the nave onto the ledge.
 	var ramp_to := HubBuilder.RAMP_TO
