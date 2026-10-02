@@ -4,5 +4,6 @@
 [ext_resource type="Texture2D" path="res://assets/textures/hair.png" id="2_tex"]
 
 [resource]
+resource_name = "eco_hair"
 shader = ExtResource("1_shader")
 shader_parameter/strand_tex = ExtResource("2_tex")

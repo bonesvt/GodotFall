@@ -6,14 +6,15 @@ shader_type spatial;
 render_mode diffuse_lambert, specular_disabled;
 
 uniform sampler2D strand_tex : source_color, filter_linear_mipmap, repeat_enable;
-uniform vec4 albedo : source_color = vec4(0.96, 0.96, 1.0, 1.0);
-uniform float tex_scale = 6.0;
+uniform vec4 albedo : source_color = vec4(0.8, 0.8, 0.86, 1.0);
+uniform float tex_scale = 14.0;
 // How strong the colour waves are (0 = plain white hair).
 uniform float iridescence : hint_range(0.0, 1.0) = 0.85;
 // Wave bands per metre, and how fast they travel.
 uniform float wave_scale = 22.0;
 uniform float wave_speed = 1.4;
-// How far strand tips sway, in metres.
+// How far strand tips sway, in metres. The mesh's vertex colour (red) says how
+// far each vertex is out along its lock, so roots stay put.
 uniform float sway = 0.006;
 uniform float light_wrap : hint_range(0.0, 1.0) = 0.4;
 uniform float light_softness : hint_range(0.01, 1.0) = 0.4;
@@ -21,23 +22,18 @@ uniform float light_softness : hint_range(0.01, 1.0) = 0.4;
 instance uniform float flash = 0.0;
 instance uniform vec4 paint : source_color = vec4(1.0);
 
-varying vec3 v_local;
 varying vec3 v_world;
 
 void vertex() {
-	v_local = VERTEX;
 	vec3 world = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
-	// Spikes are built pointing along +Y, so only their upper half (the tips) sways.
-	float tip = clamp(VERTEX.y * 8.0, 0.0, 1.0);
+	float tip = COLOR.r;
 	VERTEX.x += sin(TIME * 2.1 + world.y * 30.0 + world.x * 11.0) * sway * tip;
 	VERTEX.z += cos(TIME * 1.7 + world.y * 24.0 + world.z * 13.0) * sway * tip;
 	v_world = world;
 }
 
 void fragment() {
-	vec3 n = abs(NORMAL);
-	vec2 uv = (n.x > n.z) ? v_local.zy : v_local.xy;
-	vec3 tex = texture(strand_tex, vec2(uv.x, -uv.y * 0.35) * tex_scale).rgb;
+	vec3 tex = texture(strand_tex, vec2(UV.x, UV.y * 0.35) * tex_scale).rgb;
 	vec3 base = tex * albedo.rgb * paint.rgb;
 
 	float facing = clamp(dot(NORMAL, VIEW), 0.0, 1.0);
@@ -52,7 +48,7 @@ void fragment() {
 	float amount = clamp(iridescence * (0.3 + 0.6 * fresnel + 0.6 * crest), 0.0, 1.0);
 
 	ALBEDO = mix(base, base * rainbow * 1.25, amount * 0.75);
-	EMISSION = rainbow * amount * 0.55 + vec3(flash);
+	EMISSION = rainbow * amount * 0.22 + vec3(flash);
 	RIM = 0.6;
 	RIM_TINT = 0.8;
 }
@@ -65,5 +61,5 @@ void light() {
 	// A soft sheen band across the strands.
 	vec3 h = normalize(LIGHT + VIEW);
 	float sheen = pow(max(dot(NORMAL, h), 0.0), 24.0);
-	SPECULAR_LIGHT += sheen * 0.5 * ATTENUATION * LIGHT_COLOR;
+	SPECULAR_LIGHT += sheen * 0.3 * ATTENUATION * LIGHT_COLOR;
 }

@@ -15,8 +15,8 @@ const SHOTS := [
 	["three_quarter", -35.0, Vector3(0, 1.0, -3.1), Vector3(0, 0.88, 0), 34.0],
 	["side", -90.0, Vector3(0, 1.0, -3.1), Vector3(0, 0.88, 0), 34.0],
 	["back", 180.0, Vector3(0, 1.0, -3.1), Vector3(0, 0.88, 0), 34.0],
-	["face", -20.0, Vector3(0, 1.66, -0.75), Vector3(0, 1.64, 0), 30.0],
-	["face_front", 0.0, Vector3(0, 1.66, -0.75), Vector3(0, 1.64, 0), 30.0],
+	["face", -20.0, Vector3(0, 1.6, -0.72), Vector3(0, 1.575, 0), 30.0],
+	["face_front", 0.0, Vector3(0, 1.6, -0.72), Vector3(0, 1.575, 0), 30.0],
 	["first_person", 0.0, Vector3.ZERO, Vector3.ZERO, 75.0],
 ]
 
@@ -53,6 +53,13 @@ func _ready() -> void:
 	_set_view(0)
 
 	for arg in OS.get_cmdline_user_args():
+		if arg == "--clean":  # full resolution, no PS2 filter or haze: a clear reference
+			get_node("/root/PS2").set_enabled(false)
+			for env_node in find_children("*", "WorldEnvironment", true, false):
+				var env: Environment = (env_node as WorldEnvironment).environment
+				env.fog_enabled = false
+				env.glow_enabled = false
+				env.ambient_light_energy = 0.32
 		if arg.begins_with("--shots="):
 			_render_shots(arg.trim_prefix("--shots="))
 
@@ -93,6 +100,13 @@ func _unhandled_input(event: InputEvent) -> void:
 func _render_shots(folder: String) -> void:
 	turntable = false
 	set_process(false)
+	# hold her idle pose still (head facing forward) for the sheet
+	eco.set_process(false)
+	var anim := eco.find_child("AnimationPlayer", true, false) as AnimationPlayer
+	if anim != null:
+		anim.play("idle")
+		anim.seek(0.0, true)
+		anim.pause()
 	DirAccess.make_dir_recursive_absolute(folder)
 	for shot in SHOTS:
 		var fp: bool = shot[0] == "first_person"
@@ -103,6 +117,7 @@ func _render_shots(folder: String) -> void:
 		if fp:
 			cam.position = Vector3(0, 1.6, 2.0)
 			cam.rotation = Vector3(-0.08, 0.0, 0.0)
+			pistol.position = Vector3(0.17, -0.13, -0.36)  # closer than in game, to show her hand
 		else:
 			cam.look_at_from_position(shot[2], shot[3])
 		for i in 20:
