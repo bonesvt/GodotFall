@@ -5,40 +5,33 @@ extends "res://scripts/ps2/ps2_model.gd"
 ## chest out, chin up) and every few seconds plays a crude taunt from TAUNTS:
 ## points and laughs, beckons, flips the bird, grabs his crotch, thrusts his
 ## hips, kisses his own bicep, scratches his backside, winks, or looks you up
-## and down with a wolf whistle. His LED face, left hand shape and a helmet
-## speaker sound go with each one. During the shot wind-up he drops the act
+## and down. His LED face and left hand shape change with each one. During the shot wind-up he drops the act
 ## and squares up.
 ## (Positive X rotation tips a part forward/up; positive Z swings the left arm
 ## in across his body.)
 
-const SOUNDS := {
-	"whistle": preload("res://assets/sounds/grunt/wolf_whistle.wav"),
-	"laugh": preload("res://assets/sounds/grunt/laugh.wav"),
-	"kiss": preload("res://assets/sounds/grunt/kiss.wav"),
-}
-
 ## time: seconds. arm: ArmL x/z and ElbowL x/z rotation at full strength.
 ## hand: GloveL<hand> shape. eyes: normal / wink / laugh. mouth: grin / kiss /
-## tongue / laugh. sound: SOUNDS key, played `sound_at` seconds in.
+## tongue / laugh.
 const TAUNTS := {
 	"point": {"time": 2.0, "arm": Vector4(0.85, 0.12, 0.15, 0.0), "hand": "Point",
-		"eyes": "laugh", "mouth": "laugh", "sound": "laugh", "sound_at": 0.3},
+		"eyes": "laugh", "mouth": "laugh"},
 	"beckon": {"time": 2.2, "arm": Vector4(0.55, -0.25, 1.2, 0.0), "hand": "Point",
-		"eyes": "normal", "mouth": "kiss", "sound": "kiss", "sound_at": 1.0},
+		"eyes": "normal", "mouth": "kiss"},
 	"bird": {"time": 2.2, "arm": Vector4(1.0, 0.25, 1.35, 0.0), "hand": "Bird",
-		"eyes": "normal", "mouth": "grin", "sound": "laugh", "sound_at": 1.1},
+		"eyes": "normal", "mouth": "grin"},
 	"crotch": {"time": 2.2, "arm": Vector4(0.2, 0.6, 0.55, 0.0), "hand": "Fist",
-		"eyes": "wink", "mouth": "tongue", "sound": "", "sound_at": 0.0},
+		"eyes": "wink", "mouth": "tongue"},
 	"thrust": {"time": 2.0, "arm": Vector4(0.5, -0.35, 1.4, 0.0), "hand": "Fist",
-		"eyes": "normal", "mouth": "tongue", "sound": "whistle", "sound_at": 0.1},
+		"eyes": "normal", "mouth": "tongue"},
 	"flex": {"time": 2.4, "arm": Vector4(0.0, -1.35, 0.0, -1.6), "hand": "Fist",
-		"eyes": "normal", "mouth": "kiss", "sound": "kiss", "sound_at": 1.2},
+		"eyes": "normal", "mouth": "kiss"},
 	"scratch": {"time": 2.4, "arm": Vector4(-0.55, 0.2, 0.45, 0.0), "hand": "Fist",
-		"eyes": "normal", "mouth": "grin", "sound": "", "sound_at": 0.0},
+		"eyes": "normal", "mouth": "grin"},
 	"wink": {"time": 1.1, "arm": Vector4.ZERO, "hand": "Point",
-		"eyes": "wink", "mouth": "kiss", "sound": "kiss", "sound_at": 0.2},
+		"eyes": "wink", "mouth": "kiss"},
 	"ogle": {"time": 2.4, "arm": Vector4.ZERO, "hand": "Point",
-		"eyes": "normal", "mouth": "tongue", "sound": "whistle", "sound_at": 0.2},
+		"eyes": "normal", "mouth": "tongue"},
 }
 
 var _knees: Array[Node3D] = []
@@ -49,13 +42,11 @@ var _arm: Node3D
 var _elbow: Node3D
 var _parts := {}  # LED faces and hand shapes by node name
 var _rest := {}
-var _speaker: AudioStreamPlayer3D
 var _t := 0.0
 var _swagger := 0.0
 var _gesture := ""
 var _gesture_t := 0.0
 var _gesture_wait := 0.0
-var _sound_done := false
 
 
 func _ready() -> void:
@@ -77,11 +68,6 @@ func _ready() -> void:
 	for n in [_torso, _head, _hips] + _legs:
 		if n != null:
 			_rest[n] = n.position
-	_speaker = AudioStreamPlayer3D.new()
-	_speaker.position = Vector3(0, 1.6, 0)
-	_speaker.unit_size = 6.0
-	_speaker.max_distance = 45.0
-	add_child(_speaker)
 	_set_face("normal", "grin", "Point")
 	_t = randf() * 10.0  # squads don't swagger in step
 	_gesture_wait = randf_range(1.0, 4.0)
@@ -91,7 +77,6 @@ func _ready() -> void:
 func play_gesture(gesture: String) -> void:
 	_gesture = gesture
 	_gesture_t = 0.0
-	_sound_done = false
 
 
 func _process(delta: float) -> void:
@@ -116,12 +101,6 @@ func _process(delta: float) -> void:
 			_set_face(taunt.eyes, taunt.mouth, taunt.hand)
 		else:
 			_set_face("normal", "grin", "Point")
-		if not _sound_done and _gesture_t >= taunt.sound_at:
-			_sound_done = true
-			if taunt.sound != "" and _swagger > 0.5:
-				_speaker.stream = SOUNDS[taunt.sound]
-				_speaker.pitch_scale = randf_range(0.92, 1.08)
-				_speaker.play()
 	var is_on := func(name: String) -> float: return g if _gesture == name else 0.0
 	var pointing: float = is_on.call("point")
 	var ogling: float = is_on.call("ogle")
