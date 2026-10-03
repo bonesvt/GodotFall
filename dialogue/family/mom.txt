@@ -170,7 +170,7 @@ mom (joy): It will.
 # --- Sick days --------------------------------------------------------------
 
 [sick]
-mom (surprised): Eco, you're burning up. Into my bed. Now.
+mom (surprised): Eco, you're burning up. You're staying in my bed, no arguing.
 eco: I'm fine. It's just the marsh air.
 mom: You're shivering under two quilts. That's not fine.
 eco: ...Okay. Maybe a little not fine.

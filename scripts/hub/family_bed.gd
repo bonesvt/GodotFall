@@ -18,8 +18,8 @@ const OVERHANG := 0.2
 const BODY := [
 	["J_Bip_C_Hips", "J_Bip_C_Spine", 0.19], ["J_Bip_L_UpperLeg", "J_Bip_R_UpperLeg", 0.15], ["J_Bip_C_Spine", "J_Bip_C_UpperChest", 0.15],
 	["J_Bip_L_UpperLeg", "J_Bip_L_LowerLeg", 0.095], ["J_Bip_R_UpperLeg", "J_Bip_R_LowerLeg", 0.095],
-	["J_Bip_L_LowerLeg", "J_Bip_L_Foot", 0.07], ["J_Bip_R_LowerLeg", "J_Bip_R_Foot", 0.07],
-	["J_Bip_L_Foot", "J_Bip_L_ToeBase", 0.06], ["J_Bip_R_Foot", "J_Bip_R_ToeBase", 0.06],
+	["J_Bip_L_LowerLeg", "J_Bip_L_Foot", 0.08], ["J_Bip_R_LowerLeg", "J_Bip_R_Foot", 0.08],
+	["J_Bip_L_Foot", "J_Bip_L_ToeBase", 0.08], ["J_Bip_R_Foot", "J_Bip_R_ToeBase", 0.08],
 ]
 const ARMS := [
 	["J_Bip_L_UpperArm", "J_Bip_L_LowerArm", 0.07], ["J_Bip_R_UpperArm", "J_Bip_R_LowerArm", 0.07],
@@ -95,19 +95,19 @@ static func drape(bed: Vector3, head_z: float, capsules: Array) -> MeshInstance3
 	# back into whoever is underneath.
 	var floor_ := body.duplicate()
 	for n in h.size():
-		floor_[n] = body[n] + 0.025
+		floor_[n] = body[n] + 0.05
 	for k in 6:
 		var next := body.duplicate()
 		for j in range(1, nz - 1):
 			for i in range(1, nx - 1):
 				var m := body[j * nx + i]
 				for d in [-1, 1, -nx, nx]:
-					m = maxf(m, body[j * nx + i + d] - STEP * 0.9)
+					m = maxf(m, body[j * nx + i + d] - STEP * 0.75)
 				next[j * nx + i] = m
 		body = next
 	for n in h.size():
-		h[n] = maxf(h[n], body[n] + 0.025)
-	for k in 8:
+		h[n] = maxf(h[n], body[n] + 0.05)
+	for k in 12:
 		var next := h.duplicate()
 		for j in range(1, nz - 1):
 			for i in range(1, nx - 1):
@@ -284,8 +284,8 @@ static func _linen(stripes := false) -> ImageTexture:
 		for x in n:
 			# Ticking stripes (the mattress), faint blue-grey on cream.
 			var c := Color(0.95, 0.92, 0.86)
-			if stripes and x % 32 < 3:
-				c = c.lerp(Color(0.6, 0.66, 0.75), 0.45)
+			if stripes and x % 24 < 7:
+				c = c.lerp(Color(0.42, 0.5, 0.64), 0.65)
 			c = c.darkened(0.03 * float((x * 3 + y) % 4 == 0) + 0.035 * rng.randf())
 			img.set_pixel(x, y, c)
 	img.generate_mipmaps()
