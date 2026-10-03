@@ -10,7 +10,9 @@ extends RefCounted
 ## eco_model.gd _turn): RIGHT (+X) swings a hanging limb forward and leans the
 ## torso back, BACK (+Z) tips toward her left (+) or right (-), UP (+Y) turns
 ## her to her left (+). Bones not listed keep the rest pose; J_Sec_* (hair,
-## jiggle) are left to their springs.
+## jiggle) are left to their springs. A turn [bone, child, direction] instead
+## aims the bone so it points from its joint toward its child along that
+## skeleton-space direction, whatever came before it (for reaching arms).
 
 const R := Vector3.RIGHT
 const B := Vector3.BACK
@@ -19,30 +21,32 @@ const U := Vector3.UP
 ## Sitting up in bed against the headboard, knees apart so Eco can sit
 ## between them, both arms wrapped round her middle, looking down at her.
 const MOM_CUDDLE := [
-	["J_Bip_C_Hips", R, 20.0],
-	["J_Bip_R_UpperLeg", R, 75.0], ["J_Bip_R_UpperLeg", U, -26.0],
-	["J_Bip_L_UpperLeg", R, 75.0], ["J_Bip_L_UpperLeg", U, 26.0],
-	["J_Bip_R_LowerLeg", R, -30.0], ["J_Bip_L_LowerLeg", R, -30.0],
+	["J_Bip_C_Hips", R, 14.0],
+	["J_Bip_R_UpperLeg", R, 78.0], ["J_Bip_R_UpperLeg", U, -22.0],
+	["J_Bip_L_UpperLeg", R, 78.0], ["J_Bip_L_UpperLeg", U, 22.0],
+	["J_Bip_R_LowerLeg", R, -12.0], ["J_Bip_L_LowerLeg", R, -12.0],
 	["J_Bip_C_Spine", R, -4.0],
-	["J_Bip_C_Head", R, -18.0], ["J_Bip_C_Head", U, -15.0], ["J_Bip_C_Head", B, -6.0],
-	["J_Bip_R_UpperArm", U, 80.0], ["J_Bip_R_UpperArm", R, -40.0],
-	["J_Bip_R_LowerArm", U, 70.0],
-	["J_Bip_L_UpperArm", U, -80.0], ["J_Bip_L_UpperArm", R, -40.0],
-	["J_Bip_L_LowerArm", U, -70.0],
+	["J_Bip_C_Head", R, -22.0], ["J_Bip_C_Head", U, -15.0], ["J_Bip_C_Head", B, -6.0],
+	["J_Bip_R_UpperArm", "J_Bip_R_LowerArm", Vector3(0.25, -0.3, -0.92)],
+	["J_Bip_R_LowerArm", "J_Bip_R_Hand", Vector3(-0.55, -0.15, -0.82)],
+	["J_Bip_R_Hand", "J_Bip_R_Middle1", Vector3(-0.85, -0.3, -0.4)],
+	["J_Bip_L_UpperArm", "J_Bip_L_LowerArm", Vector3(-0.25, -0.3, -0.92)],
+	["J_Bip_L_LowerArm", "J_Bip_L_Hand", Vector3(0.55, -0.2, -0.8)],
+	["J_Bip_L_Hand", "J_Bip_L_Middle1", Vector3(0.85, -0.35, -0.4)],
 ]
 
-## Sitting between Mom's knees, lying back against her, head back on her
-## chest, hands resting on Mom's arms.
+## Sitting between Mom's legs, slid down and lying back against her, head
+## back on her chest, hands resting on Mom's arms across her.
 const ECO_CUDDLE := [
-	["J_Bip_C_Hips", R, 38.0],
-	["J_Bip_R_UpperLeg", R, 55.0], ["J_Bip_L_UpperLeg", R, 55.0],
-	["J_Bip_R_LowerLeg", R, -25.0], ["J_Bip_L_LowerLeg", R, -25.0],
+	["J_Bip_C_Hips", R, 51.0],
+	["J_Bip_R_UpperLeg", R, 40.0], ["J_Bip_L_UpperLeg", R, 40.0],
+	["J_Bip_R_LowerLeg", R, -15.0], ["J_Bip_L_LowerLeg", R, -15.0],
 	["J_Bip_C_Spine", R, 4.0],
-	["J_Bip_C_Head", R, 12.0], ["J_Bip_C_Head", U, -15.0],
-	["J_Bip_R_UpperArm", B, -70.0], ["J_Bip_R_UpperArm", U, 25.0],
-	["J_Bip_R_LowerArm", R, 45.0], ["J_Bip_R_LowerArm", U, 35.0],
-	["J_Bip_L_UpperArm", B, 70.0], ["J_Bip_L_UpperArm", U, -25.0],
-	["J_Bip_L_LowerArm", R, 45.0], ["J_Bip_L_LowerArm", U, -35.0],
+	["J_Bip_C_Head", R, 4.0], ["J_Bip_C_Head", U, -15.0],
+	["J_Bip_R_UpperArm", B, -62.0], ["J_Bip_R_UpperArm", U, 30.0],
+	["J_Bip_R_LowerArm", "J_Bip_R_Hand", Vector3(-0.45, 0.55, -0.7)],
+	["J_Bip_L_UpperArm", B, 62.0], ["J_Bip_L_UpperArm", U, -30.0],
+	["J_Bip_L_LowerArm", "J_Bip_L_Hand", Vector3(0.45, 0.55, -0.7)],
 ]
 
 ## Lying on her back (the scene lays the whole model down), propped up on the
@@ -104,10 +108,19 @@ class Hold extends SkeletonModifier3D:
 			var i := skel.find_bone(t[0])
 			if i < 0:
 				continue
+			var turn: Basis
+			if t[1] is String:
+				var c := skel.find_bone(t[1])
+				if c < 0:
+					continue
+				var now := skel.get_bone_global_pose(c).origin - skel.get_bone_global_pose(i).origin
+				turn = Basis(Quaternion(now.normalized(), (t[2] as Vector3).normalized()))
+			else:
+				turn = Basis(t[1], deg_to_rad(t[2]))
 			var parent := skel.get_bone_parent(i)
 			var parent_basis := skel.get_bone_global_pose(parent).basis.orthonormalized() if parent >= 0 else Basis()
 			var before := skel.get_bone_pose_rotation(i)
-			var turned := parent_basis.inverse() * Basis(t[1], deg_to_rad(t[2])) * parent_basis * Basis(before)
+			var turned := parent_basis.inverse() * turn * parent_basis * Basis(before)
 			skel.set_bone_pose_rotation(i, turned.get_rotation_quaternion())
 		if after.is_valid():
 			after.call(skel)

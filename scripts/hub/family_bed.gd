@@ -16,19 +16,21 @@ const STEP := 0.035
 const OVERHANG := 0.2
 ## Body parts the quilt drapes over: [from bone, to bone, radius].
 const BODY := [
-	["J_Bip_C_Hips", "J_Bip_C_Spine", 0.16], ["J_Bip_C_Spine", "J_Bip_C_UpperChest", 0.15],
+	["J_Bip_C_Hips", "J_Bip_C_Spine", 0.19], ["J_Bip_L_UpperLeg", "J_Bip_R_UpperLeg", 0.15], ["J_Bip_C_Spine", "J_Bip_C_UpperChest", 0.15],
 	["J_Bip_L_UpperLeg", "J_Bip_L_LowerLeg", 0.095], ["J_Bip_R_UpperLeg", "J_Bip_R_LowerLeg", 0.095],
 	["J_Bip_L_LowerLeg", "J_Bip_L_Foot", 0.07], ["J_Bip_R_LowerLeg", "J_Bip_R_Foot", 0.07],
 	["J_Bip_L_Foot", "J_Bip_L_ToeBase", 0.06], ["J_Bip_R_Foot", "J_Bip_R_ToeBase", 0.06],
 ]
 const ARMS := [
-	["J_Bip_L_UpperArm", "J_Bip_L_LowerArm", 0.055], ["J_Bip_R_UpperArm", "J_Bip_R_LowerArm", 0.055],
-	["J_Bip_L_LowerArm", "J_Bip_L_Hand", 0.05], ["J_Bip_R_LowerArm", "J_Bip_R_Hand", 0.05],
-	["J_Bip_L_Hand", "J_Bip_L_Middle3", 0.055], ["J_Bip_R_Hand", "J_Bip_R_Middle3", 0.055],
+	["J_Bip_L_UpperArm", "J_Bip_L_LowerArm", 0.07], ["J_Bip_R_UpperArm", "J_Bip_R_LowerArm", 0.07],
+	["J_Bip_L_LowerArm", "J_Bip_L_Hand", 0.065], ["J_Bip_R_LowerArm", "J_Bip_R_Hand", 0.065],
+	["J_Bip_L_Hand", "J_Bip_L_Middle3", 0.065], ["J_Bip_R_Hand", "J_Bip_R_Middle3", 0.065],
+	["J_Bip_L_Thumb1", "J_Bip_L_Thumb3", 0.05], ["J_Bip_R_Thumb1", "J_Bip_R_Thumb3", 0.05],
 ]
 
 static var _quilt_mat: Material
 static var _linen_mat: Material
+static var _ticking_mat: Material
 
 
 ## The soft parts of the bed whose frame sits at `bed` (floor level, middle of
@@ -38,7 +40,7 @@ static func dress(root: Node3D, bed: Vector3) -> MeshInstance3D:
 	var mattress := MeshInstance3D.new()
 	mattress.name = "MomMattress"
 	mattress.mesh = soft_box(MATTRESS, 0.07)
-	mattress.material_override = linen()
+	mattress.material_override = ticking()
 	mattress.position = bed + Vector3(0, 0.38 + MATTRESS.y / 2.0, -0.05)
 	root.add_child(mattress)
 	for dx in [-0.37, 0.37]:
@@ -105,7 +107,7 @@ static func drape(bed: Vector3, head_z: float, capsules: Array) -> MeshInstance3
 		body = next
 	for n in h.size():
 		h[n] = maxf(h[n], body[n] + 0.025)
-	for k in 4:
+	for k in 8:
 		var next := h.duplicate()
 		for j in range(1, nz - 1):
 			for i in range(1, nx - 1):
@@ -215,6 +217,13 @@ static func linen() -> Material:
 	return _linen_mat
 
 
+## The mattress cover: linen with faint stripes.
+static func ticking() -> Material:
+	if _ticking_mat == null:
+		_ticking_mat = _fabric(_linen(true))
+	return _ticking_mat
+
+
 static func _fabric(tex: Texture2D) -> Material:
 	var mat: ShaderMaterial = Art.material("canvas").duplicate()
 	mat.set_shader_parameter("albedo_tex", tex)
@@ -266,14 +275,18 @@ static func _patchwork() -> ImageTexture:
 	return ImageTexture.create_from_image(img)
 
 
-static func _linen() -> ImageTexture:
+static func _linen(stripes := false) -> ImageTexture:
 	var n := 128
 	var img := Image.create(n, n, false, Image.FORMAT_RGB8)
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 7
 	for y in n:
 		for x in n:
-			var c := Color(0.95, 0.92, 0.86).darkened(0.03 * float((x * 3 + y) % 4 == 0) + 0.035 * rng.randf())
+			# Ticking stripes (the mattress), faint blue-grey on cream.
+			var c := Color(0.95, 0.92, 0.86)
+			if stripes and x % 32 < 3:
+				c = c.lerp(Color(0.6, 0.66, 0.75), 0.45)
+			c = c.darkened(0.03 * float((x * 3 + y) % 4 == 0) + 0.035 * rng.randf())
 			img.set_pixel(x, y, c)
 	img.generate_mipmaps()
 	return ImageTexture.create_from_image(img)

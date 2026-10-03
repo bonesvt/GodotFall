@@ -56,6 +56,11 @@ func _go() -> void:
 
 func _shot(name: String, frames: int) -> void:
 	await _frames(frames)
+	# The whole line on screen, not caught mid-typing.
+	for n in root.get_children():
+		if n.get("npc_talk") != null:
+			n.npc_talk._text.visible_characters = -1
+	await _frames(1)
 	root.get_viewport().get_texture().get_image().save_png(out.path_join(name + ".png"))
 	print("shot ", name)
 

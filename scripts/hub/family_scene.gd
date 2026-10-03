@@ -114,7 +114,8 @@ func _place_cloth(skel: Skeleton3D) -> void:
 
 
 ## Lays the scene's quilt over the posed bodies once each pose has been on
-## for an update (their bones only read back then), up to `head_z`.
+## for an update (their bones only read back then), up to `head_z`. `arms`
+## tucks Eco's arms under it too.
 func _drape_over(poses: Dictionary, head_z: float, arms := false) -> void:
 	_drape = {}
 	_drape_to = head_z
@@ -123,7 +124,7 @@ func _drape_over(poses: Dictionary, head_z: float, arms := false) -> void:
 		var hold = poses[who]
 		hold.after = func(skel: Skeleton3D) -> void:
 			if _drape.get(who, 0) == null:
-				_drape[who] = FamilyBed.capsules(skel, arms)
+				_drape[who] = FamilyBed.capsules(skel, arms and who == "eco")
 				if not _drape.values().has(null):
 					_lay_quilt.call_deferred()
 			_place_cloth(skel)
@@ -182,11 +183,11 @@ func _stage(kind: String) -> void:
 		# Mom against the headboard, Eco sitting between her knees and lying back on her.
 		_place(mom, Vector3(b.x, _f - 0.27, b.z + 0.62), 0.0)
 		_mom_pose = Poses.hold(mom, "mom_cuddle")
-		eco.global_position = Vector3(b.x, _f - 0.28, b.z + 0.18)
+		eco.global_position = Vector3(b.x, _f - 0.31, b.z + 0.05)
 		eco.rotation = Vector3.ZERO
 		var eco_pose := Poses.hold(eco, "eco_cuddle")
 		_face(eco, {"Fcl_EYE_Close": 0.85, "Fcl_ALL_Fun": 0.35})
-		_drape_over({"eco": eco_pose, "mom": _mom_pose}, b.z + 0.1)
+		_drape_over({"eco": eco_pose, "mom": _mom_pose}, b.z + 0.32, true)
 		_look(Vector3(b.x + 1.4, _f + 1.55, b.z - 2.1), Vector3(b.x, _f + 1.0, b.z + 0.4))
 	else:
 		# Eco tucked in on her back, head on the pillows; Mom on a stool beside her.
