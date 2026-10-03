@@ -42,6 +42,15 @@ uniform sampler2D glow_tex : source_color, hint_default_black, filter_linear_mip
 uniform float glow_tex_energy = 1.6;
 uniform vec4 emission : source_color = vec4(0.0, 0.0, 0.0, 1.0);
 uniform float emission_energy = 0.0;
+// Muscle tone from Biggie's gym (tools/eco/build_eco_vroid.py bake_tone):
+// red her abs, green her arms, blue her legs; 0.5 is no change, below it the
+// grooves between muscles, above it the muscles. Only read when use_tone is on.
+uniform sampler2D tone_tex : hint_default_black, filter_linear_mipmap;
+uniform bool use_tone = false;
+// Shadow in the grooves on bare skin, and the paler sheen over muscle where
+// the suit stretches over it.
+uniform vec3 tone_crease = vec3(0.62, 0.42, 0.4);
+uniform vec3 tone_stretch = vec3(0.05, 0.052, 0.068);
 // Suit upgrade armour edges: how brightly they glow gold once her trims turn gold.
 uniform float gold_edge = 0.0;
 
@@ -53,6 +62,8 @@ instance uniform vec4 paint : source_color, instance_index(2) = vec4(1.0);
 // turns gold and the armour edges light up.
 instance uniform float trim_gold : instance_index(3) = 0.0;
 const vec3 GOLD = vec3(1.0, 0.68, 0.2);
+// How much she has trained her abs, arms and legs (eco_model.gd set_fitness), 0..1.
+instance uniform vec3 tone : instance_index(4) = vec3(0.0);
 
 varying float v_sheen_mask;
 varying float v_rim;
@@ -73,6 +84,13 @@ void fragment() {
 	vec2 mask = use_mask ? texture(mask_tex, UV).rg : vec2(1.0, 0.0);
 	v_sheen_mask = sheen * mask.r;
 	v_shade = mix(shade_tint, shade_tint_2, mask.g);
+	if (use_tone && (tone.x + tone.y + tone.z) > 0.0) {
+		float d = dot(texture(tone_tex, UV).rgb * 2.0 - 1.0, tone);
+		// skin: soft shadow in the grooves, a touch lighter over the muscle;
+		// suit: the grooves darken a little, the stretch over muscle reads paler
+		vec3 groove = mix(mix(vec3(1.0), tone_crease, -d), vec3(1.0 + 0.5 * d), mask.g);
+		col = d < 0.0 ? col * groove : col * (1.0 + 0.12 * d * (1.0 - mask.g)) + tone_stretch * d * mask.g;
+	}
 	ALBEDO = col * exposure;
 	if (use_normal) {
 		NORMAL_MAP = texture(normal_tex, UV).rgb;

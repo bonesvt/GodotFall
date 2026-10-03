@@ -637,6 +637,13 @@ func apply_suit(profile: Dictionary) -> void:
 		body.set_suit(suit_tier, suit_weight)
 
 
+## Shapes her by what she has trained in Biggie's gym (gym.gd amounts()).
+func apply_fitness(amounts: Dictionary) -> void:
+	var body := get_node_or_null("EcoBody")
+	if body != null and body.has_method("set_fitness"):
+		body.set_fitness(amounts)
+
+
 # --- Crouch, camera, rope -----------------------------------------------------
 
 func _set_crouch(want: bool) -> void:

@@ -6,7 +6,8 @@ extends Node3D
 ##   3              first-person pistol and glove
 ##   S              next suit upgrade tier (0-5)    W   next suit weight (light, medium, heavy)
 ## Also renders the character sheet shots when run with
-##   godot res://scenes/eco_showcase.tscn -- --shots=<folder> [--clean] [--suit=<tier>] [--weight=light|medium|heavy] [--only=front,back]
+##   godot res://scenes/eco_showcase.tscn -- --shots=<folder> [--clean] [--suit=<tier>] [--weight=light|medium|heavy] [--only=front,back] [--fit=<0..1>]
+## (--fit: how trained every part of her is in Biggie's gym, scripts/hub/gym.gd)
 
 const Art := preload("res://scripts/ps2/ps2_assets.gd")
 
@@ -67,6 +68,12 @@ func _ready() -> void:
 			eco.suit_tier = int(arg.trim_prefix("--suit="))
 		if arg.begins_with("--weight="):
 			eco.suit_weight = arg.trim_prefix("--weight=")
+		if arg.begins_with("--fit="):
+			var amount := float(arg.trim_prefix("--fit="))
+			var fit := {}
+			for part in ["stomach", "abs", "arms", "legs", "glutes"]:
+				fit[part] = amount
+			eco.set_fitness(fit)
 		if arg.begins_with("--only="):
 			_only = arg.trim_prefix("--only=").split(",")
 	for arg in OS.get_cmdline_user_args():

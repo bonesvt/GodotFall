@@ -7,12 +7,14 @@ extends RefCounted
 ##   mattress on the floor, purple fairy lights, candles, posters, records.
 ## - Biggie: behind the back wall, right of the idol. An old soldier's den:
 ##   cot, footlocker, sandbags, a battle map pinned to the wall, a radio, his
-##   tea things on the table, a beer cooler and a dartboard.
+##   tea things on the table, a beer cooler and a dartboard. A door in his
+##   back wall leads to his gym (gym_room.gd).
 ## Each room has its NPC's stand spot (info["npcs"]) and a "[F] Talk" spot.
 
 const Art := preload("res://scripts/ps2/ps2_assets.gd")
 const K := preload("res://scripts/hub/hub_kit.gd")
 const Props := preload("res://scripts/hub/hub_props.gd")
+const GymRoom := preload("res://scripts/hub/gym_room.gd")
 
 ## Room doors: half width and height. The hall's floor is at F.
 const DOOR_HALF := 1.0
@@ -42,12 +44,17 @@ static func build(root: Node3D, info: Dictionary) -> void:
 	_mom(root, info)
 	_ophelia(root, info)
 	_biggie(root, info)
+	# Biggie's gym, through the back of his den: same old boards, paler walls.
+	_shell(root, GymRoom.ROOM, "joined", Color(0.88, 0.86, 0.8), Color(0.78, 0.72, 0.64), Color(0.6, 0.6, 0.55))
+	GymRoom.build(root, info, F)
 	K.style = prev
 
 
 ## Floor, foundation, walls (skipping the side against the hall, `open`:
-## "east" is the +x side, "south" the +z side) and a roof, in the given tints.
-static func _shell(root: Node3D, r: Rect2, open: String, wall_tint: Color, floor_tint: Color, roof_tint := Color(0.7, 0.62, 0.55)) -> void:
+## "east" is the +x side, "south" the +z side, "joined" no south wall at all,
+## another room's wall stands there) and a roof, in the given tints. A door
+## through the north wall at `north_door` (x), if given.
+static func _shell(root: Node3D, r: Rect2, open: String, wall_tint: Color, floor_tint: Color, roof_tint := Color(0.7, 0.62, 0.55), north_door := INF) -> void:
 	var x0 := r.position.x
 	var z0 := r.position.y
 	var x1 := r.end.x
@@ -63,7 +70,9 @@ static func _shell(root: Node3D, r: Rect2, open: String, wall_tint: Color, floor
 		K.stone(root, Vector3(x0 + T * 0.5, y, c.z), Vector3(T, ROOM_H, r.size.y), Vector3.ZERO, wall_tint)
 	if open != "east":
 		K.stone(root, Vector3(x1 - T * 0.5, y, c.z), Vector3(T, ROOM_H, r.size.y), Vector3.ZERO, wall_tint)
-	if open != "south":
+	if open == "joined":
+		pass
+	elif open != "south":
 		K.stone(root, Vector3(c.x, y, z1 - T * 0.5), Vector3(r.size.x, ROOM_H, T), Vector3.ZERO, wall_tint)
 	else:   # where the room runs past the corner of the hall, close it off
 		var hall := 12.2
@@ -71,8 +80,14 @@ static func _shell(root: Node3D, r: Rect2, open: String, wall_tint: Color, floor
 			K.stone(root, Vector3((x0 - hall) * 0.5, y, z1 - T * 0.5), Vector3(-hall - x0, ROOM_H, T), Vector3.ZERO, wall_tint)
 		if x1 > hall:
 			K.stone(root, Vector3((x1 + hall) * 0.5, y, z1 - T * 0.5), Vector3(x1 - hall, ROOM_H, T), Vector3.ZERO, wall_tint)
-	if open != "north":
+	if open != "north" and is_inf(north_door):
 		K.stone(root, Vector3(c.x, y, z0 + T * 0.5), Vector3(r.size.x, ROOM_H, T), Vector3.ZERO, wall_tint)
+	elif open != "north":
+		var a := north_door - DOOR_HALF
+		var b := north_door + DOOR_HALF
+		K.stone(root, Vector3((x0 + a) * 0.5, y, z0 + T * 0.5), Vector3(a - x0, ROOM_H, T), Vector3.ZERO, wall_tint)
+		K.stone(root, Vector3((b + x1) * 0.5, y, z0 + T * 0.5), Vector3(x1 - b, ROOM_H, T), Vector3.ZERO, wall_tint)
+		K.stone(root, Vector3(north_door, F + DOOR_H + (ROOM_H - DOOR_H) * 0.5, z0 + T * 0.5), Vector3(DOOR_HALF * 2, ROOM_H - DOOR_H, T), Vector3.ZERO, wall_tint)
 	# A plank roof with a lip, and dark posts at the corners outside.
 	K.stone(root, Vector3(c.x, F + ROOM_H + 0.15, c.z), Vector3(r.size.x + 0.6, 0.3, r.size.y + 0.6), Vector3.ZERO, roof_tint)
 	var dark := Art.material("timber_carving", Color(0.55, 0.48, 0.42))
@@ -237,14 +252,16 @@ static func _ophelia(root: Node3D, info: Dictionary) -> void:
 ## with empties round it, a dartboard and a hanging bare bulb.
 static func _biggie(root: Node3D, info: Dictionary) -> void:
 	var r := BIGGIE_ROOM
-	_shell(root, r, "south", Color(0.82, 0.8, 0.72), Color(0.8, 0.74, 0.66), Color(0.6, 0.6, 0.55))
+	_shell(root, r, "south", Color(0.82, 0.8, 0.72), Color(0.8, 0.74, 0.66), Color(0.6, 0.6, 0.55), GymRoom.DOOR_X)
 	var zb := r.position.y + T
 	var x0 := r.position.x + T
 	var x1 := r.end.x - T
 	var olive := Art.material("canvas", Color(0.55, 0.6, 0.4))
-	# Sandbags stacked along the back wall.
+	# Sandbags stacked along the back wall (not across the gym door).
 	for row in 2:
 		for i in 11:
+			if absf(x0 + 0.45 + i * 0.86 + row * 0.43 - GymRoom.DOOR_X) < DOOR_HALF + 0.4:
+				continue
 			var sb := K.mesh(root, Vector3(x0 + 0.45 + i * 0.86 + row * 0.43, F + 0.18 + row * 0.32, zb + 0.35), Vector3(0.8, 0.32, 0.45), Art.material("canvas", Color(0.75, 0.68, 0.5)))
 			sb.rotation_degrees.y = (i * 7 + row * 13) % 9 - 4
 	# Cot along the right wall, an army blanket, a lumpy pillow.

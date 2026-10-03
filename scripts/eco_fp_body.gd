@@ -58,6 +58,13 @@ func set_suit(tier: int, weight := "medium") -> void:
 				(mesh as MeshInstance3D).visible = false
 
 
+## Shapes both copies by what she has trained (eco_model.gd set_fitness).
+func set_fitness(amounts: Dictionary) -> void:
+	for eco in [body, shadow]:
+		if eco != null:
+			eco.set_fitness(amounts)
+
+
 func _spawn(node_name: String, shadows: GeometryInstance3D.ShadowCastingSetting) -> EcoModel:
 	var eco := ECO.instantiate() as EcoModel
 	eco.name = node_name

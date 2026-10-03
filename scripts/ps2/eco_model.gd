@@ -76,10 +76,20 @@ const LIGHT_BODY := preload("res://assets/materials/eco/eco_v_body_light.tres")
 const MEDIUM_BODY := preload("res://assets/materials/eco/eco_v_body_medium.tres")
 const HEAVY_BODY := preload("res://assets/materials/eco/eco_v_body_heavy.tres")
 
+## Biggie's gym (scripts/hub/gym.gd): the blend shape (tools/eco/build_eco_vroid.py
+## fit_shapes) each trained part fades in. Abs, arms and legs also fade in the
+## muscle tone painted into v_body_tone.png (eco_toon.gdshaderinc `tone`).
+const FIT_SHAPES := {"glutes": "Fit_Glutes", "stomach": "Fit_Belly", "legs": "Fit_Legs", "arms": "Fit_Arms"}
+
 ## Movement states of scripts/player.gd (enum State).
 enum PlayerState { GROUND, AIR, SLIDE, WALLRUN, GRAPPLE }
 
 var skeleton: Skeleton3D
+## How trained each part of her is, 0..1 (gym.gd amounts()); see set_fitness().
+var fitness := {}
+## Something posing her by hand (gym_workout.gd), called every frame after her
+## animation and before her springs, with this model.
+var posing := Callable()
 var _anim: AnimationPlayer
 var _springs: Array[Dictionary] = []
 var _last_origin := Vector3.ZERO
@@ -118,6 +128,7 @@ func _ready() -> void:
 		_bones["hips_at"] = _bones["hips"]
 	set_process(_anim != null or not _springs.is_empty())
 	apply_suit()
+	apply_fitness()
 	if _anim != null and idle_motion:
 		_anim.play("idle")
 
@@ -158,6 +169,27 @@ func apply_suit() -> void:
 				if m != null and m.resource_name == "eco_v_body":
 					mi.set_surface_override_material(i, body_material())
 		mi.set_instance_shader_parameter("trim_gold", 1.0 if legacy else 0.0)
+
+
+## Shapes her by what she has trained in Biggie's gym: {part: 0..1} for
+## gym.gd PARTS. Missing parts count as untrained.
+func set_fitness(amounts: Dictionary) -> void:
+	fitness = amounts.duplicate()
+	if is_inside_tree():
+		apply_fitness()
+
+
+func apply_fitness() -> void:
+	var tone := Vector3(fitness.get("abs", 0.0), fitness.get("arms", 0.0), fitness.get("legs", 0.0))
+	for node in find_children("*", "MeshInstance3D", true, false):
+		var mi := node as MeshInstance3D
+		if mi.mesh == null:
+			continue
+		for part: String in FIT_SHAPES:
+			var b := mi.find_blend_shape_by_name(FIT_SHAPES[part])
+			if b >= 0:
+				mi.set_blend_shape_value(b, float(fitness.get(part, 0.0)))
+		mi.set_instance_shader_parameter("tone", tone)
 
 
 ## The bodysuit for her weight: each weight has its own cut (tools/eco/build_eco_vroid.py
@@ -212,6 +244,8 @@ func _process(delta: float) -> void:
 	if _anim != null:
 		_animate()
 		_strut(delta)
+	if posing.is_valid():
+		posing.call(self)
 	if springs_enabled and skeleton != null:
 		_step_springs(delta)
 

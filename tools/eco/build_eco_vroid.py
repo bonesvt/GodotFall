@@ -18,6 +18,8 @@ What it does to the preset, in its rest space (she faces -Y there, her left is +
   shoulder plates, injector, shin guards, hip plates, jump kit, collar,
   crests), hidden in game until she has bought that tier
 - glute bones beside the preset's bust bones, for the jiggle springs
+- training shape keys (Fit_*) for Biggie's gym, carried onto what she wears,
+  and her muscle tone painted into v_body_tone.png
 - a slightly smaller head and longer legs, 1.69 m tall, turned to face +Y
 - idle/walk/run/fall/crouch/slide animations for the VRoid rig
 Writes assets/models/eco/eco.glb and assets/textures/eco/v_*.png. The glb's
@@ -77,6 +79,19 @@ APEX = 0.0045
 CLEFT = 0.006
 FOLD = 0.005
 FOLD_Z = 0.733
+# Biggie's gym (scripts/hub/gym.gd): shape keys the game blends in as she trains
+# (rest-space metres, the most each can move her surface). Fit_Glutes fuller,
+# rounder and lifted; Fit_Belly a flatter lower belly and a narrower waist;
+# Fit_Legs quads, outer sweep, hamstrings and calves; Fit_Arms shoulder caps,
+# biceps, triceps and forearms. Abs are painted (v_body_tone.png): the mesh is
+# too coarse over her belly to carve them.
+FIT_GLUTES = 0.03
+FIT_GLUTE_LIFT = 0.008
+FIT_BELLY = 0.011
+FIT_WAIST = 0.006
+FIT_LEGS = 0.01
+FIT_CALVES = 0.011
+FIT_ARMS = 0.0075
 
 # the fierce expression, applied as blend shapes on import (eco_import.gd)
 EXPRESSION = {"Fcl_BRW_Angry": 1.0, "Fcl_EYE_Angry": 0.55, "Fcl_MTH_Down": 0.1}
@@ -466,6 +481,124 @@ def curves():
     me.vertices.foreach_set("co", (P + D).ravel())
     me.update()
     print("curves: up to %.1f mm" % (np.linalg.norm(D, axis=1).max() * 1000))
+
+
+# --- gym: training shape keys ------------------------------------------------------
+
+def _welded(me):
+    """Vertex positions, normals averaged across the UV seams, the groups of
+    split copies and the edges, for pushing the body along its normals."""
+    n = len(me.vertices)
+    P = np.empty(n * 3, np.float32)
+    me.vertices.foreach_get("co", P)
+    P = P.reshape(n, 3)
+    N = np.empty(n * 3, np.float32)
+    me.vertices.foreach_get("normal", N)
+    N = N.reshape(n, 3)
+    groups = {}
+    for i, k in enumerate(map(tuple, np.round(P, 5))):
+        groups.setdefault(k, []).append(i)
+    groups = [ids for ids in groups.values() if len(ids) > 1]
+    for ids in groups:
+        N[ids] = N[ids].sum(0)
+    N /= np.maximum(np.linalg.norm(N, axis=1, keepdims=True), 1e-9)
+    edges = np.array([e.vertices[:] for e in me.edges])
+    return P, N, groups, edges
+
+
+def _smoothed(D, edges, groups, passes):
+    n = len(D)
+    for _ in range(passes):
+        acc = np.zeros_like(D)
+        cnt = np.zeros(n)
+        np.add.at(acc, edges[:, 0], D[edges[:, 1]])
+        np.add.at(acc, edges[:, 1], D[edges[:, 0]])
+        np.add.at(cnt, edges[:, 0], 1)
+        np.add.at(cnt, edges[:, 1], 1)
+        D = 0.5 * D + 0.5 * acc / np.maximum(cnt, 1)[:, None]
+        for ids in groups:
+            D[ids] = D[ids].mean(0)
+    return D
+
+
+def fit_shapes(objs):
+    """The shape keys Biggie's gym trains (FIT_*), on her body, then carried
+    over to everything worn on it (boots, suit pieces) from the nearest body
+    point, so the armour moves out with her. Pushes go along the surface
+    normal with wide, smooth falloffs, like curves(). Inner thighs grow less
+    so her legs don't merge, and nothing moves between her legs."""
+    body = bpy.data.objects["Body"]
+    me = body.data
+    P, N, groups, edges = _welded(me)
+    x, y, z = P[:, 0], P[:, 1], P[:, 2]
+    ax = np.abs(x)
+    out = N[:, 0] * np.sign(x)    # how much the surface faces out to her side
+    back = ss(-0.02, 0.04, y)
+    front = ss(-0.04, -0.075, y)
+    shapes = {}
+    # glutes: fuller and rounder over the cheeks, and the lower half lifted
+    g = np.exp(-((ax - 0.064) / 0.055) ** 2 - ((z - 0.775) / 0.06) ** 2) * back
+    lift = np.exp(-((ax - 0.062) / 0.05) ** 2 - ((z - 0.748) / 0.03) ** 2) * back
+    shapes["Fit_Glutes"] = N * (FIT_GLUTES * g)[:, None] + np.outer(FIT_GLUTE_LIFT * lift, (0, 0, 1))
+    # stomach: the lower belly drawn in, the waist narrower
+    belly = np.exp(-((z - 0.885) / 0.035) ** 2 - (x / 0.065) ** 2) * front
+    waist = np.exp(-((z - 0.95) / 0.035) ** 2) * ss(0.3, 0.8, out)
+    shapes["Fit_Belly"] = -N * (FIT_BELLY * belly + FIT_WAIST * waist)[:, None]
+    # legs: quads (front of the thigh), the outer sweep, hamstrings, calves
+    leg = ss(0.035, 0.05, ax) * ss(0.2, 0.08, ax) * (0.35 + 0.65 * ss(-0.5, 0.5, out))
+    dl = y + 0.0
+    quad = ss(0.47, 0.55, z) * ss(0.71, 0.64, z) * ss(0.0, -0.035, dl)
+    sweep = ss(0.52, 0.58, z) * ss(0.7, 0.64, z) * ss(0.2, 0.6, out)
+    ham = ss(0.5, 0.56, z) * ss(0.69, 0.64, z) * ss(0.015, 0.045, dl)
+    calf = np.exp(-((z - 0.33) / 0.05) ** 2) * ss(0.012, 0.04, dl)
+    shapes["Fit_Legs"] = N * (leg * (FIT_LEGS * (quad + 0.6 * sweep + 0.5 * ham) + FIT_CALVES * calf))[:, None]
+    # arms (T-pose along +-x, palms down: biceps face the front): shoulder caps,
+    # biceps, triceps, the top of the forearm
+    dy = y - 0.022
+    near = np.exp(-((z - 1.1445) / 0.05) ** 2)
+    delt = np.exp(-((ax - 0.11) / 0.03) ** 2) * ss(1.115, 1.145, z)
+    bi = np.exp(-((ax - 0.2) / 0.045) ** 2) * ss(0.0, -0.02, dy)
+    tri = np.exp(-((ax - 0.19) / 0.05) ** 2) * ss(0.0, 0.02, dy) * 0.75
+    fore = np.exp(-((ax - 0.33) / 0.035) ** 2) * 0.6
+    shapes["Fit_Arms"] = N * (FIT_ARMS * near * (delt + (bi + tri + fore) * ss(0.09, 0.11, ax)))[:, None]
+    if not me.shape_keys:
+        body.shape_key_add(name="Basis", from_mix=False)
+    deltas = {}
+    for name, D in shapes.items():
+        D = _smoothed(D.astype(np.float64), edges, groups, 4)
+        deltas[name] = D
+        kb = body.shape_key_add(name=name, from_mix=False)
+        kb.data.foreach_set("co", (P + D).ravel().astype(np.float32))
+        print("%s: up to %.1f mm" % (name, np.linalg.norm(D, axis=1).max() * 1000))
+    # what she wears follows: each point takes the push of the nearest body point
+    from mathutils.kdtree import KDTree
+    tree = KDTree(len(P))
+    for i, p in enumerate(P):
+        tree.insert(p, i)
+    tree.balance()
+    for ob in objs:
+        if ob is body or ob.type != "MESH" or ob.name in ("Face", "Hair", "Goggles"):
+            continue
+        om = ob.data
+        Q = np.array([ob.matrix_world @ v.co for v in om.vertices]) if len(om.vertices) else np.zeros((0, 3))
+        near_ids = []
+        falloff = []
+        for q in Q:
+            co, i, dist = tree.find(q)
+            near_ids.append(i)
+            falloff.append(max(0.0, 1.0 - dist / 0.05))
+        near_ids = np.array(near_ids, int)
+        falloff = np.array(falloff)
+        moved = {k: D[near_ids] * falloff[:, None] for k, D in deltas.items()} if len(Q) else {}
+        if not any(np.abs(m).max() > 1e-5 for m in moved.values()):
+            continue
+        inv = np.array(ob.matrix_world.inverted().to_3x3())
+        L = np.array([v.co[:] for v in om.vertices])
+        if not om.shape_keys:
+            ob.shape_key_add(name="Basis", from_mix=False)
+        for k, m in moved.items():
+            kb = ob.shape_key_add(name=k, from_mix=False)
+            kb.data.foreach_set("co", (L + m @ inv.T).ravel().astype(np.float32))
 
 
 # --- goggles ---------------------------------------------------------------------
@@ -1551,6 +1684,97 @@ def bake_body(body, skin_img, cut="base"):
     return results
 
 
+def bake_tone(body):
+    """v_body_tone.png: muscle tone painted per pixel from rest positions, for
+    the gym (eco_toon.gdshaderinc tone_tex). Red is her abs, green her arms,
+    blue her legs; each is 0.5 where nothing changes, darker in the grooves
+    between muscles and lighter over them. The game fades each in with how
+    much she has trained it."""
+    sc = bpy.context.scene
+    m = bpy.data.materials.new("bake_tone")
+    m.use_nodes = True
+    nt = m.node_tree
+    nt.nodes.clear()
+    g = NG(nt)
+    at = nt.nodes.new("ShaderNodeAttribute")
+    at.attribute_name = "rest"
+    sep = nt.nodes.new("ShaderNodeSeparateXYZ")
+    nt.links.new(at.outputs["Vector"], sep.inputs[0])
+    x, y, z = sep.outputs[0], sep.outputs[1], sep.outputs[2]
+    ax = g.abs(x)
+
+    def line(v, at_v, w):
+        return g.op("EXPONENT", g.neg(g.sq(g.div(g.sub(v, at_v), w))))
+
+    # abs: the line down the middle, three rows of pads above her belly button
+    # and the lower pad below, the outer edges, and the obliques' lines down
+    # toward her hips (stopping well above the suit's leg line). Each pad is a
+    # soft dome between its grooves; the rows are fainter than the middle line.
+    front = g.sub(1.0, g.sstep(-0.075, -0.05, y))
+    rows = g.mul(g.sstep(0.868, 0.885, z), g.sstep(1.0, 0.985, z))
+    inner = g.sstep(0.05, 0.038, ax)
+
+    def grooves(w):
+        mid = g.mul(line(x, 0.0, w), rows)
+        across = 0.0
+        for zc in (0.905, 0.937, 0.968):
+            across = g.mx(across, line(z, zc, w * 0.85)) if not isinstance(across, float) else line(z, zc, w * 0.85)
+        across = g.mul(g.mul(across, g.sstep(0.04, 0.026, ax)), 0.55)
+        edge = g.mul(g.mul(line(ax, g.add(0.046, g.mul(g.sub(z, 0.93), -0.06)), w * 1.1), rows), 0.7)
+        t = g.div(g.sub(z, 0.85), 0.05)
+        obl = g.mul(g.mul(line(ax, g.add(0.034, g.mul(t, 0.026)), w), g.sstep(0.85, 0.862, z)), g.sstep(0.905, 0.89, z))
+        return g.mx(g.mx(mid, across), g.mx(edge, g.mul(obl, 0.6)))
+
+    groove = grooves(0.0045)
+    pads = g.mul(g.mul(rows, inner), g.sub(1.0, grooves(0.011)))
+    abs_v = g.mul(g.sub(g.mul(pads, 0.55), g.mul(groove, 0.8)), front)
+    # arms: shoulder cap edge, biceps and triceps, the line between them underneath
+    dy = g.sub(y, 0.022)
+    dz = g.sub(z, 1.1445)
+    on_arm = g.mul(g.sstep(0.085, 0.1, ax), g.sstep(0.06, 0.04, g.abs(dz)))
+    delt_edge = g.mul(line(ax, 0.148, 0.006), g.sstep(-0.01, 0.01, dz))
+    under = g.mul(g.mul(line(dy, 0.0, 0.004), g.sstep(0.0, -0.012, dz)), g.mul(g.sstep(0.15, 0.17, ax), g.sstep(0.27, 0.25, ax)))
+    bump = g.mul(line(ax, 0.2, 0.04), g.sstep(0.004, -0.014, dy))
+    bump = g.add(bump, g.mul(line(ax, 0.115, 0.025), g.sstep(-0.005, 0.01, dz)))
+    arm_groove = g.mx(delt_edge, under)
+    arm_v = g.mul(g.sub(g.mul(g.mul(bump, g.sub(1.0, arm_groove)), 0.45), arm_groove), on_arm)
+    # legs: the line between the quads, the outer sweep line, a highlight over the quads
+    dx = g.sub(ax, 0.0686)
+    thigh = g.mul(g.sstep(0.5, 0.56, z), g.sstep(0.72, 0.68, z))
+    lfront = g.sstep(-0.02, -0.045, y)
+    mid = g.mul(g.mul(line(dx, g.add(0.004, g.mul(g.sub(z, 0.6), 0.08)), 0.004), lfront), thigh)
+    outer = g.mul(g.mul(line(dx, 0.05, 0.005), g.sstep(-0.01, -0.03, y)), thigh)
+    leg_groove = g.mx(mid, outer)
+    quad = g.mul(g.mul(g.mul(line(dx, 0.022, 0.02), lfront), thigh), g.sub(1.0, leg_groove))
+    leg_v = g.mul(g.sub(g.mul(quad, 0.45), leg_groove), g.sstep(0.03, 0.045, ax))
+    comb = nt.nodes.new("ShaderNodeCombineColor")
+    for i, v in enumerate((abs_v, arm_v, leg_v)):
+        g.put(comb.inputs[i], g.add(0.5, g.mul(v, 0.5)))
+    em = nt.nodes.new("ShaderNodeEmission")
+    out = nt.nodes.new("ShaderNodeOutputMaterial")
+    nt.links.new(comb.outputs[0], em.inputs[0])
+    nt.links.new(em.outputs[0], out.inputs[0])
+    slots = mat_index(body, "bake_body")
+    keep = {i: body.material_slots[i].material for i in slots}
+    for i in slots:
+        body.material_slots[i].material = m
+    img = bpy.data.images.new("v_body_tone", 1024, 1024, alpha=False)
+    img.colorspace_settings.name = "Non-Color"
+    node = nt.nodes.new("ShaderNodeTexImage")
+    node.image = img
+    nt.nodes.active = node
+    for o in bpy.data.objects:
+        o.select_set(o == body)
+    bpy.context.view_layer.objects.active = body
+    bpy.ops.object.bake(type="EMIT")
+    img.filepath_raw = os.path.join(TEX_OUT, "v_body_tone.png")
+    img.file_format = "PNG"
+    img.save()
+    for i, mat in keep.items():
+        body.material_slots[i].material = mat
+    print("baked v_body_tone")
+
+
 # --- materials and textures ------------------------------------------------------------
 
 def tex_of(m):
@@ -1616,6 +1840,7 @@ def textures_and_materials(objs, boots):
     bake_body(body, clean, "medium")
     bake_body(body, clean, "heavy")
     bake_body(body, clean)
+    bake_tone(body)
     os.remove(os.path.join(TEX_OUT, "v_body_skin_src.png"))
     plan.append((body, next(iter(mat_index(body, "bake_body"))), "eco_v_body"))
     for ob, i, name in plan:
@@ -1899,6 +2124,7 @@ def main():
     objs = [bpy.data.objects[n] for n in ("Body", "Face", "Hair")] + [boots, gog]
     textures_and_materials(objs, boots)
     objs += suit_armor()
+    fit_shapes(objs)
     glute_bones(arm)
     prune_bones(arm)
     proportions(arm, objs)

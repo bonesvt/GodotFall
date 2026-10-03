@@ -34,6 +34,8 @@ const Garage := preload("res://scripts/hub/garage.gd")
 const TitanStyle := preload("res://scripts/run/titan_style.gd")
 const HubNpc := preload("res://scripts/hub/hub_npc.gd")
 const NpcTalk := preload("res://scripts/hub/npc_talk.gd")
+const Gym := preload("res://scripts/hub/gym.gd")
+const GymWorkout := preload("res://scripts/hub/gym_workout.gd")
 const Tutorial := preload("res://scripts/run/tutorial.gd")
 
 const FALL_DAMAGE := 25
@@ -101,6 +103,10 @@ var armory: Armory
 ## The workbench screen while one is open (the hub is paused under it).
 ## A BenchScreen, or the GunsmithScreen at the gunsmith bench.
 var bench = null
+## The workout scene playing in Biggie's gym (gym_workout.gd), and which
+## workouts Eco has done since her last run (each once per visit).
+var workout: Node3D
+var gym_done := {}
 ## Lays out loot and rolls drops, seeded per zone from the run seed so loot
 ## never shifts the run's own rolls.
 var loot_rng := RandomNumberGenerator.new()
@@ -170,6 +176,7 @@ func start_run(seed_value: int) -> void:
 		run.install(part)
 	run.refits = armory.refit_bonus()
 	runs_started += 1
+	gym_done.clear()   # rested: the gym's workouts come back after the run
 	result = ""
 	titan = null
 	boss = null
@@ -184,6 +191,7 @@ func start_run(seed_value: int) -> void:
 func _fresh_level(level_name: String) -> void:
 	if npc_talk != null:
 		npc_talk.stop()
+	workout = null
 	if zone_root != null:
 		remove_child(zone_root)
 		zone_root.free()
@@ -281,6 +289,10 @@ func _physics_process(delta: float) -> void:
 # --- Hub ----------------------------------------------------------------------
 
 func _hub_tick(delta: float) -> void:
+	if workout != null:
+		if Input.is_action_just_pressed("interact") or Input.is_action_just_pressed("ui_cancel"):
+			workout.skip()
+		return
 	if bench != null:
 		if Input.is_action_just_pressed("interact") or Input.is_action_just_pressed("ui_cancel"):
 			close_bench()
@@ -324,6 +336,9 @@ func _hub_tick(delta: float) -> void:
 	if spot.has("npc"):
 		talk_to(spot["npc"])
 		return
+	if spot.has("workout"):
+		start_workout(spot["workout"])
+		return
 	var lines: Array = spot["lines"]
 	var n: int = hub_reads.get(spot["id"], 0)
 	hub_reads[spot["id"]] = n + 1
@@ -334,6 +349,47 @@ func _hub_tick(delta: float) -> void:
 func talk_to(who: String) -> void:
 	if hub_npcs.has(who):
 		npc_talk.start(hub_npcs[who], runs_ended, last_result == "RUN COMPLETE")
+
+
+## Starts a workout in Biggie's gym (gym.gd WORKOUTS) as its scene, pausing
+## the hub, unless she has done it since her last run.
+func start_workout(id: String) -> void:
+	var spots: Dictionary = zone_info.get("gym", {})
+	if not spots.has(id):
+		return
+	if gym_done.has(id):
+		hud.toast("BIGGIE: " + Gym.RESTED_LINE, HUB_LINE_SECONDS + 1.5)
+		return
+	workout = GymWorkout.create(id, spots[id], zone_info.get("gym_bounds", Rect2()), armory.suit_profile(), Gym.amounts(armory.fitness))
+	workout.set_meta("id", id)
+	workout.set_meta("camera", get_viewport().get_camera_3d())
+	workout.finished.connect(end_workout)
+	zone_root.add_child(workout)
+	get_tree().paused = true
+	player.visible = false
+	hud.visible = false
+	pilot_hud.visible = false
+
+
+## The workout scene is over (or skipped): the points go on, she wears them.
+func end_workout() -> void:
+	if workout == null:
+		return
+	var id: String = workout.get_meta("id")
+	var cam: Camera3D = workout.get_meta("camera")
+	workout.queue_free()
+	workout = null
+	gym_done[id] = true
+	var got := armory.train(id)
+	get_tree().paused = false
+	player.visible = true
+	if cam != null and is_instance_valid(cam):
+		cam.make_current()
+	hud.visible = true
+	pilot_hud.visible = true
+	player.apply_fitness(Gym.amounts(armory.fitness))
+	dress_hub()
+	hud.toast(Gym.gains_text(got), HUB_LINE_SECONDS)
 
 
 ## Opens Eco's paint shop on the chassis of your last titan, pausing the hub.
@@ -387,12 +443,17 @@ func close_bench() -> void:
 func equip_loadout() -> void:
 	player.get_node("Head/Camera3D/Weapon").equip(armory.weapon_profile())
 	player.apply_suit(armory.suit_profile())
+	player.apply_fitness(Gym.amounts(armory.fitness))
 
 
 ## Shows the armory on the benches: the equipped gun on the gunsmith's mat,
 ## the guns you own on the rack (locked slots stay empty under a tag), and the
-## titan you'd start a run with standing in the workshop's gantry.
+## titan you'd start a run with standing in the workshop's gantry, and
+## what Eco has trained on Biggie's chalkboard in the gym.
 func dress_hub() -> void:
+	var board: Label3D = zone_info.get("gym_board")
+	if board != null:
+		board.text = Gym.board_text(armory.fitness)
 	var mat: Node3D = zone_info.get("gun_marker")
 	if mat != null:
 		for c in mat.get_children():
