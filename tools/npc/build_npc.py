@@ -1083,6 +1083,7 @@ def extra_outfit(g, skin, x, y, z, ax, front, cov, edge, sine, neck_r):
             open_f = g.add(0.701, g.mul(g.sstep(0.014, 0.07, ax), 0.072))
             w_back = g.add(0.008, g.mul(0.05, g.sstep(0.74, 0.79, z)))
             d_bot = g.mn(g.sub(waist_z, z), g.lerp(g.sub(w_back, ax), g.sub(z, open_f), front))
+            string = g.mul(g.band(g.sub(z, waist_z), -0.004, 0.0), torso)   # round her hips, holding the back strip
         else:
             waist_z = g.add(0.79, g.mul(g.sub(1.0, front), 0.01))
             open_z = g.add(0.701, g.mul(g.sstep(0.018, 0.085, ax), g.add(0.05, g.mul(g.sub(1.0, front), 0.01))))
@@ -1090,7 +1091,7 @@ def extra_outfit(g, skin, x, y, z, ax, front, cov, edge, sine, neck_r):
         bot = cov(d_bot)
         if OUTFIT == "sheer":
             if mom:   # a long sheer black slip on thin straps, to below her knees
-                d_veil = g.mn(g.mn(g.sub(g.add(1.075, g.mul(0.33, g.band(ax, 0.056, 0.066))), z), g.sub(z, 0.42)), g.sub(0.13, ax))
+                d_veil = g.mn(g.mn(g.sub(g.add(1.075, g.mul(0.33, g.band(ax, 0.056, 0.066))), z), g.sub(z, 0.42)), g.sub(g.add(0.13, g.mul(0.07, g.sstep(0.82, 0.78, z))), ax))
                 veil = g.mul(cov(d_veil), 0.62)
                 pattern = 0.0
             else:     # a short sheer mesh dress with long sleeves, over the set
@@ -1121,9 +1122,9 @@ def extra_outfit(g, skin, x, y, z, ax, front, cov, edge, sine, neck_r):
                 col = g.mixc(col, MAIN, g.mul(g.mul(stock, net), 0.9))
             col = g.mixc(col, LACE_A, g.mx(g.mx(cup, bot), g.mx(garter, lace_top)))
             col = g.mixc(col, LACE_B, g.mul(lace, g.mx(g.mx(cup, garter), lace_top)))
-            col = g.mixc(col, LACE_A, g.mx(g.mx(band_, straps), susp))
+            col = g.mixc(col, LACE_A, g.mx(g.mx(band_, straps), g.mx(susp, string)))
             if not mom:   # a strappy harness over her chest
-                harness = g.mul(g.mx(g.band(z, 1.105, 1.112), g.mul(g.band(ax, 0.028, 0.034), g.sstep(1.08, 1.09, z))), g.mul(front, torso))
+                harness = g.mul(g.mx(g.band(z, 1.105, 1.112), g.mul(g.band(ax, 0.028, 0.034), g.mul(g.sstep(1.05, 1.06, z), g.sstep(1.19, 1.18, z)))), g.mul(front, torso))
                 col = g.mixc(col, MAIN, harness)
             ink = g.mx(g.mx(edge(d_cup), edge(d_bot)), edge(d_stock))
     else:   # tight
@@ -1142,7 +1143,7 @@ def extra_outfit(g, skin, x, y, z, ax, front, cov, edge, sine, neck_r):
             backless = g.mul(g.sub(1.0, front), g.sstep(0.855, 0.865, z))
             halter = g.mul(g.band(z, 1.165, 1.178), g.sub(1.0, g.sstep(0.065, 0.075, neck_r)))
             d_suit = g.mn(g.mn(g.sub(neck_z, z), g.sub(0.14, ax)), d_legs)
-            suit = g.mul(g.mul(cov(d_suit), g.sub(1.0, cov(d_v))), g.mul(g.sub(1.0, cov(side)), g.sub(1.0, backless)))
+            suit = g.mul(g.mul(cov(d_suit), g.sub(1.0, cov(d_v))), g.mul(g.sub(1.0, g.sstep(-0.0025, 0.0025, side)), g.sub(1.0, backless)))
             stock = cov(g.mn(g.sub(0.6, z), g.sub(z, 0.12)))
             col = g.mixc(col, SHEER_C, g.mul(stock, 0.55))
             col = g.mixc(col, (0.2, 0.02, 0.03), suit)    # wine red
