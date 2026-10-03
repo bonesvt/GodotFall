@@ -20,6 +20,7 @@ const K := preload("res://scripts/hub/hub_kit.gd")
 const Grounds := preload("res://scripts/hub/hub_grounds.gd")
 const Props := preload("res://scripts/hub/hub_props.gd")
 const Ambience := preload("res://scripts/ambience.gd")
+const Rooms := preload("res://scripts/hub/hub_rooms.gd")
 
 ## Floor height inside the temple (top of its plinth).
 const F := 1.2
@@ -97,6 +98,7 @@ static func build(root: Node3D) -> Dictionary:
 	_fathers_titan(root, info)
 	_map_table(root, info)
 	_home(root, info)
+	Rooms.build(root, info)
 	_overgrowth(root)
 	return info
 
@@ -141,19 +143,27 @@ static func _shell(root: Node3D) -> void:
 	# The hall floor, laid over the plinth (boards, or alloy tiles).
 	K.stone(root, Vector3(0, F - 0.095, mid_z), Vector3(HALF * 2, 0.2, length))
 	var x_out := HALF + WALL_T * 0.5
-	# Left wall, whole.
-	K.stone(root, Vector3(-x_out, y, mid_z), Vector3(WALL_T, WALL_H, length + WALL_T * 2))
+	# Left wall, with the door to Mom's room (hub_rooms.gd).
+	_wall_along_z(root, -x_out, BACK_Z - WALL_T, FRONT_Z + WALL_T, [Rooms.MOM_DOOR_Z])
 	# Right wall with a breach onto the lookout ledge.
 	var breach := Vector2(-21.0, -15.0)
-	K.stone(root, Vector3(x_out, y, (BACK_Z - WALL_T + breach.x) * 0.5), Vector3(WALL_T, WALL_H, breach.x - BACK_Z + WALL_T))
+	_wall_along_z(root, x_out, BACK_Z - WALL_T, breach.x, [])
 	K.stone(root, Vector3(x_out, y, (breach.y + FRONT_Z + WALL_T) * 0.5), Vector3(WALL_T, WALL_H, FRONT_Z + WALL_T - breach.y))
 	K.stone(root, Vector3(x_out, F + 0.6, breach.x + 1.0), Vector3(WALL_T, 1.2, 2.0), Vector3(0, 0, 8))
 	K.stone(root, Vector3(x_out, F + WALL_H - 1.5, (breach.x + breach.y) * 0.5), Vector3(WALL_T, 3.0, breach.y - breach.x))
 	# Rubble spilled from the breach.
 	K.stone(root, Vector3(HALF - 1.2, F + 0.4, -19.8), Vector3(1.6, 0.8, 1.4), Vector3(0, 25, 10))
 	K.stone(root, Vector3(HALF - 2.4, F + 0.3, -16.0), Vector3(1.0, 0.6, 1.2), Vector3(0, -15, 0))
-	# Back wall, with a carved frieze behind the idol.
-	K.stone(root, Vector3(0, y, BACK_Z - WALL_T * 0.5), Vector3(HALF * 2 + WALL_T * 2, WALL_H, WALL_T))
+	# Back wall, with a carved frieze behind the idol and doors either side of
+	# it into Ophelia's and Biggie's rooms.
+	var bz := BACK_Z - WALL_T * 0.5
+	var x0 := -HALF - WALL_T
+	for door_x: float in [Rooms.OPHELIA_DOOR_X, Rooms.BIGGIE_DOOR_X]:
+		var a := door_x - Rooms.DOOR_HALF
+		K.stone(root, Vector3((x0 + a) * 0.5, y, bz), Vector3(a - x0, WALL_H, WALL_T))
+		K.stone(root, Vector3(door_x, F + Rooms.DOOR_H + (WALL_H - Rooms.DOOR_H) * 0.5, bz), Vector3(Rooms.DOOR_HALF * 2, WALL_H - Rooms.DOOR_H, WALL_T))
+		x0 = door_x + Rooms.DOOR_HALF
+	K.stone(root, Vector3((x0 + HALF + WALL_T) * 0.5, y, bz), Vector3(HALF + WALL_T - x0, WALL_H, WALL_T))
 	K.carved(root, Vector3(0, F + 7.0, BACK_Z + 0.05), Vector3(HALF * 2, 2.0, 0.2))
 	# Front wall around the door, and the lintel.
 	var side_w := HALF + WALL_T - DOOR_HALF
@@ -179,6 +189,19 @@ static func _shell(root: Node3D) -> void:
 	# Bounce light so the aisles under the roof aren't black.
 	K.light(root, Vector3(0, F + 3.0, -18.0), Color(1.0, 0.85, 0.6), 1.0, 14.0)
 	_facade(root)
+
+
+## A wall along z at x, from z0 to z1, with a room door (Rooms.DOOR_HALF wide
+## each side, Rooms.DOOR_H tall) at each z in `doors`.
+static func _wall_along_z(root: Node3D, x: float, z0: float, z1: float, doors: Array) -> void:
+	var y := F + WALL_H * 0.5
+	var z := z0
+	for door_z: float in doors:
+		var a := door_z - Rooms.DOOR_HALF
+		K.stone(root, Vector3(x, y, (z + a) * 0.5), Vector3(WALL_T, WALL_H, a - z))
+		K.stone(root, Vector3(x, F + Rooms.DOOR_H + (WALL_H - Rooms.DOOR_H) * 0.5, door_z), Vector3(WALL_T, WALL_H - Rooms.DOOR_H, Rooms.DOOR_HALF * 2))
+		z = door_z + Rooms.DOOR_HALF
+	K.stone(root, Vector3(x, y, (z + z1) * 0.5), Vector3(WALL_T, WALL_H, z1 - z))
 
 
 ## The outside: a stepped crest over the door with the god's eye in it, a shrine
@@ -478,7 +501,13 @@ static func _timber_frame(root: Node3D) -> void:
 				continue  # the breach
 			K.mesh(root, Vector3(x, F + WALL_H * 0.5, z), Vector3(0.3, WALL_H, 0.6), dark)
 		K.mesh(root, Vector3(x, F + WALL_H - 0.3, (FRONT_Z + BACK_Z) * 0.5), Vector3(0.3, 0.5, FRONT_Z - BACK_Z), dark)
-		K.mesh(root, Vector3(x, F + 1.0, (FRONT_Z + BACK_Z) * 0.5), Vector3(0.24, 0.18, FRONT_Z - BACK_Z), dark)
+		if s < 0.0:   # broken by the door to Mom's room
+			var d0 := Rooms.MOM_DOOR_Z - Rooms.DOOR_HALF - 0.15
+			var d1 := Rooms.MOM_DOOR_Z + Rooms.DOOR_HALF + 0.15
+			K.mesh(root, Vector3(x, F + 1.0, (BACK_Z + d0) * 0.5), Vector3(0.24, 0.18, d0 - BACK_Z), dark)
+			K.mesh(root, Vector3(x, F + 1.0, (d1 + FRONT_Z) * 0.5), Vector3(0.24, 0.18, FRONT_Z - d1), dark)
+		else:
+			K.mesh(root, Vector3(x, F + 1.0, (FRONT_Z + BACK_Z) * 0.5), Vector3(0.24, 0.18, FRONT_Z - BACK_Z), dark)
 	for x in [-HALF + 0.6, -DOOR_HALF - 0.3, DOOR_HALF + 0.3, HALF - 0.6]:
 		K.mesh(root, Vector3(x, F + WALL_H * 0.5, FRONT_Z - 0.12), Vector3(0.6, WALL_H, 0.3), dark)
 	K.mesh(root, Vector3(0, F + DOOR_H + 0.2, FRONT_Z - 0.15), Vector3(DOOR_HALF * 2 + 1.2, 0.5, 0.35), dark)

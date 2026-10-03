@@ -46,12 +46,12 @@ uniform float emission_energy = 0.0;
 uniform float gold_edge = 0.0;
 
 // Per-object knobs shared with ps2_surface.gdshader (see ps2_model.gd).
-instance uniform float flash = 0.0;
-instance uniform float glow = 1.0;
-instance uniform vec4 paint : source_color = vec4(1.0);
+instance uniform float flash : instance_index(0) = 0.0;
+instance uniform float glow : instance_index(1) = 1.0;
+instance uniform vec4 paint : source_color, instance_index(2) = vec4(1.0);
 // Top suit tier (eco_model.gd suit_tier 5, Dad's colours): every glowing trim
 // turns gold and the armour edges light up.
-instance uniform float trim_gold = 0.0;
+instance uniform float trim_gold : instance_index(3) = 0.0;
 const vec3 GOLD = vec3(1.0, 0.68, 0.2);
 
 varying float v_sheen_mask;

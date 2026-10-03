@@ -43,6 +43,8 @@ func _run() -> void:
 	var ids := []
 	for spot in info["interactables"]:
 		ids.append(spot["id"])
+		if spot.has("npc"):
+			continue   # people talk instead (tests/npc_test.gd)
 		if spot["id"] == "map_table" or spot["id"] == "garage":
 			continue
 		await _stand_at(spot["pos"])
