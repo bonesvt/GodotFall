@@ -1,0 +1,34 @@
+# Motherly Love: Eco gone a little soft (scripts/hub/family.gd). Read on top
+# of dialogue/npc/ophelia.txt. These [soft] talks join Ophelia's everyday ones
+# once Eco is close to her mom. Kind, not romantic: Eco just notices her now,
+# the way her mom notices everyone. Romance has its own scenes.
+# Format: see dialogue/family/mom.txt. Speakers are ophelia and eco.
+
+[soft]
+eco: Hey. I brought you the black sesame from Scoops. It melted a bit.
+ophelia (surprised): You remembered what I order?
+eco: You've ordered it every time. I notice stuff now. Apparently.
+ophelia (lookaway): ...Thanks. Nobody remembers that.
+eco: I do. Eat it before it's soup.
+
+[soft]
+eco: You can sit with me and Mom at dinner, you know. You don't have to eat in the dark.
+ophelia (plain): I like the dark.
+eco: Bring it with you. Sit in the corner. Mom won't make you talk.
+ophelia (tilt): She'll bring me soup at the table instead of to my door.
+eco: Yeah. That's kind of the point.
+
+[soft]
+ophelia (down): Bad night. Couldn't stop thinking about the cage.
+eco: Want me to stay a while? I don't have to say anything.
+ophelia: You always say something.
+eco: I'll be quiet. Promise. Super quiet. Quietest person ever.
+ophelia (smile, lookaway): You're already failing.
+eco: ...Yeah. Scoot over.
+
+[soft]
+eco: How are you, actually? Not the joke answer.
+ophelia (surprised): Nobody's ever asked for the real one.
+eco: I'm asking.
+ophelia (lookaway): ...Tired. A little less empty. I don't know what to do with that.
+eco: You don't have to do anything with it. Just let it be there.

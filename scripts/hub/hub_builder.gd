@@ -21,6 +21,7 @@ const Grounds := preload("res://scripts/hub/hub_grounds.gd")
 const Props := preload("res://scripts/hub/hub_props.gd")
 const Ambience := preload("res://scripts/ambience.gd")
 const Rooms := preload("res://scripts/hub/hub_rooms.gd")
+const Wardrobe := preload("res://scripts/hub/wardrobe.gd")
 
 ## Floor height inside the temple (top of its plinth).
 const F := 1.2
@@ -93,6 +94,7 @@ static func build(root: Node3D) -> Dictionary:
 	_idol(root, info)
 	K.style = "stone"
 	_eco_corner(root, info)
+	Wardrobe.build(root, info, F, FRONT_Z)
 	_workbench(root, info)
 	_suit_locker(root, info)
 	_fathers_titan(root, info)

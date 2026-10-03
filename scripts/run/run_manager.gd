@@ -28,14 +28,22 @@ const HubBuilder := preload("res://scripts/hub/hub_builder.gd")
 const Armory := preload("res://scripts/hub/armory.gd")
 const BenchScreen := preload("res://scripts/hub/bench_screen.gd")
 const GunsmithScreen := preload("res://scripts/hub/gunsmith_screen.gd")
+const GiftScreen := preload("res://scripts/hub/gift_screen.gd")
+const GiftShop := preload("res://scripts/hub/gift_shop.gd")
 const SalonScreen := preload("res://scripts/hub/salon_screen.gd")
+const WardrobeScreen := preload("res://scripts/hub/wardrobe_screen.gd")
+const Wardrobe := preload("res://scripts/hub/wardrobe.gd")
 const Loot := preload("res://scripts/run/loot.gd")
+const Gifts := preload("res://scripts/run/gifts.gd")
+const NpcIdles := preload("res://scripts/hub/npc_idles.gd")
 const Weapon := preload("res://scripts/weapon.gd")
 const Art := preload("res://scripts/ps2/ps2_assets.gd")
 const Garage := preload("res://scripts/hub/garage.gd")
 const TitanStyle := preload("res://scripts/run/titan_style.gd")
 const HubNpc := preload("res://scripts/hub/hub_npc.gd")
 const NpcTalk := preload("res://scripts/hub/npc_talk.gd")
+const Family := preload("res://scripts/hub/family.gd")
+const FamilyScene := preload("res://scripts/hub/family_scene.gd")
 const Tutorial := preload("res://scripts/run/tutorial.gd")
 const ViewCamera := preload("res://scripts/view_camera.gd")
 const Prefs := preload("res://scripts/game/prefs.gd")
@@ -94,6 +102,8 @@ var runs_ended := 0
 ## The people living in the hub (hub_rooms.gd), by who, and their conversations.
 var hub_npcs := {}
 var npc_talk: NpcTalk
+## Motherly Love scenes in Mom's room (family_scene.gd), in the hub only.
+var family_scene: FamilyScene
 ## The parts your last run ended with; the hub's practice titan is built from them.
 var last_parts := {}
 ## The hub spot Eco is sitting or lying down at ({} = she's on her feet), and
@@ -127,7 +137,7 @@ static func ensure_input_actions() -> void:
 	var keys := {
 		"interact": [KEY_F], "choice_1": [KEY_1], "choice_2": [KEY_2], "choice_3": [KEY_3],
 		"choice_skip": [KEY_X], "titan_core": [KEY_V], "titan_dash": [KEY_SHIFT],
-		"run_restart": [KEY_ENTER],
+		"run_restart": [KEY_ENTER], "give_gift": [KEY_G],
 	}
 	for action in keys:
 		if InputMap.has_action(action):
@@ -240,6 +250,10 @@ func start_run(seed_value: int, uncharted := 0) -> void:
 	hud.summary_panel.visible = false
 	hud.choice_panel.visible = false
 	_set_pilot_active(true)
+	# The closer she's grown to Mom, the gentler she talks on the run.
+	var w: Node = pilot_hud.get("whispers") if pilot_hud != null else null
+	if w != null:
+		w.set("softness", Family.softness(npc_talk.state))
 	load_zone(0)
 
 
@@ -280,13 +294,22 @@ func enter_hub() -> void:
 		npc.look_target = player
 		zone_root.add_child(npc)
 		npc.wear_for_run(runs_ended)
+		NpcIdles.settle(npc, zone_info, runs_ended)
 		hub_npcs[spec["who"]] = npc
+	family_scene = FamilyScene.new()
+	zone_root.add_child(family_scene)
+	family_scene.setup(self, zone_info)
+	var sick := Family.roll_sick(npc_talk.state, runs_ended, last_result == "RUN COMPLETE", npc_talk.state.get_value("mom", "met", false), randf())
+	npc_talk.state.save(npc_talk.save_path)
+	if hub_npcs.has("ophelia"):
+		NpcIdles.build_window(zone_root)
+	Wardrobe.dress_eco(player, true)
 	phase = Phase.HUB
 	dress_hub()
 	place_player(zone_info["spawn"])
 	tutorial.start_level("hub")
 	if last_result != "":
-		hud.toast("Back at the temple.", HUB_LINE_SECONDS)
+		hud.toast("Back at the temple." + ("  You're burning up. Go find Mom." if sick else ""), HUB_LINE_SECONDS)
 		_whisper("home", 2.0)
 
 
@@ -297,6 +320,10 @@ func load_zone(index: int) -> void:
 		zone_info = ZoneBuilder.build_zone(zone_root, run.rng, index)
 		loot_rng.seed = run.run_seed * 7919 + index
 		Loot.scatter(zone_root, zone_info, loot_rng, index)
+		# Gifts roll on their own generator, so they never shift the loot rolls.
+		var gift_rng := RandomNumberGenerator.new()
+		gift_rng.seed = run.run_seed * 104729 + index
+		Gifts.scatter(zone_root, zone_info, gift_rng)
 		for grunt in zone_info["grunts"]:
 			grunt.target = player
 			grunt.died.connect(_on_grunt_died)
@@ -312,6 +339,7 @@ func load_zone(index: int) -> void:
 		phase = Phase.ARENA
 		evac_open = false
 		hud.toast("THE FOREST'S EDGE: TITANFALL STANDING BY")
+	Wardrobe.dress_eco(player, false)
 	place_player(zone_info["spawn"])
 	player.second_wind_ready = player.second_wind  # Eco's suit: once per zone
 	tutorial.start_level("zone%d" % index if index < run.zone_count else "arena")
@@ -371,7 +399,12 @@ func _hub_tick(delta: float) -> void:
 		return
 	if npc_talk.active():
 		npc_talk.tick(delta, player.global_position)
-		if Input.is_action_just_pressed("interact"):
+		if not npc_talk.options.is_empty():
+			for i in npc_talk.options.size():
+				if Input.is_action_just_pressed("choice_%d" % (i + 1)):
+					npc_talk.choose(i)
+					break
+		elif Input.is_action_just_pressed("interact"):
 			npc_talk.advance()
 		return
 	_course_tick(delta)
@@ -382,6 +415,9 @@ func _hub_tick(delta: float) -> void:
 		embark_hub_titan()
 		return
 	var spot := nearest_hub_spot()
+	if spot.has("npc") and Input.is_action_just_pressed("give_gift") and npc_talk.can_give(spot["npc"], runs_ended):
+		npc_talk.offer_gifts(hub_npcs[spot["npc"]], runs_ended)
+		return
 	if spot.is_empty() or not Input.is_action_just_pressed("interact"):
 		return
 	if spot["id"] == "map_table":
@@ -398,6 +434,9 @@ func _hub_tick(delta: float) -> void:
 		return
 	if spot.has("npc"):
 		talk_to(spot["npc"])
+		return
+	if spot.has("family"):
+		family_scene.use()
 		return
 	if spot.has("rest"):
 		rest_at(spot)
@@ -483,8 +522,24 @@ func _rest_prompt() -> String:
 
 ## Starts a conversation between Eco and one of the people in the hub.
 func talk_to(who: String) -> void:
+	# Sick: once Mom has said her piece about the run, she puts Eco to bed.
+	if who == "mom" and family_scene != null and int(npc_talk.state.get_value("mom", "run_seen", 0)) >= runs_ended and family_scene.care():
+		return
 	if hub_npcs.has(who):
 		npc_talk.start(hub_npcs[who], runs_ended, last_result == "RUN COMPLETE")
+
+
+## The people Eco can romance, for the gift shop's taste notes:
+## [{who, name, likes, dislikes, affection}].
+func romance_partners() -> Array:
+	var out := []
+	for who in hub_npcs:
+		if not npc_talk.romanceable(who):
+			continue
+		var s: Dictionary = NpcTalk.Romance.settings(npc_talk.bank(who))
+		out.append({"who": who, "name": String(NpcTalk.NAMES.get(who, who)).capitalize(),
+				"likes": s["likes"], "dislikes": s["dislikes"], "affection": npc_talk.affection(who)})
+	return out
 
 
 ## Opens Eco's paint shop on the chassis of your last titan, pausing the hub.
@@ -509,11 +564,15 @@ func close_garage() -> void:
 		hud.toast("Call your titan again (V) to see the new paint.", HUB_LINE_SECONDS)
 
 
-## Opens a workbench screen ("gunsmith", "rack", "workshop" or "suit"), or the
-## hair salon's ("salon", in town), pausing the hub.
+## Opens a workbench screen ("gunsmith", "rack", "workshop" or "suit"), or a
+## town shop's ("salon", "gifts"), pausing the hub.
 func open_bench(kind: String) -> void:
-	if kind == "salon":
+	if kind == "gifts":
+		bench = GiftScreen.new(armory, npc_talk, romance_partners())
+	elif kind == "salon":
 		bench = SalonScreen.new()
+	elif kind == "wardrobe":
+		bench = WardrobeScreen.new(runs_ended)
 	else:
 		bench = GunsmithScreen.new(armory) if kind == "gunsmith" else BenchScreen.new(armory, kind)
 	add_child(bench)
@@ -524,9 +583,16 @@ func open_bench(kind: String) -> void:
 
 
 func close_bench() -> void:
+	if bench is GiftScreen and not bench.bought.is_empty():
+		var names: Array = bench.bought.map(func(id): return GiftShop.gift_name(id))
+		hud.toast("Bought: %s. Press G by someone in the hub to give one." % ", ".join(names), HUB_LINE_SECONDS)
 	if not bench.unlocked.is_empty():
 		var names: Array = bench.unlocked.map(func(id): return Armory.WEAPONS[id]["name"].to_upper())
 		hud.toast("LEVEL %d: %s UNLOCKED. PICK %s AT THE WEAPON RACK" % [armory.pilot_level(), " AND ".join(names), "IT" if names.size() == 1 else "THEM"], 5.0)
+	if bench is WardrobeScreen and not bench.changed.is_empty():
+		for npc in hub_npcs.values():
+			npc.wear_for_run(runs_ended)
+		Wardrobe.dress_eco(player, true)
 	bench.queue_free()
 	bench = null
 	get_tree().paused = false
@@ -597,6 +663,15 @@ func collect_material(kind: String, amount: int) -> void:
 	if run == null or phase == Phase.HUB:
 		return
 	run.materials[kind] = int(run.materials.get(kind, 0)) + amount
+
+
+## Eco walked into a gift (gifts.gd): into the bag for the hub, kept even if
+## the run is lost.
+func collect_gift(id: String) -> void:
+	if run == null or phase == Phase.HUB:
+		return
+	npc_talk.add_gift(id)
+	hud.toast("GIFT: %s\n%s" % [Gifts.display_name(id).to_upper(), Gifts.CATALOG.get(id, ["", ""])[1]], 4.0)
 
 
 ## Grunts drop scrap where they fall, sometimes a circuit.
@@ -1044,7 +1119,16 @@ func _prompt() -> String:
 				return "Leave the pad to start the clock"
 			var spot := nearest_hub_spot()
 			if not spot.is_empty():
-				return spot["prompt"]
+				if spot.has("family"):
+					return family_scene.prompt()
+				if spot.get("npc", "") == "mom" and Family.sick(npc_talk.state, runs_ended):
+					return spot["prompt"] + "  (you're burning up)"
+				var text: String = spot["prompt"]
+				if spot.has("npc") and npc_talk.beat_waiting(spot["npc"], runs_ended):
+					text += "  (wants to talk)"
+				if spot.has("npc") and npc_talk.can_give(spot["npc"], runs_ended):
+					text += "    [G] Give a gift"
+				return text
 			if in_titan_yard():
 				return "[V] Call in your titan" if hub_titan == null else "[V] Call your titan here"
 		Phase.ZONE:

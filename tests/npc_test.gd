@@ -57,6 +57,13 @@ func _run() -> void:
 		_check("%s is fully textured" % who, bare.is_empty(), bare)
 
 	_check("Ophelia starts in her tee", run_node.hub_npcs["ophelia"].outfit == "tee", run_node.hub_npcs["ophelia"].outfit)
+	for who in ["mom", "ophelia"]:
+		var list: Array = run_node.hub_npcs[who].OUTFITS[who]
+		var gone := []
+		for i in range(1, list.size()):
+			if not ResourceLoader.exists("res://assets/textures/npc/%s/body_%s.png" % [who, list[i]]):
+				gone.append(list[i])
+		_check("%s has all %d outfits" % [who, list.size()], gone.is_empty() and list.has("lingerie"), gone)
 
 	# Every line in every conversation babbles, one beat per character.
 	var missing := []
@@ -94,7 +101,7 @@ func _run() -> void:
 		await _press("interact")
 		await _ticks(2)
 		var intro: Array = run_node.npc_talk.bank(who)["intro"]
-		var first := "%s: %s" % intro[0]
+		var first := "%s: %s" % intro[0].slice(0, 2)
 		_check("%s opens with their intro" % who, run_node.npc_talk.active() and run_node.npc_talk.current_line() == first, run_node.npc_talk.current_line())
 		_check("prompt hidden while talking", run_node.hud.prompt_label.text == "", run_node.hud.prompt_label.text)
 		if intro[0][0] != "eco":
@@ -105,7 +112,7 @@ func _run() -> void:
 		_check("F finishes %s's line" % who, run_node.npc_talk._text.visible_characters == -1 and run_node.npc_talk.current_line() == first, run_node.npc_talk._text.visible_characters)
 		await _press("interact")
 		await _ticks(2)
-		_check("F moves %s's talk on" % who, run_node.npc_talk.current_line() == "%s: %s" % intro[1], run_node.npc_talk.current_line())
+		_check("F moves %s's talk on" % who, run_node.npc_talk.current_line() == "%s: %s" % intro[1].slice(0, 2), run_node.npc_talk.current_line())
 		# Lines play out on their own too.
 		var at: int = run_node.npc_talk.index
 		await _ticks(int(run_node.npc_talk.line_left * 120.0) + 30)
@@ -115,6 +122,33 @@ func _run() -> void:
 		await _ticks(10)
 		_check("walking away from %s ends the talk" % who, not run_node.npc_talk.active() and not npc.talking, run_node.npc_talk.active())
 
+	# They only turn so far after her: with Eco behind them, they hold at the limit.
+	for who in WHO:
+		var npc = run_node.hub_npcs[who]
+		var ahead := Vector3(-sin(npc.home_yaw), 0, -cos(npc.home_yaw))
+		_place(npc.global_position + Vector3(0, 0.3, 0) - ahead * 1.6 + ahead.cross(Vector3.UP) * 0.3)
+		await _ticks(90)
+		var off := rad_to_deg(absf(angle_difference(npc.home_yaw, npc.rotation.y)))
+		_check("%s turns no further than %d degrees" % [who, int(npc.MAX_TURN)], off <= npc.MAX_TURN + 1.0 and off > 20.0, off)
+
+	# Mom's and Ophelia's chests and glutes jiggle (spring bones), Biggie has none.
+	for who in WHO:
+		var npc = run_node.hub_npcs[who]
+		var springs = npc.get_node_or_null("Springs")
+		if who == "biggie":
+			_check("Biggie has no jiggle springs", springs == null, springs)
+			continue
+		_check("%s has chest and glute springs" % who, springs != null and springs.springs.size() == 4, springs.springs.size() if springs != null else 0)
+		if springs == null:
+			continue
+		var eco: Node3D = npc.look_target
+		npc.look_target = null
+		await _ticks(30)
+		npc.rotation.y += 0.6   # a sharp turn sets them swinging
+		await _ticks(4)
+		_check("%s jiggles when she turns" % who, springs.swing_deg() > 0.5, springs.swing_deg())
+		npc.look_target = eco
+
 	# Second talk with Mom: one of her ordinary conversations, not the intro.
 	var mom = run_node.hub_npcs["mom"]
 	_place(mom.global_position + Vector3(1.5, 0.3, 0))
@@ -122,7 +156,7 @@ func _run() -> void:
 	run_node.talk_to("mom")
 	await _ticks(2)
 	var any0: Array = run_node.npc_talk.bank("mom")["any"][0]
-	_check("Mom moves on from her intro", run_node.npc_talk.current_line() == "%s: %s" % any0[0], run_node.npc_talk.current_line())
+	_check("Mom moves on from her intro", run_node.npc_talk.current_line() == "%s: %s" % any0[0].slice(0, 2), run_node.npc_talk.current_line())
 	run_node.npc_talk.stop()
 
 	# After a lost run, they've heard; once.
@@ -147,11 +181,11 @@ func _run() -> void:
 	run_node.talk_to("mom")
 	await _ticks(2)
 	var lost: Array = run_node.npc_talk.bank("mom")["lost"]
-	_check("Mom reacts to the lost run", run_node.npc_talk.current_line() == "%s: %s" % lost[0], run_node.npc_talk.current_line())
+	_check("Mom reacts to the lost run", run_node.npc_talk.current_line() == "%s: %s" % lost[0].slice(0, 2), run_node.npc_talk.current_line())
 	run_node.npc_talk.stop()
 	run_node.talk_to("mom")
 	await _ticks(2)
-	_check("only once per run", run_node.npc_talk.current_line() != "%s: %s" % lost[0], run_node.npc_talk.current_line())
+	_check("only once per run", run_node.npc_talk.current_line() != "%s: %s" % lost[0].slice(0, 2), run_node.npc_talk.current_line())
 	run_node.npc_talk.stop()
 
 	# What they've said is remembered between sessions.

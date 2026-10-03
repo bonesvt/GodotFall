@@ -34,6 +34,7 @@ const Pilot := preload("res://scripts/player.gd")
 const FX := preload("res://scripts/fx.gd")
 const Art := preload("res://scripts/ps2/ps2_assets.gd")
 const SFX := preload("res://scripts/sfx.gd")
+const EcoArms := preload("res://scripts/eco_fp_arms.gd")
 
 ## Emitted on every shot that hits an enemy: "body", "head" or "kill".
 signal hit_confirmed(kind: String)
@@ -912,6 +913,7 @@ func _build_viewmodel() -> void:
 	add_child(viewmodel)
 	var pistol := Art.model(_model_name(model_id, tier))
 	viewmodel.add_child(pistol)
+	_fit_arm(pistol)
 	_fit_attachments(pistol, model_id, attachments, tier)
 	_apply_finish(pistol, finish)
 	for mi in pistol.find_children("*", "GeometryInstance3D", true, false):
@@ -953,6 +955,19 @@ func _build_viewmodel() -> void:
 	flash.mesh = sphere
 	flash.visible = false
 	muzzle.add_child(flash)
+
+
+## Swaps the gun scene's old sculpted arm for Eco's own (scripts/eco_fp_arms.gd),
+## dressed like the body she is wearing (the player's EcoBody).
+func _fit_arm(pistol: Node3D) -> void:
+	var old := pistol.get_node_or_null("Arm")
+	if old != null:
+		old.free()
+	var arm := EcoArms.new()
+	arm.name = "Arm"
+	pistol.add_child(arm)
+	if player != null:
+		arm.follow(player.get_node_or_null("EcoBody"))
 
 
 ## The gun model a profile describes, attachments on and painted, without

@@ -396,6 +396,16 @@ func _offset_hips(offset: Vector3) -> void:
 	_strut_undo["hips_at"] = [before, moved]
 
 
+## Shoves her chest and glute springs by a world-space offset (metres at the
+## spring's tip), as if her body had jolted the other way: they swing out and
+## bounce back. The first-person body (scripts/eco_fp_body.gd) uses it so jumps,
+## landings and quick looks read on screen.
+func nudge(push: Vector3) -> void:
+	for s in _springs:
+		if s.get("jiggle", false) and s["ready"]:
+			s["tip"] += push
+
+
 func _step_springs(delta: float) -> void:
 	var to_world := skeleton.global_transform
 	var to_skel := to_world.affine_inverse()

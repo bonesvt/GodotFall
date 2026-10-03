@@ -11,6 +11,7 @@ extends RefCounted
 ## Each room has its NPC's stand spot (info["npcs"]) and a "[F] Talk" spot.
 
 const Art := preload("res://scripts/ps2/ps2_assets.gd")
+const FamilyBed := preload("res://scripts/hub/family_bed.gd")
 const K := preload("res://scripts/hub/hub_kit.gd")
 const Props := preload("res://scripts/hub/hub_props.gd")
 
@@ -105,12 +106,8 @@ static func _mom(root: Node3D, info: Dictionary) -> void:
 	var bed := Vector3(xw + 1.1, F, r.end.y - T - 1.15)
 	K.wood(root, bed + Vector3(0, 0.2, 0), Vector3(1.6, 0.4, 2.1))
 	K.wood(root, bed + Vector3(0, 0.6, 1.0), Vector3(1.6, 1.2, 0.12))
-	K.mesh(root, bed + Vector3(0, 0.48, -0.05), Vector3(1.5, 0.18, 1.95), Art.material("canvas", Color(0.95, 0.92, 0.86)))
-	var quilt := [Color(0.8, 0.45, 0.35), Color(0.55, 0.65, 0.5), Color(0.9, 0.75, 0.45), Color(0.5, 0.55, 0.7), Color(0.85, 0.6, 0.55)]
-	for i in 5:
-		K.mesh(root, bed + Vector3(0, 0.6, -0.95 + i * 0.3), Vector3(1.56, 0.07, 0.3), Art.material("canvas", quilt[i]))
-	for dx in [-0.38, 0.38]:
-		K.mesh(root, bed + Vector3(dx, 0.68, 0.75), Vector3(0.6, 0.16, 0.36), Art.material("canvas", Color(1.0, 0.97, 0.92)))
+	# Soft mattress, pillows and a patchwork quilt (family_bed.gd).
+	FamilyBed.dress(root, bed)
 	# Bedside crate with an oil lamp.
 	var side := bed + Vector3(1.15, 0, 0.6)
 	K.wood(root, side + Vector3(0, 0.3, 0), Vector3(0.5, 0.6, 0.5))
