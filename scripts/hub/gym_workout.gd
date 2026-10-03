@@ -31,7 +31,7 @@ const LYING_Y := 0.11
 const SHOTS := {
 	"squat": [
 		{"from": Vector3(0.75, 0.75, 1.7), "to": Vector3(0.4, 0.8, 1.55), "look": Vector3(0, 0.75, 0), "fov": 42.0},
-		{"from": Vector3(2.2, 2.0, 0.2), "to": Vector3(2.25, 2.05, 0.45), "look": Vector3(0, 0.85, -0.1), "fov": 45.0},
+		{"from": Vector3(-0.95, 1.05, 1.25), "to": Vector3(-1.05, 1.1, 1.05), "look": Vector3(0, 0.9, 0), "fov": 45.0},
 		{"from": Vector3(-0.5, 1.35, -1.9), "to": Vector3(-0.3, 1.3, -1.7), "look": Vector3(0, 1.3, 0), "fov": 38.0},
 	],
 	"bridge": [
