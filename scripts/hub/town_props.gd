@@ -15,7 +15,7 @@ const DIR := "res://assets/models/town/"
 const IDS := ["shop_w13_f3", "shop_w13_f3b", "shop_w13_f2", "shop_w11_f4", "shop_w11_f3", "shop_w9_f3", "shop_w9_f2",
 	"militia_office", "greenhouse", "gate_pylon", "gate_arch", "checkpoint", "sun_tree", "solar_lamp",
 	"turbine_tower", "turbine_rotor", "noodle_stall", "scooter", "vending", "bench", "planter", "crates",
-	"blade_sign_2", "blade_sign_3", "pergola", "city_tower_a", "city_tower_b", "lantern", "market_stall", "cafe_table", "ice_cream_kiosk"]
+	"blade_sign_2", "blade_sign_3", "pergola", "city_tower_a", "city_tower_b", "lantern", "market_stall", "cafe_table", "ice_cream_kiosk", "gift_shop"]
 
 const WARM := Color(1.0, 0.78, 0.5)
 const COOL := Color(0.72, 0.88, 1.0)

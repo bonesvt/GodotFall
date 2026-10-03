@@ -20,6 +20,8 @@ extends RefCounted
 ##   likes: tape, candles          gifts they love (+GIFT_LIKE)
 ##   dislikes: flowers             gifts they hate (GIFT_DISLIKE)
 ##   date_from: 45                 affection before they'll go on a date
+##   flirt_from: 60                affection from which most everyday talks
+##                                 are their [flirt] ones
 
 const MAX := 100
 ## Affection for the first talk in each hub stay.
@@ -29,6 +31,7 @@ const GIFT_LIKE := 6
 const GIFT_DISLIKE := -5
 const GIFT_OTHER := 1
 const DATE_FROM := 45
+const FLIRT_FROM := 60
 ## Where each stage starts, low to high. Together and friends are statuses on
 ## top of these, set by a scene's answer.
 const STAGES := [[0, "stranger"], [10, "wary"], [25, "friend"], [45, "close"], [65, "crush"], [85, "smitten"]]
@@ -42,7 +45,7 @@ static func romanceable(bank: Dictionary) -> bool:
 
 ## The [romance] section as a dictionary; likes/dislikes as arrays of ids.
 static func settings(bank: Dictionary) -> Dictionary:
-	var out := {"likes": [], "dislikes": [], "date_from": DATE_FROM}
+	var out := {"likes": [], "dislikes": [], "date_from": DATE_FROM, "flirt_from": FLIRT_FROM}
 	for kv in bank.get("romance", []):
 		if not kv is Array:
 			continue
@@ -52,8 +55,8 @@ static func settings(bank: Dictionary) -> Dictionary:
 				for id in String(kv[1]).split(",", false):
 					ids.append(id.strip_edges())
 				out[kv[0]] = ids
-			"date_from":
-				out["date_from"] = int(kv[1])
+			"date_from", "flirt_from":
+				out[kv[0]] = int(kv[1])
 	return out
 
 
@@ -139,3 +142,29 @@ static func gift_taste(bank: Dictionary, gift: String) -> String:
 
 static func gift_delta(taste: String) -> int:
 	return {"like": GIFT_LIKE, "dislike": GIFT_DISLIKE}.get(taste, GIFT_OTHER)
+
+
+## True once they flirt with Eco: from flirt_from on, or as a couple (never
+## once they've settled on friends).
+static func flirty(state: ConfigFile, bank: Dictionary, who: String) -> bool:
+	if not romanceable(bank) or status(state, who) == "friends":
+		return false
+	return status(state, who) == "together" or affection(state, who) >= int(settings(bank)["flirt_from"])
+
+
+## Which list their next everyday talk comes from: [any] until flirt_from,
+## then mostly [flirt] (two in three); a couple mix [together] and [flirt]
+## with the odd [any]. Lists they don't have are skipped.
+static func talk_list(state: ConfigFile, bank: Dictionary, who: String) -> String:
+	var order := ["any"]
+	var st := status(state, who)
+	if flirty(state, bank, who):
+		order = ["flirt", "flirt", "any"]
+	if romanceable(bank) and st == "together":
+		order = ["together", "flirt", "together", "flirt", "any"]
+	order = order.filter(func(l): return not bank.get(l, []).is_empty())
+	if order.is_empty():
+		return "any"
+	var n := int(state.get_value(who, "talk_n", 0))
+	state.set_value(who, "talk_n", n + 1)
+	return order[n % order.size()]

@@ -16,9 +16,18 @@ extends Node3D
 ## How close (m) Eco has to be before they turn to face her.
 const NOTICE_RANGE := 4.5
 const TURN_SPEED := 2.5
+## The furthest (degrees) they turn from where they stand facing to follow
+## Eco; past that they hold at the limit rather than spin round after her.
+const MAX_TURN := 60.0
 ## Who has more than one outfit (body.png first, then body_<outfit>.png from
 ## tools/npc/build_npc.py). They change between runs.
-const OUTFITS := {"ophelia": ["tee", "hoodie", "night"]}
+const OUTFITS := {
+	"ophelia": ["tee", "hoodie", "night", "bikini", "sheer", "tight", "lingerie"],
+	"mom": ["home", "bikini", "sheer", "tight", "lingerie"],
+}
+
+const NpcSprings := preload("res://scripts/hub/npc_springs.gd")
+const Hair := preload("res://scripts/hub/hair.gd")
 
 var who := ""
 var outfit := ""
@@ -32,6 +41,12 @@ var _mouth: Array = []   # [[MeshInstance3D, blend shape index]]
 var _t := 0.0
 ## The face mood on now ("" plain), how red the cheeks are (0..1, fading on
 ## its own), and the head gesture with how long it has run.
+## Holding one of their poses (npc_idles.gd): they don't turn on the spot
+## or switch to their talk loop, just talk from where they are.
+var posed := false
+var spot := ""
+## The mood they settle back into (their spot's: eyes shut by the records).
+var rest_mood: Array = []
 var face := ""
 var blush := 0.0
 var gesture := ""
@@ -71,6 +86,9 @@ func _ready() -> void:
 		model.name = "Model"
 		add_child(model)
 		_anim = model.find_child("AnimationPlayer", true, false) as AnimationPlayer
+		var springs := NpcSprings.make(who, model.find_child("Skeleton3D", true, false) as Skeleton3D)
+		if springs != null:
+			add_child(springs)
 		for mi in model.find_children("*", "MeshInstance3D", true, false):
 			_fill_textures(mi)
 			var b := (mi as MeshInstance3D).find_blend_shape_by_name("Fcl_MTH_A")
@@ -83,6 +101,7 @@ func _ready() -> void:
 			_head = HeadPose.new()
 			_head.npc = self
 			skel.add_child(_head)
+		Hair.apply(model, who)  # their haircut from the salon in Solace (if they get one)
 	if _anim != null and _anim.has_animation("idle"):
 		_anim.play("idle")
 		_anim.seek(randf() * 3.0, true)   # so they don't breathe in step
@@ -90,7 +109,7 @@ func _ready() -> void:
 	voice.name = "Voice"
 	voice.position = Vector3(0, 1.6, 0)
 	voice.unit_size = 6.0
-	voice.bus = "Master"
+	voice.bus = "Voices"
 	add_child(voice)
 
 
@@ -162,10 +181,21 @@ func mood(words: Array) -> void:
 			_gesture_t = 0.0
 
 
-## Back to a plain face and head (the blush keeps fading on its own).
+## Where their head is now (for cameras), in world space.
+func head_position() -> Vector3:
+	var skel := find_child("Skeleton3D", true, false) as Skeleton3D
+	if skel != null:
+		var i := skel.find_bone("J_Bip_C_Head")
+		if i >= 0:
+			return skel.global_transform * skel.get_bone_global_pose(i).origin + Vector3(0, 0.08, 0)
+	return global_position + Vector3(0, 1.45, 0)
+
+
+## Back to their resting face and head (the blush keeps fading on its own).
 func calm() -> void:
 	face = ""
 	gesture = ""
+	mood(rest_mood)
 
 
 ## Puts on their outfit for run number `run` (the same all through a stay in
@@ -199,7 +229,7 @@ func wear(p_outfit: String) -> void:
 
 func say(stream: AudioStream) -> void:
 	talking = true
-	if _anim != null and _anim.has_animation("talk") and _anim.current_animation != "talk":
+	if _anim != null and not posed and _anim.has_animation("talk") and _anim.current_animation != "talk":
 		_anim.play("talk", 0.3)
 	if stream != null:
 		voice.stream = stream
@@ -209,7 +239,7 @@ func say(stream: AudioStream) -> void:
 func hush() -> void:
 	talking = false
 	voice.stop()
-	if _anim != null and _anim.has_animation("idle") and _anim.current_animation != "idle":
+	if _anim != null and not posed and _anim.has_animation("idle") and _anim.current_animation != "idle":
 		_anim.play("idle", 0.4)
 
 
@@ -219,8 +249,10 @@ func _process(delta: float) -> void:
 	var want := home_yaw
 	if look_target != null and is_instance_valid(look_target):
 		var d := look_target.global_position - global_position
-		if Vector2(d.x, d.z).length() < NOTICE_RANGE or talking:
-			want = atan2(-d.x, -d.z)   # the model faces -Z
+		if not posed and (Vector2(d.x, d.z).length() < NOTICE_RANGE or talking):
+			var toward := angle_difference(home_yaw, atan2(-d.x, -d.z))   # the model faces -Z
+			var most := deg_to_rad(MAX_TURN)
+			want = home_yaw + clampf(toward, -most, most)
 	rotation.y = lerp_angle(rotation.y, want, minf(1.0, delta * TURN_SPEED))
 	# Mouth flaps while their voice plays.
 	var open := 0.0

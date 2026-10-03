@@ -233,10 +233,14 @@ static func _camp(root: Node3D, info: Dictionary) -> void:
 	_smoke(root, fire + Vector3(0, 1.2, 0))
 	for spec in [[Vector3(-2.6, 0, 0.4), 80.0], [Vector3(2.5, 0, -0.6), 100.0], [Vector3(0.3, 0, 2.6), 10.0], [Vector3(-0.6, 0, -2.6), -15.0]]:
 		K.wood(root, fire + spec[0] + Vector3(0, 0.3, 0), Vector3(0.5, 0.5, 2.0), Vector3(0, spec[1], 0))
+	# A log bench between the spokes, facing the fire, where she sits.
+	var seat := fire + Vector3(1.9, 0, 1.9)
+	K.wood(root, seat + Vector3(0, 0.22, 0), Vector3(1.1, 0.44, 0.45), Vector3(0, 45, 0))
 	K.interactable(info, "campfire", fire + Vector3(0, 0, 3.0), "[F] Sit by the fire", [
 		"Dad used to say a titan's just a campfire you can walk around in.",
 		"Out here nobody tells me what I'm not allowed to be.",
 	], 3.5)
+	info["interactables"].back()["rest"] = {"pose": "sit", "at": Transform3D(Basis(Vector3.UP, PI / 4.0), seat + Vector3(0.04, 0, 0.04)), "seat": 0.44}
 	# Laundry line between two poles, cloth swaying.
 	var a := Vector3(30, 0, 12.5)
 	var b := Vector3(41, 0, 11.5)

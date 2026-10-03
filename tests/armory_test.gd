@@ -42,6 +42,12 @@ func _rules() -> void:
 			same = false
 	w.free()
 	_check("stock smart pistol matches weapon.gd", same, stock)
+	var sp_s: Dictionary = Armory.WEAPONS["smart_pistol"]["stats"]
+	var rv_s: Dictionary = Armory.WEAPONS["rivet_cannon"]["stats"]
+	var ah_s: Dictionary = Armory.WEAPONS["machine_pistol"]["stats"]
+	_check("guns keep their spread character", rv_s["base_spread"] < sp_s["base_spread"] and sp_s["base_spread"] < ah_s["base_spread"] \
+			and rv_s["bloom_per_shot"] > sp_s["bloom_per_shot"] and sp_s["bloom_per_shot"] > ah_s["bloom_per_shot"] \
+			and sp_s["max_bloom"] <= 3.0 and rv_s["max_bloom"] <= 4.0 and ah_s["max_bloom"] <= 3.7, [sp_s, rv_s, ah_s])
 
 	# Upgrades: each gun its own, capped, paid for.
 	_check("starts at level 1", a.pilot_level() == 1 and a.next_unlock() == "rivet_cannon", a.pilot_level())
