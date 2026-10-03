@@ -99,6 +99,14 @@ enemy titan's salvage when you win); a lost run banks half. The HUD shows what y
   | 4 Jump Kit | 80 | Wallruns last 40% longer, grapple recharges 30% faster | jump pack low on her back, armoured collar |
   | 5 Dad's Colours | 100 | Second wind: once per zone a downing hit leaves you on 1 HP, untouchable 1.5 s | plates in Dad's colours, shoulder crests, every trim gold |
 
+  Once she has a tier, the locker's **Weight** row refits the suit (free, any time):
+
+  | Weight | Armour | Bonus | Looks |
+  | --- | --- | --- | --- |
+  | Light | half | 10% faster on the ground, grunts notice you 15% slower, wallruns 15% longer | no extra shoulder or hip lames, no knee cops |
+  | Medium | as listed | armour refills twice as fast | every tier's pieces |
+  | Heavy | +60% | every hit lands 15% softer, but 10% slower on the ground | adds elbow cops, upper-arm plates, thigh plates and a back plate |
+
   Tier 5 also costs a lock core. The armour pieces are part of `eco.glb` (`suit_t<tier>_*`
   meshes, modelled by `suit_armor()` in `tools/eco/build_eco_vroid.py`);
   `eco_model.gd` `suit_tier` shows them.
@@ -296,8 +304,8 @@ boots with knee plates, teal glowing trims).
   ```
   The first-person arm (`eco_fp_arm.glb`) still comes from the older code-sculpted Eco
   (`tools/eco/build_eco.py ... --fp`).
-- **Reference sheet renders**: `godot res://scenes/eco_showcase.tscn -- --shots=<folder> [--clean] [--suit=<tier>] [--only=front,back]`.
-  In the showcase, S cycles her suit upgrade tiers.
+- **Reference sheet renders**: `godot res://scenes/eco_showcase.tscn -- --shots=<folder> [--clean] [--suit=<tier>] [--weight=light|medium|heavy] [--only=front,back]`.
+  In the showcase, S cycles her suit upgrade tiers and W the suit weight.
 
 ## Grunts
 - 60 HP, headshots count above the shoulders. Visor glows red during a 0.4 s wind-up before each shot.

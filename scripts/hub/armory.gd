@@ -197,6 +197,23 @@ const SUIT_TIERS := [
 		"line": "His colours. I earned them."},
 ]
 
+## Suit weights: once she has a suit tier, the locker refits it light, medium
+## or heavy, free and as often as she likes. The weight scales every tier's
+## armour and adds its own bonus on top of the tiers' passives, and changes
+## which armour pieces she wears (eco_model.gd suit_weight).
+const SUIT_WEIGHTS := {
+	"light": {"name": "Light", "armor_mult": 0.5, "speed": 1.1, "notice_mult": 0.85, "wallrun_time_mult": 1.15,
+		"bonus": "Half the armour. 10% faster on the ground, grunts notice you 15% slower, wallruns 15% longer.",
+		"look": "Stripped down: no extra shoulder or hip lames, no knee cops."},
+	"medium": {"name": "Medium", "armor_mult": 1.0, "armor_regen_mult": 2.0,
+		"bonus": "The tier's armour. Armour refills twice as fast.",
+		"look": "Every tier's pieces."},
+	"heavy": {"name": "Heavy", "armor_mult": 1.6, "damage_mult": 0.85, "speed": 0.9,
+		"bonus": "60% more armour and every hit lands 15% softer, but 10% slower on the ground.",
+		"look": "Adds elbow cops, upper-arm plates, thigh plates and a back plate."},
+}
+const SUIT_WEIGHT_ORDER := ["light", "medium", "heavy"]
+
 ## Titan parts you can buy to start runs with (Mk I), by slot. Scrap is free.
 const TITAN_PART_COST := {
 	"chassis": {"alloy": 60, "scrap": 40},
@@ -230,6 +247,8 @@ var refits := {}
 var lifetime := {}
 ## Eco's suit tier, 0 (bare pilot suit) to SUIT_TIERS.size().
 var suit_tier := 0
+## Light, medium or heavy (SUIT_WEIGHTS).
+var suit_weight := "medium"
 
 
 func _init(p_path := DEFAULT_PATH) -> void:
@@ -258,6 +277,9 @@ func load_file() -> void:
 	titan_loadout.merge(cfg.get_value("titan", "loadout", {}), true)
 	refits = cfg.get_value("titan", "refits", {})
 	suit_tier = clampi(cfg.get_value("suit", "tier", 0), 0, SUIT_TIERS.size())
+	suit_weight = cfg.get_value("suit", "weight", "medium")
+	if not SUIT_WEIGHTS.has(suit_weight):
+		suit_weight = "medium"
 	if not WEAPONS.has(equipped) or not equipped in owned_weapons:
 		equipped = "smart_pistol"
 
@@ -276,6 +298,7 @@ func save() -> void:
 	cfg.set_value("titan", "loadout", titan_loadout)
 	cfg.set_value("titan", "refits", refits)
 	cfg.set_value("suit", "tier", suit_tier)
+	cfg.set_value("suit", "weight", suit_weight)
 	cfg.save(path)
 
 
@@ -562,21 +585,36 @@ func buy_suit_tier() -> bool:
 	return true
 
 
-## What a suit tier does, for player.gd apply_suit(): armour plus every passive
-## up to that tier (defaults to the tier she has).
-func suit_profile(tier := -1) -> Dictionary:
-	return suit_profile_for(suit_tier if tier < 0 else tier)
+## Refits the suit light, medium or heavy (free; needs a suit tier first).
+func set_suit_weight(weight: String) -> bool:
+	if suit_tier < 1 or not SUIT_WEIGHTS.has(weight):
+		return false
+	suit_weight = weight
+	save()
+	return true
 
 
-static func suit_profile_for(tier: int) -> Dictionary:
+## What the suit does, for player.gd apply_suit(): the tier's armour scaled by
+## the weight, every passive up to the tier, and the weight's bonus (the bare
+## suit, tier 0, has no weight). Defaults to what she wears.
+func suit_profile(tier := -1, weight := "") -> Dictionary:
+	return suit_profile_for(suit_tier if tier < 0 else tier, suit_weight if weight == "" else weight)
+
+
+static func suit_profile_for(tier: int, weight := "medium") -> Dictionary:
 	tier = clampi(tier, 0, SUIT_TIERS.size())
+	var w: Dictionary = SUIT_WEIGHTS.get(weight, SUIT_WEIGHTS["medium"]) if tier > 0 else {}
 	return {
 		"tier": tier,
-		"max_armor": float(SUIT_TIERS[tier - 1]["armor"]) if tier > 0 else 0.0,
+		"weight": weight if tier > 0 else "medium",
+		"max_armor": float(SUIT_TIERS[tier - 1]["armor"]) * w.get("armor_mult", 1.0) if tier > 0 else 0.0,
 		"loot_magnet": 2.0 if tier >= 1 else 1.0,
 		"regen_delay": 2.0 if tier >= 2 else 3.0,
-		"notice_mult": 0.7 if tier >= 3 else 1.0,
-		"wallrun_time_mult": 1.4 if tier >= 4 else 1.0,
+		"notice_mult": (0.7 if tier >= 3 else 1.0) * w.get("notice_mult", 1.0),
+		"wallrun_time_mult": (1.4 if tier >= 4 else 1.0) * w.get("wallrun_time_mult", 1.0),
 		"grapple_cooldown_mult": 0.7 if tier >= 4 else 1.0,
 		"second_wind": tier >= 5,
+		"speed_mult": w.get("speed", 1.0),
+		"armor_regen_mult": w.get("armor_regen_mult", 1.0),
+		"damage_mult": w.get("damage_mult", 1.0),
 	}

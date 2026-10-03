@@ -37,11 +37,12 @@ func _ready() -> void:
 		shadow = _spawn("Shadow", GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY)
 
 
-## Dresses both copies in her suit upgrade (eco_model.gd suit_tier). The
+## Dresses both copies in her suit upgrade (eco_model.gd suit_tier and suit_weight). The
 ## collar hides on the first-person body: it would sit round the camera.
-func set_suit_tier(tier: int) -> void:
+func set_suit(tier: int, weight := "medium") -> void:
 	for eco in [body, shadow]:
 		if eco != null:
+			eco.suit_weight = weight
 			eco.suit_tier = tier
 	if body != null:
 		for mesh in body.find_children("suit_t4_collar*", "MeshInstance3D", true, false):

@@ -27,6 +27,13 @@ extends "res://scripts/ps2/ps2_model.gd"
 		suit_tier = clampi(value, 0, SUIT_TIERS)
 		if is_inside_tree():
 			apply_suit()
+## The suit's weight (armory.gd SUIT_WEIGHTS): light leaves off the pieces
+## marked "m" (suit_t<tier>m_*), only heavy wears the ones marked "h".
+@export_enum("light", "medium", "heavy") var suit_weight := "medium":
+	set(value):
+		suit_weight = value
+		if is_inside_tree():
+			apply_suit()
 
 ## Spring bones (the VRoid rig's J_Sec_* bones; the glute ones are added by
 ## tools/eco/build_eco_vroid.py): how hard each pulls back to its pose, how
@@ -94,9 +101,19 @@ func _ready() -> void:
 		_anim.play("idle")
 
 
-## The tier a suit_t<tier>_* mesh belongs to (0 for everything else).
+## The tier a suit_t<tier>[m|h]_* mesh belongs to (0 for everything else).
 static func piece_tier(mesh_name: String) -> int:
 	return int(mesh_name.substr(6, 1)) if mesh_name.begins_with("suit_t") else 0
+
+
+## Whether a suit weight wears a piece: "m" pieces are medium and heavy, "h" heavy only.
+static func piece_worn(mesh_name: String, weight: String) -> bool:
+	match mesh_name.substr(7, 1):
+		"m":
+			return weight != "light"
+		"h":
+			return weight == "heavy"
+	return true
 
 
 ## Shows the armour of every tier up to suit_tier, in Dad's colours at the top tier.
@@ -106,7 +123,7 @@ func apply_suit() -> void:
 		var mi := node as MeshInstance3D
 		var tier := piece_tier(String(mi.name))
 		if tier > 0 and mi.mesh != null:
-			mi.visible = tier <= suit_tier
+			mi.visible = tier <= suit_tier and piece_worn(String(mi.name), suit_weight)
 			for i in mi.mesh.get_surface_count():
 				var m := mi.mesh.surface_get_material(i)
 				if m != null and m.resource_name == "eco_v_armor":

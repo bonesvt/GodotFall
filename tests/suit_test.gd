@@ -48,6 +48,14 @@ func _rules() -> void:
 	var p0 := Armory.suit_profile_for(0)
 	var p5: Dictionary = a.suit_profile()
 	_check("bare suit has no passives", p0["loot_magnet"] == 1.0 and p0["regen_delay"] == 3.0 and p0["notice_mult"] == 1.0 and not p0["second_wind"], p0)
+	var light := Armory.suit_profile_for(5, "light")
+	var heavy := Armory.suit_profile_for(5, "heavy")
+	_check("weights scale armour", light["max_armor"] == 50.0 and heavy["max_armor"] == 160.0, [light["max_armor"], heavy["max_armor"]])
+	_check("weight bonuses", light["speed_mult"] == 1.1 and heavy["speed_mult"] == 0.9 and heavy["damage_mult"] == 0.85 \
+			and p5["armor_regen_mult"] == 2.0 and is_equal_approx(light["notice_mult"], 0.7 * 0.85), [light, heavy])
+	_check("the bare suit has no weight bonus", Armory.suit_profile_for(0, "heavy")["speed_mult"] == 1.0, "")
+	_check("weight saves", a.set_suit_weight("heavy") and Armory.open(PATH).suit_weight == "heavy", "")
+	a.set_suit_weight("medium")
 	_check("tier 5 has every passive", p5["loot_magnet"] == 2.0 and p5["regen_delay"] == 2.0 and p5["notice_mult"] == 0.7 \
 			and p5["wallrun_time_mult"] == 1.4 and p5["grapple_cooldown_mult"] == 0.7 and p5["second_wind"] and p5["max_armor"] == 100.0, p5)
 	var b = Armory.open(PATH)
@@ -68,10 +76,17 @@ func _model() -> void:
 	eco.suit_tier = 3
 	var shown: Array = pieces.filter(func(p): return p.visible)
 	_check("tier 3 shows tiers 1-3 only", not shown.is_empty() and shown.all(func(p): return eco.piece_tier(String(p.name)) <= 3) \
-			and shown.size() == pieces.filter(func(p): return eco.piece_tier(String(p.name)) <= 3).size(), shown.size())
+			and shown.size() == pieces.filter(func(p): return eco.piece_tier(String(p.name)) <= 3 and eco.piece_worn(String(p.name), "medium")).size(), shown.size())
 	_check("tier 3 plates are gunmetal", pieces[0].get_surface_override_material(0) == null, "")
 	eco.suit_tier = 5
-	_check("tier 5 shows everything", pieces.all(func(p): return p.visible), "")
+	_check("tier 5 medium shows all but the heavy pieces", pieces.all(func(p): return p.visible == (String(p.name).substr(7, 1) != "h")), "")
+	eco.suit_weight = "heavy"
+	_check("heavy shows everything", pieces.all(func(p): return p.visible), "")
+	eco.suit_weight = "light"
+	var light_hidden: Array = pieces.filter(func(p): return not p.visible).map(func(p): return String(p.name).substr(7, 1))
+	_check("light leaves off the lames, knee cops and heavy pieces", not light_hidden.is_empty() and light_hidden.all(func(c): return c in ["m", "h"]) \
+			and "m" in light_hidden, light_hidden)
+	eco.suit_weight = "medium"
 	var plate: MeshInstance3D = eco.find_child("suit_t1_bracer_l", true, false)
 	_check("tier 5 repaints the plates in Dad's colours", plate.get_surface_override_material(0) == eco.LEGACY_PLATE, "")
 	_check("tier 5 turns the trims gold", plate.get_instance_shader_parameter("trim_gold") == 1.0, "")
@@ -94,18 +109,33 @@ func _run() -> void:
 	run_node.open_bench("suit")
 	await _ticks(2)
 	var bench = run_node.bench
-	_check("locker lists 5 tiers", bench.rows.size() == 5, bench.rows.size())
-	bench.select(2)
-	_check("can't skip ahead to tier 3", not bench.confirm() and armory.suit_tier == 0, armory.suit_tier)
+	_check("locker lists the weight and 5 tiers", bench.rows.size() == 6, bench.rows.size())
 	bench.select(0)
-	_check("buy tier 1", bench.confirm() and armory.suit_tier == 1, armory.suit_tier)
+	bench.step(1)
+	_check("no weight without a suit tier", armory.suit_weight == "medium", armory.suit_weight)
+	bench.select(3)
+	_check("can't skip ahead to tier 3", not bench.confirm() and armory.suit_tier == 0, armory.suit_tier)
 	bench.select(1)
+	_check("buy tier 1", bench.confirm() and armory.suit_tier == 1, armory.suit_tier)
+	bench.select(2)
 	_check("buy tier 2", bench.confirm() and armory.suit_tier == 2, armory.suit_tier)
 	await _ticks(2)
 	var preview = bench._turntable.get_child(0).get_child(0)
 	_check("the preview wears the browsed tier", preview.suit_tier == 2, preview.suit_tier)
+	bench.select(0)
+	bench.step(1)
+	_check("weight: heavy", armory.suit_weight == "heavy", armory.suit_weight)
+	await _ticks(2)
+	preview = bench._turntable.get_child(0).get_child(0)
+	_check("the preview wears the weight", preview.suit_weight == "heavy", preview.suit_weight)
 	run_node.close_bench()
 	await _ticks(2)
+	_check("heavy: more armour, softer hits, slower", player.max_armor == 64.0 and player.damage_mult == 0.85 and player.suit_speed == 0.9, [player.max_armor, player.damage_mult])
+	armory.set_suit_weight("light")
+	run_node.equip_loadout()
+	_check("light: less armour, faster", player.max_armor == 20.0 and player.suit_speed == 1.1 and is_equal_approx(player.notice_mult, 0.85), [player.max_armor, player.suit_speed])
+	armory.set_suit_weight("medium")
+	run_node.equip_loadout()
 	_check("closing the locker puts the suit on", player.max_armor == 40.0 and player.armor == 40.0 and player.regen_delay == 2.0 and player.loot_magnet == 2.0, [player.max_armor, player.armor])
 	var fp = player.get_node("EcoBody")
 	_check("her own body wears it too", fp.shadow == null or fp.shadow.suit_tier == 2, "")
@@ -122,7 +152,7 @@ func _run() -> void:
 	for i in 3:
 		armory.buy_suit_tier()
 	run_node.equip_loadout()
-	_check("dampers and jump kit", player.notice_mult == 0.7 and is_equal_approx(player.wallrun_max_time, 1.8 * 1.4) and is_equal_approx(player.grapple_cooldown, 2.5 * 0.7), [player.notice_mult, player.wallrun_max_time])
+	_check("dampers and jump kit", is_equal_approx(player.notice_mult, 0.7) and is_equal_approx(player.wallrun_max_time, 1.8 * 1.4) and is_equal_approx(player.grapple_cooldown, 2.5 * 0.7), [player.notice_mult, player.wallrun_max_time])
 	run_node.equip_loadout()
 	_check("equipping again doesn't stack", is_equal_approx(player.wallrun_max_time, 1.8 * 1.4), player.wallrun_max_time)
 	var downed := [false]

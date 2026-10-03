@@ -4,9 +4,9 @@ extends Node3D
 ##   Left / Right   turn her        Space   pause the turntable
 ##   1              full body        2       face close-up
 ##   3              first-person pistol and glove
-##   S              next suit upgrade tier (0-5)
+##   S              next suit upgrade tier (0-5)    W   next suit weight (light, medium, heavy)
 ## Also renders the character sheet shots when run with
-##   godot res://scenes/eco_showcase.tscn -- --shots=<folder> [--clean] [--suit=<tier>] [--only=front,back]
+##   godot res://scenes/eco_showcase.tscn -- --shots=<folder> [--clean] [--suit=<tier>] [--weight=light|medium|heavy] [--only=front,back]
 
 const Art := preload("res://scripts/ps2/ps2_assets.gd")
 
@@ -65,6 +65,8 @@ func _ready() -> void:
 				env.ambient_light_energy = 0.32
 		if arg.begins_with("--suit="):
 			eco.suit_tier = int(arg.trim_prefix("--suit="))
+		if arg.begins_with("--weight="):
+			eco.suit_weight = arg.trim_prefix("--weight=")
 		if arg.begins_with("--only="):
 			_only = arg.trim_prefix("--only=").split(",")
 	for arg in OS.get_cmdline_user_args():
@@ -103,6 +105,9 @@ func _unhandled_input(event: InputEvent) -> void:
 			eco.rotation.y += 0.3
 		KEY_S:
 			eco.suit_tier = (eco.suit_tier + 1) % (eco.SUIT_TIERS + 1)
+		KEY_W:
+			var weights := ["light", "medium", "heavy"]
+			eco.suit_weight = weights[(weights.find(eco.suit_weight) + 1) % weights.size()]
 		KEY_1, KEY_2, KEY_3:
 			_set_view(event.keycode - KEY_1)
 

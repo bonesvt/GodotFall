@@ -129,6 +129,10 @@ var regen_timer := 0.0
 ## Suit passives (apply_suit): how far loot flies to her (x the pickup's own
 ## range), how fast grunts notice her (x their rate), and the second wind.
 var suit_tier := 0
+var suit_weight := "medium"
+## Weight bonuses: ground speed, how fast armour refills, and how much of each hit lands.
+var suit_speed := 1.0
+var damage_mult := 1.0
 var loot_magnet := 1.0
 var notice_mult := 1.0
 var second_wind := false
@@ -137,6 +141,7 @@ var second_wind_ready := false
 ## Seconds she can't be hurt (after a second wind).
 var untouchable_timer := 0.0
 ## Movement values before the suit's passives scaled them.
+var _armor_regen_mult := 1.0
 var _base_wallrun_time := -1.0
 var _base_grapple_cooldown := -1.0
 var step_dist := 0.0
@@ -201,7 +206,7 @@ func _physics_process(delta: float) -> void:
 	if regen_timer <= 0.0 and health < max_health:
 		health = minf(health + regen_rate * delta, max_health)
 	elif regen_timer <= 0.0 and armor < max_armor:
-		armor = minf(armor + armor_regen_rate * delta, max_armor)
+		armor = minf(armor + armor_regen_rate * _armor_regen_mult * delta, max_armor)
 
 	input_dir = Input.get_vector("move_left", "move_right", "move_forward", "move_back")
 	wish_dir = (transform.basis * Vector3(input_dir.x, 0.0, input_dir.y)).normalized()
@@ -244,7 +249,7 @@ func _ground_state(delta: float) -> void:
 	_set_crouch(want_crouch)
 
 	var sprinting := (auto_sprint or Input.is_action_pressed("sprint")) and input_dir.y < -0.3
-	var target := (crouch_speed if crouching else (sprint_speed if sprinting else run_speed)) * speed_mult
+	var target := (crouch_speed if crouching else (sprint_speed if sprinting else run_speed)) * speed_mult * suit_speed
 	var speed := hvel.length()
 	if wish_dir != Vector3.ZERO:
 		if speed > target:
@@ -527,6 +532,7 @@ func respawn() -> void:
 func take_damage(amount: float, from := Vector3.ZERO) -> void:
 	if health <= 0.0 or untouchable_timer > 0.0:
 		return
+	amount *= damage_mult
 	var soaked := minf(armor, amount)
 	armor -= soaked
 	health -= amount - soaked
@@ -549,6 +555,10 @@ func apply_suit(profile: Dictionary) -> void:
 		_base_wallrun_time = wallrun_max_time
 		_base_grapple_cooldown = grapple_cooldown
 	suit_tier = profile.get("tier", 0)
+	suit_weight = profile.get("weight", "medium")
+	suit_speed = profile.get("speed_mult", 1.0)
+	damage_mult = profile.get("damage_mult", 1.0)
+	_armor_regen_mult = profile.get("armor_regen_mult", 1.0)
 	max_armor = profile.get("max_armor", 0.0)
 	armor = max_armor
 	regen_delay = profile.get("regen_delay", 3.0)
@@ -559,8 +569,8 @@ func apply_suit(profile: Dictionary) -> void:
 	second_wind = profile.get("second_wind", false)
 	second_wind_ready = second_wind
 	var body := get_node_or_null("EcoBody")
-	if body != null and body.has_method("set_suit_tier"):
-		body.set_suit_tier(suit_tier)
+	if body != null and body.has_method("set_suit"):
+		body.set_suit(suit_tier, suit_weight)
 
 
 # --- Crouch, camera, rope -----------------------------------------------------

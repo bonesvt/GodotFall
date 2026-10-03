@@ -7,7 +7,8 @@ extends CanvasLayer
 ##   workshop   LOADOUT       the titan parts a run starts with (Mk I) instead of scrap
 ##              REFITS        upgrade any part you own, salvaged copies included
 ##   suit       SUIT          Eco's suit upgrades, bought in order (armour, a
-##                            passive and armour you can see on her, per tier)
+##                            passive and armour you can see on her, per tier),
+##                            and its weight: light, medium or heavy (free)
 ## The run manager opens it (pausing the hub) and closes it on F or Esc.
 ##   W/S or Up/Down    pick a row       A/D or Left/Right    browse a row's options
 ##   Space or Enter    buy / fit / pick                Tab or Q/E    switch tab / gun
@@ -369,6 +370,16 @@ func _refit_rows() -> Array:
 
 func _suit_rows() -> Array:
 	var out := []
+	var w: Dictionary = Armory.SUIT_WEIGHTS[armory.suit_weight]
+	var armour := "%d armour" % roundi(armory.suit_profile()["max_armor"]) if armory.suit_tier > 0 else "no suit tier yet"
+	out.append({
+		"label": "Weight",
+		"value": "◀ %s ▶" % w["name"],
+		"state": armour,
+		"note": "%s\nLooks: %s\nFree to switch. A/D to change.%s" % [w["bonus"], w["look"],
+				"" if armory.suit_tier > 0 else "\nBuy tier 1 first."],
+		"step": func(dir): _step_weight(dir),
+	})
 	for i in Armory.SUIT_TIERS.size():
 		var t: Dictionary = Armory.SUIT_TIERS[i]
 		var tier := i + 1
@@ -376,7 +387,7 @@ func _suit_rows() -> Array:
 		var next := armory.suit_tier == tier - 1
 		var row := {
 			"label": "%d  %s" % [tier, t["name"]],
-			"value": "%d armour" % t["armor"],
+			"value": "%d armour" % roundi(t["armor"] * Armory.SUIT_WEIGHTS[armory.suit_weight]["armor_mult"]),
 			"note": "%s: %s\nLooks: %s\n\"%s\"" % [t["passive"], t["passive_desc"], t["look"], t["line"]],
 			"suit_tier": tier,
 			"confirm": func(): return armory.buy_suit_tier() if next else owned,
@@ -389,6 +400,11 @@ func _suit_rows() -> Array:
 			row["state"] = "NEEDS TIER %d" % (tier - 1)
 		out.append(row)
 	return out
+
+
+func _step_weight(dir: int) -> void:
+	var order: Array = Armory.SUIT_WEIGHT_ORDER
+	armory.set_suit_weight(order[posmod(order.find(armory.suit_weight) + dir, order.size())])
 
 
 func _with_attachment(slot: String, id: String) -> Dictionary:
@@ -538,9 +554,11 @@ func _update_preview(row: Dictionary) -> void:
 	var make: Callable
 	if kind == "suit":
 		var tier: int = row.get("suit_tier", armory.suit_tier)
-		key = "suit/%d" % tier
+		var weight: String = armory.suit_weight
+		key = "suit/%d/%s" % [tier, weight]
 		make = func():
 			var eco = ECO.instantiate()
+			eco.suit_weight = weight
 			eco.suit_tier = tier
 			eco.rotation.y = PI  # she faces -Z; turn her to the camera
 			var holder := Node3D.new()

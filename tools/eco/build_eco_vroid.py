@@ -14,7 +14,7 @@ What it does to the preset, in its rest space (she faces -Y there, her left is +
   cutouts, open back and legs cut high front and back, waist band, gloves,
   thigh-high boots with knee plates, teal glow trims. Baked into v_body.png (+ glow, sheen/suit mask and normal maps)
 - goggles on her head, skinned to the head bone
-- the suit upgrades' armour (suit_t<tier>_* pieces: bracers, belt and pouches,
+- the suit upgrades' armour (suit_t<tier>[m|h]_* pieces: bracers, belt and pouches,
   shoulder plates, injector, shin guards, hip plates, jump kit, collar,
   crests), hidden in game until she has bought that tier
 - glute bones beside the preset's bust bones, for the jiggle springs
@@ -666,8 +666,11 @@ def frame_at(p, n, up=(0, 0, 1)):
 def suit_armor():
     """Eco's suit upgrades (scripts/hub/armory.gd SUIT_TIERS), modelled on her in
     rest space (she faces -Y, her left is +X, T-pose). Every piece is named
-    suit_t<tier>_<part>; the game shows the pieces of every tier she has bought
-    (eco_model.gd suit_tier). Each tier adds to the last:
+    suit_t<tier><weight>_<part>; the game shows the pieces of every tier she has
+    bought (eco_model.gd suit_tier). <weight> is the suit weights that wear the
+    piece (armory.gd SUIT_WEIGHTS): none for all three, "m" for medium and heavy
+    (the light suit leaves off the extra lames and knee cops), "h" for heavy only
+    (elbow cops, upper-arm plates, thigh plates, a back plate). Each tier adds to the last:
       1 Scav rig      forearm bracers, a belt with hip pouches
       2 Seal weave    layered shoulder plates, a thigh strap with a seal injector
       3 Dampers       shin guards and knee cops, hip plates
@@ -693,7 +696,7 @@ def suit_armor():
                          planes=[(m((0.07, 0, 0)), m((-1, 0, 0))), (m((0.165, 0, 0)), m((1, 0, 0))),
                                  ((0, 0, 1.13), (0, 0, -1))],
                          gap=0.012, thick=0.006))
-        out.append(shell("suit_t2_pauldron_lame_" + side,
+        out.append(shell("suit_t2m_pauldron_lame_" + side,
                          lambda c, n: 0.1 < c.x * s < 0.25 and c.z > 1.1,
                          planes=[(m((0.15, 0, 0)), m((-1, 0, 0))), (m((0.215, 0, 0)), m((1, 0, 0))),
                                  ((0, 0, 1.128), (0, 0, -1))],
@@ -703,7 +706,7 @@ def suit_armor():
                          lambda c, n: c.y < 0.06 and 0.1 < c.z < 0.5 and c.x * s > 0.0,
                          planes=[((0, 0, 0.17), (0, 0, -1)), ((0, 0, 0.425), (0, 0, 1)), ((0, 0.012, 0.467), (0, 0.998, 0.06))],
                          gap=0.006, thick=0.006))
-        out.append(shell("suit_t3_knee_" + side,
+        out.append(shell("suit_t3m_knee_" + side,
                          lambda c, n: c.y < 0.06 and 0.4 < c.z < 0.56 and c.x * s > 0.0,
                          planes=[((0, 0, 0.43), (0, 0, -1)), ((0, 0, 0.52), (0, 0, 1)), ((0, -0.006, 0), (0, 1, 0))],
                          gap=0.009, thick=0.006))
@@ -712,11 +715,26 @@ def suit_armor():
                          planes=[((0, 0, 0.745), (0, 0, -1)), ((0, 0, 0.9), (0, 0, 1)), (m((0.085, 0, 0)), m((-1, 0, 0))),
                                  ((0, -0.05, 0), (0, -1, 0)), ((0, 0.05, 0), (0, 1, 0))],
                          gap=0.009, thick=0.005))
-        out.append(shell("suit_t3_hip_lame_" + side,
+        out.append(shell("suit_t3m_hip_lame_" + side,
                          lambda c, n: c.x * s > 0.06 and 0.66 < c.z < 0.8,
                          planes=[((0, 0, 0.705), (0, 0, -1)), ((0, 0, 0.755), (0, 0, 1)), (m((0.09, 0, 0)), m((-1, 0, 0))),
                                  ((0, -0.042, 0), (0, -1, 0)), ((0, 0.042, 0), (0, 1, 0))],
                          gap=0.007, thick=0.004))
+        # --- heavy only: elbow cops, upper-arm plates, thigh plates (cuisses)
+        out.append(shell("suit_t1h_elbow_" + side,
+                         lambda c, n: 0.24 < c.x * s < 0.34 and c.z > 1.1,
+                         planes=[(m((0.266, 0, 0)), m((-1, 0, 0))), (m((0.31, 0, 0)), m((1, 0, 0))),
+                                 ((0, 0, 1.132), (0, 0, -1))],
+                         gap=0.009, thick=0.006))
+        out.append(shell("suit_t2h_rerebrace_" + side,
+                         lambda c, n: 0.17 < c.x * s < 0.29 and c.z > 1.1,
+                         planes=[(m((0.205, 0, 0)), m((-1, 0, 0))), (m((0.262, 0, 0)), m((1, 0, 0))),
+                                 ((0, 0, 1.126), (0, 0, -1))],
+                         gap=0.006, thick=0.005))
+        out.append(shell("suit_t3h_cuisse_" + side,
+                         lambda c, n: c.y < 0.04 and 0.5 < c.z < 0.66 and c.x * s > 0.0,
+                         planes=[((0, 0, 0.535), (0, 0, -1)), ((0, 0, 0.612), (0, 0, 1)), ((0, 0.0, 0), (0, 1, 0))],
+                         gap=0.007, thick=0.006))
     # --- tier 1: the belt, sitting on the suit's waist band, and two hip pouches
     out.append(shell("suit_t1_belt", lambda c, n: 0.89 < c.z < 0.97 and abs(c.x) < 0.25,
                      planes=[((0, 0, 0.913), (0, 0, -1)), ((0, 0, 0.947), (0, 0, 1))],
@@ -757,6 +775,11 @@ def suit_armor():
         cylinder(bm, base + d * 0.034, d, 0.017, 0.004, 2)
     box(bm, c + y * 0.026 + z * 0.012, (x, y, z), (0.08, 0.004, 0.006), 2, bevel=0)      # status strip
     out.append(rigid("suit_t4_jumpkit", bm, ["eco_v_armor", "eco_v_armor_edge", "eco_v_armor_glow"], "J_Bip_C_Spine"))
+    out.append(shell("suit_t4h_backplate",
+                     lambda c, n: c.y > 0.0 and 0.98 < c.z < 1.16 and abs(c.x) < 0.11,
+                     planes=[((0, 0, 1.03), (0, 0, -1)), ((0, 0, 1.125), (0, 0, 1)), ((0.078, 0, 0), (1, 0, 0)),
+                             ((-0.078, 0, 0), (-1, 0, 0)), ((0, 0.02, 0), (0, -1, 0))],
+                     gap=0.008, thick=0.006))
     out.append(shell("suit_t4_collar",
                      lambda c, n: 1.13 < c.z < 1.24 and math.hypot(c.x, c.y - 0.022) < 0.075,
                      planes=[((0, 0, 1.165), (0, 0, -1)), ((0, 0, 1.2), (0, 0, 1))],
