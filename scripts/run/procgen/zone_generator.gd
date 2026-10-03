@@ -272,7 +272,7 @@ static func _picket(root: Node3D, plan, info: Dictionary, keep_out: Array, s: Di
 	var z: float = s["mid"]
 	var c: float = plan.lane_x(loud, z)
 	keep_out.append(Rect2(c - 11, z - 6, 22, 12))
-	if plan.biome == "boneyard":
+	if plan.biome in ["boneyard", "city", "military"]:
 		B.cover_tall(root, _on(plan, c + 2.0, z), 0.0, dress)
 	else:
 		F.fallen_log(root, _on(plan, c + 2.0, z), 4.0)
@@ -858,7 +858,7 @@ static func _traversal(root: Node3D, plan, info: Dictionary, keep_out: Array, rn
 					var z := rng.randf_range(z1 + 3.0, z0 - 3.0)
 					var x: float = (plan.lane_x(loud, z) + plan.lane_x(other, z)) * 0.5 + rng.randf_range(-2.0, 2.0)
 					var pick := rng.randf()
-					var id := "grapple_mast" if pick < 0.45 else ("grapple_mast_short" if pick < 0.7 else "scaffold_roost")
+					var id := B.mast("grapple_mast" if pick < 0.45 else ("grapple_mast_short" if pick < 0.7 else "scaffold_roost"), plan.biome, rng)
 					if not _put(root, plan, info, keep_out, id, Vector2(x, z), rng.randf_range(0, 360), 6.0).is_empty():
 						break
 		# Each gully: a slab fallen against its bank, leaning over the bed.

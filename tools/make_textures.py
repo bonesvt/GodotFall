@@ -1197,6 +1197,297 @@ def alloy_inlay():
     save("alloy_inlay", img, 1 - cut * 0.4, 0.3 + 0.1 * cut, depth=s / 80, metal=0.4 * (1 - cut))
 
 
+# --- the high tech city's streets --------------------------------------------
+
+def asphalt():
+    """City roads: dark blue-black asphalt, pale aggregate glinting through,
+    tar-sealed crack lines, darker patch repairs and oil stains."""
+    s = BIG
+    d1, _, ids = worley(s, 160, 401, jitter=1.0)
+    stones = smooth(0.42, 0.2, d1) * (per_id(ids, 402, 0, 1) > 0.55)
+    base = mix(norm01(noise(s, 6, 4, 403)), (40, 42, 48), (62, 64, 70))
+    img = base * (1 + 0.5 * stones[..., None] * per_id(ids, 404, 0.2, 1.0)[..., None])
+    # patch repairs: soft rectangles of fresher, blacker tar
+    x, y = coords(s)
+    patch = np.zeros((s, s))
+    r = np.random.default_rng(405)
+    for _ in range(4):
+        cx, cy = r.uniform(0, s, 2)
+        w, h = r.uniform(s * 0.12, s * 0.3, 2)
+        dx = np.abs((x - cx + s / 2) % s - s / 2)
+        dy = np.abs((y - cy + s / 2) % s - s / 2)
+        patch = np.maximum(patch, smooth(4, 0, np.maximum(dx - w / 2, dy - h / 2)))
+    img = img * (1 - 0.18 * patch[..., None]) + np.array([30, 31, 36]) * 0.18 * patch[..., None]
+    crack = lines_mask(s, walks(s, 9, 60, s / 140, 406, wander=0.5, down=False), s / 260)
+    seal = gauss(crack, s / 220)
+    img = img * (1 - 0.55 * np.clip(seal * 3, 0, 1)[..., None]) + np.array([16, 16, 20]) * 0.55 * np.clip(seal * 3, 0, 1)[..., None]
+    oil = smooth(0.7, 0.85, norm01(noise(s, 5, 4, 407)))
+    img *= (1 - 0.2 * oil)[..., None]
+    img += np.array([2, 0, 4]) * oil[..., None]  # a faint oily sheen
+    img += grain(s, 408, 4)
+    hh = stones * 0.35 + (noise(s, 64, 2, 409) - 0.5) * 0.15 - crack * 0.6 - patch * 0.05
+    rough = 0.82 - 0.25 * oil - 0.1 * patch + 0.08 * stones
+    save("asphalt", img, hh, rough, depth=s / 120)
+
+
+def pavers():
+    """Sidewalks and plazas: big pale grey concrete slabs in a running bond
+    with dark bands of small square setts, gum spots and wet-look grime."""
+    s = BIG
+    rows = []
+    # four rows of slabs, every other row offset by half a slab; the last row is setts
+    for r_ in range(3):
+        y0, y1 = r_ * 36, r_ * 36 + 36
+        off = 0 if r_ % 2 == 0 else 32
+        for c in range(-1, 3):
+            rows.append(((c * 64 + off) % 128, y0, (c * 64 + off) % 128 + 64, y1))
+    slabs = []
+    for x0, y0, x1, y1 in rows:
+        if x1 > 128:
+            slabs.append((x0, y0, 128, y1))
+            slabs.append((0, y0, x1 - 128, y1))
+        else:
+            slabs.append((x0, y0, x1, y1))
+    setts = [(c * 10 + 1, 109 + rr * 10, c * 10 + 10, 118 + rr * 10) for c in range(12) for rr in range(2)]
+    setts = [(x0, y0, min(x1, 128), min(y1, 128)) for x0, y0, x1, y1 in setts]
+    h, ids, dist = plates(s, rects_px(s, slabs + setts), s * 0.006, seed=411, chip=s * 0.003)
+    n_slab = len(slabs)
+    is_sett = ids >= n_slab
+    tone = per_id(ids, 412, -0.07, 0.07)
+    img = mix(strokes(s, 4, 4, 413, 2), (150, 154, 158), (182, 184, 186))
+    img = np.where(is_sett[..., None], mix(noise(s, 32, 2, 414), (78, 82, 92), (104, 108, 118)), img)
+    img *= (1 + tone)[..., None]
+    speck = smooth(0.25, 0.0, worley(s, 90, 415)[0]) * 0.5
+    img *= (1 - 0.12 * speck)[..., None]
+    gum = dome(s, [tuple(p) for p in np.random.default_rng(416).uniform(0, s, (14, 2))], s * 0.006)
+    img = img * (1 - 0.4 * gum[..., None]) + np.array([60, 60, 64]) * 0.4 * gum[..., None]
+    wet = smooth(0.6, 0.9, norm01(noise(s, 3, 3, 417)))
+    img *= (1 - 0.08 * wet)[..., None] * grime(s, 418, 0.08)[..., None]
+    seam = np.clip(1 - h, 0, 1)
+    img *= (1 - 0.45 * seam)[..., None]
+    img += grain(s, 419, 4)
+    hh = h + (noise(s, 64, 2, 420) - 0.5) * 0.05 + gum * 0.1
+    save("pavers", img, hh, 0.78 - 0.35 * wet + 0.1 * seam, depth=s / 110)
+
+
+def facade():
+    """High tech city walls: dark charcoal composite cladding in tall and wide
+    panels, hairline seams, louvred vent strips, flush screws and a few cyan
+    status LEDs. Cold, clean, a little rain-streaked."""
+    s = BIG
+    rects = rects_px(s, [(0, 0, 40, 64), (40, 0, 128, 28), (40, 28, 84, 64), (84, 28, 128, 64),
+                         (0, 64, 88, 92), (88, 64, 128, 128), (0, 92, 44, 128), (44, 92, 88, 128)])
+    h, ids, dist = plates(s, rects, s * 0.008, seed=421)
+    tone = per_id(ids, 422, -0.08, 0.08)
+    img = mix(strokes(s, 4, 3, 423, 2), (50, 54, 62), (68, 72, 82)) * (1 + tone)[..., None]
+    x, y = coords(s)
+    k = s / 128
+    # louvred vents across two panels
+    vent = ((x >= 46 * k) & (x < 80 * k) & (y >= 4 * k) & (y < 22 * k)) | ((x >= 92 * k) & (x < 124 * k) & (y >= 100 * k) & (y < 122 * k))
+    slat = (y % (2.2 * k)) / (2.2 * k)
+    hh = h - vent * (0.25 + 0.2 * slat)
+    img = np.where(vent[..., None], img * (0.45 + 0.5 * slat)[..., None], img)
+    screws = [(x0 * k + 2.5 * k, y0 * k + 2.5 * k) for x0, y0, x1, y1 in
+              [(0, 0, 40, 64), (40, 0, 128, 28), (40, 28, 84, 64), (84, 28, 128, 64), (0, 64, 88, 92), (88, 64, 128, 128), (0, 92, 44, 128), (44, 92, 88, 128)]]
+    screws += [(sx + 0 * k, sy) for sx, sy in screws]
+    sc = dome(s, screws, 1.0 * k)
+    hh += sc * 0.1
+    img = img * (1 - 0.3 * sc[..., None]) + np.array([150, 156, 168]) * 0.3 * sc[..., None]
+    # status LEDs: a few small glowing dots
+    leds = dome(s, [(36 * k, 58 * k), (36 * k, 55 * k), (124 * k, 32 * k), (84 * k, 88 * k)], 0.9 * k)
+    img = img * (1 - leds[..., None]) + np.array([90, 240, 255]) * leds[..., None]
+    seam = np.clip(1 - h, 0, 1)
+    img *= (1 - 0.55 * seam)[..., None]
+    img *= rain_streaks(s, 424, 0.16)[..., None] * grime(s, 425, 0.1)[..., None]
+    edge_lit = np.clip(convex(hh, s / 300) * 6, 0, 1)
+    img += edge_lit[..., None] * 30
+    img += grain(s, 426, 3)
+    rough = 0.38 + 0.15 * noise(s, 6, 3, 427) + 0.3 * seam + 0.2 * vent
+    save("facade", img, hh, rough, depth=s / 130, metal=0.25 * (1 - seam))
+
+
+def curtain():
+    """Glass curtain walls: blue-teal mirror glass in three panes per floor,
+    slim silver mullions, a dark spandrel band with a light strip at each
+    floor, and some offices lit warm or cold behind the glass."""
+    s = BIG
+    k = s / 128
+    x, y = coords(s)
+    col = (x // (s / 3)).astype(int)
+    fx = (x % (s / 3)) / (s / 3)
+    fy = y / s
+    mull = (fx < 0.03) | (fx > 0.97)
+    spandrel = fy > 0.82
+    sky = mix(np.clip(1 - fy / 0.82, 0, 1) ** 1.5, (34, 70, 96), (120, 170, 196))
+    # reflections: soft diagonal bands of brighter sky
+    refl = smooth(0.55, 0.9, np.sin((x + y * 0.6) / s * np.pi * 2 * 1.5 + noise(s, 3, 2, 431) * 2) * 0.5 + 0.5)
+    glass = sky + refl[..., None] * 40
+    lit_roll = np.array([0.9, 0.2, 0.6])
+    lit = np.zeros((s, s))
+    tint = np.zeros((s, s, 3))
+    for i in range(3):
+        if lit_roll[i] > 0.45:
+            m = (col == i) & ~spandrel
+            lit = np.where(m, 1.0, lit)
+            warm = np.array([255, 214, 150]) if lit_roll[i] > 0.75 else np.array([190, 236, 255])
+            tint = np.where(m[..., None], warm, tint)
+    # inside a lit office: a soft ceiling glow and dark desk silhouettes
+    desks = (fy > 0.6) & (fy < 0.82) & ((fx % 0.34) < 0.22) | (fy > 0.52) & (fy < 0.6) & ((fx % 0.34) > 0.08) & ((fx % 0.34) < 0.13)
+    room = lit * (0.5 + 0.4 * np.clip(1 - fy / 0.3, 0, 1)) * (1 - 0.7 * desks)
+    glass = glass * (1 - 0.7 * room[..., None]) + tint * 0.7 * room[..., None]
+    img = glass
+    img = np.where(spandrel[..., None], mix(noise(s, 32, 2, 434), (30, 34, 42), (44, 48, 58)), img)
+    strip = (fy > 0.835) & (fy < 0.85)
+    img = np.where(strip[..., None], np.array([150, 230, 250], float), img)
+    img = np.where(mull[..., None], mix(noise(s, 64, 2, 435), (150, 156, 166), (196, 200, 208)), img)
+    transom = (fy > 0.81) & (fy <= 0.82) | (fy < 0.012)
+    img = np.where(transom[..., None], np.array([170, 176, 186], float), img)
+    img *= rain_streaks(s, 436, 0.1)[..., None]
+    hh = np.where(mull | transom, 1.0, np.where(spandrel, 0.6, 0.3))
+    hh = gauss(hh, k * 0.3)
+    rough = np.where(mull | transom, 0.35, np.where(spandrel, 0.6, 0.06))
+    metal = np.where(mull | transom, 1.0, 0.0)
+    save("curtain", img, hh, rough, depth=s / 100, metal=metal, ao=0.3)
+
+
+# --- the militia's bases and outposts ----------------------------------------
+
+def corrugated():
+    """Hangars and sheds: corrugated steel sheet painted a dull green-grey,
+    overlapping sheets with rivet rows, paint flaking to galvanised steel and
+    rust runs from every rivet."""
+    s = BIG
+    x, y = coords(s)
+    k = s / 128
+    wave = np.sin(x / (8 * k) * 2 * np.pi) * 0.5 + 0.5
+    sheet = (y // (s / 2)).astype(int)
+    lap = (y % (s / 2)) < 2.5 * k
+    st = strokes(s, 4, 3, 441, 2)
+    img = mix(st, (96, 106, 92), (122, 132, 112)) * (1 + per_id(sheet + (x // (s / 2)).astype(int) * 2, 442, -0.05, 0.05))[..., None]
+    img *= (0.82 + 0.3 * wave)[..., None]
+    rivets = [(cx, cy) for cy in (3.5 * k, 67.5 * k) for cx in np.arange(4 * k, s, 8 * k)]
+    rv = dome(s, rivets, 1.1 * k)
+    flake = smooth(0.74, 0.78, noise(s, 16, 4, 443) + (1 - wave) * 0.04)
+    galv = mix(noise(s, 96, 2, 444), (150, 156, 158), (186, 190, 192))
+    img = img * (1 - flake[..., None]) + galv * flake[..., None]
+    # rust runs down from the rivets and the laps
+    run = gauss(rv, k * 0.8)
+    for _ in range(6):
+        run = np.maximum(run, np.roll(run, int(3 * k), axis=0) * 0.88)
+    run = np.clip(run * 2.2, 0, 1) * smooth(0.3, 0.7, noise(s, 64, 1, 445, cells_y=4))
+    img = img * (1 - 0.6 * run[..., None]) + np.array([132, 70, 36]) * 0.6 * run[..., None]
+    img *= np.where(lap, 0.55, 1.0)[..., None]
+    img *= grime(s, 446, 0.18)[..., None] * rain_streaks(s, 447, 0.12)[..., None]
+    img += grain(s, 448, 4)
+    hh = wave * 0.8 + rv * 0.3 - lap * 0.3
+    rough = 0.6 + 0.2 * run - 0.25 * flake
+    save("corrugated", img, hh, rough, depth=s / 60, metal=flake * 0.9)
+
+
+def olive():
+    """Military vehicles, crates and towers: olive drab paint over steel
+    plate, weld seams, bolt rows, a stencilled unit number, chipped edges
+    showing dark primer and steel."""
+    s = BIG
+    k = s / 128
+    rects = rects_px(s, [(0, 0, 64, 64), (64, 0, 128, 40), (64, 40, 128, 64), (0, 64, 48, 128), (48, 64, 128, 128)])
+    h, ids, dist = plates(s, rects, s * 0.012, seed=451, chip=s * 0.004)
+    img = mix(strokes(s, 4, 4, 452, 2), (82, 90, 54), (108, 116, 70)) * (1 + per_id(ids, 453, -0.05, 0.05))[..., None]
+    x, y = coords(s)
+    bolts = [(cx, cy) for cy in (4 * k, 60 * k, 68 * k, 124 * k) for cx in np.arange(6 * k, s, 12 * k)]
+    b = dome(s, bolts, 1.3 * k)
+    hh = h + b * 0.25
+    sten = text_mask(s, "7-ALPHA", 88 * k, 98 * k, 11 * k)
+    sten2 = text_mask(s, "MLT 0451", 28 * k, 22 * k, 8 * k)
+    stn = np.clip(sten + sten2, 0, 1)
+    img = img * (1 - 0.85 * stn[..., None]) + np.array([222, 214, 176]) * 0.85 * stn[..., None]
+    edge = np.clip(1 - dist / (s * 0.02), 0, 1)
+    chip = smooth(0.72, 0.76, noise(s, 20, 4, 454) + edge ** 2 * 0.35)
+    primer = smooth(0.5, 0.6, noise(s, 48, 2, 455))
+    under = mix(primer, (60, 56, 52), (150, 148, 140))
+    img = img * (1 - chip[..., None]) + under * chip[..., None]
+    mud = smooth(0.55, 1.0, y / s) * smooth(0.35, 0.75, noise(s, 8, 4, 456))
+    img = img * (1 - 0.5 * mud[..., None]) + np.array([96, 82, 62]) * 0.5 * mud[..., None]
+    img *= grime(s, 457, 0.18)[..., None] * (1 - 0.4 * np.clip(1 - h, 0, 1))[..., None]
+    img += grain(s, 458, 4)
+    hh -= chip * 0.05
+    rough = 0.7 - 0.25 * chip * primer + 0.1 * mud
+    save("olive", img, hh, rough, depth=s / 110, metal=chip * primer)
+
+
+def hesco():
+    """HESCO bastions: beige geotextile bulging between a welded wire grid,
+    dirt pressed through the fabric, the grid rusty where it's knocked."""
+    s = BIG
+    k = s / 128
+    x, y = coords(s)
+    cell = 8 * k
+    fx, fy = (x % cell) / cell - 0.5, (y % cell) / cell - 0.5
+    pillow = np.cos(fx * np.pi) * np.cos(fy * np.pi)
+    wire = (np.abs(fx) > 0.46) | (np.abs(fy) > 0.46)
+    fabric = mix(strokes(s, 4, 4, 461, 2), (156, 140, 104), (190, 174, 132))
+    weave = (np.sin(x / (0.8 * k) * np.pi) * np.sin(y / (0.8 * k) * np.pi)) * 0.5 + 0.5
+    fabric *= (0.92 + 0.1 * weave)[..., None]
+    dirt = smooth(0.45, 0.85, noise(s, 6, 4, 462)) * (0.4 + 0.6 * (y / s))
+    fabric = fabric * (1 - 0.45 * dirt[..., None]) + np.array([104, 86, 62]) * 0.45 * dirt[..., None]
+    fabric *= (0.82 + 0.22 * pillow)[..., None]
+    rust = smooth(0.6, 0.8, noise(s, 24, 3, 463))
+    steel = mix(rust, (120, 122, 118), (128, 78, 46))
+    img = np.where(wire[..., None], steel, fabric)
+    # the folded seam between two baskets, every half tile
+    seam = (x % (s / 2)) < 1.5 * k
+    img = np.where(seam[..., None], img * 0.55, img)
+    img *= grime(s, 464, 0.15)[..., None]
+    img += grain(s, 465, 5)
+    hh = np.where(wire, 1.0, pillow * 0.6) - seam * 0.4
+    rough = np.where(wire, 0.5, 0.95)
+    save("hesco", img, hh, rough, depth=s / 60, metal=wire * (1 - rust))
+
+
+def camo():
+    """Camouflage cloth for nets and tarps: four-colour woodland blotches,
+    a coarse weave and faded, sun-bleached patches."""
+    s = BIG
+    a = warp(norm01(noise(s, 5, 3, 471)), s * 0.04, 472)
+    b = warp(norm01(noise(s, 7, 3, 473)), s * 0.03, 474)
+    img = np.zeros((s, s, 3)) + np.array([104, 112, 70], float)
+    img = np.where((a > 0.55)[..., None], np.array([70, 82, 50], float), img)
+    img = np.where((b > 0.6)[..., None], np.array([120, 96, 62], float), img)
+    img = np.where(((a < 0.3) & (b < 0.45))[..., None], np.array([40, 42, 34], float), img)
+    x, y = coords(s)
+    weave = (np.sin(x / (s / 256) * np.pi) * np.sin(y / (s / 256) * np.pi)) * 0.5 + 0.5
+    img *= (0.88 + 0.16 * weave)[..., None]
+    fade = smooth(0.6, 0.9, norm01(noise(s, 3, 3, 475)))
+    img = img * (1 - 0.25 * fade[..., None]) + np.array([170, 166, 140]) * 0.25 * fade[..., None]
+    img += grain(s, 476, 5)
+    save("camo", img, weave * 0.3 + (noise(s, 16, 3, 477) - 0.5) * 0.4, 0.92, depth=s / 100, ao=0.3)
+
+
+def tarmac():
+    """Helipads and motor pools: pale poured concrete in big square bays with
+    dark sealed expansion joints, tyre scuffs, fuel stains and a worn
+    yellow guide line along one joint."""
+    s = BIG
+    k = s / 128
+    h, ids, dist = plates(s, grid_rects(s, 2, 2), s * 0.004, seed=481, chip=s * 0.002)
+    img = mix(strokes(s, 4, 4, 482, 2), (148, 146, 140), (176, 174, 166)) * (1 + per_id(ids, 483, -0.06, 0.06))[..., None]
+    x, y = coords(s)
+    joint = np.clip(1 - h, 0, 1)
+    img *= (1 - 0.7 * joint)[..., None]
+    line = (np.abs(y - 62 * k) < 1.6 * k)
+    linewear = noise(s, 32, 3, 484) > 0.42
+    img = np.where((line & linewear)[..., None], np.array([214, 176, 52], float), img)
+    scuff = lines_mask(s, [[(0, y0 + 0.0), (s, y0 + s * 0.05)] for y0 in np.random.default_rng(485).uniform(0, s, 6)], s / 50)
+    img *= (1 - 0.25 * scuff)[..., None]
+    stain = smooth(0.72, 0.9, norm01(noise(s, 6, 4, 486)))
+    img *= (1 - 0.2 * stain)[..., None]
+    pits = smooth(0.18, 0.0, worley(s, 40, 487)[0]) * 0.4
+    img *= (1 - 0.15 * pits)[..., None]
+    img += grain(s, 488, 4)
+    hh = h * 0.5 - pits * 0.3 + (noise(s, 64, 2, 489) - 0.5) * 0.06
+    save("tarmac", img, hh, 0.84 - 0.25 * stain, depth=s / 120)
+
+
 if __name__ == "__main__":
     args = [a for a in sys.argv[1:] if not a.startswith("--")]
     if "--half" in sys.argv:
@@ -1205,6 +1496,7 @@ if __name__ == "__main__":
     for fn in (concrete, metal_floor, wall_panel, hazard, crate, barrier, lava, gunmetal, glove,
                fabric, armor, titan_armor, titan_frame, sky, temple_stone, temple_floor,
                temple_carving, moss, wood, grass, dirt, canvas, bark, skin, hair,
-               timber_wall, timber_floor, timber_carving, alloy_panel, alloy_floor, alloy_inlay):
+               timber_wall, timber_floor, timber_carving, alloy_panel, alloy_floor, alloy_inlay,
+               asphalt, pavers, facade, curtain, corrugated, olive, hesco, camo, tarmac):
         if not args or fn.__name__ in args:
             fn()
