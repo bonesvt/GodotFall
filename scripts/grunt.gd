@@ -50,30 +50,33 @@ enum Awareness { UNAWARE, SUSPICIOUS, ALERTED }
 
 @export_group("Stealth")
 ## Half-angle of the vision cone, in degrees. Outside it the grunt sees nothing.
-@export var view_cone := 60.0
+@export var view_cone := 50.0
+## Share of sight_range an unaware grunt can notice the pilot at. Once alerted
+## it tracks them out to the full sight_range.
+@export var notice_range := 0.7
 ## Detection gained per second for a standing pilot in plain view, from the
 ## edge of sight range up to point-blank.
-@export var notice_rate_far := 0.3
-@export var notice_rate_near := 3.0
+@export var notice_rate_far := 0.15
+@export var notice_rate_near := 2.0
 ## Detection multiplier for a crouched pilot (not sliding).
-@export var crouch_notice := 0.45
+@export var crouch_notice := 0.35
 ## Detection multiplier when only the pilot's head or body shows past cover.
-@export var partial_notice := 0.6
-## Footsteps carry this many metres per m/s of pilot speed (a sprint is ~7 m,
-## a crouch walk ~1 m). Airborne pilots and grapples make no footsteps.
-@export var footstep_range := 0.7
+@export var partial_notice := 0.4
+## Footsteps carry this many metres per m/s of pilot speed (a sprint is ~5 m,
+## a crouch walk under 1 m). Airborne pilots and grapples make no footsteps.
+@export var footstep_range := 0.5
 ## Anything this close gets noticed, seen or not.
 @export var touch_range := 1.5
 ## Gunshots (suppressed) are heard this far away; within the first third they
 ## alert outright.
 @export var gunshot_range := 20.0
 ## Detection lost per second once the pilot has been gone for calm_delay.
-@export var calm_rate := 0.15
-@export var calm_delay := 2.0
+@export var calm_rate := 0.25
+@export var calm_delay := 1.5
 ## Detection multiplier for a pilot standing in tall grass ("stealth_cover").
-@export var grass_notice := 0.5
+@export var grass_notice := 0.3
 ## A pilot crouched in tall grass can't be seen at all past this distance.
-@export var grass_hide_range := 4.0
+@export var grass_hide_range := 3.0
 ## Detection at which the grunt turns to look.
 @export var suspicious_at := 0.35
 ## Damage multiplier for hits on a grunt that hasn't noticed the pilot at all
@@ -275,7 +278,8 @@ func _update_sight(delta: float) -> void:
 func _sight_gain(from: Vector3) -> float:
 	var to := target.global_position - global_position
 	var dist := to.length()
-	if dist > sight_range:
+	var reach := sight_range * notice_range
+	if dist > reach:
 		return 0.0
 	var flat := Vector3(to.x, 0.0, to.z)
 	var facing := -global_basis.z
@@ -286,9 +290,9 @@ func _sight_gain(from: Vector3) -> float:
 	if points == 0:
 		return 0.0
 	has_sight = true
-	var near := 1.0 - dist / sight_range
+	var near := 1.0 - dist / reach
 	var rate := lerpf(notice_rate_far, notice_rate_near, near * near)
-	rate *= lerpf(1.0, 0.5, angle / view_cone)  # slower at the edge of vision
+	rate *= lerpf(1.0, 0.4, angle / view_cone)  # slower at the edge of vision
 	if points == 1:
 		rate *= partial_notice
 	if target.crouching and target.state != Pilot.State.SLIDE:
@@ -309,10 +313,10 @@ func _hearing_gain() -> float:
 		Pilot.State.GROUND, Pilot.State.SLIDE, Pilot.State.WALLRUN:
 			r = target.horizontal_speed() * footstep_range
 			if target.crouching and target.state == Pilot.State.GROUND:
-				r *= 0.4
+				r *= 0.3
 	if dist >= r:
 		return 0.0
-	return 0.6 + 1.6 * (1.0 - dist / r)
+	return 0.4 + 1.2 * (1.0 - dist / r)
 
 
 ## How many of the pilot's head and chest this grunt has a clear line to (0-2).

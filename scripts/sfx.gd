@@ -20,6 +20,8 @@ extends RefCounted
 ##   SFX.play(self, SFX.variant("step_grass"), -12.0)
 
 const RATE := 44100
+## Mixer bus (default_bus_layout.tres); the settings screen sets its volume.
+const BUS := "Effects"
 ## Recorded overrides: <id>.wav or <id>.ogg in here replace the recipe.
 const OVERRIDES := "res://assets/audio/sfx/"
 
@@ -33,6 +35,7 @@ static func play(parent: Node, id: String, volume_db := 0.0, pitch := 1.0) -> Au
 	if parent == null or not parent.is_inside_tree() or id == "":
 		return null
 	var p := AudioStreamPlayer.new()
+	p.bus = BUS
 	p.stream = stream(id)
 	p.volume_db = volume_db
 	p.pitch_scale = pitch
@@ -47,6 +50,7 @@ static func play_at(parent: Node, pos: Vector3, id: String, volume_db := 0.0, pi
 	if parent == null or not parent.is_inside_tree() or id == "":
 		return
 	var p := AudioStreamPlayer3D.new()
+	p.bus = BUS
 	p.stream = stream(id)
 	p.volume_db = volume_db
 	p.pitch_scale = pitch

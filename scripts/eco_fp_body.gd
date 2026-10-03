@@ -5,12 +5,15 @@ extends Node3D
 ##   view-model pistol arm stands in for her hands), it casts no shadow, and it
 ##   is shifted each frame so her neck sits just under and behind the camera,
 ##   whatever the pose (run, crouch, slide).
-## - "Shadow": the whole of her at the player's feet, drawn only into shadows.
+## - "Shadow": the whole of her at the player's feet, drawn only into shadows,
+##   reacting to the world (scripts/ps2/eco_react.gd).
 ##   In third person (scripts/view_camera.gd) it is drawn for real and "Body"
 ##   hides.
 
 const ECO := preload("res://assets/models/eco.tscn")
 const EcoModel := preload("res://scripts/ps2/eco_model.gd")
+const EcoReact := preload("res://scripts/ps2/eco_react.gd")
+const EcoGunStance := preload("res://scripts/ps2/eco_gun_stance.gd")
 const HIDDEN_BONES := ["J_Bip_C_Neck", "J_Bip_C_Head", "J_Bip_R_UpperArm", "J_Bip_L_UpperArm"]
 
 ## Where the camera sits relative to the base of her neck: metres above it,
@@ -22,9 +25,18 @@ const HIDDEN_BONES := ["J_Bip_C_Neck", "J_Bip_C_Head", "J_Bip_R_UpperArm", "J_Bi
 
 var body: EcoModel
 var shadow: EcoModel
+## Layers her reactions to the world over the full model's animation.
+var react: EcoReact
+## Her pistol grip and combat stance in third person (after react).
+var stance: EcoGunStance
 var _camera: Camera3D
 var _neck_bone := -1
 var _third_person := false
+## Resting (rest()): where she stood, and the seat she is moving from and to
+## (her full model leaves the player for them while she rests).
+var _rest_stand := Transform3D()
+var _rest_from := Transform3D()
+var _rest_at := Transform3D()
 
 
 func _ready() -> void:
@@ -38,6 +50,17 @@ func _ready() -> void:
 		_neck_bone = body.skeleton.find_bone("J_Bip_C_Neck") if body.skeleton != null else -1
 	if cast_shadow:
 		shadow = _spawn("Shadow", GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY)
+		# her whole body reacts to the ground, turns, wallruns and landings
+		if shadow.skeleton != null:
+			react = EcoReact.new()
+			react.name = "React"
+			react.body = get_parent() as CharacterBody3D
+			shadow.skeleton.add_child(react)
+			# and holds her pistol like a gunfighter in third person
+			stance = EcoGunStance.new()
+			stance.name = "GunStance"
+			stance.body = react.body
+			shadow.skeleton.add_child(stance)
 
 
 ## Suit pieces hidden on the first-person body: round her neck or on her face, they
@@ -79,7 +102,69 @@ func set_third_person(on: bool) -> void:
 			(mesh as GeometryInstance3D).cast_shadow = mode
 
 
+## Settles her full model into a rest pose (eco_model.gd rest_pose) at a seat:
+## `at` is the floor under her hips, facing the way she faces, and
+## `seat_height` the top of the seat or bed. She walks over from where she
+## stands, and from one rest pose to another moves over without standing up.
+func rest(pose: String, at: Transform3D, seat_height: float) -> void:
+	if shadow == null:
+		return
+	if not shadow.resting():
+		_rest_stand = global_transform
+		_rest_from = at
+	else:
+		_rest_from = _rest_at
+	_rest_at = at
+	shadow.top_level = true
+	shadow.global_transform = _rest_stand
+	shadow.rest_seat_height = seat_height
+	shadow.rest_pose = pose
+	_show_gun(false)
+	if shadow.has_method("wear"):
+		shadow.wear("sleep" if pose == "sleep" else "suit")
+
+
+## Gets her up from her rest pose, back to where the player stands now.
+func get_up() -> void:
+	if shadow == null or shadow.rest_pose == "":
+		return
+	_rest_stand = global_transform
+	shadow.rest_pose = ""
+	if shadow.has_method("wear"):
+		shadow.wear("suit")
+
+
+## Whether she is resting, or still settling in or getting up.
+func is_resting() -> bool:
+	return shadow != null and shadow.resting()
+
+
+func _show_gun(on: bool) -> void:
+	var hold := shadow.find_child("GunHold", true, false) as Node3D if shadow != null else null
+	if hold != null:
+		hold.visible = on
+
+
+func _rest_follow() -> void:
+	if shadow == null or not shadow.top_level:
+		return
+	if not shadow.resting():
+		shadow.top_level = false
+		shadow.transform = Transform3D()
+		_show_gun(true)
+		return
+	var seat := _rest_from.interpolate_with(_rest_at, shadow.rest_blend())
+	shadow.global_transform = _rest_stand.interpolate_with(seat, shadow.rest_weight())
+
+
 func _process(_delta: float) -> void:
+	_rest_follow()
+	# her reactions and gun stance fade out while she sits or lies down
+	if shadow != null:
+		var rest_in: float = shadow.rest_weight() if shadow.resting() else 0.0
+		for layer: SkeletonModifier3D in [react, stance]:
+			if layer != null:
+				layer.influence = 1.0 - rest_in
 	if body == null or _third_person or body.skeleton == null:
 		return
 	var sk: Skeleton3D = body.skeleton

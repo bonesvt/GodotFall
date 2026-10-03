@@ -11,6 +11,7 @@ const TURN_SPEED := 2.5
 ## Who has more than one outfit (body.png first, then body_<outfit>.png from
 ## tools/npc/build_npc.py). They change between runs.
 const OUTFITS := {"ophelia": ["tee", "hoodie", "night"]}
+const Hair := preload("res://scripts/hub/hair.gd")
 
 var who := ""
 var outfit := ""
@@ -46,6 +47,7 @@ func _ready() -> void:
 			var b := (mi as MeshInstance3D).find_blend_shape_by_name("Fcl_MTH_A")
 			if b >= 0:
 				_mouth.append([mi, b])
+		Hair.apply(model, who)  # their haircut from the salon in Solace (if they get one)
 	if _anim != null and _anim.has_animation("idle"):
 		_anim.play("idle")
 		_anim.seek(randf() * 3.0, true)   # so they don't breathe in step
@@ -53,7 +55,7 @@ func _ready() -> void:
 	voice.name = "Voice"
 	voice.position = Vector3(0, 1.6, 0)
 	voice.unit_size = 6.0
-	voice.bus = "Master"
+	voice.bus = "Voices"
 	add_child(voice)
 
 
