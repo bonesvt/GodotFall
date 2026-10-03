@@ -576,12 +576,12 @@ func _pose_hold_bag() -> void:
 	_leg("L", _rest["foot.L"].origin + Vector3(-0.04, 0, -0.12), Vector3(-0.3, 0, -1), Vector3(-0.2, 0, -1))
 	_leg("R", _rest["foot.R"].origin + Vector3(0.06, 0, 0.2), Vector3(0.3, 0, -1), Vector3(0.3, 0, -1))
 	var to_skel := _sk.global_transform.affine_inverse()
-	var bag := to_skel * _world(Vector3(0, 1.2, -(1.2 - 0.78)))
+	var bag := to_skel * _world(Vector3(0, 1.15, -(1.2 - 0.78)))
 	for side in ["L", "R"]:
 		var x := 1.0 if side == "R" else -1.0
 		# wrists just off the near face of the bag (radius 0.2), a hand's
 		# breadth apart, palms pressed flat on it
-		_arm(side, bag + Vector3(x * 0.13, (0.08 if side == "L" else -0.06), 0.27), Vector3(x * 0.7, -1.0, 0.2))
+		_arm(side, bag + Vector3(x * 0.12, -0.04 if side == "L" else -0.12, 0.25), Vector3(x * 0.7, -1.0, 0.2))
 		_grip(side, 0.15)
 
 
