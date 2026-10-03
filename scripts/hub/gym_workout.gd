@@ -57,6 +57,8 @@ const SHOTS := {
 }
 
 ## Each rep's length (s) and the share of it held at the top (or bottom).
+## How far her wrist sits from a bar she grips: the bar lies in her palm.
+const GRIP := 0.07
 const REPS := {"squat": [2.4, 0.08], "bridge": [2.2, 0.2], "crunch": [1.8, 0.1], "pullup": [2.6, 0.25], "bag": [1.0, 0.0]}
 
 ## Bones posed here (VRoid names), parents first.
@@ -241,7 +243,7 @@ func _eco_frame(t: float) -> Transform3D:
 		"bridge", "crunch":
 			return Transform3D(f.basis * Basis(Vector3.RIGHT, PI / 2), f.origin + Vector3(0, LYING_Y, 0))
 		"pullup":
-			return Transform3D(f.basis, f * Vector3(0, _hang_y() + 0.36 * depth(t), -0.22))
+			return Transform3D(f.basis, f * Vector3(0, _hang_y() + 0.5 * depth(t), -0.22))
 	return f
 
 
@@ -252,7 +254,7 @@ func _hang_y() -> float:
 	var shoulder: Vector3 = _rest["upperarm.R"].origin
 	var reach: float = (_len.get("upperarm.R", 0.25) + _len.get("forearm.R", 0.25)) * 0.97
 	var out := 0.3 - absf(shoulder.x)
-	return GymRoom.BAR_H - shoulder.y - sqrt(maxf(reach * reach - out * out, 0.01)) - 0.06
+	return GymRoom.BAR_H - shoulder.y - sqrt(maxf(reach * reach - out * out, 0.01)) - 0.06 - GRIP
 
 
 ## How far into the rep she is at `t` seconds (0 resting, 1 the bottom of the
@@ -310,10 +312,11 @@ func _pose_squat() -> void:
 		var ankle: Vector3 = _rest["foot." + side].origin + Vector3(x * 0.06, 0, 0)
 		_leg(side, ankle, Vector3(x * 0.35, 0, -1), Vector3(x * 0.25, 0, -1))
 	# the bar rests across the top of her back, behind her neck; her hands hold it wide
-	var on_back: Vector3 = _rest["neck"].origin + Vector3(0, -0.03, 0.075)
+	var on_back: Vector3 = _rest["neck"].origin + Vector3(0, -0.07, 0.115)
 	for side in ["L", "R"]:
 		var x := 1.0 if side == "R" else -1.0
-		_arm(side, _follow("upper_chest", on_back + Vector3(x * 0.34, 0, 0)), Vector3(x, -1.0, 0.6))
+		# wrists just under and behind the bar so her fingers close over it
+		_arm(side, _follow("upper_chest", on_back + Vector3(x * 0.34, -GRIP, 0.02)), Vector3(x, -1.0, 0.6))
 	_place_prop(Transform3D(_turned("upper_chest"), _follow("upper_chest", on_back)))
 	_grip("L", 1.0)
 	_grip("R", 1.0)
@@ -330,7 +333,7 @@ func _pose_bridge() -> void:
 	_aim("neck", "head", Vector3(0, 1, 0.12))
 	_lying_legs()
 	var hips := _pose_of("hips").origin
-	var bag := hips + Vector3(0, -0.06, -0.16)
+	var bag := hips + Vector3(0, -0.02, -0.16)
 	for side in ["L", "R"]:
 		var x := 1.0 if side == "R" else -1.0
 		_arm(side, bag + Vector3(x * 0.2, 0, -0.02), Vector3(x, 0, 1))
@@ -369,7 +372,7 @@ func _pose_pullup() -> void:
 	var to_skel := _sk.global_transform.affine_inverse()
 	for side in ["L", "R"]:
 		var x := 1.0 if side == "R" else -1.0
-		var grip := to_skel * _world(Vector3(x * 0.3, GymRoom.BAR_H, -0.25))
+		var grip := to_skel * _world(Vector3(x * 0.3, GymRoom.BAR_H - GRIP, -0.23))
 		_arm(side, grip, Vector3(x * 0.6, -1.0, 0.25))
 		_grip(side, 1.0)
 		# knees bent a little, ankles back

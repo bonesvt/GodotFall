@@ -143,10 +143,14 @@ func _check_pose(id: String, w) -> void:
 	match id:
 		"squat":
 			var bar: Vector3 = w._prop.global_position
-			_check("squat: bar on her back, hands on it", hand_r.distance_to(bar) < 0.45 and hand_l.distance_to(bar) < 0.45 and absf(bar.y - head.y) < 0.35, [hand_r, bar])
+			var neck := sk.global_transform * sk.get_bone_global_pose(sk.find_bone("J_Bip_C_Neck")).origin
+			var back: Vector3 = w.eco.global_transform.basis.z   # she faces -Z
+			_check("squat: bar across her upper back, behind her neck", (bar - neck).dot(back) > 0.06 and bar.y < neck.y + 0.05, [(bar - neck).dot(back), bar.y - neck.y])
+			_check("squat: hands round the bar", absf(hand_r.y - bar.y) < 0.12 and hand_r.y < bar.y and hand_l.y < bar.y, [hand_r.y - bar.y, hand_l.y - bar.y])
 			_check("squat: feet planted, hips down", absf(foot.y - floor_y) < 0.2 and hips.y < floor_y + 0.85, [foot.y - floor_y, hips.y - floor_y])
 		"pullup":
-			_check("pull-up: hands on the bar", absf(hand_r.y - (floor_y + GymRoom.BAR_H)) < 0.12 and absf(hand_l.y - (floor_y + GymRoom.BAR_H)) < 0.12, [hand_r.y - floor_y, hand_l.y - floor_y])
+			var wrist_y: float = floor_y + GymRoom.BAR_H - w.GRIP
+			_check("pull-up: hands round the bar", absf(hand_r.y - wrist_y) < 0.04 and absf(hand_l.y - wrist_y) < 0.04, [hand_r.y - floor_y, hand_l.y - floor_y])
 			_check("pull-up: feet off the floor", foot.y > floor_y + 0.15, foot.y - floor_y)
 		"bridge", "crunch":
 			_check("%s: lying on the mat" % id, absf(head.y - floor_y) < 0.45 and hips.y < floor_y + 0.5, [head.y - floor_y, hips.y - floor_y])
