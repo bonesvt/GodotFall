@@ -310,16 +310,13 @@ static func _plaza(root: Node3D, info: Dictionary, rng: RandomNumberGenerator) -
 ## Scoops, the ice cream kiosk on the plaza's corner by Low Row and the arcade.
 ## A date spot later (Ophelia's favourite, with the arcade).
 static func _ice_cream(root: Node3D, info: Dictionary) -> void:
-	var at := Vector3(-10.5, 0, 186.0)
+	# In front of the arcade's vertical garden (its planter makes way), clear of the billboard.
+	var at := Vector3(-15.5, 0, 186.0)
 	var k := 1.2  # model scale
-	TP.spawn(root, "ice_cream_kiosk", at, 180.0, {"wall": Color(1.0, 0.86, 0.9), "shop": Color(1.0, 0.72, 0.86),
+	TP.spawn(root, "ice_cream_kiosk", at, 180.0, {"wall": Color(1.2, 0.92, 1.05), "shop": Color(1.0, 0.72, 0.86),
 			"neon": Color(1.0, 0.55, 0.85), "awning": Color(0.75, 0.95, 1.0)}, k)
 	_solid(root, at + Vector3(0, 1.5 * k, 1.3 * k), Vector3(4.0, 3.0, 2.6) * k)
 	_solid(root, at + Vector3(0, 0.42 * k, -0.55 * k), Vector3(2.8, 0.84, 0.6) * k)
-	# A pastel trellis behind it, so it doesn't sink into the arcade's dark front.
-	K.mesh(root, at + Vector3(0, 2.6, 3.4), Vector3(6.4, 5.2, 0.2), Art.material("concrete", Color(0.75, 0.92, 0.95)))
-	for i in 5:
-		K.mesh(root, at + Vector3(-2.6 + i * 1.3, 2.4 + (i % 2) * 0.4, 3.28), Vector3(0.9, 3.6 - (i % 3) * 0.6, 0.1), Art.material("moss", Color(0.72, 1.0, 0.62)))
 	_neon_text(root, at + Vector3(0, 3.35 * k, -0.12), "SCOOPS", Color(1.0, 0.55, 0.85), 90, 180.0)
 	K.light(root, at + Vector3(0, 2.4, -1.8), Color(1.0, 0.7, 0.85), 1.0, 7.0)
 	shop(info, "shop_icecream", at + Vector3(0, 0, -2.0), "[F] Scoops: ice cream (dates and treats coming soon)", [
@@ -359,8 +356,9 @@ static func _plaza_walls(root: Node3D, rng: RandomNumberGenerator) -> void:
 		K.mesh(root, Vector3(x + s * 3.5, 5.5, wall_z + dir * 0.06), Vector3(2.4, 8.0, 0.12), Art.material("moss", Color(0.72, 1.0, 0.62)))
 		for i in 8:
 			Props.spawn(root, "fern", Vector3(x + s * 3.5 + rng.randf_range(-0.9, 0.9), 1.8 + i * 1.0, wall_z + dir * 0.3), rng.randf_range(0, 360), 0.5, {"leaves": LEAF_TINTS[i % 4]})
-		TP.spawn(root, "planter", Vector3(x + s * 3.5, 0, wall_z + dir * 1.3), 0.0, {"leaves": LEAF_TINTS[1]})
-		_solid(root, Vector3(x + s * 3.5, 0.4, wall_z + dir * 1.3), Vector3(2.4, 0.8, 2.4))
+		if not (s < 0.0 and dir < 0.0):  # Scoops stands in front of the arcade's garden
+			TP.spawn(root, "planter", Vector3(x + s * 3.5, 0, wall_z + dir * 1.3), 0.0, {"leaves": LEAF_TINTS[1]})
+			_solid(root, Vector3(x + s * 3.5, 0.4, wall_z + dir * 1.3), Vector3(2.4, 0.8, 2.4))
 		# Billboard.
 		var col: Color = ad[4]
 		var at := Vector3(x - s * 1.5, 7.5, wall_z + dir * 0.15)
@@ -401,10 +399,10 @@ static func _militia_office(root: Node3D, info: Dictionary) -> void:
 	TP.spawn(root, "scooter", Vector3(front + 6.0, 0, z - 3.5), 110.0, {"wall": Color(0.55, 0.62, 0.45)})
 	# Hazard lines painted round the forecourt, and MILITIA ONLY on the paving.
 	var hazard := TP.paint(Color(0.85, 0.7, 0.15), 0.2)
-	K.mesh(root, Vector3(front + 12.0, 0.1, z), Vector3(0.7, 0.02, 18.0), hazard)
-	for dz: float in [-9.0, 9.0]:
-		K.mesh(root, Vector3(front + 6.0, 0.1, z + dz), Vector3(12.0, 0.02, 0.7), hazard)
-	var stencil := Kit.label(root, Vector3(front + 10.6, 0.12, z), "MILITIA ONLY", 90)
+	K.mesh(root, Vector3(front + 11.0, 0.1, z), Vector3(0.7, 0.02, 15.7), hazard)
+	for dz: float in [-7.5, 7.5]:
+		K.mesh(root, Vector3(front + 5.5, 0.1, z + dz), Vector3(11.0, 0.02, 0.7), hazard)
+	var stencil := Kit.label(root, Vector3(front + 9.8, 0.12, z), "MILITIA ONLY", 90)
 	stencil.billboard = BaseMaterial3D.BILLBOARD_DISABLED
 	stencil.rotation_degrees = Vector3(-90, 90, 0)
 	stencil.modulate = Color(0.85, 0.7, 0.15, 0.8)
@@ -851,11 +849,12 @@ static func _smoke(root: Node3D, p: Vector3) -> void:
 	smoke.lifetime = 4.0
 	var quad := QuadMesh.new()
 	quad.size = Vector2(1.4, 1.4)
-	# Lit (not unshaded), faint and wide, so it picks up the neon instead of glowing on its own.
+	# Faint, wide and unshaded: lit steam went dark against the neon, bright steam read as a ghost.
 	var mat := StandardMaterial3D.new()
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
-	mat.albedo_color = Color(0.6, 0.6, 0.68, 0.2)
+	mat.albedo_color = Color(0.72, 0.68, 0.85, 0.1)
 	mat.albedo_texture = _puff()
 	mat.vertex_color_use_as_albedo = true
 	quad.material = mat
