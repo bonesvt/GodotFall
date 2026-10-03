@@ -76,3 +76,81 @@ mom: Come here. Your hair's a mess.
 eco: Mom, I'm literally about to go shoot people.
 mom: Then you'll shoot them with tidy hair. Hold still.
 eco: Ugh. Fine. Thirty seconds.
+
+[any]
+mom: Turn around. Let me look at you.
+eco: Why do I feel like this is a trap?
+mom: That suit. It doesn't leave much to the imagination, does it?
+eco: It's for mobility, Mom.
+mom: Mm. Well, you got your father's shoulders. The rest you clearly borrowed from me.
+eco: Borrowed. Wow.
+mom: Borrowed, sweetheart. I kept the good half.
+
+[any]
+eco: Why are you staring at me like that?
+mom: Just thinking. When I was your age I couldn't walk past the motor pool without three mechanics dropping their wrenches.
+eco: Mom. Please.
+mom: Your father dropped his on his own foot. Broke a toe. Married me anyway.
+eco: I am going to go stand in the lava now.
+mom: Don't sulk. You'll fill out. Maybe. Eventually.
+
+[any]
+mom: Hand me that jar on the top shelf.
+eco: You're closer to it.
+mom: I am. But if I reach up, these hips knock the whole shelf down. You don't have that problem.
+eco: Was that a compliment or an insult?
+mom: Yes.
+
+[any]
+eco: Can I borrow one of your shirts? Mine's got a hole in it.
+mom: Of course. It'll hang off you like a tent, but of course.
+eco: It will not.
+mom: Darling, I nursed two babies in that shirt. It has seen things you are not built for.
+eco: I hate this family.
+mom: You love this family. Now come here and let me take it in at the waist for you.
+
+[any]
+mom: Ophelia borrowed my bikini for the hot spring yesterday.
+eco: Did it fit her?
+mom: Nothing of mine fits anyone, dear. That's the curse of the women in this family. Well. Most of the women.
+eco: I'm standing right here.
+mom: I know, sweetheart. I can see all of you from here. It doesn't take long.
+
+[any]
+mom: Turn around. Let me look at you.
+eco: Why do I feel like this is a trap?
+mom: That suit. It doesn't leave much to the imagination, does it?
+eco: It's for mobility, Mom.
+mom: Mm. Well, you got your father's shoulders. The rest you clearly borrowed from me.
+eco: Borrowed. Wow.
+mom: Borrowed, sweetheart. I kept the good half.
+
+[any]
+eco: Why are you staring at me like that?
+mom: Just thinking. When I was your age I couldn't walk past the motor pool without three mechanics dropping their wrenches.
+eco: Mom. Please.
+mom: Your father dropped his on his own foot. Broke a toe. Married me anyway.
+eco: I'm going to go stand in the lava now.
+mom: Don't sulk. You'll fill out. Maybe. Eventually.
+
+[any]
+mom: Hand me that jar on the top shelf.
+eco: You're closer to it.
+mom: I am. But if I reach up, these hips knock the whole shelf down. You don't have that problem.
+eco: Was that a compliment or an insult?
+mom: Yes.
+
+[any]
+eco: Can I borrow one of your shirts? Mine's got a hole in it.
+mom: Of course. It'll hang off you like a tent, but of course.
+eco: It will not.
+mom: Darling, I carried and fed two babies in that shirt. It has room you were never built for.
+eco: I hate this family.
+mom: You love this family. Now come here and let me take it in at the waist for you.
+
+[any]
+mom: Ophelia borrowed my bikini for the hot spring yesterday.
+eco: Did it fit her?
+mom: Nothing of mine fits anyone, dear. That's the curse of the women in this family. Well. Most of the women.
+eco: I'm standing right here.
+mom: I know, sweetheart. I can see all of you from here. It doesn't take long.
