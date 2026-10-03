@@ -64,7 +64,7 @@ func _run() -> void:
 	for i in 4:
 		await _press("fire")
 		await _ticks(int(weapon.fire_interval * 120) + 2)
-	_check("spam blooms spread", weapon.current_spread() > 3.0, weapon.current_spread())
+	_check("spam blooms spread", weapon.current_spread() > 2.0, weapon.current_spread())
 	await _ticks(120)
 	_check("bloom recovers", weapon.current_spread() < 0.1, weapon.current_spread())
 

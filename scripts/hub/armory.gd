@@ -56,8 +56,8 @@ const WEAPONS := {
 		"stats": {
 			"damage": 20.0, "headshot_multiplier": 2.25, "falloff_start": 15.0, "falloff_end": 35.0,
 			"falloff_min": 0.6, "fire_interval": 0.16, "magazine_size": 8, "reload_time": 1.5,
-			"base_spread": 0.25, "bloom_per_shot": 1.1, "bloom_recovery": 6.0, "max_bloom": 4.5,
-			"move_spread": 0.9, "air_spread": 1.2, "recoil_kick": 1.4,
+			"base_spread": 0.17, "bloom_per_shot": 0.75, "bloom_recovery": 6.0, "max_bloom": 3.0,
+			"move_spread": 0.6, "air_spread": 0.8, "recoil_kick": 1.4,
 		},
 		"lines": [
 			"Dad's. The lock-on died with him.",
@@ -76,8 +76,8 @@ const WEAPONS := {
 		"stats": {
 			"damage": 42.0, "headshot_multiplier": 2.0, "falloff_start": 22.0, "falloff_end": 50.0,
 			"falloff_min": 0.65, "fire_interval": 0.42, "magazine_size": 6, "reload_time": 2.1,
-			"base_spread": 0.15, "bloom_per_shot": 2.4, "bloom_recovery": 5.0, "max_bloom": 6.0,
-			"move_spread": 1.2, "air_spread": 1.6, "recoil_kick": 3.6,
+			"base_spread": 0.1, "bloom_per_shot": 1.6, "bloom_recovery": 5.0, "max_bloom": 4.0,
+			"move_spread": 0.8, "air_spread": 1.05, "recoil_kick": 3.6,
 		},
 		"lines": [
 			"Built it round a rivet driver. It still thinks it's holding titans together.",
@@ -94,8 +94,8 @@ const WEAPONS := {
 		"stats": {
 			"damage": 8.0, "headshot_multiplier": 1.75, "falloff_start": 10.0, "falloff_end": 25.0,
 			"falloff_min": 0.5, "fire_interval": 0.066, "magazine_size": 24, "reload_time": 1.7,
-			"base_spread": 0.5, "bloom_per_shot": 0.45, "bloom_recovery": 7.0, "max_bloom": 5.5,
-			"move_spread": 0.7, "air_spread": 1.0, "recoil_kick": 0.55,
+			"base_spread": 0.33, "bloom_per_shot": 0.3, "bloom_recovery": 7.0, "max_bloom": 3.7,
+			"move_spread": 0.47, "air_spread": 0.67, "recoil_kick": 0.55,
 		},
 		"lines": [
 			"Took it off a grunt who called me 'sweetheart'. He won't need it.",

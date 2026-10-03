@@ -34,6 +34,7 @@ const Pilot := preload("res://scripts/player.gd")
 const FX := preload("res://scripts/fx.gd")
 const Art := preload("res://scripts/ps2/ps2_assets.gd")
 const SFX := preload("res://scripts/sfx.gd")
+const EcoArms := preload("res://scripts/eco_fp_arms.gd")
 
 ## Emitted on every shot that hits an enemy: "body", "head" or "kill".
 signal hit_confirmed(kind: String)
@@ -112,17 +113,17 @@ const INSPECT_LINES := [
 @export var reload_time := 1.5
 
 @export_group("Accuracy (degrees)")
-@export var base_spread := 0.25
-@export var bloom_per_shot := 1.1
+@export var base_spread := 0.17
+@export var bloom_per_shot := 0.75
 ## Bloom starts shrinking this long after the last shot...
 @export var bloom_recovery_delay := 0.25
 ## ...at this many degrees per second. Paced shots stay accurate, spam does not.
 @export var bloom_recovery := 6.0
-@export var max_bloom := 4.5
+@export var max_bloom := 3.0
 ## Added at full sprint speed on the ground.
-@export var move_spread := 0.9
+@export var move_spread := 0.6
 ## Added while airborne or grappling (not while wallrunning or sliding).
-@export var air_spread := 1.2
+@export var air_spread := 0.8
 @export var recoil_kick := 1.4
 ## Share of each kick the camera drifts back down on its own.
 @export var recoil_recovery := 0.75
@@ -912,6 +913,7 @@ func _build_viewmodel() -> void:
 	add_child(viewmodel)
 	var pistol := Art.model(_model_name(model_id, tier))
 	viewmodel.add_child(pistol)
+	_fit_arm(pistol)
 	_fit_attachments(pistol, model_id, attachments, tier)
 	_apply_finish(pistol, finish)
 	for mi in pistol.find_children("*", "GeometryInstance3D", true, false):
@@ -953,6 +955,19 @@ func _build_viewmodel() -> void:
 	flash.mesh = sphere
 	flash.visible = false
 	muzzle.add_child(flash)
+
+
+## Swaps the gun scene's old sculpted arm for Eco's own (scripts/eco_fp_arms.gd),
+## dressed like the body she is wearing (the player's EcoBody).
+func _fit_arm(pistol: Node3D) -> void:
+	var old := pistol.get_node_or_null("Arm")
+	if old != null:
+		old.free()
+	var arm := EcoArms.new()
+	arm.name = "Arm"
+	pistol.add_child(arm)
+	if player != null:
+		arm.follow(player.get_node_or_null("EcoBody"))
 
 
 ## The gun model a profile describes, attachments on and painted, without

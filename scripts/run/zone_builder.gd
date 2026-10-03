@@ -14,6 +14,7 @@ const Kit := preload("res://scripts/run/level_kit.gd")
 const SalvageCache := preload("res://scripts/run/salvage_cache.gd")
 const SquadObjective := preload("res://scripts/run/squad_objective.gd")
 const GruntScript := preload("res://scripts/grunt.gd")
+const ThreatSpawner := preload("res://scripts/threats/threat_spawner.gd")
 const ExtractBeacon := preload("res://scripts/run/extract_beacon.gd")
 const ForestBuilder := preload("res://scripts/run/forest_builder.gd")
 const MarshBuilder := preload("res://scripts/run/marsh_builder.gd")
@@ -142,6 +143,8 @@ static func build_chain(root: Node3D, rng: RandomNumberGenerator, zone_index: in
 	for p in info["platforms"]:
 		lowest = minf(lowest, p["top"].y)
 	info["floor_y"] = lowest
+	# Past the border: the Choir and the wildlife instead of the militia.
+	ThreatSpawner.populate(root, rng, info, zone_index)
 	return info
 
 

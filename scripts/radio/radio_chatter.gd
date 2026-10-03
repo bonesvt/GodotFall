@@ -72,6 +72,7 @@ func _ready() -> void:
 		var host: Node = get_parent() if get_parent() is CanvasLayer else self
 		host.add_child.call_deferred(popup)
 	squelch = AudioStreamPlayer.new()
+	squelch.bus = "Voices"
 	# The recorded walkie-talkie squelch when there is one (assets/audio/sfx).
 	squelch.stream = SFX.stream("radio_squelch_on") if SFX.has_recording("radio_squelch_on") else _make_squelch()
 	squelch.volume_db = -16.0
@@ -103,6 +104,8 @@ func _process(delta: float) -> void:
 
 func _scan() -> void:
 	for g in get_tree().get_nodes_in_group("enemies"):
+		if g.get("on_radio") == false:
+			continue  # the Choir and the wildlife aren't on the militia net
 		if not known.has(g):
 			_track(g)
 	for g in known.keys():

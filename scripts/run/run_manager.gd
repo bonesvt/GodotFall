@@ -27,7 +27,12 @@ const HubBuilder := preload("res://scripts/hub/hub_builder.gd")
 const Armory := preload("res://scripts/hub/armory.gd")
 const BenchScreen := preload("res://scripts/hub/bench_screen.gd")
 const GunsmithScreen := preload("res://scripts/hub/gunsmith_screen.gd")
+const GiftScreen := preload("res://scripts/hub/gift_screen.gd")
+const GiftShop := preload("res://scripts/hub/gift_shop.gd")
+const SalonScreen := preload("res://scripts/hub/salon_screen.gd")
 const Loot := preload("res://scripts/run/loot.gd")
+const Gifts := preload("res://scripts/run/gifts.gd")
+const NpcIdles := preload("res://scripts/hub/npc_idles.gd")
 const Weapon := preload("res://scripts/weapon.gd")
 const Art := preload("res://scripts/ps2/ps2_assets.gd")
 const Garage := preload("res://scripts/hub/garage.gd")
@@ -37,6 +42,10 @@ const NpcTalk := preload("res://scripts/hub/npc_talk.gd")
 const Gym := preload("res://scripts/hub/gym.gd")
 const GymWorkout := preload("res://scripts/hub/gym_workout.gd")
 const Tutorial := preload("res://scripts/run/tutorial.gd")
+const ViewCamera := preload("res://scripts/view_camera.gd")
+const Prefs := preload("res://scripts/game/prefs.gd")
+const Saves := preload("res://scripts/game/saves.gd")
+const PauseMenu := preload("res://scripts/ui/pause_menu.gd")
 
 const FALL_DAMAGE := 25
 ## Integrity lost when grunts take the pilot's health to zero.
@@ -89,6 +98,10 @@ var hub_npcs := {}
 var npc_talk: NpcTalk
 ## The parts your last run ended with; the hub's practice titan is built from them.
 var last_parts := {}
+## The hub spot Eco is sitting or lying down at ({} = she's on her feet), and
+## the rest pose she's in there (spot["rest"] or its "alt").
+var rest_spot := {}
+var rest_pose := ""
 ## The practice titan in the hub's titan yard, and whether you're in it.
 var hub_titan: Titan
 var hub_piloting := false
@@ -101,7 +114,7 @@ var course_time := -1.0
 var course_best := 0.0
 var armory: Armory
 ## The workbench screen while one is open (the hub is paused under it).
-## A BenchScreen, or the GunsmithScreen at the gunsmith bench.
+## A BenchScreen, the GunsmithScreen at the gunsmith bench, or the SalonScreen.
 var bench = null
 ## The workout scene playing in Biggie's gym (gym_workout.gd), and which
 ## workouts Eco has done since her last run (each once per visit).
@@ -112,13 +125,15 @@ var gym_done := {}
 var loot_rng := RandomNumberGenerator.new()
 ## Hints that teach the game in the first three zones (tutorial.gd).
 var tutorial: Tutorial
+## Esc menu (pause_menu.gd).
+var pause_menu: CanvasLayer
 
 
 static func ensure_input_actions() -> void:
 	var keys := {
 		"interact": [KEY_F], "choice_1": [KEY_1], "choice_2": [KEY_2], "choice_3": [KEY_3],
 		"choice_skip": [KEY_X], "titan_core": [KEY_V], "titan_dash": [KEY_SHIFT],
-		"run_restart": [KEY_ENTER],
+		"run_restart": [KEY_ENTER], "give_gift": [KEY_G],
 	}
 	for action in keys:
 		if InputMap.has_action(action):
@@ -140,6 +155,9 @@ func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	add_to_group("loot_collector")
 	ensure_input_actions()
+	# Normally the title screen did these; played straight from the editor, do them here.
+	Prefs.apply_all()
+	_use_save_slot()
 	armory = Armory.open(armory_path)
 	npc_talk = NpcTalk.new()
 	npc_talk.save_path = npc_path
@@ -161,11 +179,55 @@ func _ready() -> void:
 	tutorial.name = "Tutorial"
 	tutorial.run = self
 	add_child(tutorial)
+	pause_menu = PauseMenu.new()
+	pause_menu.name = "PauseMenu"
+	pause_menu.run = self
+	add_child(pause_menu)
 	equip_loadout()
 	if start_in_hub:
 		enter_hub()
 	else:
 		start_run(run_seed)
+
+
+## Reads and writes the save slot picked on the title screen (saves.gd). Left
+## alone when a test pointed the saves somewhere of its own.
+func _use_save_slot() -> void:
+	var own_paths := armory_path != Armory.DEFAULT_PATH or npc_path != NpcTalk.DEFAULT_PATH
+	if Saves.active == 0 and Tutorial.settings_path != Tutorial.SETTINGS:
+		own_paths = true
+	if own_paths:
+		return
+	if Saves.active == 0:
+		Saves.migrate_legacy()
+		var last := Saves.last_slot()
+		Saves.use(last if last != 0 else 1)
+	armory_path = Saves.armory_path()
+	npc_path = Saves.npc_path()
+
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_WM_CLOSE_REQUEST:
+		Saves.flush()
+
+
+## A run is under way (not in the hub, not on the summary after one).
+func in_run() -> bool:
+	return phase in [Phase.ZONE, Phase.CHOOSING, Phase.ARENA, Phase.FIGHT]
+
+
+## The pause menu stays shut while a workbench or the paint shop is open.
+func menu_blocked() -> bool:
+	return bench != null or garage != null
+
+
+## Pause menu: give up on this run. It ends like a lost one.
+func abandon_run() -> void:
+	if not in_run():
+		return
+	get_tree().paused = false
+	hud.choice_panel.visible = false
+	end_run("RUN ABANDONED", "Eco pulled out before the job was done.")
 
 
 func start_run(seed_value: int) -> void:
@@ -192,6 +254,11 @@ func _fresh_level(level_name: String) -> void:
 	if npc_talk != null:
 		npc_talk.stop()
 	workout = null
+	if not rest_spot.is_empty():
+		get_up()
+		rest_spot = {}
+		player.resting = false
+		_set_rest_view(false)
 	if zone_root != null:
 		remove_child(zone_root)
 		zone_root.free()
@@ -221,7 +288,10 @@ func enter_hub() -> void:
 		npc.look_target = player
 		zone_root.add_child(npc)
 		npc.wear_for_run(runs_ended)
+		NpcIdles.settle(npc, zone_info, runs_ended)
 		hub_npcs[spec["who"]] = npc
+	if hub_npcs.has("ophelia"):
+		NpcIdles.build_window(zone_root)
 	phase = Phase.HUB
 	dress_hub()
 	place_player(zone_info["spawn"])
@@ -238,6 +308,10 @@ func load_zone(index: int) -> void:
 		zone_info = ZoneBuilder.build_zone(zone_root, run.rng, index)
 		loot_rng.seed = run.run_seed * 7919 + index
 		Loot.scatter(zone_root, zone_info, loot_rng, index)
+		# Gifts roll on their own generator, so they never shift the loot rolls.
+		var gift_rng := RandomNumberGenerator.new()
+		gift_rng.seed = run.run_seed * 104729 + index
+		Gifts.scatter(zone_root, zone_info, gift_rng)
 		for grunt in zone_info["grunts"]:
 			grunt.target = player
 			grunt.died.connect(_on_grunt_died)
@@ -264,6 +338,7 @@ func place_player(pos: Vector3) -> void:
 
 
 func _physics_process(delta: float) -> void:
+	Saves.tick(delta)
 	player.strolling = phase == Phase.HUB and not on_training_ground()
 	match phase:
 		Phase.ZONE:
@@ -309,9 +384,17 @@ func _hub_tick(delta: float) -> void:
 	if player.global_position.y < float(zone_info["floor_y"]) - KILL_DEPTH:
 		place_player(zone_info["spawn"])
 		return
+	if not rest_spot.is_empty():
+		_rest_tick()
+		return
 	if npc_talk.active():
 		npc_talk.tick(delta, player.global_position)
-		if Input.is_action_just_pressed("interact"):
+		if not npc_talk.options.is_empty():
+			for i in npc_talk.options.size():
+				if Input.is_action_just_pressed("choice_%d" % (i + 1)):
+					npc_talk.choose(i)
+					break
+		elif Input.is_action_just_pressed("interact"):
 			npc_talk.advance()
 		return
 	_course_tick(delta)
@@ -322,6 +405,9 @@ func _hub_tick(delta: float) -> void:
 		embark_hub_titan()
 		return
 	var spot := nearest_hub_spot()
+	if spot.has("npc") and Input.is_action_just_pressed("give_gift") and npc_talk.can_give(spot["npc"], runs_ended):
+		npc_talk.offer_gifts(hub_npcs[spot["npc"]], runs_ended)
+		return
 	if spot.is_empty() or not Input.is_action_just_pressed("interact"):
 		return
 	if spot["id"] == "map_table":
@@ -339,10 +425,86 @@ func _hub_tick(delta: float) -> void:
 	if spot.has("workout"):
 		start_workout(spot["workout"])
 		return
+	if spot.has("rest"):
+		rest_at(spot)
 	var lines: Array = spot["lines"]
 	var n: int = hub_reads.get(spot["id"], 0)
 	hub_reads[spot["id"]] = n + 1
 	hud.toast(lines[n % lines.size()], HUB_LINE_SECONDS)
+
+
+## Eco sits or lies down at a hub spot with a "rest" entry ({pose, at, seat,
+## alt}: hub_builder.gd): the view goes to third person while she rests, and
+## you can look around her. F at a spot with an "alt" pose moves her between
+## the two (sit up, stretch out); F anywhere else, jump or a move key gets her up.
+func rest_at(spot: Dictionary, alt := false) -> void:
+	var eco_body := player.get_node_or_null("EcoBody")
+	if eco_body == null or not eco_body.has_method("rest"):
+		return
+	var rest: Dictionary = spot["rest"]
+	var pose: Dictionary = rest["alt"] if alt else rest
+	if rest_spot.is_empty():
+		player.resting = true
+		_set_rest_view(true)
+		# face her where she settles, looking down a little
+		var at: Vector3 = (pose["at"] as Transform3D).origin
+		var to := Vector2(at.x - player.global_position.x, at.z - player.global_position.z)
+		if to.length() > 0.3:
+			player.rotation.y = atan2(-to.x, -to.y)
+		player.head.rotation.x = deg_to_rad(-22.0)
+	rest_spot = spot
+	rest_pose = pose["pose"]
+	eco_body.rest(rest_pose, pose["at"], float(rest.get("seat", 0.5)))
+
+
+## Gets Eco back on her feet; the player is free once she's up (_rest_tick).
+func get_up() -> void:
+	var eco_body := player.get_node_or_null("EcoBody")
+	if eco_body != null:
+		eco_body.get_up()
+	rest_pose = ""
+
+
+func _rest_tick() -> void:
+	var eco_body := player.get_node_or_null("EcoBody")
+	if rest_pose == "":
+		if eco_body == null or not eco_body.is_resting():
+			rest_spot = {}
+			player.resting = false
+			_set_rest_view(false)
+		return
+	var moving := Input.get_vector("move_left", "move_right", "move_forward", "move_back") != Vector2.ZERO
+	if moving or Input.is_action_just_pressed("jump"):
+		get_up()
+	elif Input.is_action_just_pressed("interact"):
+		var rest: Dictionary = rest_spot["rest"]
+		if rest.has("alt"):
+			rest_at(rest_spot, rest_pose == rest["pose"])
+		else:
+			get_up()
+
+
+## Resting shows her in third person (whatever the F5 view) with the gun and
+## knife put away; getting up puts the player's view back.
+func _set_rest_view(on: bool) -> void:
+	var view := player.get_node_or_null("ViewCam")
+	if view != null:
+		view.set_third_person(on or ViewCamera.prefer_third_person)
+	for path in ["Head/Camera3D/Weapon", "Head/Camera3D/Knife"]:
+		var n := player.get_node_or_null(path)
+		if n != null:
+			n.process_mode = Node.PROCESS_MODE_DISABLED if on else Node.PROCESS_MODE_INHERIT
+
+
+## The prompt while she rests.
+func _rest_prompt() -> String:
+	if rest_pose == "":
+		return ""
+	var rest: Dictionary = rest_spot["rest"]
+	if rest.has("alt"):
+		var other := "Stretch out" if rest_pose == rest["pose"] else "Sit up"
+		return "[F] %s    [Space] Get up" % other
+	return "[F] Get up"
 
 
 ## Starts a conversation between Eco and one of the people in the hub.
@@ -392,6 +554,19 @@ func end_workout() -> void:
 	hud.toast(Gym.gains_text(got), HUB_LINE_SECONDS)
 
 
+## The people Eco can romance, for the gift shop's taste notes:
+## [{who, name, likes, dislikes, affection}].
+func romance_partners() -> Array:
+	var out := []
+	for who in hub_npcs:
+		if not npc_talk.romanceable(who):
+			continue
+		var s: Dictionary = NpcTalk.Romance.settings(npc_talk.bank(who))
+		out.append({"who": who, "name": String(NpcTalk.NAMES.get(who, who)).capitalize(),
+				"likes": s["likes"], "dislikes": s["dislikes"], "affection": npc_talk.affection(who)})
+	return out
+
+
 ## Opens Eco's paint shop on the chassis of your last titan, pausing the hub.
 func open_garage() -> void:
 	garage = Garage.new(last_parts.get("chassis", {}).get("id", "atlas"))
@@ -414,9 +589,15 @@ func close_garage() -> void:
 		hud.toast("Call your titan again (V) to see the new paint.", HUB_LINE_SECONDS)
 
 
-## Opens a workbench screen ("gunsmith", "rack", "workshop" or "suit"), pausing the hub.
+## Opens a workbench screen ("gunsmith", "rack", "workshop" or "suit"), or a
+## town shop's ("salon", "gifts"), pausing the hub.
 func open_bench(kind: String) -> void:
-	bench = GunsmithScreen.new(armory) if kind == "gunsmith" else BenchScreen.new(armory, kind)
+	if kind == "gifts":
+		bench = GiftScreen.new(armory, npc_talk, romance_partners())
+	elif kind == "salon":
+		bench = SalonScreen.new()
+	else:
+		bench = GunsmithScreen.new(armory) if kind == "gunsmith" else BenchScreen.new(armory, kind)
 	add_child(bench)
 	get_tree().paused = true
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
@@ -425,6 +606,9 @@ func open_bench(kind: String) -> void:
 
 
 func close_bench() -> void:
+	if bench is GiftScreen and not bench.bought.is_empty():
+		var names: Array = bench.bought.map(func(id): return GiftShop.gift_name(id))
+		hud.toast("Bought: %s. Press G by someone in the hub to give one." % ", ".join(names), HUB_LINE_SECONDS)
 	if not bench.unlocked.is_empty():
 		var names: Array = bench.unlocked.map(func(id): return Armory.WEAPONS[id]["name"].to_upper())
 		hud.toast("LEVEL %d: %s UNLOCKED. PICK %s AT THE WEAPON RACK" % [armory.pilot_level(), " AND ".join(names), "IT" if names.size() == 1 else "THEM"], 5.0)
@@ -503,6 +687,15 @@ func collect_material(kind: String, amount: int) -> void:
 	if run == null or phase == Phase.HUB:
 		return
 	run.materials[kind] = int(run.materials.get(kind, 0)) + amount
+
+
+## Eco walked into a gift (gifts.gd): into the bag for the hub, kept even if
+## the run is lost.
+func collect_gift(id: String) -> void:
+	if run == null or phase == Phase.HUB:
+		return
+	npc_talk.add_gift(id)
+	hud.toast("GIFT: %s\n%s" % [Gifts.display_name(id).to_upper(), Gifts.CATALOG.get(id, ["", ""])[1]], 4.0)
 
 
 ## Grunts drop scrap where they fall, sometimes a circuit.
@@ -868,6 +1061,7 @@ func end_run(title: String, reason: String) -> void:
 	var won := title == "RUN COMPLETE"
 	var haul := Armory.run_haul(run.materials, won)
 	armory.bank(haul)
+	Saves.record_run(won)
 	if boss != null:
 		boss.active = false
 	if titan != null:
@@ -943,11 +1137,18 @@ func _prompt() -> String:
 				return "[F] Embark"
 			if npc_talk.active():
 				return ""
+			if not rest_spot.is_empty():
+				return _rest_prompt()
 			if course_armed:
 				return "Leave the pad to start the clock"
 			var spot := nearest_hub_spot()
 			if not spot.is_empty():
-				return spot["prompt"]
+				var text: String = spot["prompt"]
+				if spot.has("npc") and npc_talk.beat_waiting(spot["npc"], runs_ended):
+					text += "  (wants to talk)"
+				if spot.has("npc") and npc_talk.can_give(spot["npc"], runs_ended):
+					text += "    [G] Give a gift"
+				return text
 			if in_titan_yard():
 				return "[V] Call in your titan" if hub_titan == null else "[V] Call your titan here"
 		Phase.ZONE:
