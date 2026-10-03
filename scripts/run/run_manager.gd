@@ -27,6 +27,7 @@ const HubBuilder := preload("res://scripts/hub/hub_builder.gd")
 const Armory := preload("res://scripts/hub/armory.gd")
 const BenchScreen := preload("res://scripts/hub/bench_screen.gd")
 const GunsmithScreen := preload("res://scripts/hub/gunsmith_screen.gd")
+const SalonScreen := preload("res://scripts/hub/salon_screen.gd")
 const Loot := preload("res://scripts/run/loot.gd")
 const Weapon := preload("res://scripts/weapon.gd")
 const Art := preload("res://scripts/ps2/ps2_assets.gd")
@@ -104,7 +105,7 @@ var course_time := -1.0
 var course_best := 0.0
 var armory: Armory
 ## The workbench screen while one is open (the hub is paused under it).
-## A BenchScreen, or the GunsmithScreen at the gunsmith bench.
+## A BenchScreen, the GunsmithScreen at the gunsmith bench, or the SalonScreen.
 var bench = null
 ## Lays out loot and rolls drops, seeded per zone from the run seed so loot
 ## never shifts the run's own rolls.
@@ -447,9 +448,13 @@ func close_garage() -> void:
 		hud.toast("Call your titan again (V) to see the new paint.", HUB_LINE_SECONDS)
 
 
-## Opens a workbench screen ("gunsmith", "rack", "workshop" or "suit"), pausing the hub.
+## Opens a workbench screen ("gunsmith", "rack", "workshop" or "suit"), or the
+## hair salon's ("salon", in town), pausing the hub.
 func open_bench(kind: String) -> void:
-	bench = GunsmithScreen.new(armory) if kind == "gunsmith" else BenchScreen.new(armory, kind)
+	if kind == "salon":
+		bench = SalonScreen.new()
+	else:
+		bench = GunsmithScreen.new(armory) if kind == "gunsmith" else BenchScreen.new(armory, kind)
 	add_child(bench)
 	get_tree().paused = true
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
