@@ -212,6 +212,9 @@ static func build_zone(root: Node3D, rng: RandomNumberGenerator) -> Dictionary:
 	for area in root.get_children():
 		if area is Area3D and area.is_in_group("stealth_cover"):
 			info["stealth_cover"].append(area)
+	# The first alloy node and supply crate sit in the clearing at the start, in
+	# plain view, so the tutorial (tutorial.gd) can point them out before any grunt is near.
+	info["first_loot"] = {"node": _on(trail_x(-4.0) - 4.0, -4.0), "crate": _on(trail_x(-1.0) + 4.5, -1.0)}
 
 	for z in [4.0, -46.0, OUTPOST_Z, NEAR_LIP + 10.0, FAR_LIP - 12.0, -182.0, -232.0]:
 		info["checkpoints"].append(_on(trail_x(z), z, 0.1))
@@ -488,13 +491,16 @@ static func _ravine(root: Node3D, rng: RandomNumberGenerator, dress: RandomNumbe
 	F.bridge_stub(root, Vector3(c, 0, far_end - 5.0), 180.0)
 	# Route 1: a blast shield still hangs on the bridge's left girder. Wallrun it.
 	var mid := (near_end + far_end) * 0.5
-	Kit.box(root, Vector3(c + SHIELD_X, 0, mid), Vector3(1, 12, gap), BLUE)
+	# What the tutorial points at (tutorial.gd): each crossing's pieces.
+	var crossing := {"lip": _on(c, NEAR_LIP + 14.0), "wallrun": [], "grapple": [], "pillars": [], "log": []}
+	info["crossing"] = crossing
+	crossing["wallrun"].append(Kit.box(root, Vector3(c + SHIELD_X, 0, mid), Vector3(1, 12, gap), BLUE))
 	Kit.box(root, Vector3(c + SHIELD_X, 6.4, mid), Vector3(0.7, 0.8, NEAR_LIP - FAR_LIP + 4.0), CONCRETE, Vector3.ZERO, Art.material("gunmetal"))
 	info["segments"].append({"type": "wallrun", "gap": gap, "rise": 0.0})
 	# Route 2: the crane pylon on the far side. Its arm holds a grapple anchor over the gap.
 	var anchor_z := near_end - gap * 0.6
 	F.pylon(root, Vector3(c + ANCHOR_X, 0, anchor_z - 9.0), 0.0)
-	Kit.box(root, Vector3(c + ANCHOR_X, ANCHOR_Y, anchor_z), Vector3(3, 2, 3), ORANGE)
+	crossing["grapple"].append(Kit.box(root, Vector3(c + ANCHOR_X, ANCHOR_Y, anchor_z), Vector3(3, 2, 3), ORANGE))
 	info["segments"].append({"type": "grapple", "gap": gap, "rise": 0.0})
 	# Route 3: rock pillars off to the right. Short hops, longer way round.
 	var px := c + PILLAR_X
@@ -505,14 +511,16 @@ static func _ravine(root: Node3D, rng: RandomNumberGenerator, dress: RandomNumbe
 		var top: float = p[1]
 		var back := front - PILLAR
 		var h := top - RAVINE_FLOOR + 1.0
-		Kit.box(root, Vector3(px, top - h * 0.5, (front + back) * 0.5), Vector3(PILLAR, h, PILLAR), CONCRETE, Vector3.ZERO, F.HubProps.material("rock"))
+		crossing["pillars"].append(Kit.box(root, Vector3(px, top - h * 0.5, (front + back) * 0.5), Vector3(PILLAR, h, PILLAR), CONCRETE, Vector3.ZERO, F.HubProps.material("rock")))
 		F.spawn(root, "rock_c", Vector3(px + PILLAR * 0.5 - 0.6, top, back + 0.5), rng.randf_range(0, 360), 0.8)
 		info["segments"].append({"type": "jump", "gap": last_edge - front, "rise": top - last_top})
 		last_edge = back
 		last_top = top
 	info["segments"].append({"type": "jump", "gap": last_edge - FAR_LIP, "rise": -last_top})
 	# Route 4: a giant pine fell across upstream, out of the far picket's view. Walk it.
+	var before := root.get_child_count()
 	F.log_bridge(root, Vector3(c + LOG_X, -0.3, RAVINE_Z), 90.0)
+	crossing["log"] = root.get_children().slice(before)
 	_hide(root, dress, info, c + LOG_X - 3.0, NEAR_LIP + 5.0, Vector2(3.0, 5.0), true)
 	_hide(root, dress, info, c + LOG_X + 3.5, FAR_LIP - 5.0, Vector2(3.0, 6.0), true)
 	_hide(root, dress, info, c + LOG_X - 3.5, FAR_LIP - 9.0, Vector2(3.0, 5.0))

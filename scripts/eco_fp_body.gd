@@ -6,6 +6,8 @@ extends Node3D
 ##   is shifted each frame so her neck sits just under and behind the camera,
 ##   whatever the pose (run, crouch, slide).
 ## - "Shadow": the whole of her at the player's feet, drawn only into shadows.
+##   In third person (scripts/view_camera.gd) it is drawn for real and "Body"
+##   hides.
 
 const ECO := preload("res://assets/models/eco.tscn")
 const EcoModel := preload("res://scripts/ps2/eco_model.gd")
@@ -22,6 +24,7 @@ var body: EcoModel
 var shadow: EcoModel
 var _camera: Camera3D
 var _neck_bone := -1
+var _third_person := false
 
 
 func _ready() -> void:
@@ -46,8 +49,20 @@ func _spawn(node_name: String, shadows: GeometryInstance3D.ShadowCastingSetting)
 	return eco
 
 
+## Third person: her whole model is seen, the first-person body hides.
+func set_third_person(on: bool) -> void:
+	_third_person = on
+	if body != null:
+		body.visible = not on
+	if shadow != null:
+		var mode := GeometryInstance3D.SHADOW_CASTING_SETTING_ON if on \
+			else GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY
+		for mesh in shadow.find_children("*", "GeometryInstance3D", true, false):
+			(mesh as GeometryInstance3D).cast_shadow = mode
+
+
 func _process(_delta: float) -> void:
-	if body == null or body.skeleton == null:
+	if body == null or _third_person or body.skeleton == null:
 		return
 	var sk: Skeleton3D = body.skeleton
 	for bone_name: String in HIDDEN_BONES:

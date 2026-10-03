@@ -13,11 +13,14 @@ var failures := 0
 
 
 func _initialize() -> void:
+	# Hints go to their own settings file, so these runs never mark them seen on your save.
+	preload("res://scripts/run/tutorial.gd").settings_path = "user://test_settings.cfg"
 	run_node = load("res://scenes/run.tscn").instantiate()
 	run_node.run_seed = SEED
 	run_node.start_in_hub = false
 	run_node.armory_path = "user://test_run_armory.cfg"
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(run_node.armory_path))
+	DirAccess.remove_absolute(ProjectSettings.globalize_path("user://test_settings.cfg"))
 	root.add_child(run_node)
 	_run.call_deferred()
 
@@ -109,6 +112,8 @@ func _run() -> void:
 	# Extract through the zones, taking a part from every cache
 	for zone in range(0, 3):
 		info = run_node.zone_info
+		if zone > 0:
+			await _laid_out_checks(zone)
 		for cache in info["caches"]:
 			if cache.opened:
 				continue
@@ -201,7 +206,7 @@ func _generator_checks() -> void:
 		rng.seed = s
 		for zone in range(1, 3):
 			var tmp := Node3D.new()
-			var info := ZoneBuilder.build_zone(tmp, rng, zone)
+			var info := ZoneBuilder.build_chain(tmp, rng, zone)
 			for seg in info["segments"]:
 				var limits: Vector2 = ZoneBuilder.GAPS[seg["type"]]
 				if seg["gap"] < limits.x or seg["gap"] > limits.y:
@@ -216,21 +221,27 @@ func _generator_checks() -> void:
 			tmp.free()
 	_check("generated gaps stay clearable, grunts stand on platforms", bad.is_empty(), bad)
 
-	# The forest is laid out by hand; its crossings still have to fit the movement.
-	bad = []
-	for s in range(1, 7):
-		var rng := RandomNumberGenerator.new()
-		rng.seed = s
-		var tmp := Node3D.new()
-		var info := ZoneBuilder.build_zone(tmp, rng, 0)
-		for seg in info["segments"]:
-			var limits: Vector2 = ZoneBuilder.GAPS[seg["type"]]
-			if seg["gap"] > limits.y or (seg["type"] == "jump" and seg["rise"] > 0.5):
-				bad.append([s, seg])
-		if info["caches"].size() != 2 or info["objectives"].size() != 1 or info["grunts"].size() < 6:
-			bad.append([s, "layout", info["caches"].size(), info["objectives"].size(), info["grunts"].size()])
-		tmp.free()
-	_check("forest crossings stay clearable, one guarded cache", bad.is_empty(), bad)
+	# Zones 1-3 are laid out by hand; their crossings still have to fit the movement.
+	for zone in range(0, 3):
+		bad = []
+		var names := []
+		for s in range(1, 7):
+			var rng := RandomNumberGenerator.new()
+			rng.seed = s
+			var tmp := Node3D.new()
+			var info := ZoneBuilder.build_zone(tmp, rng, zone)
+			names.append(info.get("name", ""))
+			for seg in info["segments"]:
+				var limits: Vector2 = ZoneBuilder.GAPS[seg["type"]]
+				if seg["gap"] > limits.y or (seg["type"] == "jump" and seg["rise"] > 0.5):
+					bad.append([s, seg])
+			if info["caches"].size() != 2 or info["objectives"].size() != 1 or info["grunts"].size() < 6:
+				bad.append([s, "layout", info["caches"].size(), info["objectives"].size(), info["grunts"].size()])
+			var kinds: Array = info["routes"].map(func(r): return r["kind"])
+			if kinds != ["loud", "quiet", "high"] or info["checkpoints"].size() < 8:
+				bad.append([s, "routes", kinds, info["checkpoints"].size()])
+			tmp.free()
+		_check("zone %d (%s): crossings stay clearable, one guarded cache, three routes" % [zone + 1, names[0]], bad.is_empty(), bad)
 
 	var a := RandomNumberGenerator.new()
 	var b := RandomNumberGenerator.new()
@@ -238,8 +249,8 @@ func _generator_checks() -> void:
 	b.seed = 99
 	var ta := Node3D.new()
 	var tb := Node3D.new()
-	var pa: Array = ZoneBuilder.build_zone(ta, a, 1)["platforms"]
-	var pb: Array = ZoneBuilder.build_zone(tb, b, 1)["platforms"]
+	var pa: Array = ZoneBuilder.build_chain(ta, a, 1)["platforms"]
+	var pb: Array = ZoneBuilder.build_chain(tb, b, 1)["platforms"]
 	_check("same seed, same zone", str(pa) == str(pb), pa.size())
 	ta.free()
 	tb.free()
@@ -283,6 +294,63 @@ func _fly_gap(what: String, gap: float, rise: float, drift: float, double_jump_a
 	var landed := await _cross(start, edge_z, to, to_size.y * 0.5, kind, mid.x - 4.5, anchor, double_jump_after, to.z + size.y * 0.5 + 2.0)
 	_check("pilot clears the %s (%.1f m, rise %.1f)" % [what, gap, rise], landed, player.global_position)
 	holder.queue_free()
+	await _reset_after_flight()
+
+
+## Zones 2 and 3 once loaded: what they're made of, and their crossings flown for real.
+func _laid_out_checks(zone: int) -> void:
+	var info: Dictionary = run_node.zone_info
+	var B = ZoneBuilder.MarshBuilder if zone == 1 else ZoneBuilder.BoneyardBuilder
+	_check("zone %d is %s" % [zone + 1, B.NAME], info.get("name", "") == B.NAME and run_node.run.zone == zone, info.get("name", ""))
+	var floating := []
+	for g in info["grunts"]:
+		if not _ground_below(g.post, g.get_rid()):
+			floating.append(g.post)
+	_check("%s: grunts stand on something" % B.NAME, floating.is_empty(), floating)
+	var blockers: int = run_node.zone_root.get_children().filter(func(n): return n.is_in_group("sight_blocker")).size()
+	_check("%s: places to hide, some blocking sight" % B.NAME, info["stealth_cover"].size() >= 40 and blockers >= 15, [info["stealth_cover"].size(), blockers])
+	_check("%s: loot laid out" % B.NAME, info["loot"].size() >= 9, info["loot"].size())
+	var deck_y: float = B.ROAD_Y if zone == 1 else 0.0
+	var mid_z: float = (B.NEAR_LIP + B.FAR_LIP) * 0.5
+	await _gap_crossings(B, mid_z, deck_y)
+	# The quiet crossing: walk the drowned titan's back, or the fallen obelisk.
+	var c: float = B.trail_x(mid_z)
+	_place(B._on(c + B.LOG_X, B.NEAR_LIP + 8.0, 0.1))
+	await _ticks(2)
+	var ok: bool = await _walk(B._on(c + B.LOG_X, B.FAR_LIP - 8.0), func(p): return p.z < B.FAR_LIP - 4.0)
+	_check("%s: walk the quiet crossing" % B.NAME, ok and run_node.run.falls == 0, player.global_position)
+	await _reset_after_flight()
+
+
+## A laid-out zone's gap (the forest's ravine, the marsh's channel, the
+## Boneyard's rift) by its wallrun, grapple and stepping-stone routes.
+func _gap_crossings(B, mid_z: float, deck_y: float) -> void:
+	var c: float = B.trail_x(mid_z)
+	var near_end: float = B.NEAR_LIP - B.BRIDGE_REACH
+	var far_end: float = B.FAR_LIP + B.BRIDGE_REACH
+	var far_deck := Vector3(c, deck_y, far_end - 5.0)
+	var anchor := Vector3(c + B.ANCHOR_X, B.ANCHOR_Y, near_end - (near_end - far_end) * 0.6)
+	var ok: bool = await _cross(Vector3(c, deck_y + 0.1, near_end + 8.0), near_end, far_deck, 5.0, "wallrun", c + B.SHIELD_X, Vector3.ZERO, 0, far_end)
+	_check("%s: wallrun over the gap" % B.NAME, ok, player.global_position)
+	await _reset_after_flight()
+	ok = await _cross(Vector3(c + 2.0, deck_y + 0.1, near_end + 8.0), near_end, far_deck, 5.0, "grapple", 0.0, anchor, 0, far_end)
+	_check("%s: grapple the crane over the gap" % B.NAME, ok, player.global_position)
+	await _reset_after_flight()
+	var px: float = c + B.PILLAR_X
+	var hops := []
+	var edge: float = B.NEAR_LIP
+	for p in B.PILLARS:
+		hops.append([edge, Vector3(px, p[1], p[0] - B.PILLAR * 0.5), B.PILLAR * 0.5])
+		edge = p[0] - B.PILLAR
+	hops.append([edge, B._on(px, B.FAR_LIP - 6.0), 5.0])
+	_place(B._on(px, B.NEAR_LIP + 8.0, 0.1))
+	player.rotation.y = 0.0
+	await _ticks(2)
+	ok = true
+	for hop in hops:
+		ok = ok and await _hop(hop[0], hop[1], hop[2])
+	Input.action_release("move_forward")
+	_check("%s: hop the stepping stones over the gap" % B.NAME, ok, player.global_position)
 	await _reset_after_flight()
 
 
