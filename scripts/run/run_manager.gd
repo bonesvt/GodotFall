@@ -35,6 +35,7 @@ const TitanStyle := preload("res://scripts/run/titan_style.gd")
 const HubNpc := preload("res://scripts/hub/hub_npc.gd")
 const NpcTalk := preload("res://scripts/hub/npc_talk.gd")
 const Tutorial := preload("res://scripts/run/tutorial.gd")
+const ViewCamera := preload("res://scripts/view_camera.gd")
 
 const FALL_DAMAGE := 25
 ## Integrity lost when grunts take the pilot's health to zero.
@@ -87,6 +88,10 @@ var hub_npcs := {}
 var npc_talk: NpcTalk
 ## The parts your last run ended with; the hub's practice titan is built from them.
 var last_parts := {}
+## The hub spot Eco is sitting or lying down at ({} = she's on her feet), and
+## the rest pose she's in there (spot["rest"] or its "alt").
+var rest_spot := {}
+var rest_pose := ""
 ## The practice titan in the hub's titan yard, and whether you're in it.
 var hub_titan: Titan
 var hub_piloting := false
@@ -184,6 +189,11 @@ func start_run(seed_value: int) -> void:
 func _fresh_level(level_name: String) -> void:
 	if npc_talk != null:
 		npc_talk.stop()
+	if not rest_spot.is_empty():
+		get_up()
+		rest_spot = {}
+		player.resting = false
+		_set_rest_view(false)
 	if zone_root != null:
 		remove_child(zone_root)
 		zone_root.free()
@@ -297,6 +307,9 @@ func _hub_tick(delta: float) -> void:
 	if player.global_position.y < float(zone_info["floor_y"]) - KILL_DEPTH:
 		place_player(zone_info["spawn"])
 		return
+	if not rest_spot.is_empty():
+		_rest_tick()
+		return
 	if npc_talk.active():
 		npc_talk.tick(delta, player.global_position)
 		if Input.is_action_just_pressed("interact"):
@@ -324,10 +337,86 @@ func _hub_tick(delta: float) -> void:
 	if spot.has("npc"):
 		talk_to(spot["npc"])
 		return
+	if spot.has("rest"):
+		rest_at(spot)
 	var lines: Array = spot["lines"]
 	var n: int = hub_reads.get(spot["id"], 0)
 	hub_reads[spot["id"]] = n + 1
 	hud.toast(lines[n % lines.size()], HUB_LINE_SECONDS)
+
+
+## Eco sits or lies down at a hub spot with a "rest" entry ({pose, at, seat,
+## alt}: hub_builder.gd): the view goes to third person while she rests, and
+## you can look around her. F at a spot with an "alt" pose moves her between
+## the two (sit up, stretch out); F anywhere else, jump or a move key gets her up.
+func rest_at(spot: Dictionary, alt := false) -> void:
+	var eco_body := player.get_node_or_null("EcoBody")
+	if eco_body == null or not eco_body.has_method("rest"):
+		return
+	var rest: Dictionary = spot["rest"]
+	var pose: Dictionary = rest["alt"] if alt else rest
+	if rest_spot.is_empty():
+		player.resting = true
+		_set_rest_view(true)
+		# face her where she settles, looking down a little
+		var at: Vector3 = (pose["at"] as Transform3D).origin
+		var to := Vector2(at.x - player.global_position.x, at.z - player.global_position.z)
+		if to.length() > 0.3:
+			player.rotation.y = atan2(-to.x, -to.y)
+		player.head.rotation.x = deg_to_rad(-22.0)
+	rest_spot = spot
+	rest_pose = pose["pose"]
+	eco_body.rest(rest_pose, pose["at"], float(rest.get("seat", 0.5)))
+
+
+## Gets Eco back on her feet; the player is free once she's up (_rest_tick).
+func get_up() -> void:
+	var eco_body := player.get_node_or_null("EcoBody")
+	if eco_body != null:
+		eco_body.get_up()
+	rest_pose = ""
+
+
+func _rest_tick() -> void:
+	var eco_body := player.get_node_or_null("EcoBody")
+	if rest_pose == "":
+		if eco_body == null or not eco_body.is_resting():
+			rest_spot = {}
+			player.resting = false
+			_set_rest_view(false)
+		return
+	var moving := Input.get_vector("move_left", "move_right", "move_forward", "move_back") != Vector2.ZERO
+	if moving or Input.is_action_just_pressed("jump"):
+		get_up()
+	elif Input.is_action_just_pressed("interact"):
+		var rest: Dictionary = rest_spot["rest"]
+		if rest.has("alt"):
+			rest_at(rest_spot, rest_pose == rest["pose"])
+		else:
+			get_up()
+
+
+## Resting shows her in third person (whatever the F5 view) with the gun and
+## knife put away; getting up puts the player's view back.
+func _set_rest_view(on: bool) -> void:
+	var view := player.get_node_or_null("ViewCam")
+	if view != null:
+		view.set_third_person(on or ViewCamera.prefer_third_person)
+	for path in ["Head/Camera3D/Weapon", "Head/Camera3D/Knife"]:
+		var n := player.get_node_or_null(path)
+		if n != null:
+			n.process_mode = Node.PROCESS_MODE_DISABLED if on else Node.PROCESS_MODE_INHERIT
+
+
+## The prompt while she rests.
+func _rest_prompt() -> String:
+	if rest_pose == "":
+		return ""
+	var rest: Dictionary = rest_spot["rest"]
+	if rest.has("alt"):
+		var other := "Stretch out" if rest_pose == rest["pose"] else "Sit up"
+		return "[F] %s    [Space] Get up" % other
+	return "[F] Get up"
 
 
 ## Starts a conversation between Eco and one of the people in the hub.
@@ -882,6 +971,8 @@ func _prompt() -> String:
 				return "[F] Embark"
 			if npc_talk.active():
 				return ""
+			if not rest_spot.is_empty():
+				return _rest_prompt()
 			if course_armed:
 				return "Leave the pad to start the clock"
 			var spot := nearest_hub_spot()
