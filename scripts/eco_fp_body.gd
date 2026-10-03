@@ -40,7 +40,7 @@ func _ready() -> void:
 ## Suit pieces hidden on the first-person body: round her neck or on her face, they
 ## would sit round the camera.
 const FP_HIDDEN := ["suit_t4h_collar*", "suit_t1l_choker*", "suit_t1l_tag*", "suit_t1l_nose_ring*",
-		"suit_t1m_scarf*", "suit_t1m_plaster*"]
+		"suit_t1m_scarf*", "suit_t1m_plaster*", "suit_t1h_comm*"]
 
 
 ## Dresses both copies in her suit upgrade (eco_model.gd suit_tier and suit_weight).

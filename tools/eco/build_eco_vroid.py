@@ -54,9 +54,10 @@ INK = (0.012, 0.009, 0.014)
 STRETCH = (0.085, 0.09, 0.115)   # the suit where it stretches thin over her curves
 MED_SUIT = (0.03, 0.033, 0.026)   # the medium jumpsuit: charcoal olive
 MED_PANEL = (0.11, 0.04, 0.016)   # its rust side panels and sleeve cuff
-MED_ZIP = 1.055                   # how far the jumpsuit is unzipped (rest-space z)
+MED_ZIP = 1.0                     # how far the jumpsuit is unzipped (rest-space z)
 MED_SLEEVE = 0.36                 # where the right sleeve is rolled to (rest-space x)
 TATTOO = (0.018, 0.024, 0.04)
+HVY_SUIT = (0.03, 0.034, 0.045)   # the heavy suit's padded undersuit
 CREASE = (0.42, 0.24, 0.22)       # shadowed skin
 
 SIDE_CUT = 0.075   # how far the sides of the halter drop beside the bust (rest-space metres)
@@ -782,6 +783,50 @@ def light_suit(bvh):
     return out
 
 
+def heavy_extras(bvh):
+    """The heavy suit's own pieces beyond the gunmetal plates in suit_armor:
+      1  a breastplate cut from Dad's titan's hull, a comm earpiece with a mic
+      4  the titan's old core light set in the breastplate"""
+    out = []
+    # a barrel-shaped plate (a slice of an ellipsoid) standing clear of her chest
+    C, RX, RY, RZ = Vector((0, -0.01, 1.05)), 0.13, 0.13, 0.16
+    bm = bmesh.new()
+    bmesh.ops.create_uvsphere(bm, u_segments=40, v_segments=24, radius=1.0)
+    for v in bm.verts:
+        v.co = C + Vector((v.co.x * RX, v.co.y * RY, v.co.z * RZ))
+    for co, no in (((0, 0, 0.985), (0, 0, -1)), ((0, 0, 1.118), (0, 0, 1)), ((0, -0.06, 0), (0, 1, 0))):
+        bmesh.ops.bisect_plane(bm, geom=bm.verts[:] + bm.edges[:] + bm.faces[:], dist=1e-6,
+                               plane_co=Vector(co), plane_no=Vector(no), clear_outer=True)
+    for f in bm.faces:
+        f.smooth = True
+    bm.normal_update()
+    orig = set(bm.verts)
+    bmesh.ops.solidify(bm, geom=bm.faces[:], thickness=0.007)
+    for f in bm.faces:
+        vs = set(f.verts)
+        f.material_index = 1 if (vs & orig) and (vs - orig) else 0
+    out.append(rigid("suit_t1h_breastplate", bm, ["eco_v_armor", "eco_v_armor_edge"], "J_Bip_C_Chest"))
+    # comm earpiece over her left ear, a mic boom to the corner of her mouth
+    bm = bmesh.new()
+    ear = Vector((0.079, 0.012, 1.29))
+    cylinder(bm, ear - Vector((0.004, 0, 0)), Vector((1, 0, 0)), 0.013, 0.012, 0, segments=14)
+    cylinder(bm, ear + Vector((0.008, 0, 0)), Vector((1, 0, 0)), 0.006, 0.003, 1, segments=10)    # status light
+    tip = Vector((0.034, -0.062, 1.238))
+    d = tip - ear
+    cylinder(bm, ear, d, 0.0022, d.length, 0, segments=6)
+    cylinder(bm, tip - d.normalized() * 0.004, d, 0.0045, 0.009, 0, segments=8)
+    out.append(rigid("suit_t1h_comm", bm, ["eco_v_armor", "eco_v_armor_glow"], "J_Bip_C_Head"))
+    # --- tier 4: the core light in the middle of the breastplate
+    zc = 1.066
+    p = C + Vector((0, -RY * math.sqrt(1 - ((zc - C.z) / RZ) ** 2), zc - C.z))
+    n = Vector((0, -1, 0))
+    bm = bmesh.new()
+    cylinder(bm, p - n * 0.003, n, 0.019, 0.007, 1, segments=16)
+    cylinder(bm, p + n * 0.003, n, 0.012, 0.003, 0, segments=16)
+    out.append(rigid("suit_t4h_core", bm, ["eco_v_armor_glow", "eco_v_armor_edge"], "J_Bip_C_Chest"))
+    return out
+
+
 def medium_suit(bvh):
     """The medium suit (suit_t<tier>m_*): a mechanic's rig of canvas, rubber and
     tools over her jumpsuit (suit_graph's medium cut).
@@ -1011,6 +1056,7 @@ def suit_armor():
         cylinder(bm, p + y * 0.0195, y, 0.008, 0.002, 1, segments=6)
         out.append(rigid("suit_t5h_crest_" + side, bm, ["eco_v_armor_edge", "eco_v_armor_glow"],
                          "J_Bip_%s_UpperArm" % side.upper()))
+    out += heavy_extras(bvh)
     out += light_suit(bvh)
     out += medium_suit(bvh)
     print("suit armour: %d pieces" % len(out))
@@ -1221,10 +1267,12 @@ def suit_graph(nt, skin, cut="base"):
     """The pilot suit, worked out per pixel from each point's rest position (the
     'rest' attribute) so its edges are smooth curves whatever the mesh does.
     `cut` is the bodysuit for a suit weight (armory.gd SUIT_WEIGHTS):
-      base    the halter bodysuit (heavy, and before any suit tier)
+      base    the halter bodysuit (before any suit tier)
       light   her cloth wrap supports her chest and covers the sides, so the side
               cutouts close, the high collar goes (her choker sits on bare neck)
               and the keyhole becomes a wider opening across the top of her chest
+      heavy   a padded undersuit quilted in diamonds, neck to gloves to boots,
+              under a high collar (the plates and breastplate go over it)
       medium  a mechanic's jumpsuit: crew neck unzipped in a wide V to between her
               breasts, a heart window low on her back over the top of her glute crease, full
               legs, the left arm bare to the shoulder (a cog and wrench tattoo on
@@ -1232,7 +1280,7 @@ def suit_graph(nt, skin, cut="base"):
     The light and medium cuts have no stretch shading over the bust.
     Returns (albedo colour, glow amount, cover amount, ink line, gloves and
     boots) sockets."""
-    light, medium = cut == "light", cut == "medium"
+    light, medium, heavy = cut == "light", cut == "medium", cut == "heavy"
     g = NG(nt)
     at = nt.nodes.new("ShaderNodeAttribute")
     at.attribute_name = "rest"
@@ -1243,8 +1291,13 @@ def suit_graph(nt, skin, cut="base"):
     tb = g.sstep(-0.025, 0.045, y)                    # 0 at the front, 1 at the back
     front = g.sub(1.0, g.sstep(-0.045, -0.025, y))
     AA = 0.00045
-    suit_col = MED_SUIT if medium else SUIT
-    if medium:
+    suit_col = MED_SUIT if medium else HVY_SUIT if heavy else SUIT
+    if heavy:
+        # a padded undersuit, neck to gloves to boots, under a high collar
+        d_suit = g.sub(1.205, z)
+        r = g.sqrt(g.add(g.sq(x), g.sq(g.sub(y, 0.022))))
+        d_collar = g.mn(g.mn(g.sub(z, 1.166), g.sub(1.205, z)), g.sub(0.062, r))
+    elif medium:
         # crew neck, rising a little round the sides and back of her neck
         zn = g.add(g.lerp(1.155, 1.172, tb), g.mul(1.5, g.sq(ax)))
         d_neck = g.sub(zn, z)
@@ -1255,13 +1308,13 @@ def suit_graph(nt, skin, cut="base"):
         d_suit = g.mn(d_neck, g.mx(d_arm, d_sleeve))
         # unzipped to between her breasts: a wide V that opens up to the neckline,
         # stopping short of the shoulder strap
-        w_vee = g.mn(g.mx(g.mul(g.sub(z, MED_ZIP), 1.15), 0.0), 0.064)
+        w_vee = g.mn(g.mx(g.mul(g.sub(z, MED_ZIP), 0.6), 0.0), 0.064)   # narrow where her bust is fullest
         d_vee = g.mx(g.sub(ax, w_vee), g.sub(MED_ZIP + 0.004, z))
         d_suit = g.mn(d_suit, g.mx(d_vee, g.mul(g.sub(0.5, front), 0.1)))
         # a heart-shaped window low on her back, its point over the top of her glute crease
-        lobe = g.sub(g.sqrt(g.add(g.sq(g.sub(ax, 0.024)), g.sq(g.sub(z, 0.872)))), 0.026)
-        wedge = g.mul(g.sub(ax, g.mul(g.sub(z, 0.8), 0.8)), 0.781)   # its sides meet the lobes tangentially
-        wedge = g.mx(wedge, g.sub(z, 0.856))
+        lobe = g.sub(g.sqrt(g.add(g.sq(g.sub(ax, 0.024)), g.sq(g.sub(z, 0.85)))), 0.026)
+        wedge = g.mul(g.sub(ax, g.mul(g.sub(z, 0.778), 0.8)), 0.781)   # its sides meet the lobes tangentially
+        wedge = g.mx(wedge, g.sub(z, 0.834))
         d_win = g.mn(lobe, wedge)
         d_suit = g.mn(d_suit, g.mx(d_win, g.mul(g.sub(0.5, tb), 0.1)))
         d_collar = None
@@ -1312,7 +1365,7 @@ def suit_graph(nt, skin, cut="base"):
         tat = g.mul(g.mx(g.mx(cog, bar), jaw), g.mul(g.sstep(1.155, 1.162, z), g.sstep(0.0, 0.004, x)))
         col = g.mixc(col, TATTOO, g.mul(tat, 0.85))
         # the top of her glute crease, a soft shadow line showing through the heart
-        crease = g.mul(g.mul(g.sub(1.0, g.sstep(0.0005, 0.0022, ax)), g.sub(1.0, g.sstep(0.822, 0.842, z))), tb)
+        crease = g.mul(g.mul(g.sub(1.0, g.sstep(0.0005, 0.0022, ax)), g.sub(1.0, g.sstep(0.81, 0.83, z))), tb)
         col = g.mixc(col, CREASE, g.mul(crease, 0.6))
     col = g.mixc(col, suit_col, c_suit)
     if medium:
@@ -1326,6 +1379,13 @@ def suit_graph(nt, skin, cut="base"):
         # the rolled cuff of the right sleeve
         cuff = g.mul(g.mul(g.band(ax, MED_SLEEVE - 0.026, MED_SLEEVE), g.sstep(0.0, 0.004, g.neg(x))), c_suit)
         col = g.mixc(col, MED_PANEL, cuff)
+    if heavy:
+        # diamond quilting stitched into the padding
+        def quilt(v):
+            f = g.op("FRACT", g.div(v, 0.034))
+            return g.mx(g.sub(1.0, g.sstep(0.0, 0.07, f)), g.sstep(0.93, 1.0, f))
+        q = g.mx(quilt(g.add(x, z)), quilt(g.sub(x, z)))
+        col = g.mixc(col, PLATE, g.mul(g.mul(q, 0.6), g.mul(c_suit, g.sub(1.0, c_gear))))
     col = g.mixc(col, GEAR, c_gear)
     col = g.mixc(col, PLATE, c_knee)
     ink = g.mx(g.mx(g.band(d_suit, 0.0, 0.0008), g.band(d_gear, 0.0, 0.0008)), g.band(d_knee, -0.0002, 0.0007))
@@ -1348,7 +1408,7 @@ def suit_graph(nt, skin, cut="base"):
     if medium:   # the back seam would cut across the panels; one down her spine instead
         seam = g.mul(g.mul(g.band(x, -0.0007, 0.0007, 0.0002), tb), c_suit)
     col = g.mixc(col, PLATE, seam)
-    if not medium:
+    if not (medium or heavy):
         # the thin suit stretches paler over her bust and glutes: painted on, nothing under it
         def bell(cx, cy, cz, r):
             d2 = g.add(g.add(g.sq(g.sub(ax, cx)), g.sq(g.sub(y, cy))), g.sq(g.sub(z, cz)))
@@ -1365,8 +1425,8 @@ def suit_graph(nt, skin, cut="base"):
 def bake_body(body, skin_img, cut="base"):
     """Bake the suit into four textures: albedo, glow (teal trims), a mask
     (red: where a thin sheen may show, green: suit or skin) and a normal map.
-    The light and medium cuts (suit_graph) are v_body*_light.png and
-    v_body*_medium.png, without a normal map."""
+    The weight cuts (suit_graph) are v_body*_light.png, v_body*_medium.png and
+    v_body*_heavy.png, without a normal map."""
     sfx = "" if cut == "base" else "_" + cut
     sc = bpy.context.scene
     sc.render.engine = "CYCLES"
@@ -1415,7 +1475,7 @@ def bake_body(body, skin_img, cut="base"):
         results[name] = img
         print("baked", name)
     if cut != "base":
-        return results   # the wrap or the jumpsuit holds her chest: no cling normal map
+        return results   # the wrap, the jumpsuit or the padding holds her chest: no cling normal map
     # normal map: the suit clings to the soft contour of her bust apex (nothing
     # under it), kept as subtle as in the reference renders
     at = nt.nodes.new("ShaderNodeAttribute")
@@ -1512,6 +1572,7 @@ def textures_and_materials(objs, boots):
     clean = write_png(px, "v_body_skin_src")
     bake_body(body, clean, "light")
     bake_body(body, clean, "medium")
+    bake_body(body, clean, "heavy")
     bake_body(body, clean)
     os.remove(os.path.join(TEX_OUT, "v_body_skin_src.png"))
     plan.append((body, next(iter(mat_index(body, "bake_body"))), "eco_v_body"))

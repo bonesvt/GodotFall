@@ -102,7 +102,12 @@ func _model() -> void:
 	eco.suit_weight = "medium"
 	_check("medium swaps in its jumpsuit", body_mesh.get_surface_override_material(body_surface) == eco.MEDIUM_BODY, "")
 	eco.suit_weight = "heavy"
-	_check("heavy wears the plain bodysuit", body_mesh.get_surface_override_material(body_surface) == null, "")
+	_check("heavy swaps in its padded undersuit", body_mesh.get_surface_override_material(body_surface) == eco.HEAVY_BODY, "")
+	_check("heavy has its breastplate and core", eco.find_child("suit_t1h_breastplate", true, false).visible \
+			and eco.find_child("suit_t4h_core", true, false).visible, "")
+	eco.suit_tier = 0
+	_check("the bare suit wears the plain bodysuit", body_mesh.get_surface_override_material(body_surface) == null, "")
+	eco.suit_tier = 5
 	var plate: MeshInstance3D = eco.find_child("suit_t1h_bracer_l", true, false)
 	_check("tier 5 repaints the plates in Dad's colours", plate.get_surface_override_material(0) == eco.LEGACY_PLATE, "")
 	_check("tier 5 turns the trims gold", plate.get_instance_shader_parameter("trim_gold") == 1.0, "")

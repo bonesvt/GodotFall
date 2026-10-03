@@ -210,7 +210,7 @@ const SUIT_WEIGHTS := {
 		"look": "A mechanic's jumpsuit: unzipped in a wide V, a heart window over the top of her glutes, left arm bare with Dad's cog tattoo, right sleeve rolled, rust side panels. A knotted scarf, a plaster on her cheek, a tool pouch, a canvas yoke, rubber knee caps, a cargo pocket and a wrist computer."},
 	"heavy": {"name": "Heavy", "armor_mult": 1.6, "damage_mult": 0.85, "speed": 0.9,
 		"bonus": "60% more armour and every hit lands 15% softer, but 10% slower on the ground.",
-		"look": "Gunmetal plates: bracers, pauldrons, shin guards, knee cops, hip plates, elbow cops, upper-arm and thigh plates, a back plate and an armoured collar."},
+		"look": "A padded undersuit quilted in diamonds under titan-hull armour: a breastplate with Dad's titan's core light at tier 4, a comm earpiece, bracers, pauldrons, shin guards, knee cops, hip plates, elbow cops, upper-arm and thigh plates, a back plate and an armoured collar."},
 }
 const SUIT_WEIGHT_ORDER := ["light", "medium", "heavy"]
 

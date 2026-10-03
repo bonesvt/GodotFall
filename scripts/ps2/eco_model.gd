@@ -69,6 +69,7 @@ const SUIT_TIERS := 5
 const LEGACY_PLATE := preload("res://assets/materials/eco/eco_v_armor_legacy.tres")
 const LIGHT_BODY := preload("res://assets/materials/eco/eco_v_body_light.tres")
 const MEDIUM_BODY := preload("res://assets/materials/eco/eco_v_body_medium.tres")
+const HEAVY_BODY := preload("res://assets/materials/eco/eco_v_body_heavy.tres")
 
 ## Movement states of scripts/player.gd (enum State).
 enum PlayerState { GROUND, AIR, SLIDE, WALLRUN, GRAPPLE }
@@ -144,8 +145,8 @@ func apply_suit() -> void:
 		mi.set_instance_shader_parameter("trim_gold", 1.0 if legacy else 0.0)
 
 
-## The bodysuit for her weight: the light and medium suits have their own cuts
-## (tools/eco/build_eco_vroid.py suit_graph); heavy and the bare suit use the base one.
+## The bodysuit for her weight: each weight has its own cut (tools/eco/build_eco_vroid.py
+## suit_graph); the bare suit uses the base one.
 func body_material() -> Material:
 	if suit_tier <= 0:
 		return null
@@ -154,6 +155,8 @@ func body_material() -> Material:
 			return LIGHT_BODY
 		"medium":
 			return MEDIUM_BODY
+		"heavy":
+			return HEAVY_BODY
 	return null
 
 
