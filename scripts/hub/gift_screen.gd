@@ -20,7 +20,7 @@ const GOOD := Color(0.55, 1.0, 0.6)
 const BAD := Color(1.0, 0.45, 0.4)
 const SPIN_SPEED := 0.6
 ## How big gifts stand on the turntable (they're modelled at real size).
-const PREVIEW_SIZE := 0.42
+const PREVIEW_SIZE := 0.3
 ## Affection before Eco knows someone's taste in gifts (romance.gd's "friend").
 const FRIENDS_AT := 25
 const SHOPKEEPER := [
@@ -265,7 +265,7 @@ func _build_stage() -> SubViewport:
 	var camera := Camera3D.new()
 	camera.fov = 30.0
 	stage.add_child(camera)
-	camera.look_at_from_position(Vector3(0.0, 0.32, 0.95), Vector3(0, 0.1, 0))
+	camera.look_at_from_position(Vector3(0.0, 0.42, 1.25), Vector3(0, 0.13, 0))
 	return sub
 
 

@@ -193,7 +193,6 @@ def perfume():
     """A pink glass perfume bottle with a gold cap and a squeeze bulb."""
     m = bt.Model("perfume", 313)
     m.rounded("gift_pink", (0, 0, 0.045), (0.07, 0.04, 0.09), 0.015)
-    m.box("glass", (0, 0, 0.05), (0.074, 0.044, 0.07))
     m.cyl("gift_gold", (0, 0, 0.1), 0.012, 0.02, sides=10)
     m.tube("gift_gold", [(0, 0, 0.11), (0.03, 0, 0.115), (0.05, 0, 0.1)], [0.003, 0.003, 0.003], 4)
     m.blob("gift_pink", (0.06, 0, 0.09), (0.016, 0.016, 0.02), wobble=0.05)
@@ -202,15 +201,17 @@ def perfume():
 
 
 def arcade_tokens():
-    """Glowbox tokens: a velvet pouch spilling stacks of brass coins."""
+    """Glowbox tokens: stacks of brass coins with cyan faces, a velvet pouch
+    behind them, a few spilled."""
     m = bt.Model("arcade_tokens", 317)
-    m.blob("gift_purple", (0.03, 0.02, 0.035), (0.045, 0.04, 0.04), subdiv=2, wobble=0.12)
-    m.cyl("gift_gold", (0.03, 0.02, 0.08), 0.015, 0.015, sides=8)
-    for (x, y, n) in ((-0.04, -0.01, 6), (-0.012, -0.035, 4), (-0.05, -0.045, 2)):
+    m.blob("gift_purple", (0.0, 0.045, 0.025), (0.035, 0.028, 0.026), subdiv=2, wobble=0.12)
+    m.cyl("gift_gold", (0.0, 0.045, 0.052), 0.01, 0.012, sides=8)
+    for (x, y, n) in ((-0.035, -0.005, 7), (0.0, -0.02, 5), (0.035, -0.005, 3)):
         for k in range(n):
-            m.cyl("gift_gold", (x + (k % 2) * 0.001, y, 0.003 + k * 0.0055), 0.012, 0.005, sides=12)
-        m.box("glow_cyan", (x, y, 0.0058 * n + 0.0005), (0.008, 0.008, 0.001))
-    m.cyl("gift_gold", (0.02, -0.04, 0.012), 0.012, 0.005, sides=12, rot=(1.2, 0, 0))
+            m.cyl("gift_gold", (x + (k % 2) * 0.0012, y, 0.004 + k * 0.0075), 0.016, 0.007, sides=14)
+        m.cyl("glow_cyan", (x + ((n - 1) % 2) * 0.0012, y, 0.0075 * n + 0.0006), 0.01, 0.001, sides=10)
+    for (x, y, rx) in ((0.055, -0.035, 1.3), (-0.055, -0.04, 0.0), (0.02, -0.05, 0.0)):
+        m.cyl("gift_gold", (x, y, 0.004 if rx == 0 else 0.016), 0.016, 0.007, sides=14, rot=(rx, 0, 0))
     m.export()
 
 
