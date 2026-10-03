@@ -117,7 +117,7 @@ static func shelve(kiosk: Node3D) -> void:
 	var per: int = SHELF_ROWS.max()
 	var i := 0
 	for row in SHELF_ROWS.size():
-		for col in SHELF_ROWS[row]:
+		for col: int in int(SHELF_ROWS[row]):
 			if i >= list.size():
 				return
 			var id: String = list[i]
