@@ -48,6 +48,8 @@ func _run() -> void:
 		ids.append(spot["id"])
 		if spot.has("npc"):
 			continue   # people talk instead (tests/npc_test.gd)
+		if spot.has("family"):
+			continue   # Mom's bed: tests/family_test.gd
 		if spot["id"] == "map_table" or spot["id"] == "garage":
 			continue
 		await _stand_at(spot["pos"])

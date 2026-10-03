@@ -1,0 +1,25 @@
+# Motherly Love: Eco gone a little soft (scripts/hub/family.gd). Read on top
+# of dialogue/npc/biggie.txt. These [soft] talks join Biggie's everyday ones
+# once Eco is close to her mom.
+# Format: see dialogue/family/mom.txt. Speakers are biggie and eco.
+
+[soft]
+eco: How's the knee today?
+biggie: You asking about my knee? Who taught you manners?
+eco: Mom. Unfortunately. Sit down, I'll pour the tea.
+biggie: Ha. You pour like your pop. Half on the table.
+eco: Then you'll get half on the table and like it.
+
+[soft]
+eco: Biggie. The names you say in your sleep. Do you want to tell me about them?
+biggie: ...Not all of them. Maybe one.
+eco: One's good. I've got time.
+biggie: Mendez. Laughed like a broken engine. Saved my life twice.
+eco: Tell me about the second time.
+
+[soft]
+eco: I made you a brace for that knee. Titan strut springs, padded.
+biggie: You made me a what now?
+eco: Don't cry, old man. It's just metal.
+biggie: I'm not crying. Tea's hot. Steam in the eyes.
+eco: Sure. Steam.

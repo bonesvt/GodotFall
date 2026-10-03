@@ -34,6 +34,8 @@ const Garage := preload("res://scripts/hub/garage.gd")
 const TitanStyle := preload("res://scripts/run/titan_style.gd")
 const HubNpc := preload("res://scripts/hub/hub_npc.gd")
 const NpcTalk := preload("res://scripts/hub/npc_talk.gd")
+const Family := preload("res://scripts/hub/family.gd")
+const FamilyScene := preload("res://scripts/hub/family_scene.gd")
 const Tutorial := preload("res://scripts/run/tutorial.gd")
 
 const FALL_DAMAGE := 25
@@ -85,6 +87,8 @@ var runs_ended := 0
 ## The people living in the hub (hub_rooms.gd), by who, and their conversations.
 var hub_npcs := {}
 var npc_talk: NpcTalk
+## Motherly Love scenes in Mom's room (family_scene.gd), in the hub only.
+var family_scene: FamilyScene
 ## The parts your last run ended with; the hub's practice titan is built from them.
 var last_parts := {}
 ## The practice titan in the hub's titan yard, and whether you're in it.
@@ -178,6 +182,10 @@ func start_run(seed_value: int) -> void:
 	hud.summary_panel.visible = false
 	hud.choice_panel.visible = false
 	_set_pilot_active(true)
+	# The closer she's grown to Mom, the gentler she talks on the run.
+	var w: Node = pilot_hud.get("whispers") if pilot_hud != null else null
+	if w != null:
+		w.set("softness", Family.softness(npc_talk.state))
 	load_zone(0)
 
 
@@ -214,12 +222,17 @@ func enter_hub() -> void:
 		zone_root.add_child(npc)
 		npc.wear_for_run(runs_ended)
 		hub_npcs[spec["who"]] = npc
+	family_scene = FamilyScene.new()
+	zone_root.add_child(family_scene)
+	family_scene.setup(self, zone_info)
+	var sick := Family.roll_sick(npc_talk.state, runs_ended, last_result == "RUN COMPLETE", npc_talk.state.get_value("mom", "met", false), randf())
+	npc_talk.state.save(npc_talk.save_path)
 	phase = Phase.HUB
 	dress_hub()
 	place_player(zone_info["spawn"])
 	tutorial.start_level("hub")
 	if last_result != "":
-		hud.toast("Back at the temple.", HUB_LINE_SECONDS)
+		hud.toast("Back at the temple." + ("  You're burning up. Go find Mom." if sick else ""), HUB_LINE_SECONDS)
 		_whisper("home", 2.0)
 
 
@@ -329,6 +342,9 @@ func _hub_tick(delta: float) -> void:
 	if spot.has("npc"):
 		talk_to(spot["npc"])
 		return
+	if spot.has("family"):
+		family_scene.use()
+		return
 	var lines: Array = spot["lines"]
 	var n: int = hub_reads.get(spot["id"], 0)
 	hub_reads[spot["id"]] = n + 1
@@ -337,6 +353,9 @@ func _hub_tick(delta: float) -> void:
 
 ## Starts a conversation between Eco and one of the people in the hub.
 func talk_to(who: String) -> void:
+	# Sick: once Mom has said her piece about the run, she puts Eco to bed.
+	if who == "mom" and family_scene != null and int(npc_talk.state.get_value("mom", "run_seen", 0)) >= runs_ended and family_scene.care():
+		return
 	if hub_npcs.has(who):
 		npc_talk.start(hub_npcs[who], runs_ended, last_result == "RUN COMPLETE")
 
@@ -891,6 +910,10 @@ func _prompt() -> String:
 				return "Leave the pad to start the clock"
 			var spot := nearest_hub_spot()
 			if not spot.is_empty():
+				if spot.has("family"):
+					return family_scene.prompt()
+				if spot.get("npc", "") == "mom" and Family.sick(npc_talk.state, runs_ended):
+					return spot["prompt"] + "  (you're burning up)"
 				if spot.has("npc") and npc_talk.beat_waiting(spot["npc"], runs_ended):
 					return spot["prompt"] + "  (wants to talk)"
 				return spot["prompt"]
