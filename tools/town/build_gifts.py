@@ -86,20 +86,24 @@ def gift_shop():
     m.box("dark", (cx + 0.5, 0.8, 1.4), (0.36, 0.3, 0.2), bevel=0.02)
     m.box("glow_cyan", (cx + 0.5, 0.66, 1.52), (0.26, 0.02, 0.1), rot=(0.4, 0, 0))
     # Ribbon reels on a rod on the left wall.
-    m.cyl("metal", (-W * 0.5 + 0.35, 1.4, 1.8), 0.015, 1.6, sides=5, rot=(math.pi / 2, 0, 0))
-    for k in range(5):
-        m.cyl(["canvas", "glow_red", "trim", "glow_shop", "canvas"][k], (-W * 0.5 + 0.35, 0.8 + k * 0.3, 1.8), 0.11, 0.08, sides=10, rot=(math.pi / 2, 0, 0))
+    rx = -W * 0.5 + 0.55
+    m.cyl("metal", (rx, 1.35, 1.8), 0.015, 1.3, sides=5, rot=(math.pi / 2, 0, 0))
+    for y in (0.75, 1.95):
+        m.box("metal", (rx - 0.17, y, 1.8), (0.34, 0.03, 0.03))
+    for k in range(4):
+        m.cyl(["glow_red", "trim", "glow_shop", "glow_warm"][k], (rx, 0.9 + k * 0.3, 1.8), 0.1, 0.08, sides=10, rot=(math.pi / 2, 0, 0))
     # Candy-striped awning and bunting.
     for k in range(10):
         m.box("canvas" if k % 2 == 0 else "trim", (-W * 0.5 + 0.26 + k * 0.52, -0.5, H - 0.25), (0.52, 1.0, 0.04), rot=(0.32, 0, 0))
     for k in range(11):
-        m.box("canvas" if k % 2 == 0 else "glow_shop", (-2.4 + k * 0.48, -1.0, H - 0.6), (0.24, 0.02, 0.24), rot=(0, math.pi / 4, 0))
+        m.box("glow_red" if k % 2 == 0 else "glow_shop", (-2.4 + k * 0.48, -1.0, H - 0.6), (0.24, 0.02, 0.24), rot=(0, math.pi / 4, 0))
     # Paper lanterns hanging inside.
     for x in (-1.3, 0.2):
         m.tube("metal", [(x, 1.3, H - 0.05), (x, 1.3, H - 0.4)], [0.01, 0.01], 3)
         m.tube("glow_paper", [(x, 1.3, H - 0.4), (x, 1.3, H - 0.52), (x, 1.3, H - 0.72), (x, 1.3, H - 0.82)], [0.1, 0.17, 0.17, 0.1], 10)
     # Neon heart on the roof, a ribbon bow on top.
-    hz, hy = H + 1.05, D * 0.5
+    # High enough that the roof slab doesn't hide it from the plaza.
+    hz, hy = H + 1.75, 1.0
     pts = []
     for k in range(24):
         t = 2 * math.pi * k / 24
@@ -113,7 +117,7 @@ def gift_shop():
         m.tube("glow_red", [(0, hy, hz + 0.72), (s * 0.18, hy, hz + 0.45)], [0.04, 0.03], 5)
     m.blob("glow_red", (0, hy, hz + 0.75), (0.07, 0.07, 0.07), wobble=0.0)
     for s in (-1, 1):
-        m.cyl("metal", (s * 0.5, hy, H + 0.35), 0.03, 0.5, sides=5)
+        m.cyl("metal", (s * 0.5, hy, H + 0.6), 0.03, 1.0, sides=5)
     m.export()
 
 

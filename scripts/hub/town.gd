@@ -343,7 +343,7 @@ static func _gift_shop(root: Node3D, info: Dictionary) -> void:
 		_solid(root, at + Vector3(s * 2.5, 1.5, 1.6), Vector3(0.3, 3.0, 3.2))
 	_solid(root, at + Vector3(-1.45, 0.6, 0.75), Vector3(1.9, 1.2, 0.6))
 	_solid(root, at + Vector3(0, 0.6, GiftShop.SHELF_Y + 0.3), Vector3(GiftShop.SHELF_W, 1.2, 0.8))
-	_neon_text(root, at + Vector3(0, 3.25, -0.12), GiftShop.SIGN, Color(1.0, 0.45, 0.65), 64, 180.0)
+	_neon_text(root, at + Vector3(0, 3.62, -0.3), GiftShop.SIGN, Color(1.0, 0.45, 0.65), 64, 180.0)
 	K.light(root, at + Vector3(0, 2.4, 1.2), GiftShop.PINK.lerp(WARM, 0.4), 1.2, 7.0)
 
 

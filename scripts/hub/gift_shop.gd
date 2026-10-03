@@ -51,7 +51,11 @@ const GLOSS := {"black": 0.7, "silver": 0.9, "gold": 0.85, "pink": 0.8}
 const SHELF_Y := 2.55
 const SHELF_Z := [0.95, 1.5, 2.05]
 const SHELF_W := 4.2
-const SHELF_SCALE := 2.2
+## Gifts per shelf, top shelf first.
+const SHELF_ROWS := [5, 5, 2]
+## How big (m, widest of width and height) a gift stands on the shelves.
+const SHELF_SIZE := 0.3
+const TILT_UP := ["eyeliner"]
 
 static var _scenes := {}
 
@@ -105,18 +109,52 @@ static func build(root: Node3D, info: Dictionary, at: Vector3) -> Node3D:
 	return kiosk
 
 
-## Lines every gift up along the kiosk's shelves, four to a shelf.
+## Lines every gift up along the kiosk's shelves (SHELF_ROWS to a shelf, top
+## down), each scaled to about SHELF_SIZE so a cassette and an LP read alike.
+## The bottom shelf only fills its left end: the counter hides the right.
 static func shelve(kiosk: Node3D) -> void:
 	var list := ids()
-	var per := ceili(list.size() / float(SHELF_Z.size()))
-	for i in list.size():
-		var row := i / per
-		var col := i % per
-		var g := model(list[i])
-		g.name = "Gift_" + list[i]
-		g.scale = Vector3.ONE * SHELF_SCALE
-		# Model space: shelves run along x, depth y (Godot -z after export), up z (Godot y).
-		var x := -SHELF_W * 0.5 + SHELF_W * (col + 0.5) / per
-		g.position = Vector3(x, SHELF_Z[SHELF_Z.size() - 1 - row], -(SHELF_Y + 0.2))
-		g.rotation_degrees.y = (col - (per - 1) * 0.5) * -8.0
-		kiosk.add_child(g)
+	var per: int = SHELF_ROWS.max()
+	var i := 0
+	for row in SHELF_ROWS.size():
+		for col in SHELF_ROWS[row]:
+			if i >= list.size():
+				return
+			var id: String = list[i]
+			i += 1
+			var g := model(id)
+			g.name = "Gift_" + id
+			# Flat things (the eyeliner on its card) stand tilted up to face out.
+			if id in TILT_UP:
+				g.rotation_degrees.x = 70.0
+			g.rotation_degrees.y = (col - (per - 1) * 0.5) * -6.0
+			var box := bounds(g)
+			var k := SHELF_SIZE / maxf(maxf(box.size.x, box.size.y), 0.01)
+			g.scale = Vector3.ONE * k
+			# Model space: shelves run along x, depth y (Godot -z after export), up z (Godot y).
+			var x := -SHELF_W * 0.5 + SHELF_W * (col + 0.5) / per
+			var top: float = SHELF_Z[SHELF_Z.size() - 1 - row]
+			g.position = Vector3(x, top - box.position.y * k, -(SHELF_Y + 0.2))
+			kiosk.add_child(g)
+
+
+## The box round a gift's meshes, in its parent's space (rotation included, scale not).
+static func bounds(root: Node3D) -> AABB:
+	var out := AABB()
+	var first := true
+	var basis := Transform3D(Basis.from_euler(root.rotation), Vector3.ZERO)
+	for mi: MeshInstance3D in root.find_children("*", "MeshInstance3D", true, false):
+		var b: AABB = basis * _local(root, mi) * mi.get_aabb()
+		out = b if first else out.merge(b)
+		first = false
+	return out
+
+
+static func _local(root: Node3D, node: Node3D) -> Transform3D:
+	var t := Transform3D.IDENTITY
+	var n: Node = node
+	while n != null and n != root:
+		if n is Node3D:
+			t = (n as Node3D).transform * t
+		n = n.get_parent()
+	return t

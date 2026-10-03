@@ -278,22 +278,12 @@ func _update_preview(id: String) -> void:
 		c.free()
 	var g := GiftShop.model(id)
 	_turntable.add_child(g)
-	var box := _bounds(g)
+	var box := GiftShop.bounds(g)
 	var size := maxf(box.size.x, maxf(box.size.y, box.size.z))
 	var k := PREVIEW_SIZE / maxf(size, 0.01)
 	g.scale = Vector3.ONE * k
 	var c := box.get_center()
 	g.position = Vector3(-c.x * k, -box.position.y * k, -c.z * k)
-
-
-static func _bounds(root: Node3D) -> AABB:
-	var out := AABB()
-	var first := true
-	for mi: MeshInstance3D in root.find_children("*", "MeshInstance3D", true, false):
-		var b: AABB = mi.transform * mi.get_aabb()
-		out = b if first else out.merge(b)
-		first = false
-	return out
 
 
 func _text(text: String, size: int, color: Color) -> Label:
