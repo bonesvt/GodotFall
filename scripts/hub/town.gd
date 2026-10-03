@@ -165,13 +165,19 @@ static func _ground(root: Node3D) -> void:
 			while lz < z1 - 2.0:
 				K.light(root, Vector3(s * (STREET_HALF - 1.5), 1.2, lz), CYAN if s < 0 else MAGENTA, 0.7, 6.5)
 				lz += 8.0
+			# A dim lantern-coloured fill down the middle, so the paving never goes black.
+			if s < 0.0:
+				var mz := z0 + 3.0
+				while mz < z1:
+					K.light(root, Vector3(0, 5.5, mz), AMBER, 0.5, 9.0)
+					mz += 10.0
 	# Puddles that pick up the neon.
 	var puddle := StandardMaterial3D.new()
-	# Dark and only semi-glossy: a mirror finish just reflected the bright sky.
-	puddle.albedo_color = Color(0.03, 0.035, 0.05, 0.8)
+	# Wet and glossy enough to catch the neon, see-through enough not to read as a hole.
+	puddle.albedo_color = Color(0.1, 0.1, 0.15, 0.45)
 	puddle.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	puddle.roughness = 0.25
-	puddle.metallic_specular = 0.25
+	puddle.roughness = 0.12
+	puddle.metallic_specular = 0.6
 	for spec in [[Vector3(-2.5, 0.09, 140), Vector3(3.0, 0.02, 2.0)], [Vector3(3.0, 0.09, 151), Vector3(2.2, 0.02, 3.4)],
 			[Vector3(-1.0, 0.09, 197), Vector3(4.0, 0.02, 2.4)], [Vector3(2.4, 0.09, 207), Vector3(2.0, 0.02, 1.6)]]:
 		K.mesh(root, spec[0], spec[1], puddle, Vector3(0, spec[0].z * 7.0, 0))
@@ -800,26 +806,26 @@ static func _puff() -> Texture2D:
 static func _smoke(root: Node3D, p: Vector3) -> void:
 	var smoke := CPUParticles3D.new()
 	smoke.position = p
-	smoke.amount = 10
-	smoke.lifetime = 3.5
+	smoke.amount = 14
+	smoke.lifetime = 4.0
 	var quad := QuadMesh.new()
-	quad.size = Vector2(0.8, 0.8)
+	quad.size = Vector2(1.4, 1.4)
+	# Lit (not unshaded), faint and wide, so it picks up the neon instead of glowing on its own.
 	var mat := StandardMaterial3D.new()
-	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
-	mat.albedo_color = Color(0.85, 0.85, 0.9, 0.25)
+	mat.albedo_color = Color(0.6, 0.6, 0.68, 0.12)
 	mat.albedo_texture = _puff()
 	mat.vertex_color_use_as_albedo = true
 	quad.material = mat
 	smoke.mesh = quad
 	smoke.direction = Vector3.UP
-	smoke.spread = 10.0
+	smoke.spread = 25.0
 	smoke.gravity = Vector3(0.2, 0.5, 0)
 	smoke.initial_velocity_min = 0.5
 	smoke.initial_velocity_max = 0.9
-	smoke.scale_amount_min = 0.7
-	smoke.scale_amount_max = 1.6
+	smoke.scale_amount_min = 1.0
+	smoke.scale_amount_max = 2.5
 	var fade := Gradient.new()
 	fade.set_color(0, Color(1, 1, 1, 0.7))
 	fade.set_color(1, Color(1, 1, 1, 0.0))
