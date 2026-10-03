@@ -13,6 +13,7 @@ extends Node3D
 const ECO := preload("res://assets/models/eco.tscn")
 const EcoModel := preload("res://scripts/ps2/eco_model.gd")
 const EcoReact := preload("res://scripts/ps2/eco_react.gd")
+const EcoGunStance := preload("res://scripts/ps2/eco_gun_stance.gd")
 const HIDDEN_BONES := ["J_Bip_C_Neck", "J_Bip_C_Head", "J_Bip_R_UpperArm", "J_Bip_L_UpperArm"]
 
 ## Where the camera sits relative to the base of her neck: metres above it,
@@ -26,6 +27,8 @@ var body: EcoModel
 var shadow: EcoModel
 ## Layers her reactions to the world over the full model's animation.
 var react: EcoReact
+## Her pistol grip and combat stance in third person (after react).
+var stance: EcoGunStance
 var _camera: Camera3D
 var _neck_bone := -1
 var _third_person := false
@@ -48,6 +51,11 @@ func _ready() -> void:
 			react.name = "React"
 			react.body = get_parent() as CharacterBody3D
 			shadow.skeleton.add_child(react)
+			# and holds her pistol like a gunfighter in third person
+			stance = EcoGunStance.new()
+			stance.name = "GunStance"
+			stance.body = react.body
+			shadow.skeleton.add_child(stance)
 
 
 ## Suit pieces hidden on the first-person body: round her neck or on her face, they

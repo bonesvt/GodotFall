@@ -77,6 +77,7 @@ var _swap_cooldown := 0.0
 var _fp_fov := 90.0
 var _gun: Node3D
 var _gun_muzzle: Node3D
+var _gun_source: Node3D
 ## 0 = shoulder camera, 1 = orbit camera.
 var _orbit_blend := 0.0
 var _orbit_pivot := Vector3.ZERO
@@ -157,6 +158,7 @@ func _process(delta: float) -> void:
 	if not third_person:
 		return
 	_set_orbit(player.get("strolling") == true)
+	_attach_gun()  # follows a gun change at the bench
 	if orbiting:
 		player.set("move_yaw", orbit_yaw)
 	_orbit_blend = move_toward(_orbit_blend, 1.0 if orbiting else 0.0, orbit_blend_rate * delta)
@@ -238,16 +240,22 @@ func _ray(from: Vector3, to: Vector3) -> Dictionary:
 	return player.get_world_3d().direct_space_state.intersect_ray(q)
 
 
-## A copy of the pistol in her right hand while in third person.
+## A copy of the equipped gun in her right hand while in third person (the
+## gun stance, scripts/ps2/eco_gun_stance.gd, seats it in her palm and aims it).
 func _attach_gun() -> void:
 	if not third_person:
 		if _gun != null and is_instance_valid(_gun):
 			_gun.get_parent().queue_free()
 		_gun = null
 		_gun_muzzle = null
+		_gun_source = null
+		return
+	var weapon := _camera.get_node_or_null("Weapon")
+	var source: Node3D = weapon.get("_pistol") if weapon != null else null
+	if _gun != null and is_instance_valid(_gun) and source == _gun_source:
 		return
 	if _gun != null and is_instance_valid(_gun):
-		return
+		_gun.get_parent().free()
 	var model: Node = _eco_body.get("shadow") if _eco_body != null else null
 	var sk: Skeleton3D = model.get("skeleton") if model != null else null
 	if sk == null or sk.find_bone("J_Bip_R_Hand") < 0:
@@ -256,8 +264,19 @@ func _attach_gun() -> void:
 	hold.name = "GunHold"
 	hold.bone_name = "J_Bip_R_Hand"
 	sk.add_child(hold)
-	_gun = GUN.instantiate()
+	if source != null and is_instance_valid(source):
+		_gun = source.duplicate() as Node3D
+		var arm := _gun.get_node_or_null("Arm")  # the first-person arm rides on the view-model
+		if arm != null:
+			arm.free()
+	else:
+		_gun = GUN.instantiate()
+	_gun_source = source
+	_gun.transform = Transform3D()
 	hold.add_child(_gun)
-	# grip in the palm, barrel along her fingers
-	_gun.transform = Transform3D(Basis.from_euler(Vector3(deg_to_rad(-90.0), deg_to_rad(-90.0), 0.0)), Vector3(0.06, -0.02, 0.0))
+	for mi in _gun.find_children("*", "GeometryInstance3D", true, false):
+		(mi as GeometryInstance3D).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 	_gun_muzzle = _gun.find_child("Muzzle", true, false) as Node3D
+	var stance = _eco_body.get("stance")
+	if stance != null:
+		stance.gun = _gun

@@ -25,6 +25,37 @@ func _run() -> void:
 	view.set_third_person(true)
 	await _ticks(30)
 
+	# --- Gun stance: standing, the pistol points where the shot goes
+	var stance = player.get_node("EcoBody").stance
+	var gun: Node3D = player.get_node("ViewCam").get("_gun")
+	await _ticks(60)
+	_check("in combat stance standing", stance.combat > 0.9 and stance.stance > 0.9 and stance.aim > 0.9, [stance.combat, stance.stance, stance.aim])
+	var cam_fwd: Vector3 = -player.get_node("Head").global_basis.z
+	var barrel: Vector3 = -gun.global_basis.z.normalized()
+	_check("barrel points along the aim", barrel.dot(cam_fwd) > 0.95, barrel.dot(cam_fwd))
+	var hand: Vector3 = player.get_node("EcoBody").shadow.find_child("GunHold", true, false).global_position
+	_check("arm out in front of her", (hand - player.global_position).dot(-player.global_basis.z) > 0.3 and hand.y - player.global_position.y > 1.1, hand - player.global_position)
+	# running: low ready, the barrel drops
+	Input.action_press("move_forward")
+	await _ticks(90)
+	barrel = -gun.global_basis.z.normalized()
+	_check("low ready while running", stance.aim < 0.2 and barrel.y < -0.4, [stance.aim, barrel])
+	Input.action_release("move_forward")
+	await _ticks(60)
+	# a reload ends in a twirl
+	var weapon = player.get_node("Head/Camera3D/Weapon")
+	weapon.ammo = 0
+	weapon.start_reload()
+	var twirled := false
+	for i in 600:
+		await _ticks(1)
+		if stance.twirling:
+			twirled = true
+			break
+	_check("twirls the gun after a reload", twirled, twirled)
+	await _ticks(120)
+	_check("twirl ends back in her grip", not stance.twirling, stance.twirling)
+
 	# --- Landing: her hips sink by how hard she fell, then she straightens
 	_place(Vector3(0, 7.0, 10), 0.0)
 	var peak := 0.0
@@ -77,6 +108,8 @@ func _run() -> void:
 	player.strolling = true
 	await _ticks(60)
 	_check("orbits while strolling", view.orbiting, view.orbiting)
+	await _ticks(5)
+	_check("gun put away off duty", not gun.visible, gun.visible)
 	var hud = root.get_node("TestLevel").find_child("HUD", true, false)
 	if hud != null and hud.get("crosshair") != null:
 		_check("no crosshair while orbiting", not hud.crosshair.visible, hud.crosshair.visible)
