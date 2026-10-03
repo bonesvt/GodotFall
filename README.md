@@ -5,7 +5,38 @@ Pilot movement, first combat (a weak starter pistol and grunt enemies), and the 
 ## Run it
 1. Install Godot 4.3 or newer (standard build, not .NET): https://godotengine.org/download
 2. Open Godot, click **Import**, pick this folder's `project.godot`.
-3. Press **F5** (or the Play button). The mouse is captured; Esc frees it, click to recapture.
+3. Press **F5** (or the Play button). The title screen opens: **Continue**, **New game**,
+   **Load game**, **Settings**, **Quit**. In game the mouse is captured; **Esc** pauses.
+
+Or play the Windows build (no editor needed): `GodotFall.exe`, see **Windows build** below.
+
+## Menus, settings and saves
+- **Title screen** (`scenes/title.tscn`, the main scene; `scripts/ui/title_screen.gd`): Eco on
+  the temple steps behind the menu. Continue loads the last slot played straight into the
+  temple. New game asks before writing over a used slot.
+- **Pause menu** (Esc; `scripts/ui/pause_menu.gd`): Resume, Settings, Abandon run (during a
+  run: it ends like a loss, half the carried materials bank), Quit to title, Quit game. It
+  stays shut over the workbenches, paint shop and salvage choice, where Esc closes those.
+- **Settings** (`scripts/ui/settings_menu.gd`, saved by `scripts/game/prefs.gd` to
+  `user://settings.cfg`): mouse sensitivity, invert Y, field of view; every key rebindable
+  (primary and secondary); master / effects / ambience / voices volume (buses in
+  `default_bus_layout.tres`); windowed / borderless / fullscreen, vsync, frame cap, PS3 or
+  PS2 look (F9 remembers too); dialogue rating, tutorial hints, start in third person.
+- **Save slots** (`scripts/game/saves.gd`): three, in `user://saves/slot1..3/`. Each holds the
+  files the game already saved on its own (armory, hub conversations, titan paint, tutorial
+  hints seen) plus runs / wins / time played. A run in progress isn't saved; Continue puts you
+  back in the temple. A save from before slots moves into slot 1 on first launch.
+  `user://` is `%APPDATA%\Godot\app_userdata\Titanfall Roguelike - Movement Prototype\` on
+  Windows (the project keeps that name so old saves carry over; the window says GodotFall).
+
+## Windows build
+`export_presets.cfg` has a **Windows Desktop** preset that writes one self-contained
+`build/windows/GodotFall.exe` (the game data is embedded). In the editor: **Project > Export >
+Windows Desktop > Export Project** (install the export templates first if Godot asks:
+**Editor > Manage Export Templates > Download and Install**). From a terminal:
+`godot --headless --path . --export-release "Windows Desktop" build/windows/GodotFall.exe`.
+The preset keeps `dialogue/*` (plain text the hub people read at runtime) and leaves out
+`tests/` and `tools/`.
 
 ## Controls
 | Key | Action |
@@ -18,6 +49,7 @@ Pilot movement, first combat (a weak starter pistol and grunt enemies), and the 
 | R | Reload |
 | T | Respawn |
 | G | Reset the grunt arena |
+| Esc | Pause menu (settings, quit) |
 | H | Toggle help |
 | F9 | Switch between the PS3 look and the old PS2 look |
 

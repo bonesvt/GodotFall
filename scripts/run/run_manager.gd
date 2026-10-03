@@ -36,6 +36,9 @@ const HubNpc := preload("res://scripts/hub/hub_npc.gd")
 const NpcTalk := preload("res://scripts/hub/npc_talk.gd")
 const Tutorial := preload("res://scripts/run/tutorial.gd")
 const ViewCamera := preload("res://scripts/view_camera.gd")
+const Prefs := preload("res://scripts/game/prefs.gd")
+const Saves := preload("res://scripts/game/saves.gd")
+const PauseMenu := preload("res://scripts/ui/pause_menu.gd")
 
 const FALL_DAMAGE := 25
 ## Integrity lost when grunts take the pilot's health to zero.
@@ -111,6 +114,8 @@ var bench = null
 var loot_rng := RandomNumberGenerator.new()
 ## Hints that teach the game in the first three zones (tutorial.gd).
 var tutorial: Tutorial
+## Esc menu (pause_menu.gd).
+var pause_menu: CanvasLayer
 
 
 static func ensure_input_actions() -> void:
@@ -139,6 +144,9 @@ func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	add_to_group("loot_collector")
 	ensure_input_actions()
+	# Normally the title screen did these; played straight from the editor, do them here.
+	Prefs.apply_all()
+	_use_save_slot()
 	armory = Armory.open(armory_path)
 	npc_talk = NpcTalk.new()
 	npc_talk.save_path = npc_path
@@ -160,11 +168,55 @@ func _ready() -> void:
 	tutorial.name = "Tutorial"
 	tutorial.run = self
 	add_child(tutorial)
+	pause_menu = PauseMenu.new()
+	pause_menu.name = "PauseMenu"
+	pause_menu.run = self
+	add_child(pause_menu)
 	equip_loadout()
 	if start_in_hub:
 		enter_hub()
 	else:
 		start_run(run_seed)
+
+
+## Reads and writes the save slot picked on the title screen (saves.gd). Left
+## alone when a test pointed the saves somewhere of its own.
+func _use_save_slot() -> void:
+	var own_paths := armory_path != Armory.DEFAULT_PATH or npc_path != NpcTalk.DEFAULT_PATH
+	if Saves.active == 0 and Tutorial.settings_path != Tutorial.SETTINGS:
+		own_paths = true
+	if own_paths:
+		return
+	if Saves.active == 0:
+		Saves.migrate_legacy()
+		var last := Saves.last_slot()
+		Saves.use(last if last != 0 else 1)
+	armory_path = Saves.armory_path()
+	npc_path = Saves.npc_path()
+
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_WM_CLOSE_REQUEST:
+		Saves.flush()
+
+
+## A run is under way (not in the hub, not on the summary after one).
+func in_run() -> bool:
+	return phase in [Phase.ZONE, Phase.CHOOSING, Phase.ARENA, Phase.FIGHT]
+
+
+## The pause menu stays shut while a workbench or the paint shop is open.
+func menu_blocked() -> bool:
+	return bench != null or garage != null
+
+
+## Pause menu: give up on this run. It ends like a lost one.
+func abandon_run() -> void:
+	if not in_run():
+		return
+	get_tree().paused = false
+	hud.choice_panel.visible = false
+	end_run("RUN ABANDONED", "Eco pulled out before the job was done.")
 
 
 func start_run(seed_value: int) -> void:
@@ -266,6 +318,7 @@ func place_player(pos: Vector3) -> void:
 
 
 func _physics_process(delta: float) -> void:
+	Saves.tick(delta)
 	player.strolling = phase == Phase.HUB and not on_training_ground()
 	match phase:
 		Phase.ZONE:
@@ -896,6 +949,7 @@ func end_run(title: String, reason: String) -> void:
 	var won := title == "RUN COMPLETE"
 	var haul := Armory.run_haul(run.materials, won)
 	armory.bank(haul)
+	Saves.record_run(won)
 	if boss != null:
 		boss.active = false
 	if titan != null:
