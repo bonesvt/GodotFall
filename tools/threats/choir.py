@@ -138,7 +138,8 @@ def hush(M, at=V((0, 0, 0)), pose="ready", rifle=True, crest=True, tilt=12):
     for s in (1, -1):
         head.append(ell(hc + V((s * 0.045, -0.055, -0.04)), (0.035, 0.04, 0.06), M["porc"],
                         rot=(8, tilt, s * 20)))
-    head.append(ell(hc + V((0, -0.002, -0.005)), (0.007, 0.108, 0.12), M["glow"], rot=hr))
+    slit = (0.016, 0.118, 0.125) if kit.GAME else (0.007, 0.108, 0.12)  # wider in game, to read at range
+    head.append(ell(hc + V((0, -0.002, -0.005)), slit, M["glow"], rot=hr))
     if crest:  # sweeping crest and a spiked halo behind the head
         spike(hc + V((0, 0.03, 0.12)), hc + V((0, 0.42, 0.02)), 0.045, M["porc"], curve=0.12)
         hal = hc + V((0, 0.14, 0.04))

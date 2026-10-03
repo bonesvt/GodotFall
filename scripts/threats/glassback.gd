@@ -34,6 +34,8 @@ func _build() -> void:
 	box.size = Vector3(2.6, 3.9, 7.0)
 	_body(box, Vector3(0, 1.95, 0.2))
 	_model("glassback", "hex")
+	model.tell_white = 0.25
+	model.stride_len = 3.2
 	_goal = global_position
 	_moan = rng.randf_range(4.0, 12.0)
 

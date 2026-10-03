@@ -15,6 +15,9 @@ extends "res://scripts/ps2/ps2_model.gd"
 @export var gait := "biped"
 @export var stride_len := 1.6
 @export var swing := 26.0
+## How far the tell flares toward white (the Choir's slits go white-hot; a
+## Glassback's crystals only brighten).
+@export var tell_white := 1.1
 
 var tell := 0.0
 var open := 0.0
@@ -88,7 +91,7 @@ func _process(delta: float) -> void:
 	_look(k)
 	_open(k)
 	for g in _glows:
-		g.set_instance_shader_parameter("flash", (0.8 if hurt else 0.0) + tell * 1.1)
+		g.set_instance_shader_parameter("flash", (0.8 if hurt else 0.0) + tell * tell_white)
 		g.set_instance_shader_parameter("glow", 1.0 + tell * 2.5)
 	for g in _solid:
 		g.set_instance_shader_parameter("flash", 0.6 if hurt else 0.0)
@@ -124,7 +127,7 @@ func _quad(k: float) -> void:
 
 
 func _hex(k: float) -> void:
-	var a := sin(_cycle) * deg_to_rad(swing) * _move
+	var a := sin(_cycle) * deg_to_rad(swing * 0.6) * _move  # big legs, short steps
 	for name in ["LegL1", "LegR2", "LegL3"]:
 		_turn(name, Vector3(a, 0, 0), k)
 	for name in ["LegR1", "LegL2", "LegR3"]:

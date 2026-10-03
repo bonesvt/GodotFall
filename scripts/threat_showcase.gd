@@ -82,6 +82,9 @@ func _model(kind: String) -> Node3D:
 	var m := Node3D.new()
 	m.set_script(ThreatModel)
 	m.gait = KINDS[kind][1]
+	if kind == "glassback":
+		m.tell_white = 0.25
+		m.stride_len = 3.2
 	m.add_child(load("res://assets/models/threats/%s.glb" % KINDS[kind][0]).instantiate())
 	return m
 
