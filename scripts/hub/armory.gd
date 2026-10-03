@@ -207,7 +207,7 @@ const SUIT_WEIGHTS := {
 		"look": "Cloth and leather: a wrap that supports her chest and covers her sides, the suit open across the top of her chest, choker with Dad's tag, a nose ring, wrapped arms and shins, a leather shoulder guard and knee pads, her stiletto on a thigh garter."},
 	"medium": {"name": "Medium", "armor_mult": 1.0, "armor_regen_mult": 2.0,
 		"bonus": "The tier's armour. Armour refills twice as fast.",
-		"look": "A mechanic's jumpsuit: zipped to the neck, left arm bare with Dad's cog tattoo, right sleeve rolled, rust side panels. A knotted scarf, a plaster on her cheek, a tool pouch, a canvas yoke, rubber knee caps, a cargo pocket and a wrist computer."},
+		"look": "A mechanic's jumpsuit: unzipped to her chest, windows over the top of her glutes, left arm bare with Dad's cog tattoo, right sleeve rolled, rust side panels. A knotted scarf, a plaster on her cheek, a tool pouch, a canvas yoke, rubber knee caps, a cargo pocket and a wrist computer."},
 	"heavy": {"name": "Heavy", "armor_mult": 1.6, "damage_mult": 0.85, "speed": 0.9,
 		"bonus": "60% more armour and every hit lands 15% softer, but 10% slower on the ground.",
 		"look": "Gunmetal plates: bracers, pauldrons, shin guards, knee cops, hip plates, elbow cops, upper-arm and thigh plates, a back plate and an armoured collar."},

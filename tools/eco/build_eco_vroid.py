@@ -54,6 +54,7 @@ INK = (0.012, 0.009, 0.014)
 STRETCH = (0.085, 0.09, 0.115)   # the suit where it stretches thin over her curves
 MED_SUIT = (0.03, 0.033, 0.026)   # the medium jumpsuit: charcoal olive
 MED_PANEL = (0.11, 0.04, 0.016)   # its rust side panels and sleeve cuff
+MED_ZIP = 1.055                   # how far the jumpsuit is unzipped (rest-space z)
 MED_SLEEVE = 0.36                 # where the right sleeve is rolled to (rest-space x)
 TATTOO = (0.018, 0.024, 0.04)
 
@@ -1223,7 +1224,8 @@ def suit_graph(nt, skin, cut="base"):
       light   her cloth wrap supports her chest and covers the sides, so the side
               cutouts close, the high collar goes (her choker sits on bare neck)
               and the keyhole becomes a wider opening across the top of her chest
-      medium  a mechanic's jumpsuit: crew neck with a zip down the front, full
+      medium  a mechanic's jumpsuit: crew neck unzipped to between her breasts,
+              two windows over the top of her glutes (a strap between them), full
               legs, the left arm bare to the shoulder (a cog and wrench tattoo on
               it), the right sleeve rolled to the forearm, rust panels down the sides
     The light and medium cuts have no stretch shading over the bust.
@@ -1250,6 +1252,13 @@ def suit_graph(nt, skin, cut="base"):
         # right sleeve, rolled up to the middle of her forearm
         d_sleeve = g.mn(g.sub(MED_SLEEVE, ax), g.neg(x))
         d_suit = g.mn(d_neck, g.mx(d_arm, d_sleeve))
+        # unzipped to between her breasts: a V that opens up to the neckline
+        d_vee = g.mx(g.sub(ax, g.mx(g.mul(g.sub(z, MED_ZIP), 0.55), 0.0)), g.sub(MED_ZIP + 0.004, z))
+        d_suit = g.mn(d_suit, g.mx(d_vee, g.mul(g.sub(0.5, front), 0.1)))
+        # two windows over the top of her glutes, a strap of suit left down the middle
+        wq = g.sqrt(g.add(g.sq(g.div(g.sub(ax, 0.058), 0.034)), g.sq(g.div(g.sub(z, 0.852), 0.027))))
+        d_win = g.mul(g.sub(wq, 1.0), 0.027)
+        d_suit = g.mn(d_suit, g.mx(d_win, g.mul(g.sub(0.5, tb), 0.1)))
         d_collar = None
     else:
         # neckline: a halter at the front, open back down to the waist. Beside the
@@ -1319,10 +1328,10 @@ def suit_graph(nt, skin, cut="base"):
     if medium:
         ink = g.mx(ink, g.mul(g.band(ax, MED_SLEEVE - 0.027, MED_SLEEVE - 0.025), g.mul(g.sstep(0.0, 0.004, g.neg(x)), c_suit)))
         # the front zip, from the neck to the waist band, its pull glowing at the top
-        zip_ = g.mul(g.mul(g.band(x, -0.0011, 0.0011, 0.0002), g.band(z, 0.955, 1.15)), g.mul(front, c_suit))
+        zip_ = g.mul(g.mul(g.band(x, -0.0011, 0.0011, 0.0002), g.band(z, 0.955, MED_ZIP)), g.mul(front, c_suit))
         col = g.mixc(col, PLATE, zip_)
-        ink = g.mx(ink, g.mul(g.mul(g.band(g.abs(x), 0.0011, 0.0017, 0.0002), g.band(z, 0.955, 1.15)), g.mul(front, c_suit)))
-        pull = g.sqrt(g.add(g.sq(g.div(x, 0.0035)), g.sq(g.div(g.sub(z, 1.142), 0.006))))
+        ink = g.mx(ink, g.mul(g.mul(g.band(g.abs(x), 0.0011, 0.0017, 0.0002), g.band(z, 0.955, MED_ZIP)), g.mul(front, c_suit)))
+        pull = g.sqrt(g.add(g.sq(g.div(x, 0.0035)), g.sq(g.div(g.sub(z, MED_ZIP - 0.004), 0.006))))
         trim = g.mx(trim, g.mul(g.sub(1.0, g.sstep(0.85, 1.0, pull)), g.mul(front, c_suit)))
     band_ = g.mul(g.band(z, 0.905, 0.955, 0.0004), c_suit)
     col = g.mixc(col, PLATE, g.mul(band_, 0.55))
