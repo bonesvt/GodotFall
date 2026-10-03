@@ -172,6 +172,8 @@ static func _ground(root: Node3D) -> void:
 				while mz < z1:
 					K.light(root, Vector3(0, 5.5, mz), AMBER, 0.5, 9.0)
 					mz += 10.0
+	# The canopy's mouth by the gate sits outside the fills above; light it from the noodle bar's side.
+	K.light(root, Vector3(-3.0, 2.8, 137.5), AMBER, 0.6, 8.0)
 	# Puddles that pick up the neon.
 	var puddle := StandardMaterial3D.new()
 	# Wet and glossy enough to catch the neon, see-through enough not to read as a hole.
@@ -179,7 +181,7 @@ static func _ground(root: Node3D) -> void:
 	puddle.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	puddle.roughness = 0.12
 	puddle.metallic_specular = 0.6
-	for spec in [[Vector3(-2.5, 0.09, 140), Vector3(3.0, 0.02, 2.0)], [Vector3(3.0, 0.09, 151), Vector3(2.2, 0.02, 3.4)],
+	for spec in [[Vector3(1.5, 0.09, 146), Vector3(3.0, 0.02, 2.0)], [Vector3(3.0, 0.09, 151), Vector3(2.2, 0.02, 3.4)],
 			[Vector3(-1.0, 0.09, 197), Vector3(4.0, 0.02, 2.4)], [Vector3(2.4, 0.09, 207), Vector3(2.0, 0.02, 1.6)]]:
 		K.mesh(root, spec[0], spec[1], puddle, Vector3(0, spec[0].z * 7.0, 0))
 
@@ -833,7 +835,7 @@ static func _smoke(root: Node3D, p: Vector3) -> void:
 	var mat := StandardMaterial3D.new()
 	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
-	mat.albedo_color = Color(0.6, 0.6, 0.68, 0.12)
+	mat.albedo_color = Color(0.6, 0.6, 0.68, 0.2)
 	mat.albedo_texture = _puff()
 	mat.vertex_color_use_as_albedo = true
 	quad.material = mat
