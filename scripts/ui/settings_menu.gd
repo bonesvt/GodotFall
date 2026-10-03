@@ -72,7 +72,7 @@ func _input(event: InputEvent) -> void:
 	if not _waiting.is_empty():
 		_capture(event)
 		return
-	if event.is_action_pressed("ui_cancel"):
+	if UI.is_back(event):
 		get_viewport().set_input_as_handled()
 		close()
 
@@ -221,7 +221,7 @@ func _start_capture(action: String, slot: int, b: Button) -> void:
 func _capture(event: InputEvent) -> void:
 	var picked: InputEvent = null
 	if event is InputEventKey and event.pressed and not event.echo:
-		if event.physical_keycode == KEY_ESCAPE:
+		if UI.is_back(event):
 			get_viewport().set_input_as_handled()
 			_waiting = []
 			_refresh_keys()

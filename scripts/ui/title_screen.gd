@@ -19,9 +19,11 @@ const Art := preload("res://scripts/ps2/ps2_assets.gd")
 
 const GAME_SCENE := "res://scenes/run.tscn"
 ## The camera's slow drift in front of the temple: from, to, what it looks at.
-const CAM_FROM := Vector3(-7.5, 2.6, 17.0)
-const CAM_TO := Vector3(6.5, 3.4, 15.0)
-const CAM_LOOK := Vector3(0.0, 3.2, 6.0)
+## It stays between the porch posts (x +-3.4) so they frame the door rather
+## than sweeping across Eco.
+const CAM_FROM := Vector3(-2.2, 2.4, 18.5)
+const CAM_TO := Vector3(2.4, 3.0, 17.5)
+const CAM_LOOK := Vector3(0.3, 2.6, 8.5)
 const DRIFT_SECONDS := 40.0
 ## Where Eco stands: on the top step in front of the door, facing out.
 const ECO_AT := Vector3(0.6, 1.2, 9.3)
@@ -74,10 +76,14 @@ func _process(delta: float) -> void:
 	cam.look_at(CAM_LOOK)
 
 
-func _unhandled_input(event: InputEvent) -> void:
-	if not event.is_action_pressed("ui_cancel") or _settings != null:
+func _input(event: InputEvent) -> void:
+	if not UI.is_back(event):
 		return
-	if confirm.visible:
+	if _settings != null:
+		if is_instance_valid(_settings) and not _settings._waiting.is_empty():
+			return  # it's binding a key; Esc cancels that there
+		_settings.close()
+	elif confirm.visible:
 		confirm.visible = false
 	elif slot_page.visible:
 		_show_main()

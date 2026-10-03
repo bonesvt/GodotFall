@@ -150,8 +150,10 @@ func _title_and_pause() -> void:
 	var menu = run_node.pause_menu
 	await _esc()
 	_check("Esc pauses", menu.is_open and paused and menu._root.visible, paused)
+	_check("the HUD hides under the pause menu", not run_node.hud.visible and not run_node.pilot_hud.visible, "")
 	await _esc()
 	_check("Esc again resumes", not menu.is_open and not paused, paused)
+	_check("the HUD comes back", run_node.hud.visible and run_node.pilot_hud.visible, "")
 	await _esc()
 	menu.open_settings()
 	await _ticks(1)
@@ -180,15 +182,17 @@ func _title_and_pause() -> void:
 
 
 func _esc() -> void:
+	# Straight to the viewport, like a real key press (Input.parse_input_event
+	# can sit in the input buffer headless on newer Godot builds).
 	var ev := InputEventKey.new()
 	ev.keycode = KEY_ESCAPE
 	ev.physical_keycode = KEY_ESCAPE
 	ev.pressed = true
-	Input.parse_input_event(ev)
+	root.push_input(ev)
 	await _ticks(2)
 	var up := ev.duplicate()
 	up.pressed = false
-	Input.parse_input_event(up)
+	root.push_input(up)
 	await _ticks(2)
 
 

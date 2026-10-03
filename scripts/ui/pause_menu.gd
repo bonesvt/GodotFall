@@ -22,6 +22,8 @@ var _abandon: Button
 var _quit_title: Button
 var _settings: Control
 var _mouse_before := Input.MOUSE_MODE_CAPTURED
+## The game's HUD layers hidden while the menu is up, and whether each was showing.
+var _hidden := {}
 
 
 func _ready() -> void:
@@ -68,13 +70,15 @@ func can_open() -> bool:
 	return run == null or not run.has_method("menu_blocked") or not run.menu_blocked()
 
 
-func _unhandled_input(event: InputEvent) -> void:
-	if not event.is_action_pressed("ui_cancel") or event.is_echo():
+func _input(event: InputEvent) -> void:
+	if not UI.is_back(event):
 		return
 	if is_open:
+		get_viewport().set_input_as_handled()
 		if _settings == null:
-			get_viewport().set_input_as_handled()
 			close()
+		elif _settings._waiting.is_empty():
+			_settings.close()
 	elif can_open():
 		get_viewport().set_input_as_handled()
 		open()
@@ -90,6 +94,7 @@ func open() -> void:
 	_quit_title.text = "Abandon run and quit to title" if in_run else "Quit to title"
 	_root.visible = true
 	_menu.visible = true
+	_hide_hud(true)
 	UI.focus(_menu.get_child(2) as Button)
 
 
@@ -98,8 +103,32 @@ func close() -> void:
 		_settings.close()
 	is_open = false
 	_root.visible = false
+	_hide_hud(false)
 	get_tree().paused = false
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+
+
+## The HUD, help text and tutorial card would show through the menu.
+func _hide_hud(hide: bool) -> void:
+	if run == null:
+		return
+	if hide:
+		_hidden = {}
+		for key in ["hud", "pilot_hud", "tutorial"]:
+			var layer = run.get(key)
+			if layer is CanvasLayer or layer is CanvasItem:
+				_hidden[layer] = layer.visible
+				layer.visible = false
+			elif layer is Node:
+				for c in layer.get_children():
+					if c is CanvasLayer:
+						_hidden[c] = c.visible
+						c.visible = false
+	else:
+		for layer in _hidden:
+			if is_instance_valid(layer):
+				layer.visible = _hidden[layer]
+		_hidden = {}
 
 
 func open_settings() -> void:

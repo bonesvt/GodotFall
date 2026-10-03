@@ -156,3 +156,10 @@ static func focus(c: Control) -> void:
 		if is_instance_valid(c) and c.is_inside_tree() and c.is_visible_in_tree():
 			c.grab_focus()
 	grab.call_deferred()
+
+
+## Esc, as a key or as ui_cancel (whichever reaches us).
+static func is_back(event: InputEvent) -> bool:
+	if event is InputEventKey and event.pressed and not event.echo and (event.physical_keycode == KEY_ESCAPE or event.keycode == KEY_ESCAPE):
+		return true
+	return event.is_action_pressed("ui_cancel") and not event.is_echo()
