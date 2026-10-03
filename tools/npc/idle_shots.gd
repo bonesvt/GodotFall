@@ -49,7 +49,7 @@ func _go(run_node) -> void:
 		var side := face.cross(Vector3.UP)
 		# from the front and a little to her side; lying down, from her side
 		var at: Vector3 = face * 2.2 + side * 0.9
-		if spot == "lounge":
+		if spot == "lounge" or spot == "sit":
 			at = face * 0.9 + side * 2.3
 		cam.global_position = head + at + Vector3(0, 0.25, 0)
 		cam.look_at(head - Vector3(0, 0.45, 0))

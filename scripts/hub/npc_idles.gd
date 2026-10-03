@@ -119,8 +119,8 @@ static func _prop(npc: Node3D, kind: String) -> void:
 		seat.set_meta("idle_prop", true)
 		npc.add_child(seat)
 		var plum := Art.material("canvas", Color(0.28, 0.12, 0.3))
-		Kit.mesh(seat, Vector3(0, 0.035, 0.0), Vector3(0.62, 0.07, 0.62), plum)
-		Kit.mesh(seat, Vector3(0, 0.07, 0.0), Vector3(0.54, 0.02, 0.54), Art.material("canvas", Color(0.36, 0.16, 0.38)))
+		Kit.mesh(seat, Vector3(0, 0.035, 0.08), Vector3(0.62, 0.07, 0.62), plum)
+		Kit.mesh(seat, Vector3(0, 0.07, 0.08), Vector3(0.54, 0.02, 0.54), Art.material("canvas", Color(0.36, 0.16, 0.38)))
 		return
 	var skel := npc.find_child("Skeleton3D", true, false) as Skeleton3D
 	if skel == null:
@@ -207,7 +207,10 @@ static func _prop(npc: Node3D, kind: String) -> void:
 			case.height = 0.012
 			var shell := MeshInstance3D.new()
 			shell.mesh = case
-			shell.material_override = Art.material("timber", Color(0.85, 0.4, 0.65))
+			var pink := StandardMaterial3D.new()
+			pink.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+			pink.albedo_color = Color(1.0, 0.45, 0.75)
+			shell.material_override = pink
 			compact.add_child(shell)
 			var glass := CylinderMesh.new()
 			glass.top_radius = 0.056
@@ -244,15 +247,20 @@ static func _face_head(npc: Node3D, skel: Skeleton3D, prop: Node3D) -> void:
 	var head := skel.find_bone("J_Bip_C_Head")
 	if head < 0 or not npc.is_inside_tree():
 		return
+	# weak, so a prop taken away before then doesn't leave a dangling capture
+	var ref: WeakRef = weakref(prop)
+	var sk: WeakRef = weakref(skel)
 	npc.get_tree().create_timer(0.5).timeout.connect(func():
-		if not is_instance_valid(prop) or not prop.is_inside_tree():
+		var held: Node3D = ref.get_ref()
+		var bones: Skeleton3D = sk.get_ref()
+		if held == null or bones == null or not held.is_inside_tree():
 			return
-		var eyes := (skel.global_transform * skel.get_bone_global_pose(head)).origin + Vector3(0, 0.06, 0)
-		var to := eyes - prop.global_position
+		var eyes := (bones.global_transform * bones.get_bone_global_pose(head)).origin + Vector3(0, 0.06, 0)
+		var to := eyes - held.global_position
 		if to.length() > 0.01:
-			var at := prop.global_position
-			prop.global_basis = Basis(Quaternion(Vector3.UP, to.normalized()))
-			prop.global_position = at)
+			var at := held.global_position
+			held.global_basis = Basis(Quaternion(Vector3.UP, to.normalized()))
+			held.global_position = at)
 
 
 ## A moonlit window cut into Ophelia's back-wall drapes (for her smoking spot).
