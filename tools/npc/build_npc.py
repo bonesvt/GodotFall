@@ -1081,7 +1081,7 @@ def extra_outfit(g, skin, x, y, z, ax, front, cov, edge, sine, neck_r):
             # thong: a small front panel, the back a strip widening at the waist
             waist_z = g.sub(0.775, g.mul(front, g.mul(0.012, g.sstep(0.05, 0.0, ax))))
             open_f = g.add(0.701, g.mul(g.sstep(0.014, 0.07, ax), 0.072))
-            w_back = g.add(0.008, g.mul(0.05, g.sstep(0.74, 0.79, z)))
+            w_back = g.add(0.011, g.mul(0.05, g.sstep(0.74, 0.79, z)))   # wide enough to show going down between fuller cheeks
             d_bot = g.mn(g.sub(waist_z, z), g.lerp(g.sub(w_back, ax), g.sub(z, open_f), front))
             string = g.mul(g.band(g.sub(z, waist_z), -0.004, 0.0), torso)   # round her hips, holding the back strip
         else:
@@ -1124,7 +1124,10 @@ def extra_outfit(g, skin, x, y, z, ax, front, cov, edge, sine, neck_r):
             col = g.mixc(col, LACE_B, g.mul(lace, g.mx(g.mx(cup, garter), lace_top)))
             col = g.mixc(col, LACE_A, g.mx(g.mx(band_, straps), g.mx(susp, string)))
             if not mom:   # a strappy harness over her chest
-                harness = g.mul(g.mx(g.band(z, 1.105, 1.112), g.mul(g.band(ax, 0.028, 0.034), g.mul(g.sstep(1.05, 1.06, z), g.sstep(1.19, 1.18, z)))), g.mul(front, torso))
+                # two straps from her cups slanting in to the choker's o-ring, and one across
+                strap_x = g.lerp(0.031, 0.008, g.sstep(1.06, 1.18, z))
+                up = g.mul(g.band(g.sub(ax, strap_x), -0.003, 0.003), g.mul(g.sstep(1.05, 1.06, z), g.sstep(1.19, 1.18, z)))
+                harness = g.mul(g.mx(g.mul(g.band(z, 1.105, 1.112), front), up), g.mul(g.sstep(0.0, -0.012, y), torso))
                 col = g.mixc(col, MAIN, harness)
             ink = g.mx(g.mx(edge(d_cup), edge(d_bot)), edge(d_stock))
     else:   # tight
@@ -1139,7 +1142,8 @@ def extra_outfit(g, skin, x, y, z, ax, front, cov, edge, sine, neck_r):
             d_v = front_only(g.mn(g.sub(v_half, ax), g.sub(z, 0.9)))   # down to her navel, no further
             # open from under her arm to her waist into the bare back, and round
             # the outside of her bust (0.017 clear of the nipple)
-            side = g.mn(g.mx(g.sub(ax, 0.08), g.add(y, 0.035)), g.mn(g.sub(z, 0.9), g.sub(1.13, z)))
+            # (an oval opening, widest at 1.015, closing in curves above and below)
+            side = g.sub(g.mx(g.sub(ax, 0.08), g.add(y, 0.035)), g.mul(0.03, g.sq(g.div(g.sub(z, 1.015), 0.115))))
             backless = g.mul(g.sub(1.0, front), g.sstep(0.855, 0.865, z))
             halter = g.mul(g.band(z, 1.165, 1.178), g.sub(1.0, g.sstep(0.065, 0.075, neck_r)))
             d_suit = g.mn(g.mn(g.sub(neck_z, z), g.sub(0.14, ax)), d_legs)
