@@ -74,20 +74,26 @@ static func drop(parent: Node, pos: Vector3, materials: Dictionary, rng: RandomN
 ## and nodes) to info. A zone can set info["first_loot"] ({"node": pos,
 ## "crate": pos}) to put one of each at a fixed spot first (the forest does,
 ## by the spawn, for the tutorial); they count towards the zone's share.
+## Generated zones (procgen/zone_generator.gd) set info["loot_counts"]
+## ({"node": n, "crate": n}) and info["loot_spots"] (the same keys, lists of
+## places tried before the routes: alloy by a titan wreck, say).
 static func scatter(root: Node3D, info: Dictionary, rng: RandomNumberGenerator, zone_index: int) -> void:
 	var spots := _candidates(info, rng)
 	var spawn: Vector3 = info["spawn"]
 	var taken: Array = []
 	info["loot"] = []
 	var first: Dictionary = info.get("first_loot", {})
-	var want := [["node", NODES[mini(zone_index, NODES.size() - 1)]], ["crate", CRATES[mini(zone_index, CRATES.size() - 1)]]]
+	var counts: Dictionary = info.get("loot_counts", {})
+	var preferred: Dictionary = info.get("loot_spots", {})
+	var want := [["node", counts.get("node", NODES[mini(zone_index, NODES.size() - 1)])],
+			["crate", counts.get("crate", CRATES[mini(zone_index, CRATES.size() - 1)])]]
 	for entry in want:
 		var placed := 0
 		if first.has(entry[0]):
 			_place(root, info, rng, zone_index, entry[0], first[entry[0]])
 			taken.append(first[entry[0]])
 			placed += 1
-		for spot in spots:
+		for spot in preferred.get(entry[0], []) + spots:
 			if placed >= entry[1]:
 				break
 			if spot.distance_to(spawn) < SPAWN_CLEAR or taken.any(func(t): return t.distance_to(spot) < SPACING):

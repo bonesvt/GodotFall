@@ -472,6 +472,20 @@ static func _map_table(root: Node3D, info: Dictionary) -> void:
 	label.modulate = Color(1.0, 0.85, 0.5)
 	K.interactable(info, "map_table", t + Vector3(0, 0.1, 0), "[F] Head out on a run", [], 2.6)
 	info["map_table"] = t
+	# On the far side, a second sheet with the country past her map's edge
+	# scrawled in blue: the long way, through zones nobody has charted.
+	var far := t + Vector3(0, 0, -1.6)
+	for dx in [-0.6, 0.6]:
+		K.wood(root, far + Vector3(dx, 0.4, 0), Vector3(0.5, 0.8, 0.6))
+	K.wood(root, far + Vector3(0, 0.85, 0), Vector3(1.8, 0.1, 1.0))
+	var chart := K.mesh(root, far + Vector3(0, 0.92, 0), Vector3(1.6, 0.02, 0.85), Art.material("light"))
+	chart.set_instance_shader_parameter("paint", Color(0.55, 0.58, 0.6))
+	for i in 3:
+		K.glow(root, far + Vector3(-0.5 + i * 0.5, 0.94, -0.15 + (i % 2) * 0.3), Vector3(0.1, 0.02, 0.1), Color(0.3, 0.7, 1.0))
+	var title := Kit.label(root, far + Vector3(0, 1.8, 0), "UNCHARTED", 40)
+	title.modulate = Color(0.55, 0.85, 1.0)
+	K.interactable(info, "uncharted_map", far + Vector3(0, 0.1, -0.4), "[F] Head out the long way (3 zones + 2 uncharted)", [], 1.6)
+	info["uncharted_map"] = far
 
 
 ## Roof beams across the hall on the pillar lines. Over the hole they are

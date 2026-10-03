@@ -1,6 +1,7 @@
 extends Node3D
 ## Scrap Titan run loop.
-## A run is RunState.ZONE_COUNT traversal zones, then a titan fight. Each zone
+## A run is RunState.ZONE_COUNT traversal zones (a long run adds
+## RunState.UNCHARTED_ZONES generated ones after them), then a titan fight. Each zone
 ## has two salvage caches; opening one offers three titan parts and you keep one.
 ## Empty slots stay scrap. At the end you call in the titan you assembled and
 ## fight with it. Falls and getting downed by grunts cost pilot integrity, which
@@ -56,6 +57,9 @@ const HUB_LINE_SECONDS := 4.5
 @export var start_in_hub := true
 ## 0 picks a random seed each run.
 @export var run_seed := 0
+## Generated zones added after the handmade ones when the scene drops straight
+## into a run (start_in_hub off). The hub's uncharted map sets it per run.
+@export var uncharted_zones := 0
 ## Where Eco's armory (materials, guns, upgrades, titan parts) is saved.
 @export var armory_path := Armory.DEFAULT_PATH
 ## Where who Eco has talked to in the hub (and what about) is saved.
@@ -159,13 +163,13 @@ func _ready() -> void:
 	if start_in_hub:
 		enter_hub()
 	else:
-		start_run(run_seed)
+		start_run(run_seed, uncharted_zones)
 
 
-func start_run(seed_value: int) -> void:
+func start_run(seed_value: int, uncharted := 0) -> void:
 	if seed_value == 0:
 		seed_value = randi_range(1, 999999)
-	run = RunState.new(seed_value)
+	run = RunState.new(seed_value, uncharted)
 	for part in armory.start_parts().values():
 		run.install(part)
 	run.refits = armory.refit_bonus()
@@ -226,7 +230,7 @@ func enter_hub() -> void:
 func load_zone(index: int) -> void:
 	_fresh_level("Zone")
 	run.zone = index
-	if index < RunState.ZONE_COUNT:
+	if index < run.zone_count:
 		zone_info = ZoneBuilder.build_zone(zone_root, run.rng, index)
 		loot_rng.seed = run.run_seed * 7919 + index
 		Loot.scatter(zone_root, zone_info, loot_rng, index)
@@ -235,7 +239,8 @@ func load_zone(index: int) -> void:
 			grunt.died.connect(_on_grunt_died)
 		phase = Phase.ZONE
 		var zone_name: String = zone_info.get("name", "")
-		hud.toast("ZONE %d / %d%s" % [index + 1, RunState.ZONE_COUNT, ": " + zone_name if zone_name != "" else ""])
+		var uncharted := "UNCHARTED: " if index >= RunState.ZONE_COUNT else ""
+		hud.toast("ZONE %d / %d: %s%s" % [index + 1, run.zone_count, uncharted, zone_name])
 		_whisper("zone_start", 2.5)
 	else:
 		zone_info = ZoneBuilder.build_arena(zone_root)
@@ -246,7 +251,7 @@ func load_zone(index: int) -> void:
 		hud.toast("THE FOREST'S EDGE: TITANFALL STANDING BY")
 	place_player(zone_info["spawn"])
 	player.second_wind_ready = player.second_wind  # Eco's suit: once per zone
-	tutorial.start_level("zone%d" % index if index < RunState.ZONE_COUNT else "arena")
+	tutorial.start_level("zone%d" % index if index < run.zone_count else "arena")
 
 
 func place_player(pos: Vector3) -> void:
@@ -272,7 +277,7 @@ func _physics_process(delta: float) -> void:
 				if start_in_hub:
 					enter_hub()
 				else:
-					start_run(0)
+					start_run(0, uncharted_zones)
 		Phase.HUB:
 			_hub_tick(delta)
 	_update_hud()
@@ -314,6 +319,9 @@ func _hub_tick(delta: float) -> void:
 		return
 	if spot["id"] == "map_table":
 		start_run(run_seed)
+		return
+	if spot["id"] == "uncharted_map":
+		start_run(run_seed, RunState.UNCHARTED_ZONES)
 		return
 	if spot.has("screen"):
 		open_bench(spot["screen"])
@@ -852,7 +860,7 @@ func _update_hud() -> void:
 			var dash_text := "%d/%d" % [hub_titan.dashes, int(hub_titan.stats["dashes"])]
 			hud.fight_label.text = "PRACTICE TITAN    DASH [Shift] %s    Left mouse fire\n[F] Climb out" % dash_text
 		return
-	var where := "ZONE %d/%d" % [run.zone + 1, RunState.ZONE_COUNT] if run.zone < RunState.ZONE_COUNT else "FINAL"
+	var where := "ZONE %d/%d" % [run.zone + 1, run.zone_count] if run.zone < run.zone_count else "FINAL"
 	hud.status_label.text = "RUN %d    %s    PILOT %d    %s    %s\n%s" % [
 		run.run_seed, where, run.pilot_hp, _clock(run.time), _materials_text(run.materials), CONTROLS]
 

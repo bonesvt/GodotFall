@@ -212,8 +212,12 @@ The movement and grunt test level is still at `scenes/test_level.tscn` (open it 
    huts) on the same `stealth_cover` / `sight_blocker` hooks as the forest, checkpoints along
    each route, supply crates and alloy nodes beside the routes, and its own sky, haze and
    ambience. Getting gunned down costs 25 pilot integrity and puts you back at the last
-   checkpoint. At 0 the run is over. (`ZoneBuilder.build_chain` still makes the old seeded
-   platform chains, for any zone past the third.)
+   checkpoint. At 0 the run is over.
+
+   **Uncharted zones (the long way).** On the far side of the hub's map table is a second
+   sheet, UNCHARTED: press F there and the run goes through the three zones above and then
+   two more that are generated from the run's seed, before the titan fight. See
+   *Generated zones* below.
 2. **Salvage.** Each zone has two caches. One is guarded by a grunt squad
    dug in facing you; kill them all to unlock it. Opening a cache
    pauses and offers three titan parts; press 1, 2 or 3 to keep one, or X to leave it.
@@ -241,7 +245,7 @@ Run code lives in `scripts/run/`: `run_manager.gd` (the loop), `run_state.gd` (w
 carries), `zone_builder.gd` (picks each zone's builder), `forest_builder.gd` (zone 1 and the forest's
 edge arena), `marsh_builder.gd` (zone 2), `boneyard_builder.gd` (zone 3), `laid_out.gd` (the
 pieces those two share), `forest_kit.gd` (forest props and the enemy outpost kit with their colliders),
-`zone_kit.gd` (zones 2 and 3's props and their colliders),
+`zone_kit.gd` (zones 2 and 3's props and their colliders), `procgen/` (generated zones),
 `terrain.gd` (height-grid ground with matching collision), `titan_parts.gd` (part catalog and
 stats), `titan.gd`, `boss.gd`, and the cache, guard squad and beacon scripts. The titan is its own
 node holding the run's parts, so it can later travel with you as a walking base.
@@ -264,6 +268,44 @@ made by `tools/zones/build_props.py` (`blender -b --python tools/zones/build_pro
 `assets/models/marsh/` and `assets/models/boneyard/`); it reuses the forest script's helpers,
 and both zones reuse the forest's outpost kit. `xvfb-run -a godot --path . -s
 res://tools/zones/shots.gd -- /some/dir [2|3]` saves screenshots and route maps of them.
+
+## Generated zones
+
+`scripts/run/procgen/` builds a zone from a seed. `level_plan.gd` plans it as plain data,
+`zone_generator.gd` builds it, `biome.gd` dresses it, and `nav.gd` bakes its navmesh.
+- **Lanes.** The valley has 3 to 5 lanes running up it side by side, about 22 m apart, with
+  woods (or reeds, or wreckage) between them. **Loud**: the road up the middle, through the
+  yards, gates and bridges, where the squads are dug in. **Quiet**: a sunken gully with tall
+  grass on its banks (crouch in the bed and you're hidden). It goes under walls through
+  culverts and over chasms on a fallen log, a dead titan or an obelisk. **High**: a rock
+  ridge 4 m up that turns into a row of rooftops through the yards, a catwalk over the
+  walls, and stepping-stone pillars over the chasms. Crate steps climb onto each ridge from
+  the road side. A fourth and fifth lane add another quiet or high lane on the far side.
+- **Sections** cross every lane in turn: start, field (open wilds with a grunt patrol), picket,
+  wall (a breach on the road, a gate, culverts, catwalks, a watchtower), outpost and camp
+  (yards with buildings, a dug-in squad, a watchtower, tents and grass on the quiet side, a
+  sentry walking the yard, and one salvage cache each: one guarded by the squad, one on the
+  rooftops), resource (a titan wreck between two lanes with alloy to mine and two grunts
+  picking it over), chasm (the Pinewoods' bridge crossing on the road, so it stays inside
+  the movement limits) and the extraction beacon. There's always an outpost, a camp, a
+  wall and a chasm. The rest, their order, the lane count, the biome (forest, marsh or
+  boneyard, using the handmade zones' props) and the zone's name come from the seed. Zones
+  further into the run are longer and more heavily guarded.
+- **Pathing.** Each zone bakes a navmesh from its own colliders on a thread once it's
+  loaded. Grunts with a `patrol` (grunt.gd) walk their loop on it, pausing at each point to
+  look round. A patrol that loses sight of the pilot hunts toward where they were last seen
+  along it. Anyone else who needs to walk the zone can use `Nav.path()`.
+- **Loot.** Supply crates go on the lanes' verges, banks and ridge tops (never over a chasm),
+  and alloy nodes go round the wrecks first (`info["loot_spots"]`, `info["loot_counts"]`).
+- **Maps.** `zone_map.gd` draws a top-down map of a plan, or of a built zone with its grunts,
+  patrols, caches and loot. `xvfb-run -a godot --path . --rendering-driver opengl3 -s
+  res://tools/procgen/maps.gd -- /some/dir 101 202 303` saves one per seed (`--plan` skips
+  building, `--lanes=N`, `--biome=marsh`). `godot --path . -s res://tools/procgen/shots.gd --
+  /some/dir 101` saves screenshots of one generated zone.
+- **Tests.** `godot --headless --path . -s res://tests/procgen_test.gd` plans 60 seeds and
+  builds six zones. It checks the crossings and rooftop gaps against the movement limits,
+  that grunts and caches stand on something, that the patrols can walk their loops on the
+  navmesh, that loot settles, and that a long run reaches the uncharted zones.
 
 ## Art: PS3 look (with the old PS2 look on F9)
 Everything is stylized in the spirit of Jak and Daxter and Shadow of the Colossus,

@@ -48,7 +48,7 @@ func _run() -> void:
 		ids.append(spot["id"])
 		if spot.has("npc"):
 			continue   # people talk instead (tests/npc_test.gd)
-		if spot["id"] == "map_table" or spot["id"] == "garage":
+		if spot["id"] in ["map_table", "uncharted_map", "garage"]:
 			continue
 		await _stand_at(spot["pos"])
 		if spot.has("screen"):
