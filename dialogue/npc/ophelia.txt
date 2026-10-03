@@ -324,3 +324,191 @@ ophelia (angry): Wow. I'll put it with all the other things I didn't ask for.
 
 [gift any]
 ophelia (smile, nod): Huh. Thanks. I'll find somewhere dark to put it.
+
+# What she's up to when Eco walks in (her idle spot, scripts/hub/npc_idles.gd).
+# The first talk of a hub stay is about it: [spot <name>] before she's
+# flirting, [spot <name> flirt] after.
+
+[spot yoga]
+eco: Are you... doing yoga?
+ophelia (plain): No. I'm summoning something. Slowly. With my hamstrings.
+eco: Since when do you stretch?
+ophelia (smile, lookaway): Since a cage that was too small to stand up in. My back still remembers it.
+eco: ...Want company sometime?
+ophelia (tilt): You'd have to be quiet. You can't be quiet.
+
+[spot yoga]
+eco: That looks like it hurts.
+ophelia (closed): It does. That's how you know it's working.
+eco: That's the most you thing anyone's ever said.
+ophelia (smile): Hold still and watch, then. Maybe you'll learn to bend.
+
+[spot yoga flirt]
+eco: Why are you doing yoga?
+ophelia (smile, tilt): Why are you watching me do yoga?
+eco: I asked first.
+ophelia (blush, smile): Flexibility, Eco. You never know when you'll need it.
+eco: Need it for what?
+ophelia (smile, lookaway): Mm. Keep wondering. It's cute when you think that hard.
+
+[spot yoga flirt]
+ophelia (smile): You've been in the doorway for a whole minute.
+eco: I was going to ask why you're doing yoga. Then I forgot the question.
+ophelia (blush, tilt): Tree pose does that to people. Warrior's worse. Want to see warrior?
+eco: I... yes. Obviously. For science.
+ophelia (smile, closed): For science. Sure.
+choice +4: eco: Okay, I'm staring. You win.
+> ophelia (blush, smile): I always win. Stay. You can count my breaths.
+choice +2: eco: Can you teach me?
+> ophelia (smile, tilt): I'd have to put my hands on you to fix your posture. A lot. ...Tomorrow.
+choice -2: eco: Looks boring, honestly.
+> ophelia (plain, lookaway): Then stop looking. ...You won't, though.
+
+[spot yoga flirt]
+eco: Yoga again?
+ophelia (smile, closed): It keeps me bendy. And you keep showing up right when I'm mid-stretch.
+eco: Coincidence.
+ophelia (blush, smile): Every time? You're not that lucky. Grab the other end of the rug and stretch with me. You can stare closer.
+
+[spot lounge]
+eco: Comfortable?
+ophelia (plain, closed): Don't. I've been horizontal for three hours. It's a record.
+eco: Want me to leave you to it?
+ophelia (tilt): ...You can sit on the end. Don't touch the pillows. They're arranged.
+
+[spot lounge]
+eco: You look like a painting. A sad one.
+ophelia (smile, lookaway): The best paintings are sad. Nobody hangs the happy ones anywhere good.
+
+[spot lounge flirt]
+ophelia (smile, tilt): You're staring at me like I'm a titan you want to take apart.
+eco: You're just... lying there. Looking like that.
+ophelia (blush, smile): Like what? Use your words, mechanic.
+eco: Like you know exactly what you're doing.
+ophelia (smile, closed): I always know what I'm doing. Sit. Right there. Closer.
+
+[spot lounge flirt]
+eco: Room for one more?
+ophelia (blush, lookaway): It's a very small mattress.
+eco: That's not a no.
+ophelia (smile, tilt): It's not a no. Boots off. You track oil everywhere.
+
+[spot smoke]
+eco: Mom's going to smell that, you know.
+ophelia (plain): Mom smells everything. She says nothing. That's why I like her.
+eco: Can I get one?
+ophelia (tilt): No. You'd cough and ruin the whole mood. Stand by the window, though. The moon's good tonight.
+
+[spot smoke]
+ophelia (closed): Shh. Watch the smoke. It goes up and just stops being anything.
+eco: That's grim.
+ophelia (smile, lookaway): It's peaceful. You'd get it if you ever stood still.
+
+[spot smoke flirt]
+ophelia (smile, tilt): You came to stand in my smoke again.
+eco: I came to stand next to you. The smoke's a downside.
+ophelia (blush, smile): Smooth. Hold this a sec. ...Now I can't have it back. It's got your lips on it.
+eco: That's how that works?
+ophelia (smile, lookaway): That's how I say it works.
+
+[spot smoke flirt]
+eco: Why always the window?
+ophelia (blush, closed): So I can see you come back up the hill. Don't make a thing of it.
+eco: Too late. It's a thing now.
+
+[spot read]
+eco: What's this one about?
+ophelia (plain, down): A woman who lives in a lighthouse and slowly forgets her own name.
+eco: Happy ending?
+ophelia (smile): She forgets everyone else's first. So, yes.
+
+[spot read]
+eco: You've read that one before. The spine's wrecked.
+ophelia (lookaway): Some books you go back to. Like a room you know in the dark.
+
+[spot read flirt]
+ophelia (blush, down): Don't read over my shoulder. It's a kissing part.
+eco: Oh, is it now?
+ophelia (fluster, smile): They're doing it wrong, anyway. Too much talking.
+eco: How would you do it?
+ophelia (smile, tilt): Less talking. ...Go away, I'm losing my place. No. Stay. I'll read it to you.
+
+[spot read flirt]
+eco: Read me something?
+ophelia (smile, tilt): Sit on the rug. Head here. ...Comfy?
+eco: Very.
+ophelia (blush, closed): Good. Chapter one. Try not to fall asleep on my legs. Or do. Whatever.
+
+[spot sway]
+eco: Ophelia?
+ophelia (closed): Shh. This is the bit where the song falls apart.
+eco: What's it called?
+ophelia (closed, smile): "Everyone I Love Is Underwater". Listen. Just listen.
+
+[spot sway]
+eco: Do you ever dance, like, properly?
+ophelia (closed): This is properly. Dancing is just sad with the volume up.
+
+[spot sway flirt]
+ophelia (closed, smile): I can hear your boots. You're doing the shy thing in the doorway.
+eco: I don't have a shy thing.
+ophelia (smile, blush): Come here and sway with me. Hands on my waist. Slow. ...See? You do have a shy thing.
+
+[spot sway flirt]
+eco: Is this song about me?
+ophelia (closed, blush): It was written forty years ago by a man who died in a bathtub.
+eco: So that's a yes.
+ophelia (smile, lookaway): It's a little bit yes. Don't ruin it.
+
+# Compliments, both ways (more [flirt] and [together] talks).
+
+[flirt]
+ophelia (smile, tilt): Turn around.
+eco: Why?
+ophelia (blush, smile): No reason. ...Those work pants are doing a lot for you today. Your butt looks good, is what I'm saying.
+eco: Ophelia!
+ophelia (smile, lookaway): What? I'm allowed to notice things. I notice everything.
+
+[flirt]
+eco: Your eyeliner's sharp enough to cut someone today.
+ophelia (smile, tilt): That's the goal. Who are we cutting?
+eco: Me, apparently. Every time you look at me like that.
+ophelia (blush, down): ...Good. Bleed quietly.
+
+[flirt]
+ophelia (smile): Your arms are getting ridiculous. Did the titan get heavier?
+eco: I've been hauling scrap all week.
+ophelia (blush, lookaway): Keep hauling. I'll be over here. Watching. Purely for safety reasons.
+
+[flirt]
+eco: Has anyone ever told you your legs go on forever?
+ophelia (surprised, blush): No. Nobody told me anything, ever. You know that.
+eco: Then I'm the first. Your legs go on forever.
+ophelia (fluster, smile): Shut up. ...Say it again later. When it's dark.
+
+[flirt]
+ophelia (smile, tilt): That suit fits you like it was painted on.
+eco: It basically was. Dad's pilots wore them.
+ophelia (blush, smile): Your dad's pilots didn't look like that from behind. I'd bet my whole record collection on it.
+
+[flirt]
+eco: You've got the prettiest eyes in the temple. And yeah, I counted.
+ophelia (blush, lookaway): There are like four people here.
+eco: Still counts.
+ophelia (smile, down): ...The one with the hair in front of it is my better side, for the record.
+
+[together]
+ophelia (smile, closed): Come here. I want to hold your waist while you talk about gear ratios.
+eco: You hate gear ratios.
+ophelia (blush, smile): I love your waist. It balances out.
+
+[together]
+eco: You look really, really good tonight.
+ophelia (smile, tilt): I look the same as every night.
+eco: Yeah. Really, really good.
+ophelia (blush, down): ...Stop. No. Keep going.
+
+[together]
+ophelia (smile, tilt): Bend over and grab that wrench for me.
+eco: It's right next to you.
+ophelia (blush, smile): I know where it is, Eco.

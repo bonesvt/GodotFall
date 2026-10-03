@@ -61,7 +61,7 @@ FPS = 30
 ## Her hips' rest height, and where they sit lying on the mattress (its top
 ## is 0.31 m up) and sitting on the floor; set by load().
 HIPS = 0.85
-LIE = 0.45
+LIE = 0.52
 SIT = 0.13
 
 
@@ -100,9 +100,9 @@ def lounge(f, n):
     add(p, "upperarm.L", Y, 10)
     add(p, "forearm.L", X, 90)
     # right arm over the raised knee
-    add(p, "upperarm.R", X, 60)
-    add(p, "upperarm.R", Y, -20)
-    add(p, "forearm.R", X, 20)
+    add(p, "upperarm.R", X, 35)
+    add(p, "upperarm.R", Y, -10)
+    add(p, "forearm.R", X, 55)
     add(p, "hand.R", X, -30)
     # legs: left long, right knee up
     add(p, "thigh.R", X, 55)
@@ -202,9 +202,9 @@ def sit(f, n):
     add(p, "neck", X, -10)
     add(p, "head", X, -6 + 2 * wave(f, n, 1))
     for s, sgn in (("R", 1), ("L", -1)):
-        add(p, "thigh." + s, X, 120)
+        add(p, "thigh." + s, X, 140)
         add(p, "thigh." + s, Y, -sgn * 6)
-        add(p, "shin." + s, X, -140)
+        add(p, "shin." + s, X, -82)
         add(p, "foot." + s, X, 25)
         add(p, "upperarm." + s, X, 50)
         add(p, "forearm." + s, X, 30)
@@ -226,8 +226,8 @@ def mirror(f, n):
     add(p, "upperarm.R", Y, -35)
     add(p, "forearm.R", X, 120 + 3 * t)
     add(p, "forearm.R", Z, 30)
-    add(p, "upperarm.L", X, 20)
-    add(p, "forearm.L", X, 65)
+    add(p, "upperarm.L", X, 30)
+    add(p, "forearm.L", X, 95)
     add(p, "forearm.L", Z, -45)
     add(p, "thigh.R", X, 5)
     add(p, "shin.R", X, -10)
@@ -236,8 +236,8 @@ def mirror(f, n):
 
 
 def shy(f, n):
-    """Hands clasped behind her back, weight on her left hip, rocking a little
-    on her heels, head down and turned away."""
+    """Hands knotted together up under her chin, weight on her left hip,
+    rocking a little on her heels, head down and turned away."""
     p = base_pose()
     r = wave(f, n)
     add(p, "hips", Z, -6)
@@ -246,15 +246,101 @@ def shy(f, n):
     add(p, "head", X, -12)
     add(p, "head", Z, 12)
     for s, sgn in (("R", 1), ("L", -1)):
-        add(p, "upperarm." + s, X, -22)
-        add(p, "upperarm." + s, Y, sgn * 6)
-        add(p, "forearm." + s, X, 40)
-        add(p, "forearm." + s, Z, sgn * 55)
+        add(p, "upperarm." + s, X, 18)
+        add(p, "upperarm." + s, Y, sgn * 14)
+        add(p, "forearm." + s, X, 100 + 3 * r)
+        add(p, "forearm." + s, Z, sgn * 35)
     add(p, "thigh.R", X, 8)
     add(p, "thigh.R", Y, -6)
     add(p, "shin.R", X, -14)
     add(p, "foot.R", X, -10)
     p["_hips_loc"] = (-0.03, 0.0, -0.01)
+    p["_grip"] = 0.5
+    return p
+
+
+def _reach(side):
+    """Both arms straight up overhead, leaning into a side stretch."""
+    p = {}
+    for s, out in (("R", -1), ("L", 1)):
+        add(p, "upperarm." + s, X, 155)
+        # a little wide, clear of her hair
+        add(p, "upperarm." + s, Y, out * 18)
+        add(p, "forearm." + s, X, -4)
+    add(p, "spine", Y, side * 10)
+    add(p, "chest", Y, side * 12)
+    add(p, "neck", Y, side * 4)
+    add(p, "head", X, 8)
+    p["_hips_loc"] = (-side * 0.03, 0.0, 0.0)
+    return p
+
+
+def _tree():
+    """Tree pose: right foot up against her left thigh, knee out, palms
+    pressed together at her chest."""
+    p = {}
+    for s, sgn in (("R", 1), ("L", -1)):
+        add(p, "upperarm." + s, X, 18)
+        add(p, "upperarm." + s, Y, sgn * 14)
+        add(p, "forearm." + s, X, 100)
+        add(p, "forearm." + s, Z, sgn * 35)
+    add(p, "thigh.R", X, 30)
+    add(p, "thigh.R", Y, -30)
+    add(p, "thigh.R", Z, 60)
+    add(p, "shin.R", X, -125)
+    add(p, "foot.R", X, 20)
+    add(p, "head", X, -4)
+    p["_hips_loc"] = (-0.05, 0.0, -0.005)
+    return p
+
+
+def _warrior():
+    """Warrior two: feet wide, right knee bent, arms out level, looking out
+    past her right hand."""
+    p = {}
+    add(p, "upperarm.R", Y, -72)
+    add(p, "upperarm.L", Y, 72)
+    add(p, "thigh.R", Y, -22)
+    add(p, "thigh.R", X, 22)
+    add(p, "shin.R", X, -40)
+    add(p, "thigh.L", Y, 18)
+    add(p, "head", Z, -55)
+    p["_hips_loc"] = (0.04, 0.0, -0.09)
+    return p
+
+
+def _blend(a, b, w):
+    out = {}
+    for src, k in ((a, 1.0 - w), (b, w)):
+        for bone, turns in src.items():
+            if bone == "_hips_loc":
+                old = out.get(bone, (0.0, 0.0, 0.0))
+                out[bone] = tuple(o + v * k for o, v in zip(old, turns))
+            else:
+                for axis, deg in turns:
+                    add(out, bone, axis, deg * k)
+    return out
+
+
+def yoga(f, n):
+    """On her rug, flowing slowly round four stretches: a side reach each
+    way, tree pose, warrior two, then back to the first."""
+    flow = [_reach(1), _reach(-1), _tree(), _warrior()]
+    seg = n / len(flow)
+    i = int(f // seg) % len(flow)
+    t = (f - i * seg) / seg
+    # ease into each stretch over its first third, then hold it
+    w = min(1.0, t * 3.0)
+    w = w * w * (3 - 2 * w)
+    move = _blend(flow[i - 1], flow[i], w)
+    p = base_pose()
+    for bone, turns in move.items():
+        if bone == "_hips_loc":
+            p[bone] = turns
+        else:
+            for axis, deg in turns:
+                add(p, bone, axis, deg)
+    add(p, "chest", X, -1.5 * wave(f, n, 8))
     return p
 
 
@@ -263,6 +349,7 @@ POSES = {
     "idle_smoke": (smoke, 180),
     "idle_read": (read, 150),
     "idle_sway": (sway, 120),
+    "idle_yoga": (yoga, 600),
     "scene_sit": (sit, 150),
     "scene_mirror": (mirror, 120),
     "scene_shy": (shy, 120),
@@ -337,21 +424,26 @@ def shots(arm, acts, out):
     cams = {"front": (Vector((1.2, 3.2, 1.2)), Vector((0, 0, 0.65))), "side": (Vector((3.4, 0.0, 0.9)), Vector((0, 0, 0.6)))}
     for a in acts:
         arm.animation_data.action = a
-        sc.frame_set(int(a.frame_range[1] / 2))
-        bpy.context.view_layer.update()
-        slab_ob.hide_render = a.name != "idle_lounge"
-        fig = stick(arm)
-        for view, (at, look) in cams.items():
-            cam_data = bpy.data.cameras.new("cam")
-            cam = bpy.data.objects.new("cam", cam_data)
-            sc.collection.objects.link(cam)
-            cam.location = at
-            cam.rotation_euler = (look - at).to_track_quat("-Z", "Y").to_euler()
-            sc.camera = cam
-            sc.render.filepath = os.path.join(out, "%s_%s.png" % (a.name, view))
-            bpy.ops.render.render(write_still=True)
-            bpy.data.objects.remove(cam)
-        bpy.data.objects.remove(fig)
+        end = a.frame_range[1]
+        # the yoga flow at each stretch it holds; the rest midway
+        frames = [int(end * (k + 0.7) / 4) for k in range(4)] if a.name == "idle_yoga" else [int(end / 2)]
+        for fi, frame in enumerate(frames):
+            sc.frame_set(frame)
+            bpy.context.view_layer.update()
+            slab_ob.hide_render = a.name != "idle_lounge"
+            fig = stick(arm)
+            tag = a.name if len(frames) == 1 else "%s%d" % (a.name, fi + 1)
+            for view, (at, look) in cams.items():
+                cam_data = bpy.data.cameras.new("cam")
+                cam = bpy.data.objects.new("cam", cam_data)
+                sc.collection.objects.link(cam)
+                cam.location = at
+                cam.rotation_euler = (look - at).to_track_quat("-Z", "Y").to_euler()
+                sc.camera = cam
+                sc.render.filepath = os.path.join(out, "%s_%s.png" % (tag, view))
+                bpy.ops.render.render(write_still=True)
+                bpy.data.objects.remove(cam)
+            bpy.data.objects.remove(fig)
 
 
 def main():

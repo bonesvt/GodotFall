@@ -32,16 +32,18 @@ static func _oph() -> Dictionary:
 		"smoke": {"pos": Vector3(x1 - 2.55, f, zb + 0.55), "yaw": 160.0, "anim": "idle_smoke", "props": ["cigarette"]},
 		# cross-legged on the rug by her notebooks
 		"read": {"pos": Vector3(x0 + 3.4, f, zb + 3.0), "yaw": 150.0, "anim": "idle_read", "props": ["book"]},
-		# by the record player, eyes shut
-		"sway": {"pos": Vector3(x1 - 1.4, f, zb + 4.4), "yaw": -110.0, "anim": "idle_sway", "mood": ["closed"]},
+		# by the record player, eyes shut, facing into the room
+		"sway": {"pos": Vector3(x1 - 1.4, f, zb + 4.4), "yaw": 110.0, "anim": "idle_sway", "mood": ["closed"]},
+		# on the rug, flowing through her stretches
+		"yoga": {"pos": Vector3(x0 + 3.0, f, zb + 3.7), "yaw": 160.0, "anim": "idle_yoga"},
 		# heart scenes
-		"sit": {"pos": Vector3(x0 + 4.4, f, zb + 2.8), "yaw": 180.0, "anim": "scene_sit"},
-		"mirror": {"pos": Vector3(x1 - 1.0, f, zb + 1.2), "yaw": 200.0, "anim": "scene_mirror"},
+		"sit": {"pos": Vector3(x0 + 4.4, f, zb + 2.8), "yaw": 180.0, "anim": "scene_sit", "props": ["cushion"]},
+		"mirror": {"pos": Vector3(x1 - 1.0, f, zb + 1.2), "yaw": 200.0, "anim": "scene_mirror", "props": ["mirror"]},
 		"shy": {"pos": Vector3(x0 + 4.6, f, zb + 3.4), "yaw": 180.0, "anim": "scene_shy"},
 	}
 
 
-const IDLE_SPOTS := {"ophelia": ["lounge", "smoke", "read", "sway", "stand"]}
+const IDLE_SPOTS := {"ophelia": ["lounge", "smoke", "read", "sway", "yoga", "stand"]}
 
 
 static func spots(who: String) -> Dictionary:
@@ -72,7 +74,7 @@ static func take(npc: Node3D, spot: String, info := {}) -> void:
 	npc.home_yaw = deg_to_rad(s["yaw"])
 	npc.rotation.y = npc.home_yaw
 	npc.spot = spot
-	for p in npc.find_children("*", "BoneAttachment3D", true, false):
+	for p in npc.find_children("*", "Node3D", true, false):
 		if p.has_meta("idle_prop"):
 			p.get_parent().remove_child(p)
 			p.queue_free()
@@ -110,8 +112,16 @@ static func _load_poses(npc: Node3D) -> void:
 	src.free()
 
 
-## A prop on one of their bones.
+## A prop on one of their bones (or, for the cushion, on the floor under them).
 static func _prop(npc: Node3D, kind: String) -> void:
+	if kind == "cushion":
+		var seat := Node3D.new()
+		seat.set_meta("idle_prop", true)
+		npc.add_child(seat)
+		var plum := Art.material("canvas", Color(0.28, 0.12, 0.3))
+		Kit.mesh(seat, Vector3(0, 0.035, 0.08), Vector3(0.62, 0.07, 0.62), plum)
+		Kit.mesh(seat, Vector3(0, 0.07, 0.08), Vector3(0.54, 0.02, 0.54), Art.material("canvas", Color(0.36, 0.16, 0.38)))
+		return
 	var skel := npc.find_child("Skeleton3D", true, false) as Skeleton3D
 	if skel == null:
 		return
@@ -119,7 +129,8 @@ static func _prop(npc: Node3D, kind: String) -> void:
 	at.set_meta("idle_prop", true)
 	skel.add_child(at)
 	# props are built in metres; undo whatever scale the bone carries
-	var bone := skel.find_bone("J_Bip_R_Index2" if kind == "cigarette" else "J_Bip_L_Hand")
+	var bone_name := "J_Bip_R_Index2" if kind == "cigarette" else "J_Bip_L_Hand"
+	var bone := skel.find_bone(bone_name)
 	var unscale := Vector3.ONE
 	if bone >= 0:
 		var sc := (skel.global_transform * skel.get_bone_global_pose(bone)).basis.get_scale()
@@ -182,14 +193,74 @@ static func _prop(npc: Node3D, kind: String) -> void:
 			ember.omni_range = 0.5
 			ember.position = Vector3(0, 0.07, 0)
 			cig.add_child(ember)
+		"mirror":
+			# a little round compact, open, glass turned toward her face
+			at.bone_name = bone_name
+			var compact := Node3D.new()
+			compact.position = Vector3(-0.06, 0.0, 0.03)
+			compact.rotation_degrees = Vector3(70, 0, 0)
+			compact.scale = unscale
+			at.add_child(compact)
+			var case := CylinderMesh.new()
+			case.top_radius = 0.065
+			case.bottom_radius = 0.065
+			case.height = 0.012
+			var shell := MeshInstance3D.new()
+			shell.mesh = case
+			var pink := StandardMaterial3D.new()
+			pink.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+			pink.albedo_color = Color(1.0, 0.45, 0.75)
+			shell.material_override = pink
+			compact.add_child(shell)
+			var glass := CylinderMesh.new()
+			glass.top_radius = 0.056
+			glass.bottom_radius = 0.056
+			glass.height = 0.002
+			var face := MeshInstance3D.new()
+			face.mesh = glass
+			face.position.y = 0.007
+			var shine := StandardMaterial3D.new()
+			shine.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+			shine.albedo_color = Color(0.78, 0.85, 1.0)
+			face.material_override = shine
+			compact.add_child(face)
+			# glass both sides, so it reads from wherever Eco stands
+			var back := face.duplicate() as MeshInstance3D
+			back.position.y = -0.007
+			compact.add_child(back)
+			_face_head(npc, skel, compact)
 		"book":
-			at.bone_name = "J_Bip_L_Hand"
+			at.bone_name = bone_name
 			var book := Node3D.new()
 			book.position = Vector3(-0.07, -0.02, 0.0)
 			book.scale = unscale
 			at.add_child(book)
-			Kit.mesh(book, Vector3.ZERO, Vector3(0.16, 0.025, 0.22), Art.material("canvas", Color(0.12, 0.08, 0.1)))
-			Kit.mesh(book, Vector3(0, 0.014, 0), Vector3(0.15, 0.006, 0.21), Art.material("canvas", Color(0.86, 0.82, 0.72)))
+			Kit.mesh(book, Vector3.ZERO, Vector3(0.2, 0.03, 0.28), Art.material("canvas", Color(0.55, 0.08, 0.18)))
+			Kit.mesh(book, Vector3(0, 0.017, 0), Vector3(0.19, 0.006, 0.27), Art.material("canvas", Color(0.86, 0.82, 0.72)))
+			Kit.glow(book, Vector3(0, -0.016, 0.06), Vector3(0.12, 0.004, 0.02), Color(0.9, 0.75, 0.4))
+			_face_head(npc, skel, book)
+
+
+## Once their pose has blended in, turns a held prop's face (its +Y) toward
+## their face: the pages of a book, the glass of a mirror.
+static func _face_head(npc: Node3D, skel: Skeleton3D, prop: Node3D) -> void:
+	var head := skel.find_bone("J_Bip_C_Head")
+	if head < 0 or not npc.is_inside_tree():
+		return
+	# weak, so a prop taken away before then doesn't leave a dangling capture
+	var ref: WeakRef = weakref(prop)
+	var sk: WeakRef = weakref(skel)
+	npc.get_tree().create_timer(0.5).timeout.connect(func():
+		var held: Node3D = ref.get_ref()
+		var bones: Skeleton3D = sk.get_ref()
+		if held == null or bones == null or not held.is_inside_tree():
+			return
+		var eyes := (bones.global_transform * bones.get_bone_global_pose(head)).origin + Vector3(0, 0.06, 0)
+		var to := eyes - held.global_position
+		if to.length() > 0.01:
+			var at := held.global_position
+			held.global_basis = Basis(Quaternion(Vector3.UP, to.normalized()))
+			held.global_position = at)
 
 
 ## A moonlit window cut into Ophelia's back-wall drapes (for her smoking spot).

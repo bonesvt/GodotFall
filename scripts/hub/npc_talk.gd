@@ -94,7 +94,7 @@ func active() -> bool:
 ## each conversation a list of [speaker, text] lines and {"choice": [{delta,
 ## flag, lines}, ...]} questions.
 static func parse(text: String) -> Dictionary:
-	var bank := {"any": [], "together": [], "flirt": [], "heart": [], "date": {}, "gift": {}}
+	var bank := {"any": [], "together": [], "flirt": [], "heart": [], "date": {}, "gift": {}, "spot": {}}
 	var cur: Array = []
 	var choice_re := RegEx.create_from_string("^choice\\s*([+-]?\\d+)?\\s*(?:!(\\w+))?\\s*:\\s*(\\w+(?:\\s*\\([^)]*\\))?)\\s*:\\s*(.+)$")
 	for raw in text.split("\n"):
@@ -112,6 +112,14 @@ static func parse(text: String) -> Dictionary:
 					bank["heart"].append({"at": int(parts[1]) if parts.size() > 1 else 0, "lines": cur, "pose": parts[2] if parts.size() > 2 else ""})
 				"date", "gift":
 					bank[parts[0]][parts[1] if parts.size() > 1 else "any"] = cur
+				"spot":
+					# [spot yoga] / [spot yoga flirt]: talks about what they're
+					# doing at that idle spot (npc_idles.gd), flirty ones once
+					# Romance.flirty()
+					var at: String = parts[1] if parts.size() > 1 else ""
+					var tier: String = parts[2] if parts.size() > 2 else ""
+					var tiers: Dictionary = bank["spot"].get_or_add(at, {})
+					tiers.get_or_add(tier, []).append(cur)
 				_:
 					bank[tag] = cur
 			continue
@@ -163,7 +171,7 @@ func bank(who: String) -> Dictionary:
 
 ## Which conversation they'd have now. `run_id` counts finished runs and
 ## `won` says how the last one went (run_id 0: no run yet).
-func pick(who: String, run_id: int, won: bool) -> Array:
+func pick(who: String, run_id: int, won: bool, spot := "") -> Array:
 	var b := bank(who)
 	beat = -1
 	scene_pose = ""
@@ -187,6 +195,9 @@ func pick(who: String, run_id: int, won: bool) -> Array:
 		scene_pose = scene.get("pose", "")
 		Romance.mark_beat(state, who, beat)
 		return scene["lines"]
+	var at_spot := _spot_talk(who, run_id, spot)
+	if not at_spot.is_empty():
+		return at_spot
 	var list := Romance.talk_list(state, b, who)
 	var any: Array = b[list]
 	if any.is_empty():
@@ -195,6 +206,24 @@ func pick(who: String, run_id: int, won: bool) -> Array:
 	var n: int = state.get_value(who, key, 0)
 	state.set_value(who, key, (n + 1) % any.size())
 	return any[n % any.size()]
+
+
+## The first talk of a hub stay where they're up to something (their idle
+## spot) is about that, from its [spot <name>] talks, or its flirty
+## [spot <name> flirt] ones once they're flirting.
+func _spot_talk(who: String, run_id: int, spot: String) -> Array:
+	var tiers: Dictionary = bank(who)["spot"].get(spot, {})
+	if tiers.is_empty() or int(state.get_value(who, "spot_run", -1)) == run_id:
+		return []
+	var tier := "flirt" if tiers.has("flirt") and Romance.flirty(state, bank(who), who) else ""
+	var talks: Array = tiers.get(tier, tiers.get("flirt" if tier == "" else "", []))
+	if talks.is_empty():
+		return []
+	state.set_value(who, "spot_run", run_id)
+	var key := "next_spot_%s_%s" % [spot, tier]
+	var n: int = state.get_value(who, key, 0)
+	state.set_value(who, key, (n + 1) % talks.size())
+	return talks[n % talks.size()]
 
 
 ## True when talking to them now would open one of their [heart] scenes (the
@@ -223,7 +252,7 @@ func _add_affection(who: String, delta: int) -> void:
 
 func start(p_npc: Node3D, run_id: int, won: bool) -> void:
 	stop()
-	var l := pick(p_npc.who, run_id, won)
+	var l := pick(p_npc.who, run_id, won, String(p_npc.get("spot")) if p_npc.get("spot") != null else "")
 	if beat >= 0 and not l.is_empty():
 		if scene_pose != "" and p_npc.has_method("calm"):
 			NpcIdles.take(p_npc, scene_pose)

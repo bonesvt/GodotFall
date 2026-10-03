@@ -199,6 +199,23 @@ func _run() -> void:
 	_check("a flirt talk plays", flirts.any(func(c): return t4.current_line() == "%s: %s" % [c[0][0], c[0][1]]), t4.current_line())
 	t4.stop()
 	t4.queue_free()
+	# What she's up to: the first talk of a stay at a spot is about it.
+	var t5 := _fresh()
+	var spots: Dictionary = t5.bank("ophelia")["spot"]
+	_check("spot talks parsed", spots.has("yoga") and spots["yoga"].has("") and spots["yoga"].has("flirt") and spots.has("smoke"), spots.keys())
+	t5.state.set_value("ophelia", "met", true)
+	t5.state.set_value("ophelia", "run_seen", 1)
+	var first: Array = t5.pick("ophelia", 1, false, "yoga")
+	_check("yoga talk first", spots["yoga"][""].has(first), first.slice(0, 1))
+	_check("once a stay", not spots["yoga"][""].has(t5.pick("ophelia", 1, false, "yoga")), "")
+	Romance.add(t5.state, "ophelia", 60)
+	for at in [10, 25, 45, 55]:
+		Romance.mark_beat(t5.state, "ophelia", at)
+	t5.state.set_value("ophelia", "run_seen", 2)
+	_check("flirty yoga talk from 60", spots["yoga"]["flirt"].has(t5.pick("ophelia", 2, false, "yoga")), "")
+	t5.state.set_value("ophelia", "run_seen", 3)
+	_check("no spot talk standing", not spots["yoga"]["flirt"].has(t5.pick("ophelia", 3, false, "stand")), "")
+	t5.queue_free()
 	t2.stop()
 	t2.queue_free()
 

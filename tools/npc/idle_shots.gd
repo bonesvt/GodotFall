@@ -39,7 +39,7 @@ func _go(run_node) -> void:
 	cam.current = true
 	run_node.player.global_position = Vector3(0, -50, 0)
 	run_node.player.process_mode = Node.PROCESS_MODE_DISABLED
-	for spot in ["lounge", "smoke", "read", "sway", "sit", "mirror", "shy"]:
+	for spot in ["lounge", "smoke", "read", "sway", "yoga", "sit", "mirror", "shy"]:
 		if not only.is_empty() and not only.has(spot):
 			continue
 		NpcIdles.take(oph, spot)
@@ -49,15 +49,22 @@ func _go(run_node) -> void:
 		var side := face.cross(Vector3.UP)
 		# from the front and a little to her side; lying down, from her side
 		var at: Vector3 = face * 2.2 + side * 0.9
-		if spot == "lounge":
+		if spot == "lounge" or spot == "sit":
 			at = face * 0.9 + side * 2.3
-		elif spot == "sway":
-			at = face * 2.0 - side * 0.9
 		cam.global_position = head + at + Vector3(0, 0.25, 0)
 		cam.look_at(head - Vector3(0, 0.45, 0))
-		await _frames(4)
-		root.get_viewport().get_texture().get_image().save_png(out.path_join(spot + ".png"))
-		print("shot ", spot)
+		# the yoga flow at each stretch it holds
+		var stops := [0.0]
+		if spot == "yoga":
+			var flow: float = oph._anim.current_animation_length
+			stops = [flow * 0.175, flow * 0.425, flow * 0.675, flow * 0.925]
+		for i in stops.size():
+			if spot == "yoga":
+				oph._anim.seek(stops[i], true)
+			await _frames(4)
+			var shot: String = spot if stops.size() == 1 else "%s%d" % [spot, i + 1]
+			root.get_viewport().get_texture().get_image().save_png(out.path_join(shot + ".png"))
+			print("shot ", shot)
 	quit()
 
 
