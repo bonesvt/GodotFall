@@ -82,6 +82,23 @@ func _run() -> void:
 		names.append(String(cut.skin.get_bind_name(i)))
 	_check("ponytail bound by name to the head and the back hair chains", names.has("J_Bip_C_Head") and names.has("J_Sec_Hair3_01") and skel.find_bone("J_Sec_Hair3_01") >= 0, names.size())
 
+	# Ophelia's hair swings when she turns, and settles again.
+	var sp = oph_model.get_node_or_null("HairSprings")
+	_check("Ophelia has hair physics, braid chains included", sp != null and sp.springs.size() == 22, sp.springs.size() if sp else null)
+	if sp != null:
+		Hair.apply(oph_model, "ophelia", "ponytail")
+		await _ticks(30)
+		var still: float = sp.swing_deg()
+		for i in 12:
+			oph.rotation.y += 0.12
+			oph.position.x += 0.04
+			await process_frame
+		var swung: float = sp.swing_deg()
+		_check("her hair swings as she turns", swung > still + 5.0, [still, swung])
+		await _ticks(240)
+		_check("and settles again", sp.swing_deg() < swung * 0.6, [swung, sp.swing_deg()])
+		Hair.apply(oph_model, "ophelia", "choppy")
+
 	# Choosing saves it and re-cuts every model of them, new ones included.
 	Hair.choose(self, "eco", "undercut")
 	Hair.choose(self, "ophelia", "braids")

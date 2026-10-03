@@ -32,6 +32,7 @@ const STYLES := {
 	],
 }
 
+const HairSprings := preload("res://scripts/hub/hair_springs.gd")
 const GLB := "res://assets/models/hair/%s_%s.glb"
 const SALON_HAIR := "SalonHair"
 
@@ -91,7 +92,7 @@ static func choose(tree: SceneTree, who: String, style: String) -> void:
 ## Puts a haircut on someone's model ("" = the one they have now): their own
 ## hair shows for their default style, otherwise it hides under the haircut's
 ## mesh, skinned to the same skeleton. Remembers the model, so choose() can
-## re-cut it later.
+## re-cut it later. Anyone but Eco also gets hair physics (hair_springs.gd).
 static func apply(model: Node, who: String, style := "") -> void:
 	if model == null or not has_styles(who):
 		return
@@ -102,6 +103,11 @@ static func apply(model: Node, who: String, style := "") -> void:
 	var skeleton := model.find_child("Skeleton3D", true, false) as Skeleton3D
 	if skeleton == null:
 		return
+	# hair physics (Eco's model runs her own springs)
+	if who != "eco" and model.get_node_or_null("HairSprings") == null:
+		var springs := HairSprings.make(skeleton)
+		if springs != null:
+			model.add_child(springs)
 	var own := skeleton.get_node_or_null("Hair") as MeshInstance3D
 	var old := skeleton.get_node_or_null(SALON_HAIR) as MeshInstance3D
 	if old != null:
