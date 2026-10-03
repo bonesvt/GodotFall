@@ -32,16 +32,18 @@ static func _oph() -> Dictionary:
 		"smoke": {"pos": Vector3(x1 - 2.55, f, zb + 0.55), "yaw": 160.0, "anim": "idle_smoke", "props": ["cigarette"]},
 		# cross-legged on the rug by her notebooks
 		"read": {"pos": Vector3(x0 + 3.4, f, zb + 3.0), "yaw": 150.0, "anim": "idle_read", "props": ["book"]},
-		# by the record player, eyes shut
-		"sway": {"pos": Vector3(x1 - 1.4, f, zb + 4.4), "yaw": -110.0, "anim": "idle_sway", "mood": ["closed"]},
+		# by the record player, eyes shut, facing into the room
+		"sway": {"pos": Vector3(x1 - 1.4, f, zb + 4.4), "yaw": 110.0, "anim": "idle_sway", "mood": ["closed"]},
+		# on the rug, flowing through her stretches
+		"yoga": {"pos": Vector3(x0 + 3.0, f, zb + 3.7), "yaw": 160.0, "anim": "idle_yoga"},
 		# heart scenes
 		"sit": {"pos": Vector3(x0 + 4.4, f, zb + 2.8), "yaw": 180.0, "anim": "scene_sit"},
-		"mirror": {"pos": Vector3(x1 - 1.0, f, zb + 1.2), "yaw": 200.0, "anim": "scene_mirror"},
+		"mirror": {"pos": Vector3(x1 - 1.0, f, zb + 1.2), "yaw": 200.0, "anim": "scene_mirror", "props": ["mirror"]},
 		"shy": {"pos": Vector3(x0 + 4.6, f, zb + 3.4), "yaw": 180.0, "anim": "scene_shy"},
 	}
 
 
-const IDLE_SPOTS := {"ophelia": ["lounge", "smoke", "read", "sway", "stand"]}
+const IDLE_SPOTS := {"ophelia": ["lounge", "smoke", "read", "sway", "yoga", "stand"]}
 
 
 static func spots(who: String) -> Dictionary:
@@ -119,7 +121,8 @@ static func _prop(npc: Node3D, kind: String) -> void:
 	at.set_meta("idle_prop", true)
 	skel.add_child(at)
 	# props are built in metres; undo whatever scale the bone carries
-	var bone := skel.find_bone("J_Bip_R_Index2" if kind == "cigarette" else "J_Bip_L_Hand")
+	var bone_name := "J_Bip_R_Index2" if kind == "cigarette" else "J_Bip_L_Hand"
+	var bone := skel.find_bone(bone_name)
 	var unscale := Vector3.ONE
 	if bone >= 0:
 		var sc := (skel.global_transform * skel.get_bone_global_pose(bone)).basis.get_scale()
@@ -182,8 +185,37 @@ static func _prop(npc: Node3D, kind: String) -> void:
 			ember.omni_range = 0.5
 			ember.position = Vector3(0, 0.07, 0)
 			cig.add_child(ember)
+		"mirror":
+			# a little round compact, open, glass turned toward her face
+			at.bone_name = bone_name
+			var compact := Node3D.new()
+			compact.position = Vector3(-0.06, 0.0, 0.03)
+			compact.rotation_degrees = Vector3(70, 0, 0)
+			compact.scale = unscale
+			at.add_child(compact)
+			var case := CylinderMesh.new()
+			case.top_radius = 0.045
+			case.bottom_radius = 0.045
+			case.height = 0.012
+			var shell := MeshInstance3D.new()
+			shell.mesh = case
+			shell.material_override = Art.material("timber", Color(0.12, 0.1, 0.14))
+			compact.add_child(shell)
+			var glass := CylinderMesh.new()
+			glass.top_radius = 0.038
+			glass.bottom_radius = 0.038
+			glass.height = 0.002
+			var face := MeshInstance3D.new()
+			face.mesh = glass
+			face.position.y = 0.007
+			var shine := StandardMaterial3D.new()
+			shine.albedo_color = Color(0.75, 0.8, 0.9)
+			shine.metallic = 1.0
+			shine.roughness = 0.05
+			face.material_override = shine
+			compact.add_child(face)
 		"book":
-			at.bone_name = "J_Bip_L_Hand"
+			at.bone_name = bone_name
 			var book := Node3D.new()
 			book.position = Vector3(-0.07, -0.02, 0.0)
 			book.scale = unscale

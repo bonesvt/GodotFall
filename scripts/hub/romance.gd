@@ -144,13 +144,21 @@ static func gift_delta(taste: String) -> int:
 	return {"like": GIFT_LIKE, "dislike": GIFT_DISLIKE}.get(taste, GIFT_OTHER)
 
 
+## True once they flirt with Eco: from flirt_from on, or as a couple (never
+## once they've settled on friends).
+static func flirty(state: ConfigFile, bank: Dictionary, who: String) -> bool:
+	if not romanceable(bank) or status(state, who) == "friends":
+		return false
+	return status(state, who) == "together" or affection(state, who) >= int(settings(bank)["flirt_from"])
+
+
 ## Which list their next everyday talk comes from: [any] until flirt_from,
 ## then mostly [flirt] (two in three); a couple mix [together] and [flirt]
 ## with the odd [any]. Lists they don't have are skipped.
 static func talk_list(state: ConfigFile, bank: Dictionary, who: String) -> String:
 	var order := ["any"]
 	var st := status(state, who)
-	if romanceable(bank) and st != "friends" and affection(state, who) >= int(settings(bank)["flirt_from"]):
+	if flirty(state, bank, who):
 		order = ["flirt", "flirt", "any"]
 	if romanceable(bank) and st == "together":
 		order = ["together", "flirt", "together", "flirt", "any"]
