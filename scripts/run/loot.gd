@@ -76,7 +76,8 @@ static func drop(parent: Node, pos: Vector3, materials: Dictionary, rng: RandomN
 ## by the spawn, for the tutorial); they count towards the zone's share.
 ## Generated zones (procgen/zone_generator.gd) set info["loot_counts"]
 ## ({"node": n, "crate": n}) and info["loot_spots"] (the same keys, lists of
-## places tried before the routes: alloy by a titan wreck, say).
+## places tried before the routes: alloy by a titan wreck, say) and
+## info["loot_keep_out"] (Rect2s in x, z where route-side spots are skipped).
 static func scatter(root: Node3D, info: Dictionary, rng: RandomNumberGenerator, zone_index: int) -> void:
 	var spots := _candidates(info, rng)
 	var spawn: Vector3 = info["spawn"]
@@ -85,6 +86,9 @@ static func scatter(root: Node3D, info: Dictionary, rng: RandomNumberGenerator, 
 	var first: Dictionary = info.get("first_loot", {})
 	var counts: Dictionary = info.get("loot_counts", {})
 	var preferred: Dictionary = info.get("loot_spots", {})
+	# Ground the zone says loot can't go (x, z rects: a generated zone's
+	# chasms and buildings); its own preferred spots are trusted.
+	var keep_out: Array = info.get("loot_keep_out", [])
 	var want := [["node", counts.get("node", NODES[mini(zone_index, NODES.size() - 1)])],
 			["crate", counts.get("crate", CRATES[mini(zone_index, CRATES.size() - 1)])]]
 	for entry in want:
@@ -93,10 +97,14 @@ static func scatter(root: Node3D, info: Dictionary, rng: RandomNumberGenerator, 
 			_place(root, info, rng, zone_index, entry[0], first[entry[0]])
 			taken.append(first[entry[0]])
 			placed += 1
-		for spot in preferred.get(entry[0], []) + spots:
+		var own: Array = preferred.get(entry[0], [])
+		for k in own.size() + spots.size():
 			if placed >= entry[1]:
 				break
+			var spot: Vector3 = own[k] if k < own.size() else spots[k - own.size()]
 			if spot.distance_to(spawn) < SPAWN_CLEAR or taken.any(func(t): return t.distance_to(spot) < SPACING):
+				continue
+			if k >= own.size() and keep_out.any(func(r): return (r as Rect2).has_point(Vector2(spot.x, spot.z))):
 				continue
 			taken.append(spot)
 			placed += 1

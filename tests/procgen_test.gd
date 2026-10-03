@@ -12,12 +12,17 @@ const ZoneGenerator := preload("res://scripts/run/procgen/zone_generator.gd")
 const ZoneBuilder := preload("res://scripts/run/zone_builder.gd")
 const Loot := preload("res://scripts/run/loot.gd")
 const RunState := preload("res://scripts/run/run_state.gd")
+const SetPieces := preload("res://scripts/run/procgen/set_pieces.gd")
+## How far the grapple reaches (player.gd grapple_range).
+const GRAPPLE_RANGE := 45.0
 
 ## Widest gap and biggest step up between roofs a pilot can jump (m).
 const ROOF_JUMP := 4.5
 const ROOF_RISE := 1.6
 
 var failures := 0
+## Every set piece id the built zones used, to check they vary.
+var kinds_seen := {}
 
 
 func _initialize() -> void:
@@ -29,6 +34,8 @@ func _run() -> void:
 	_plan_checks()
 	for spec in [[11, 3, "forest"], [12, 4, "marsh"], [13, 5, "boneyard"], [14, 5, "forest"], [15, 3, "marsh"], [16, 4, "boneyard"]]:
 		await _zone_checks(spec[0], spec[1], spec[2])
+	_check("the built zones use %d of the %d set pieces" % [kinds_seen.size(), SetPieces.Shapes.SHAPES.size()],
+			kinds_seen.size() >= 20, kinds_seen.keys())
 	await _run_checks()
 	print("procgen test: %s (%d failures)" % ["PASS" if failures == 0 else "FAIL", failures])
 	quit(1 if failures > 0 else 0)
@@ -40,10 +47,13 @@ func _plan_checks() -> void:
 	var bad := []
 	var lane_counts := {}
 	var biomes := {}
+	var fillers := {}
 	for s in range(1, 61):
 		var plan = LevelPlan.make(s, 3 + s % 3)
 		lane_counts[plan.lanes.size()] = true
 		biomes[plan.biome] = true
+		for x in plan.sections:
+			fillers[x["kind"]] = true
 		var kinds: Array = plan.lanes.map(func(l): return l["kind"])
 		if plan.lanes.size() < 3 or plan.lanes.size() > 5 or kinds.count("loud") != 1 or not "quiet" in kinds or not "high" in kinds:
 			bad.append([s, "lanes", kinds])
@@ -79,6 +89,7 @@ func _plan_checks() -> void:
 	_check("60 plans: 3-5 lanes with a loud, quiet and high one, every set piece, one guarded and one high cache, safe kill height",
 			bad.is_empty(), bad.slice(0, 6))
 	_check("plans use 3, 4 and 5 lanes and every biome", lane_counts.size() == 3 and biomes.size() == 3, [lane_counts.keys(), biomes.keys()])
+	_check("plans use every kind of section, ruins included", fillers.size() == LevelPlan.SECTION_LEN.size(), fillers.keys())
 	_check("same seed, same plan", LevelPlan.make(77, 4).describe() == LevelPlan.make(77, 4).describe() and LevelPlan.make(77, 4).describe() != LevelPlan.make(78, 4).describe(),
 			LevelPlan.make(77, 4).describe())
 
@@ -163,6 +174,31 @@ func _zone_checks(seed_value: int, lanes: int, biome: String) -> void:
 		if space.intersect_ray(q).is_empty():
 			bad.append(["cache", c.position])
 	_check("%s: %d grunts and the caches stand on something" % [tag, info["grunts"].size()], bad.is_empty() and info["grunts"].size() >= 10, bad)
+
+	# Set pieces: a spread of them, and every hook can be grappled from a lane.
+	var ids := {}
+	for p in info["set_pieces"]:
+		ids[p["id"]] = true
+		kinds_seen[p["id"]] = true
+	bad = []
+	for hook in info["grapple_spots"]:
+		var seen := false
+		for r in info["routes"]:
+			for pt in r["points"]:
+				var eye: Vector3 = pt + Vector3(0, 1.4, 0)
+				if eye.distance_to(hook) > GRAPPLE_RANGE - 2.0 or eye.distance_to(hook) < 6.0:
+					continue
+				var q := PhysicsRayQueryParameters3D.create(eye, eye + (hook - eye) * 1.2)
+				var hit := space.intersect_ray(q)
+				if not hit.is_empty() and (hit["position"] as Vector3).distance_to(hook) < 1.6:
+					seen = true
+					break
+			if seen:
+				break
+		if not seen:
+			bad.append(hook)
+	_check("%s: %d kinds of set piece, %d hooks all grappleable from a lane, %d walls to run" % [tag, ids.size(), info["grapple_spots"].size(), info["wallruns"].size()],
+			ids.size() >= 7 and info["grapple_spots"].size() >= 2 and not info["wallruns"].is_empty() and bad.is_empty(), bad)
 
 	var blockers: int = world.get_children().filter(func(n): return n.is_in_group("sight_blocker")).size()
 	_check("%s: grass to hide in (%d patches, %d block sight)" % [tag, info["stealth_cover"].size(), blockers],

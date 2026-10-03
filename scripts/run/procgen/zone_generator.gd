@@ -9,6 +9,9 @@ extends RefCounted
 ##   structures: building footprints (Rect2 in x, z) for the map
 ##   loot_spots: {"node": [...], "crate": [...]} where loot.gd puts loot first
 ##   loot_counts: {"node": n, "crate": n} for this zone
+##   set_pieces: [{id, pos, yaw}] of the generated zones' own kit (set_pieces.gd)
+##   grapple_spots: every orange hook block's position
+##   wallruns: [{id, from, to, height}] walls put up to run along
 ## How every lane gets through each kind of section is in level_plan.gd.
 
 const LevelPlan := preload("res://scripts/run/procgen/level_plan.gd")
@@ -18,6 +21,7 @@ const Kit := preload("res://scripts/run/level_kit.gd")
 const Art := preload("res://scripts/ps2/ps2_assets.gd")
 const F := preload("res://scripts/run/forest_kit.gd")
 const L := preload("res://scripts/run/laid_out.gd")
+const SP := preload("res://scripts/run/procgen/set_pieces.gd")
 
 const CELL := 2.0
 const THREAT_SPAWNER := "res://scripts/threats/threat_spawner.gd"
@@ -65,6 +69,10 @@ static func build_from_plan(root: Node3D, plan, zone_index: int) -> Dictionary:
 	info["perches"] = {}
 	info["catwalks"] = []
 	info["crossings"] = []
+	info["set_pieces"] = []
+	info["grapple_spots"] = []
+	info["wallruns"] = []
+	root.set_meta("zone_info", info)
 
 	var hw: float = plan.half_width(0.0)
 	var gx := snappedf(hw + 70.0, CELL)
@@ -96,13 +104,19 @@ static func build_from_plan(root: Node3D, plan, zone_index: int) -> Dictionary:
 				_resource(root, plan, info, keep_out, s, rng, dress, zone_index)
 			"chasm":
 				_chasm(root, plan, info, keep_out, s, rng, dress, zone_index)
+			"ruins":
+				_ruins(root, plan, info, keep_out, s, rng, dress, zone_index)
 			"end":
 				_end(root, plan, info, keep_out, s)
 	_lanes(root, plan, info, keep_out, dress)
+	_traversal(root, plan, info, keep_out, rng)
 	_wilds(root, plan, info, keep_out, dress)
 	_routes(plan, info)
 	_checkpoints(plan, info)
 	_crate_spots(plan, info, keep_out, dress)
+	info["loot_keep_out"] = info["structures"].duplicate()
+	for c in plan.sections_of("chasm"):
+		info["loot_keep_out"].append(Rect2(-999.0, c["far_lip"] - 1.0, 1998.0, c["near_lip"] - c["far_lip"] + 2.0))
 	L.collect_cover(root, info)
 	B.far_scenery(root, dress, plan, ground)
 	_spawn_hooks(plan, info)
@@ -110,6 +124,7 @@ static func build_from_plan(root: Node3D, plan, zone_index: int) -> Dictionary:
 	if ResourceLoader.exists(THREAT_SPAWNER):
 		load(THREAT_SPAWNER).populate(root, rng, info, zone_index)
 	Nav.setup(root, info)
+	root.remove_meta("zone_info")
 	return info
 
 
@@ -252,14 +267,19 @@ static func _picket(root: Node3D, plan, info: Dictionary, keep_out: Array, s: Di
 		B.cover_tall(root, _on(plan, c + 2.0, z), 0.0, dress)
 	else:
 		F.fallen_log(root, _on(plan, c + 2.0, z), 4.0)
-	B.cover_low(root, _on(plan, c - 6.5, z + 0.5), 0.0, dress)
+	var nest := rng.randf() < 0.45
+	if nest:
+		# A machine-gun nest instead of the sandbag line.
+		SP.place(root, "sandbag_nest", _on(plan, c - 6.5, z - 0.6), 0.0, info)
+	else:
+		B.cover_low(root, _on(plan, c - 6.5, z + 0.5), 0.0, dress)
 	F.barrels(root, _on(plan, c + 7.5, z - 2.5), 20.0)
 	F.floodlight(root, _on(plan, c - 9.0, z - 3.0), 20.0)
 	keep_out.append(Rect2(c - 11, z - 6, 22, 12))
 	var count := rng.randi_range(1, 2 + int(zone_index >= 4))
 	for k in count:
 		var gx: float = c + [2.5, -6.5, 6.0][k]
-		_grunt(root, info, _on(plan, gx, z - 1.4), zone_index)
+		_grunt(root, info, _on(plan, gx, z - (0.4 if nest and k == 1 else 1.4)), zone_index)
 	var highs: Array = plan.lanes_of("high")
 	if not highs.is_empty() and rng.randf() < 0.6:
 		var h: int = highs[rng.randi() % highs.size()]
@@ -303,6 +323,16 @@ static func _wall(root: Node3D, plan, info: Dictionary, keep_out: Array, s: Dict
 	_wall_run(root, plan, x, c + hw + 10.0, wz)
 	keep_out.append(Rect2(c - hw - 12.0, wz - 6.0, hw * 2.0 + 24.0, 12.0))
 	info["structures"].append(Rect2(c - hw - 8.0, wz - 0.6, hw * 2.0 + 16.0, 1.2))
+	# A hook bolted to the wall's top facing the road side: grapple straight over.
+	for tries in 4:
+		var hx := lx + (-gate_side) * (6.5 + tries * 2.0)
+		var clear := true
+		for o in openings:
+			if hx > o[0] - 2.5 and hx < o[1] + 2.5:
+				clear = false
+		if clear:
+			SP.place(root, "hook_bracket", Vector3(hx, _wall_y(plan, hx, wz) + WALL_H + 0.5, wz + 0.4), 0.0, info)
+			break
 	# Catwalks on the ridges: a deck on the wall's top to land on.
 	for i in plan.lanes_of("high"):
 		var hx: float = plan.lane_x(i, wz)
@@ -383,7 +413,9 @@ static func _yard(root: Node3D, plan, info: Dictionary, keep_out: Array, s: Dict
 		side = -1.0
 	if camp:
 		var at := Vector2(c + side * 12.0, mid + 2.0)
-		var size := B.centrepiece(root, _on(plan, at.x, at.y))
+		# The big depot warehouse only where it fits; else the biome's own.
+		var roomy := _free(keep_out, at, SP.size("warehouse")) and _lane_dist(plan, at.x + side * 7.2, at.y) > 2.5
+		var size := B.centrepiece(root, _on(plan, at.x, at.y), dress if roomy else null)
 		_occupy(info, keep_out, at, size)
 	else:
 		for k in 2:
@@ -397,7 +429,7 @@ static func _yard(root: Node3D, plan, info: Dictionary, keep_out: Array, s: Dict
 	# The landmark in the back corner, and a watchtower at the front.
 	var lm := Vector2(c + side * 9.0, z1 + 7.0)
 	if _free(keep_out, lm, Vector2(8, 8)) and _lane_dist(plan, lm.x, lm.y) > 6.0:
-		_occupy(info, keep_out, lm, B.landmark(root, _on(plan, lm.x, lm.y)))
+		_occupy(info, keep_out, lm, B.landmark(root, _on(plan, lm.x, lm.y), dress))
 	var tw := Vector2(c - side * 7.5, z0 - 7.0)
 	if _lane_dist(plan, tw.x, tw.y) < 5.0:
 		tw.x = c - side * 5.0
@@ -406,6 +438,8 @@ static func _yard(root: Node3D, plan, info: Dictionary, keep_out: Array, s: Dict
 	_grunt(root, info, deck + Vector3(0, 0, 0.6), zone_index, 0.6)
 	F.floodlight(root, _on(plan, c + side * 3.5, z0 - 3.0), 0.0)
 	F.floodlight(root, _on(plan, c - side * 4.0, z1 + 4.0), 180.0)
+	# The militia's welcome on the way in.
+	SP.place(root, "warning_sign", _on(plan, c - side * 3.2, z0 + 3.0), dress.randf_range(-15, 15), info)
 	# The squad's cover across the road, facing the way the pilot comes in.
 	var posts := [Vector2(c - 4.0, mid + 3.0), Vector2(c + 3.5, mid + 1.5), Vector2(c + 0.5, mid - 4.0), Vector2(c - 7.0, mid - 5.0)]
 	var squad := []
@@ -434,6 +468,8 @@ static func _yard(root: Node3D, plan, info: Dictionary, keep_out: Array, s: Dict
 		F.tent(root, _on(plan, qx + out * 4.5, qz + 3.0), 90.0)
 		F.tent(root, _on(plan, qx + out * 4.5, qz - 3.0), 90.0)
 		_occupy(info, keep_out, Vector2(qx + out * 4.5, qz), Vector2(4, 9))
+		if dress.randf() < 0.6:
+			SP.place(root, "fire_barrel", _on(plan, qx + out * 2.4, qz + 5.2), 0.0, info)
 		var z: float = z0 - 4.0
 		while z > z1 + 3.0:
 			B.hide(root, plan.ground, dress, info, plan.lane_x(i, z) - out * 2.6, z, Vector2(2.6, 6.0), true)
@@ -463,24 +499,22 @@ static func _yard(root: Node3D, plan, info: Dictionary, keep_out: Array, s: Dict
 ## where it starts again. Returns the middle roof's top (for a cache).
 static func _rooftops(root: Node3D, plan, info: Dictionary, keep_out: Array, lane: int, s: Dictionary, dress: RandomNumberGenerator) -> Vector3:
 	var span: float = s["z0"] - s["z1"]
+	# What this run is built from (the biome's huts, a scaffold, bunkers).
+	var style := B.perch_style(plan.biome, dress)
+	var toward := signf(plan.lane_x(plan.lane_of("loud"), s["mid"]) - plan.lane_x(lane, s["mid"]))
 	# Fit as many as leave gaps of about ROOF_GAP, ends included.
-	var length := 8.2
-	match plan.biome:
-		"marsh":
-			length = 6.1
-		"boneyard":
-			length = 6.0
+	var length: float = style["length"]
 	var n := roundi((span - ROOF_GAP) / (length + ROOF_GAP))
 	var gap := (span - n * length) / (n + 1)
 	var roofs := []
 	var z: float = s["z0"] - gap - length * 0.5
 	for k in n:
 		var x: float = plan.lane_x(lane, z)
-		var r := B.perch(root, _on(plan, x, z), dress)
+		var r := B.perch(root, _on(plan, x, z), dress, style, toward)
 		roofs.append(r["roof"])
 		_occupy(info, keep_out, Vector2(x, z), Vector2(r["width"] + 1.0, length))
 		z -= length + gap
-	info["perches"][lane] = {"roofs": roofs, "length": length, "gap": gap}
+	info["perches"][lane] = {"roofs": roofs, "length": length, "gap": gap, "style": style["id"]}
 	return roofs[int(roofs.size() / 2.0)]
 
 
@@ -583,12 +617,20 @@ static func _bridge(root: Node3D, plan, info: Dictionary, keep_out: Array, x: fl
 	var shield := Kit.box(root, Vector3(x + side * SHIELD_X, y + 6.0 - pier_h * 0.5, mid), Vector3(1, pier_h, gap), BLUE)
 	info["segments"].append({"type": "wallrun", "gap": gap, "rise": 0.0})
 	var anchor_z := near_end - gap * 0.6
-	F.pylon(root, Vector3(x - side * ANCHOR_X, y, anchor_z - 9.0), 0.0)
-	var anchor := Kit.box(root, Vector3(x - side * ANCHOR_X, y + ANCHOR_Y, anchor_z), Vector3(3, 2, 3), ORANGE)
+	var anchor_pos := Vector3(x - side * ANCHOR_X, y + ANCHOR_Y, anchor_z)
+	if rng.randf() < 0.4:
+		# A tower crane on the near lip, its hook hanging out over the gap.
+		var hook: Vector3 = SP.Shapes.SHAPES["tower_crane"]["hooks"][0]
+		var placed := SP.place(root, "tower_crane", Vector3(anchor_pos.x, y, anchor_z + hook.z), 180.0, info)
+		anchor_pos = placed["hooks"][0]
+	else:
+		F.pylon(root, Vector3(anchor_pos.x, y, anchor_z - 9.0), 0.0)
+		Kit.box(root, anchor_pos, Vector3(3, 2, 3), ORANGE)
+		info["grapple_spots"].append(anchor_pos)
 	info["segments"].append({"type": "grapple", "gap": gap, "rise": 0.0})
 	keep_out.append(Rect2(x - 9.0, far - 12.0, 18.0, near - far + 24.0))
 	crossing["lanes"].append({"lane": plan.lane_of("loud"), "kind": "bridge", "x": x, "shield_x": x + side * SHIELD_X,
-			"anchor": anchor.position, "near_end": near_end, "far_end": far_end, "shield": shield})
+			"anchor": anchor_pos, "near_end": near_end, "far_end": far_end, "shield": shield})
 
 
 static func _end(root: Node3D, plan, info: Dictionary, keep_out: Array, s: Dictionary) -> void:
@@ -597,6 +639,205 @@ static func _end(root: Node3D, plan, info: Dictionary, keep_out: Array, s: Dicti
 	keep_out.append(Rect2(x - 12, plan.end_z - 12, 24, 24))
 	F.spawn(root, "rock_b", _on(plan, x - 6.0, plan.end_z - 4.0), 40.0, 1.8)
 	F.spawn(root, "rock_a", _on(plan, x + 7.0, plan.end_z + 2.0), 10.0, 1.5)
+
+
+## A bombed-out hamlet across the valley: house shells along both sides of
+## the road with their tall walls to it (wallrun them down the street), a
+## sniper on a shell's upper floor, a sentry walking the street, wrecks and
+## tank traps, and a water tower or silo to grapple off to one side.
+static func _ruins(root: Node3D, plan, info: Dictionary, keep_out: Array, s: Dictionary, rng: RandomNumberGenerator,
+		dress: RandomNumberGenerator, zone_index: int) -> void:
+	var loud: int = plan.lane_of("loud")
+	var z0: float = s["z0"]
+	var z1: float = s["z1"]
+	var shells := []
+	var z := z0 - 6.0
+	while z > z1 + 5.0:
+		for side in [-1.0, 1.0]:
+			if rng.randf() < 0.2:
+				continue
+			var shell := rng.randf() < 0.35
+			var id := "ruin_shell" if shell else "ruin_house"
+			var x: float = plan.lane_x(loud, z) + side * (8.4 if shell else 8.0)
+			# The houses' tall wall is on their +X side: turn it to the road.
+			var yaw: float = (0.0 if side < 0.0 else 180.0) if not shell else [0.0, 90.0][rng.randi() % 2]
+			var placed := _put(root, plan, info, keep_out, id, Vector2(x, z), yaw, 4.0, true)
+			if not placed.is_empty():
+				shells.append([id, placed])
+		z -= rng.randf_range(12.5, 15.0)
+	# Who's here: someone up on a shell's floor (or in a house), and a sentry
+	# walking the street.
+	var posted := 0
+	for sh in shells:
+		if posted >= 1 + int(zone_index >= 4):
+			break
+		var top: Vector3 = sh[1]["tops"][0]
+		if sh[0] == "ruin_shell" or rng.randf() < 0.5:
+			_grunt(root, info, top, zone_index, 0.8)
+			posted += 1
+	var c0: float = plan.lane_x(loud, z0 - 4.0)
+	var c1: float = plan.lane_x(loud, z1 + 4.0)
+	_patrol(root, plan, info, [Vector2(c0 - 1.5, z0 - 4.0), Vector2(c1 - 1.5, z1 + 4.0), Vector2(c1 + 1.5, z1 + 4.0), Vector2(c0 + 1.5, z0 - 4.0)], zone_index, 1)
+	# Loot left in the houses.
+	for sh in shells:
+		if sh[0] == "ruin_house" and rng.randf() < 0.5:
+			info["loot_spots"]["crate"].push_front((sh[1]["tops"][0] as Vector3) + Vector3(0, 0.2, 0))
+	# What the fighting left in the street.
+	for k in 3:
+		var pz := lerpf(z0 - 6.0, z1 + 6.0, (k + dress.randf()) / 3.0)
+		var px: float = plan.lane_x(loud, pz) + (3.6 if k % 2 == 0 else -3.6)
+		if _free(keep_out, Vector2(px, pz), Vector2(3.0, 3.0)):
+			var id: String = ["jeep", "tank_trap", "jersey_barrier"][(k + dress.randi()) % 3]
+			SP.place(root, id, _on(plan, px, pz, -0.05), dress.randf_range(-30, 30) + (90.0 if id == "jeep" else 0.0), info)
+			keep_out.append(Rect2(px - 2.0, pz - 2.0, 4.0, 4.0))
+	# Something tall off the road to grapple from, between it and the next lane.
+	var side := -1.0 if rng.randf() < 0.5 else 1.0
+	for flip in 2:
+		var tx: float = plan.lane_x(loud, s["mid"]) + side * 14.0
+		if _lane_dist(plan, tx, s["mid"]) > 6.0 and plan.in_chasm(s["mid"]).is_empty():
+			var id := "water_tower" if rng.randf() < 0.6 else "silo"
+			if not _put(root, plan, info, keep_out, id, Vector2(tx, s["mid"]), 0.0, 5.5, true).is_empty():
+				break
+		side = -side
+	# Grass round the houses to sneak through.
+	for sh in shells:
+		var p: Vector3 = (sh[1]["node"] as Node3D).position
+		B.hide(root, plan.ground, dress, info, p.x + dress.randf_range(-5, 5), p.z + 6.0, Vector2(3.0, 3.5), dress.randf() < 0.4)
+
+
+## Puts set piece `id` down at `at` (x, z) if its footprint is free and at
+## least `lane_gap` m off every lane, on the lowest ground under it so nothing
+## floats. Returns place()'s result, or {} if it didn't fit.
+static func _put(root: Node3D, plan, info: Dictionary, keep_out: Array, id: String, at: Vector2, yaw: float,
+		lane_gap := 3.0, building := false, probe := Vector2.ZERO) -> Dictionary:
+	var size := SP.turned_size(id, yaw)
+	if not _free(keep_out, at, size + Vector2(1.0, 1.0)):
+		return {}
+	# Where to sample the ground: the footprint, or `probe` (half sizes) for
+	# pieces whose footprint hangs past what stands on the ground.
+	var half := size * 0.5 if probe == Vector2.ZERO else probe
+	for c in [Vector2(-1, -1), Vector2(1, -1), Vector2(-1, 1), Vector2(1, 1), Vector2.ZERO]:
+		var p: Vector2 = at + c * half
+		if not plan.in_chasm(p.y).is_empty() or plan.ground(p.x, p.y) < plan.kill_y + 3.0:
+			return {}
+	if _lane_dist(plan, at.x, at.y) < lane_gap:
+		return {}
+	var y := INF
+	var hi := -INF
+	for c in [Vector2(-1, -1), Vector2(1, -1), Vector2(-1, 1), Vector2(1, 1), Vector2.ZERO, Vector2(0, -1), Vector2(0, 1)]:
+		var g: float = plan.ground(at.x + c.x * half.x, at.y + c.y * half.y)
+		y = minf(y, g)
+		hi = maxf(hi, g)
+	if hi - y > 2.5:
+		return {}  # too steep a spot
+	var placed := SP.place(root, id, Vector3(at.x, y - 0.05, at.y), yaw, info)
+	if building:
+		_occupy(info, keep_out, at, size)
+	else:
+		keep_out.append(Rect2(at - half, size))
+	return placed
+
+
+## Movement pieces through the open stretches (fields, pickets, resource
+## sites, ruins), picked by the seed so no two zones run the same:
+##   the road: a billboard (short, medium or long) or a line of blast walls
+##     beside it to wallrun;
+##   each ridge: a kick slot or a scaffold on the road side of its cliff, a
+##     way up without the crate steps;
+##   between the road and the lane beside it: a grapple mast;
+##   each gully: a slab fallen against its bank (crouch under it, run along it).
+static func _traversal(root: Node3D, plan, info: Dictionary, keep_out: Array, rng: RandomNumberGenerator) -> void:
+	var loud: int = plan.lane_of("loud")
+	for s in plan.sections:
+		var open: bool = s["kind"] in ["field", "picket", "resource", "ruins"]
+		if not open and not s["kind"] in ["outpost", "camp"]:
+			continue
+		var z0: float = s["z0"] - 4.0
+		var z1: float = s["z1"] + 4.0
+		# The road: something to run along beside it (the ruins' houses are that already).
+		if s["kind"] in ["field", "picket", "resource"] and rng.randf() < 0.8:
+			var side := -1.0 if rng.randf() < 0.5 else 1.0
+			var roll := rng.randf()
+			for tries in 8:
+				side = -side
+				var z := rng.randf_range(z1 + 9.0, z0 - 9.0)
+				var x: float = plan.lane_x(loud, z) + side * 6.2
+				if roll < 0.7:
+					var id: String = ["billboard_s", "billboard_m", "billboard_l", "billboard_m"][rng.randi() % 4]
+					var dx: float = plan.lane_x(loud, z - 1.0) - plan.lane_x(loud, z + 1.0)
+					var yaw := rad_to_deg(atan2(2.0, dx))
+					if not _put(root, plan, info, keep_out, id, Vector2(x, z), yaw, 4.0).is_empty():
+						break
+				else:
+					var length := rng.randf_range(8.0, 13.0)
+					var a := Vector2(x, z + length * 0.5)
+					var b := Vector2(plan.lane_x(loud, z - length * 0.5) + side * 6.2, z - length * 0.5)
+					var mid := (a + b) * 0.5
+					if _free(keep_out, mid, Vector2(2.0, length + 1.0)) and _lane_dist(plan, mid.x, mid.y) > 4.0:
+						SP.blast_row(root, plan.ground, a, b, info)
+						keep_out.append(Rect2(mid - Vector2(1.0, length * 0.5), Vector2(2.0, length)))
+						break
+		# Each ridge: a way up from the road's side.
+		for h in (plan.lanes_of("high") if open else []):
+			var roll := rng.randf()
+			if roll > 0.55:
+				continue
+			var toward := signf(plan.lane_x(loud, s["mid"]) - plan.lane_x(h, s["mid"]))
+			var kick := roll < 0.3
+			var id := "kick_slot" if kick else "scaffold"
+			# Kick slot: the slot along Z, its deck at the far end beside the
+			# ridge top; scaffold: its deck at ridge height, steps to the road.
+			for tries in 4:
+				var z := rng.randf_range(z1 + 11.5, z0 - 6.5) if kick else rng.randf_range(z1 + 3.5, z0 - 3.5)
+				var zs := [z + 6.0, z, z - 5.5, z - 11.0] if kick else [z + 3.0, z, z - 3.0]
+				if zs.any(func(q): return plan.ridge_on(q) < 0.95):
+					continue
+				# Clear of the cliff wherever the ridge wanders along the piece.
+				var edge := -INF
+				for q in zs:
+					edge = maxf(edge, toward * plan.lane_x(h, q))
+				# The cliff's foot is RIDGE_TOP + RIDGE_SIDE out; the deck's edge
+				# lands about 2.3 m off the ridge top's edge, an easy hop.
+				var off := LevelPlan.RIDGE_TOP + LevelPlan.RIDGE_SIDE + (2.6 if kick else 2.4)
+				var x := toward * (edge + off)
+				var centre_z: float = (z - 2.5) if kick else z
+				var at := Vector2(x, centre_z)
+				var yaw := 0.0 if (kick or toward > 0.0) else 180.0
+				# The slot's origin is its walls' middle, not its footprint's.
+				if kick:
+					var size := SP.size(id)
+					if not _free(keep_out, at, size + Vector2(1, 1)) or _lane_dist(plan, x, centre_z) < 4.0:
+						continue
+					var placed := _put(root, plan, info, keep_out, id, Vector2(x, z), yaw, 3.5, false, Vector2(2.4, 6.0))
+					if not placed.is_empty():
+						keep_out.append(Rect2(at - size * 0.5, size))
+						break
+				elif not _put(root, plan, info, keep_out, id, at, yaw, 3.5, false, Vector2(2.2, 3.1)).is_empty():
+					break
+		# Between the road and a lane beside it: a mast to swing from.
+		if rng.randf() < (0.6 if open else 0.5):
+			var other := loud + (1 if rng.randf() < 0.5 else -1)
+			if other < 0 or other >= plan.lanes.size():
+				other = loud - (other - loud)
+			if other >= 0 and other < plan.lanes.size():
+				for tries in 4:
+					var z := rng.randf_range(z1 + 3.0, z0 - 3.0)
+					var x: float = (plan.lane_x(loud, z) + plan.lane_x(other, z)) * 0.5 + rng.randf_range(-2.0, 2.0)
+					var id := "grapple_mast" if rng.randf() < 0.65 else "grapple_mast_short"
+					if not _put(root, plan, info, keep_out, id, Vector2(x, z), rng.randf_range(0, 360), 6.0).is_empty():
+						break
+		# Each gully: a slab fallen against its bank, leaning over the bed.
+		for q in (plan.lanes_of("quiet") if open else []):
+			if rng.randf() > 0.4:
+				continue
+			for tries in 3:
+				var z := rng.randf_range(z1 + 5.0, z0 - 5.0)
+				if plan.gully_on(z) < 0.9:
+					continue
+				var side := -1.0 if rng.randf() < 0.5 else 1.0
+				var x: float = plan.lane_x(q, z) + side * (LevelPlan.GULLY_BED * 0.5 + LevelPlan.GULLY_BANK + 1.4)
+				if not _put(root, plan, info, keep_out, "lean_slab", Vector2(x, z), 90.0 if side > 0.0 else -90.0, 2.5).is_empty():
+					break
 
 
 # --- along the lanes -------------------------------------------------------------

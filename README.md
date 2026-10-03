@@ -318,11 +318,32 @@ res://tools/zones/shots.gd -- /some/dir [2|3]` saves screenshots and route maps 
   (yards with buildings, a dug-in squad, a watchtower, tents and grass on the quiet side, a
   sentry walking the yard, and one salvage cache each: one guarded by the squad, one on the
   rooftops), resource (a titan wreck between two lanes with alloy to mine and two grunts
-  picking it over), chasm (the Pinewoods' bridge crossing on the road, so it stays inside
+  picking it over), ruins (a bombed-out hamlet: house shells along the road with their tall
+  walls to it, a sniper upstairs in a shell, a sentry in the street, wrecks and tank traps,
+  a water tower or silo to one side), chasm (the Pinewoods' bridge crossing on the road, so it stays inside
   the movement limits) and the extraction beacon. There's always an outpost, a camp, a
   wall and a chasm. The rest, their order, the lane count, the biome (forest, marsh or
   boneyard, using the handmade zones' props) and the zone's name come from the seed. Zones
   further into the run are longer and more heavily guarded.
+- **Set pieces.** On top of the handmade zones' props, generated zones have their own kit
+  (`set_pieces.gd`, models in `assets/models/procgen/`), mixed in by the seed so no two
+  zones are built the same. Buildings: bunker, two-storey blockhouse (stairs to the roof),
+  garage, warehouse, silo, water tower, scaffold, two bombed-out house shells, tower crane.
+  Movement: billboards to wallrun (6, 10 and 16 m), blast-wall lines, a kick slot (two
+  walls 3.4 m apart to wall-jump up between, a deck at the top), a leaning slab, grapple
+  masts (13 and 9 m) and a hook bracket. Props: jersey barriers, tank traps, tyres, cable
+  reels, burnt-out jeeps, fire barrels, concrete pipes, supply pods, warning signs and a
+  sandbag MG nest. Blue trim means run or kick off it; an orange block is a grapple hook.
+  Yards pick their barracks (hut, bunker, blockhouse, garage), centrepiece (the biome's own
+  or the warehouse) and landmark (fuel tank, silo, water tower, crane); a rooftop run is
+  huts, scaffolds or bunkers; a chasm's grapple is the crane pylon or a tower crane; walls
+  get a hook to grapple straight over. Open stretches get a wall to run beside the road, a
+  kick slot or scaffold up beside each ridge, a mast between the road and the next lane,
+  and slabs fallen against the gullies' banks. Each piece's colliders, hooks and tops come
+  from `prop_shapes.gd`, which `tools/procgen/build_props.py` writes with the models
+  (`blender -b --python tools/procgen/build_props.py`, or `python3` with the `bpy` module).
+  `xvfb-run -a godot --path . --rendering-driver opengl3 -s res://tools/procgen/kit_shots.gd
+  -- /some/dir forest` saves a picture of each piece and a sheet of them all.
 - **Pathing.** Each zone bakes a navmesh from its own colliders on a thread once it's
   loaded. Grunts with a `patrol` (grunt.gd) walk their loop on it, pausing at each point to
   look round. A patrol that loses sight of the pilot hunts toward where they were last seen
@@ -330,14 +351,16 @@ res://tools/zones/shots.gd -- /some/dir [2|3]` saves screenshots and route maps 
 - **Loot.** Supply crates go on the lanes' verges, banks and ridge tops (never over a chasm),
   and alloy nodes go round the wrecks first (`info["loot_spots"]`, `info["loot_counts"]`).
 - **Maps.** `zone_map.gd` draws a top-down map of a plan, or of a built zone with its grunts,
-  patrols, caches and loot. `xvfb-run -a godot --path . --rendering-driver opengl3 -s
+  patrols, caches, loot, walls to run (blue) and grapple hooks (orange). `xvfb-run -a godot --path . --rendering-driver opengl3 -s
   res://tools/procgen/maps.gd -- /some/dir 101 202 303` saves one per seed (`--plan` skips
   building, `--lanes=N`, `--biome=marsh`). `godot --path . -s res://tools/procgen/shots.gd --
   /some/dir 101` saves screenshots of one generated zone.
 - **Tests.** `godot --headless --path . -s res://tests/procgen_test.gd` plans 60 seeds and
   builds six zones. It checks the crossings and rooftop gaps against the movement limits,
   that grunts and caches stand on something, that the patrols can walk their loops on the
-  navmesh, that loot settles, and that a long run reaches the uncharted zones.
+  navmesh, that loot settles, that every grapple hook can be reached from a lane, and that a
+  long run reaches the uncharted zones. `tests/set_pieces_test.gd` loads every set piece and
+  has the real player controller kick up a kick slot, run a billboard and grapple a mast.
 
 ## Art: PS3 look (with the old PS2 look on F9)
 Everything is stylized in the spirit of Jak and Daxter and Shadow of the Colossus,

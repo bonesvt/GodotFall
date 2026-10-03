@@ -3,7 +3,8 @@ extends Control
 ## shaded ground, the lanes in their colours (loud red, quiet blue, high
 ## orange), section names down the side, and, once the zone is built (`info`
 ## from zone_generator.gd), the grunts, their patrol routes, the caches, the
-## loot and the beacon. North (-Z, the way you go) is up.
+## loot, the beacon, the walls made to wallrun (blue) and the grapple hooks
+## (orange diamonds). North (-Z, the way you go) is up.
 
 const LANE_COLORS := {"loud": Color(1.0, 0.3, 0.22), "quiet": Color(0.3, 0.75, 1.0), "high": Color(1.0, 0.72, 0.18)}
 const GROUND := {
@@ -117,6 +118,16 @@ func _draw_built(font: Font) -> void:
 		var a := to_map(r.position.x, r.position.y)
 		var b := to_map(r.end.x, r.end.y)
 		draw_rect(Rect2(Vector2(minf(a.x, b.x), minf(a.y, b.y)), (b - a).abs()), Color(0.15, 0.13, 0.12, 0.85))
+	# Walls to run along (blue) and grapple hooks (orange diamonds).
+	for w in info.get("wallruns", []):
+		var a := to_map(w["from"].x, w["from"].z)
+		var b := to_map(w["to"].x, w["to"].z)
+		draw_line(a, b, Color(0.05, 0.1, 0.2), 6.0)
+		draw_line(a, b, Color(0.35, 0.6, 1.0), 3.5)
+	for h in info.get("grapple_spots", []):
+		var p := to_map(h.x, h.z)
+		draw_colored_polygon(PackedVector2Array([p + Vector2(0, -7), p + Vector2(7, 0), p + Vector2(0, 7), p + Vector2(-7, 0)]), Color(0.1, 0.05, 0.0))
+		draw_colored_polygon(PackedVector2Array([p + Vector2(0, -5), p + Vector2(5, 0), p + Vector2(0, 5), p + Vector2(-5, 0)]), Color(1.0, 0.6, 0.15))
 	for patrol in info.get("patrols", []):
 		var pts := PackedVector2Array()
 		for p in patrol:

@@ -3,13 +3,17 @@ extends RefCounted
 ## trees, cover, the buildings that make up a yard and a rooftop run, and what
 ## lies across a chasm for the quiet lane. All of it is the handmade zones'
 ## kit (forest_kit.gd, zone_kit.gd), so generated zones look like they belong
-## next to the Pinewoods, Blackwater and the Boneyard.
+## next to the Pinewoods, Blackwater and the Boneyard, mixed with the
+## generated zones' own set pieces (set_pieces.gd: bunkers, blockhouses,
+## garages, silos, water towers, cranes, barriers and wrecks) so no two yards
+## are built the same.
 
 const Kit := preload("res://scripts/run/level_kit.gd")
 const Art := preload("res://scripts/ps2/ps2_assets.gd")
 const F := preload("res://scripts/run/forest_kit.gd")
 const Z := preload("res://scripts/run/zone_kit.gd")
 const L := preload("res://scripts/run/laid_out.gd")
+const SP := preload("res://scripts/run/procgen/set_pieces.gd")
 const Ambience := preload("res://scripts/ambience.gd")
 
 const CONCRETE := Color(0.55, 0.56, 0.55)
@@ -78,8 +82,17 @@ static func biome_of(root: Node3D) -> String:
 	return root.get_meta("biome", "forest")
 
 
+## The zone's info while it's being built (zone_generator.gd sets it), so set
+## pieces note their hooks and walls; null outside a build.
+static func _info(root: Node3D):
+	return root.get_meta("zone_info", null)
+
+
 ## Low cover (crouch behind it), about 2 m wide and 1.2 m high.
 static func cover_low(root: Node3D, pos: Vector3, yaw: float, rng: RandomNumberGenerator) -> void:
+	if rng.randf() < 0.3:
+		SP.place(root, "jersey_barrier", pos, yaw, _info(root))
+		return
 	match biome_of(root):
 		"boneyard":
 			if rng.randf() < 0.5:
@@ -92,6 +105,9 @@ static func cover_low(root: Node3D, pos: Vector3, yaw: float, rng: RandomNumberG
 
 ## Tall cover (stand behind it).
 static func cover_tall(root: Node3D, pos: Vector3, yaw: float, rng: RandomNumberGenerator) -> void:
+	if rng.randf() < 0.25:
+		SP.place(root, "pipe_stack", pos, yaw + 90.0, _info(root))
+		return
 	match biome_of(root):
 		"boneyard":
 			if rng.randf() < 0.5:
@@ -105,6 +121,15 @@ static func cover_tall(root: Node3D, pos: Vector3, yaw: float, rng: RandomNumber
 ## Cover out in the wilds: a log, a boulder, a wreck.
 static func wild_cover(root: Node3D, pos: Vector3, rng: RandomNumberGenerator) -> void:
 	var yaw := rng.randf_range(0, 360)
+	if rng.randf() < 0.3:
+		# Left behind by the militia: a burnt-out jeep, tank traps, a drop pod.
+		var id: String = ["jeep", "tank_trap", "tank_trap", "supply_pod", "tire_stack", "cable_reel"][rng.randi() % 6]
+		SP.place(root, id, pos - Vector3(0, 0.05, 0), yaw, _info(root))
+		if id == "tank_trap":
+			for k in 2:
+				var a := rng.randf_range(0, TAU)
+				SP.place(root, id, pos + Vector3(cos(a), 0, sin(a)) * rng.randf_range(2.0, 3.0) - Vector3(0, 0.05, 0), rng.randf_range(0, 360), _info(root))
+		return
 	match biome_of(root):
 		"boneyard":
 			match rng.randi() % 3:
@@ -121,15 +146,41 @@ static func wild_cover(root: Node3D, pos: Vector3, rng: RandomNumberGenerator) -
 				F.rock(root, ["rock_a", "rock_b", "rock_c"][rng.randi() % 3], pos, yaw, rng.randf_range(1.0, 2.4))
 
 
-## The building a rooftop run is made of, its long side along Z. Returns
-## {roof: top centre of its roof, length: along Z, width: along X}.
-static func perch(root: Node3D, pos: Vector3, rng: RandomNumberGenerator) -> Dictionary:
-	match biome_of(root):
+## What a rooftop run is built from, picked once per run: the biome's own
+## (forest huts, stilt huts, stacked containers), a scaffold, or bunkers.
+## {id, length (along Z), width (along X)}.
+static func perch_style(biome: String, rng: RandomNumberGenerator) -> Dictionary:
+	var roll := rng.randf()
+	if roll < 0.25:
+		return {"id": "scaffold", "length": 6.2, "width": 7.0}
+	if roll < 0.4:
+		return {"id": "bunker", "length": 6.4, "width": 5.4}
+	match biome:
 		"marsh":
+			return {"id": "stilt_hut", "length": 6.1, "width": 4.8}
+		"boneyard":
+			return {"id": "containers", "length": 6.0, "width": 2.4}
+	return {"id": "hut", "length": 8.2, "width": 5.2}
+
+
+## The building a rooftop run is made of, its long side along Z. Returns
+## {roof: top centre of its roof, length: along Z, width: along X}. `toward`
+## is which way the road is (+1 or -1 in x), for a scaffold's steps.
+static func perch(root: Node3D, pos: Vector3, rng: RandomNumberGenerator, style := {}, toward := 1.0) -> Dictionary:
+	if style.is_empty():
+		style = perch_style(biome_of(root), rng)
+	match style["id"]:
+		"scaffold":
+			var placed := SP.place(root, "scaffold", pos, 0.0 if toward > 0.0 else 180.0, _info(root))
+			return {"roof": placed["tops"][0], "length": style["length"], "width": style["width"]}
+		"bunker":
+			var placed := SP.place(root, "bunker", pos, 90.0, _info(root))
+			return {"roof": placed["tops"][0], "length": style["length"], "width": style["width"]}
+		"stilt_hut":
 			# Stilt huts with their posts sunk in: the roof is 3.9 m up.
 			var roof := Z.stilt_hut(root, pos - Vector3(0, 1.5, 0), 90.0)
 			return {"roof": roof, "length": 6.1, "width": 4.8}
-		"boneyard":
+		"containers":
 			# Two containers stacked: 5.2 m up.
 			var tint: Color = Z.CONTAINER_TINTS[rng.randi() % Z.CONTAINER_TINTS.size()]
 			var top := Z.container(root, pos, 90.0, tint)
@@ -141,6 +192,12 @@ static func perch(root: Node3D, pos: Vector3, rng: RandomNumberGenerator) -> Dic
 
 ## A yard's barracks, broadside to the road (long along X). Returns its footprint size (x, z).
 static func barracks(root: Node3D, pos: Vector3, rng: RandomNumberGenerator) -> Vector2:
+	var roll := rng.randf()
+	if roll < 0.6:
+		# A bunker, a two-storey blockhouse (stairs up to a hook on its roof) or a garage.
+		var id: String = ["bunker", "blockhouse", "garage"][int(roll / 0.2)]
+		SP.place(root, id, pos, 0.0, _info(root))
+		return SP.size(id)
 	match biome_of(root):
 		"marsh":
 			Z.stilt_hut(root, pos - Vector3(0, 1.5, 0), 0.0)
@@ -154,7 +211,10 @@ static func barracks(root: Node3D, pos: Vector3, rng: RandomNumberGenerator) -> 
 
 
 ## A camp's big building. Returns its footprint size (x, z).
-static func centrepiece(root: Node3D, pos: Vector3) -> Vector2:
+static func centrepiece(root: Node3D, pos: Vector3, rng: RandomNumberGenerator = null) -> Vector2:
+	if rng != null and rng.randf() < 0.4:
+		SP.place(root, "warehouse", pos, 0.0, _info(root))
+		return SP.size("warehouse")
 	match biome_of(root):
 		"marsh":
 			Z.pump_house(root, pos, 90.0)
@@ -169,7 +229,11 @@ static func centrepiece(root: Node3D, pos: Vector3) -> Vector2:
 ## Clutter round a yard: something to hide behind that fits in about 3 x 3 m.
 static func yard_clutter(root: Node3D, pos: Vector3, rng: RandomNumberGenerator) -> void:
 	var yaw := rng.randf_range(0, 360)
-	var pick := rng.randi() % 5
+	var pick := rng.randi() % 10
+	if pick >= 5:
+		var id: String = ["fire_barrel", "tire_stack", "cable_reel", "jersey_barrier", "supply_pod"][pick - 5]
+		SP.place(root, id, pos - Vector3(0, 0.05, 0), yaw, _info(root))
+		return
 	match pick:
 		0:
 			F.barrels(root, pos, yaw)
@@ -189,7 +253,12 @@ static func yard_clutter(root: Node3D, pos: Vector3, rng: RandomNumberGenerator)
 
 
 ## The big piece in a yard's far corner: a fuel tank, a storage tank, a gantry.
-static func landmark(root: Node3D, pos: Vector3) -> Vector2:
+static func landmark(root: Node3D, pos: Vector3, rng: RandomNumberGenerator = null) -> Vector2:
+	if rng != null and rng.randf() < 0.6:
+		# Something tall with a hook on top to grapple: a silo, a water tower, a crane.
+		var id: String = ["silo", "water_tower", "tower_crane"][rng.randi() % 3]
+		SP.place(root, id, pos, [0.0, 90.0, 180.0, 270.0][rng.randi() % 4], _info(root))
+		return SP.size(id)
 	match biome_of(root):
 		"marsh":
 			Z.storage_tank(root, pos)

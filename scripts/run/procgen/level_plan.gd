@@ -30,6 +30,8 @@ extends RefCounted
 ##     other sits on the high lane's rooftops.
 ##   resource: a titan wreck off the lanes, with alloy to mine and a pair of
 ##     guards picking it over.
+##   ruins: a bombed-out hamlet: house shells along the road (wallrun their
+##     walls), a sniper upstairs, a sentry in the street.
 ##   chasm: a gap across the whole valley. The road has a blown bridge
 ##     (wallrun the hanging shield or grapple the crane), the gullies a fallen
 ##     log, the ridges rock pillars.
@@ -59,7 +61,7 @@ const BRIDGE_REACH := 2.0
 ## How long each kind of section is along the valley (m).
 const SECTION_LEN := {
 	"start": 36.0, "field": 44.0, "picket": 36.0, "wall": 28.0,
-	"outpost": 56.0, "camp": 56.0, "resource": 44.0, "chasm": 48.0, "end": 36.0,
+	"outpost": 56.0, "camp": 56.0, "resource": 44.0, "chasm": 48.0, "end": 36.0, "ruins": 48.0,
 }
 ## Flat ground round the spawn and the beacon.
 const SPAWN_CLEAR := 10.0
@@ -187,9 +189,9 @@ func _plan_sections(rng: RandomNumberGenerator) -> void:
 	# The beats between the start and the end: always an outpost, a camp, a wall
 	# and a chasm, topped up with fields, pickets and resource sites. Longer
 	# further into the run.
-	var extra := 1 + clampi(zone_index - 3, 0, 2)
+	var extra := 2 + clampi(zone_index - 3, 0, 2)
 	var middle := ["outpost", "camp", "wall", "chasm"]
-	var fillers := ["field", "picket", "resource", "field"]
+	var fillers := ["field", "picket", "resource", "field", "ruins"]
 	for i in extra:
 		middle.append(fillers[rng.randi() % fillers.size()])
 	if rng.randf() < 0.35 + 0.15 * clampi(zone_index - 3, 0, 2):
