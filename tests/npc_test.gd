@@ -57,6 +57,13 @@ func _run() -> void:
 		_check("%s is fully textured" % who, bare.is_empty(), bare)
 
 	_check("Ophelia starts in her tee", run_node.hub_npcs["ophelia"].outfit == "tee", run_node.hub_npcs["ophelia"].outfit)
+	for who in ["mom", "ophelia"]:
+		var list: Array = run_node.hub_npcs[who].OUTFITS[who]
+		var gone := []
+		for i in range(1, list.size()):
+			if not ResourceLoader.exists("res://assets/textures/npc/%s/body_%s.png" % [who, list[i]]):
+				gone.append(list[i])
+		_check("%s has all %d outfits" % [who, list.size()], gone.is_empty() and list.has("lingerie"), gone)
 
 	# Every line in every conversation babbles, one beat per character.
 	var missing := []
