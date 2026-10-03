@@ -1,11 +1,13 @@
 extends SceneTree
 ## Screenshots of Solace, Eco's hometown past the hub's front gate (town.gd).
-##   xvfb-run -a godot --path . -s res://tools/hub/town_shots.gd -- [out_dir] [--only=gate,row,...]
+##   xvfb-run -a godot --path . -s res://tools/hub/town_shots.gd -- [out_dir] [--only=gate,row,...] [--small]
 ## Needs a renderer (not --headless). Writes <out_dir>/town_<view>.png.
 
 var run_node
 var out := "user://town_shots"
 var only: Array[String] = []
+## --small renders at 960x540 (much quicker on a software renderer).
+var small := false
 
 ## name: [eye position (feet), look-at point]
 const VIEWS := {
@@ -27,10 +29,12 @@ func _initialize() -> void:
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("--only="):
 			only.assign(a.trim_prefix("--only=").split(","))
+		elif a == "--small":
+			small = true
 		elif not a.begins_with("--"):
 			out = a
 	DirAccess.make_dir_recursive_absolute(out)
-	root.size = Vector2i(1600, 900)
+	root.size = Vector2i(960, 540) if small else Vector2i(1600, 900)
 	preload("res://scripts/run/tutorial.gd").settings_path = "user://shots_settings.cfg"
 	run_node = load("res://scenes/run.tscn").instantiate()
 	run_node.run_seed = 1234

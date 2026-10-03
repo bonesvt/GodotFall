@@ -70,7 +70,9 @@ static func build(root: Node3D, info: Dictionary) -> void:
 # --- ground and boundary ----------------------------------------------------------
 
 static func _ground(root: Node3D) -> void:
-	Kit.box(root, Vector3(0, -1.0, 150), Vector3(900, 2.0, 1100), K.STONE, Vector3.ZERO, Art.material("grass"))
+	Kit.box(root, Vector3(0, -1.0, 0), Vector3(600, 2.0, 600), K.STONE, Vector3.ZERO, Art.material("grass"))
+	# Grass on out to the far turbines and the city past the town (no collision, nobody walks there).
+	K.mesh(root, Vector3(0, -0.02, 600), Vector3(900, 0.02, 600), Art.material("grass"))
 	var dirt := Art.material("dirt")
 	# Worn paths from the plaza to each area, and round the temple to the course.
 	for spec in [[Vector3(20, 0.02, 16), Vector3(10, 0.04, 4)], [Vector3(-18, 0.02, 16), Vector3(6, 0.04, 4)],
