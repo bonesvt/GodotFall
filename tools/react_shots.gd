@@ -82,13 +82,14 @@ func _go() -> void:
 	var react = player.get_node("EcoBody").react
 	view.set_third_person(true)
 
-	# feet across the slide ramp, seen from the downhill side (the orbit frames it)
+	# feet across the slide ramp (it rises along -Z), seen from in front so the
+	# uphill and downhill foot sit side by side
 	var ramp := _ground(player, Vector3(-25, 0, -30))
 	_place(player, ramp + Vector3.UP * 0.1, deg_to_rad(-90.0))
 	player.strolling = true
 	await _frames(30)
-	view.orbit_yaw = deg_to_rad(-90.0) + PI * 0.5
-	view.orbit_pitch = deg_to_rad(-5.0)
+	view.orbit_yaw = deg_to_rad(90.0)
+	view.orbit_pitch = deg_to_rad(-10.0)
 	await _frames(40)
 	_save("4_slope_feet")
 

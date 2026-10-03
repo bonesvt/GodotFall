@@ -77,6 +77,9 @@ func _run() -> void:
 	player.strolling = true
 	await _ticks(60)
 	_check("orbits while strolling", view.orbiting, view.orbiting)
+	var hud = root.get_node("TestLevel").find_child("HUD", true, false)
+	if hud != null and hud.get("crosshair") != null:
+		_check("no crosshair while orbiting", not hud.crosshair.visible, hud.crosshair.visible)
 	var yaw_before: float = player.rotation.y
 	view.orbit_yaw = deg_to_rad(90.0)  # swing the camera round to her right
 	await _ticks(10)
