@@ -130,7 +130,7 @@ func _partners() -> void:
 	_check("asking her starts a talk", run_node.npc_talk.active() and run_node.gym_partner == "", run_node.npc_talk.current_line())
 	await _talk_through()
 	var wait: Dictionary = info["gym_wait"]
-	_check("Mom waits in the gym", run_node.gym_partner == "mom" and mom.global_position.distance_to(wait["pos"]) < 0.1 and mom.outfit == "tight", [run_node.gym_partner, mom.global_position, mom.outfit])
+	_check("Mom waits in the gym", run_node.gym_partner == "mom" and mom.global_position.distance_to(wait["pos"]) < 0.1 and mom.outfit == "home", [run_node.gym_partner, mom.global_position, mom.outfit])
 	_check("her talk spot goes with her", _npc_spot(info, "mom")["pos"].distance_to(wait["pos"]) < 0.1, _npc_spot(info, "mom")["pos"])
 	var expected := Gym.fresh()
 	for id: String in Gym.WORKOUTS:
@@ -181,7 +181,7 @@ func _partners() -> void:
 	_check("asking Ophelia is a date", run_node.gym_date and run_node.npc_talk.affection("ophelia") == before + 8, [run_node.gym_date, run_node.npc_talk.affection("ophelia")])
 	await _talk_through()
 	_check("Ophelia waits in the gym, Mom goes home", run_node.gym_partner == "ophelia" and oph.global_position.distance_to(info["gym_wait"]["pos"]) < 0.1
-			and mom.global_position.distance_to(info["gym_wait"]["pos"]) > 3.0 and mom.outfit != "tight", [oph.global_position, mom.global_position, mom.outfit])
+			and mom.global_position.distance_to(info["gym_wait"]["pos"]) > 3.0 and oph.outfit == "tight", [oph.global_position, mom.global_position, mom.outfit])
 	await _stand_at(_spot(info, "crunch")["pos"])
 	await _press("interact")
 	await _ticks(2)

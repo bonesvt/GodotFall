@@ -69,6 +69,8 @@ func _go() -> void:
 		# The room from the door in Biggie's den, and from the far corner.
 		await _shot("0-gym-from-door", Vector3(GymRoom.DOOR_X, f, -37.6), Vector3(8.0, f + 0.9, -43.5))
 		await _shot("0-gym-corner", Vector3(5.2, f, -44.8), Vector3(11.5, f + 0.8, -39.5))
+		if partner != "":
+			await _shot("0-gym-waiting", Vector3(9.5, f, -41.5), GymRoom.WAIT_SPOT["pos"] + Vector3(0, f + 0.4, 0))
 	for id: String in Gym.WORKOUTS:
 		if not only.is_empty() and not id in only:
 			continue

@@ -618,7 +618,7 @@ func _wait_in_gym(who: String) -> void:
 	gym_partner = who
 	var npc: Node3D = hub_npcs[who]
 	NpcIdles.place(npc, "gym", wait, zone_info)
-	npc.wear("tight")
+	npc.wear(GymWorkout.GYM_CLOTHES.get(who, ""))
 
 
 ## Where hub_rooms.gd first stood `who` ({pos, yaw, anim}).

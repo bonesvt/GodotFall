@@ -69,6 +69,7 @@ const SHOTS := {
 const PARTNER_SHOTS := {
 	"squat": {2: {"from": Vector3(1.05, 1.3, -1.85), "to": Vector3(0.95, 1.3, -1.7), "look": Vector3(0.72, 1.0, 0), "fov": 55.0}},
 	"pullup": {2: {"from": Vector3(0.6, 1.6, -2.3), "to": Vector3(0.65, 1.65, -2.1), "look": Vector3(0.62, 1.85, -0.25), "fov": 52.0}},
+	"bag": {2: {"from": Vector3(2.2, 1.5, -0.5), "to": Vector3(2.1, 1.5, -0.65), "look": Vector3(0, 1.3, -0.6), "fov": 50.0}},
 	"crunch": {2: {"from": Vector3(-0.45, 1.7, 3.0), "to": Vector3(-0.45, 1.6, 2.8), "look": Vector3(-0.45, 0.25, 1.0), "fov": 50.0}},
 	"bridge": {
 		1: {"from": Vector3(-2.2, 1.5, 1.9), "to": Vector3(-2.1, 1.45, 1.7), "look": Vector3(0, 0.35, 0.7), "fov": 46.0},
@@ -84,7 +85,10 @@ const MOM_SHOTS := {
 		1: {"from": Vector3(-1.7, 1.35, -0.4), "to": Vector3(-1.65, 1.3, -0.25), "look": Vector3(0.6, 0.95, 0), "fov": 52.0},
 	},
 	"bridge": {0: {"from": Vector3(1.9, 1.15, 1.1), "to": Vector3(1.85, 1.1, 1.25), "look": Vector3(-0.45, 0.3, 1.1), "fov": 52.0}},
+	"pullup": {0: {"from": Vector3(0.6, 1.2, -2.3), "to": Vector3(0.62, 1.25, -2.15), "look": Vector3(0.62, 1.55, -0.25), "fov": 55.0}},
 }
+## What each partner wears to train (hub_npc.gd OUTFITS).
+const GYM_CLOTHES := {"mom": "home", "ophelia": "tight"}
 ## How far (s) the partner's reps run behind hers, so they don't move in
 ## lockstep. At the bag they move with her punches.
 const PARTNER_LAG := 0.35
@@ -210,7 +214,7 @@ func _ready_partner() -> void:
 	npc.posed = true
 	npc.set_fitness(get_meta("fitness", {}))
 	body.add_child(npc)
-	npc.wear("tight")
+	npc.wear(GYM_CLOTHES.get(partner, ""))
 	if npc._anim != null:
 		npc._anim.stop()
 	time = leader.time
@@ -453,7 +457,7 @@ func _pose_squat() -> void:
 		_leg(side, ankle, Vector3(x * 0.35, 0, -1), Vector3(x * 0.25, 0, -1))
 	if leader != null:
 		# a goblet squat: a dumbbell held upright against the chest, elbows in
-		var at_chest: Vector3 = _rest["upper_chest"].origin + Vector3(0, -0.06, -0.2)
+		var at_chest: Vector3 = _rest["upper_chest"].origin + Vector3(0, -0.06, -0.27)
 		var held := _follow("upper_chest", at_chest)
 		for side in ["L", "R"]:
 			var x := 1.0 if side == "R" else -1.0
@@ -571,11 +575,12 @@ func _pose_hold_bag() -> void:
 	_leg("L", _rest["foot.L"].origin + Vector3(-0.04, 0, -0.12), Vector3(-0.3, 0, -1), Vector3(-0.2, 0, -1))
 	_leg("R", _rest["foot.R"].origin + Vector3(0.06, 0, 0.2), Vector3(0.3, 0, -1), Vector3(0.3, 0, -1))
 	var to_skel := _sk.global_transform.affine_inverse()
-	var bag := to_skel * _world(Vector3(0, 1.3, -(1.2 - 0.78)))
+	var bag := to_skel * _world(Vector3(0, 1.15, -(1.2 - 0.78)))
 	for side in ["L", "R"]:
 		var x := 1.0 if side == "R" else -1.0
-		_arm(side, bag + Vector3(x * 0.2, (0.08 if side == "L" else -0.06), 0.05), Vector3(x, -0.6, 0.3))
-		_grip(side, 0.5)
+		# wrists on the sides of the bag, a little past its middle, hands round it
+		_arm(side, bag + Vector3(x * 0.2, (0.08 if side == "L" else -0.06), -0.04), Vector3(x, -0.6, 0.3))
+		_grip(side, 0.85)
 
 
 func _pose_of(key: String) -> Transform3D:
