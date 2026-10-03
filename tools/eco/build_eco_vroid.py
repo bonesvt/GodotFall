@@ -1709,9 +1709,10 @@ def bake_tone(body):
     # Her stomach and abs are heights the game shades as contours on the
     # skin-tight suit (lit on the slopes toward the light, a crisp shadow on
     # the far side) with thin ink lines in the deepest grooves.
-    # stomach (alpha), what a tighter stomach shows first: the line down the
-    # middle, the outer edges of the abs and the V lines down toward her hips
-    # (stopping well above the suit's leg line), over a softly rounded front.
+    # stomach (alpha), what a tighter stomach shows first, kept soft and
+    # feminine: a shallow line down the middle, fainter outer edges and V
+    # lines toward her hips (stopping well above the suit's leg line), over
+    # a gently rounded front.
     front = g.sub(1.0, g.sstep(-0.075, -0.05, y))
     rows = g.mul(g.sstep(0.868, 0.885, z), g.sstep(1.0, 0.985, z))
     inner = g.sstep(0.05, 0.038, ax)
@@ -1721,13 +1722,13 @@ def bake_tone(body):
         mid = g.mul(line(x, 0.0, w), rows)
         edge = g.mul(line(ax, g.add(0.046, g.mul(g.sub(z, 0.93), -0.06)), w * 1.1), rows)
         obl = g.mul(g.mul(line(ax, g.add(0.034, g.mul(t, 0.026)), w), g.sstep(0.85, 0.862, z)), g.sstep(0.905, 0.89, z))
-        return g.mx(g.mx(mid, edge), g.mul(obl, 0.85))
+        return g.mx(g.mx(mid, g.mul(edge, 0.55)), g.mul(obl, 0.4))
 
-    dome = g.mul(g.mul(rows, inner), g.sub(1.0, stomach_lines(0.012)))
-    stomach_v = g.mul(g.sub(g.mul(dome, 0.35), g.mul(stomach_lines(0.0045), 0.85)), front)
+    dome = g.mul(g.mul(rows, inner), g.sub(1.0, stomach_lines(0.014)))
+    stomach_v = g.mul(g.sub(g.mul(dome, 0.2), g.mul(stomach_lines(0.006), 0.6)), front)
 
-    # abs (red): the three rows across above her belly button, splitting the
-    # front into pads, each a rounder dome between its grooves.
+    # abs (red), only near the top of her training (eco_toon.gdshaderinc):
+    # faint rows across above her belly button, softly splitting the front.
     def ab_rows(w):
         across = None
         for zc in (0.905, 0.937, 0.968):
@@ -1736,7 +1737,7 @@ def bake_tone(body):
         return g.mx(g.mul(across, g.sstep(0.044, 0.03, ax)), g.mul(stomach_lines(w), 0.6))
 
     pads = g.mul(g.mul(rows, inner), g.sub(1.0, ab_rows(0.011)))
-    abs_v = g.mul(g.sub(g.mul(pads, 0.6), g.mul(ab_rows(0.0045), 0.85)), front)
+    abs_v = g.mul(g.sub(g.mul(pads, 0.3), g.mul(ab_rows(0.006), 0.5)), front)
     # arms: shoulder cap edge, biceps and triceps, the line between them underneath
     dy = g.sub(y, 0.022)
     dz = g.sub(z, 1.1445)

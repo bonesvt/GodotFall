@@ -52,10 +52,12 @@ uniform float emission_energy = 0.0;
 uniform sampler2D tone_tex : hint_default_black, filter_linear_mipmap;
 uniform bool use_tone = false;
 // How steep the contours read, where their shadow starts, how bright the
-// gloss on the suit gets, and the ink lines on skin.
+// gloss on the suit gets, how much paler the suit is over muscle, and the
+// ink lines on skin.
 uniform float tone_bump = 3.5;
 uniform float tone_shadow = 0.3;
 uniform float tone_gloss = 0.14;
+uniform float tone_stretch = 0.05;
 uniform vec3 tone_ink = vec3(0.62, 0.45, 0.47);
 // Suit upgrade armour edges: how brightly they glow gold once her trims turn gold.
 uniform float gold_edge = 0.0;
@@ -96,12 +98,16 @@ void fragment() {
 	v_form = vec3(0.0);
 	v_suit = mask.g;
 	if (use_tone && dot(tone, vec4(1.0)) > 0.0) {
+		// a woman's athletic stomach: abs only show near the top of her training
+		vec4 w = vec4(smoothstep(0.6, 1.0, tone.x) * 0.55, tone.yzw);
 		vec2 px = 2.5 / vec2(textureSize(tone_tex, 0));
-		float h = dot(texture(tone_tex, UV) * 2.0 - 1.0, tone);
-		float hu = dot(texture(tone_tex, UV + vec2(px.x, 0.0)) - texture(tone_tex, UV - vec2(px.x, 0.0)), tone);
-		float hv = dot(texture(tone_tex, UV + vec2(0.0, px.y)) - texture(tone_tex, UV - vec2(0.0, px.y)), tone);
+		float h = dot(texture(tone_tex, UV) * 2.0 - 1.0, w);
+		float hu = dot(texture(tone_tex, UV + vec2(px.x, 0.0)) - texture(tone_tex, UV - vec2(px.x, 0.0)), w);
+		float hv = dot(texture(tone_tex, UV + vec2(0.0, px.y)) - texture(tone_tex, UV - vec2(0.0, px.y)), w);
 		v_form = (TANGENT * hu - BINORMAL * hv) * tone_bump;   // texture v runs down
 		col *= mix(vec3(1.0), tone_ink, smoothstep(0.68, 0.85, -h) * (1.0 - mask.g));
+		// the suit stretched over her toned stomach reads a little paler
+		col += sheen_color * tone_stretch * smoothstep(0.0, 0.25, (texture(tone_tex, UV).a * 2.0 - 1.0) * w.w) * mask.g;
 	}
 	ALBEDO = col * exposure;
 	if (use_normal) {
@@ -132,7 +138,7 @@ void light() {
 	// suit a gloss over the slopes toward it
 	float form = dot(v_form, LIGHT);
 	lit *= 1.0 - smoothstep(tone_shadow - 0.03, tone_shadow + 0.03, form);
-	float gloss = smoothstep(0.02, 0.3, -form) * lit * v_suit;
+	float gloss = smoothstep(0.03, 0.5, -form) * lit * v_suit;
 	vec3 radiance = ATTENUATION * LIGHT_COLOR / PI;
 	DIFFUSE_LIGHT += mix(v_shade, vec3(1.0), lit) * radiance;
 	// rim: light added straight on top, so it reads on dark suit and pale skin alike
