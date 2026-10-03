@@ -35,9 +35,9 @@ uniform float light_wrap : hint_range(0.0, 1.0) = 0.3;
 uniform float light_softness : hint_range(0.01, 1.0) = 0.35;
 uniform float rim : hint_range(0.0, 1.0) = 0.3;
 
-instance uniform float flash = 0.0;
-instance uniform float glow = 1.0;
-instance uniform vec4 paint : source_color = vec4(1.0);
+instance uniform float flash : instance_index(0) = 0.0;
+instance uniform float glow : instance_index(1) = 1.0;
+instance uniform vec4 paint : source_color, instance_index(2) = vec4(1.0);
 
 varying vec3 v_pos;
 varying vec3 v_normal;
