@@ -87,8 +87,8 @@ static func _npc(info: Dictionary, who: String, name: String, pos: Vector3, yaw:
 
 
 static func _rug(root: Node3D, pos: Vector3, size: Vector2, tint: Color, yaw := 0.0) -> void:
-	K.mesh(root, Vector3(pos.x, F + 0.015, pos.z), Vector3(size.x, 0.03, size.y), Art.material("fabric", tint), Vector3(0, yaw, 0))
-	K.mesh(root, Vector3(pos.x, F + 0.02, pos.z), Vector3(size.x - 0.3, 0.03, size.y - 0.3), Art.material("fabric", tint.lightened(0.2)), Vector3(0, yaw, 0))
+	K.mesh(root, Vector3(pos.x, F + 0.015, pos.z), Vector3(size.x, 0.03, size.y), Art.material("canvas", tint), Vector3(0, yaw, 0))
+	K.mesh(root, Vector3(pos.x, F + 0.02, pos.z), Vector3(size.x - 0.3, 0.03, size.y - 0.3), Art.material("canvas", tint.lightened(0.2)), Vector3(0, yaw, 0))
 
 
 # --- Mom ------------------------------------------------------------------------
@@ -199,7 +199,9 @@ static func _ophelia(root: Node3D, info: Dictionary) -> void:
 		var h: float = spec[1]
 		K.mesh(root, c + spec[0] + Vector3(0, h * 0.5 - 0.06, 0), Vector3(0.08, h, 0.08), Art.material("canvas", Color(0.92, 0.9, 0.85)))
 		K.glow(root, c + spec[0] + Vector3(0, h - 0.02, 0), Vector3(0.03, 0.06, 0.03), CANDLE)
-	K.light(root, c + Vector3(0, 0.9, 0.4), CANDLE, 0.8, 4.0)
+	K.light(root, c + Vector3(0, 0.9, 0.4), CANDLE, 1.4, 5.0)
+	# a violet wash over the far corner, so the back of the room isn't black
+	K.light(root, Vector3(x1 - 1.0, F + 2.2, zb + 3.0), VIOLET, 1.8, 7.0)
 	# Posters on the side wall: band art, all black, white and blood red.
 	var posters := [[Color(0.85, 0.85, 0.85), Color(0.6, 0.05, 0.08)], [Color(0.1, 0.1, 0.1), Color(0.9, 0.9, 0.9)], [Color(0.55, 0.1, 0.5), Color(0.05, 0.05, 0.05)]]
 	for i in 3:
@@ -250,7 +252,7 @@ static func _biggie(root: Node3D, info: Dictionary) -> void:
 			K.mesh(root, cot + Vector3(dx, 0.2, dz), Vector3(0.05, 0.4, 0.05), Art.material("gunmetal"))
 	K.mesh(root, cot + Vector3(0, 0.42, 0), Vector3(0.75, 0.06, 2.0), olive)
 	K.mesh(root, cot + Vector3(0, 0.48, 0.25), Vector3(0.72, 0.06, 1.4), Art.material("fabric", Color(0.4, 0.42, 0.3)), Vector3(0, 2, 0))
-	K.mesh(root, cot + Vector3(0, 0.52, -0.75), Vector3(0.5, 0.12, 0.35), Art.material("fabric", Color(0.8, 0.78, 0.7)))
+	K.mesh(root, cot + Vector3(0, 0.52, -0.75), Vector3(0.5, 0.12, 0.35), Art.material("canvas", Color(0.8, 0.78, 0.7)))
 	# Footlocker at the cot's foot, stencilled.
 	K.wood(root, cot + Vector3(-0.1, 0.25, 1.45), Vector3(0.9, 0.5, 0.5))
 	K.mesh(root, cot + Vector3(-0.1, 0.51, 1.45), Vector3(0.92, 0.03, 0.52), Art.material("canvas", Color(0.5, 0.55, 0.35)))
@@ -264,7 +266,7 @@ static func _biggie(root: Node3D, info: Dictionary) -> void:
 	for seg in [[Vector3(-0.8, 0.3, 0.025), Vector3(-0.2, -0.2, 0.025)], [Vector3(-0.2, -0.2, 0.025), Vector3(0.9, -0.4, 0.025)]]:
 		var a: Vector3 = mp + seg[0]
 		var b: Vector3 = mp + seg[1]
-		var s := K.mesh(root, (a + b) * 0.5, Vector3(a.distance_to(b), 0.012, 0.01), Art.material("fabric", Color(0.8, 0.1, 0.1)))
+		var s := K.mesh(root, (a + b) * 0.5, Vector3(a.distance_to(b), 0.012, 0.01), Art.material("canvas", Color(0.8, 0.1, 0.1)))
 		s.rotation_degrees.z = rad_to_deg(atan2(b.y - a.y, b.x - a.x))
 	for i in 3:
 		var ph := K.mesh(root, mp + Vector3(1.6 + (i % 2) * 0.3, 0.4 - i * 0.4, 0.0), Vector3(0.24, 0.3, 0.02), Art.material("light"))
@@ -277,13 +279,13 @@ static func _biggie(root: Node3D, info: Dictionary) -> void:
 	K.mesh(root, t + Vector3(-0.3, 0.77, 0.1), Vector3(0.5, 0.02, 0.4), Art.material("light"), Vector3(0, 12, 0))  # a field manual
 	# His tea things: a clay pot and two cups, one for whoever drops by.
 	var pot := t + Vector3(0.42, 0.75, -0.1)
-	var clay := Art.material("fabric", Color(0.55, 0.3, 0.18))
+	var clay := Art.material("canvas", Color(0.55, 0.3, 0.18))
 	K.mesh(root, pot + Vector3(0, 0.08, 0), Vector3(0.2, 0.15, 0.2), clay, Vector3(0, 45, 0))
 	K.mesh(root, pot + Vector3(0, 0.17, 0), Vector3(0.1, 0.03, 0.1), clay, Vector3(0, 45, 0))
 	K.mesh(root, pot + Vector3(0.14, 0.11, 0), Vector3(0.12, 0.03, 0.03), clay, Vector3(0, 0, 30))  # spout
 	K.mesh(root, pot + Vector3(-0.12, 0.1, 0), Vector3(0.03, 0.1, 0.06), clay)  # handle
 	for i in 2:
-		K.mesh(root, pot + Vector3(-0.05 + i * 0.16, 0.03, 0.2), Vector3(0.07, 0.06, 0.07), Art.material("fabric", Color(0.85, 0.8, 0.7)))
+		K.mesh(root, pot + Vector3(-0.05 + i * 0.16, 0.03, 0.2), Vector3(0.07, 0.06, 0.07), Art.material("canvas", Color(0.85, 0.8, 0.7)))
 	for dz in [0.75]:
 		K.wood(root, t + Vector3(0.5, 0.25, dz), Vector3(0.6, 0.5, 0.4))
 	var radio := Vector3(x0 + 0.8, F, zb + 1.4)
@@ -294,15 +296,15 @@ static func _biggie(root: Node3D, info: Dictionary) -> void:
 	# Beer cooler and empties.
 	var cooler := Vector3(x0 + 0.7, F, zb + 3.6)
 	K.metal(root, cooler + Vector3(0, 0.25, 0), Vector3(0.6, 0.5, 0.9))
-	K.mesh(root, cooler + Vector3(0, 0.52, 0), Vector3(0.62, 0.06, 0.92), Art.material("fabric", Color(0.7, 0.2, 0.15)))
+	K.mesh(root, cooler + Vector3(0, 0.52, 0), Vector3(0.62, 0.06, 0.92), Art.material("canvas", Color(0.7, 0.2, 0.15)))
 	for i in 7:
-		var b := K.mesh(root, cooler + Vector3(0.6 + (i % 3) * 0.22, 0.11 if i < 5 else 0.05, -0.4 + i * 0.16), Vector3(0.08, 0.22, 0.08), Art.material("fabric", Color(0.35, 0.5, 0.25) if i % 2 else Color(0.5, 0.35, 0.15)))
+		var b := K.mesh(root, cooler + Vector3(0.6 + (i % 3) * 0.22, 0.11 if i < 5 else 0.05, -0.4 + i * 0.16), Vector3(0.08, 0.22, 0.08), Art.material("canvas", Color(0.35, 0.5, 0.25) if i % 2 else Color(0.5, 0.35, 0.15)))
 		if i >= 5:
 			b.rotation_degrees.z = 90
 	# Dartboard on the side wall with three darts in it, and a helmet on a hook.
 	var dart := Vector3(x0 + 0.03, F + 1.8, zb + 5.2)
-	K.mesh(root, dart, Vector3(0.04, 0.5, 0.5), Art.material("fabric", Color(0.15, 0.15, 0.12)), Vector3(45, 0, 0))
-	K.mesh(root, dart + Vector3(0.02, 0, 0), Vector3(0.02, 0.3, 0.3), Art.material("fabric", Color(0.7, 0.15, 0.1)), Vector3(45, 0, 0))
+	K.mesh(root, dart, Vector3(0.04, 0.5, 0.5), Art.material("canvas", Color(0.15, 0.15, 0.12)), Vector3(45, 0, 0))
+	K.mesh(root, dart + Vector3(0.02, 0, 0), Vector3(0.02, 0.3, 0.3), Art.material("canvas", Color(0.7, 0.15, 0.1)), Vector3(45, 0, 0))
 	K.glow(root, dart + Vector3(0.03, 0, 0), Vector3(0.02, 0.06, 0.06), Color(0.9, 0.85, 0.3))
 	K.mesh(root, Vector3(x0 + 0.15, F + 1.9, zb + 3.6), Vector3(0.3, 0.2, 0.34), Art.material("canvas", Color(0.45, 0.5, 0.35)))  # helmet
 	K.mesh(root, Vector3(x0 + 0.15, F + 1.4, zb + 4.3), Vector3(0.12, 0.9, 0.5), Art.material("canvas", Color(0.4, 0.45, 0.3)))  # a jacket on a nail

@@ -92,5 +92,10 @@ static func make_material(who: String, key: String, source: Material) -> Materia
 		if spec[4] > 0.0:
 			ink.set_shader_parameter("albedo_tex", tex)
 			ink.set_shader_parameter("alpha_cut", spec[4])
+		if part.begins_with("hair"):
+			# The plain brown-grey ink is unlit, so on dark hair it stood out as
+			# light strand lines; take a darker shade of the hair itself instead.
+			ink.set_shader_parameter("ink", Color(0.45, 0.45, 0.45))
+			ink.set_shader_parameter("tint", 1.0)
 		mat.next_pass = ink
 	return mat
