@@ -8,6 +8,8 @@ extends RefCounted
 ##   west (-X)  the shooting range: a firing line and pop-up targets out to 40 m
 ##   back (-Z)  the movement course: jumps, a wallrun, a climb, a grapple and a
 ##              long slide back down, timed from the start pad to the finish tower
+##   past the front gate, the old pilgrim road runs down to Solace, Eco's
+##   hometown (town.gd)
 ##
 ## The temple sits in the middle at the origin (hub_builder.gd). Ground is y = 0.
 
@@ -19,6 +21,7 @@ const TitanDummy := preload("res://scripts/hub/titan_dummy.gd")
 const Ambient := preload("res://scripts/hub/ambient.gd")
 const Props := preload("res://scripts/hub/hub_props.gd")
 const TITAN_PAINT := preload("res://assets/shaders/titan_paint.gdshader")
+const Town := preload("res://scripts/hub/town.gd")
 
 ## The boundary wall runs at x = +-WALL_X, z = WALL_BACK and z = WALL_FRONT.
 const WALL_X := 72.0
@@ -61,12 +64,13 @@ static func build(root: Node3D, info: Dictionary) -> void:
 	_paint_shop(root, info)
 	_greenery(root, rng)
 	_birds(root)
+	Town.build(root, info)
 
 
 # --- ground and boundary ----------------------------------------------------------
 
 static func _ground(root: Node3D) -> void:
-	Kit.box(root, Vector3(0, -1.0, 0), Vector3(600, 2.0, 600), K.STONE, Vector3.ZERO, Art.material("grass"))
+	Kit.box(root, Vector3(0, -1.0, 150), Vector3(900, 2.0, 1100), K.STONE, Vector3.ZERO, Art.material("grass"))
 	var dirt := Art.material("dirt")
 	# Worn paths from the plaza to each area, and round the temple to the course.
 	for spec in [[Vector3(20, 0.02, 16), Vector3(10, 0.04, 4)], [Vector3(-18, 0.02, 16), Vector3(6, 0.04, 4)],
@@ -115,16 +119,16 @@ static func _boundary(root: Node3D, rng: RandomNumberGenerator) -> void:
 				var vh := rng.randf_range(1.5, 4.0)
 				var vine_size := Vector3(1.8, vh, 2.0) if absf(along.z) > 0.5 else Vector3(2.0, vh, 1.8)
 				K.mesh(root, v + Vector3(0, h - vh * 0.5, 0), vine_size, Art.material("moss"))
-	# The old main gate, choked with rubble and a fallen lintel.
+	# The old main gate, its rubble shoved aside so the road to town runs through.
 	var gate := Vector3(0, 0, WALL_FRONT)
 	for s in [-1.0, 1.0]:
 		K.stone(root, gate + Vector3(s * 6.5, 4.5, 0), Vector3(3, 9, 3), Vector3.ZERO, tint)
 		K.carved(root, gate + Vector3(s * 6.5, 8.0, 1.55), Vector3(2.6, 1.6, 0.2))
 	K.stone(root, gate + Vector3(0, 9.6, 0), Vector3(16, 1.6, 3), Vector3.ZERO, tint)
 	K.carved(root, gate + Vector3(0, 9.6, -1.55), Vector3(10, 1.4, 0.2))
-	K.stone(root, gate + Vector3(-1.5, 1.4, 0), Vector3(6, 2.8, 3), Vector3(0, 10, 4), tint)
-	K.stone(root, gate + Vector3(2.5, 1.0, -0.5), Vector3(4, 2.0, 3), Vector3(0, -20, 0), tint)
-	K.stone(root, gate + Vector3(0.5, 3.3, 0.3), Vector3(4, 1.6, 2.4), Vector3(0, 30, 8), tint)
+	K.stone(root, gate + Vector3(-10.5, 1.0, -3.0), Vector3(4, 2.0, 3), Vector3(0, 10, 4), tint)
+	K.stone(root, gate + Vector3(10.0, 0.8, -3.2), Vector3(3, 1.6, 2.4), Vector3(0, -20, 0), tint)
+	K.mesh(root, gate + Vector3(0, 0.03, -3.0), Vector3(6, 0.04, 8), Art.material("dirt"))
 	# Jungle outside the wall, thick enough that you only see trees: one batched
 	# draw per tree model.
 	var jungle := {}
@@ -134,7 +138,8 @@ static func _boundary(root: Node3D, rng: RandomNumberGenerator) -> void:
 		var p := Vector3.ZERO
 		while true:
 			p = Vector3(rng.randf_range(-WALL_X - 34, WALL_X + 34), 0, rng.randf_range(WALL_BACK - 34, WALL_FRONT + 34))
-			if absf(p.x) > WALL_X + 2.5 or p.z < WALL_BACK - 2.5 or p.z > WALL_FRONT + 2.5:
+			var on_road := absf(p.x) < Town.ROAD_HALF + 4.0 and p.z > WALL_FRONT
+			if (absf(p.x) > WALL_X + 2.5 or p.z < WALL_BACK - 2.5 or p.z > WALL_FRONT + 2.5) and not on_road:
 				break
 		var id: String = Props.TREES[i % Props.TREES.size()]
 		var basis := Basis(Vector3.UP, rng.randf_range(0, TAU)).scaled(Vector3.ONE * rng.randf_range(1.0, 1.6))
@@ -146,11 +151,16 @@ static func _boundary(root: Node3D, rng: RandomNumberGenerator) -> void:
 		var ang := TAU * i / 18.0 + rng.randf_range(-0.06, 0.06)
 		var dist := rng.randf_range(175.0, 215.0)
 		var base := Vector3(sin(ang) * dist, -3.0, cos(ang) * dist)
+		# Hills in front would sit on the town: push those back to frame it instead.
+		if base.z > 0.0 and absf(base.x) < Town.TOWN_HALF + 70.0:
+			base *= 1.7
 		Props.spawn(root, "hill_a" if i % 2 == 0 else "hill_b", base, rng.randf_range(0, 360), rng.randf_range(0.8, 1.15),
 				{"hill_forest": LEAF_TINTS[i % LEAF_TINTS.size()]})
 	# Invisible fence a few metres outside the wall.
 	for spec in [[Vector3(-WALL_X - 5, 0, 0), Vector3(1, 60, 400)], [Vector3(WALL_X + 5, 0, 0), Vector3(1, 60, 400)],
-			[Vector3(0, 0, WALL_BACK - 5), Vector3(400, 60, 1)], [Vector3(0, 0, WALL_FRONT + 5), Vector3(400, 60, 1)]]:
+			[Vector3(0, 0, WALL_BACK - 5), Vector3(400, 60, 1)],
+			[Vector3(-104, 0, WALL_FRONT + 5), Vector3(192, 60, 1)],
+			[Vector3(104, 0, WALL_FRONT + 5), Vector3(192, 60, 1)]]:
 		var fence := StaticBody3D.new()
 		var col := CollisionShape3D.new()
 		col.shape = BoxShape3D.new()
@@ -543,6 +553,8 @@ static func _greenery(root: Node3D, rng: RandomNumberGenerator) -> void:
 			1: p = Vector3(WALL_X - 2.5, 0, lerpf(WALL_BACK, WALL_FRONT, t))
 			2: p = Vector3(lerpf(-WALL_X, WALL_X, t), 0, WALL_BACK + 2.5)
 			_: p = Vector3(lerpf(-WALL_X, WALL_X, t), 0, WALL_FRONT - 2.5)
+		if absf(p.x) < 9.0 and p.z > WALL_FRONT - 3.0:
+			continue  # keep the gate clear
 		bush(root, p, rng.randf_range(1.5, 3.0), rng)
 	# Grass tufts and ferns over the open ground, off the paving and paths.
 	var paved := [Rect2(-17, -34, 34, 70), Rect2(-24, 14, 48, 4), Rect2(-3, 34, 6, 12),

@@ -1,0 +1,74 @@
+extends SceneTree
+## Screenshots of Solace, Eco's hometown past the hub's front gate (town.gd).
+##   xvfb-run -a godot --path . -s res://tools/hub/town_shots.gd -- [out_dir] [--only=gate,row,...]
+## Needs a renderer (not --headless). Writes <out_dir>/town_<view>.png.
+
+var run_node
+var out := "user://town_shots"
+var only: Array[String] = []
+
+## name: [eye position (feet), look-at point]
+const VIEWS := {
+	"road": [Vector3(1.5, 0.1, 99), Vector3(0, 6, 140)],
+	"gate": [Vector3(-2, 0.1, 118), Vector3(0, 7, 136)],
+	"row": [Vector3(-2.5, 0.1, 131), Vector3(0.5, 4.5, 160)],
+	"noodles": [Vector3(-3.5, 0.1, 145), Vector3(6.5, 3.0, 139)],
+	"plaza": [Vector3(-8, 0.1, 162), Vector3(6, 7, 180)],
+	"militia": [Vector3(-6, 0.1, 172), Vector3(-22, 4, 176)],
+	"cafe": [Vector3(8, 0.1, 168), Vector3(24, 3, 176)],
+	"lowrow": [Vector3(2.5, 0.1, 188), Vector3(-1, 4.5, 214)],
+	"flat": [Vector3(3, 0.1, 205), Vector3(-7, 3, 209)],
+	"garden": [Vector3(-6, 5.2, 229), Vector3(10, 5, 300)],
+	"overhead": [Vector3(0, 150, 176), Vector3(0, 0, 176.1)],
+}
+
+
+func _initialize() -> void:
+	for a in OS.get_cmdline_user_args():
+		if a.begins_with("--only="):
+			only.assign(a.trim_prefix("--only=").split(","))
+		elif not a.begins_with("--"):
+			out = a
+	DirAccess.make_dir_recursive_absolute(out)
+	root.size = Vector2i(1600, 900)
+	preload("res://scripts/run/tutorial.gd").settings_path = "user://shots_settings.cfg"
+	run_node = load("res://scenes/run.tscn").instantiate()
+	run_node.run_seed = 1234
+	root.add_child(run_node)
+	run_node.tutorial.set_enabled(false)
+	_go.call_deferred()
+
+
+func _frames(n: int) -> void:
+	for i in n:
+		await process_frame
+
+
+func _go() -> void:
+	await _frames(20)
+	for n in ["hud", "pilot_hud"]:
+		if n in run_node and run_node.get(n) != null:
+			run_node.get(n).visible = false
+	var player = run_node.player
+	player.process_mode = Node.PROCESS_MODE_DISABLED
+	var cam: Camera3D = player.get_node("Head/Camera3D")
+	for view in VIEWS:
+		if not only.is_empty() and not view in only:
+			continue
+		var at: Vector3 = VIEWS[view][0]
+		var look: Vector3 = VIEWS[view][1]
+		player.global_position = at
+		var eye := at + Vector3(0, 1.6, 0)
+		var d := look - eye
+		player.rotation.y = atan2(-d.x, -d.z)
+		player.get_node("Head").rotation.x = atan2(d.y, Vector2(d.x, d.z).length())
+		cam.far = 1200.0
+		if view == "overhead":
+			cam.projection = Camera3D.PROJECTION_ORTHOGONAL
+			cam.size = 170.0
+		else:
+			cam.projection = Camera3D.PROJECTION_PERSPECTIVE
+		await _frames(8)
+		root.get_viewport().get_texture().get_image().save_png(out.path_join("town_%s.png" % view))
+		print("shot ", view)
+	quit()

@@ -2,10 +2,11 @@ extends Node3D
 ## Small bits of life for the hub: a flickering fire light, cloth swaying in the
 ## breeze, birds wheeling overhead. Set `mode` and it animates its own node.
 
-enum Mode { FLICKER, SWAY, ORBIT }
+enum Mode { FLICKER, SWAY, ORBIT, SPIN }
 
 @export var mode := Mode.SWAY
 ## FLICKER: base energy of the light. SWAY: degrees of swing. ORBIT: metres per second.
+## SPIN: turns about its own Z axis (turbine blades) at `speed` radians per second.
 @export var amount := 1.0
 @export var speed := 1.0
 
@@ -38,3 +39,5 @@ func _process(delta: float) -> void:
 				if wing is Node3D and String(wing.name).begins_with("Wing"):
 					var s := 1.0 if String(wing.name).ends_with("L") else -1.0
 					wing.rotation.z = s * 0.5 * sin(_t * 9.0)
+		Mode.SPIN:
+			rotate_object_local(Vector3.FORWARD, delta * speed)
