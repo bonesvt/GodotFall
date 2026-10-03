@@ -31,7 +31,7 @@ const LYING_Y := 0.11
 const SHOTS := {
 	"squat": [
 		{"from": Vector3(0.75, 0.75, 1.7), "to": Vector3(0.4, 0.8, 1.55), "look": Vector3(0, 0.75, 0), "fov": 42.0},
-		{"from": Vector3(1.55, 0.6, -0.2), "to": Vector3(1.65, 0.65, 0.1), "look": Vector3(0, 0.8, -0.1), "fov": 50.0},
+		{"from": Vector3(1.7, 0.5, 0.45), "to": Vector3(1.75, 0.52, 0.7), "look": Vector3(0, 0.8, -0.1), "fov": 50.0},
 		{"from": Vector3(-0.5, 1.35, -1.9), "to": Vector3(-0.3, 1.3, -1.7), "look": Vector3(0, 1.3, 0), "fov": 38.0},
 	],
 	"bridge": [
@@ -397,7 +397,7 @@ func _pose_bag() -> void:
 	for side in ["L", "R"]:
 		var x := 1.0 if side == "R" else -1.0
 		var guard := head + Vector3(x * 0.1, -0.13, -0.16)
-		var hit := bag - face * 0.22 + Vector3(x * 0.04, 0, 0)
+		var hit := bag - face * 0.17 + Vector3(x * 0.04, 0, 0)
 		var ext := jab if side == "L" else cross
 		_arm(side, guard.lerp(hit, ext), Vector3(x * 0.6, -1.0, 0.3))
 		_grip(side, 1.25)
