@@ -16,7 +16,7 @@ const VIEWS := {
 	"row": [Vector3(-2.5, 0.1, 138), Vector3(0.5, 4.5, 160)],
 	"noodles": [Vector3(-3.5, 0.1, 145), Vector3(6.5, 3.0, 139)],
 	"plaza": [Vector3(3, 0.1, 161), Vector3(-2, 6, 178)],
-	"scoops": [Vector3(-2, 0.1, 177), Vector3(-6.5, 3, 187)],
+	"scoops": [Vector3(-6, 0.1, 177.5), Vector3(-10.5, 3, 187)],
 	"militia": [Vector3(-6, 0.1, 172), Vector3(-22, 4, 176)],
 	"cafe": [Vector3(8, 0.1, 168), Vector3(24, 3, 176)],
 	"lowrow": [Vector3(2.5, 0.1, 195), Vector3(-1, 4.5, 214)],

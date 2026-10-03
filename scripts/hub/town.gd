@@ -164,7 +164,8 @@ static func _ground(root: Node3D) -> void:
 			# Low fill lights so the neon spills onto the paving and the shopfronts.
 			var lz := z0 + 4.0 + (2.0 if s > 0 else 0.0)
 			while lz < z1 - 2.0:
-				K.light(root, Vector3(s * (STREET_HALF - 1.5), 1.2, lz), CYAN if s < 0 else MAGENTA, 0.7, 6.5)
+				var fill := K.light(root, Vector3(s * (STREET_HALF - 1.5), 1.2, lz), CYAN if s < 0 else MAGENTA, 0.7, 6.5)
+				fill.light_specular = 0.15  # no hot glints on the wet paving
 				lz += 8.0
 			# A dim lantern-coloured fill down the middle, so the paving never goes black.
 			if s < 0.0:
@@ -173,7 +174,7 @@ static func _ground(root: Node3D) -> void:
 					K.light(root, Vector3(0, 5.5, mz), AMBER, 0.5, 9.0)
 					mz += 10.0
 	# The canopy's mouth by the gate sits outside the fills above; light it from the noodle bar's side.
-	K.light(root, Vector3(-3.0, 2.8, 137.5), AMBER, 0.6, 8.0)
+	K.light(root, Vector3(-2.0, 3.0, 139.0), AMBER, 1.2, 10.0).light_specular = 0.2
 	# Puddles that pick up the neon.
 	var puddle := StandardMaterial3D.new()
 	# Wet and glossy enough to catch the neon, see-through enough not to read as a hole.
@@ -183,7 +184,21 @@ static func _ground(root: Node3D) -> void:
 	puddle.metallic_specular = 0.6
 	for spec in [[Vector3(1.5, 0.09, 146), Vector3(3.0, 0.02, 2.0)], [Vector3(3.0, 0.09, 151), Vector3(2.2, 0.02, 3.4)],
 			[Vector3(-1.0, 0.09, 197), Vector3(4.0, 0.02, 2.4)], [Vector3(2.4, 0.09, 207), Vector3(2.0, 0.02, 1.6)]]:
-		K.mesh(root, spec[0], spec[1], puddle, Vector3(0, spec[0].z * 7.0, 0))
+		# Oval, not boxes: a rotated box read as an arrow painted on the street.
+		var disc := CylinderMesh.new()
+		disc.top_radius = 0.5
+		disc.bottom_radius = 0.5
+		disc.height = 1.0
+		disc.radial_segments = 20
+		disc.rings = 1
+		var mi := MeshInstance3D.new()
+		mi.mesh = disc
+		mi.material_override = puddle
+		mi.position = spec[0]
+		mi.rotation_degrees.y = spec[0].z * 7.0
+		mi.scale = spec[1]
+		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		root.add_child(mi)
 
 
 # --- the gate -----------------------------------------------------------------
@@ -295,14 +310,19 @@ static func _plaza(root: Node3D, info: Dictionary, rng: RandomNumberGenerator) -
 ## Scoops, the ice cream kiosk on the plaza's corner by Low Row and the arcade.
 ## A date spot later (Ophelia's favourite, with the arcade).
 static func _ice_cream(root: Node3D, info: Dictionary) -> void:
-	var at := Vector3(-6.5, 0, 186.5)
-	TP.spawn(root, "ice_cream_kiosk", at, 180.0, {"wall": Color(1.0, 0.86, 0.9), "shop": Color(1.0, 0.7, 0.85),
-			"neon": Color(1.0, 0.55, 0.85), "awning": Color(0.75, 0.95, 1.0)})
-	_solid(root, at + Vector3(0, 1.5, 1.3), Vector3(4.0, 3.0, 2.6))
-	_solid(root, at + Vector3(0, 0.42, -0.55), Vector3(2.8, 0.84, 0.6))
-	_neon_text(root, at + Vector3(0, 3.35, -0.12), "SCOOPS", Color(1.0, 0.55, 0.85), 80, 180.0)
-	K.light(root, at + Vector3(0, 2.2, -1.5), Color(1.0, 0.7, 0.85), 1.0, 7.0)
-	shop(info, "shop_icecream", at + Vector3(0, 0, -1.8), "[F] Scoops: ice cream (dates and treats coming soon)", [
+	var at := Vector3(-10.5, 0, 186.0)
+	var k := 1.2  # model scale
+	TP.spawn(root, "ice_cream_kiosk", at, 180.0, {"wall": Color(1.0, 0.86, 0.9), "shop": Color(1.0, 0.72, 0.86),
+			"neon": Color(1.0, 0.55, 0.85), "awning": Color(0.75, 0.95, 1.0)}, k)
+	_solid(root, at + Vector3(0, 1.5 * k, 1.3 * k), Vector3(4.0, 3.0, 2.6) * k)
+	_solid(root, at + Vector3(0, 0.42 * k, -0.55 * k), Vector3(2.8, 0.84, 0.6) * k)
+	# A pastel trellis behind it, so it doesn't sink into the arcade's dark front.
+	K.mesh(root, at + Vector3(0, 2.6, 3.4), Vector3(6.4, 5.2, 0.2), Art.material("concrete", Color(0.75, 0.92, 0.95)))
+	for i in 5:
+		K.mesh(root, at + Vector3(-2.6 + i * 1.3, 2.4 + (i % 2) * 0.4, 3.28), Vector3(0.9, 3.6 - (i % 3) * 0.6, 0.1), Art.material("moss", Color(0.72, 1.0, 0.62)))
+	_neon_text(root, at + Vector3(0, 3.35 * k, -0.12), "SCOOPS", Color(1.0, 0.55, 0.85), 90, 180.0)
+	K.light(root, at + Vector3(0, 2.4, -1.8), Color(1.0, 0.7, 0.85), 1.0, 7.0)
+	shop(info, "shop_icecream", at + Vector3(0, 0, -2.0), "[F] Scoops: ice cream (dates and treats coming soon)", [
 		"Mrs. Tran still gives me a kid's scoop. I think she means it nicely.",
 		"Ophelia orders black sesame every time. Says it's the only flavour that matches her soul.",
 		"Two scoops, one bench, nobody shooting at me. That's a good day in Solace.",

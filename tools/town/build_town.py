@@ -761,14 +761,23 @@ def ice_cream_kiosk():
     m = Model("ice_cream_kiosk", 97)
     m.rounded("wall", (0, 1.3, 1.5), (4.0, 2.6, 3.0), 0.35)
     m.box("trim", (0, 1.3, 3.08), (4.2, 2.8, 0.16), bevel=0.04)
-    m.box("glow_shop", (0, 0.02, 1.75), (3.0, 0.06, 1.0))                # serving window
+    # Serving hatch: a lit pink back wall, a glass case of glowing flavour tubs.
+    m.box("glow_shop", (0, 0.35, 1.75), (3.0, 0.06, 1.0))
+    for x in (-1.55, 1.55):
+        m.box("trim", (x, -0.02, 1.75), (0.12, 0.4, 1.1))
+    m.box("trim", (0, -0.02, 2.3), (3.2, 0.4, 0.12))
     m.box("dark", (0, -0.02, 1.2), (3.2, 0.08, 0.1))
+    flavours = ["glow_red", "glow_lime", "glow_warm", "glow_cyan", "glow_shop", "canvas"]
+    for k in range(6):
+        m.box("metal", (-1.2 + k * 0.48, 0.1, 1.27), (0.4, 0.3, 0.06))
+        m.blob(flavours[k], (-1.2 + k * 0.48, 0.1, 1.36), (0.17, 0.13, 0.09), wobble=0.12)
+    m.box("glass", (0, -0.05, 1.5), (3.0, 0.04, 0.5), rot=(0.5, 0, 0))
     m.box("trim", (0, -0.2, 1.12), (3.4, 0.45, 0.08), bevel=0.02)       # counter
     for x in (-0.8, 0.8):                                                # freezers out front
         m.box("wall", (x, -0.55, 0.42), (1.2, 0.6, 0.84), bevel=0.04)
         m.box("glass", (x, -0.55, 0.86), (1.1, 0.5, 0.04))
         for k in range(3):
-            m.blob("glow_shop" if k != 1 else "canvas", (x - 0.35 + k * 0.35, -0.55, 0.8), (0.13, 0.13, 0.08), wobble=0.1)
+            m.blob(flavours[(k + (2 if x > 0 else 0)) % 6], (x - 0.35 + k * 0.35, -0.55, 0.8), (0.13, 0.13, 0.08), wobble=0.1)
     for k in range(8):                                                   # striped awning
         m.box("canvas" if k % 2 == 0 else "trim", (-1.75 + k * 0.5, -0.45, 2.55), (0.5, 0.95, 0.04), rot=(0.3, 0, 0))
     m.box("dark", (1.55, -0.05, 2.1), (0.7, 0.05, 0.6))                  # menu board
@@ -776,12 +785,16 @@ def ice_cream_kiosk():
         m.box("glow_warm", (1.55, -0.08, 2.3 - k * 0.13), (0.5, 0.02, 0.04))
     # The giant cone on the roof: waffle cone, three neon scoops, a cherry.
     tmp = bmesh.new()
-    res = bmesh.ops.create_cone(tmp, cap_ends=True, segments=10, radius1=0.05, radius2=0.55, depth=1.4)
-    bmesh.ops.translate(tmp, vec=Vector((0, 1.3, 3.9)), verts=res["verts"])
-    bp.merge(m.bm("wood"), tmp)
-    for k, (dx, dz, r) in enumerate([(0, 4.75, 0.62), (-0.15, 5.35, 0.5), (0.1, 5.85, 0.4)]):
-        m.blob("neon", (dx, 1.3, dz), (r, r, r * 0.85), subdiv=2, wobble=0.06)
-    m.blob("glow_red", (0.1, 1.3, 6.3), (0.12, 0.12, 0.12), subdiv=2, wobble=0.0)
+    res = bmesh.ops.create_cone(tmp, cap_ends=True, segments=12, radius1=0.06, radius2=0.8, depth=2.0)
+    bmesh.ops.translate(tmp, vec=Vector((0, 1.3, 4.2)), verts=res["verts"])
+    bp.merge(m.bm("glow_warm"), tmp)
+    for k, (dx, dz, r, mat) in enumerate([(0, 5.45, 0.88, "glow_shop"), (-0.2, 6.3, 0.7, "glow_lime"), (0.14, 7.0, 0.56, "glow_shop")]):
+        m.blob(mat, (dx, 1.3, dz), (r, r, r * 0.85), subdiv=2, wobble=0.06)
+    m.blob("glow_red", (0.14, 1.3, 7.62), (0.16, 0.16, 0.16), subdiv=2, wobble=0.0)
+    # Bunting along the awning's edge.
+    for k in range(9):
+        x = -1.9 + k * 0.475
+        m.box("canvas" if k % 2 == 0 else "trim", (x, -0.95, 2.18), (0.26, 0.02, 0.26), rot=(0, math.pi / 4, 0))
     for x in (-1.5, 1.5):                                                # stools
         m.cyl("metal", (x, -1.1, 0.35), 0.04, 0.7, sides=6)
         m.cyl("canvas", (x, -1.1, 0.72), 0.2, 0.07, sides=10)
