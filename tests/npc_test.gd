@@ -115,6 +115,33 @@ func _run() -> void:
 		await _ticks(10)
 		_check("walking away from %s ends the talk" % who, not run_node.npc_talk.active() and not npc.talking, run_node.npc_talk.active())
 
+	# They only turn so far after her: with Eco behind them, they hold at the limit.
+	for who in WHO:
+		var npc = run_node.hub_npcs[who]
+		var ahead := Vector3(-sin(npc.home_yaw), 0, -cos(npc.home_yaw))
+		_place(npc.global_position + Vector3(0, 0.3, 0) - ahead * 1.6 + ahead.cross(Vector3.UP) * 0.3)
+		await _ticks(90)
+		var off := rad_to_deg(absf(angle_difference(npc.home_yaw, npc.rotation.y)))
+		_check("%s turns no further than %d degrees" % [who, int(npc.MAX_TURN)], off <= npc.MAX_TURN + 1.0 and off > 20.0, off)
+
+	# Mom's and Ophelia's chests and glutes jiggle (spring bones), Biggie has none.
+	for who in WHO:
+		var npc = run_node.hub_npcs[who]
+		var springs = npc.get_node_or_null("Springs")
+		if who == "biggie":
+			_check("Biggie has no jiggle springs", springs == null, springs)
+			continue
+		_check("%s has chest and glute springs" % who, springs != null and springs.springs.size() == 4, springs.springs.size() if springs != null else 0)
+		if springs == null:
+			continue
+		var eco: Node3D = npc.look_target
+		npc.look_target = null
+		await _ticks(30)
+		npc.rotation.y += 0.6   # a sharp turn sets them swinging
+		await _ticks(4)
+		_check("%s jiggles when she turns" % who, springs.swing_deg() > 0.5, springs.swing_deg())
+		npc.look_target = eco
+
 	# Second talk with Mom: one of her ordinary conversations, not the intro.
 	var mom = run_node.hub_npcs["mom"]
 	_place(mom.global_position + Vector3(1.5, 0.3, 0))

@@ -691,6 +691,86 @@ def lip_ring(arm):
     return ob
 
 
+def nipple_bars(arm):
+    """Ophelia's nipple piercings as real shape under her clothes: on each side a
+    rounded nub with the bar's two balls either side of it, sitting on the body
+    and skinned exactly as the body under them (so they bounce with her chest).
+    They wear the body's own material, each point taking the texture of the
+    body just under it, so whatever outfit she has on stretches over them
+    (painted shading from ophelia_outfit's pierce() on top)."""
+    from mathutils import interpolate
+    from mathutils.bvhtree import BVHTree
+    body = bpy.data.objects["Body"]
+    me_b = body.data
+    tree = BVHTree.FromPolygons([v.co for v in me_b.vertices], [p.vertices[:] for p in me_b.polygons])
+    uv_b = me_b.uv_layers.active.data
+    bm = bmesh.new()
+
+    def blob(c, n, t, r, h, sink, rows=6, segs=14):
+        """A dome of radius r and height h on the plane through c (normal n),
+        its rim pushed `sink` into the body so no gap shows."""
+        b = n.cross(t).normalized()
+        top = bm.verts.new(c + n * (h - sink))
+        rings = []
+        for i in range(1, rows + 1):
+            a = (math.pi / 2) * i / rows
+            ring = [bm.verts.new(c + n * (h * math.cos(a) - sink) + (t * math.cos(u) + b * math.sin(u)) * r * math.sin(a))
+                    for u in (2 * math.pi * k / segs for k in range(segs))]
+            rings.append(ring)
+        for k in range(segs):
+            bm.faces.new((top, rings[0][k], rings[0][(k + 1) % segs]))
+        for i in range(rows - 1):
+            for k in range(segs):
+                bm.faces.new((rings[i][k], rings[i + 1][k], rings[i + 1][(k + 1) % segs], rings[i][(k + 1) % segs]))
+
+    for s in (1, -1):
+        hit = tree.ray_cast(Vector((s * NIP[0], -0.3, NIP[1])), Vector((0, 1, 0)))
+        c, n = hit[0], hit[1].normalized()
+        if n.y > 0:
+            n = -n
+        t = (Vector((1, 0, 0)) - n * n.x).normalized()   # across her chest, along the surface
+        blob(c, n, t, 0.0052, 0.005, 0.0008)
+        for e in (1, -1):
+            q = c + t * (0.0088 * e)
+            hit2 = tree.find_nearest(q)
+            blob(hit2[0], hit2[1].normalized() * (1 if hit2[1].y < 0 else -1), t, 0.0026, 0.0024, 0.0006, rows=4, segs=10)
+    me = bpy.data.meshes.new("Piercings")
+    bm.to_mesh(me)
+    bm.free()
+    for p in me.polygons:
+        p.use_smooth = True
+    # texture and skin weights from the body just under each point
+    uv = me.uv_layers.new(name="UVMap")
+    point_uv = {}
+    point_w = {}
+    for v in me.vertices:
+        loc, _n, poly_i, _d = tree.find_nearest(v.co)
+        poly = me_b.polygons[poly_i]
+        corners = [me_b.vertices[i].co for i in poly.vertices]
+        w = interpolate.poly_3d_calc(corners, loc)
+        point_uv[v.index] = sum((uv_b[li].uv * wi for li, wi in zip(poly.loop_indices, w)), Vector((0.0, 0.0)))
+        groups = {}
+        for vi, wi in zip(poly.vertices, w):
+            for g in me_b.vertices[vi].groups:
+                name = body.vertex_groups[g.group].name
+                groups[name] = groups.get(name, 0.0) + g.weight * wi
+        point_w[v.index] = groups
+    for loop in me.loops:
+        uv.data[loop.index].uv = point_uv[loop.vertex_index]
+    ob = bpy.data.objects.new("Piercings", me)
+    bpy.context.scene.collection.objects.link(ob)
+    for vi, groups in point_w.items():
+        for name, w in groups.items():
+            if w > 0.001:
+                vg = ob.vertex_groups.get(name) or ob.vertex_groups.new(name=name)
+                vg.add([vi], w, "REPLACE")
+    ob.parent = arm
+    mod = ob.modifiers.new("Armature", "ARMATURE")
+    mod.object = arm
+    me.materials.append(new_mat("npc_ophelia_piercings_tmp"))
+    return ob
+
+
 def new_mat(name, col=(0.5, 0.5, 0.5)):
     m = bpy.data.materials.get(name) or bpy.data.materials.new(name)
     m.diffuse_color = (*col, 1)
@@ -823,10 +903,10 @@ def ophelia_outfit(g, skin, x, y, z, ax, front, cov, edge, sine, neck_r):
         if strong:   # pressed hard through the thin cami: a bright point, shadow under it, bigger bar ends
             shade = g.mul(g.sub(1.0, g.sstep(0.004, 0.0075, g.sqrt(g.add(g.sq(nx), g.sq(g.add(nz, 0.0035)))))), front)
             col = g.mixc(col, (0.0, 0.0, 0.0), g.mul(shade, 0.6))
-            col = g.mixc(col, (0.24, 0.22, 0.26), g.mul(nub, 0.85))
+            col = g.mixc(col, (0.24, 0.22, 0.26), g.mul(nub, 0.3))   # the fabric stretched thin over her (the shape is mesh: nipple_bars())
             big = g.mul(g.sub(1.0, g.sstep(0.0022, 0.0032, g.sqrt(g.add(g.sq(g.sub(g.abs(nx), 0.0095)), g.sq(nz))))), front)
             return g.mixc(col, (0.62, 0.62, 0.68), big)
-        col = g.mixc(col, (0.16, 0.15, 0.18), g.mul(nub, 0.55))
+        col = g.mixc(col, (0.16, 0.15, 0.18), g.mul(nub, 0.25))
         return g.mixc(col, (0.42, 0.42, 0.46), g.mul(ends, 0.8))
     if OUTFIT == "tee":
         neck_z = g.lerp(g.sub(1.168, g.mul(0.012, front)), 1.4, g.sstep(0.065, 0.09, ax))
@@ -1472,18 +1552,22 @@ def main():
         body_biggie(arm)
     else:
         {"mom": body_mom, "ophelia": body_ophelia}[WHO]()
+        E["glute_bones"](arm)   # jiggle springs, as Eco's
     extras = []
     if WHO == "biggie":
         extras.append(beard(arm))
         extras.append(topknot(arm))
     if WHO == "ophelia":
         extras.append(lip_ring(arm))
+        extras.append(nipple_bars(arm))
     objs = [bpy.data.objects[n] for n in ("Body", "Face", "Hair") if n in bpy.data.objects] + [boots] + extras
     textures(objs, boots)
     if WHO == "biggie":
         beard_m = bpy.data.materials["npc_biggie_beard"]
         bpy.data.objects["Beard"].material_slots[0].material = beard_m
         bpy.data.objects["Topknot"].material_slots[0].material = beard_m
+    if WHO == "ophelia":
+        bpy.data.objects["Piercings"].material_slots[0].material = bpy.data.materials["npc_ophelia_body"]
     prune_bones(arm)
     E["proportions"](arm, objs)
     E["face_forward_and_scale"](arm, objs)
