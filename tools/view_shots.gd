@@ -1,8 +1,9 @@
 extends SceneTree
 ## Screenshots of the first / third person views (scripts/view_camera.gd):
 ## the forest in first and third person, running, and both wallrun shoulders.
-##   xvfb-run -a godot --path . -s res://tools/view_shots.gd -- [out_dir]
-## Needs a renderer (not --headless).
+##   xvfb-run -a godot --path . --fixed-fps 60 -s res://tools/view_shots.gd -- [out_dir]
+## Needs a renderer (not --headless). --fixed-fps keeps 60 fps time steps even
+## on slow software renderers, so the camera's smoothing looks as in play.
 
 const FB := preload("res://scripts/run/forest_builder.gd")
 
@@ -51,17 +52,18 @@ func _go() -> void:
 	var ahead := FB._on(FB.trail_x(-30), -30, 2)
 
 	player.process_mode = Node.PROCESS_MODE_DISABLED
+	view.process_mode = Node.PROCESS_MODE_ALWAYS  # the camera keeps following
 	_aim(player, spawn, ahead)
-	await _frames(10)
+	await _frames(4)
 	_save("1_forest_first_person")
 	view.set_third_person(true)
-	await _frames(60)
+	await _frames(20)
 	_save("2_forest_third_person")
 
 	# running: let her move for a moment so the camera trails
 	player.process_mode = Node.PROCESS_MODE_INHERIT
 	Input.action_press("move_forward")
-	await _frames(70)
+	await _frames(45)
 	_save("3_forest_running")
 	Input.action_release("move_forward")
 	run_node.queue_free()
@@ -79,8 +81,8 @@ func _go() -> void:
 		player.rotation.y = 0.0
 		player.velocity = Vector3(wall[2], 0, -10)
 		Input.action_press("move_forward")
-		await _frames(55)
+		await _frames(40)
 		_save(wall[0])
 		Input.action_release("move_forward")
-		await _frames(60)
+		await _frames(30)
 	quit()
