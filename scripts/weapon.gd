@@ -390,14 +390,18 @@ func fire() -> void:
 	# Heard after the round lands, so the first shot still catches its target unaware.
 	get_tree().call_group("enemies", "hear_gunshot", player.global_position)
 
+	# In third person the view-model is hidden: tracers leave Eco's own gun.
+	var tracer_from: Vector3 = muzzle.global_position
+	if player.get("third_person") and player.has_node("ViewCam"):
+		tracer_from = player.get_node("ViewCam").muzzle_position()
 	if smart_shot:
-		FX.tracer(fx_parent, muzzle.global_position, end, SMART_TRACER, 0.016, 0.09)
+		FX.tracer(fx_parent, tracer_from, end, SMART_TRACER, 0.016, 0.09)
 		if homing:
 			FX.star(fx_parent, end, Color(1.0, 0.5, 0.8), 0.3, 0.08, 6)
 	else:
 		# A hot streak runs the tracer from its own colour to orange.
 		var heat_t := float(streak) / STREAK_MAX if streak_bonus > 0.0 else 0.0
-		FX.tracer(fx_parent, muzzle.global_position, end, tracer_color.lerp(STREAK_TRACER, heat_t), 0.012 + 0.008 * heat_t, 0.06)
+		FX.tracer(fx_parent, tracer_from, end, tracer_color.lerp(STREAK_TRACER, heat_t), 0.012 + 0.008 * heat_t, 0.06)
 	bloom = minf(bloom + bloom_per_shot, max_bloom)
 	var k := deg_to_rad(recoil_kick)
 	player.head.rotation.x = clampf(player.head.rotation.x + k, -1.55, 1.55)
