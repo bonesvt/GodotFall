@@ -85,10 +85,10 @@ FOLD_Z = 0.733
 # Fit_Legs quads, outer sweep, hamstrings and calves; Fit_Arms shoulder caps,
 # biceps, triceps and forearms. Abs are painted (v_body_tone.png): the mesh is
 # too coarse over her belly to carve them.
-FIT_GLUTES = 0.03
-FIT_GLUTE_LIFT = 0.008
+FIT_GLUTES = 0.042
+FIT_GLUTE_LIFT = 0.01
 FIT_BELLY = 0.011
-FIT_WAIST = 0.006
+FIT_WAIST = 0.008
 FIT_LEGS = 0.01
 FIT_CALVES = 0.011
 FIT_ARMS = 0.0075
@@ -1736,7 +1736,7 @@ def bake_tone(body):
     under = g.mul(g.mul(line(dy, 0.0, 0.004), g.sstep(0.0, -0.012, dz)), g.mul(g.sstep(0.15, 0.17, ax), g.sstep(0.27, 0.25, ax)))
     bump = g.mul(line(ax, 0.2, 0.04), g.sstep(0.004, -0.014, dy))
     bump = g.add(bump, g.mul(line(ax, 0.115, 0.025), g.sstep(-0.005, 0.01, dz)))
-    arm_groove = g.mx(delt_edge, under)
+    arm_groove = g.mul(g.mx(delt_edge, under), 0.6)   # soft on bare skin, not a scar
     arm_v = g.mul(g.sub(g.mul(g.mul(bump, g.sub(1.0, arm_groove)), 0.45), arm_groove), on_arm)
     # legs: the line between the quads, the outer sweep line, a highlight over the quads
     dx = g.sub(ax, 0.0686)
@@ -1744,7 +1744,7 @@ def bake_tone(body):
     lfront = g.sstep(-0.02, -0.045, y)
     mid = g.mul(g.mul(line(dx, g.add(0.004, g.mul(g.sub(z, 0.6), 0.08)), 0.004), lfront), thigh)
     outer = g.mul(g.mul(line(dx, 0.05, 0.005), g.sstep(-0.01, -0.03, y)), thigh)
-    leg_groove = g.mx(mid, outer)
+    leg_groove = g.mul(g.mx(mid, outer), 0.6)
     quad = g.mul(g.mul(g.mul(line(dx, 0.022, 0.02), lfront), thigh), g.sub(1.0, leg_groove))
     leg_v = g.mul(g.sub(g.mul(quad, 0.45), leg_groove), g.sstep(0.03, 0.045, ax))
     comb = nt.nodes.new("ShaderNodeCombineColor")

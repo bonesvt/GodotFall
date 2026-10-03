@@ -31,28 +31,28 @@ const LYING_Y := 0.11
 const SHOTS := {
 	"squat": [
 		{"from": Vector3(0.75, 0.75, 1.7), "to": Vector3(0.4, 0.8, 1.55), "look": Vector3(0, 0.75, 0), "fov": 42.0},
-		{"from": Vector3(2.0, 1.4, -0.6), "to": Vector3(1.9, 1.35, -0.3), "look": Vector3(0, 0.9, 0), "fov": 50.0},
+		{"from": Vector3(1.35, 0.5, -1.75), "to": Vector3(1.5, 0.55, -1.5), "look": Vector3(0, 0.8, 0), "fov": 50.0},
 		{"from": Vector3(-0.5, 1.35, -1.9), "to": Vector3(-0.3, 1.3, -1.7), "look": Vector3(0, 1.3, 0), "fov": 38.0},
 	],
 	"bridge": [
 		{"from": Vector3(1.9, 0.75, 0.8), "to": Vector3(1.8, 0.7, 1.1), "look": Vector3(0, 0.25, 0.9), "fov": 48.0},
-		{"from": Vector3(0.45, 0.5, -1.1), "to": Vector3(0.25, 0.55, -0.9), "look": Vector3(0, 0.3, 0.8), "fov": 42.0},
+		{"from": Vector3(-1.3, 1.3, 1.9), "to": Vector3(-1.2, 1.25, 1.7), "look": Vector3(0, 0.35, 0.7), "fov": 42.0},
 		{"from": Vector3(-0.7, 0.85, 2.4), "to": Vector3(-0.6, 0.8, 2.2), "look": Vector3(0, 0.25, 1.35), "fov": 40.0},
 	],
 	"crunch": [
 		{"from": Vector3(1.8, 0.7, 0.9), "to": Vector3(1.75, 0.75, 1.15), "look": Vector3(0, 0.3, 1.0), "fov": 48.0},
-		{"from": Vector3(0.6, 2.0, -0.4), "to": Vector3(0.5, 1.9, -0.2), "look": Vector3(0, 0.3, 0.9), "fov": 45.0},
-		{"from": Vector3(-0.5, 0.7, 2.5), "to": Vector3(-0.4, 0.65, 2.3), "look": Vector3(0, 0.4, 1.4), "fov": 40.0},
+		{"from": Vector3(1.4, 1.9, 0.4), "to": Vector3(1.35, 1.85, 0.6), "look": Vector3(0, 0.3, 1.0), "fov": 45.0},
+		{"from": Vector3(1.2, 0.8, 0.3), "to": Vector3(1.1, 0.8, 0.45), "look": Vector3(0, 0.55, 1.3), "fov": 40.0},
 	],
 	"pullup": [
 		{"from": Vector3(0.8, 1.0, 1.5), "to": Vector3(0.6, 1.1, 1.4), "look": Vector3(0, 1.7, -0.25), "fov": 50.0},
-		{"from": Vector3(-2.1, 1.6, -0.3), "to": Vector3(-2.0, 1.7, 0.0), "look": Vector3(0, 1.8, -0.25), "fov": 50.0},
+		{"from": Vector3(-1.6, 1.5, -1.3), "to": Vector3(-1.5, 1.6, -1.1), "look": Vector3(0, 1.8, -0.25), "fov": 50.0},
 		{"from": Vector3(-0.4, 1.9, -2.0), "to": Vector3(-0.3, 2.0, -1.8), "look": Vector3(0, 2.15, -0.25), "fov": 40.0},
 	],
 	"bag": [
 		{"from": Vector3(0.55, 1.65, 1.3), "to": Vector3(0.45, 1.6, 1.15), "look": Vector3(0, 1.35, -0.8), "fov": 45.0},
 		{"from": Vector3(2.0, 1.2, -0.5), "to": Vector3(1.9, 1.25, -0.1), "look": Vector3(0, 1.1, -0.3), "fov": 50.0},
-		{"from": Vector3(0.7, 1.45, -1.5), "to": Vector3(0.6, 1.45, -1.35), "look": Vector3(0, 1.45, 0), "fov": 40.0},
+		{"from": Vector3(1.4, 1.45, -1.2), "to": Vector3(1.3, 1.45, -1.05), "look": Vector3(0, 1.4, -0.2), "fov": 45.0},
 	],
 }
 
@@ -241,7 +241,7 @@ func _eco_frame(t: float) -> Transform3D:
 		"bridge", "crunch":
 			return Transform3D(f.basis * Basis(Vector3.RIGHT, PI / 2), f.origin + Vector3(0, LYING_Y, 0))
 		"pullup":
-			return Transform3D(f.basis, f * Vector3(0, _hang_y() + 0.42 * depth(t), -0.22))
+			return Transform3D(f.basis, f * Vector3(0, _hang_y() + 0.36 * depth(t), -0.22))
 	return f
 
 
@@ -302,9 +302,9 @@ func _pose_squat() -> void:
 	_move_hips(Vector3(0, -0.4 * s, 0.17 * s))
 	_turn("hips", Vector3.RIGHT, -16.0 * s)
 	_turn("spine", Vector3.RIGHT, -12.0 * s)
-	_turn("chest", Vector3.RIGHT, 6.0 * s)
-	_turn("neck", Vector3.RIGHT, 8.0 * s)
-	_turn("head", Vector3.RIGHT, 8.0 * s)
+	_turn("chest", Vector3.RIGHT, 10.0 * s)
+	_turn("neck", Vector3.RIGHT, 10.0 * s)
+	_turn("head", Vector3.RIGHT, 14.0 * s)
 	for side in ["L", "R"]:
 		var x := 1.0 if side == "R" else -1.0
 		var ankle: Vector3 = _rest["foot." + side].origin + Vector3(x * 0.06, 0, 0)
@@ -330,7 +330,7 @@ func _pose_bridge() -> void:
 	_aim("neck", "head", Vector3(0, 1, 0.12))
 	_lying_legs()
 	var hips := _pose_of("hips").origin
-	var bag := hips + Vector3(0, -0.03, -0.17)
+	var bag := hips + Vector3(0, -0.06, -0.16)
 	for side in ["L", "R"]:
 		var x := 1.0 if side == "R" else -1.0
 		_arm(side, bag + Vector3(x * 0.2, 0, -0.02), Vector3(x, 0, 1))
@@ -359,7 +359,7 @@ func _lying_legs() -> void:
 	var hip_y: float = _rest["thigh.R"].origin.y
 	for side in ["L", "R"]:
 		var x := 1.0 if side == "R" else -1.0
-		_leg(side, Vector3(x * 0.11, hip_y - 0.5, -0.01), Vector3(x * 0.15, 0, -1), Vector3(0, -1, -0.12))
+		_leg(side, Vector3(x * 0.09, hip_y - 0.5, -0.01), Vector3(0, 0, -1), Vector3(0, -1, -0.12))
 
 
 func _pose_pullup() -> void:
@@ -370,7 +370,7 @@ func _pose_pullup() -> void:
 	for side in ["L", "R"]:
 		var x := 1.0 if side == "R" else -1.0
 		var grip := to_skel * _world(Vector3(x * 0.3, GymRoom.BAR_H, -0.25))
-		_arm(side, grip, Vector3(x, -0.4, 0.7))
+		_arm(side, grip, Vector3(x * 0.6, -1.0, 0.25))
 		_grip(side, 1.0)
 		# knees bent a little, ankles back
 		var ankle: Vector3 = _rest["foot." + side].origin + Vector3(-x * 0.02, 0.1, 0.2)
