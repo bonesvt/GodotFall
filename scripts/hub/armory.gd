@@ -204,13 +204,13 @@ const SUIT_TIERS := [
 const SUIT_WEIGHTS := {
 	"light": {"name": "Light", "armor_mult": 0.5, "speed": 1.1, "notice_mult": 0.85, "wallrun_time_mult": 1.15,
 		"bonus": "Half the armour. 10% faster on the ground, grunts notice you 15% slower, wallruns 15% longer.",
-		"look": "Cloth and leather: a wrap that supports her chest and covers her sides, the suit open across the top of her chest, choker with Dad's tag, piercings, wrapped arms and shins, a leather shoulder guard and knee pads, her stiletto on a thigh garter."},
+		"look": "Cloth and leather: a wrap that supports her chest and covers her sides, the suit open across the top of her chest, choker with Dad's tag, a nose ring, wrapped arms and shins, a leather shoulder guard and knee pads, her stiletto on a thigh garter."},
 	"medium": {"name": "Medium", "armor_mult": 1.0, "armor_regen_mult": 2.0,
 		"bonus": "The tier's armour. Armour refills twice as fast.",
-		"look": "Every tier's pieces."},
+		"look": "A mechanic's jumpsuit: zipped to the neck, left arm bare with Dad's cog tattoo, right sleeve rolled, rust side panels. A knotted scarf, a plaster on her cheek, a tool pouch, a canvas yoke, rubber knee caps, a cargo pocket and a wrist computer."},
 	"heavy": {"name": "Heavy", "armor_mult": 1.6, "damage_mult": 0.85, "speed": 0.9,
 		"bonus": "60% more armour and every hit lands 15% softer, but 10% slower on the ground.",
-		"look": "Adds elbow cops, upper-arm plates, thigh plates and a back plate."},
+		"look": "Gunmetal plates: bracers, pauldrons, shin guards, knee cops, hip plates, elbow cops, upper-arm and thigh plates, a back plate and an armoured collar."},
 }
 const SUIT_WEIGHT_ORDER := ["light", "medium", "heavy"]
 

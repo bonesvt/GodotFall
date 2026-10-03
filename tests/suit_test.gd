@@ -79,14 +79,18 @@ func _model() -> void:
 			and shown.size() == pieces.filter(func(p): return eco.piece_tier(String(p.name)) <= 3 and eco.piece_worn(String(p.name), "medium")).size(), shown.size())
 	_check("tier 3 plates are gunmetal", pieces[0].get_surface_override_material(0) == null, "")
 	eco.suit_tier = 5
-	_check("tier 5 medium shows all but the heavy pieces", pieces.all(func(p): return p.visible == not (String(p.name).substr(7, 1) in ["h", "l"])), "")
-	eco.suit_weight = "heavy"
-	_check("heavy shows everything but the light suit", pieces.all(func(p): return p.visible == (String(p.name).substr(7, 1) != "l")), "")
+	var worn_by := func() -> Array:
+		return pieces.filter(func(p): return p.visible).map(func(p): return String(p.name).substr(7, 1))
+	for w in ["light", "medium", "heavy"]:
+		eco.suit_weight = w
+		var marks: Array = worn_by.call()
+		_check("%s wears its own pieces and the shared ones only" % w, w[0] in marks and "_" in marks \
+				and marks.all(func(c): return c == w[0] or not c in ["l", "m", "h"]), marks)
+	eco.suit_weight = "medium"
+	_check("medium has its own mechanic's rig", eco.find_child("suit_t1m_scarf", true, false) != null \
+			and eco.find_child("suit_t4m_wristcomp", true, false).visible, "")
 	eco.suit_weight = "light"
-	var light_hidden: Array = pieces.filter(func(p): return not p.visible).map(func(p): return String(p.name).substr(7, 1))
-	_check("light leaves off the lames, knee cops and heavy pieces", not light_hidden.is_empty() and light_hidden.all(func(c): return c in ["m", "h"]) \
-			and "m" in light_hidden, light_hidden)
-	_check("light wears its own cloth and leather", pieces.any(func(p): return p.visible and String(p.name).substr(7, 1) == "l"), "")
+	_check("light wears a nose ring", eco.find_child("suit_t1l_nose_ring", true, false).visible, "")
 	var body_mesh: MeshInstance3D = null
 	var body_surface := -1
 	for mi in eco.find_children("*", "MeshInstance3D", true, false):
@@ -96,8 +100,10 @@ func _model() -> void:
 				body_surface = i
 	_check("light swaps in its own bodysuit cut", body_mesh != null and body_mesh.get_surface_override_material(body_surface) == eco.LIGHT_BODY, body_surface)
 	eco.suit_weight = "medium"
-	_check("medium wears the plain bodysuit", body_mesh.get_surface_override_material(body_surface) == null, "")
-	var plate: MeshInstance3D = eco.find_child("suit_t1_bracer_l", true, false)
+	_check("medium swaps in its jumpsuit", body_mesh.get_surface_override_material(body_surface) == eco.MEDIUM_BODY, "")
+	eco.suit_weight = "heavy"
+	_check("heavy wears the plain bodysuit", body_mesh.get_surface_override_material(body_surface) == null, "")
+	var plate: MeshInstance3D = eco.find_child("suit_t1h_bracer_l", true, false)
 	_check("tier 5 repaints the plates in Dad's colours", plate.get_surface_override_material(0) == eco.LEGACY_PLATE, "")
 	_check("tier 5 turns the trims gold", plate.get_instance_shader_parameter("trim_gold") == 1.0, "")
 	eco.free()

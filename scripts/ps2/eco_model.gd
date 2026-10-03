@@ -68,6 +68,7 @@ const SPRINGS := {
 const SUIT_TIERS := 5
 const LEGACY_PLATE := preload("res://assets/materials/eco/eco_v_armor_legacy.tres")
 const LIGHT_BODY := preload("res://assets/materials/eco/eco_v_body_light.tres")
+const MEDIUM_BODY := preload("res://assets/materials/eco/eco_v_body_medium.tres")
 
 ## Movement states of scripts/player.gd (enum State).
 enum PlayerState { GROUND, AIR, SLIDE, WALLRUN, GRAPPLE }
@@ -110,13 +111,14 @@ static func piece_tier(mesh_name: String) -> int:
 	return int(mesh_name.substr(6, 1)) if mesh_name.begins_with("suit_t") else 0
 
 
-## Whether a suit weight wears a piece: "l" light only, "m" medium and heavy, "h" heavy only.
+## Whether a suit weight wears a piece: "l" light only, "m" medium only, "h" heavy only,
+## anything else every weight.
 static func piece_worn(mesh_name: String, weight: String) -> bool:
 	match mesh_name.substr(7, 1):
 		"l":
 			return weight == "light"
 		"m":
-			return weight != "light"
+			return weight == "medium"
 		"h":
 			return weight == "heavy"
 	return true
@@ -138,8 +140,21 @@ func apply_suit() -> void:
 			for i in mi.mesh.get_surface_count():
 				var m := mi.mesh.surface_get_material(i)
 				if m != null and m.resource_name == "eco_v_body":
-					mi.set_surface_override_material(i, LIGHT_BODY if suit_weight == "light" and suit_tier > 0 else null)
+					mi.set_surface_override_material(i, body_material())
 		mi.set_instance_shader_parameter("trim_gold", 1.0 if legacy else 0.0)
+
+
+## The bodysuit for her weight: the light and medium suits have their own cuts
+## (tools/eco/build_eco_vroid.py suit_graph); heavy and the bare suit use the base one.
+func body_material() -> Material:
+	if suit_tier <= 0:
+		return null
+	match suit_weight:
+		"light":
+			return LIGHT_BODY
+		"medium":
+			return MEDIUM_BODY
+	return null
 
 
 ## The animation she should play now, with its playback speed.

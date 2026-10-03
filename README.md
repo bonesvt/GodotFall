@@ -103,13 +103,15 @@ enemy titan's salvage when you win); a lost run banks half. The HUD shows what y
 
   | Weight | Armour | Bonus | Looks |
   | --- | --- | --- | --- |
-  | Light | half | 10% faster on the ground, grunts notice you 15% slower, wallruns 15% longer | no extra shoulder or hip lames, no knee cops |
-  | Medium | as listed | armour refills twice as fast | every tier's pieces |
-  | Heavy | +60% | every hit lands 15% softer, but 10% slower on the ground | adds elbow cops, upper-arm plates, thigh plates and a back plate |
+  | Light | half | 10% faster on the ground, grunts notice you 15% slower, wallruns 15% longer | cloth and leather: a wrap that supports her chest and covers her sides, choker with Dad's tag, a nose ring, wrapped arms and shins, a leather shoulder guard and knee pads, her stiletto on a thigh garter |
+  | Medium | as listed | armour refills twice as fast | a mechanic's jumpsuit (left arm bare with Dad's cog tattoo, right sleeve rolled), a knotted scarf, a cheek plaster, a tool pouch, a canvas yoke, rubber knee caps, a cargo pocket, a wrist computer |
+  | Heavy | +60% | every hit lands 15% softer, but 10% slower on the ground | gunmetal plates: bracers, pauldrons, shin guards, knee cops, hip, elbow, upper-arm and thigh plates, a back plate, an armoured collar |
 
   Tier 5 also costs a lock core. The armour pieces are part of `eco.glb` (`suit_t<tier>_*`
-  meshes, modelled by `suit_armor()` in `tools/eco/build_eco_vroid.py`);
-  `eco_model.gd` `suit_tier` shows them.
+  meshes, modelled by `suit_armor()`, `light_suit()` and `medium_suit()` in
+  `tools/eco/build_eco_vroid.py`; light and medium also bake their own bodysuit cut,
+  `v_body*_light.png` and `v_body*_medium.png`); `eco_model.gd` `suit_tier` and
+  `suit_weight` show them.
 
 On the screens: W/S pick a row, A/D browse, Space buy or fit, Tab or Q/E switch section,
 F or Esc to leave. Progress saves to `user://armory.cfg` (`scripts/hub/armory.gd` has every

@@ -37,16 +37,22 @@ func _ready() -> void:
 		shadow = _spawn("Shadow", GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY)
 
 
-## Dresses both copies in her suit upgrade (eco_model.gd suit_tier and suit_weight). The
-## collar hides on the first-person body: it would sit round the camera.
+## Suit pieces hidden on the first-person body: round her neck or on her face, they
+## would sit round the camera.
+const FP_HIDDEN := ["suit_t4h_collar*", "suit_t1l_choker*", "suit_t1l_tag*", "suit_t1l_nose_ring*",
+		"suit_t1m_scarf*", "suit_t1m_plaster*"]
+
+
+## Dresses both copies in her suit upgrade (eco_model.gd suit_tier and suit_weight).
 func set_suit(tier: int, weight := "medium") -> void:
 	for eco in [body, shadow]:
 		if eco != null:
 			eco.suit_weight = weight
 			eco.suit_tier = tier
 	if body != null:
-		for mesh in body.find_children("suit_t4_collar*", "MeshInstance3D", true, false):
-			(mesh as MeshInstance3D).visible = false
+		for pattern in FP_HIDDEN:
+			for mesh in body.find_children(pattern, "MeshInstance3D", true, false):
+				(mesh as MeshInstance3D).visible = false
 
 
 func _spawn(node_name: String, shadows: GeometryInstance3D.ShadowCastingSetting) -> EcoModel:
