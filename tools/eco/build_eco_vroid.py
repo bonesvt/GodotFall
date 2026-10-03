@@ -536,10 +536,17 @@ def fit_shapes(objs):
     back = ss(-0.02, 0.04, y)
     front = ss(-0.04, -0.075, y)
     shapes = {}
-    # glutes: fuller and rounder over the cheeks, and the lower half lifted
-    g = np.exp(-((ax - 0.064) / 0.055) ** 2 - ((z - 0.775) / 0.06) ** 2) * back
+    # glutes: fuller from high on the cheeks, so the curve swells out of the
+    # small of her back and rounds under into the leg (no shelf): the push
+    # leans backward and fades where the surface turns to face down, the
+    # upper outer hip fills a little, and the bottom of each cheek lifts.
+    g = np.exp(-((ax - 0.06) / 0.06) ** 2 - ((z - 0.792) / 0.07) ** 2) * back
+    facing = ss(-0.45, 0.35, N[:, 1] * 0.8 - N[:, 2] * 0.2)   # back, not underneath
+    push = N * 0.55 + np.outer(np.ones(len(N)), (0, 0.45, 0.08))
+    side = np.exp(-((ax - 0.095) / 0.03) ** 2 - ((z - 0.83) / 0.045) ** 2) * ss(-0.03, 0.02, y)
     lift = np.exp(-((ax - 0.062) / 0.05) ** 2 - ((z - 0.748) / 0.03) ** 2) * back
-    shapes["Fit_Glutes"] = N * (FIT_GLUTES * g)[:, None] + np.outer(FIT_GLUTE_LIFT * lift, (0, 0, 1))
+    shapes["Fit_Glutes"] = (push * (FIT_GLUTES * g * facing)[:, None] + N * (0.35 * FIT_GLUTES * side)[:, None]
+                            + np.outer(FIT_GLUTE_LIFT * lift, (0, 0, 1)))
     # stomach: the lower belly drawn in, the waist narrower
     belly = np.exp(-((z - 0.885) / 0.035) ** 2 - (x / 0.065) ** 2) * front
     waist = np.exp(-((z - 0.95) / 0.035) ** 2) * ss(0.3, 0.8, out)
