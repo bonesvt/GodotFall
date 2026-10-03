@@ -39,7 +39,6 @@ func _initialize() -> void:
 	run_node = load("res://scenes/run.tscn").instantiate()
 	run_node.run_seed = 1234
 	root.add_child(run_node)
-	run_node.tutorial.set_enabled(false)
 	_go.call_deferred()
 
 
@@ -49,7 +48,10 @@ func _frames(n: int) -> void:
 
 
 func _go() -> void:
-	await _frames(20)
+	await _frames(2)
+	# The run manager makes its tutorial in _ready, after _initialize.
+	run_node.tutorial.set_enabled(false)
+	await _frames(18)
 	for n in ["hud", "pilot_hud"]:
 		if n in run_node and run_node.get(n) != null:
 			run_node.get(n).visible = false
