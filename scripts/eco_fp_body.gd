@@ -25,10 +25,10 @@ const HIDDEN_BONES := ["J_Bip_C_Neck", "J_Bip_C_Head", "J_Bip_R_UpperArm", "J_Bi
 ## comes into view from about 35 degrees.
 @export var look_down_lean := 0.08
 ## How far her chest may bounce in first person (eco_model.gd jiggle).
-@export_range(0.0, 2.0) var fp_jiggle := 1.6
+@export_range(0.0, 2.0) var fp_jiggle := 1.4
 ## How hard a change in her speed shoves the springs (metres of swing per m/s):
 ## a jump throws them down, a landing drops them and they bounce back up.
-@export var jolt_per_speed := 0.006
+@export var jolt_per_speed := 0.005
 ## How hard a quick look shoves them (metres per radian the view turns).
 @export var jolt_per_look := 0.03
 @export var show_body := true
