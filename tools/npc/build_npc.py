@@ -186,8 +186,10 @@ def hair_ophelia():
             return p
         w = smooth(-0.002, -0.014, p.x)
         top = 1.40
-        z = top - (top - p.z) * (1 + 0.45 * w)
-        return Vector((p.x, p.y - 0.006 * w * smooth(1.3, 1.26, z), z))
+        z = top - (top - p.z) * (1 + 0.3 * w)
+        if z < 1.268:   # ends at the cheekbone, clear of her mouth
+            z = 1.268 - (1.268 - z) * 0.3
+        return Vector((p.x, p.y - 0.009 * w * smooth(1.32, 1.27, z), z))
     move_verts(hair, long_side)
     streak = len(me.materials)
     me.materials.append(me.materials[1])   # same texture, dyed violet later

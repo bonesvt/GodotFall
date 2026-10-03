@@ -165,7 +165,7 @@ static func _mom(root: Node3D, info: Dictionary) -> void:
 ## candles, posters, a record player with a crate of records, notebooks.
 static func _ophelia(root: Node3D, info: Dictionary) -> void:
 	var r := OPHELIA_ROOM
-	_shell(root, r, "south", Color(0.42, 0.38, 0.42), Color(0.5, 0.45, 0.5), Color(0.45, 0.4, 0.42))
+	_shell(root, r, "south", Color(0.6, 0.55, 0.62), Color(0.62, 0.56, 0.62), Color(0.5, 0.45, 0.5))
 	var zb := r.position.y + T       # inside face of the back wall
 	var x0 := r.position.x + T
 	var x1 := r.end.x - T
@@ -187,10 +187,10 @@ static func _ophelia(root: Node3D, info: Dictionary) -> void:
 		var t := i / 29.0
 		var p := Vector3(lerpf(x0 + 0.3, x1 - 0.3, t), F + 3.1 - sin(t * PI * 3.0) * 0.35, zb + 0.18)
 		K.glow(root, p, Vector3(0.06, 0.08, 0.06), VIOLET if i % 3 else Color(1.0, 0.4, 0.75))
-	K.light(root, Vector3(x0 + 2.5, F + 2.6, zb + 1.0), VIOLET, 1.6, 7.0)
-	K.light(root, Vector3(x1 - 2.5, F + 2.6, zb + 1.0), VIOLET, 1.4, 7.0)
+	K.light(root, Vector3(x0 + 2.5, F + 2.6, zb + 1.0), VIOLET, 2.4, 8.0)
+	K.light(root, Vector3(x1 - 2.5, F + 2.6, zb + 1.0), VIOLET, 2.2, 8.0)
 	# a soft cold fill from the doorway, so she reads against the drapes
-	K.light(root, Vector3(x0 + 4.6, F + 2.4, zb + 5.6), Color(0.75, 0.72, 0.95), 0.9, 6.0)
+	K.light(root, Vector3(x0 + 4.6, F + 2.4, zb + 5.6), Color(0.75, 0.72, 0.95), 1.6, 7.0)
 	# A cluster of candles on a low crate and on the floor.
 	var c := Vector3(x0 + 3.2, F, zb + 0.6)
 	K.wood(root, c + Vector3(0, 0.2, 0), Vector3(0.7, 0.4, 0.5))
