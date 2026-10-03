@@ -135,6 +135,8 @@ var fall_speed := 0.0
 var health := 100.0
 var regen_timer := 0.0
 var step_dist := 0.0
+## Set by the ViewCam child (scripts/view_camera.gd) while in third person.
+var third_person := false
 
 
 static func ensure_input_actions() -> void:
@@ -144,6 +146,7 @@ static func ensure_input_actions() -> void:
 		"jump": [KEY_SPACE], "crouch": [KEY_C, KEY_CTRL],
 		"sprint": [KEY_SHIFT], "grapple": [KEY_Q, KEY_E], "reset": [KEY_T],
 		"reload": [KEY_R], "reset_arena": [KEY_G], "inspect": [KEY_I], "melee": [KEY_Z], "fire": [],
+		"toggle_view": [KEY_F5],
 	}
 	for action in keys:
 		if InputMap.has_action(action):
@@ -611,6 +614,8 @@ func _update_rope() -> void:
 	if not rope.visible:
 		return
 	var from := camera.global_position + camera.global_basis * Vector3(0.3, -0.3, -0.4)
+	if third_person and has_node("ViewCam"):
+		from = $ViewCam.muzzle_position()
 	var dir := grapple_point - from
 	var length := dir.length()
 	if length < 0.01:

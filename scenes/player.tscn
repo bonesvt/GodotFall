@@ -1,9 +1,10 @@
-[gd_scene load_steps=6 format=3]
+[gd_scene load_steps=7 format=3]
 
 [ext_resource type="Script" path="res://scripts/player.gd" id="1_player"]
 [ext_resource type="Script" path="res://scripts/weapon.gd" id="2_weapon"]
 [ext_resource type="Script" path="res://scripts/eco_fp_body.gd" id="3_ecobody"]
 [ext_resource type="Script" path="res://scripts/knife.gd" id="4_knife"]
+[ext_resource type="Script" path="res://scripts/view_camera.gd" id="5_viewcam"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_body"]
 radius = 0.4
@@ -32,3 +33,6 @@ script = ExtResource("4_knife")
 
 [node name="EcoBody" type="Node3D" parent="."]
 script = ExtResource("3_ecobody")
+
+[node name="ViewCam" type="Node" parent="."]
+script = ExtResource("5_viewcam")
