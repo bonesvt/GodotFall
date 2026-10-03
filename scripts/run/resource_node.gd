@@ -52,7 +52,10 @@ func _physics_process(_delta: float) -> void:
 	if _settled:
 		return
 	_settled = true
-	var rid: RID = (get_child(get_child_count() - 1) as StaticBody3D).get_rid()
+	var rid := RID()
+	for child in get_children():
+		if child is StaticBody3D:
+			rid = child.get_rid()
 	var at = LootArt.ground_under(get_world_3d(), global_position, kill_y, [rid])
 	if at == null:
 		queue_free()

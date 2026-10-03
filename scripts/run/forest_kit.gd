@@ -70,7 +70,12 @@ const TREE_IDS := ["pine_a", "pine_b", "pine_c", "pine_a", "pine_b", "tree_a", "
 
 
 static func spawn(parent: Node, id: String, pos: Vector3, yaw_deg := 0.0, scale := 1.0, tints := {}, lamp := LAMP) -> Node3D:
-	var node: Node3D = SCENES[id].instantiate()
+	return place(parent, SCENES[id], pos, yaw_deg, scale, tints, lamp)
+
+
+## spawn() for a model from any table (zone_kit.gd has the other zones' props).
+static func place(parent: Node, scene: PackedScene, pos: Vector3, yaw_deg := 0.0, scale := 1.0, tints := {}, lamp := LAMP) -> Node3D:
+	var node: Node3D = scene.instantiate()
 	node.position = pos
 	node.rotation_degrees.y = yaw_deg
 	node.scale = Vector3.ONE * scale
@@ -88,9 +93,13 @@ static func spawn(parent: Node, id: String, pos: Vector3, yaw_deg := 0.0, scale 
 
 ## Many copies of one prop in a single draw per mesh (grass, ferns, far trees).
 static func scatter(parent: Node, id: String, transforms: Array, tints := {}, shadows := true) -> void:
+	scatter_scene(parent, SCENES[id], transforms, tints, shadows)
+
+
+static func scatter_scene(parent: Node, scene: PackedScene, transforms: Array, tints := {}, shadows := true) -> void:
 	if transforms.is_empty():
 		return
-	var proto: Node3D = SCENES[id].instantiate()
+	var proto: Node3D = scene.instantiate()
 	for mi in proto.find_children("*", "MeshInstance3D", true, false):
 		var kind := _kind(mi)
 		var mm := MultiMesh.new()

@@ -10,10 +10,12 @@ const HubProps := preload("res://scripts/hub/hub_props.gd")
 const ROCK_SLOPE := 0.72
 
 
+## `top_kind` is the material on gentle slopes (grass, or dirt for bare ground)
+## and `surface` the footstep set (player.gd).
 ## `heights` is row-major: heights[iz * nx + ix] is the ground at
 ## (x0 + ix * cell, z0 + iz * cell). Returns the body.
 static func build(parent: Node, heights: PackedFloat32Array, nx: int, nz: int, x0: float, z0: float, cell: float,
-		grass_tint := Color.WHITE, rock_tint := Color.WHITE) -> StaticBody3D:
+		grass_tint := Color.WHITE, rock_tint := Color.WHITE, top_kind := "grass", surface := "grass") -> StaticBody3D:
 	var grass := SurfaceTool.new()
 	var rock := SurfaceTool.new()
 	grass.begin(Mesh.PRIMITIVE_TRIANGLES)
@@ -39,7 +41,7 @@ static func build(parent: Node, heights: PackedFloat32Array, nx: int, nz: int, x
 					st.add_vertex(v)
 				faces.append_array(PackedVector3Array([t[0], t[1], t[2]]))
 	var mesh := ArrayMesh.new()
-	for pair in [[grass, Art.material("grass", grass_tint)],
+	for pair in [[grass, Art.material(top_kind, grass_tint)],
 			[rock, HubProps.material("rock", rock_tint)]]:
 		var st: SurfaceTool = pair[0]
 		st.index()
@@ -51,7 +53,7 @@ static func build(parent: Node, heights: PackedFloat32Array, nx: int, nz: int, x
 		mesh.surface_set_material(mesh.get_surface_count() - 1, pair[1])
 	var body := StaticBody3D.new()
 	body.name = "Ground"
-	body.set_meta("surface", "grass")  # footstep sounds (player.gd)
+	body.set_meta("surface", surface)  # footstep sounds (player.gd)
 	var mi := MeshInstance3D.new()
 	mi.mesh = mesh
 	body.add_child(mi)
