@@ -50,7 +50,8 @@ func _physics_process(delta: float) -> void:
 			SFX.play(collector, "ui_click", -8.0, 1.3 + randf() * 0.2)
 			queue_free()
 			return
-		if to.length() < MAGNET:
+		var magnet = pilot.get("loot_magnet")  # Eco's suit pouches (player.gd)
+		if to.length() < MAGNET * (magnet if magnet != null else 1.0):
 			_grounded = false
 			velocity = velocity.lerp(to.normalized() * 14.0, 1.0 - exp(-10.0 * delta))
 			global_position += velocity * delta

@@ -94,6 +94,7 @@ static func build(root: Node3D) -> Dictionary:
 	K.style = "stone"
 	_eco_corner(root, info)
 	_workbench(root, info)
+	_suit_locker(root, info)
 	_fathers_titan(root, info)
 	_map_table(root, info)
 	_home(root, info)
@@ -332,10 +333,12 @@ static func _eco_corner(root: Node3D, info: Dictionary) -> void:
 	var letter := K.mesh(root, Vector3(c.x - 1.4, F + 1.8, FRONT_Z - 0.05), Vector3(0.6, 0.8, 0.04), Art.material("light"))
 	letter.set_instance_shader_parameter("paint", Color(0.55, 0.5, 0.42))
 	K.glow(root, Vector3(c.x - 1.4, F + 1.95, FRONT_Z - 0.08), Vector3(0.4, 0.08, 0.02), Color(0.7, 0.15, 0.1))
-	K.interactable(info, "bedroll", c + Vector3(0.4, 0.1, 0), "[F] Look at your bed", [
+	K.interactable(info, "bedroll", c + Vector3(0.4, 0.1, 0), "[F] Lie down", [
 		"Nobody knows I'm out here. That's the whole point.",
 		"Took me a week to build the frame. Worth it. The floor was cold.",
 	], 2.5)
+	# she curls up on her side on the quilt, head on the pillow, back to the wall
+	info["interactables"].back()["rest"] = {"pose": "sleep", "at": Transform3D(Basis(), c + Vector3(-0.25, 0, 0.2)), "seat": 0.6}
 	K.interactable(info, "letter", Vector3(c.x - 1.4, F + 0.1, FRONT_Z - 1.4), "[F] Read the letter", [
 		"MILITIA PILOT PROGRAM: APPLICATION DENIED.",
 		"'Insufficient combat aptitude.' They never even let me take the test.",
@@ -372,6 +375,21 @@ static func _workbench(root: Node3D, info: Dictionary) -> void:
 	K.light(root, r + Vector3(-1.2, 2.6, 0), LAMP, 0.9, 4.5)
 	K.interactable(info, "weapon_rack", r + Vector3(-1.5, 0.1, 0), "[F] Pick a sidearm", [], 2.3)
 	info["interactables"].back()["screen"] = "rack"
+
+
+## On the left wall, past the rubble: the scavenged armour locker where Eco
+## upgrades her suit (bench_screen.gd "suit").
+static func _suit_locker(root: Node3D, info: Dictionary) -> void:
+	var l := Vector3(-HALF + 0.42, F, -3.6)
+	K.metal(root, l + Vector3(0, 1.05, 0), Vector3(0.62, 2.1, 1.3))
+	# two doors, one hanging open on a broken hinge, and the glow of a charge strip
+	K.metal(root, l + Vector3(0.33, 1.05, 0.33), Vector3(0.05, 1.9, 0.6))
+	K.metal(root, l + Vector3(0.62, 1.05, -0.62), Vector3(0.05, 1.9, 0.6), Vector3(0, 55, 0))
+	K.glow(root, l + Vector3(0.32, 1.95, -0.3), Vector3(0.02, 0.05, 0.5), Color(0.0, 0.8, 0.75))
+	K.wood(root, l + Vector3(0.75, 0.25, 0.9), Vector3(0.5, 0.5, 0.5), Vector3(0, 18, 0))
+	K.light(root, l + Vector3(1.2, 2.4, 0), LAMP, 0.9, 4.5)
+	K.interactable(info, "suit_locker", l + Vector3(1.3, 0.1, 0), "[F] Upgrade your suit (armour, passives)", [], 2.4)
+	info["interactables"].back()["screen"] = "suit"
 
 
 ## An invisible box collider (for modelled props).
@@ -628,13 +646,14 @@ static func _kitchen(root: Node3D, info: Dictionary) -> void:
 static func _couch(root: Node3D, info: Dictionary) -> void:
 	var c := Vector3(4.3, F, -5.6)
 	var cushion := Art.material("fabric", Color(0.45, 0.5, 0.32))
-	K.metal(root, c + Vector3(0, 0.22, 0), Vector3(1.0, 0.44, 2.6))
-	K.mesh(root, c + Vector3(-0.05, 0.55, 0), Vector3(0.95, 0.22, 2.5), cushion)
-	K.mesh(root, c + Vector3(0.42, 0.95, 0), Vector3(0.22, 0.8, 2.5), cushion, Vector3(0, 0, -8))
+	# seat at a real sitting height (0.49 m), so her feet reach the floor
+	K.metal(root, c + Vector3(0, 0.15, 0), Vector3(1.0, 0.3, 2.6))
+	K.mesh(root, c + Vector3(-0.05, 0.38, 0), Vector3(0.95, 0.22, 2.5), cushion)
+	K.mesh(root, c + Vector3(0.42, 0.8, 0), Vector3(0.22, 0.8, 2.5), cushion, Vector3(0, 0, -8))
 	for dz in [-1.3, 1.3]:
-		K.mesh(root, c + Vector3(0, 0.75, dz), Vector3(1.0, 0.4, 0.16), Art.material("gunmetal"))
-	K.mesh(root, c + Vector3(-0.1, 0.72, 0.6), Vector3(0.6, 0.08, 0.9), Art.material("fabric", Color(0.75, 0.35, 0.25)), Vector3(0, 0, 4))  # a blanket
-	K.mesh(root, c + Vector3(0.1, 0.8, -0.8), Vector3(0.4, 0.3, 0.5), Art.material("fabric", Color(0.9, 0.8, 0.6)), Vector3(0, 20, 10))  # a cushion
+		K.mesh(root, c + Vector3(0, 0.6, dz), Vector3(1.0, 0.4, 0.16), Art.material("gunmetal"))
+	K.mesh(root, c + Vector3(-0.1, 0.53, 0.75), Vector3(0.6, 0.08, 0.7), Art.material("fabric", Color(0.75, 0.35, 0.25)), Vector3(0, 0, 4))  # a blanket
+	K.mesh(root, c + Vector3(0.1, 0.65, -0.95), Vector3(0.4, 0.3, 0.5), Art.material("fabric", Color(0.9, 0.8, 0.6)), Vector3(0, 20, 10))  # a cushion
 	var table := Vector3(2.6, F, -5.6)
 	K.wood(root, table + Vector3(0, 0.25, 0), Vector3(0.9, 0.5, 1.3))
 	K.mesh(root, table + Vector3(0.1, 0.55, 0.3), Vector3(0.3, 0.08, 0.4), Art.material("fabric", Color(0.3, 0.35, 0.55)), Vector3(0, 25, 0))  # a book
@@ -644,10 +663,16 @@ static func _couch(root: Node3D, info: Dictionary) -> void:
 	K.mesh(root, lamp + Vector3(0, 0.9, 0), Vector3(0.06, 1.8, 0.06), Art.material("gunmetal"))
 	K.glow(root, lamp + Vector3(-0.1, 1.85, 0), Vector3(0.3, 0.2, 0.3), LAMP)
 	K.light(root, lamp + Vector3(-0.4, 1.6, 0), LAMP, 0.9, 5.0)
-	K.interactable(info, "couch", c + Vector3(-1.2, 0.1, 1.0), "[F] Look at the couch", [
+	K.interactable(info, "couch", c + Vector3(-1.2, 0.1, 1.0), "[F] Sit on the couch", [
 		"Pilot seat out of a scrapped Ogre. Best thing I ever salvaged.",
 		"I fall asleep here more than in the bed.",
 	], 1.8)
+	# she sits near the front of the deep seat, facing the table; F again stretches
+	# her out along it, head on the cushion
+	info["interactables"].back()["rest"] = {
+		"pose": "sit", "at": Transform3D(Basis(Vector3.UP, PI / 2.0), c + Vector3(-0.25, 0, 0.1)), "seat": 0.49,
+		"alt": {"pose": "lounge", "at": Transform3D(Basis(Vector3.UP, PI), c + Vector3(-0.05, 0, -0.45))},
+	}
 
 
 ## Potted plants: ferns and bushes in drums and buckets round the hall.

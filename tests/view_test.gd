@@ -50,7 +50,7 @@ func _run() -> void:
 	_check("full model not shadow-only", mesh.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON, mesh.cast_shadow)
 	_check("pistol in her hand", eco.shadow.find_child("GunHold", true, false) != null, null)
 	var muzzle: Vector3 = view.muzzle_position()
-	_check("tracers start near her, not the camera", muzzle.distance_to(player.global_position + Vector3.UP * 1.1) < 1.0, muzzle)
+	_check("tracers start from her gun, not the camera", muzzle.distance_to(player.global_position + Vector3.UP * 1.2) < 1.3 and muzzle.distance_to(cam.global_position) > 1.0, muzzle)
 
 	# Tight: when she moves, the camera keeps up
 	var before: Vector3 = cam.global_position

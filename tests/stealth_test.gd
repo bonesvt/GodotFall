@@ -54,6 +54,24 @@ func _run() -> void:
 	_check("pilot beyond sight range is not noticed", g.detection < 0.02, g.detection)
 	_clear()
 
+	# Inside sight range but past the shorter range an unaware grunt notices at.
+	_place(SPOT)
+	g = _grunt(Vector3(-32, 0, 0), Vector3(1, 0, 0))
+	await _seconds(3.0)
+	_check("unaware grunts only notice at shorter range", g.detection < 0.02 and 32.0 < g.sight_range, g.detection)
+	# Once alerted it still tracks the pilot out to its full sight range.
+	g.alert()
+	await _ticks(30)
+	_check("alerted grunts see to full range", g.has_sight, g.has_sight)
+	_clear()
+
+	# Off to the side, past the edge of its vision cone.
+	_place(SPOT)
+	g = _grunt(Vector3(-8, 0, -11), Vector3(1, 0, 0))
+	await _seconds(2.0)
+	_check("pilot at the edge of vision is not seen", g.detection < 0.02, g.detection)
+	_clear()
+
 	# Full cover between the pilot and a grunt facing them.
 	_place(SPOT)
 	var wall = level._box(SPOT + Vector3(-3, 1.4, 0), Vector3(1, 2.8, 3), Color.GRAY)
@@ -82,7 +100,7 @@ func _run() -> void:
 	# In plain view the meter takes a moment to fill, faster up close, slower crouched.
 	_place(SPOT)
 	var near = _grunt(Vector3(-8, 0, 0), Vector3(1, 0, 0))
-	var far = _grunt(Vector3(-30, 0, -3), Vector3(1, 0, 0))
+	var far = _grunt(Vector3(-22, 0, -3), Vector3(1, 0, 0))
 	near.passive = true
 	far.passive = true
 	await _ticks(3)

@@ -12,6 +12,7 @@ extends CanvasLayer
 
 const SCREEN_SHADER := preload("res://assets/shaders/ps2_screen.gdshader")
 const Look := preload("res://scripts/ps2/look.gd")
+const Prefs := preload("res://scripts/game/prefs.gd")
 const PS2_RENDER_SCALE := 0.5
 
 ## true = PS2 look, false = PS3 look.
@@ -42,6 +43,7 @@ func _ready() -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("ps2_toggle"):
 		set_enabled(not enabled)
+		Prefs.remember_look(enabled)
 
 
 func set_enabled(on: bool) -> void:

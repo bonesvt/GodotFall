@@ -2,7 +2,6 @@
 .godot/
 /android/
 *.import
-export_presets.cfg
 !assets/textures/*.import
 !assets/textures/titans/*.import
 !assets/models/titans/*.import
@@ -21,3 +20,6 @@ tools/__pycache__/
 !assets/models/npc/*.import
 !assets/textures/npc/*/*.import
 tools/npc/__pycache__/
+
+# Exported builds
+/build/

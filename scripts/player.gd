@@ -7,6 +7,7 @@ extends CharacterBody3D
 enum State { GROUND, AIR, SLIDE, WALLRUN, GRAPPLE }
 
 const SFX := preload("res://scripts/sfx.gd")
+const Prefs := preload("res://scripts/game/prefs.gd")
 ## Metres between footsteps on the ground and when running along a wall.
 const STRIDE := 2.4
 const WALL_STRIDE := 1.9
@@ -14,11 +15,17 @@ const WALL_STRIDE := 1.9
 signal died
 signal respawned
 signal damaged(amount: float, from: Vector3)
+## The suit's second wind kept her up.
+signal second_winded
 
 @export_group("Ground")
 @export var run_speed := 7.0
 @export var sprint_speed := 10.5
 @export var crouch_speed := 3.5
+## Off duty (the hub and the town, away from the training grounds) Eco doesn't
+## run: she struts. Ground speed then, and with sprint held.
+@export var stroll_speed := 1.9
+@export var stroll_brisk_speed := 3.0
 ## Running is snappy: you hit full speed and stop dead in a few frames.
 ## Momentum is carried by sliding, wallrunning and the grapple, not by running.
 @export var ground_accel := 110.0
@@ -95,7 +102,13 @@ signal damaged(amount: float, from: Vector3)
 ## Seconds without taking damage before health starts coming back.
 @export var regen_delay := 3.0
 @export var regen_rate := 30.0
+## Armour from Eco's suit upgrades (armory.gd SUIT_TIERS, set by apply_suit):
+## takes hits before health and comes back, after the same pause, once health is full.
+@export var max_armor := 0.0
+@export var armor_regen_rate := 25.0
 
+## Seconds she can't be hurt after a second wind.
+const SECOND_WIND_TIME := 1.5
 const STAND_HEIGHT := 1.8
 const CROUCH_HEIGHT := 1.0
 const STAND_EYE := 1.6
@@ -126,6 +139,10 @@ var grapple_cooldown_timer := 0.0
 var crouching := false
 ## Ground speed multiplier (Eco runs lighter with only the knife out).
 var speed_mult := 1.0
+## Off duty: she walks at stroll_speed with a strut (eco_model.gd) instead of
+## running. The run manager sets it each tick in the hub and town, and clears
+## it on the training grounds and on runs.
+var strolling := false
 var cam_roll := 0.0
 var input_dir := Vector2.ZERO
 var wish_dir := Vector3.ZERO
@@ -133,10 +150,38 @@ var rope: Node3D
 var land_dip := 0.0
 var fall_speed := 0.0
 var health := 100.0
+var armor := 0.0
 var regen_timer := 0.0
+## Suit passives (apply_suit): how far loot flies to her (x the pickup's own
+## range), how fast grunts notice her (x their rate), and the second wind.
+var suit_tier := 0
+var suit_weight := "medium"
+## Weight bonuses: ground speed, how fast armour refills, and how much of each hit lands.
+var suit_speed := 1.0
+var damage_mult := 1.0
+var loot_magnet := 1.0
+var notice_mult := 1.0
+var second_wind := false
+## The second wind is ready (the run manager re-arms it each zone).
+var second_wind_ready := false
+## Seconds she can't be hurt (after a second wind).
+var untouchable_timer := 0.0
+## Movement values before the suit's passives scaled them.
+var _armor_regen_mult := 1.0
+var _base_wallrun_time := -1.0
+var _base_grapple_cooldown := -1.0
 var step_dist := 0.0
 ## Set by the ViewCam child (scripts/view_camera.gd) while in third person.
 var third_person := false
+## Set by the ViewCam's orbit camera (hub and town): the keys walk her relative
+## to this yaw (the camera's) instead of her facing, and she turns to face
+## where she walks. NAN when off.
+var move_yaw := NAN
+## How quickly she turns to face where she walks under the orbit camera.
+var move_turn_rate := 10.0
+## Eco is sitting or lying down somewhere (the run manager's rest spots): she
+## doesn't move, but you can still look around her.
+var resting := false
 
 
 static func ensure_input_actions() -> void:
@@ -148,6 +193,9 @@ static func ensure_input_actions() -> void:
 		"reload": [KEY_R], "reset_arena": [KEY_G], "inspect": [KEY_I], "melee": [KEY_Z], "fire": [],
 		"toggle_view": [KEY_F5],
 	}
+	var buttons := {"grapple": [MOUSE_BUTTON_RIGHT], "fire": [MOUSE_BUTTON_LEFT], "melee": [MOUSE_BUTTON_XBUTTON1]}
+	# Only actions that don't exist yet get their defaults, so keys rebound in
+	# the settings (prefs.gd) stay rebound.
 	for action in keys:
 		if InputMap.has_action(action):
 			continue
@@ -156,15 +204,10 @@ static func ensure_input_actions() -> void:
 			var ev := InputEventKey.new()
 			ev.physical_keycode = key
 			InputMap.action_add_event(action, ev)
-	var rmb := InputEventMouseButton.new()
-	rmb.button_index = MOUSE_BUTTON_RIGHT
-	InputMap.action_add_event("grapple", rmb)
-	var lmb := InputEventMouseButton.new()
-	lmb.button_index = MOUSE_BUTTON_LEFT
-	InputMap.action_add_event("fire", lmb)
-	var thumb := InputEventMouseButton.new()
-	thumb.button_index = MOUSE_BUTTON_XBUTTON1
-	InputMap.action_add_event("melee", thumb)
+		for button in buttons.get(action, []):
+			var mb := InputEventMouseButton.new()
+			mb.button_index = button
+			InputMap.action_add_event(action, mb)
 
 
 func _ready() -> void:
@@ -180,8 +223,8 @@ func _ready() -> void:
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
-		rotate_y(-event.relative.x * mouse_sensitivity)
-		head.rotation.x = clampf(head.rotation.x - event.relative.y * mouse_sensitivity, -1.55, 1.55)
+		rotate_y(-Prefs.look_x(event.relative.x) * mouse_sensitivity)
+		head.rotation.x = clampf(head.rotation.x - Prefs.look_y(event.relative.y) * mouse_sensitivity, -1.55, 1.55)
 	elif event.is_action_pressed("ui_cancel"):
 		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	elif event is InputEventMouseButton and event.pressed and Input.mouse_mode != Input.MOUSE_MODE_CAPTURED:
@@ -196,11 +239,24 @@ func _physics_process(delta: float) -> void:
 	jump_buffer_timer -= delta
 	slide_buffer_timer -= delta
 	regen_timer -= delta
+	untouchable_timer -= delta
 	if regen_timer <= 0.0 and health < max_health:
 		health = minf(health + regen_rate * delta, max_health)
+	elif regen_timer <= 0.0 and armor < max_armor:
+		armor = minf(armor + armor_regen_rate * _armor_regen_mult * delta, max_armor)
+	if resting:
+		velocity = Vector3.ZERO
+		input_dir = Vector2.ZERO
+		wish_dir = Vector3.ZERO
+		_update_camera(delta)
+		return
 
 	input_dir = Input.get_vector("move_left", "move_right", "move_forward", "move_back")
 	wish_dir = (transform.basis * Vector3(input_dir.x, 0.0, input_dir.y)).normalized()
+	if not is_nan(move_yaw):
+		wish_dir = (Basis(Vector3.UP, move_yaw) * Vector3(input_dir.x, 0.0, input_dir.y)).normalized()
+		if wish_dir != Vector3.ZERO:
+			rotation.y = lerp_angle(rotation.y, atan2(-wish_dir.x, -wish_dir.z), 1.0 - exp(-move_turn_rate * delta))
 	if Input.is_action_just_pressed("jump"):
 		jump_buffer_timer = jump_buffer
 	if Input.is_action_just_pressed("crouch") and state != State.GROUND and state != State.SLIDE:
@@ -242,7 +298,11 @@ func _ground_state(delta: float) -> void:
 	_set_crouch(want_crouch)
 
 	var sprinting := (auto_sprint or Input.is_action_pressed("sprint")) and input_dir.y < -0.3
-	var target := (crouch_speed if crouching else (sprint_speed if sprinting else run_speed)) * speed_mult
+	var target := (crouch_speed if crouching else (sprint_speed if sprinting else run_speed)) * speed_mult * suit_speed
+	if strolling:
+		# auto sprint doesn't apply; under the orbit camera any direction counts
+		var brisk := Input.is_action_pressed("sprint") and (input_dir.y < -0.3 or (not is_nan(move_yaw) and input_dir != Vector2.ZERO))
+		target = minf(crouch_speed, stroll_speed) if crouching else (stroll_brisk_speed if brisk else stroll_speed)
 	hvel = _ground_move(hvel, target, delta)
 
 	velocity.x = hvel.x
@@ -545,20 +605,55 @@ func respawn() -> void:
 	state = State.AIR
 	grapple_cooldown_timer = 0.0
 	health = max_health
+	armor = max_armor
 	regen_timer = 0.0
+	untouchable_timer = 0.0
 	_set_crouch(false)
 	respawned.emit()
 
 
 func take_damage(amount: float, from := Vector3.ZERO) -> void:
-	if health <= 0.0:
+	if health <= 0.0 or untouchable_timer > 0.0:
 		return
-	health -= amount
+	amount *= damage_mult
+	var soaked := minf(armor, amount)
+	armor -= soaked
+	health -= amount - soaked
 	regen_timer = regen_delay
 	damaged.emit(amount, from)
-	if health <= 0.0:
+	if health <= 0.0 and second_wind_ready:
+		# Dad's Colours: once per zone she stays up on 1 HP and can't be touched for a moment
+		second_wind_ready = false
+		health = 1.0
+		untouchable_timer = SECOND_WIND_TIME
+		second_winded.emit()
+	elif health <= 0.0:
 		health = 0.0
 		died.emit()
+
+
+## Puts on Eco's suit upgrade (armory.gd suit_profile()): armour and passives.
+func apply_suit(profile: Dictionary) -> void:
+	if _base_wallrun_time < 0.0:
+		_base_wallrun_time = wallrun_max_time
+		_base_grapple_cooldown = grapple_cooldown
+	suit_tier = profile.get("tier", 0)
+	suit_weight = profile.get("weight", "medium")
+	suit_speed = profile.get("speed_mult", 1.0)
+	damage_mult = profile.get("damage_mult", 1.0)
+	_armor_regen_mult = profile.get("armor_regen_mult", 1.0)
+	max_armor = profile.get("max_armor", 0.0)
+	armor = max_armor
+	regen_delay = profile.get("regen_delay", 3.0)
+	loot_magnet = profile.get("loot_magnet", 1.0)
+	notice_mult = profile.get("notice_mult", 1.0)
+	wallrun_max_time = _base_wallrun_time * profile.get("wallrun_time_mult", 1.0)
+	grapple_cooldown = _base_grapple_cooldown * profile.get("grapple_cooldown_mult", 1.0)
+	second_wind = profile.get("second_wind", false)
+	second_wind_ready = second_wind
+	var body := get_node_or_null("EcoBody")
+	if body != null and body.has_method("set_suit"):
+		body.set_suit(suit_tier, suit_weight)
 
 
 # --- Crouch, camera, rope -----------------------------------------------------
@@ -586,7 +681,7 @@ func _update_camera(delta: float) -> void:
 	camera.rotation.z = cam_roll
 
 	var t := clampf((horizontal_speed() - run_speed) / (22.0 - run_speed), 0.0, 1.0)
-	camera.fov = lerpf(camera.fov, base_fov + speed_fov_bonus * t, 1.0 - exp(-6.0 * delta))
+	camera.fov = lerpf(camera.fov, base_fov + Prefs.fov_offset() + speed_fov_bonus * t, 1.0 - exp(-6.0 * delta))
 
 
 func _build_rope() -> void:

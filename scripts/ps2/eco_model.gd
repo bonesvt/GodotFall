@@ -14,10 +14,41 @@ extends "res://scripts/ps2/ps2_model.gd"
 @export var run_speed := 6.0
 ## Above this ground speed she runs instead of walking.
 @export var run_threshold := 3.2
+## Ground speed (m/s) the strut is authored at: off duty (player.gd strolling)
+## she walks with the walk animation plus the strut layered on top (_strut).
+@export var strut_speed := 1.55
+## How much strut to layer on the walk (1 = as tuned, 0 = a plain walk).
+@export_range(0.0, 2.0) var strut := 1.0
 ## Simulate the spring bones (hair, chest and glute jiggle).
 @export var springs_enabled := true
 ## How far her chest and glutes may bounce (1 = as tuned, 0 = not at all).
 @export_range(0.0, 2.0) var jiggle := 1.0
+## Her suit upgrade (scripts/hub/armory.gd SUIT_TIERS): 0 is the bare pilot
+## suit; each tier shows its armour pieces (the glb's suit_t<tier>_* meshes,
+## from tools/eco/build_eco_vroid.py) on top of the tiers before it. Tier 5
+## repaints the plates in Dad's colours and turns every trim gold.
+@export_range(0, 5) var suit_tier := 0:
+	set(value):
+		suit_tier = clampi(value, 0, SUIT_TIERS)
+		if is_inside_tree():
+			apply_suit()
+## The suit's weight (armory.gd SUIT_WEIGHTS). Pieces are marked after their
+## tier: "l" light only (the cloth-and-leather light suit), "m" medium and
+## heavy, "h" heavy only, unmarked for all three. The light suit also swaps
+## her bodysuit for its own cut (eco_v_body_light: no side cutouts, open
+## across the top of her chest) once she has a suit tier.
+@export_enum("light", "medium", "heavy") var suit_weight := "medium":
+	set(value):
+		suit_weight = value
+		if is_inside_tree():
+			apply_suit()
+## A rest pose layered over her animation (scripts/ps2/eco_rest.gd): "sleep",
+## "sit" or "lounge"; "" lets her animation play. She settles into it (and back
+## out) over a moment, and moves from one to another without standing up.
+@export var rest_pose := ""
+## Top of the seat or bed under her for the rest pose, metres above her origin
+## (which is the floor under her hips).
+@export var rest_seat_height := 0.5
 
 ## Spring bones (the VRoid rig's J_Sec_* bones; the glute ones are added by
 ## tools/eco/build_eco_vroid.py): how hard each pulls back to its pose, how
@@ -32,6 +63,8 @@ const HAIR_TIP := {"stiffness": 0.12, "drag": 0.2, "gravity": 0.6, "limit": 20.0
 const FRINGE := {"stiffness": 0.16, "drag": 0.22, "gravity": 0.5, "limit": 12.0, "inertia": 0.35}
 const FRINGE_TIP := {"stiffness": 0.14, "drag": 0.22, "gravity": 0.5, "limit": 10.0, "inertia": 0.35}
 const BUST := {"stiffness": 0.14, "drag": 0.08, "gravity": 0.15, "limit": 24.0, "inertia": 0.2, "jiggle": true}
+# the back hair chains below the nape: only the salon's long cuts (braids, ponytail; scripts/hub/hair.gd) hang from them
+const BRAID := {"stiffness": 0.1, "drag": 0.16, "gravity": 0.9, "limit": 28.0, "inertia": 0.5}
 const GLUTE := {"stiffness": 0.18, "drag": 0.09, "gravity": 0.15, "limit": 18.0, "inertia": 0.2, "jiggle": true}
 const SPRINGS := {
 	# locks 01-02 hang at the back, 03-04 at the sides, 05-09 are the fringe;
@@ -42,9 +75,22 @@ const SPRINGS := {
 	"J_Sec_Hair1_09": FRINGE,
 	"J_Sec_Hair2_05": FRINGE_TIP, "J_Sec_Hair2_06": FRINGE_TIP, "J_Sec_Hair2_07": FRINGE_TIP,
 	"J_Sec_Hair2_08": FRINGE_TIP, "J_Sec_Hair2_09": FRINGE_TIP,
+	"J_Sec_Hair2_01": BRAID, "J_Sec_Hair2_02": BRAID, "J_Sec_Hair3_01": BRAID, "J_Sec_Hair3_02": BRAID,
+	"J_Sec_Hair4_01": BRAID, "J_Sec_Hair4_02": BRAID,
 	"J_Sec_L_Bust1": BUST, "J_Sec_R_Bust1": BUST,
 	"J_Sec_L_Glute1": GLUTE, "J_Sec_R_Glute1": GLUTE,
 }
+
+const SUIT_TIERS := 5
+const LEGACY_PLATE := preload("res://assets/materials/eco/eco_v_armor_legacy.tres")
+const LIGHT_BODY := preload("res://assets/materials/eco/eco_v_body_light.tres")
+const MEDIUM_BODY := preload("res://assets/materials/eco/eco_v_body_medium.tres")
+const HEAVY_BODY := preload("res://assets/materials/eco/eco_v_body_heavy.tres")
+const EcoRest := preload("res://scripts/ps2/eco_rest.gd")
+const Hair := preload("res://scripts/hub/hair.gd")
+## Her face while she sleeps (blend shape -> weight); the import's fierce look
+## comes back when she wakes.
+const ASLEEP_FACE := {"Fcl_EYE_Close": 1.0, "Fcl_EYE_Angry": 0.0, "Fcl_BRW_Angry": 0.25, "Fcl_MTH_Down": 0.0}
 
 ## Movement states of scripts/player.gd (enum State).
 enum PlayerState { GROUND, AIR, SLIDE, WALLRUN, GRAPPLE }
@@ -53,6 +99,17 @@ var skeleton: Skeleton3D
 var _anim: AnimationPlayer
 var _springs: Array[Dictionary] = []
 var _last_origin := Vector3.ZERO
+## Strut and off-duty stance blend in and out over a moment (0..1).
+var _strut_weight := 0.0
+var _pose_weight := 0.0
+var _bones := {}
+## What the strut changed last frame (bone -> [pose before, pose after]), so it
+## can be undone when nothing re-posed the bone since (a paused animation).
+var _strut_undo := {}
+var _rest: EcoRest
+var _face: MeshInstance3D
+## The face's weights from before she fell asleep (blend shape index -> weight).
+var _awake_face := {}
 
 
 func _ready() -> void:
@@ -76,9 +133,71 @@ func _ready() -> void:
 		# parents before children, so a lock's second joint follows its root
 		_springs.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return a["bone"] < b["bone"])
 		_last_origin = skeleton.global_position
+		for bone_name: String in STRUT_BONES:
+			_bones[bone_name] = skeleton.find_bone(STRUT_BONES[bone_name])
+		_bones["hips_at"] = _bones["hips"]
+		_rest = EcoRest.new(skeleton)
+		if not _rest.usable():
+			_rest = null
+	_face = find_child("Face", true, false) as MeshInstance3D
+	Hair.apply(self, "eco")  # her haircut from the salon in Solace
 	set_process(_anim != null or not _springs.is_empty())
+	apply_suit()
 	if _anim != null and idle_motion:
 		_anim.play("idle")
+
+
+## The tier a suit_t<tier>[l|m|h]_* mesh belongs to (0 for everything else).
+static func piece_tier(mesh_name: String) -> int:
+	return int(mesh_name.substr(6, 1)) if mesh_name.begins_with("suit_t") else 0
+
+
+## Whether a suit weight wears a piece: "l" light only, "m" medium only, "h" heavy only,
+## anything else every weight.
+static func piece_worn(mesh_name: String, weight: String) -> bool:
+	match mesh_name.substr(7, 1):
+		"l":
+			return weight == "light"
+		"m":
+			return weight == "medium"
+		"h":
+			return weight == "heavy"
+	return true
+
+
+## Shows the armour of every tier up to suit_tier, in Dad's colours at the top tier.
+func apply_suit() -> void:
+	var legacy := suit_tier >= SUIT_TIERS
+	for node in find_children("*", "MeshInstance3D", true, false):
+		var mi := node as MeshInstance3D
+		var tier := piece_tier(String(mi.name))
+		if tier > 0 and mi.mesh != null:
+			mi.visible = tier <= suit_tier and piece_worn(String(mi.name), suit_weight)
+			for i in mi.mesh.get_surface_count():
+				var m := mi.mesh.surface_get_material(i)
+				if m != null and m.resource_name == "eco_v_armor":
+					mi.set_surface_override_material(i, LEGACY_PLATE if legacy else null)
+		elif tier == 0 and mi.mesh != null:
+			for i in mi.mesh.get_surface_count():
+				var m := mi.mesh.surface_get_material(i)
+				if m != null and m.resource_name == "eco_v_body":
+					mi.set_surface_override_material(i, body_material())
+		mi.set_instance_shader_parameter("trim_gold", 1.0 if legacy else 0.0)
+
+
+## The bodysuit for her weight: each weight has its own cut (tools/eco/build_eco_vroid.py
+## suit_graph); the bare suit uses the base one.
+func body_material() -> Material:
+	if suit_tier <= 0:
+		return null
+	match suit_weight:
+		"light":
+			return LIGHT_BODY
+		"medium":
+			return MEDIUM_BODY
+		"heavy":
+			return HEAVY_BODY
+	return null
 
 
 ## The animation she should play now, with its playback speed.
@@ -102,13 +221,23 @@ func pick_animation() -> Array:
 	if speed > run_threshold:
 		return ["run", speed / run_speed]
 	if speed > 0.3:
+		if strolling():
+			# a longer, more deliberate stride as she speeds up
+			return ["walk", speed / maxf(strut_speed, speed * 0.8)]
 		return ["walk", speed / walk_speed]
 	return ["idle", 1.0]
+
+
+## Whether she's off duty (the player's strolling flag: the hub and town).
+func strolling() -> bool:
+	return _body != null and _body.get("strolling") == true
 
 
 func _process(delta: float) -> void:
 	if _anim != null:
 		_animate()
+		_strut(delta)
+		_rest_layer(delta)
 	if springs_enabled and skeleton != null:
 		_step_springs(delta)
 
@@ -126,6 +255,157 @@ func _animate() -> void:
 	_anim.speed_scale = pick[1]
 
 
+## Whether she is in (or settling into) a rest pose.
+func resting() -> bool:
+	return rest_pose != "" or (_rest != null and _rest.weight > 0.0)
+
+
+## How far she has settled into her rest pose (0 = her animation, 1 = the pose),
+## and how far she has moved from her last pose into this one.
+func rest_weight() -> float:
+	return smoothstep(0.0, 1.0, _rest.weight) if _rest != null else 0.0
+
+
+func rest_blend() -> float:
+	return smoothstep(0.0, 1.0, _rest.blend) if _rest != null else 1.0
+
+
+## Lays her rest pose over this frame's animation, and closes her eyes while she sleeps.
+func _rest_layer(delta: float) -> void:
+	if _rest == null:
+		return
+	_rest.seat_height = rest_seat_height
+	_rest.step(delta, rest_pose)
+	_set_asleep(_rest.pose == "sleep" and _rest.weight > 0.6 and rest_pose == "sleep")
+
+
+func _set_asleep(asleep: bool) -> void:
+	if _face == null or _face.mesh == null or asleep == not _awake_face.is_empty():
+		return
+	if asleep:
+		for shape: String in ASLEEP_FACE:
+			var i := _face.find_blend_shape_by_name(shape)
+			if i >= 0:
+				_awake_face[i] = _face.get_blend_shape_value(i)
+				_face.set_blend_shape_value(i, ASLEEP_FACE[shape])
+	else:
+		for i: int in _awake_face:
+			_face.set_blend_shape_value(i, _awake_face[i])
+		_awake_face.clear()
+
+
+## Bones the strut moves (skeleton names), applied parents first.
+const STRUT_BONES := {
+	"hips": "J_Bip_C_Hips", "spine": "J_Bip_C_Spine", "chest": "J_Bip_C_Chest", "head": "J_Bip_C_Head",
+	"thigh.R": "J_Bip_R_UpperLeg", "thigh.L": "J_Bip_L_UpperLeg", "shin.L": "J_Bip_L_LowerLeg",
+	"upperarm.R": "J_Bip_R_UpperArm", "upperarm.L": "J_Bip_L_UpperArm",
+	"forearm.R": "J_Bip_R_LowerArm", "forearm.L": "J_Bip_L_LowerArm",
+	"hand.R": "J_Bip_R_Hand", "hand.L": "J_Bip_L_Hand",
+}
+
+
+## Off duty she struts: layered over the walk (in step with it), her hips sway
+## out over each standing leg and roll up on that side, each foot lands in
+## front of the other, her shoulders sit back and counter the hips, her arms
+## swing loose with the wrists flicked out, chin up. Standing still she rests
+## her weight on one hip. In skeleton space she faces -Z, her right is +X.
+func _strut(delta: float) -> void:
+	if skeleton == null or _bones.is_empty():
+		return
+	for key: String in _strut_undo:
+		var i: int = _bones[key]
+		var undo: Array = _strut_undo[key]
+		if key == "hips_at":
+			if skeleton.get_bone_pose_position(i).is_equal_approx(undo[1]):
+				skeleton.set_bone_pose_position(i, undo[0])
+		elif skeleton.get_bone_pose_rotation(i).is_equal_approx(undo[1]):
+			skeleton.set_bone_pose_rotation(i, undo[0])
+	_strut_undo.clear()
+	var off_duty := strolling() and strut > 0.0
+	var walking := off_duty and _anim.current_animation == "walk"
+	var standing := off_duty and _anim.current_animation == "idle" and not resting()
+	_strut_weight = move_toward(_strut_weight, 1.0 if walking else 0.0, delta * 4.0)
+	_pose_weight = move_toward(_pose_weight, 1.0 if standing else 0.0, delta * 2.0)
+	if _strut_weight <= 0.0 and _pose_weight <= 0.0:
+		return
+	var w := _strut_weight * strut
+	var p := _pose_weight * strut
+	# the walk's own phase: its right thigh swings forward with sin(t)
+	var t := 0.0
+	if _anim.current_animation == "walk" and _anim.current_animation_length > 0.0:
+		t = _anim.current_animation_position / _anim.current_animation_length * TAU
+	var sw := sin(t)
+	var stance := -cos(t)  # +1 her weight on her right leg, -1 on her left
+	# hips: shift over the standing leg, roll up on its side, twist with the stride
+	var shift := 0.045 * stance * w + 0.055 * p
+	var roll := 9.0 * stance * w + 8.0 * p
+	_offset_hips(Vector3(shift, -0.012 * absf(stance) * w - 0.02 * p, 0.0))
+	_turn("hips", Vector3.BACK, roll)
+	_turn("hips", Vector3.UP, 7.0 * sw * w - 6.0 * p)
+	# legs: back to upright under the rolled hips, then crossed in toward the line
+	# she walks (most as each foot reaches forward, least as the legs pass)
+	var reach := 0.35 + 0.65 * absf(sw)
+	var lean := rad_to_deg(atan(shift / 0.88))
+	_turn("thigh.R", Vector3.BACK, -roll - lean - 4.5 * reach * w)
+	_turn("thigh.L", Vector3.BACK, -roll - lean + 4.5 * reach * w + 4.0 * p)
+	_turn("thigh.R", Vector3.RIGHT, 4.0 * sw * w)
+	_turn("thigh.L", Vector3.RIGHT, -4.0 * sw * w + 10.0 * p)
+	_turn("shin.L", Vector3.RIGHT, -18.0 * p)  # standing: her free knee bends in
+	# torso: upright, shoulders back, countering the hips so her head stays level
+	_turn("spine", Vector3.RIGHT, 2.0 * w + 1.0 * p)
+	_turn("chest", Vector3.BACK, -0.75 * roll)
+	_turn("chest", Vector3.UP, -6.0 * sw * w + 4.0 * p)
+	_turn("chest", Vector3.RIGHT, 3.0 * (w + p))
+	_turn("head", Vector3.BACK, -0.2 * roll + 4.0 * p)
+	_turn("head", Vector3.RIGHT, 3.0 * (w + p))
+	# arms: a looser, smaller swing kept a little behind her, elbows soft, wrists flicked out
+	_turn("upperarm.R", Vector3.RIGHT, 7.0 * sw * w - 4.0 * w)
+	_turn("upperarm.L", Vector3.RIGHT, -7.0 * sw * w - 4.0 * w)
+	_turn("upperarm.R", Vector3.BACK, 4.0 * w + 6.0 * p)
+	_turn("upperarm.L", Vector3.BACK, -4.0 * w - 2.0 * p)
+	_turn("forearm.R", Vector3.RIGHT, 10.0 * w + 8.0 * p)
+	_turn("forearm.L", Vector3.RIGHT, 10.0 * w + 6.0 * p)
+	_turn("hand.R", Vector3.BACK, 14.0 * (w + p))
+	_turn("hand.L", Vector3.BACK, -14.0 * (w + p))
+
+
+## Rotates a bone about a skeleton-space axis through its joint, on top of its
+## current pose (like tools/eco/build_eco_vroid.py turn()).
+func _turn(bone: String, axis: Vector3, deg: float) -> void:
+	var i: int = _bones.get(bone, -1)
+	if i < 0 or absf(deg) < 0.01:
+		return
+	var parent := skeleton.get_bone_parent(i)
+	var parent_basis := skeleton.get_bone_global_pose(parent).basis.orthonormalized() if parent >= 0 else Basis()
+	var before := skeleton.get_bone_pose_rotation(i)
+	var turned := (parent_basis.inverse() * Basis(axis, deg_to_rad(deg)) * parent_basis * Basis(before)).get_rotation_quaternion()
+	skeleton.set_bone_pose_rotation(i, turned)
+	_strut_undo[bone] = [_strut_undo[bone][0] if _strut_undo.has(bone) else before, turned]
+
+
+## Moves her hips (and everything on them) by a skeleton-space offset.
+func _offset_hips(offset: Vector3) -> void:
+	var i: int = _bones.get("hips", -1)
+	if i < 0:
+		return
+	var parent := skeleton.get_bone_parent(i)
+	var parent_basis := skeleton.get_bone_global_pose(parent).basis if parent >= 0 else Basis()
+	var before := skeleton.get_bone_pose_position(i)
+	var moved := before + parent_basis.inverse() * offset
+	skeleton.set_bone_pose_position(i, moved)
+	_strut_undo["hips_at"] = [before, moved]
+
+
+## Shoves her chest and glute springs by a world-space offset (metres at the
+## spring's tip), as if her body had jolted the other way: they swing out and
+## bounce back. The first-person body (scripts/eco_fp_body.gd) uses it so jumps,
+## landings and quick looks read on screen.
+func nudge(push: Vector3) -> void:
+	for s in _springs:
+		if s.get("jiggle", false) and s["ready"]:
+			s["tip"] += push
+
+
 func _step_springs(delta: float) -> void:
 	var to_world := skeleton.global_transform
 	var to_skel := to_world.affine_inverse()
@@ -137,11 +417,11 @@ func _step_springs(delta: float) -> void:
 		var parent_pose := skeleton.get_bone_global_pose(s["parent"])
 		if absf(parent_pose.basis.determinant()) < 1e-6:
 			continue  # parent collapsed (first-person body hides the head)
-		var rest_pose := parent_pose * skeleton.get_bone_rest(i)
-		var aim_skel: Vector3 = rest_pose.basis * (s["aim"] as Vector3)
+		var rest_xf := parent_pose * skeleton.get_bone_rest(i)
+		var aim_skel: Vector3 = rest_xf.basis * (s["aim"] as Vector3)
 		var aim_world := to_world.basis * aim_skel
 		var length := maxf(aim_world.length(), 0.02)
-		var origin := to_world * rest_pose.origin
+		var origin := to_world * rest_xf.origin
 		var rest_dir := aim_world / length
 		var limit: float = deg_to_rad(s["limit"]) * (jiggle if s.get("jiggle", false) else 1.0)
 		var target := origin + rest_dir * length
@@ -175,5 +455,5 @@ func _step_springs(delta: float) -> void:
 			skeleton.set_bone_pose_rotation(i, skeleton.get_bone_rest(i).basis.get_rotation_quaternion())
 			continue
 		var swing := Basis(Quaternion(from_skel, to_dir))
-		var local := parent_pose.basis.inverse() * swing * rest_pose.basis
+		var local := parent_pose.basis.inverse() * swing * rest_xf.basis
 		skeleton.set_bone_pose_rotation(i, local.get_rotation_quaternion())

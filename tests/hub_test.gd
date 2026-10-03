@@ -33,11 +33,14 @@ func _run() -> void:
 	_check("pilot stands on the temple floor", player.is_on_floor() and absf(player.global_position.y - HubBuilder.F) < 0.3, player.global_position)
 
 	# Walk down the nave toward the idol for two seconds: nothing blocks the middle of the hall.
+	# Off duty in the hub she struts at stroll speed instead of running.
 	var start: Vector3 = player.global_position
 	Input.action_press("move_forward")
 	await _ticks(240)
+	var strut_speed: float = player.horizontal_speed()
 	Input.action_release("move_forward")
-	_check("walk down the nave", start.z - player.global_position.z > 8.0 and player.is_on_floor(), player.global_position)
+	_check("walk down the nave", start.z - player.global_position.z > 3.0 and player.is_on_floor(), player.global_position)
+	_check("she struts in the hub", player.strolling and absf(strut_speed - player.stroll_speed) < 0.1, [player.strolling, strut_speed])
 
 	# Every interactable answers, and lines cycle.
 	var ids := []
@@ -61,6 +64,11 @@ func _run() -> void:
 		await _press("interact")
 		await _ticks(2)
 		_check("%s says something" % spot["id"], run_node.hud.toast_label.text == spot["lines"][0] and run_node.phase == run_node.Phase.HUB, run_node.hud.toast_label.text)
+		if spot.has("rest"):
+			# she sits or lies down there instead (her rest poses are checked below); get her up
+			_check("%s lets her rest" % spot["id"], run_node.rest_pose == spot["rest"]["pose"] and player.resting, run_node.rest_pose)
+			await _get_up()
+			continue
 		if spot["lines"].size() > 1:
 			await _press("interact")
 			await _ticks(2)
@@ -68,6 +76,8 @@ func _run() -> void:
 	for id in ["map_table", "idol", "titan", "gunsmith", "weapon_rack", "titan_workshop", "bedroll", "letter", "garage"]:
 		_check("hub has %s" % id, id in ids, ids)
 	_check("spot left for Eco at her bench", info.get("eco_spot") is Marker3D, info.get("eco_spot"))
+
+	await _rest_checks(info)
 
 	# The paint shop: F opens the garage and pauses the hub, a change is saved
 	# for the chassis, and F closes it again.
@@ -94,7 +104,7 @@ func _run() -> void:
 	await _stand_at(ramp_from)
 	player.rotation.y = atan2(-(ramp_to.x - ramp_from.x), -(ramp_to.z - ramp_from.z))
 	Input.action_press("move_forward")
-	for i in 240:
+	for i in 1200:  # at strut speed
 		await physics_frame
 		if _on_gallery():
 			break
@@ -130,6 +140,7 @@ func _run() -> void:
 	var course: Dictionary = info["course"]
 	await _stand_at(course["start"])
 	_check("start pad arms the clock", run_node.course_armed, run_node.course_armed)
+	_check("full speed on the training grounds", not player.strolling, player.strolling)
 	_place(course["start"] + Vector3(4.5, 0.6, 0))
 	await _ticks(20)
 	_check("leaving the pad starts the clock", run_node.course_time > 0.0, run_node.course_time)
@@ -184,6 +195,8 @@ func _run() -> void:
 	await _press("interact")
 	await _ticks(3)
 	_check("map table starts a run", run_node.phase == run_node.Phase.ZONE and run_node.run.zone == 0 and run_node.run.run_seed == 99, run_node.phase)
+	await physics_frame
+	_check("no strut on a run", not player.strolling, player.strolling)
 	_check("hub cleared for the zone", run_node.zone_root.name == "Zone" and run_node.zone_info.has("caches"), run_node.zone_root.name)
 
 	# Losing the run goes back to the temple.
@@ -217,6 +230,78 @@ func _run() -> void:
 
 	print("RESULT: %s (%d failures)" % ["PASS" if failures == 0 else "FAIL", failures])
 	quit(1 if failures > 0 else 0)
+
+
+## In third person she lies down on her bed asleep, sits on the couch and
+## stretches out along it, and sits by the campfire; a move key or jump gets
+## her up and gives the player back.
+func _rest_checks(info: Dictionary) -> void:
+	var eco_body = player.get_node("EcoBody")
+	var eco = eco_body.shadow
+	var view = player.get_node("ViewCam")
+	var spots := {}
+	for spot in info["interactables"]:
+		if spot.has("rest"):
+			spots[spot["id"]] = spot
+	_check("bed, couch and campfire let her rest", spots.has("bedroll") and spots.has("couch") and spots.has("campfire"), spots.keys())
+	var hips: int = eco.skeleton.find_bone("J_Bip_C_Hips")
+	var head: int = eco.skeleton.find_bone("J_Bip_C_Head")
+
+	await _stand_at(spots["bedroll"]["pos"])
+	await _press("interact")
+	await _ticks(120)
+	var at: Vector3 = spots["bedroll"]["rest"]["at"].origin
+	var hips_at: Vector3 = eco.skeleton.global_transform * eco.skeleton.get_bone_global_pose(hips).origin
+	var head_at: Vector3 = eco.skeleton.global_transform * eco.skeleton.get_bone_global_pose(head).origin
+	_check("she lies down on the bed", eco.rest_pose == "sleep" and Vector2(hips_at.x - at.x, hips_at.z - at.z).length() < 0.1 and absf(hips_at.y - (at.y + 0.77)) < 0.05, hips_at)
+	_check("lying flat, head toward the pillow", absf(head_at.y - hips_at.y) < 0.3 and head_at.x < hips_at.x - 0.3, head_at)
+	var face := eco.find_child("Face", true, false) as MeshInstance3D
+	_check("eyes closed asleep", face.get_blend_shape_value(face.find_blend_shape_by_name("Fcl_EYE_Close")) == 1.0, face)
+	_check("resting shows her in third person, gun away", view.third_person and run_node.hud.prompt_label.text == "[F] Get up", run_node.hud.prompt_label.text)
+	var stood: Vector3 = player.global_position
+	Input.action_press("move_forward")
+	await _ticks(10)
+	_check("player stays put while she gets up", player.global_position.distance_to(stood) < 0.05, player.global_position)
+	Input.action_release("move_forward")
+	await _ticks(120)
+	_check("up again: player free, view back", not player.resting and run_node.rest_spot.is_empty() and not view.third_person and not eco.top_level, [player.resting, view.third_person])
+	_check("eyes open again", face.get_blend_shape_value(face.find_blend_shape_by_name("Fcl_EYE_Close")) == 0.0, face)
+
+	await _stand_at(spots["couch"]["pos"])
+	await _press("interact")
+	await _ticks(120)
+	at = spots["couch"]["rest"]["at"].origin
+	hips_at = eco.skeleton.global_transform * eco.skeleton.get_bone_global_pose(hips).origin
+	head_at = eco.skeleton.global_transform * eco.skeleton.get_bone_global_pose(head).origin
+	_check("she sits on the couch", eco.rest_pose == "sit" and absf(hips_at.y - (at.y + 0.57)) < 0.05 and head_at.y > hips_at.y + 0.45, [hips_at, head_at])
+	_check("couch prompt offers stretching out", run_node.hud.prompt_label.text.begins_with("[F] Stretch out"), run_node.hud.prompt_label.text)
+	await _press("interact")
+	await _ticks(150)
+	at = spots["couch"]["rest"]["alt"]["at"].origin
+	hips_at = eco.skeleton.global_transform * eco.skeleton.get_bone_global_pose(hips).origin
+	head_at = eco.skeleton.global_transform * eco.skeleton.get_bone_global_pose(head).origin
+	_check("F stretches her out along the couch", eco.rest_pose == "lounge" and Vector2(hips_at.x - at.x, hips_at.z - at.z).length() < 0.1 and head_at.z < hips_at.z - 0.3, [hips_at, head_at])
+	await _press("interact")
+	await _ticks(150)
+	_check("F again sits her back up", eco.rest_pose == "sit" and player.resting, eco.rest_pose)
+	await _get_up()
+	_check("jump gets her up from the couch", not player.resting and eco.rest_pose == "", player.resting)
+
+	await _stand_at(spots["campfire"]["pos"])
+	await _press("interact")
+	await _ticks(120)
+	at = spots["campfire"]["rest"]["at"].origin
+	hips_at = eco.skeleton.global_transform * eco.skeleton.get_bone_global_pose(hips).origin
+	_check("she sits on the bench by the fire", eco.rest_pose == "sit" and Vector2(hips_at.x - at.x, hips_at.z - at.z).length() < 0.1, hips_at)
+	await _get_up()
+
+
+func _get_up() -> void:
+	await _press("jump")
+	for i in 240:
+		if run_node.rest_spot.is_empty():
+			break
+		await physics_frame
 
 
 func _on_gallery() -> bool:

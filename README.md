@@ -5,7 +5,38 @@ Pilot movement, first combat (a weak starter pistol and grunt enemies), and the 
 ## Run it
 1. Install Godot 4.3 or newer (standard build, not .NET): https://godotengine.org/download
 2. Open Godot, click **Import**, pick this folder's `project.godot`.
-3. Press **F5** (or the Play button). The mouse is captured; Esc frees it, click to recapture.
+3. Press **F5** (or the Play button). The title screen opens: **Continue**, **New game**,
+   **Load game**, **Settings**, **Quit**. In game the mouse is captured; **Esc** pauses.
+
+Or play the Windows build (no editor needed): `GodotFall.exe`, see **Windows build** below.
+
+## Menus, settings and saves
+- **Title screen** (`scenes/title.tscn`, the main scene; `scripts/ui/title_screen.gd`): Eco on
+  the temple steps behind the menu. Continue loads the last slot played straight into the
+  temple. New game asks before writing over a used slot.
+- **Pause menu** (Esc; `scripts/ui/pause_menu.gd`): Resume, Settings, Abandon run (during a
+  run: it ends like a loss, half the carried materials bank), Quit to title, Quit game. It
+  stays shut over the workbenches, paint shop and salvage choice, where Esc closes those.
+- **Settings** (`scripts/ui/settings_menu.gd`, saved by `scripts/game/prefs.gd` to
+  `user://settings.cfg`): mouse sensitivity, invert Y, field of view; every key rebindable
+  (primary and secondary); master / effects / ambience / voices volume (buses in
+  `default_bus_layout.tres`); windowed / borderless / fullscreen, vsync, frame cap, PS3 or
+  PS2 look (F9 remembers too); dialogue rating, tutorial hints, start in third person.
+- **Save slots** (`scripts/game/saves.gd`): three, in `user://saves/slot1..3/`. Each holds the
+  files the game already saved on its own (armory, hub conversations, titan paint, tutorial
+  hints seen) plus runs / wins / time played. A run in progress isn't saved; Continue puts you
+  back in the temple. A save from before slots moves into slot 1 on first launch.
+  `user://` is `%APPDATA%\Godot\app_userdata\Titanfall Roguelike - Movement Prototype\` on
+  Windows (the project keeps that name so old saves carry over; the window says GodotFall).
+
+## Windows build
+`export_presets.cfg` has a **Windows Desktop** preset that writes one self-contained
+`build/windows/GodotFall.exe` (the game data is embedded). In the editor: **Project > Export >
+Windows Desktop > Export Project** (install the export templates first if Godot asks:
+**Editor > Manage Export Templates > Download and Install**). From a terminal:
+`godot --headless --path . --export-release "Windows Desktop" build/windows/GodotFall.exe`.
+The preset keeps `dialogue/*` (plain text the hub people read at runtime) and leaves out
+`tests/` and `tools/`.
 
 ## Controls
 | Key | Action |
@@ -18,6 +49,7 @@ Pilot movement, first combat (a weak starter pistol and grunt enemies), and the 
 | R | Reload |
 | T | Respawn |
 | G | Reset the grunt arena |
+| Esc | Pause menu (settings, quit) |
 | H | Toggle help |
 | F9 | Switch between the PS3 look and the old PS2 look |
 
@@ -27,6 +59,14 @@ out in. A lost civilization built it for their precursor god; she has made it he
 base since the militia turned her away. Walk around, warm up the movement kit, and
 press **F** at the map table ("HEAD OUT") to start a run. When a run ends, won or lost,
 **Enter** brings you back here.
+
+Off duty (in the hub and the town, but not on the range, the movement course or the titan
+yard) Eco doesn't run: she struts at a stroll (`player.gd` `stroll_speed`, hold **Shift**
+for a brisker one), hips swaying over each step, one foot landing in front of the other,
+shoulders back, and stands with her weight on one hip. The strut is layered over her walk in
+`scripts/ps2/eco_model.gd` (`_strut`); the training grounds are `TRAINING_AREAS` in
+`hub_grounds.gd`. `xvfb-run -a godot --path . --fixed-fps 30 -s res://tools/eco/strut_shots.gd
+-- out_dir --view=front|side|back` renders it next to her plain walk.
 
 - **The hall**: an old hardwood temple, two rows of timber pillars down a nave and the
   roof fallen in over the middle so a shaft of sun lands on the idol. Carved, painted eye
@@ -106,6 +146,32 @@ enemy titan's salvage when you win); a lost run banks half. The HUD shows what y
   runs with (Mk I, instead of scrap; salvage can still replace them) and **refit** parts
   (+6% per level to every copy you install, salvaged ones and scrap included). The titan
   in the gantry is the one you'd start with.
+- **Suit locker** (left wall, past the rubble): upgrade Eco's suit, five tiers bought in
+  order. Each tier adds **armour** (a second bar over her health: it takes hits first and
+  comes back after the same pause, once health is full), one **passive**, and armour you
+  can see on her:
+
+  | Tier | Armour | Passive | Looks |
+  | --- | --- | --- | --- |
+  | 1 Scav Rig | 20 | Magnet pouches: materials fly to you from twice as far | forearm bracers, belt with hip pouches |
+  | 2 Seal Weave | 40 | Auto-seal: health and armour come back after 2 s, not 3 | layered shoulder plates, seal injector on her thigh |
+  | 3 Dampers | 60 | Hush dampers: grunts notice you 30% slower (sight and footsteps) | shin guards, knee cops, hip plates |
+  | 4 Jump Kit | 80 | Wallruns last 40% longer, grapple recharges 30% faster | jump pack low on her back, armoured collar |
+  | 5 Dad's Colours | 100 | Second wind: once per zone a downing hit leaves you on 1 HP, untouchable 1.5 s | plates in Dad's colours, shoulder crests, every trim gold |
+
+  Once she has a tier, the locker's **Weight** row refits the suit (free, any time):
+
+  | Weight | Armour | Bonus | Looks |
+  | --- | --- | --- | --- |
+  | Light | half | 10% faster on the ground, grunts notice you 15% slower, wallruns 15% longer | cloth and leather: a wrap that supports her chest and covers her sides, choker with Dad's tag, a nose ring, wrapped arms and shins, a leather shoulder guard and knee pads, her stiletto on a thigh garter |
+  | Medium | as listed | armour refills twice as fast | a mechanic's jumpsuit (unzipped in a wide V down past her belly button, a heart window over the top of her glutes, left arm bare with Dad's cog tattoo, right sleeve rolled), a knotted scarf, a cheek plaster, a tool pouch, a canvas yoke, rubber knee caps, a cargo pocket, a wrist computer |
+  | Heavy | +60% | every hit lands 15% softer, but 10% slower on the ground | a quilted padded undersuit under titan-hull armour: a breastplate (Dad's titan's core light from tier 4), a comm earpiece, bracers, pauldrons, shin guards, knee cops, hip, elbow, upper-arm and thigh plates, a back plate, an armoured collar |
+
+  Tier 5 also costs a lock core. The armour pieces are part of `eco.glb` (`suit_t<tier>_*`
+  meshes, modelled by `suit_armor()`, `light_suit()` and `medium_suit()`, `heavy_extras()` in
+  `tools/eco/build_eco_vroid.py`; each weight also bakes its own bodysuit cut,
+  `v_body*_light.png`, `v_body*_medium.png` and `v_body*_heavy.png`); `eco_model.gd` `suit_tier` and
+  `suit_weight` show them.
 
 On the screens: W/S pick a row, A/D browse, Space buy or fit, Tab or Q/E switch section,
 F or Esc to leave. Progress saves to `user://armory.cfg` (`scripts/hub/armory.gd` has every
@@ -341,7 +407,8 @@ boots with knee plates, teal glowing trims).
   ```
   The first-person arm (`eco_fp_arm.glb`) still comes from the older code-sculpted Eco
   (`tools/eco/build_eco.py ... --fp`).
-- **Reference sheet renders**: `godot res://scenes/eco_showcase.tscn -- --shots=<folder> [--clean]`.
+- **Reference sheet renders**: `godot res://scenes/eco_showcase.tscn -- --shots=<folder> [--clean] [--suit=<tier>] [--weight=light|medium|heavy] [--only=front,back]`.
+  In the showcase, S cycles her suit upgrade tiers and W the suit weight.
 
 ## Grunts
 - 60 HP, headshots count above the shoulders. Visor glows red during a 0.4 s wind-up before each shot.
@@ -351,11 +418,11 @@ boots with knee plates, teal glowing trims).
 
 ## Stealth
 Grunts start **unaware** and have to notice you first.
-- **Vision**: a 60° forward cone (each side) out to their sight range (40 m in the test level, 35-45 m in run zones). Unaware grunts slowly sweep their gaze around their post. Behind them or out of range they see nothing.
+- **Vision**: a 50° forward cone (each side). Unaware grunts only notice you within 70% of their sight range (about 28 m in the test level, 25-32 m in run zones); once alerted they track you out to the full range (40 m, 35-45 m). Unaware grunts slowly sweep their gaze around their post. Behind them or out of range they see nothing.
 - **Cover** blocks sight. A crouched pilot behind a low wall is hidden; standing up shows your head.
-- **Tall grass** (the forest's hiding spots): crouch in it and grunts can't see you past 4 m; standing in it halves how fast they notice you. Dense foliage blocks sight like a wall.
-- **Detection meter**: fills while they can see you, fast up close (about half a second at 5 m), slowly far away (about 3 s near max range). Moving fast doubles it, crouching halves it, showing only part of yourself past cover cuts it, and the edge of their vision is slower. It drains again a couple of seconds after you break sight.
-- **Hearing**: footsteps carry with speed (a sprint about 7 m, a crouch walk about 1 m; no footsteps in the air). The suppressed pistol is still heard out to 20 m, and within about 7 m it alerts outright. Bumping into a grunt always gets noticed.
+- **Tall grass** (the forest's hiding spots): crouch in it and grunts can't see you past 3 m; standing in it cuts how fast they notice you to 30%. Dense foliage blocks sight like a wall.
+- **Detection meter**: fills while they can see you, fast up close (under a second at 5 m), slowly far away (6 s or more near the edge of their notice range). Moving fast doubles it, crouching cuts it to about a third, showing only part of yourself past cover cuts it to 40%, and the edge of their vision is much slower. It starts draining 1.5 s after you break sight.
+- **Hearing**: footsteps carry with speed (a sprint about 5 m, a crouch walk well under 1 m; no footsteps in the air). The suppressed pistol is still heard out to 20 m, and within about 7 m it alerts outright. Bumping into a grunt always gets noticed.
 - **Over each grunt**: a **?** that grows from yellow to orange as it notices you (half full, it turns to look), then a red **!** once alerted. Visible through cover.
 - **Around the crosshair**: an arc points at every grunt noticing you, including ones behind you, and fills toward red.
 - **Sneak attacks**: anything that hits a grunt that hasn't noticed you does double damage, so a pistol headshot on an unaware grunt kills outright.
@@ -442,6 +509,9 @@ select the Player node and tweak values in the Inspector, or change the defaults
 - `tests/armory_test.gd` headless workbench test (prices, upgrades, attachments, titan parts and
   refits, saving, the bench screens changing your gun, crates, alloy nodes and grunt drops):
   `godot --headless --path . -s res://tests/armory_test.gd`
+- `tests/suit_test.gd` Eco's suit upgrades (tiers bought in order, armour soaking hits and
+  coming back, each passive, the second wind, armour pieces per tier, the suit locker):
+  `godot --headless --path . -s res://tests/suit_test.gd`
 - `tools/hub/bench_shots.gd` screenshots of the benches, their screens, the guns and the loot
   (needs a renderer): `xvfb-run -a godot --path . -s res://tools/hub/bench_shots.gd -- out_dir`
 - `tests/run_loop_test.gd` headless run loop test (generator limits, a bot pilot clearing the

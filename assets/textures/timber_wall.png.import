@@ -3,15 +3,16 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://bmo051w2dpyka"
-path="res://.godot/imported/timber_wall.png-3736432f2068f9ecf8450ebf239faee5.ctex"
+path.bptc="res://.godot/imported/timber_wall.png-3736432f2068f9ecf8450ebf239faee5.bptc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 
 [deps]
 
 source_file="res://assets/textures/timber_wall.png"
-dest_files=["res://.godot/imported/timber_wall.png-3736432f2068f9ecf8450ebf239faee5.ctex"]
+dest_files=["res://.godot/imported/timber_wall.png-3736432f2068f9ecf8450ebf239faee5.bptc.ctex"]
 
 [params]
 

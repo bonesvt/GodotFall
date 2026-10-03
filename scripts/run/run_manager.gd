@@ -27,6 +27,7 @@ const HubBuilder := preload("res://scripts/hub/hub_builder.gd")
 const Armory := preload("res://scripts/hub/armory.gd")
 const BenchScreen := preload("res://scripts/hub/bench_screen.gd")
 const GunsmithScreen := preload("res://scripts/hub/gunsmith_screen.gd")
+const SalonScreen := preload("res://scripts/hub/salon_screen.gd")
 const Loot := preload("res://scripts/run/loot.gd")
 const Gifts := preload("res://scripts/run/gifts.gd")
 const NpcIdles := preload("res://scripts/hub/npc_idles.gd")
@@ -37,6 +38,10 @@ const TitanStyle := preload("res://scripts/run/titan_style.gd")
 const HubNpc := preload("res://scripts/hub/hub_npc.gd")
 const NpcTalk := preload("res://scripts/hub/npc_talk.gd")
 const Tutorial := preload("res://scripts/run/tutorial.gd")
+const ViewCamera := preload("res://scripts/view_camera.gd")
+const Prefs := preload("res://scripts/game/prefs.gd")
+const Saves := preload("res://scripts/game/saves.gd")
+const PauseMenu := preload("res://scripts/ui/pause_menu.gd")
 
 const FALL_DAMAGE := 25
 ## Integrity lost when grunts take the pilot's health to zero.
@@ -89,6 +94,10 @@ var hub_npcs := {}
 var npc_talk: NpcTalk
 ## The parts your last run ended with; the hub's practice titan is built from them.
 var last_parts := {}
+## The hub spot Eco is sitting or lying down at ({} = she's on her feet), and
+## the rest pose she's in there (spot["rest"] or its "alt").
+var rest_spot := {}
+var rest_pose := ""
 ## The practice titan in the hub's titan yard, and whether you're in it.
 var hub_titan: Titan
 var hub_piloting := false
@@ -101,13 +110,15 @@ var course_time := -1.0
 var course_best := 0.0
 var armory: Armory
 ## The workbench screen while one is open (the hub is paused under it).
-## A BenchScreen, or the GunsmithScreen at the gunsmith bench.
+## A BenchScreen, the GunsmithScreen at the gunsmith bench, or the SalonScreen.
 var bench = null
 ## Lays out loot and rolls drops, seeded per zone from the run seed so loot
 ## never shifts the run's own rolls.
 var loot_rng := RandomNumberGenerator.new()
 ## Hints that teach the game in the first three zones (tutorial.gd).
 var tutorial: Tutorial
+## Esc menu (pause_menu.gd).
+var pause_menu: CanvasLayer
 
 
 static func ensure_input_actions() -> void:
@@ -136,6 +147,9 @@ func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	add_to_group("loot_collector")
 	ensure_input_actions()
+	# Normally the title screen did these; played straight from the editor, do them here.
+	Prefs.apply_all()
+	_use_save_slot()
 	armory = Armory.open(armory_path)
 	npc_talk = NpcTalk.new()
 	npc_talk.save_path = npc_path
@@ -157,11 +171,55 @@ func _ready() -> void:
 	tutorial.name = "Tutorial"
 	tutorial.run = self
 	add_child(tutorial)
+	pause_menu = PauseMenu.new()
+	pause_menu.name = "PauseMenu"
+	pause_menu.run = self
+	add_child(pause_menu)
 	equip_loadout()
 	if start_in_hub:
 		enter_hub()
 	else:
 		start_run(run_seed)
+
+
+## Reads and writes the save slot picked on the title screen (saves.gd). Left
+## alone when a test pointed the saves somewhere of its own.
+func _use_save_slot() -> void:
+	var own_paths := armory_path != Armory.DEFAULT_PATH or npc_path != NpcTalk.DEFAULT_PATH
+	if Saves.active == 0 and Tutorial.settings_path != Tutorial.SETTINGS:
+		own_paths = true
+	if own_paths:
+		return
+	if Saves.active == 0:
+		Saves.migrate_legacy()
+		var last := Saves.last_slot()
+		Saves.use(last if last != 0 else 1)
+	armory_path = Saves.armory_path()
+	npc_path = Saves.npc_path()
+
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_WM_CLOSE_REQUEST:
+		Saves.flush()
+
+
+## A run is under way (not in the hub, not on the summary after one).
+func in_run() -> bool:
+	return phase in [Phase.ZONE, Phase.CHOOSING, Phase.ARENA, Phase.FIGHT]
+
+
+## The pause menu stays shut while a workbench or the paint shop is open.
+func menu_blocked() -> bool:
+	return bench != null or garage != null
+
+
+## Pause menu: give up on this run. It ends like a lost one.
+func abandon_run() -> void:
+	if not in_run():
+		return
+	get_tree().paused = false
+	hud.choice_panel.visible = false
+	end_run("RUN ABANDONED", "Eco pulled out before the job was done.")
 
 
 func start_run(seed_value: int) -> void:
@@ -186,6 +244,11 @@ func start_run(seed_value: int) -> void:
 func _fresh_level(level_name: String) -> void:
 	if npc_talk != null:
 		npc_talk.stop()
+	if not rest_spot.is_empty():
+		get_up()
+		rest_spot = {}
+		player.resting = false
+		_set_rest_view(false)
 	if zone_root != null:
 		remove_child(zone_root)
 		zone_root.free()
@@ -254,6 +317,7 @@ func load_zone(index: int) -> void:
 		evac_open = false
 		hud.toast("THE FOREST'S EDGE: TITANFALL STANDING BY")
 	place_player(zone_info["spawn"])
+	player.second_wind_ready = player.second_wind  # Eco's suit: once per zone
 	tutorial.start_level("zone%d" % index if index < RunState.ZONE_COUNT else "arena")
 
 
@@ -264,6 +328,8 @@ func place_player(pos: Vector3) -> void:
 
 
 func _physics_process(delta: float) -> void:
+	Saves.tick(delta)
+	player.strolling = phase == Phase.HUB and not on_training_ground()
 	match phase:
 		Phase.ZONE:
 			_zone_tick(delta)
@@ -304,6 +370,9 @@ func _hub_tick(delta: float) -> void:
 	if player.global_position.y < float(zone_info["floor_y"]) - KILL_DEPTH:
 		place_player(zone_info["spawn"])
 		return
+	if not rest_spot.is_empty():
+		_rest_tick()
+		return
 	if npc_talk.active():
 		npc_talk.tick(delta, player.global_position)
 		if not npc_talk.options.is_empty():
@@ -339,10 +408,86 @@ func _hub_tick(delta: float) -> void:
 	if spot.has("npc"):
 		talk_to(spot["npc"])
 		return
+	if spot.has("rest"):
+		rest_at(spot)
 	var lines: Array = spot["lines"]
 	var n: int = hub_reads.get(spot["id"], 0)
 	hub_reads[spot["id"]] = n + 1
 	hud.toast(lines[n % lines.size()], HUB_LINE_SECONDS)
+
+
+## Eco sits or lies down at a hub spot with a "rest" entry ({pose, at, seat,
+## alt}: hub_builder.gd): the view goes to third person while she rests, and
+## you can look around her. F at a spot with an "alt" pose moves her between
+## the two (sit up, stretch out); F anywhere else, jump or a move key gets her up.
+func rest_at(spot: Dictionary, alt := false) -> void:
+	var eco_body := player.get_node_or_null("EcoBody")
+	if eco_body == null or not eco_body.has_method("rest"):
+		return
+	var rest: Dictionary = spot["rest"]
+	var pose: Dictionary = rest["alt"] if alt else rest
+	if rest_spot.is_empty():
+		player.resting = true
+		_set_rest_view(true)
+		# face her where she settles, looking down a little
+		var at: Vector3 = (pose["at"] as Transform3D).origin
+		var to := Vector2(at.x - player.global_position.x, at.z - player.global_position.z)
+		if to.length() > 0.3:
+			player.rotation.y = atan2(-to.x, -to.y)
+		player.head.rotation.x = deg_to_rad(-22.0)
+	rest_spot = spot
+	rest_pose = pose["pose"]
+	eco_body.rest(rest_pose, pose["at"], float(rest.get("seat", 0.5)))
+
+
+## Gets Eco back on her feet; the player is free once she's up (_rest_tick).
+func get_up() -> void:
+	var eco_body := player.get_node_or_null("EcoBody")
+	if eco_body != null:
+		eco_body.get_up()
+	rest_pose = ""
+
+
+func _rest_tick() -> void:
+	var eco_body := player.get_node_or_null("EcoBody")
+	if rest_pose == "":
+		if eco_body == null or not eco_body.is_resting():
+			rest_spot = {}
+			player.resting = false
+			_set_rest_view(false)
+		return
+	var moving := Input.get_vector("move_left", "move_right", "move_forward", "move_back") != Vector2.ZERO
+	if moving or Input.is_action_just_pressed("jump"):
+		get_up()
+	elif Input.is_action_just_pressed("interact"):
+		var rest: Dictionary = rest_spot["rest"]
+		if rest.has("alt"):
+			rest_at(rest_spot, rest_pose == rest["pose"])
+		else:
+			get_up()
+
+
+## Resting shows her in third person (whatever the F5 view) with the gun and
+## knife put away; getting up puts the player's view back.
+func _set_rest_view(on: bool) -> void:
+	var view := player.get_node_or_null("ViewCam")
+	if view != null:
+		view.set_third_person(on or ViewCamera.prefer_third_person)
+	for path in ["Head/Camera3D/Weapon", "Head/Camera3D/Knife"]:
+		var n := player.get_node_or_null(path)
+		if n != null:
+			n.process_mode = Node.PROCESS_MODE_DISABLED if on else Node.PROCESS_MODE_INHERIT
+
+
+## The prompt while she rests.
+func _rest_prompt() -> String:
+	if rest_pose == "":
+		return ""
+	var rest: Dictionary = rest_spot["rest"]
+	if rest.has("alt"):
+		var other := "Stretch out" if rest_pose == rest["pose"] else "Sit up"
+		return "[F] %s    [Space] Get up" % other
+	return "[F] Get up"
 
 
 ## Starts a conversation between Eco and one of the people in the hub.
@@ -373,9 +518,13 @@ func close_garage() -> void:
 		hud.toast("Call your titan again (V) to see the new paint.", HUB_LINE_SECONDS)
 
 
-## Opens a workbench screen ("gunsmith", "rack" or "workshop"), pausing the hub.
+## Opens a workbench screen ("gunsmith", "rack", "workshop" or "suit"), or the
+## hair salon's ("salon", in town), pausing the hub.
 func open_bench(kind: String) -> void:
-	bench = GunsmithScreen.new(armory) if kind == "gunsmith" else BenchScreen.new(armory, kind)
+	if kind == "salon":
+		bench = SalonScreen.new()
+	else:
+		bench = GunsmithScreen.new(armory) if kind == "gunsmith" else BenchScreen.new(armory, kind)
 	add_child(bench)
 	get_tree().paused = true
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
@@ -397,9 +546,11 @@ func close_bench() -> void:
 	dress_hub()
 
 
-## Puts the gun picked at the weapon rack, upgraded and fitted, in Eco's hand.
+## Puts the gun picked at the weapon rack, upgraded and fitted, in Eco's hand,
+## and her suit upgrade (suit locker) on her.
 func equip_loadout() -> void:
 	player.get_node("Head/Camera3D/Weapon").equip(armory.weapon_profile())
+	player.apply_suit(armory.suit_profile())
 
 
 ## Shows the armory on the benches: the equipped gun on the gunsmith's mat,
@@ -497,6 +648,18 @@ func _loot_tick(delta: float) -> void:
 	if not got.is_empty():
 		Loot.drop(zone_root, node.global_position + Vector3(0, 0.4, 0), got, loot_rng)
 		tutorial.event("loot")
+
+
+## Whether Eco is on the hub's training grounds (zone_info["training_areas"]:
+## the range, the movement course, the titan yard), where she moves at full
+## speed instead of strolling. A builder adds a Rect2 (x, z) there to make
+## another area one.
+func on_training_ground() -> bool:
+	var at := Vector2(player.global_position.x, player.global_position.z)
+	for area: Rect2 in zone_info.get("training_areas", []):
+		if area.has_point(at):
+			return true
+	return false
 
 
 func in_titan_yard() -> bool:
@@ -817,6 +980,7 @@ func end_run(title: String, reason: String) -> void:
 	var won := title == "RUN COMPLETE"
 	var haul := Armory.run_haul(run.materials, won)
 	armory.bank(haul)
+	Saves.record_run(won)
 	if boss != null:
 		boss.active = false
 	if titan != null:
@@ -892,6 +1056,8 @@ func _prompt() -> String:
 				return "[F] Embark"
 			if npc_talk.active():
 				return ""
+			if not rest_spot.is_empty():
+				return _rest_prompt()
 			if course_armed:
 				return "Leave the pad to start the clock"
 			var spot := nearest_hub_spot()
