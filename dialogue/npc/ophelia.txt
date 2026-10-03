@@ -1,0 +1,74 @@
+# Ophelia. Twenties, emo, flat voice. Eco dragged her out of a militia holding cage
+# on a mission. She's alive and not sure that was a favour. Dry, bleak, quietly
+# funny; she cares more than she lets on, and only ever by accident.
+#
+# Format: see mom.txt. Speakers are ophelia and eco.
+
+[intro]
+ophelia: Oh. It's you.
+eco: Wow. Lovely to see you too.
+ophelia: You're the one who pulled me out of the cage. I didn't say thanks.
+eco: You could say it now.
+ophelia: I'm still deciding if it was a favour.
+eco: ...Cool. Great. Glad we talked.
+
+[won]
+ophelia: You came back. Huh.
+eco: You sound disappointed.
+ophelia: I had a bet with myself. I lost.
+eco: What did you bet?
+ophelia: Doesn't matter. I don't pay up to myself anyway.
+
+[lost]
+ophelia: You look like I feel.
+eco: Thanks, I hate it.
+ophelia: It's not so bad. You stop expecting things. Then nothing can let you down.
+eco: That's the most depressing pep talk I've ever heard.
+ophelia: You're welcome.
+
+[any]
+eco: What are you listening to?
+ophelia: Nothing. The tape snapped three days ago. I just like the hiss.
+eco: I could fix it. I fix titans. A tape deck is like a titan for babies.
+ophelia: ...Don't. The hiss is honest.
+
+[any]
+ophelia: The militia had a name for me in the cage. A number, really. Forty-one.
+eco: You're not a number.
+ophelia: I know. Numbers are useful.
+eco: Ophelia.
+ophelia: It's a joke. Laugh. That's how jokes work.
+
+[any]
+eco: Your room's darker than a titan's fuel tank in here.
+ophelia: I like it. The dark doesn't need anything from me.
+eco: The candles are going to burn the temple down.
+ophelia: Then we'd all finally get some rest.
+eco: I'm moving the candles.
+
+[any]
+ophelia: Your mom keeps bringing me soup.
+eco: She does that. Eat it or she'll bring more.
+ophelia: I ate it.
+eco: Yeah?
+ophelia: Don't make it a thing. It was good soup. That's all.
+
+[any]
+ophelia: Why'd you come for me? There were other cages.
+eco: Yours was closest.
+ophelia: Liar.
+eco: ...You were the only one still yelling at them. I liked that.
+ophelia: I wasn't yelling. I was singing. Badly. On purpose.
+
+[any]
+ophelia: The old man talks in his sleep. Names. Lots of names.
+eco: Biggie? What names?
+ophelia: Soldiers, I think. He says sorry to all of them.
+eco: ...Does he say my dad's?
+ophelia: I didn't listen that hard. I'm not a monster. Just tired.
+
+[any]
+eco: You could help, you know. I could teach you to strip a smart pistol.
+ophelia: Why would I want to touch a gun.
+eco: So you never end up in a cage again.
+ophelia: ...Show me tomorrow. Maybe. If I'm up.
