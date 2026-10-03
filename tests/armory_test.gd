@@ -117,18 +117,21 @@ func _run() -> void:
 	_check("upgrades and attachments carried into the hand", weapon.magazine_size == 11 and weapon.smart_left == 11 and is_equal_approx(weapon.damage, 20.0), [weapon.magazine_size, weapon.smart_left, weapon.damage])
 	_check("the long barrel is on the gun", weapon.viewmodel.find_child("Attachment_muzzle", true, false) != null, "")
 
-	# Gunsmith: browse a grip on and finish.
+	# Gunsmith: the gun in 3D with clickable parts. Grip, then paint.
 	run_node.open_bench("gunsmith")
-	await _ticks(2)
+	await _ticks(3)
 	bench = run_node.bench
-	bench.switch_tab(1)
-	bench.select(2)
-	bench.step(1)  # wrap (locked) -> shown, not fitted
-	var locked: bool = run_node.armory.fitted_attachment("smart_pistol", "grip") == "stock"
-	_check("gunsmith: a locked grip needs buying", locked and bench.confirm() and run_node.armory.fitted_attachment("smart_pistol", "grip") == "wrap", run_node.armory.fitted)
-	bench.select(3)
-	bench.step(1)
-	_check("gunsmith: finish changes", run_node.armory.finish_of("smart_pistol") != "dads", run_node.armory.finish_of("smart_pistol"))
+	_check("gunsmith: opens on the gun in hand", bench.weapon == "smart_pistol" and bench._model != null, bench.weapon)
+	var spot = bench.spot_position("module")
+	_check("gunsmith: part markers sit on screen", spot is Vector2 and Rect2(0, 0, 1600, 900).has_point(spot), spot)
+	bench.select_part("grip")
+	var wrap: int = bench.options.map(func(o): return o["id"]).find("wrap")
+	_check("gunsmith: the first click on a locked grip only previews it", wrap >= 0 and not bench.choose(wrap) and run_node.armory.fitted_attachment("smart_pistol", "grip") == "stock", run_node.armory.fitted)
+	_check("gunsmith: the second click buys and fits it", bench.choose(wrap) and run_node.armory.fitted_attachment("smart_pistol", "grip") == "wrap", run_node.armory.fitted)
+	bench.select_part("shell")
+	var paint: int = bench.options.map(func(o): return o["id"]).find(Armory.FINISHES[1]["id"])
+	_check("gunsmith: finish changes", bench.choose(paint) and run_node.armory.finish_of("smart_pistol") != "dads", run_node.armory.finish_of("smart_pistol"))
+	_check("gunsmith: locked guns can't be picked", not bench.select_weapon("machine_pistol") or run_node.armory.owns_weapon("machine_pistol"), bench.weapon)
 	run_node.close_bench()
 
 	# Workshop: the titan on the gantry is the one you'd start with.

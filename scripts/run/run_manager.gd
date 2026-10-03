@@ -26,6 +26,7 @@ const Titan := preload("res://scripts/run/titan.gd")
 const HubBuilder := preload("res://scripts/hub/hub_builder.gd")
 const Armory := preload("res://scripts/hub/armory.gd")
 const BenchScreen := preload("res://scripts/hub/bench_screen.gd")
+const GunsmithScreen := preload("res://scripts/hub/gunsmith_screen.gd")
 const Loot := preload("res://scripts/run/loot.gd")
 const Weapon := preload("res://scripts/weapon.gd")
 const Art := preload("res://scripts/ps2/ps2_assets.gd")
@@ -88,7 +89,8 @@ var course_time := -1.0
 var course_best := 0.0
 var armory: Armory
 ## The workbench screen while one is open (the hub is paused under it).
-var bench: BenchScreen
+## A BenchScreen, or the GunsmithScreen at the gunsmith bench.
+var bench = null
 ## Lays out loot and rolls drops, seeded per zone from the run seed so loot
 ## never shifts the run's own rolls.
 var loot_rng := RandomNumberGenerator.new()
@@ -312,7 +314,7 @@ func close_garage() -> void:
 
 ## Opens a workbench screen ("gunsmith", "rack" or "workshop"), pausing the hub.
 func open_bench(kind: String) -> void:
-	bench = BenchScreen.new(armory, kind)
+	bench = GunsmithScreen.new(armory) if kind == "gunsmith" else BenchScreen.new(armory, kind)
 	add_child(bench)
 	get_tree().paused = true
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
