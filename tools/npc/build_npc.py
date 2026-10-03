@@ -342,7 +342,7 @@ def body_ophelia():
         z = P[:, 2]
         out = N[:, 0] * np.sign(P[:, 0])
         # the piercings lift the fabric a touch
-        nip = 0.0026 * gauss(P, NIP[0], -0.12, NIP[1], 0.006, 0.012, 0.006) * ss(-0.08, -0.11, P[:, 1])
+        nip = 0.0034 * gauss(P, NIP[0], -0.12, NIP[1], 0.006, 0.012, 0.006) * ss(-0.08, -0.11, P[:, 1])
         return nip - 0.006 * np.exp(-((z - 0.74) / 0.08) ** 2) * np.clip(out, 0, 1) - 0.004 * ss(0.5, 0.6, z) * ss(0.75, 0.68, z)
     print("ophelia body: up to %.1f mm" % (push(bpy.data.objects["Body"], amount) * 1000))
 
@@ -817,7 +817,13 @@ def ophelia_outfit(g, skin, x, y, z, ax, front, cov, edge, sine, neck_r):
     nub = g.mul(g.sub(1.0, g.sstep(0.0035, 0.0055, g.sqrt(g.add(g.sq(nx), g.sq(nz))))), front)
     ends = g.mul(g.sub(1.0, g.sstep(0.0016, 0.0026, g.sqrt(g.add(g.sq(g.sub(g.abs(nx), 0.0085)), g.sq(nz))))), front)
 
-    def pierce(col):
+    def pierce(col, strong=False):
+        if strong:   # pressed hard through the thin cami: a bright point, shadow under it, bigger bar ends
+            shade = g.mul(g.sub(1.0, g.sstep(0.004, 0.0075, g.sqrt(g.add(g.sq(nx), g.sq(g.add(nz, 0.0035)))))), front)
+            col = g.mixc(col, (0.0, 0.0, 0.0), g.mul(shade, 0.6))
+            col = g.mixc(col, (0.24, 0.22, 0.26), g.mul(nub, 0.85))
+            big = g.mul(g.sub(1.0, g.sstep(0.0022, 0.0032, g.sqrt(g.add(g.sq(g.sub(g.abs(nx), 0.0095)), g.sq(nz))))), front)
+            return g.mixc(col, (0.62, 0.62, 0.68), big)
         col = g.mixc(col, (0.16, 0.15, 0.18), g.mul(nub, 0.55))
         return g.mixc(col, (0.42, 0.42, 0.46), g.mul(ends, 0.8))
     if OUTFIT == "tee":
@@ -900,10 +906,14 @@ def ophelia_outfit(g, skin, x, y, z, ax, front, cov, edge, sine, neck_r):
     d_cami = g.mn(g.sub(top_z, z), g.sub(z, 0.9))
     cami = g.mul(cov(d_cami), g.sstep(0.2, 0.18, ax))
     straps = g.mul(g.mul(g.band(ax, 0.06, 0.068), g.sstep(1.08, 1.09, z)), g.sstep(0.2, 0.18, ax))
-    d_shorts = g.mn(g.sub(0.87, z), g.sub(z, g.add(0.655, g.mul(ax, 0.0))))
+    # tiny low-rise shorts: the leg openings cut up high over the hips and
+    # cheeky at the back, still covering where they need to
+    waist_z = g.add(0.8, g.mul(g.sub(1.0, front), 0.012))
+    open_z = g.add(0.702, g.mul(g.sstep(0.02, 0.11, ax), g.add(0.07, g.mul(g.sub(1.0, front), 0.012))))
+    d_shorts = g.mn(g.sub(waist_z, z), g.sub(z, open_z))
     shorts = cov(d_shorts)
-    belt = g.mul(g.band(z, 0.83, 0.85), shorts)
-    studs = g.mul(g.mul(belt, g.sstep(0.75, 0.85, sine(g.add(x, y), 0.012))), g.band(z, 0.836, 0.844))
+    belt = g.mul(g.band(g.sub(z, waist_z), -0.014, 0.0), shorts)
+    studs = g.mul(g.mul(belt, g.sstep(0.75, 0.85, sine(g.add(x, y), 0.012))), g.band(g.sub(z, waist_z), -0.009, -0.005))
     lace = g.mul(g.mul(g.band(g.abs(g.sub(ax, g.mul(g.abs(g.sub(g.op("FRACT", g.div(z, 0.02)), 0.5)), 0.012))), 0.0, 0.0012), front), g.mul(g.band(ax, 0.0, 0.012), g.band(z, 0.7, 0.82)))
     d_socks = g.mn(g.sub(0.565, z), g.sub(z, 0.12))
     socks = cov(d_socks)
@@ -917,7 +927,7 @@ def ophelia_outfit(g, skin, x, y, z, ax, front, cov, edge, sine, neck_r):
     col = g.mixc(col, STUD, g.mx(g.mx(studs, o_ring), g.mul(lace, shorts)))
     col = g.mixc(col, BLACK, choker)
     ink = g.mx(g.mx(edge(d_cami), edge(d_shorts)), g.mx(g.mul(edge(d_socks), 1.0), g.mul(edge(d_mesh), 0.6)))
-    return pierce(g.mixc(col, INK, ink))
+    return pierce(g.mixc(col, INK, ink), strong=True)
 
 
 def clothes_graph(nt, skin):
