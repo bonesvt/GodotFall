@@ -327,14 +327,16 @@ def body_mom():
         x, y, z = P[:, 0], P[:, 1], P[:, 2]
         ax = np.abs(x)
         out = N[:, 0] * np.sign(x)
-        glute = 0.034 * np.exp(-((ax - 0.062) / 0.058) ** 2 - ((z - 0.76) / 0.07) ** 2) * ss(-0.02, 0.04, y)
-        hip = 0.02 * np.exp(-((z - 0.755) / 0.07) ** 2) * ss(0.15, 0.7, out)
-        thigh = 0.015 * ss(0.45, 0.56, z) * ss(0.78, 0.68, z) * (0.3 + 0.7 * ss(-0.5, 0.5, out))
-        bust = 0.016 * gauss(P, 0.062, -0.105, 1.035, 0.048, 0.05, 0.05) * ss(-0.03, -0.07, y)
-        waist = 0.007 * np.exp(-((z - 0.9) / 0.06) ** 2) * (0.3 + 0.7 * np.clip(out, 0, 1)) * (ax < 0.2)
-        belly = 0.013 * gauss(P, 0.0, -0.08, 0.835, 0.075, 0.06, 0.045) * ss(-0.02, -0.06, y)
-        arms = 0.005 * ss(0.11, 0.15, ax) * ss(0.33, 0.27, ax) * (np.abs(z - 1.145) < 0.07) * ss(-0.3, 0.3, -N[:, 2])
-        return glute + hip + thigh + bust + waist + belly + arms
+        # well past Eco's (glutes 0.026, hips 0.014, thighs 0.009): Bones wants her plainly thicker
+        glute = 0.052 * np.exp(-((ax - 0.064) / 0.064) ** 2 - ((z - 0.755) / 0.08) ** 2) * ss(-0.02, 0.04, y)
+        hip = 0.034 * np.exp(-((z - 0.76) / 0.085) ** 2) * ss(0.1, 0.65, out)
+        thigh = 0.03 * ss(0.4, 0.55, z) * ss(0.8, 0.68, z) * (0.35 + 0.65 * ss(-0.5, 0.5, out))
+        calf = 0.007 * ss(0.2, 0.28, z) * ss(0.4, 0.33, z)
+        bust = 0.026 * gauss(P, 0.062, -0.105, 1.035, 0.052, 0.055, 0.055) * ss(-0.03, -0.07, y)
+        waist = 0.01 * np.exp(-((z - 0.9) / 0.06) ** 2) * (0.3 + 0.7 * np.clip(out, 0, 1)) * (ax < 0.2)
+        belly = 0.015 * gauss(P, 0.0, -0.08, 0.835, 0.075, 0.06, 0.045) * ss(-0.02, -0.06, y)
+        arms = 0.008 * ss(0.11, 0.15, ax) * ss(0.33, 0.27, ax) * (np.abs(z - 1.145) < 0.07) * ss(-0.3, 0.3, -N[:, 2])
+        return glute + hip + thigh + calf + bust + waist + belly + arms
     print("mom body: up to %.1f mm" % (push(bpy.data.objects["Body"], amount, passes=7) * 1000))
 
 
