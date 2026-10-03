@@ -483,6 +483,16 @@ func take_damage(amount: float, _pos: Vector3, _head := false) -> bool:
 	return true
 
 
+## Knocked off their aim by a heavy hit (the heavy revolver's Stagger coils):
+## a shot they were winding up is lost and the next waits `seconds` more.
+func stagger(seconds: float) -> void:
+	if dead:
+		return
+	windup_timer = -1.0
+	fire_timer = maxf(fire_timer, 0.0) + seconds
+	hurt_timer = maxf(hurt_timer, 0.15)
+
+
 ## A cry from this grunt (one of the numbered `base` recordings), at most
 ## one every half second so a burst of hits doesn't stack screams.
 func _voice(base: String, volume_db: float) -> void:

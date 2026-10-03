@@ -3,7 +3,7 @@
     blender --background --python tools/pistol/build_sidearms.py
 
 Writes assets/models/sidearms/*.glb:
-  rivet_cannon.glb     a hand cannon Eco built round a titan's rivet driver
+  rivet_cannon.glb     Eco's heavy revolver, built round a titan's rivet driver
   machine_pistol.glb   a militia machine pistol she took off a grunt
   att_*.glb            attachments the gunsmith bench bolts on
 
@@ -11,7 +11,7 @@ Same conventions as build_pistol.py (whose helpers this reuses): authored in
 Godot's frame (x right, y up, -z forward, metres), materials named pistol_*
 for pistol_import.gd to swap, and the grip at the smart pistol's position and
 angle so Eco's glove (eco_fp_arm.glb) closes round every gun. Names the game
-looks up: Muzzle, MagBase, Slide, Vents, HoloGlass, Drum (the rivet cannon's
+looks up: Muzzle, MagBase, Slide, Vents, HoloGlass, Drum (the heavy revolver's
 cylinder pivot), Hammer.
 
 Attachments are authored in the frame of the point they mount to:
@@ -61,62 +61,70 @@ def in_frame(objs, matrix):
 	return objs
 
 
-# --- rivet cannon -------------------------------------------------------------
+# --- heavy revolver -------------------------------------------------------------
 
 def rivet_cannon():
-	"""A five-shot hand cannon. The cylinder is a feed drum off a titan's rivet
-	driver, the barrel a length of its guide tube with heat coils wound round
-	it. Heavy, slow, loud, and it hits like a door."""
+	"""Eco's heavy revolver (id rivet_cannon). The cylinder is a six-round feed
+	drum off a titan's rivet driver, fat enough to bulge out past the frame,
+	the barrel a length of its guide tube on a full underlug, with heat coils
+	wound round it. A big spur hammer she thumbs back between shots. Heavy,
+	slow, loud, and it hits like a door."""
 	bp.reset()
-	axis_y = 0.014
-	# Frame: a chunky block over the grip, with a top strap over the drum.
-	bm = bp.box_bm((0.042, 0.054, 0.11), (0, -0.004, 0.03))
-	for v in bm.verts:
-		if v.co.z > 0.06 and v.co.y > 0.0:
-			v.co.z -= 0.012  # sloped back
-	frame = bp.obj_from_bm("Frame", bm, "pistol_dark", bevel=0.004, segments=2)
-	strap = bp.box("TopStrap", (0.03, 0.01, 0.075), (0, axis_y + 0.03, -0.012), "pistol_dark", bevel=0.002)
-	plate = bp.box("SidePlate", (0.044, 0.022, 0.06), (0, 0.004, 0.04), "pistol_blue", bevel=0.0015)
-	stripe = bp.box("SideStripe", (0.0445, 0.003, 0.06), (0, 0.013, 0.04), "pistol_stripe")
+	axis_y = 0.016
+	# Frame: a bottom strap under the cylinder, a top strap over it, a recoil
+	# shield behind it (rising into the grip) and a short front post.
+	bottom = bp.box("BottomStrap", (0.03, 0.02, 0.1), (0, -0.026, -0.006), "pistol_dark", bevel=0.003)
+	top = bp.box("TopStrap", (0.03, 0.012, 0.11), (0, axis_y + 0.036, -0.01), "pistol_dark", bevel=0.003)
+	shield = bp.box("Shield", (0.034, 0.08, 0.026), (0, 0.004, 0.034), "pistol_dark", bevel=0.004)
+	post = bp.box("FrontPost", (0.03, 0.07, 0.014), (0, 0.004, -0.048), "pistol_dark", bevel=0.003)
+	plate = bp.box("SidePlate", (0.036, 0.04, 0.022), (0, -0.002, 0.034), "pistol_blue", bevel=0.0015)
+	stripe = bp.box("SideStripe", (0.0365, 0.004, 0.02), (0, 0.012, 0.034), "pistol_stripe")
 	guard = bp.guard_and_trigger()
-	grip_parts, mag = bp.grip()
+	grip_parts, flush = bp.grip()
+	bpy.data.objects.remove(flush)  # a revolver has no magazine
 	tape = bp.grip_tape()
-	bp.join("Frame", [frame, strap, plate, stripe] + guard + grip_parts)
+	bp.join("Frame", [bottom, top, shield, post, plate, stripe] + guard + grip_parts)
 	bp.join("Tape", tape)
-	# The drum: five flutes, an orange ring at the back.
+	# The cylinder: six flutes, six chamber mouths, an orange ring at the back.
 	drum_at = Vector((0, axis_y, -0.008))
-	body = bp.cylinder("DrumBody", 0.026, 0.052, drum_at, "pistol_shell", axis="z", segments=20, bevel=0.002)
-	flutes = []
-	for k in range(5):
-		a = 2 * math.pi * k / 5
-		pos = drum_at + Vector((math.cos(a) * 0.024, math.sin(a) * 0.024, 0))
-		flutes.append(bp.box("Flute", (0.008, 0.008, 0.044), pos, "pistol_dark", rot=(0, 0, math.degrees(a))))
-	ring = bp.cylinder("DrumRing", 0.0265, 0.004, drum_at + Vector((0, 0, 0.022)), "pistol_stripe", axis="z", segments=20)
-	pivot_group("Drum", drum_at, [body, ring] + flutes)
-	# Barrel: octagonal guide tube, a coil housing under it, a heavy crown.
-	length = 0.15
-	z0 = -0.034 - length / 2
-	front = -0.034 - length
-	barrel = bp.prism("Barrel", 0.0165, length, (0, axis_y, z0), "pistol_shell", bevel=0.0012)
-	rib = bp.box("Rib", (0.012, 0.012, length), (0, axis_y + 0.019, z0), "pistol_dark", bevel=0.0015)
-	lug = bp.box("Lug", (0.03, 0.022, 0.1), (0, axis_y - 0.026, -0.1), "pistol_blue", bevel=0.003)
-	lug_stripe = bp.box("LugStripe", (0.0305, 0.003, 0.1), (0, axis_y - 0.02, -0.1), "pistol_stripe")
-	crown = bp.prism("Crown", 0.019, 0.012, (0, axis_y, front - 0.002), "pistol_dark", bevel=0.0015)
-	bore = bp.cylinder("Bore", 0.006, 0.014, (0, axis_y, front - 0.004), "pistol_screen", axis="z")
-	sight = bp.box("FrontSight", (0.004, 0.012, 0.012), (0, axis_y + 0.03, front + 0.01), "pistol_stripe", bevel=0.001)
-	rear = bp.box("RearSight", (0.016, 0.008, 0.006), (0, axis_y + 0.038, 0.016), "pistol_dark", bevel=0.001)
-	bp.join("Barrel", [barrel, rib, lug, lug_stripe, crown, bore, sight, rear])
-	# Heat coils wound round the barrel: they glow as she fans the trigger.
+	body = bp.cylinder("DrumBody", 0.033, 0.058, drum_at, "pistol_shell", axis="z", segments=24, bevel=0.003)
+	parts = [body]
+	for k in range(6):
+		a = 2 * math.pi * k / 6 + math.pi / 6
+		pos = drum_at + Vector((math.cos(a) * 0.032, math.sin(a) * 0.032, 0))
+		parts.append(bp.box("Flute", (0.01, 0.01, 0.046), pos, "pistol_dark", rot=(0, 0, math.degrees(a))))
+		mouth = drum_at + Vector((math.cos(a - math.pi / 6) * 0.019, math.sin(a - math.pi / 6) * 0.019, -0.03))
+		parts.append(bp.cylinder("Chamber", 0.0075, 0.004, mouth, "pistol_screen", axis="z", segments=10))
+	parts.append(bp.cylinder("DrumRing", 0.0335, 0.005, drum_at + Vector((0, 0, 0.025)), "pistol_stripe", axis="z", segments=24))
+	pivot_group("Drum", drum_at, parts)
+	# Barrel: octagonal guide tube on a full underlug with the ejector rod,
+	# a vent rib on top and a heavy crown.
+	length = 0.17
+	back = -0.055
+	z0 = back - length / 2
+	front = back - length
+	barrel = bp.prism("Barrel", 0.014, length, (0, axis_y, z0), "pistol_shell", bevel=0.0012)
+	rib = bp.box("Rib", (0.01, 0.01, length), (0, axis_y + 0.016, z0), "pistol_dark", bevel=0.0015)
+	lug = bp.box("Underlug", (0.024, 0.026, length - 0.01), (0, axis_y - 0.026, z0 + 0.005), "pistol_blue", bevel=0.003)
+	lug_stripe = bp.box("LugStripe", (0.0245, 0.004, length - 0.01), (0, axis_y - 0.02, z0 + 0.005), "pistol_stripe")
+	rod = bp.cylinder("EjectorRod", 0.0045, 0.06, (0, axis_y - 0.014, back - 0.03), "pistol_shell", axis="z", segments=8)
+	crown = bp.prism("Crown", 0.017, 0.014, (0, axis_y, front - 0.003), "pistol_dark", bevel=0.0015)
+	bore = bp.cylinder("Bore", 0.0065, 0.016, (0, axis_y, front - 0.005), "pistol_screen", axis="z")
+	sight = bp.box("FrontSight", (0.004, 0.016, 0.016), (0, axis_y + 0.026, front + 0.012), "pistol_stripe", bevel=0.001)
+	rear = bp.box("RearSight", (0.018, 0.01, 0.008), (0, axis_y + 0.045, 0.03), "pistol_dark", bevel=0.001)
+	bp.join("Barrel", [barrel, rib, lug, lug_stripe, rod, crown, bore, sight, rear])
+	# Heat coils wound round the barrel: they glow as she fans the hammer.
 	coils = []
-	for i in range(5):
-		z = -0.06 - i * 0.017
-		coils.append(bp.prism("Coil", 0.0178, 0.005, (0, axis_y, z), "pistol_vent"))
+	for i in range(4):
+		z = back - 0.03 - i * 0.022
+		coils.append(bp.prism("Coil", 0.0158, 0.006, (0, axis_y, z), "pistol_vent"))
 	bp.join("Vents", coils)
-	# Hammer at the back of the strap, pivoting at its base.
-	hammer_at = Vector((0, axis_y + 0.026, 0.05))
-	spur = bp.box("HammerSpur", (0.01, 0.026, 0.01), hammer_at + Vector((0, 0.012, 0.004)), "pistol_shell", rot=(-25, 0, 0), bevel=0.002)
-	pivot_group("Hammer", hammer_at, [spur])
-	bp.empty("Muzzle", (0, axis_y, front - 0.01))
+	# A big spur hammer at the back of the top strap, pivoting at its base.
+	hammer_at = Vector((0, axis_y + 0.03, 0.05))
+	body = bp.box("HammerBody", (0.012, 0.03, 0.014), hammer_at + Vector((0, 0.012, 0.0)), "pistol_dark", rot=(-20, 0, 0), bevel=0.002)
+	spur = bp.box("HammerSpur", (0.018, 0.008, 0.022), hammer_at + Vector((0, 0.026, 0.012)), "pistol_shell", rot=(-35, 0, 0), bevel=0.002)
+	pivot_group("Hammer", hammer_at, [body, spur])
+	bp.empty("Muzzle", (0, axis_y, front - 0.012))
 	export("rivet_cannon")
 
 

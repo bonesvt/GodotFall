@@ -41,7 +41,7 @@ Q, E or right mouse  grapple (hold)
 Left mouse  shoot    R  reload    I  inspect
 Z or mouse thumb  knife (kills unaware grunts)
 T  respawn    G  reset grunt arena
-H  hide help    O  dialogue rating    Esc  free mouse"""
+H  hide help    O  dialogue rating    F1  tutorial hints    Esc  free mouse"""
 
 
 func _ready() -> void:

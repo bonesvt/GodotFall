@@ -60,6 +60,8 @@ MED_SLEEVE = 0.36                 # where the right sleeve is rolled to (rest-sp
 TATTOO = (0.018, 0.024, 0.04)
 HVY_SUIT = (0.03, 0.034, 0.045)   # the heavy suit's padded undersuit
 CREASE = (0.42, 0.24, 0.22)       # shadowed skin
+GLEAM = (0.15, 0.155, 0.195)      # where it stretches thinnest, on the peaks of her bust
+CREASE_SKIN = (0.74, 0.52, 0.52)  # multiplies her skin along the fold under her glutes, where the cut bares it
 
 SIDE_CUT = 0.075   # how far the sides of the halter drop beside the bust (rest-space metres)
 CHEEKY = 1.6       # how steeply the back leg openings rise toward the hips
@@ -67,6 +69,14 @@ CHEEKY = 1.6       # how steeply the back leg openings rise toward the hips
 GLUTES = 0.026
 HIPS = 0.014
 THIGHS = 0.009
+# the suit clinging to her shape (rest-space metres): the peaks of her bust stand
+# out, and it sinks into the cleft of her glutes (only where her cheeks are, never
+# lower) and the fold under each one
+APEX_POS = (0.0567, -0.1207, 1.0468)
+APEX = 0.0045
+CLEFT = 0.006
+FOLD = 0.005
+FOLD_Z = 0.733
 
 # the fierce expression, applied as blend shapes on import (eco_import.gd)
 EXPRESSION = {"Fcl_BRW_Angry": 1.0, "Fcl_EYE_Angry": 0.55, "Fcl_MTH_Down": 0.1}
@@ -446,6 +456,13 @@ def curves():
         for ids in groups.values():
             if len(ids) > 1:
                 D[ids] = D[ids].mean(0)
+    # small, sharp shapes the suit clings to, added after the smoothing so they stay crisp
+    back = ss(0.2, 0.6, N[:, 1])    # surfaces facing behind her
+    d2 = (ax - APEX_POS[0]) ** 2 + (y - APEX_POS[1]) ** 2 + (z - APEX_POS[2]) ** 2
+    apex = APEX * np.exp(-d2 / (2 * 0.0065 ** 2))
+    cleft = CLEFT * np.exp(-(x / 0.011) ** 2) * ss(0.765, 0.785, z) * ss(0.885, 0.85, z) * back
+    fold = FOLD * np.exp(-((z - FOLD_Z) / 0.009) ** 2) * ss(0.012, 0.03, ax) * ss(0.125, 0.09, ax) * back
+    D += N * (apex - cleft - fold)[:, None]
     me.vertices.foreach_set("co", (P + D).ravel())
     me.update()
     print("curves: up to %.1f mm" % (np.linalg.norm(D, axis=1).max() * 1000))
@@ -1249,9 +1266,10 @@ class NG:
     def band(self, x, lo, hi, aa=0.00035):
         return self.mul(self.sstep(lo - aa, lo + aa, x), self.sub(1.0, self.sstep(hi - aa, hi + aa, x)))
 
-    def mixc(self, a, b, t):
+    def mixc(self, a, b, t, blend="MIX"):
         n = self.nt.nodes.new("ShaderNodeMix")
         n.data_type = "RGBA"
+        n.blend_type = blend
         self.put(n.inputs[0], t)
         for sock, v in ((n.inputs[6], a), (n.inputs[7], b)):
             if isinstance(v, tuple):
@@ -1259,6 +1277,18 @@ class NG:
             else:
                 self.nt.links.new(v, sock)
         return n.outputs[2]
+
+
+def crease_lines(g, x, y, z, width):
+    """The crease between her glutes (from the top of her cheeks down to where
+    they end, never lower) and the fold under each one, as soft lines 'width'
+    wide, in rest space."""
+    ax = g.abs(x)
+    back = g.sstep(0.025, 0.045, y)
+    cleft = g.mul(g.mul(g.op("EXPONENT", g.neg(g.sq(g.div(x, width)))), g.sstep(0.772, 0.792, z)), g.sstep(0.862, 0.835, z))
+    fold = g.op("EXPONENT", g.neg(g.sq(g.div(g.sub(z, FOLD_Z), width))))
+    fold = g.mul(g.mul(fold, g.sstep(0.014, 0.032, ax)), g.sstep(0.105, 0.065, ax))
+    return g.mul(g.mx(cleft, fold), back)
 
 
 def suit_graph(nt, skin, cut="base"):
@@ -1364,9 +1394,6 @@ def suit_graph(nt, skin, cut="base"):
         jaw = g.mul(g.band(jr, 0.0022, 0.0038, 0.0003), g.sstep(-0.0003, 0.0003, g.sub(g.abs(b_), 0.0011)))
         tat = g.mul(g.mx(g.mx(cog, bar), jaw), g.mul(g.sstep(1.155, 1.162, z), g.sstep(0.0, 0.004, x)))
         col = g.mixc(col, TATTOO, g.mul(tat, 0.85))
-        # the top of her glute crease, a soft shadow line showing through the heart
-        crease = g.mul(g.mul(g.sub(1.0, g.sstep(0.0005, 0.0022, ax)), g.sub(1.0, g.sstep(0.81, 0.83, z))), tb)
-        col = g.mixc(col, CREASE, g.mul(crease, 0.6))
         # and her belly button, a soft dimple of shadow showing through the open zip
         dimple = g.sqrt(g.add(g.sq(g.div(x, 0.0026)), g.sq(g.div(g.sub(z, MED_NAVEL), 0.0042))))
         col = g.mixc(col, CREASE, g.mul(g.mul(g.sub(1.0, g.sstep(0.4, 1.0, dimple)), front), 0.7))
@@ -1411,6 +1438,7 @@ def suit_graph(nt, skin, cut="base"):
     if medium:   # the back seam would cut across the panels; one down her spine instead
         seam = g.mul(g.mul(g.band(x, -0.0007, 0.0007, 0.0002), tb), c_suit)
     col = g.mixc(col, PLATE, seam)
+    suit_only = g.mul(c_suit, g.sub(1.0, c_gear))
     if not (medium or heavy):
         # the thin suit stretches paler over her bust and glutes: painted on, nothing under it
         def bell(cx, cy, cz, r):
@@ -1419,7 +1447,17 @@ def suit_graph(nt, skin, cut="base"):
         stretch = bell(0.062, 0.06, 0.775, 0.042)
         if not light:
             stretch = g.mx(bell(0.057, -0.105, 1.045, 0.03), stretch)
-        col = g.mixc(col, STRETCH, g.mul(g.mul(stretch, 0.55), g.mul(c_suit, g.sub(1.0, c_gear))))
+        col = g.mixc(col, STRETCH, g.mul(g.mul(stretch, 0.55), suit_only))
+        if not light:   # the light wrap holds her bust: no peaks drawn through it
+            # drawn the anime way: a soft gleam on each peak of her bust with a small shadow under it
+            col = g.mixc(col, INK, g.mul(g.mul(bell(APEX_POS[0], APEX_POS[1] + 0.0015, APEX_POS[2] - 0.0048, 0.0032), 0.8), suit_only))
+            col = g.mixc(col, GLEAM, g.mul(g.mul(bell(APEX_POS[0], APEX_POS[1], APEX_POS[2] + 0.0016, 0.0024), 0.75), suit_only))
+    # a crease between her glutes and a fold under each one: a warm shade where
+    # the suit bares her skin, dark on the thin suit (not on the jumpsuit or padding)
+    crease = crease_lines(g, x, y, z, 0.0015)
+    col = g.mixc(col, CREASE_SKIN, g.mul(g.mul(crease, 0.85), g.sub(1.0, c_suit)), "MULTIPLY")
+    if not (medium or heavy):
+        col = g.mixc(col, INK, g.mul(g.mul(crease, 0.85), c_suit))
     col = g.mixc(col, INK, ink)
     col = g.mixc(col, TRIM, trim)
     return col, trim, g.mx(c_suit, c_gear), ink, c_gear
@@ -1479,21 +1517,22 @@ def bake_body(body, skin_img, cut="base"):
         print("baked", name)
     if cut != "base":
         return results   # the wrap, the jumpsuit or the padding holds her chest: no cling normal map
-    # normal map: the suit clings to the soft contour of her bust apex (nothing
-    # under it), kept as subtle as in the reference renders
+    # normal map: crisp detail on top of the shapes curves() gave the mesh, the
+    # peaks of her bust under the suit (nothing under it) and the creases of her glutes
     at = nt.nodes.new("ShaderNodeAttribute")
     at.attribute_name = "rest"
     sep = nt.nodes.new("ShaderNodeSeparateXYZ")
     nt.links.new(at.outputs["Vector"], sep.inputs[0])
     x, y, z = sep.outputs[0], sep.outputs[1], sep.outputs[2]
     h = 0.0
-    for sx in (0.057, -0.057):
-        d2 = g.add(g.add(g.sq(g.sub(x, sx)), g.sq(g.sub(y, -0.121))), g.sq(g.sub(z, 1.047)))
+    for sx in (APEX_POS[0], -APEX_POS[0]):
+        d2 = g.add(g.add(g.sq(g.sub(x, sx)), g.sq(g.sub(y, APEX_POS[1]))), g.sq(g.sub(z, APEX_POS[2])))
         h = g.add(h, g.op("EXPONENT", g.mul(d2, -1.0 / (2 * 0.0045 ** 2))))
+    h = g.sub(g.mul(g.mul(h, cover), 0.0014), g.mul(crease_lines(g, x, y, z, 0.003), 0.0008))
     bump = nt.nodes.new("ShaderNodeBump")
     bump.inputs["Strength"].default_value = 1.0
     bump.inputs["Distance"].default_value = 1.0
-    g.put(bump.inputs["Height"], g.mul(g.mul(h, cover), 0.0006))
+    g.put(bump.inputs["Height"], h)
     bsdf = nt.nodes.new("ShaderNodeBsdfDiffuse")
     nt.links.new(bump.outputs["Normal"], bsdf.inputs["Normal"])
     nt.links.new(bsdf.outputs[0], out.inputs[0])

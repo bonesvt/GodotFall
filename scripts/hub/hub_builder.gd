@@ -48,6 +48,11 @@ const IDOL := Color(0.5, 0.64, 0.6)
 ## Her benches are old, oiled timber, darker than the crates.
 const BENCH_WOOD := Color(0.72, 0.6, 0.52)
 
+## What the temple is built of: "timber" (old hardwood) or "alloy" (the
+## precursors' pale metal). See hub_kit.gd STYLES.
+static var home_style := "timber"
+const STRING_LIGHT := Color(1.0, 0.72, 0.38)
+
 
 ## Returns {spawn, floor_y, interactables, map_table, eco_spot, half_size}.
 ## Each interactable is {id, pos, range, prompt, lines}; "map_table" is the one that
@@ -59,7 +64,7 @@ static func build(root: Node3D) -> Dictionary:
 	# the sun shaft, fire bowls and lamps carry the light.
 	for node in root.get_children():
 		if node is WorldEnvironment:
-			node.environment.ambient_light_energy = 0.3
+			node.environment.ambient_light_energy = 0.4 if home_style == "timber" else 0.3
 			node.environment.fog_density = 0.0028
 			node.environment.fog_light_color = Color(0.7, 0.8, 0.84)
 			node.environment.fog_aerial_perspective = 0.35
@@ -77,15 +82,21 @@ static func build(root: Node3D) -> Dictionary:
 	}
 	_plinth(root)
 	Grounds.build(root, info)
+	K.style = home_style
 	_shell(root)
 	_pillars(root)
+	_beams(root)
+	if home_style == "timber":
+		_timber_frame(root)
 	_gallery(root)
 	_idol(root, info)
+	K.style = "stone"
 	_eco_corner(root, info)
 	_workbench(root, info)
 	_suit_locker(root, info)
 	_fathers_titan(root, info)
 	_map_table(root, info)
+	_home(root, info)
 	_overgrowth(root)
 	return info
 
@@ -122,11 +133,13 @@ static func _plinth(root: Node3D) -> void:
 	K.stone(root, Vector3(HALF + 7.6, 0.2, -17.5), Vector3(1.6, 0.8, 7))
 
 
-## Walls, door, broken roof.
+## Floor, walls, door, broken roof.
 static func _shell(root: Node3D) -> void:
 	var y := F + WALL_H * 0.5
 	var length := FRONT_Z - BACK_Z
 	var mid_z := (FRONT_Z + BACK_Z) * 0.5
+	# The hall floor, laid over the plinth (boards, or alloy tiles).
+	K.stone(root, Vector3(0, F - 0.095, mid_z), Vector3(HALF * 2, 0.2, length))
 	var x_out := HALF + WALL_T * 0.5
 	# Left wall, whole.
 	K.stone(root, Vector3(-x_out, y, mid_z), Vector3(WALL_T, WALL_H, length + WALL_T * 2))
@@ -241,7 +254,8 @@ static func _idol(root: Node3D, info: Dictionary) -> void:
 	K.stone(root, Vector3(0, F + 0.25, z0 + 4.0), Vector3(14, 0.5, 8))
 	K.stone(root, Vector3(0, F + 0.75, z0 + 3.0), Vector3(11, 0.5, 6))
 	# The seated god (modelled in Blender, hub_props.gd), facing the door.
-	var statue := Props.spawn(root, "idol", Vector3(0, F + 1.0, z0 + 4.4), 0.0, 0.75)
+	var idol_tint: Color = {"timber": Color(0.95, 0.62, 0.42), "alloy": Color(1.25, 1.22, 1.15)}.get(home_style, Color.WHITE)
+	var statue := Props.spawn(root, "idol", Vector3(0, F + 1.0, z0 + 4.4), 0.0, 0.75, {"idol": idol_tint})
 	var body := StaticBody3D.new()
 	var col := CollisionShape3D.new()
 	col.shape = BoxShape3D.new()
@@ -278,8 +292,15 @@ static func _idol(root: Node3D, info: Dictionary) -> void:
 ## letter pinned to the wall.
 static func _eco_corner(root: Node3D, info: Dictionary) -> void:
 	var c := Vector3(-HALF + 2.5, F, 5.2)
-	K.mesh(root, c + Vector3(0, 0.12, 0), Vector3(2.2, 0.24, 1.1), Art.material("fabric", Color(0.75, 0.55, 0.5)))
-	K.mesh(root, c + Vector3(-0.85, 0.3, 0), Vector3(0.5, 0.2, 0.8), Art.material("fabric", Color(0.9, 0.85, 0.75)))
+	# A real bed now: a frame she knocked together, a mattress, a patchwork quilt.
+	K.wood(root, c + Vector3(0, 0.18, 0), Vector3(2.3, 0.36, 1.4))
+	K.wood(root, c + Vector3(-1.18, 0.55, 0), Vector3(0.1, 1.0, 1.4))
+	K.mesh(root, c + Vector3(0.05, 0.45, 0), Vector3(2.15, 0.2, 1.28), Art.material("fabric", Color(0.9, 0.86, 0.78)))
+	var quilt := [Color(0.75, 0.4, 0.3), Color(0.35, 0.5, 0.55), Color(0.85, 0.65, 0.35), Color(0.5, 0.6, 0.4)]
+	for i in 4:
+		K.mesh(root, c + Vector3(-0.05 + i * 0.36, 0.57, 0), Vector3(0.36, 0.06, 1.34), Art.material("fabric", quilt[i]))
+	K.mesh(root, c + Vector3(-0.8, 0.62, 0), Vector3(0.45, 0.16, 0.85), Art.material("fabric", Color(0.95, 0.92, 0.85)))
+	K.mesh(root, c + Vector3(-0.4, 0.64, 0.25), Vector3(0.35, 0.25, 0.3), Art.material("fabric", Color(0.7, 0.55, 0.4)), Vector3(10, 30, 0))  # a stuffed toy
 	K.wood(root, c + Vector3(1.8, 0.35, -0.2), Vector3(0.8, 0.7, 0.8))
 	# Lantern on the crate.
 	K.metal(root, c + Vector3(1.8, 0.75, -0.2), Vector3(0.3, 0.1, 0.3))
@@ -289,8 +310,9 @@ static func _eco_corner(root: Node3D, info: Dictionary) -> void:
 	var letter := K.mesh(root, Vector3(c.x - 1.4, F + 1.8, FRONT_Z - 0.05), Vector3(0.6, 0.8, 0.04), Art.material("light"))
 	letter.set_instance_shader_parameter("paint", Color(0.55, 0.5, 0.42))
 	K.glow(root, Vector3(c.x - 1.4, F + 1.95, FRONT_Z - 0.08), Vector3(0.4, 0.08, 0.02), Color(0.7, 0.15, 0.1))
-	K.interactable(info, "bedroll", c + Vector3(0.4, 0.1, 0), "[F] Look at your bedroll", [
+	K.interactable(info, "bedroll", c + Vector3(0.4, 0.1, 0), "[F] Look at your bed", [
 		"Nobody knows I'm out here. That's the whole point.",
+		"Took me a week to build the frame. Worth it. The floor was cold.",
 	], 2.5)
 	K.interactable(info, "letter", Vector3(c.x - 1.4, F + 0.1, FRONT_Z - 1.4), "[F] Read the letter", [
 		"MILITIA PILOT PROGRAM: APPLICATION DENIED.",
@@ -427,6 +449,254 @@ static func _map_table(root: Node3D, info: Dictionary) -> void:
 	label.modulate = Color(1.0, 0.85, 0.5)
 	K.interactable(info, "map_table", t + Vector3(0, 0.1, 0), "[F] Head out on a run", [], 2.6)
 	info["map_table"] = t
+
+
+## Roof beams across the hall on the pillar lines. Over the hole they are
+## bare rafters; in alloy they carry a strip of light underneath.
+static func _beams(root: Node3D) -> void:
+	var y := F + WALL_H - 0.45
+	for z in [3.0, -3.0, -9.0, -15.0, -21.0]:
+		K.carved(root, Vector3(0, y, z), Vector3(HALF * 2, 0.7, 0.7), Vector3.ZERO, Color(0.8, 0.8, 0.8))
+		if home_style == "alloy":
+			K.glow(root, Vector3(0, y - 0.37, z), Vector3(HALF * 2 - 1.0, 0.04, 0.12), EYE)
+	if home_style == "alloy":
+		# Light lines along the foot of the walls and up the pillars' nave faces.
+		for s in [-1.0, 1.0]:
+			K.glow(root, Vector3(s * (HALF - 0.03), F + 0.2, (FRONT_Z + BACK_Z) * 0.5 - 0.5), Vector3(0.04, 0.06, FRONT_Z - BACK_Z - 3.0), EYE)
+			for z in [3.0, -3.0, -15.0, -21.0]:
+				K.glow(root, Vector3(s * 5.18, F + 4.5, z), Vector3(0.04, 6.0, 0.1), EYE)
+
+
+## Dark framing over the timber walls: posts on the pillar lines, a plate
+## along the top and a rail at gallery height, so the walls read as built.
+static func _timber_frame(root: Node3D) -> void:
+	var dark := Art.material("timber_carving", Color(0.55, 0.48, 0.42))
+	for s in [-1.0, 1.0]:
+		var x: float = s * (HALF - 0.12)
+		for z in [6.6, 3.0, -3.0, -9.0, -15.0, -21.0, -29.2]:
+			if s > 0.0 and z > -22.0 and z < -14.0:
+				continue  # the breach
+			K.mesh(root, Vector3(x, F + WALL_H * 0.5, z), Vector3(0.3, WALL_H, 0.6), dark)
+		K.mesh(root, Vector3(x, F + WALL_H - 0.3, (FRONT_Z + BACK_Z) * 0.5), Vector3(0.3, 0.5, FRONT_Z - BACK_Z), dark)
+		K.mesh(root, Vector3(x, F + 1.0, (FRONT_Z + BACK_Z) * 0.5), Vector3(0.24, 0.18, FRONT_Z - BACK_Z), dark)
+	for x in [-HALF + 0.6, -DOOR_HALF - 0.3, DOOR_HALF + 0.3, HALF - 0.6]:
+		K.mesh(root, Vector3(x, F + WALL_H * 0.5, FRONT_Z - 0.12), Vector3(0.6, WALL_H, 0.3), dark)
+	K.mesh(root, Vector3(0, F + DOOR_H + 0.2, FRONT_Z - 0.15), Vector3(DOOR_HALF * 2 + 1.2, 0.5, 0.35), dark)
+
+
+# --- making it a home -----------------------------------------------------------
+
+## What Eco has done to make the place hers: rugs, a curtain round her bed,
+## string lights across the nave, a kitchen corner under the gallery, a couch
+## by the bench, plants, drawings, and a tarp over half the roof hole.
+static func _home(root: Node3D, info: Dictionary) -> void:
+	var rug := func(pos: Vector3, size: Vector2, tint: Color, yaw := 0.0) -> void:
+		K.mesh(root, Vector3(pos.x, F + 0.015, pos.z), Vector3(size.x, 0.03, size.y), Art.material("fabric", tint), Vector3(0, yaw, 0))
+		K.mesh(root, Vector3(pos.x, F + 0.02, pos.z), Vector3(size.x - 0.4, 0.03, size.y - 0.4), Art.material("fabric", tint.lightened(0.25)), Vector3(0, yaw, 0))
+		K.mesh(root, Vector3(pos.x, F + 0.025, pos.z), Vector3(size.x - 0.8, 0.03, size.y - 0.8), Art.material("fabric", tint), Vector3(0, yaw, 0))
+	# A long runner from the door down the nave, a rug by the bed, one by the couch.
+	rug.call(Vector3(0, 0, 0.0), Vector2(2.4, 11.0), Color(0.9, 0.42, 0.3))
+	rug.call(Vector3(-7.6, 0, 4.4), Vector2(4.0, 3.2), Color(0.42, 0.62, 0.72), 4.0)
+	rug.call(Vector3(2.9, 0, -5.6), Vector2(3.6, 3.0), Color(1.0, 0.75, 0.35), -6.0)
+	_string_lights(root)
+	_lanterns(root)
+	_curtain(root)
+	_kitchen(root, info)
+	_couch(root, info)
+	_plants(root)
+	_drawings(root)
+	_roof_tarp(root)
+	_porch(root)
+	# Warm fill so the hall reads as lived in rather than a ruin.
+	K.light(root, Vector3(-6.0, F + 3.0, 4.0), LAMP, 0.8, 9.0)
+	K.light(root, Vector3(4.0, F + 3.0, -5.0), LAMP, 0.8, 9.0)
+
+
+## Strings of warm bulbs zigzagging across the nave between the pillar tops.
+static func _string_lights(root: Node3D) -> void:
+	var y := F + 6.6
+	var ends := [Vector3(-6, y, 3), Vector3(6, y, -3), Vector3(-6, y, -9), Vector3(6, y, -15), Vector3(-6, y, -21)]
+	for i in ends.size() - 1:
+		var a: Vector3 = ends[i]
+		var b: Vector3 = ends[i + 1]
+		var n := 16
+		for j in n + 1:
+			var t := float(j) / n
+			var p := a.lerp(b, t) + Vector3(0, -sin(t * PI) * 1.1, 0)
+			K.glow(root, p, Vector3(0.09, 0.12, 0.09), STRING_LIGHT if j % 3 else Color(1.0, 0.5, 0.35))
+		var mid := (a + b) * 0.5 + Vector3(0, -1.4, 0)
+		K.light(root, mid, STRING_LIGHT, 0.55, 8.0)
+	# Wire between the bulbs.
+	for i in ends.size() - 1:
+		var a: Vector3 = ends[i]
+		var b: Vector3 = ends[i + 1]
+		for j in 8:
+			var t0 := j / 8.0
+			var t1 := (j + 1) / 8.0
+			var p0 := a.lerp(b, t0) + Vector3(0, -sin(t0 * PI) * 1.1, 0)
+			var p1 := a.lerp(b, t1) + Vector3(0, -sin(t1 * PI) * 1.1, 0)
+			var seg := K.mesh(root, (p0 + p1) * 0.5, Vector3(0.025, 0.025, p0.distance_to(p1)), Art.material("gunmetal"))
+			seg.look_at_from_position((p0 + p1) * 0.5, p1, Vector3.UP)
+
+
+## Paper lanterns hanging in the aisles.
+static func _lanterns(root: Node3D) -> void:
+	var paper := [Color(1.0, 0.6, 0.3), Color(1.0, 0.45, 0.35), Color(1.0, 0.75, 0.4)]
+	var i := 0
+	for x in [-8.5, 8.5]:
+		for z in [0.0, -6.0, -18.0, -24.0]:
+			if x > 0.0 and z > -8.0:
+				continue  # over the bench and rack: her work lamps light those
+			var top := F + WALL_H - 0.8
+			var drop := 2.4 + (i % 3) * 0.5
+			K.mesh(root, Vector3(x, top - drop * 0.5, z), Vector3(0.02, drop, 0.02), Art.material("gunmetal"))
+			var lamp := K.glow(root, Vector3(x, top - drop - 0.3, z), Vector3(0.5, 0.6, 0.5), paper[i % 3], Vector3(0, 45, 0))
+			lamp.set_instance_shader_parameter("paint", paper[i % 3] * 0.9)
+			K.light(root, Vector3(x, top - drop - 0.8, z), paper[i % 3], 0.6, 6.0)
+			i += 1
+
+
+## A rope across from the pillar to the door wall with cloth panels hung on
+## it, half drawn, so her bed has a little room of its own.
+static func _curtain(root: Node3D) -> void:
+	var y := F + 3.3
+	var x := -6.85
+	K.mesh(root, Vector3(x, y, 5.2), Vector3(0.04, 0.04, 4.4), Art.material("gunmetal"))
+	var cloth := [Color(0.85, 0.75, 0.6), Color(0.55, 0.65, 0.6), Color(0.85, 0.75, 0.6)]
+	for i in 3:
+		var z := 6.9 - i * 0.55
+		K.mesh(root, Vector3(x + (0.08 if i % 2 else -0.08), y - 1.55, z), Vector3(0.05, 3.0, 0.62), Art.material("canvas", cloth[i]), Vector3(0, 8 - i * 9, 0))
+	# The drawn-back bunch, tied to the pillar.
+	K.mesh(root, Vector3(x, y - 1.4, 3.9), Vector3(0.22, 2.8, 0.35), Art.material("canvas", cloth[1]), Vector3(0, 0, 3))
+
+
+## Under the gallery: a barrel stove with its pipe, a counter and shelf of
+## jars and pots, herbs drying from the ledge, and a little table with two
+## stools, one of them never used.
+static func _kitchen(root: Node3D, info: Dictionary) -> void:
+	var x := -HALF + 0.9
+	# Stove and pipe up through the gallery floor.
+	var stove := Vector3(x, F, -4.6)
+	K.metal(root, stove + Vector3(0, 0.5, 0), Vector3(0.8, 1.0, 0.8))
+	K.glow(root, stove + Vector3(0.41, 0.4, 0), Vector3(0.02, 0.22, 0.36), FIRE)
+	K.light(root, stove + Vector3(0.9, 0.6, 0), FIRE, 0.9, 4.5)
+	K.mesh(root, stove + Vector3(0, 2.3, 0), Vector3(0.2, 2.6, 0.2), Art.material("gunmetal"))
+	K.metal(root, stove + Vector3(0, 1.08, 0), Vector3(0.5, 0.16, 0.5))  # a kettle
+	# Counter with a shelf above.
+	var counter := Vector3(x + 0.05, F, -7.2)
+	K.wood(root, counter + Vector3(0, 0.45, 0), Vector3(0.9, 0.9, 2.4))
+	K.wood(root, Vector3(-HALF + 0.2, F + 2.1, -7.2), Vector3(0.4, 0.08, 2.4))
+	var jars := [Color(0.85, 0.55, 0.25), Color(0.45, 0.6, 0.3), Color(0.8, 0.3, 0.25), Color(0.9, 0.85, 0.6), Color(0.4, 0.5, 0.65)]
+	for i in 7:
+		var j := K.mesh(root, Vector3(-HALF + 0.22, F + 2.28 + (i % 2) * 0.03, -8.2 + i * 0.32), Vector3(0.2, 0.28 + (i % 3) * 0.06, 0.2), Art.material("fabric", jars[i % jars.size()]))
+		j.rotation_degrees.y = i * 20
+	for i in 3:
+		K.metal(root, counter + Vector3(0, 0.98, -0.7 + i * 0.6), Vector3(0.36, 0.16, 0.36))
+	# Herbs drying from the gallery's edge.
+	for i in 6:
+		var h := K.mesh(root, Vector3(-HALF + 3.0, F + GALLERY_H - 1.1, -3.6 - i * 0.7), Vector3(0.18, 0.5, 0.18), Art.material("moss", Color(0.8, 0.9, 0.6)))
+		h.rotation_degrees.y = i * 33
+	# Table and two stools.
+	var t := Vector3(-8.4, F, -2.6)
+	K.wood(root, t + Vector3(0, 0.38, 0), Vector3(0.25, 0.76, 0.25))
+	K.wood(root, t + Vector3(0, 0.78, 0), Vector3(1.2, 0.06, 0.9))
+	K.mesh(root, t + Vector3(0.2, 0.86, 0.1), Vector3(0.14, 0.1, 0.14), Art.material("gunmetal"))  # her mug
+	K.glow(root, t + Vector3(-0.3, 0.9, -0.15), Vector3(0.06, 0.14, 0.06), Color(1.0, 0.7, 0.3))  # a candle
+	for dz in [-0.8, 0.8]:
+		K.wood(root, t + Vector3(0, 0.25, dz), Vector3(0.45, 0.5, 0.45), Vector3(0, dz * 20, 0))
+	K.interactable(info, "kitchen", Vector3(-8.0, F + 0.1, -5.6), "[F] Look at the kitchen", [
+		"Stove's an old fuel drum. Cooks noodles, boils water, keeps the damp off.",
+		"Two stools. Habit. Dad always sat on the left.",
+	], 2.2)
+
+
+## A couch she built from a salvaged titan cockpit seat and a crate, facing a
+## crate table, by her bench.
+static func _couch(root: Node3D, info: Dictionary) -> void:
+	var c := Vector3(4.3, F, -5.6)
+	var cushion := Art.material("fabric", Color(0.45, 0.5, 0.32))
+	K.metal(root, c + Vector3(0, 0.22, 0), Vector3(1.0, 0.44, 2.6))
+	K.mesh(root, c + Vector3(-0.05, 0.55, 0), Vector3(0.95, 0.22, 2.5), cushion)
+	K.mesh(root, c + Vector3(0.42, 0.95, 0), Vector3(0.22, 0.8, 2.5), cushion, Vector3(0, 0, -8))
+	for dz in [-1.3, 1.3]:
+		K.mesh(root, c + Vector3(0, 0.75, dz), Vector3(1.0, 0.4, 0.16), Art.material("gunmetal"))
+	K.mesh(root, c + Vector3(-0.1, 0.72, 0.6), Vector3(0.6, 0.08, 0.9), Art.material("fabric", Color(0.75, 0.35, 0.25)), Vector3(0, 0, 4))  # a blanket
+	K.mesh(root, c + Vector3(0.1, 0.8, -0.8), Vector3(0.4, 0.3, 0.5), Art.material("fabric", Color(0.9, 0.8, 0.6)), Vector3(0, 20, 10))  # a cushion
+	var table := Vector3(2.6, F, -5.6)
+	K.wood(root, table + Vector3(0, 0.25, 0), Vector3(0.9, 0.5, 1.3))
+	K.mesh(root, table + Vector3(0.1, 0.55, 0.3), Vector3(0.3, 0.08, 0.4), Art.material("fabric", Color(0.3, 0.35, 0.55)), Vector3(0, 25, 0))  # a book
+	K.metal(root, table + Vector3(-0.15, 0.6, -0.3), Vector3(0.3, 0.2, 0.3))  # a servo she's fixing
+	# A floor lamp made from a titan's spotlight on a pipe.
+	var lamp := c + Vector3(0.2, 0, -1.75)
+	K.mesh(root, lamp + Vector3(0, 0.9, 0), Vector3(0.06, 1.8, 0.06), Art.material("gunmetal"))
+	K.glow(root, lamp + Vector3(-0.1, 1.85, 0), Vector3(0.3, 0.2, 0.3), LAMP)
+	K.light(root, lamp + Vector3(-0.4, 1.6, 0), LAMP, 0.9, 5.0)
+	K.interactable(info, "couch", c + Vector3(-1.2, 0.1, 1.0), "[F] Look at the couch", [
+		"Pilot seat out of a scrapped Ogre. Best thing I ever salvaged.",
+		"I fall asleep here more than in the bed.",
+	], 1.8)
+
+
+## Potted plants: ferns and bushes in drums and buckets round the hall.
+static func _plants(root: Node3D) -> void:
+	var spots := [Vector3(-4.6, F, 5.8), Vector3(4.6, F, 5.8), Vector3(-6.0, F, 1.6), Vector3(6.0, F, -1.4),
+			Vector3(-4.8, F, -14.0), Vector3(5.0, F, -20.0), Vector3(-9.8, F, -9.4), Vector3(-3.6, F, -2.0)]
+	for i in spots.size():
+		var p: Vector3 = spots[i]
+		# Old ammo tins and a cut-down drum for pots.
+		if i % 2:
+			K.mesh(root, p + Vector3(0, 0.22, 0), Vector3(0.5, 0.44, 0.5), Art.material("gunmetal"), Vector3(0, i * 25, 0))
+		else:
+			K.mesh(root, p + Vector3(0, 0.2, 0), Vector3(0.55, 0.4, 0.55), Art.material("wood"), Vector3(0, i * 25, 0))
+		Props.spawn(root, "fern", p + Vector3(0, 0.38, 0), i * 40.0, 0.32 + (i % 3) * 0.05, {"leaves": Color(0.9, 1.05, 0.85)})
+
+
+## Drawings and a photo pinned to the wall by her bed.
+static func _drawings(root: Node3D) -> void:
+	var z := FRONT_Z - 0.04
+	var papers := [[Vector3(-8.2, F + 2.2, z), Vector2(0.5, 0.4), Color(0.75, 0.7, 0.6)],
+			[Vector3(-7.5, F + 1.9, z), Vector2(0.4, 0.55), Color(0.7, 0.68, 0.62)],
+			[Vector3(-6.9, F + 2.35, z), Vector2(0.45, 0.35), Color(0.78, 0.72, 0.6)]]
+	for p in papers:
+		var sheet := K.mesh(root, p[0], Vector3(p[1].x, p[1].y, 0.02), Art.material("light"))
+		sheet.set_instance_shader_parameter("paint", p[2] * 0.75)
+		# A sketch on each: a titan, the temple, two figures.
+		K.mesh(root, p[0] + Vector3(0, 0, -0.012), Vector3(p[1].x * 0.5, p[1].y * 0.45, 0.005), Art.material("gunmetal"))
+	# The photo of her and Dad, framed, on the crate by the bed.
+	var c := Vector3(-HALF + 2.5, F, 5.2) + Vector3(1.8, 0.85, 0.05)
+	K.mesh(root, c, Vector3(0.24, 0.3, 0.04), Art.material("wood"), Vector3(-10, 160, 0))
+	var photo := K.mesh(root, c + Vector3(0, 0, -0.025), Vector3(0.18, 0.22, 0.01), Art.material("light"), Vector3(-10, 160, 0))
+	photo.set_instance_shader_parameter("paint", Color(0.55, 0.48, 0.36))
+
+
+## A little porch over the door: a plank awning on two posts, lanterns
+## hanging under it and a mat on the top step.
+static func _porch(root: Node3D) -> void:
+	var z0 := FRONT_Z + WALL_T
+	var y := F + DOOR_H + 0.4
+	for x in [-3.4, 3.4]:
+		K.wood(root, Vector3(x, (y + 0.0) * 0.5, z0 + 3.0), Vector3(0.3, y, 0.3))
+	K.wood(root, Vector3(0, y, z0 + 3.0), Vector3(7.4, 0.3, 0.35))
+	for i in 6:
+		var z := z0 + 0.2 + i * 0.55
+		K.mesh(root, Vector3(0, y + 0.3 - i * 0.08, z), Vector3(7.8, 0.08, 0.6), Art.material("wood"), Vector3(-8, 0, 0))
+	for x in [-2.2, 2.2]:
+		K.mesh(root, Vector3(x, y - 0.6, z0 + 2.6), Vector3(0.02, 1.0, 0.02), Art.material("gunmetal"))
+		K.glow(root, Vector3(x, y - 1.25, z0 + 2.6), Vector3(0.35, 0.45, 0.35), Color(1.0, 0.6, 0.3), Vector3(0, 45, 0))
+		K.light(root, Vector3(x, y - 1.6, z0 + 2.8), LAMP, 0.8, 6.0)
+	K.mesh(root, Vector3(0, F + 0.02, z0 + 0.6), Vector3(2.0, 0.03, 1.0), Art.material("fabric", Color(0.8, 0.55, 0.3)))
+
+
+## Canvas stretched over the front half of the roof hole, weighted with
+## scrap, so rain stays off the bench side but the sun still reaches the god.
+static func _roof_tarp(root: Node3D) -> void:
+	var y := F + WALL_H + 0.8
+	var z0 := HOLE.position.y + HOLE.size.y
+	for i in 3:
+		var z := z0 - 0.9 - i * 1.6
+		K.mesh(root, Vector3(0, y - 0.35 - (0.25 if i == 1 else 0.0), z), Vector3(HOLE.size.x + 1.0, 0.05, 1.7), Art.material("canvas", Color(0.75, 0.7, 0.55)), Vector3(4 - i * 4, 0, 0))
+	for x in [-4.2, 4.2]:
+		K.metal(root, Vector3(x, y + 0.05, z0 - 2.4), Vector3(0.6, 0.3, 0.8))
 
 
 ## Vines hanging from the roof hole and the lintel, and moss on the fallen stone.
