@@ -404,7 +404,19 @@ func _pose_bag() -> void:
 
 
 func _pose_of(key: String) -> Transform3D:
-	return _sk.get_bone_global_pose(_b[key])
+	return _global(_b[key])
+
+
+## A bone's pose in skeleton space, worked out from the local poses just set:
+## newer Godot only refreshes the skeleton's global poses once a frame, so
+## they would still hold the pose from before this frame's posing.
+func _global(i: int) -> Transform3D:
+	var t := _sk.get_bone_pose(i)
+	var p := _sk.get_bone_parent(i)
+	while p >= 0:
+		t = _sk.get_bone_pose(p) * t
+		p = _sk.get_bone_parent(p)
+	return t
 
 
 ## Where a point (skeleton space, in her rest pose) carried by a bone is now.
@@ -423,7 +435,7 @@ func _turned(key: String) -> Basis:
 func _move_hips(offset: Vector3) -> void:
 	var i: int = _b["hips"]
 	var parent := _sk.get_bone_parent(i)
-	var pb := _sk.get_bone_global_pose(parent).basis if parent >= 0 else Basis()
+	var pb := _global(parent).basis if parent >= 0 else Basis()
 	_sk.set_bone_pose_position(i, _sk.get_bone_pose_position(i) + pb.inverse() * offset)
 
 
@@ -435,7 +447,7 @@ func _turn(key: String, axis: Vector3, deg: float) -> void:
 
 func _rotate(i: int, r: Basis) -> void:
 	var parent := _sk.get_bone_parent(i)
-	var pb := _sk.get_bone_global_pose(parent).basis.orthonormalized() if parent >= 0 else Basis()
+	var pb := _global(parent).basis.orthonormalized() if parent >= 0 else Basis()
 	var local := Basis(_sk.get_bone_pose_rotation(i))
 	_sk.set_bone_pose_rotation(i, (pb.inverse() * r * pb * local).get_rotation_quaternion())
 
