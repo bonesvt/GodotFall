@@ -30,6 +30,8 @@ const GunsmithScreen := preload("res://scripts/hub/gunsmith_screen.gd")
 const GiftScreen := preload("res://scripts/hub/gift_screen.gd")
 const GiftShop := preload("res://scripts/hub/gift_shop.gd")
 const SalonScreen := preload("res://scripts/hub/salon_screen.gd")
+const WardrobeScreen := preload("res://scripts/hub/wardrobe_screen.gd")
+const Wardrobe := preload("res://scripts/hub/wardrobe.gd")
 const Loot := preload("res://scripts/run/loot.gd")
 const Gifts := preload("res://scripts/run/gifts.gd")
 const NpcIdles := preload("res://scripts/hub/npc_idles.gd")
@@ -284,6 +286,7 @@ func enter_hub() -> void:
 		hub_npcs[spec["who"]] = npc
 	if hub_npcs.has("ophelia"):
 		NpcIdles.build_window(zone_root)
+	Wardrobe.dress_eco(player, true)
 	phase = Phase.HUB
 	dress_hub()
 	place_player(zone_info["spawn"])
@@ -318,6 +321,7 @@ func load_zone(index: int) -> void:
 		phase = Phase.ARENA
 		evac_open = false
 		hud.toast("THE FOREST'S EDGE: TITANFALL STANDING BY")
+	Wardrobe.dress_eco(player, false)
 	place_player(zone_info["spawn"])
 	player.second_wind_ready = player.second_wind  # Eco's suit: once per zone
 	tutorial.start_level("zone%d" % index if index < RunState.ZONE_COUNT else "arena")
@@ -540,6 +544,8 @@ func open_bench(kind: String) -> void:
 		bench = GiftScreen.new(armory, npc_talk, romance_partners())
 	elif kind == "salon":
 		bench = SalonScreen.new()
+	elif kind == "wardrobe":
+		bench = WardrobeScreen.new(runs_ended)
 	else:
 		bench = GunsmithScreen.new(armory) if kind == "gunsmith" else BenchScreen.new(armory, kind)
 	add_child(bench)
@@ -556,6 +562,10 @@ func close_bench() -> void:
 	if not bench.unlocked.is_empty():
 		var names: Array = bench.unlocked.map(func(id): return Armory.WEAPONS[id]["name"].to_upper())
 		hud.toast("LEVEL %d: %s UNLOCKED. PICK %s AT THE WEAPON RACK" % [armory.pilot_level(), " AND ".join(names), "IT" if names.size() == 1 else "THEM"], 5.0)
+	if bench is WardrobeScreen and not bench.changed.is_empty():
+		for npc in hub_npcs.values():
+			npc.wear_for_run(runs_ended)
+		Wardrobe.dress_eco(player, true)
 	bench.queue_free()
 	bench = null
 	get_tree().paused = false

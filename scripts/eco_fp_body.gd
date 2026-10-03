@@ -17,6 +17,7 @@ const ECO := preload("res://assets/models/eco.tscn")
 const EcoModel := preload("res://scripts/ps2/eco_model.gd")
 const EcoReact := preload("res://scripts/ps2/eco_react.gd")
 const EcoGunStance := preload("res://scripts/ps2/eco_gun_stance.gd")
+const Wardrobe := preload("res://scripts/hub/wardrobe.gd")
 const HIDDEN_BONES := ["J_Bip_C_Neck", "J_Bip_C_Head", "J_Bip_R_UpperArm", "J_Bip_L_UpperArm"]
 
 ## Where the camera sits relative to the base of her neck: metres above it,
@@ -139,7 +140,7 @@ func rest(pose: String, at: Transform3D, seat_height: float) -> void:
 	shadow.rest_pose = pose
 	_show_gun(false)
 	if shadow.has_method("wear"):
-		shadow.wear("sleep" if pose == "sleep" else "suit")
+		shadow.wear("sleep" if pose == "sleep" else Wardrobe.eco_now)
 
 
 ## Gets her up from her rest pose, back to where the player stands now.
@@ -149,7 +150,7 @@ func get_up() -> void:
 	_rest_stand = global_transform
 	shadow.rest_pose = ""
 	if shadow.has_method("wear"):
-		shadow.wear("suit")
+		shadow.wear(Wardrobe.eco_now)
 
 
 ## Whether she is resting, or still settling in or getting up.
