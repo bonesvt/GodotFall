@@ -203,6 +203,7 @@ func enter_hub() -> void:
 		var npc := HubNpc.create(spec["who"], spec["pos"], spec["yaw"])
 		npc.look_target = player
 		zone_root.add_child(npc)
+		npc.wear_for_run(runs_ended)
 		hub_npcs[spec["who"]] = npc
 	phase = Phase.HUB
 	dress_hub()

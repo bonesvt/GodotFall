@@ -28,7 +28,9 @@ func _initialize() -> void:
 
 func _go() -> void:
 	await _frames(30)
-	run_node.hud.help_label.visible = false
+	for layer in root.find_children("*", "CanvasLayer", true, false):
+		if "help_label" in layer:
+			layer.help_label.visible = false
 	var f := Rooms.F
 	# The hall, with the new doors.
 	await _shot("1-hall-back-doors", Vector3(0, f, -17), Vector3(0, f + 1.8, -31))

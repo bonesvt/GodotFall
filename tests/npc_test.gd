@@ -46,6 +46,16 @@ func _run() -> void:
 		var p: Vector3 = npc.global_position
 		_check("%s stands in their room" % who, rooms[who].has_point(Vector2(p.x, p.z)), p)
 		_check("%s has a model that idles" % who, npc.get_node_or_null("Model") != null and npc._anim != null and npc._anim.current_animation == "idle", npc._anim)
+		var bare := []
+		for mi in npc.find_children("*", "MeshInstance3D", true, false):
+			for i in mi.mesh.get_surface_count():
+				var mat := mi.mesh.surface_get_material(i) as ShaderMaterial
+				var tex := "res://assets/textures/npc/%s/%s.png" % [who, mat.resource_name.trim_prefix("npc_%s_" % who)] if mat else ""
+				if mat == null or (ResourceLoader.exists(tex) and mat.get_shader_parameter("albedo_tex") == null):
+					bare.append("%s/%s" % [mi.name, mat.resource_name if mat else "?"])
+		_check("%s is fully textured" % who, bare.is_empty(), bare)
+
+	_check("Ophelia starts in her tee", run_node.hub_npcs["ophelia"].outfit == "tee", run_node.hub_npcs["ophelia"].outfit)
 
 	# Every line in every conversation has its voice.
 	var missing := []
@@ -115,6 +125,14 @@ func _run() -> void:
 	await _press("run_restart")
 	await _ticks(30)
 	_check("back in the hub after the run", run_node.phase == run_node.Phase.HUB and run_node.hub_npcs.has("mom"), run_node.phase)
+	var oph = run_node.hub_npcs["ophelia"]
+	var body_tex = null
+	for mi in oph.find_children("*", "MeshInstance3D", true, false):
+		for i in mi.mesh.get_surface_count():
+			var o := mi.get_surface_override_material(i) as ShaderMaterial
+			if o != null and o.resource_name == "npc_ophelia_body":
+				body_tex = o.get_shader_parameter("albedo_tex")
+	_check("Ophelia changes outfit after a run", oph.outfit == "hoodie" and body_tex != null and body_tex.resource_path.ends_with("body_hoodie.png"), [oph.outfit, body_tex])
 	mom = run_node.hub_npcs["mom"]
 	_place(mom.global_position + Vector3(1.5, 0.3, 0))
 	await _ticks(10)
