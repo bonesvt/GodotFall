@@ -152,6 +152,8 @@ func _zone_checks(seed_value: int, lanes: int, biome: String) -> void:
 	bad = []
 	var space := world.get_world_3d().direct_space_state
 	for g in info["grunts"]:
+		if g.get("gait") == "hover":
+			continue  # Choir spotters float on purpose (scripts/threats/seraph.gd)
 		var q := PhysicsRayQueryParameters3D.create(g.post + Vector3(0, 0.5, 0), g.post - Vector3(0, 1.2, 0))
 		q.exclude = [g.get_rid()]
 		if space.intersect_ray(q).is_empty():
@@ -217,7 +219,8 @@ func _run_checks() -> void:
 	# Find a patroller well away from the pilot and watch it walk.
 	var walker = null
 	for g in info["grunts"]:
-		if not g.patrol.is_empty() and g.global_position.distance_to(run_node.player.global_position) > 60.0:
+		var loop = g.get("patrol") if g.get("patrol") != null and not g.get("patrol").is_empty() else g.get("route")
+		if loop != null and not loop.is_empty() and g.global_position.distance_to(run_node.player.global_position) > 60.0:
 			walker = g
 			break
 	if walker == null:
@@ -228,7 +231,7 @@ func _run_checks() -> void:
 		for i in 120 * 8:
 			await physics_frame
 			moved = maxf(moved, start.distance_to(walker.global_position))
-		_check("a patrol walks its loop (%.1f m)" % moved, moved > 6.0 and not walker.alerted, walker.global_position)
+		_check("a patrol walks its loop (%.1f m)" % moved, moved > 6.0 and not walker.get("alerted"), walker.global_position)
 	run_node.load_zone(4)
 	_check("zone 5 is uncharted too, and different", run_node.zone_info.has("plan") and run_node.zone_info["plan"].seed_value != info["plan"].seed_value, "")
 	run_node.load_zone(5)
