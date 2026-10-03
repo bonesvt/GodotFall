@@ -188,6 +188,9 @@ func _process(delta: float) -> void:
 		ammo_label.text = "RELOADING" if weapon.is_reloading() else "%d / %d" % [weapon.ammo, weapon.magazine_size]
 	if level != null:
 		enemy_label.text = "Grunts left: %d" % level.grunts_alive()
+	# no crosshair under the hub/town orbit camera: it isn't aiming, it's looking at her
+	var view := player.get_node_or_null("ViewCam")
+	crosshair.visible = view == null or not view.orbiting
 	crosshair.queue_redraw()
 
 

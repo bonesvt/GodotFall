@@ -95,6 +95,7 @@ func _ready() -> void:
 		add_child(layer)
 		layer.add_child(caption)
 	voice = AudioStreamPlayer.new()
+	voice.bus = "Voices"
 	voice.volume_db = -14.0
 	add_child(voice)
 	if player != null:

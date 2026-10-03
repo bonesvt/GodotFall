@@ -27,6 +27,7 @@ const HubBuilder := preload("res://scripts/hub/hub_builder.gd")
 const Armory := preload("res://scripts/hub/armory.gd")
 const BenchScreen := preload("res://scripts/hub/bench_screen.gd")
 const GunsmithScreen := preload("res://scripts/hub/gunsmith_screen.gd")
+const SalonScreen := preload("res://scripts/hub/salon_screen.gd")
 const Loot := preload("res://scripts/run/loot.gd")
 const Weapon := preload("res://scripts/weapon.gd")
 const Art := preload("res://scripts/ps2/ps2_assets.gd")
@@ -36,6 +37,9 @@ const HubNpc := preload("res://scripts/hub/hub_npc.gd")
 const NpcTalk := preload("res://scripts/hub/npc_talk.gd")
 const Tutorial := preload("res://scripts/run/tutorial.gd")
 const ViewCamera := preload("res://scripts/view_camera.gd")
+const Prefs := preload("res://scripts/game/prefs.gd")
+const Saves := preload("res://scripts/game/saves.gd")
+const PauseMenu := preload("res://scripts/ui/pause_menu.gd")
 
 const FALL_DAMAGE := 25
 ## Integrity lost when grunts take the pilot's health to zero.
@@ -104,13 +108,15 @@ var course_time := -1.0
 var course_best := 0.0
 var armory: Armory
 ## The workbench screen while one is open (the hub is paused under it).
-## A BenchScreen, or the GunsmithScreen at the gunsmith bench.
+## A BenchScreen, the GunsmithScreen at the gunsmith bench, or the SalonScreen.
 var bench = null
 ## Lays out loot and rolls drops, seeded per zone from the run seed so loot
 ## never shifts the run's own rolls.
 var loot_rng := RandomNumberGenerator.new()
 ## Hints that teach the game in the first three zones (tutorial.gd).
 var tutorial: Tutorial
+## Esc menu (pause_menu.gd).
+var pause_menu: CanvasLayer
 
 
 static func ensure_input_actions() -> void:
@@ -139,6 +145,9 @@ func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	add_to_group("loot_collector")
 	ensure_input_actions()
+	# Normally the title screen did these; played straight from the editor, do them here.
+	Prefs.apply_all()
+	_use_save_slot()
 	armory = Armory.open(armory_path)
 	npc_talk = NpcTalk.new()
 	npc_talk.save_path = npc_path
@@ -160,11 +169,55 @@ func _ready() -> void:
 	tutorial.name = "Tutorial"
 	tutorial.run = self
 	add_child(tutorial)
+	pause_menu = PauseMenu.new()
+	pause_menu.name = "PauseMenu"
+	pause_menu.run = self
+	add_child(pause_menu)
 	equip_loadout()
 	if start_in_hub:
 		enter_hub()
 	else:
 		start_run(run_seed)
+
+
+## Reads and writes the save slot picked on the title screen (saves.gd). Left
+## alone when a test pointed the saves somewhere of its own.
+func _use_save_slot() -> void:
+	var own_paths := armory_path != Armory.DEFAULT_PATH or npc_path != NpcTalk.DEFAULT_PATH
+	if Saves.active == 0 and Tutorial.settings_path != Tutorial.SETTINGS:
+		own_paths = true
+	if own_paths:
+		return
+	if Saves.active == 0:
+		Saves.migrate_legacy()
+		var last := Saves.last_slot()
+		Saves.use(last if last != 0 else 1)
+	armory_path = Saves.armory_path()
+	npc_path = Saves.npc_path()
+
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_WM_CLOSE_REQUEST:
+		Saves.flush()
+
+
+## A run is under way (not in the hub, not on the summary after one).
+func in_run() -> bool:
+	return phase in [Phase.ZONE, Phase.CHOOSING, Phase.ARENA, Phase.FIGHT]
+
+
+## The pause menu stays shut while a workbench or the paint shop is open.
+func menu_blocked() -> bool:
+	return bench != null or garage != null
+
+
+## Pause menu: give up on this run. It ends like a lost one.
+func abandon_run() -> void:
+	if not in_run():
+		return
+	get_tree().paused = false
+	hud.choice_panel.visible = false
+	end_run("RUN ABANDONED", "Eco pulled out before the job was done.")
 
 
 func start_run(seed_value: int) -> void:
@@ -266,6 +319,7 @@ func place_player(pos: Vector3) -> void:
 
 
 func _physics_process(delta: float) -> void:
+	Saves.tick(delta)
 	player.strolling = phase == Phase.HUB and not on_training_ground()
 	match phase:
 		Phase.ZONE:
@@ -447,9 +501,13 @@ func close_garage() -> void:
 		hud.toast("Call your titan again (V) to see the new paint.", HUB_LINE_SECONDS)
 
 
-## Opens a workbench screen ("gunsmith", "rack", "workshop" or "suit"), pausing the hub.
+## Opens a workbench screen ("gunsmith", "rack", "workshop" or "suit"), or the
+## hair salon's ("salon", in town), pausing the hub.
 func open_bench(kind: String) -> void:
-	bench = GunsmithScreen.new(armory) if kind == "gunsmith" else BenchScreen.new(armory, kind)
+	if kind == "salon":
+		bench = SalonScreen.new()
+	else:
+		bench = GunsmithScreen.new(armory) if kind == "gunsmith" else BenchScreen.new(armory, kind)
 	add_child(bench)
 	get_tree().paused = true
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
@@ -896,6 +954,7 @@ func end_run(title: String, reason: String) -> void:
 	var won := title == "RUN COMPLETE"
 	var haul := Armory.run_haul(run.materials, won)
 	armory.bank(haul)
+	Saves.record_run(won)
 	if boss != null:
 		boss.active = false
 	if titan != null:

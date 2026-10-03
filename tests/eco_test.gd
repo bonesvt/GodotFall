@@ -20,7 +20,7 @@ func _run() -> void:
 	await process_frame
 	var sk: Skeleton3D = eco.skeleton
 	_check("has a skeleton", sk != null, sk)
-	_check("all 20 spring bones found", eco._springs.size() == 20, eco._springs.size())
+	_check("all 26 spring bones found (hair, braid chains, bust, glutes)", eco._springs.size() == 26, eco._springs.size())
 
 	var wrong := []
 	for mi in eco.find_children("*", "MeshInstance3D", true, false):
