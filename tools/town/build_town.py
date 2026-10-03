@@ -754,6 +754,40 @@ def noodle_stall():
     m.export()
 
 
+def ice_cream_kiosk():
+    """A rounded pastel kiosk with a serving window, chest freezers, a striped
+    awning, a menu board and a giant neon cone on the roof. Faces -Y, 4 wide (x),
+    2.6 deep. Origin at the counter front."""
+    m = Model("ice_cream_kiosk", 97)
+    m.rounded("wall", (0, 1.3, 1.5), (4.0, 2.6, 3.0), 0.35)
+    m.box("trim", (0, 1.3, 3.08), (4.2, 2.8, 0.16), bevel=0.04)
+    m.box("glow_shop", (0, 0.02, 1.75), (3.0, 0.06, 1.0))                # serving window
+    m.box("dark", (0, -0.02, 1.2), (3.2, 0.08, 0.1))
+    m.box("trim", (0, -0.2, 1.12), (3.4, 0.45, 0.08), bevel=0.02)       # counter
+    for x in (-0.8, 0.8):                                                # freezers out front
+        m.box("wall", (x, -0.55, 0.42), (1.2, 0.6, 0.84), bevel=0.04)
+        m.box("glass", (x, -0.55, 0.86), (1.1, 0.5, 0.04))
+        for k in range(3):
+            m.blob("glow_shop" if k != 1 else "canvas", (x - 0.35 + k * 0.35, -0.55, 0.8), (0.13, 0.13, 0.08), wobble=0.1)
+    for k in range(8):                                                   # striped awning
+        m.box("canvas" if k % 2 == 0 else "trim", (-1.75 + k * 0.5, -0.45, 2.55), (0.5, 0.95, 0.04), rot=(0.3, 0, 0))
+    m.box("dark", (1.55, -0.05, 2.1), (0.7, 0.05, 0.6))                  # menu board
+    for k in range(4):
+        m.box("glow_warm", (1.55, -0.08, 2.3 - k * 0.13), (0.5, 0.02, 0.04))
+    # The giant cone on the roof: waffle cone, three neon scoops, a cherry.
+    tmp = bmesh.new()
+    res = bmesh.ops.create_cone(tmp, cap_ends=True, segments=10, radius1=0.05, radius2=0.55, depth=1.4)
+    bmesh.ops.translate(tmp, vec=Vector((0, 1.3, 3.9)), verts=res["verts"])
+    bp.merge(m.bm("wood"), tmp)
+    for k, (dx, dz, r) in enumerate([(0, 4.75, 0.62), (-0.15, 5.35, 0.5), (0.1, 5.85, 0.4)]):
+        m.blob("neon", (dx, 1.3, dz), (r, r, r * 0.85), subdiv=2, wobble=0.06)
+    m.blob("glow_red", (0.1, 1.3, 6.3), (0.12, 0.12, 0.12), subdiv=2, wobble=0.0)
+    for x in (-1.5, 1.5):                                                # stools
+        m.cyl("metal", (x, -1.1, 0.35), 0.04, 0.7, sides=6)
+        m.cyl("canvas", (x, -1.1, 0.72), 0.2, 0.07, sides=10)
+    m.export()
+
+
 def scooter():
     m = Model("scooter", 43)
     m.blob("trim", (0, 0, 0.6), (0.3, 0.8, 0.25), subdiv=2, wobble=0.0)
@@ -888,6 +922,7 @@ def main():
     turbine_tower()
     turbine_rotor()
     noodle_stall()
+    ice_cream_kiosk()
     scooter()
     vending()
     bench()

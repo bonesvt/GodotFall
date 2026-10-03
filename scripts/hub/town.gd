@@ -53,6 +53,7 @@ const SHOPS := {
 	"arcade": "dates",
 	"bar": "quest givers and rumours",
 	"cinema": "dates",
+	"ice_cream": "dates and treats",
 	"garden": "dates",
 }
 
@@ -277,15 +278,33 @@ static func _plaza(root: Node3D, info: Dictionary, rng: RandomNumberGenerator) -
 		"Half these jobs pay in favours. I'm owed a lot of favours.",
 	], "jobs")
 	# Market stalls along the plaza's open sides, facing the tree.
-	for spec in [[Vector3(7.0, 0, 162.5), 0.0, AMBER], [Vector3(6.0, 0, 187.5), 180.0, LIME], [Vector3(-6.0, 0, 187.5), 180.0, MAGENTA]]:
+	for spec in [[Vector3(7.0, 0, 162.5), 0.0, AMBER], [Vector3(6.0, 0, 187.5), 180.0, LIME]]:
 		TP.spawn(root, "market_stall", spec[0], spec[1], {"awning": (spec[2] as Color).lerp(Color.WHITE, 0.35), "shop": spec[2]})
 		_solid(root, spec[0] + Vector3(0, 1.2, 0), Vector3(3.0, 2.4, 1.8))
+	_ice_cream(root, info)
 	# Lamps round the Sun Tree.
 	for d: Vector3 in [Vector3(-6.5, 0, -6.5), Vector3(6.5, 0, -6.5), Vector3(-6.5, 0, 6.5), Vector3(6.5, 0, 6.5)]:
 		_solar_lamp(root, c + d, [LIME, AMBER, CYAN, MAGENTA][int(d.x > 0) + 2 * int(d.z > 0)])
 	_militia_office(root, info)
 	_greenhouse(root, info, rng)
 	_plaza_walls(root, rng)
+
+
+## Scoops, the ice cream kiosk on the plaza's corner by Low Row and the arcade.
+## A date spot later (Ophelia's favourite, with the arcade).
+static func _ice_cream(root: Node3D, info: Dictionary) -> void:
+	var at := Vector3(-6.5, 0, 186.5)
+	TP.spawn(root, "ice_cream_kiosk", at, 180.0, {"wall": Color(1.0, 0.86, 0.9), "shop": Color(1.0, 0.7, 0.85),
+			"neon": Color(1.0, 0.55, 0.85), "awning": Color(0.75, 0.95, 1.0)})
+	_solid(root, at + Vector3(0, 1.5, 1.3), Vector3(4.0, 3.0, 2.6))
+	_solid(root, at + Vector3(0, 0.42, -0.55), Vector3(2.8, 0.84, 0.6))
+	_neon_text(root, at + Vector3(0, 3.35, -0.12), "SCOOPS", Color(1.0, 0.55, 0.85), 80, 180.0)
+	K.light(root, at + Vector3(0, 2.2, -1.5), Color(1.0, 0.7, 0.85), 1.0, 7.0)
+	shop(info, "shop_icecream", at + Vector3(0, 0, -1.8), "[F] Scoops: ice cream (dates and treats coming soon)", [
+		"Mrs. Tran still gives me a kid's scoop. I think she means it nicely.",
+		"Ophelia orders black sesame every time. Says it's the only flavour that matches her soul.",
+		"Two scoops, one bench, nobody shooting at me. That's a good day in Solace.",
+	], "ice_cream")
 
 
 ## The Sun Tree (tools/town/build_town.py): white ribs holding up leaf-shaped
