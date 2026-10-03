@@ -298,6 +298,10 @@ func _hub() -> void:
 	for i in 5:
 		await process_frame
 	_check("hub: Mom is sitting (thigh level)", legs.size() == 2 and absf(legs[0].y - legs[1].y) < 0.15, legs)
+	var room_quilt: Node3D = run_node.zone_root.find_child("MomQuilt", true, false)
+	_check("hub: the bed's quilt steps aside", room_quilt != null and not room_quilt.visible, room_quilt)
+	var laid: Array = fam._props.filter(func(p): return p is MeshInstance3D and p.mesh is ArrayMesh)
+	_check("hub: a quilt drapes over them", laid.size() == 1 and laid[0].get_aabb().size.y > 0.3, laid.map(func(p): return p.get_aabb()))
 	var guard := 0
 	while talk.active() and guard < 100:
 		guard += 1
@@ -305,6 +309,7 @@ func _hub() -> void:
 	await physics_frame
 	_check("hub: all back after the talk", fam.playing == "" and fam.eco == null and player.visible and mom.global_position.distance_to(home) < 0.01 and not talk.hold, [fam.playing, mom.global_position])
 	_check("hub: the pilot's camera is back", player.get_node("Head/Camera3D").current, "")
+	_check("hub: the bed's quilt is back", room_quilt.visible, "")
 	_check("hub: the meter is gold", talk._hearts.color == NpcTalk.HeartMeter.FAMILY, "")
 	# Sick: talking to Mom tucks Eco into her bed.
 	talk.state.set_value("eco", "sick_run", run_node.runs_ended)

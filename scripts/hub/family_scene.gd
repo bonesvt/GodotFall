@@ -15,10 +15,10 @@ const Poses := preload("res://scripts/hub/family_poses.gd")
 const HubRooms := preload("res://scripts/hub/hub_rooms.gd")
 const Art := preload("res://scripts/ps2/ps2_assets.gd")
 const ECO := preload("res://assets/models/eco.tscn")
+const FamilyBed := preload("res://scripts/hub/family_bed.gd")
 
 const SPOT_ID := "family_bed"
 const SPOT_REACH := 1.8
-const QUILT := [Color(0.8, 0.45, 0.35), Color(0.55, 0.65, 0.5), Color(0.9, 0.75, 0.45), Color(0.5, 0.55, 0.7), Color(0.85, 0.6, 0.55)]
 
 ## The run manager (player, hub_npcs, npc_talk, hud, pilot_hud, runs_ended).
 var rm: Node
@@ -31,6 +31,11 @@ var _mom_pose: SkeletonModifier3D
 var _mom_saved := {}
 var _cloth: Node3D
 var _bowl: Node3D
+## The bed's own quilt (hidden while a scene lays its own over them), and
+## the bodies the scene's quilt still waits to drape over: {who: capsules}.
+var _room_quilt: Node3D
+var _drape := {}
+var _drape_to := 0.0
 var _f := HubRooms.F
 
 
@@ -104,12 +109,41 @@ func _on_talk_finished(_who: String) -> void:
 
 ## The cloth on Eco's brow and the bowl in Mom's hands follow their poses.
 func _place_cloth(skel: Skeleton3D) -> void:
-	if _cloth != null:
+	if _cloth != null and eco != null and eco.is_ancestor_of(skel):
 		_cloth.global_position = _bone_world(skel, "J_Bip_C_Head") + Vector3(0, 0.13, 0.06)
 
 
+## Lays the scene's quilt over the posed bodies once each pose has been on
+## for an update (their bones only read back then), up to `head_z`.
+func _drape_over(poses: Dictionary, head_z: float, arms := false) -> void:
+	_drape = {}
+	_drape_to = head_z
+	for who in poses:
+		_drape[who] = null
+		var hold = poses[who]
+		hold.after = func(skel: Skeleton3D) -> void:
+			if _drape.get(who, 0) == null:
+				_drape[who] = FamilyBed.capsules(skel, arms)
+				if not _drape.values().has(null):
+					_lay_quilt.call_deferred()
+			_place_cloth(skel)
+			_place_bowl(skel)
+
+
+func _lay_quilt() -> void:
+	if playing == "" or _drape.is_empty():
+		return
+	var caps := []
+	for who in _drape:
+		caps.append_array(_drape[who])
+	_drape = {}
+	var quilt := FamilyBed.drape(bed(), _drape_to, caps)
+	add_child(quilt)
+	_props.append(quilt)
+
+
 func _place_bowl(skel: Skeleton3D) -> void:
-	if _bowl != null:
+	if _bowl != null and _mom() != null and _mom().is_ancestor_of(skel):
 		_bowl.global_position = (_bone_world(skel, "J_Bip_R_Hand") + _bone_world(skel, "J_Bip_L_Hand")) * 0.5 + Vector3(0, 0.03, 0)
 
 
@@ -141,24 +175,31 @@ func _stage(kind: String) -> void:
 	_camera = Camera3D.new()
 	_camera.fov = 55.0
 	add_child(_camera)
+	_room_quilt = get_parent().find_child("MomQuilt", true, false) if get_parent() != null else null
+	if _room_quilt != null:
+		_room_quilt.visible = false
 	if kind == "cuddle":
-		# Side by side against the headboard, facing the foot of the bed; Eco on Mom's right.
-		_place(mom, Vector3(b.x - 0.26, _f - 0.27, b.z + 0.72), 0.0)
+		# Mom against the headboard, Eco sitting between her knees and lying back on her.
+		_place(mom, Vector3(b.x, _f - 0.27, b.z + 0.62), 0.0)
 		_mom_pose = Poses.hold(mom, "mom_cuddle")
-		eco.global_position = Vector3(b.x + 0.17, _f - 0.28, b.z + 0.7)
+		eco.global_position = Vector3(b.x, _f - 0.28, b.z + 0.18)
 		eco.rotation = Vector3.ZERO
-		Poses.hold(eco, "eco_cuddle")
+		var eco_pose := Poses.hold(eco, "eco_cuddle")
 		_face(eco, {"Fcl_EYE_Close": 0.85, "Fcl_ALL_Fun": 0.35})
-		_quilt(Vector3(b.x, _f + 0.66, b.z - 0.25), Vector3(1.55, 0.2, 1.3))
-		_look(Vector3(b.x + 1.4, _f + 1.55, b.z - 2.1), Vector3(b.x, _f + 1.05, b.z + 0.5))
+		_drape_over({"eco": eco_pose, "mom": _mom_pose}, b.z + 0.1)
+		_look(Vector3(b.x + 1.4, _f + 1.55, b.z - 2.1), Vector3(b.x, _f + 1.0, b.z + 0.4))
 	else:
 		# Eco tucked in on her back, head on the pillows; Mom on a stool beside her.
 		eco.global_position = Vector3(b.x + 0.28, _f + 0.69, b.z - 0.72)
 		eco.rotation = Vector3(deg_to_rad(90.0), 0.0, 0.0)
-		Poses.hold(eco, "eco_sick").after = _place_cloth
+		var eco_pose := Poses.hold(eco, "eco_sick")
 		_face(eco, {"Fcl_EYE_Close": 0.75, "Fcl_ALL_Sorrow": 0.4})
-		_quilt(Vector3(b.x, _f + 0.76, b.z - 0.29), Vector3(1.55, 0.2, 1.42))
-		_cloth = _box(Vector3.ZERO, Vector3(0.2, 0.03, 0.09), Art.material("canvas", Color(0.97, 0.97, 1.0)))
+		_drape_over({"eco": eco_pose}, b.z + 0.42, true)
+		_cloth = MeshInstance3D.new()
+		_cloth.mesh = FamilyBed.soft_box(Vector3(0.2, 0.035, 0.1), 0.015)
+		_cloth.material_override = FamilyBed.linen()
+		add_child(_cloth)
+		_props.append(_cloth)
 		var stool := b + Vector3(1.2, 0, -0.2)
 		_box(stool + Vector3(0, 0.22, 0), Vector3(0.38, 0.44, 0.38), Art.material("wood"))
 		var at := Vector3(stool.x, _f - 0.42, stool.z)
@@ -186,6 +227,10 @@ func _unstage() -> void:
 	_props = []
 	_cloth = null
 	_bowl = null
+	_drape = {}
+	if _room_quilt != null and is_instance_valid(_room_quilt):
+		_room_quilt.visible = true
+	_room_quilt = null
 	if eco != null:
 		eco.queue_free()
 	eco = null
@@ -216,14 +261,6 @@ func _look(from: Vector3, at: Vector3) -> void:
 	_camera.global_position = from
 	_camera.look_at(at, Vector3.UP)
 	_camera.make_current()
-
-
-func _quilt(center: Vector3, size: Vector3) -> void:
-	# A patchwork of five strips, like the one on Mom's bed.
-	var strip := size.z / QUILT.size()
-	for i in QUILT.size():
-		var z := center.z - size.z / 2.0 + strip * (i + 0.5)
-		_box(Vector3(center.x, center.y, z), Vector3(size.x, size.y, strip), Art.material("canvas", QUILT[i]))
 
 
 func _box(pos: Vector3, size: Vector3, mat: Material, parent: Node = null) -> MeshInstance3D:

@@ -39,7 +39,7 @@ func _go() -> void:
 	if only != "sick":
 		fam.cuddle()
 		await _shot("1_cuddle", 12)
-		fam._camera.look_at_from_position(fam.bed() + Vector3(0.75, 1.2, -0.9), fam.bed() + Vector3(-0.05, 1.2, 0.6))
+		fam._camera.look_at_from_position(fam.bed() + Vector3(0.75, 1.3, -0.85), fam.bed() + Vector3(0.0, 1.0, 0.45))
 		await _shot("2_cuddle_close", 4)
 		talk.stop()
 		await _frames(5)

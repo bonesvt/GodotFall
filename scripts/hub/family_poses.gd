@@ -16,32 +16,33 @@ const R := Vector3.RIGHT
 const B := Vector3.BACK
 const U := Vector3.UP
 
-## Sitting up in bed against the headboard, legs out under the quilt, her
-## right arm around whoever sits on her right, left hand in her lap.
+## Sitting up in bed against the headboard, knees apart so Eco can sit
+## between them, both arms wrapped round her middle, looking down at her.
 const MOM_CUDDLE := [
-	["J_Bip_C_Hips", R, 14.0],
-	["J_Bip_R_UpperLeg", R, 80.0], ["J_Bip_L_UpperLeg", R, 80.0],
-	["J_Bip_R_LowerLeg", R, -8.0], ["J_Bip_L_LowerLeg", R, -8.0],
-	["J_Bip_C_Spine", R, -6.0],
-	["J_Bip_C_Neck", B, -6.0], ["J_Bip_C_Head", B, -12.0], ["J_Bip_C_Head", R, 6.0],
-	["J_Bip_R_UpperArm", U, -30.0], ["J_Bip_R_UpperArm", B, -22.0],
-	["J_Bip_R_LowerArm", U, 75.0],
-	["J_Bip_L_UpperArm", B, 72.0], ["J_Bip_L_UpperArm", U, -18.0],
-	["J_Bip_L_LowerArm", R, 60.0], ["J_Bip_L_LowerArm", U, -20.0],
+	["J_Bip_C_Hips", R, 20.0],
+	["J_Bip_R_UpperLeg", R, 75.0], ["J_Bip_R_UpperLeg", U, -26.0],
+	["J_Bip_L_UpperLeg", R, 75.0], ["J_Bip_L_UpperLeg", U, 26.0],
+	["J_Bip_R_LowerLeg", R, -30.0], ["J_Bip_L_LowerLeg", R, -30.0],
+	["J_Bip_C_Spine", R, -4.0],
+	["J_Bip_C_Head", R, -18.0], ["J_Bip_C_Head", U, -15.0], ["J_Bip_C_Head", B, -6.0],
+	["J_Bip_R_UpperArm", U, 80.0], ["J_Bip_R_UpperArm", R, -40.0],
+	["J_Bip_R_LowerArm", U, 70.0],
+	["J_Bip_L_UpperArm", U, -80.0], ["J_Bip_L_UpperArm", R, -40.0],
+	["J_Bip_L_LowerArm", U, -70.0],
 ]
 
-## Curled into Mom on her left: leaning over, head on her shoulder, knees
-## drawn up a little, hands together in her lap.
+## Sitting between Mom's knees, lying back against her, head back on her
+## chest, hands resting on Mom's arms.
 const ECO_CUDDLE := [
-	["J_Bip_C_Hips", R, 14.0],
-	["J_Bip_R_UpperLeg", R, 92.0], ["J_Bip_L_UpperLeg", R, 92.0],
-	["J_Bip_R_LowerLeg", R, -30.0], ["J_Bip_L_LowerLeg", R, -30.0],
-	["J_Bip_C_Spine", B, 14.0], ["J_Bip_C_Chest", B, 12.0],
-	["J_Bip_C_Neck", B, 10.0], ["J_Bip_C_Head", B, 12.0], ["J_Bip_C_Head", R, 8.0],
-	["J_Bip_R_UpperArm", B, -68.0], ["J_Bip_R_UpperArm", U, 22.0],
-	["J_Bip_R_LowerArm", R, 65.0], ["J_Bip_R_LowerArm", U, 25.0],
-	["J_Bip_L_UpperArm", B, 66.0], ["J_Bip_L_UpperArm", U, -25.0],
-	["J_Bip_L_LowerArm", R, 65.0], ["J_Bip_L_LowerArm", U, -25.0],
+	["J_Bip_C_Hips", R, 38.0],
+	["J_Bip_R_UpperLeg", R, 55.0], ["J_Bip_L_UpperLeg", R, 55.0],
+	["J_Bip_R_LowerLeg", R, -25.0], ["J_Bip_L_LowerLeg", R, -25.0],
+	["J_Bip_C_Spine", R, 4.0],
+	["J_Bip_C_Head", R, 12.0], ["J_Bip_C_Head", U, -15.0],
+	["J_Bip_R_UpperArm", B, -70.0], ["J_Bip_R_UpperArm", U, 25.0],
+	["J_Bip_R_LowerArm", R, 45.0], ["J_Bip_R_LowerArm", U, 35.0],
+	["J_Bip_L_UpperArm", B, 70.0], ["J_Bip_L_UpperArm", U, -25.0],
+	["J_Bip_L_LowerArm", R, 45.0], ["J_Bip_L_LowerArm", U, -35.0],
 ]
 
 ## Lying on her back (the scene lays the whole model down), propped up on the
