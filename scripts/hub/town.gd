@@ -278,6 +278,8 @@ static func _plaza(root: Node3D, info: Dictionary, rng: RandomNumberGenerator) -
 	for spec in [[Vector3(-12, 0, 166), 90.0], [Vector3(12, 0, 166), -90.0], [Vector3(-12, 0, 184), 90.0], [Vector3(12, 0, 184), -90.0]]:
 		_bench(root, spec[0], spec[1])
 		var pot: Vector3 = spec[0] + Vector3(signf(spec[0].x) * 3.5, 0, 0)
+		if pot.x < 0.0 and pot.z > 175.0:
+			continue  # Scoops stands there
 		TP.spawn(root, "planter", pot, 0.0, {"leaves": LEAF_TINTS[2]})
 		_solid(root, pot + Vector3(0, 0.4, 0), Vector3(2.4, 0.8, 2.4))
 		Props.tree(root, pot + Vector3(0, 0.8, 0), rng, 0.6)
@@ -414,7 +416,7 @@ static func _militia_office(root: Node3D, info: Dictionary) -> void:
 	K.glow(root, flood + Vector3(-0.15, 4.9, 0.1), Vector3(0.5, 0.3, 0.05), Color(1.0, 0.95, 0.85) * 1.2, Vector3(-25, -60, 0))
 	K.light(root, flood + Vector3(-1.0, 4.6, 0.5), Color(1.0, 0.95, 0.85), 1.0, 10.0)
 	_solid(root, flood + Vector3(0, 2.5, 0), Vector3(0.2, 5.0, 0.2))
-	var screen := Vector3(front + 4.0, 0, z + 9.5)
+	var screen := Vector3(front + 4.0, 0, z - 9.5)
 	K.mesh(root, screen + Vector3(0, 2.2, 0), Vector3(0.2, 4.4, 0.2), Art.material("gunmetal"))
 	K.mesh(root, screen + Vector3(0, 4.2, 0), Vector3(3.6, 2.0, 0.15), TP.paint(Color(0.06, 0.06, 0.07), 0.5))
 	K.glow(root, screen + Vector3(0, 4.2, -0.09), Vector3(3.3, 1.75, 0.02), RED * 0.35)
