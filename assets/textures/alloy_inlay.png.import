@@ -3,15 +3,16 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://02j6v2swebgs"
-path="res://.godot/imported/alloy_inlay.png-1f1513f264d2d02cea4b8b73347aaaf4.ctex"
+path.bptc="res://.godot/imported/alloy_inlay.png-1f1513f264d2d02cea4b8b73347aaaf4.bptc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 
 [deps]
 
 source_file="res://assets/textures/alloy_inlay.png"
-dest_files=["res://.godot/imported/alloy_inlay.png-1f1513f264d2d02cea4b8b73347aaaf4.ctex"]
+dest_files=["res://.godot/imported/alloy_inlay.png-1f1513f264d2d02cea4b8b73347aaaf4.bptc.ctex"]
 
 [params]
 

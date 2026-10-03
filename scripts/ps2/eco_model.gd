@@ -18,6 +18,25 @@ extends "res://scripts/ps2/ps2_model.gd"
 @export var springs_enabled := true
 ## How far her chest and glutes may bounce (1 = as tuned, 0 = not at all).
 @export_range(0.0, 2.0) var jiggle := 1.0
+## Her suit upgrade (scripts/hub/armory.gd SUIT_TIERS): 0 is the bare pilot
+## suit; each tier shows its armour pieces (the glb's suit_t<tier>_* meshes,
+## from tools/eco/build_eco_vroid.py) on top of the tiers before it. Tier 5
+## repaints the plates in Dad's colours and turns every trim gold.
+@export_range(0, 5) var suit_tier := 0:
+	set(value):
+		suit_tier = clampi(value, 0, SUIT_TIERS)
+		if is_inside_tree():
+			apply_suit()
+## The suit's weight (armory.gd SUIT_WEIGHTS). Pieces are marked after their
+## tier: "l" light only (the cloth-and-leather light suit), "m" medium and
+## heavy, "h" heavy only, unmarked for all three. The light suit also swaps
+## her bodysuit for its own cut (eco_v_body_light: no side cutouts, open
+## across the top of her chest) once she has a suit tier.
+@export_enum("light", "medium", "heavy") var suit_weight := "medium":
+	set(value):
+		suit_weight = value
+		if is_inside_tree():
+			apply_suit()
 
 ## Spring bones (the VRoid rig's J_Sec_* bones; the glute ones are added by
 ## tools/eco/build_eco_vroid.py): how hard each pulls back to its pose, how
@@ -45,6 +64,12 @@ const SPRINGS := {
 	"J_Sec_L_Bust1": BUST, "J_Sec_R_Bust1": BUST,
 	"J_Sec_L_Glute1": GLUTE, "J_Sec_R_Glute1": GLUTE,
 }
+
+const SUIT_TIERS := 5
+const LEGACY_PLATE := preload("res://assets/materials/eco/eco_v_armor_legacy.tres")
+const LIGHT_BODY := preload("res://assets/materials/eco/eco_v_body_light.tres")
+const MEDIUM_BODY := preload("res://assets/materials/eco/eco_v_body_medium.tres")
+const HEAVY_BODY := preload("res://assets/materials/eco/eco_v_body_heavy.tres")
 
 ## Movement states of scripts/player.gd (enum State).
 enum PlayerState { GROUND, AIR, SLIDE, WALLRUN, GRAPPLE }
@@ -77,8 +102,62 @@ func _ready() -> void:
 		_springs.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return a["bone"] < b["bone"])
 		_last_origin = skeleton.global_position
 	set_process(_anim != null or not _springs.is_empty())
+	apply_suit()
 	if _anim != null and idle_motion:
 		_anim.play("idle")
+
+
+## The tier a suit_t<tier>[l|m|h]_* mesh belongs to (0 for everything else).
+static func piece_tier(mesh_name: String) -> int:
+	return int(mesh_name.substr(6, 1)) if mesh_name.begins_with("suit_t") else 0
+
+
+## Whether a suit weight wears a piece: "l" light only, "m" medium only, "h" heavy only,
+## anything else every weight.
+static func piece_worn(mesh_name: String, weight: String) -> bool:
+	match mesh_name.substr(7, 1):
+		"l":
+			return weight == "light"
+		"m":
+			return weight == "medium"
+		"h":
+			return weight == "heavy"
+	return true
+
+
+## Shows the armour of every tier up to suit_tier, in Dad's colours at the top tier.
+func apply_suit() -> void:
+	var legacy := suit_tier >= SUIT_TIERS
+	for node in find_children("*", "MeshInstance3D", true, false):
+		var mi := node as MeshInstance3D
+		var tier := piece_tier(String(mi.name))
+		if tier > 0 and mi.mesh != null:
+			mi.visible = tier <= suit_tier and piece_worn(String(mi.name), suit_weight)
+			for i in mi.mesh.get_surface_count():
+				var m := mi.mesh.surface_get_material(i)
+				if m != null and m.resource_name == "eco_v_armor":
+					mi.set_surface_override_material(i, LEGACY_PLATE if legacy else null)
+		elif tier == 0 and mi.mesh != null:
+			for i in mi.mesh.get_surface_count():
+				var m := mi.mesh.surface_get_material(i)
+				if m != null and m.resource_name == "eco_v_body":
+					mi.set_surface_override_material(i, body_material())
+		mi.set_instance_shader_parameter("trim_gold", 1.0 if legacy else 0.0)
+
+
+## The bodysuit for her weight: each weight has its own cut (tools/eco/build_eco_vroid.py
+## suit_graph); the bare suit uses the base one.
+func body_material() -> Material:
+	if suit_tier <= 0:
+		return null
+	match suit_weight:
+		"light":
+			return LIGHT_BODY
+		"medium":
+			return MEDIUM_BODY
+		"heavy":
+			return HEAVY_BODY
+	return null
 
 
 ## The animation she should play now, with its playback speed.

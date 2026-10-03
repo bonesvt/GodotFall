@@ -3,15 +3,16 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://cw0bhlju3thg"
-path="res://.godot/imported/timber_carving_n.png-cd6e5cc2a5d27d133068845e4a562b25.ctex"
+path.bptc="res://.godot/imported/timber_carving_n.png-cd6e5cc2a5d27d133068845e4a562b25.bptc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 
 [deps]
 
 source_file="res://assets/textures/timber_carving_n.png"
-dest_files=["res://.godot/imported/timber_carving_n.png-cd6e5cc2a5d27d133068845e4a562b25.ctex"]
+dest_files=["res://.godot/imported/timber_carving_n.png-cd6e5cc2a5d27d133068845e4a562b25.bptc.ctex"]
 
 [params]
 

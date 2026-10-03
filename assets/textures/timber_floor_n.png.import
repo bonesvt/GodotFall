@@ -3,15 +3,16 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://dd8vy1gugkbsx"
-path="res://.godot/imported/timber_floor_n.png-6faf45316a112e577048b92a2446bf8b.ctex"
+path.bptc="res://.godot/imported/timber_floor_n.png-6faf45316a112e577048b92a2446bf8b.bptc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 
 [deps]
 
 source_file="res://assets/textures/timber_floor_n.png"
-dest_files=["res://.godot/imported/timber_floor_n.png-6faf45316a112e577048b92a2446bf8b.ctex"]
+dest_files=["res://.godot/imported/timber_floor_n.png-6faf45316a112e577048b92a2446bf8b.bptc.ctex"]
 
 [params]
 

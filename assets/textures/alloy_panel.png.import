@@ -3,15 +3,16 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://hq35o7tup8io"
-path="res://.godot/imported/alloy_panel.png-789ddb86a88b7f4cde547f15fdf68ad8.ctex"
+path.bptc="res://.godot/imported/alloy_panel.png-789ddb86a88b7f4cde547f15fdf68ad8.bptc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 
 [deps]
 
 source_file="res://assets/textures/alloy_panel.png"
-dest_files=["res://.godot/imported/alloy_panel.png-789ddb86a88b7f4cde547f15fdf68ad8.ctex"]
+dest_files=["res://.godot/imported/alloy_panel.png-789ddb86a88b7f4cde547f15fdf68ad8.bptc.ctex"]
 
 [params]
 
