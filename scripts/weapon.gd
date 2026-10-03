@@ -220,6 +220,21 @@ var _charm_last_vel := Vector3.ZERO
 ## the top of this one.
 var smart_fraction := 0.0
 var smart_left := 0
+
+## Gun-specific upgrades (armory.gd UPGRADES), 0 on a stock gun.
+## Heavy revolver: bodies a round goes through after the first, and how long
+## a hit knocks a grunt off their aim (seconds).
+var pierce := 0.0
+var stagger := 0.0
+## Auto handgun: extra damage per hit in a row (up to STREAK_MAX), lost on a
+## miss or a pause in fire.
+var streak_bonus := 0.0
+var streak := 0
+const STREAK_MAX := 10
+const STREAK_DROP := 0.45
+## Damage kept by each body a punch-through round goes on into.
+const PIERCE_KEEP := 0.75
+const STREAK_TRACER := Color(1.0, 0.45, 0.15, 0.95)
 ## The working lock: cone half-angle (degrees), range (m), seconds to lock.
 const LOCK_CONE := 11.0
 const LOCK_RANGE := 40.0
@@ -277,6 +292,7 @@ func equip(profile: Dictionary) -> void:
 	if not smart:
 		lock_target = null
 		glitch = 0.0
+	streak = 0
 	if viewmodel != null:
 		viewmodel.free()
 		viewmodel = null
@@ -288,6 +304,8 @@ func _physics_process(delta: float) -> void:
 	cooldown -= delta
 	buffer_timer -= delta
 	since_shot += delta
+	if since_shot > STREAK_DROP:
+		streak = 0
 	if since_shot > bloom_recovery_delay:
 		bloom = maxf(bloom - bloom_recovery * delta, 0.0)
 	_recover_recoil(delta)
@@ -367,24 +385,8 @@ func fire() -> void:
 	if homing:
 		# A smart round with a lock flies to the target's chest, spread or not.
 		dir = (lock_point(lock_target) - from).normalized()
-	var query := PhysicsRayQueryParameters3D.create(from, from + dir * max_range, SHOT_MASK)
-	query.exclude = [player.get_rid()]
-	var hit := get_world_3d().direct_space_state.intersect_ray(query)
-	var end: Vector3 = from + dir * max_range
 	var fx_parent: Node = player.get_parent()
-
-	if not hit.is_empty():
-		end = hit.position
-		var target: Object = hit.collider
-		if target.has_method("take_damage"):
-			var head: bool = target.is_headshot(end)
-			var dmg := damage_at(from.distance_to(end)) * (headshot_multiplier if head else 1.0)
-			var killed: bool = target.take_damage(dmg, end, head)
-			var kind := "kill" if killed else ("head" if head else "body")
-			hit_confirmed.emit(kind)
-			_hit_fx(fx_parent, end, hit.normal, dir, kind)
-		else:
-			_impact_fx(fx_parent, end, hit.normal)
+	var end := _trace_shot(from, dir, fx_parent)
 	# Heard after the round lands, so the first shot still catches its target unaware.
 	get_tree().call_group("enemies", "hear_gunshot", player.global_position)
 
@@ -393,13 +395,63 @@ func fire() -> void:
 		if homing:
 			FX.star(fx_parent, end, Color(1.0, 0.5, 0.8), 0.3, 0.08, 6)
 	else:
-		FX.tracer(fx_parent, muzzle.global_position, end, tracer_color, 0.012, 0.06)
+		# A hot streak runs the tracer from its own colour to orange.
+		var heat_t := float(streak) / STREAK_MAX if streak_bonus > 0.0 else 0.0
+		FX.tracer(fx_parent, muzzle.global_position, end, tracer_color.lerp(STREAK_TRACER, heat_t), 0.012 + 0.008 * heat_t, 0.06)
 	bloom = minf(bloom + bloom_per_shot, max_bloom)
 	var k := deg_to_rad(recoil_kick)
 	player.head.rotation.x = clampf(player.head.rotation.x + k, -1.55, 1.55)
 	recoil_pending += k * recoil_recovery
 	flash_timer = 0.04
 	_shot_feel(fx_parent)
+
+
+## Casts one round along `dir` and deals its damage. A punch-through round
+## goes on through each body it hits, `pierce` times, losing a quarter of its
+## damage each time. Returns where it stopped (for the tracer).
+func _trace_shot(from: Vector3, dir: Vector3, fx_parent: Node) -> Vector3:
+	var exclude: Array[RID] = [player.get_rid()]
+	var start := from
+	var mult := 1.0 + streak_bonus * streak
+	var bodies := 0
+	var landed := false
+	while true:
+		var query := PhysicsRayQueryParameters3D.create(start, from + dir * max_range, SHOT_MASK)
+		query.exclude = exclude
+		var hit := get_world_3d().direct_space_state.intersect_ray(query)
+		if hit.is_empty():
+			break
+		var end: Vector3 = hit.position
+		var target: Object = hit.collider
+		if not target.has_method("take_damage"):
+			_impact_fx(fx_parent, end, hit.normal)
+			_end_streak(landed)
+			return end
+		var head: bool = target.is_headshot(end)
+		var dmg := damage_at(from.distance_to(end)) * (headshot_multiplier if head else 1.0) * mult
+		var killed: bool = target.take_damage(dmg, end, head)
+		if stagger > 0.0 and not killed and target.has_method("stagger"):
+			target.stagger(stagger)
+		var kind := "kill" if killed else ("head" if head else "body")
+		hit_confirmed.emit(kind)
+		_hit_fx(fx_parent, end, hit.normal, dir, kind)
+		landed = true
+		bodies += 1
+		if bodies > int(pierce):
+			_end_streak(landed)
+			return end
+		# On through: past this body, a bit weaker.
+		exclude.append(hit.rid)
+		start = end
+		mult *= PIERCE_KEEP
+		FX.puff(fx_parent, end + dir * 0.3, Color(1.0, 0.8, 0.5, 0.6), 0.25)
+	_end_streak(landed)
+	return from + dir * max_range
+
+
+## A hit carries the streak on; a miss ends it.
+func _end_streak(landed: bool) -> void:
+	streak = mini(streak + 1, STREAK_MAX) if landed else 0
 
 
 ## Everything a shot does that you see, hear and feel but that doesn't score.

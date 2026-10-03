@@ -42,12 +42,12 @@ const LOST_RUN_KEEP := 0.5
 const WIN_BONUS := {"scrap": 40, "alloy": 25, "circuits": 3, "lock_cores": 0}
 
 ## Pilot sidearms. `stats` use weapon.gd's property names; the smart pistol's
-## are weapon.gd's defaults. `mag_step` is rounds per Magazine upgrade.
+## are weapon.gd's defaults.
 const WEAPONS := {
 	"smart_pistol": {
 		"name": "Dad's Smart Pistol", "short": "SMART PISTOL", "cost": {}, "model": "pistol",
 		"desc": "Semi-auto, suppressed. Weak on the body, brutal on the head.",
-		"smart": true, "automatic": false, "suppressed": true, "mag_step": 1,
+		"smart": true, "automatic": false, "suppressed": true,
 		"upgrades": ["smart_rounds"],
 		"sound": "pistol", "sound_last": "pistol_last", "tracer": Color(0.75, 0.97, 1.0, 0.85),
 		"stats": {
@@ -67,8 +67,8 @@ const WEAPONS := {
 	"rivet_cannon": {
 		"name": "Heavy Revolver", "short": "HEAVY REVOLVER", "cost": {}, "unlock_level": 3, "model": "rivet_cannon",
 		"desc": "Six titan rivets in a hand-turned cylinder. Slow, loud, kicks like a mule.",
-		"smart": false, "automatic": false, "suppressed": false, "mag_step": 1,
-		"upgrades": ["calibre", "action", "magazine"],
+		"smart": false, "automatic": false, "suppressed": false,
+		"upgrades": ["rivet_heads", "punch_through", "stagger_coils", "speed_loader"],
 		"sound": "rivet_cannon", "sound_last": "rivet_cannon", "tracer": Color(1.0, 0.75, 0.4, 0.9),
 		"stats": {
 			"damage": 42.0, "headshot_multiplier": 2.0, "falloff_start": 22.0, "falloff_end": 50.0,
@@ -85,8 +85,8 @@ const WEAPONS := {
 	"machine_pistol": {
 		"name": "Auto Handgun", "short": "AUTO HANDGUN", "cost": {}, "unlock_level": 6, "model": "machine_pistol",
 		"desc": "A militia machine pistol: full auto, fifteen rounds a second, sprays wide. Hold the trigger, mind the bloom.",
-		"smart": false, "automatic": true, "suppressed": false, "mag_step": 3,
-		"upgrades": ["calibre", "action", "magazine"],
+		"smart": false, "automatic": true, "suppressed": false,
+		"upgrades": ["drum_feed", "recoil_buffer", "overclock", "hot_streak"],
 		"sound": "machine_pistol", "sound_last": "machine_pistol", "tracer": Color(1.0, 0.9, 0.6, 0.7),
 		"stats": {
 			"damage": 8.0, "headshot_multiplier": 1.75, "falloff_start": 10.0, "falloff_end": 25.0,
@@ -102,17 +102,38 @@ const WEAPONS := {
 	},
 }
 
-## Upgrade tracks. Each gun lists its own in WEAPONS "upgrades"; a track has
-## one cost per level, so its length is the track's max level.
+## Upgrade tracks. Each gun lists its own in WEAPONS "upgrades", and each gun's
+## set leans into what it is: the smart pistol rebuilds Dad's lock, the heavy
+## revolver hits harder and goes through things, the auto handgun rewards
+## holding the trigger. A track has one cost per level (its length is the max
+## level) and changes the gun's stats per level: "scale" multiplies a stat by
+## 1 + n x level, "add" adds n x level. Stats weapon.gd only has for these
+## tracks (pierce, stagger, streak_bonus, smart_fraction) start at 0.
 const UPGRADE_COST := [{"scrap": 40}, {"scrap": 70, "circuits": 2}, {"scrap": 110, "circuits": 5}]
 const UPGRADES := {
-	"calibre": {"name": "Calibre", "desc": "+6% damage per level", "costs": UPGRADE_COST},
-	"action": {"name": "Action", "desc": "8% faster reload per level", "costs": UPGRADE_COST},
-	"magazine": {"name": "Magazine", "desc": "more rounds per level", "costs": UPGRADE_COST},
+	# Heavy revolver: big, slow, decisive.
+	"rivet_heads": {"name": "Rivet heads", "desc": "+10% damage and +0.2x headshot damage per level",
+		"scale": {"damage": 0.10}, "add": {"headshot_multiplier": 0.2}, "costs": UPGRADE_COST},
+	"punch_through": {"name": "Punch-through", "desc": "Rounds go through a body into the next one: +1 body per level",
+		"add": {"pierce": 1.0}, "costs": UPGRADE_COST},
+	"stagger_coils": {"name": "Stagger coils", "desc": "Every hit knocks a grunt off their aim: +0.35 s per level",
+		"add": {"stagger": 0.35}, "costs": UPGRADE_COST},
+	"speed_loader": {"name": "Speed loader", "desc": "12% faster reload per level",
+		"scale": {"reload_time": -0.12}, "costs": UPGRADE_COST},
+	# Auto handgun: hold the trigger and keep it on them.
+	"drum_feed": {"name": "Drum feed", "desc": "+6 rounds per level",
+		"add": {"magazine_size": 6.0}, "costs": UPGRADE_COST},
+	"recoil_buffer": {"name": "Recoil buffer", "desc": "15% less kick and bloom per shot per level",
+		"scale": {"bloom_per_shot": -0.15, "recoil_kick": -0.15}, "costs": UPGRADE_COST},
+	"overclock": {"name": "Overclock", "desc": "7% faster fire per level",
+		"scale": {"fire_interval": -0.07}, "costs": UPGRADE_COST},
+	"hot_streak": {"name": "Hot streak", "desc": "Each hit in a row adds +2.5% damage per level, up to 10 hits; a miss resets it",
+		"add": {"streak_bonus": 0.025}, "costs": UPGRADE_COST},
 	# Dad's smart pistol: each level rebuilds a bit more of the smart lock, so
 	# one more eighth of every fresh mag is smart rounds (weapon.gd fires them
 	# first; they home in on a locked target).
-	"smart_rounds": {"name": "Smart rounds", "desc": "+12.5% of each mag fires smart rounds that lock on", "costs": [
+	"smart_rounds": {"name": "Smart rounds", "desc": "+12.5% of each mag fires smart rounds that lock on",
+		"add": {"smart_fraction": 0.125}, "costs": [
 		{"scrap": 40, "lock_cores": 1},
 		{"scrap": 60, "lock_cores": 1},
 		{"scrap": 80, "circuits": 1, "lock_cores": 1},
@@ -127,10 +148,8 @@ const UPGRADES := {
 const MAX_LEVEL := 3
 ## Upgraded looks a gun has beyond stock.
 const MODEL_TIERS := 5
-const CALIBRE_STEP := 0.06
-const ACTION_STEP := 0.08
-## Share of each mag that turns smart per Smart rounds level.
-const SMART_STEP := 0.125
+## Upgrade-only stats, 0 on a stock gun (see UPGRADES).
+const UPGRADE_STATS := ["pierce", "stagger", "streak_bonus", "smart_fraction"]
 
 ## Attachments: one per slot per gun. Bought once, usable on every gun.
 ## `mods` multiply weapon stats (magazine_size rounds, never below 1).
@@ -222,6 +241,14 @@ func load_file() -> void:
 	owned_weapons = cfg.get_value("weapons", "owned", owned_weapons)
 	equipped = cfg.get_value("weapons", "equipped", equipped)
 	upgrades = cfg.get_value("weapons", "upgrades", {})
+	# Tracks a gun no longer has (older saves) are dropped.
+	for w in upgrades.keys():
+		if not WEAPONS.has(w):
+			upgrades.erase(w)
+			continue
+		for track in upgrades[w].keys():
+			if not track in upgrade_tracks(w):
+				upgrades[w].erase(track)
 	owned_attachments = cfg.get_value("weapons", "attachments", [])
 	fitted = cfg.get_value("weapons", "fitted", {})
 	finishes = cfg.get_value("weapons", "finishes", {})
@@ -472,14 +499,15 @@ func weapon_profile(id := "") -> Dictionary:
 		id = equipped
 	var base: Dictionary = WEAPONS[id]
 	var stats: Dictionary = base["stats"].duplicate()
-	var tracks := upgrade_tracks(id)
-	if "calibre" in tracks:
-		stats["damage"] *= 1.0 + CALIBRE_STEP * upgrade_level(id, "calibre")
-	if "action" in tracks:
-		stats["reload_time"] *= 1.0 - ACTION_STEP * upgrade_level(id, "action")
-	if "magazine" in tracks:
-		stats["magazine_size"] += int(base["mag_step"]) * upgrade_level(id, "magazine")
-	stats["smart_fraction"] = SMART_STEP * upgrade_level(id, "smart_rounds") if "smart_rounds" in tracks else 0.0
+	for key in UPGRADE_STATS:
+		stats[key] = 0.0
+	for track in upgrade_tracks(id):
+		var level := upgrade_level(id, track)
+		var info: Dictionary = UPGRADES[track]
+		for key in info.get("scale", {}):
+			stats[key] *= 1.0 + info["scale"][key] * level
+		for key in info.get("add", {}):
+			stats[key] += info["add"][key] * level
 	var parts := {}
 	for slot in ATTACHMENT_SLOTS:
 		var a := attachment(slot, fitted_attachment(id, slot))

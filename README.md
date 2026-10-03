@@ -78,7 +78,11 @@ enemy titan's salvage when you win); a lost run banks half. The HUD shows what y
   each makes another eighth of every mag smart. Smart rounds fire first (pink pips on the
   HUD); while one is chambered the lock works again, closing on the grunt nearest the
   crosshair, and the shot flies to its chest (never its head, so headshots stay yours).
-  The other guns have Calibre, Action and Magazine (three small steps each). Every step
+  The **Heavy Revolver** gets Rivet heads (damage and headshots), Punch-through (rounds
+  carry on into the body behind), Stagger coils (hits knock a grunt off their aim) and a
+  Speed loader. The **Auto Handgun** gets Drum feed (more rounds), Recoil buffer, Overclock
+  (faster fire) and Hot streak (every hit in a row hits harder; a miss or a pause resets
+  it, and the tracers run orange as it heats). Three levels each. Every step
   moves the gun's look tier from 0 to 5. The bench also fits **attachments** (muzzle, mag, grip, each a
   trade-off: long barrel, compensator, extended mag, speed base, paracord wrap, skeleton
   grip) plus free paint **finishes** (on the shell or frame). Q/E switches guns, Tab parts.

@@ -45,7 +45,7 @@ func _rules() -> void:
 	_check("heavy revolver is locked below level 3", not a.buy_weapon("rivet_cannon") and not a.owns_weapon("rivet_cannon") and not a.equip("rivet_cannon"), a.stash)
 	a.stash = {"scrap": 2000, "alloy": 2000, "circuits": 200, "lock_cores": 0}
 	_check("smart pistol's only upgrade is smart rounds", Armory.upgrade_tracks("smart_pistol") == ["smart_rounds"] and Armory.max_level("smart_rounds") == 8, Armory.upgrade_tracks("smart_pistol"))
-	_check("no calibre on the smart pistol", not a.buy_upgrade("smart_pistol", "calibre"), a.upgrades)
+	_check("no revolver upgrades on the smart pistol", not a.buy_upgrade("smart_pistol", "rivet_heads"), a.upgrades)
 	_check("smart rounds need lock cores", not a.buy_upgrade("smart_pistol", "smart_rounds"), a.stash)
 	a.stash["lock_cores"] = 20
 	for i in 4:
@@ -66,8 +66,20 @@ func _rules() -> void:
 	_check("smart rounds add no damage or rounds", is_equal_approx(up["stats"]["damage"], 20.0) and up["stats"]["magazine_size"] == 8, up["stats"])
 	_check("all 8 levels cost 13 lock cores", a.amount("lock_cores") == 7, a.stash)
 	a.stash["lock_cores"] = 0
-	_check("other guns keep calibre, action, magazine", a.buy_weapon("rivet_cannon") and a.buy_upgrade("rivet_cannon", "calibre") \
-			and is_equal_approx(a.weapon_profile("rivet_cannon")["stats"]["damage"], 42.0 * 1.06) and a.weapon_profile("rivet_cannon")["stats"]["smart_fraction"] == 0.0, a.upgrades)
+	# Each gun's own set.
+	_check("every gun has its own upgrades", Armory.upgrade_tracks("rivet_cannon") == ["rivet_heads", "punch_through", "stagger_coils", "speed_loader"] \
+			and Armory.upgrade_tracks("machine_pistol") == ["drum_feed", "recoil_buffer", "overclock", "hot_streak"], "")
+	_check("no auto handgun upgrades on the revolver", not a.buy_upgrade("rivet_cannon", "drum_feed"), a.upgrades)
+	for track in ["rivet_heads", "punch_through", "punch_through", "stagger_coils"]:
+		a.buy_upgrade("rivet_cannon", track)
+	var rv: Dictionary = a.weapon_profile("rivet_cannon")["stats"]
+	_check("revolver: heavier rivets, two through, stagger", is_equal_approx(rv["damage"], 42.0 * 1.1) and is_equal_approx(rv["headshot_multiplier"], 2.2) \
+			and is_equal_approx(rv["pierce"], 2.0) and is_equal_approx(rv["stagger"], 0.35) and rv["smart_fraction"] == 0.0, rv)
+	for track in ["drum_feed", "overclock", "recoil_buffer", "hot_streak"]:
+		a.buy_upgrade("machine_pistol", track)
+	var ah: Dictionary = a.weapon_profile("machine_pistol")["stats"]
+	_check("auto handgun: more rounds, faster, softer, hot streak", ah["magazine_size"] == 30 and ah["fire_interval"] < 0.066 \
+			and ah["recoil_kick"] < 0.55 and is_equal_approx(ah["streak_bonus"], 0.025) and ah["pierce"] == 0.0, ah)
 
 	# Attachments: trade-offs, and mags round to whole rounds.
 	var before: int = a.amount("scrap")
@@ -192,6 +204,57 @@ func _run() -> void:
 	_check("smart round homes in on the body", mark.health < hp and weapon.smart_left == weapon.magazine_size - 1, [mark.health, weapon.smart_left])
 	run_node.hud.crosshair.queue_redraw()
 	await process_frame
+
+	# Heavy revolver: punch-through goes on into the grunt behind, and a hit
+	# knocks a grunt's wound-up shot away.
+	var back = run_node.zone_info["grunts"][2]
+	back.passive = true
+	mark.global_position = player.global_position + Vector3(6.0, 0, 0)
+	back.global_position = player.global_position + Vector3(10.0, 0, 0)
+	run_node.armory.equip("rivet_cannon")
+	run_node.equip_loadout()
+	await _ticks(4)
+	for g in [mark, back]:
+		g.health = 9999.0
+	weapon.base_spread = 0.0
+	weapon.bloom = 0.0
+	weapon.pierce = 1.0
+	weapon.stagger = 0.35
+	mark.windup_timer = 0.3
+	_aim_near(mark, 0.0)
+	weapon.cooldown = 0.0
+	weapon.fire()
+	_check("punch-through: one round hits both grunts", mark.health < 9999.0 and back.health < 9999.0 and 9999.0 - back.health < 9999.0 - mark.health, [mark.health, back.health])
+	_check("stagger: the wound-up shot is lost", mark.windup_timer < 0.0 and mark.fire_timer >= 0.35, [mark.windup_timer, mark.fire_timer])
+	weapon.pierce = 0.0
+	back.health = 9999.0
+	weapon.cooldown = 0.0
+	weapon.fire()
+	_check("no punch-through: the grunt behind is safe", back.health == 9999.0, back.health)
+
+	# Auto handgun: hits in a row heat up, a miss cools it.
+	run_node.armory.equip("machine_pistol")
+	run_node.equip_loadout()
+	await _ticks(4)
+	weapon.base_spread = 0.0
+	weapon.bloom_per_shot = 0.0
+	weapon.recoil_kick = 0.0
+	weapon.streak_bonus = 0.05
+	mark.health = 9999.0
+	_aim_near(mark, 0.0)
+	var dealt := []
+	for i in 4:
+		var h: float = mark.health
+		weapon.cooldown = 0.0
+		weapon.fire()
+		dealt.append(h - mark.health)
+	_check("hot streak: each hit in a row hits harder", weapon.streak == 4 and dealt[3] > dealt[0] * 1.1, [weapon.streak, dealt])
+	_aim_near(mark, 30.0)
+	weapon.cooldown = 0.0
+	weapon.fire()
+	_check("hot streak: a miss resets it", weapon.streak == 0, weapon.streak)
+	run_node.armory.equip("smart_pistol")
+	run_node.equip_loadout()
 
 	# A boss: beating it drops a lock core (kept even if the run is lost after).
 	var cores_before: int = int(run.materials.get("lock_cores", 0))
