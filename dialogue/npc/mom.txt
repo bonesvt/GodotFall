@@ -1,0 +1,78 @@
+# Eco's mother. Warm, tired, frightened for her daughter and trying not to show it.
+# She lost her husband to the war and watches Eco walk out toward the same one.
+#
+# One conversation per [block]. [intro] plays the first time Eco talks to her,
+# [won] / [lost] the first time after a run ends that way, then the [any]
+# blocks take turns. Each line is "speaker: words"; speakers are mom and eco.
+# Voices: tools/npc/voices.py turns every line into assets/audio/voice/npc/.
+
+[intro]
+mom: There you are. You were gone two days this time, Eco. Two.
+eco: Told you I'd be back. I'm always back.
+mom: Your father always said that too.
+eco: Mom. Don't.
+mom: I'm not. I'm just... glad. Eat something before you go fix whatever you're about to fix.
+
+[won]
+mom: You came back with a titan. A whole titan. I heard it land and I thought my heart would stop.
+eco: Pretty good, right? Dad's old trick with the core coupling. Worked first try.
+mom: Of course it did. You have his hands.
+eco: And your stubborn streak.
+mom: Mm. Wash the blood off before you sit on my quilts.
+
+[lost]
+mom: Sit. Let me see that arm.
+eco: It's fine. It's a scratch.
+mom: It's a hole, Eco. I can see the bone.
+eco: Then it's a cool scratch.
+mom: You think it's funny. I sat up all night listening to the militia band, waiting to hear your name.
+eco: ...They don't say my name, Mom. They don't think I'm worth it.
+mom: Good. Let them keep thinking that, and come home.
+
+[any]
+mom: The militia came through the valley road again. Six of them, laughing.
+eco: Did they see you?
+mom: No. I know how to be quiet. I learned when your father was flying.
+eco: Stay inside when they pass. Please.
+mom: Listen to you. Telling your mother what to do.
+
+[any]
+mom: I found his tags in your old jacket pocket. I've put them on.
+eco: You can keep them. I've got the pistol.
+mom: That gun is what got him killed.
+eco: No. The militia got him killed. The gun's what I'm getting even with.
+mom: Even isn't a thing, sweetheart. There's just more graves.
+
+[any]
+eco: What are you cooking? It smells like actual food.
+mom: Root stew. The roots are from the temple garden. The meat, you don't want to know.
+eco: Is it grunt?
+mom: Eco!
+eco: Kidding. Mostly.
+
+[any]
+mom: That Ophelia girl hasn't eaten since yesterday.
+eco: She's fine. She does that.
+mom: She is not fine. Nobody who looks at the floor like that is fine.
+eco: I pulled her out of a burning cage. She's alive. That's the fine part.
+mom: Alive isn't the same thing. You of all people should know that.
+
+[any]
+mom: And that old man. Biggie. Says he knew your father.
+eco: Says a lot of things.
+mom: He knew which side your father parted his hair on. And the name of his first titan.
+eco: ...He told you that?
+mom: He cried when he said it. Be kind to him. Kinder than you are to me.
+
+[any]
+mom: Do you ever think about stopping? Just... staying. Fixing radios. Growing beans.
+eco: Every day.
+mom: Then why don't you?
+eco: Because every day they're still out there, and every night I can still hear his titan going down.
+mom: ...I hear it too.
+
+[any]
+mom: Come here. Your hair's a mess.
+eco: Mom, I'm literally about to go shoot people.
+mom: Then you'll shoot them with tidy hair. Hold still.
+eco: Ugh. Fine. Thirty seconds.

@@ -31,6 +31,8 @@ const Weapon := preload("res://scripts/weapon.gd")
 const Art := preload("res://scripts/ps2/ps2_assets.gd")
 const Garage := preload("res://scripts/hub/garage.gd")
 const TitanStyle := preload("res://scripts/run/titan_style.gd")
+const HubNpc := preload("res://scripts/hub/hub_npc.gd")
+const NpcTalk := preload("res://scripts/hub/npc_talk.gd")
 
 const FALL_DAMAGE := 25
 ## Integrity lost when grunts take the pilot's health to zero.
@@ -54,6 +56,8 @@ const HUB_LINE_SECONDS := 4.5
 @export var run_seed := 0
 ## Where Eco's armory (materials, guns, upgrades, titan parts) is saved.
 @export var armory_path := Armory.DEFAULT_PATH
+## Where who Eco has talked to in the hub (and what about) is saved.
+@export var npc_path := NpcTalk.DEFAULT_PATH
 
 var run: RunState
 var phase := Phase.ZONE
@@ -74,6 +78,11 @@ var evac_open := false
 var hub_reads := {}
 var runs_started := 0
 var last_result := ""
+## Runs finished this session, so the people in the hub react once to each.
+var runs_ended := 0
+## The people living in the hub (hub_rooms.gd), by who, and their conversations.
+var hub_npcs := {}
+var npc_talk: NpcTalk
 ## The parts your last run ended with; the hub's practice titan is built from them.
 var last_parts := {}
 ## The practice titan in the hub's titan yard, and whether you're in it.
@@ -121,6 +130,9 @@ func _ready() -> void:
 	add_to_group("loot_collector")
 	ensure_input_actions()
 	armory = Armory.open(armory_path)
+	npc_talk = NpcTalk.new()
+	npc_talk.save_path = npc_path
+	add_child(npc_talk)
 	player = PLAYER_SCENE.instantiate()
 	player.name = "Player"
 	player.process_mode = Node.PROCESS_MODE_PAUSABLE
@@ -161,6 +173,8 @@ func start_run(seed_value: int) -> void:
 
 
 func _fresh_level(level_name: String) -> void:
+	if npc_talk != null:
+		npc_talk.stop()
 	if zone_root != null:
 		remove_child(zone_root)
 		zone_root.free()
@@ -184,6 +198,12 @@ func enter_hub() -> void:
 	course_time = -1.0
 	_fresh_level("Hub")
 	zone_info = HubBuilder.build(zone_root)
+	hub_npcs = {}
+	for spec in zone_info.get("npcs", []):
+		var npc := HubNpc.create(spec["who"], spec["pos"], spec["yaw"])
+		npc.look_target = player
+		zone_root.add_child(npc)
+		hub_npcs[spec["who"]] = npc
 	phase = Phase.HUB
 	dress_hub()
 	place_player(zone_info["spawn"])
@@ -263,6 +283,11 @@ func _hub_tick(delta: float) -> void:
 	if player.global_position.y < float(zone_info["floor_y"]) - KILL_DEPTH:
 		place_player(zone_info["spawn"])
 		return
+	if npc_talk.active():
+		npc_talk.tick(delta, player.global_position)
+		if Input.is_action_just_pressed("interact"):
+			npc_talk.advance()
+		return
 	_course_tick(delta)
 	if Input.is_action_just_pressed("titan_core") and in_titan_yard():
 		call_hub_titan()
@@ -282,10 +307,19 @@ func _hub_tick(delta: float) -> void:
 	if spot["id"] == "garage":
 		open_garage()
 		return
+	if spot.has("npc"):
+		talk_to(spot["npc"])
+		return
 	var lines: Array = spot["lines"]
 	var n: int = hub_reads.get(spot["id"], 0)
 	hub_reads[spot["id"]] = n + 1
 	hud.toast(lines[n % lines.size()], HUB_LINE_SECONDS)
+
+
+## Starts a conversation between Eco and one of the people in the hub.
+func talk_to(who: String) -> void:
+	if hub_npcs.has(who):
+		npc_talk.start(hub_npcs[who], runs_ended, last_result == "RUN COMPLETE")
 
 
 ## Opens Eco's paint shop on the chassis of your last titan, pausing the hub.
@@ -731,6 +765,7 @@ func end_run(title: String, reason: String) -> void:
 	phase = Phase.OVER
 	result = title
 	last_result = title
+	runs_ended += 1
 	last_parts = run.parts.duplicate()
 	var won := title == "RUN COMPLETE"
 	var haul := Armory.run_haul(run.materials, won)
@@ -808,6 +843,8 @@ func _prompt() -> String:
 				return "Titanfall inbound"
 			if _hub_titan_in_reach():
 				return "[F] Embark"
+			if npc_talk.active():
+				return ""
 			if course_armed:
 				return "Leave the pad to start the clock"
 			var spot := nearest_hub_spot()
