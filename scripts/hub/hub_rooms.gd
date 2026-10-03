@@ -169,7 +169,7 @@ static func _ophelia(root: Node3D, info: Dictionary) -> void:
 	var zb := r.position.y + T       # inside face of the back wall
 	var x0 := r.position.x + T
 	var x1 := r.end.x - T
-	var drape := Art.material("canvas", Color(0.12, 0.1, 0.14))
+	var drape := Art.material("canvas", Color(0.2, 0.16, 0.24))
 	# Black drapes hung over the back and side walls, in folds.
 	for i in 12:
 		var x := x0 + 0.4 + i * 0.8
@@ -200,6 +200,8 @@ static func _ophelia(root: Node3D, info: Dictionary) -> void:
 		K.mesh(root, c + spec[0] + Vector3(0, h * 0.5 - 0.06, 0), Vector3(0.08, h, 0.08), Art.material("canvas", Color(0.92, 0.9, 0.85)))
 		K.glow(root, c + spec[0] + Vector3(0, h - 0.02, 0), Vector3(0.03, 0.06, 0.03), CANDLE)
 	K.light(root, c + Vector3(0, 0.9, 0.4), CANDLE, 1.4, 5.0)
+	# a low glow by her mattress in the back corner, so it separates from the drapes
+	K.light(root, bed + Vector3(0.6, 0.7, 0.9), Color(0.8, 0.55, 1.0), 1.2, 4.0)
 	# a violet wash over the far corner, so the back of the room isn't black
 	K.light(root, Vector3(x1 - 1.0, F + 2.2, zb + 3.0), VIOLET, 1.8, 7.0)
 	# Posters on the side wall: band art, all black, white and blood red.
