@@ -1724,7 +1724,9 @@ def bake_tone(body):
         obl = g.mul(g.mul(line(ax, g.add(0.034, g.mul(t, 0.026)), w), g.sstep(0.85, 0.862, z)), g.sstep(0.905, 0.89, z))
         return g.mx(g.mx(mid, g.mul(edge, 0.55)), g.mul(obl, 0.4))
 
-    dome = g.mul(g.mul(rows, inner), g.sub(1.0, stomach_lines(0.014)))
+    # a rounded swell either side of the middle line, fading out at every edge
+    soft = g.op("EXPONENT", g.neg(g.add(g.sq(g.div(g.sub(ax, 0.024), 0.022)), g.sq(g.div(g.sub(z, 0.93), 0.045)))))
+    dome = g.mul(soft, g.sub(1.0, stomach_lines(0.014)))
     stomach_v = g.mul(g.sub(g.mul(dome, 0.2), g.mul(stomach_lines(0.006), 0.6)), front)
 
     # abs (red), only near the top of her training (eco_toon.gdshaderinc):
@@ -1736,7 +1738,7 @@ def bake_tone(body):
             across = r if across is None else g.mx(across, r)
         return g.mx(g.mul(across, g.sstep(0.044, 0.03, ax)), g.mul(stomach_lines(w), 0.6))
 
-    pads = g.mul(g.mul(rows, inner), g.sub(1.0, ab_rows(0.011)))
+    pads = g.mul(g.mul(soft, g.sstep(0.87, 0.9, z)), g.sub(1.0, ab_rows(0.011)))
     abs_v = g.mul(g.sub(g.mul(pads, 0.3), g.mul(ab_rows(0.006), 0.5)), front)
     # arms: shoulder cap edge, biceps and triceps, the line between them underneath
     dy = g.sub(y, 0.022)
