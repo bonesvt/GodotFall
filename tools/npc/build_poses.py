@@ -61,7 +61,7 @@ FPS = 30
 ## Her hips' rest height, and where they sit lying on the mattress (its top
 ## is 0.31 m up) and sitting on the floor; set by load().
 HIPS = 0.85
-LIE = 0.45
+LIE = 0.52
 SIT = 0.13
 
 
@@ -100,9 +100,9 @@ def lounge(f, n):
     add(p, "upperarm.L", Y, 10)
     add(p, "forearm.L", X, 90)
     # right arm over the raised knee
-    add(p, "upperarm.R", X, 60)
-    add(p, "upperarm.R", Y, -20)
-    add(p, "forearm.R", X, 20)
+    add(p, "upperarm.R", X, 35)
+    add(p, "upperarm.R", Y, -10)
+    add(p, "forearm.R", X, 55)
     add(p, "hand.R", X, -30)
     # legs: left long, right knee up
     add(p, "thigh.R", X, 55)
@@ -262,8 +262,10 @@ def shy(f, n):
 def _reach(side):
     """Both arms straight up overhead, leaning into a side stretch."""
     p = {}
-    for s in "RL":
-        add(p, "upperarm." + s, X, 165)
+    for s, out in (("R", -1), ("L", 1)):
+        add(p, "upperarm." + s, X, 155)
+        # a little wide, clear of her hair
+        add(p, "upperarm." + s, Y, out * 12)
         add(p, "forearm." + s, X, -4)
     add(p, "spine", Y, side * 10)
     add(p, "chest", Y, side * 12)

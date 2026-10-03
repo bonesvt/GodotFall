@@ -37,7 +37,7 @@ static func _oph() -> Dictionary:
 		# on the rug, flowing through her stretches
 		"yoga": {"pos": Vector3(x0 + 3.0, f, zb + 3.7), "yaw": 160.0, "anim": "idle_yoga"},
 		# heart scenes
-		"sit": {"pos": Vector3(x0 + 4.4, f, zb + 2.8), "yaw": 180.0, "anim": "scene_sit"},
+		"sit": {"pos": Vector3(x0 + 4.4, f, zb + 2.8), "yaw": 180.0, "anim": "scene_sit", "props": ["cushion"]},
 		"mirror": {"pos": Vector3(x1 - 1.0, f, zb + 1.2), "yaw": 200.0, "anim": "scene_mirror", "props": ["mirror"]},
 		"shy": {"pos": Vector3(x0 + 4.6, f, zb + 3.4), "yaw": 180.0, "anim": "scene_shy"},
 	}
@@ -74,7 +74,7 @@ static func take(npc: Node3D, spot: String, info := {}) -> void:
 	npc.home_yaw = deg_to_rad(s["yaw"])
 	npc.rotation.y = npc.home_yaw
 	npc.spot = spot
-	for p in npc.find_children("*", "BoneAttachment3D", true, false):
+	for p in npc.find_children("*", "Node3D", true, false):
 		if p.has_meta("idle_prop"):
 			p.get_parent().remove_child(p)
 			p.queue_free()
@@ -112,8 +112,16 @@ static func _load_poses(npc: Node3D) -> void:
 	src.free()
 
 
-## A prop on one of their bones.
+## A prop on one of their bones (or, for the cushion, on the floor under them).
 static func _prop(npc: Node3D, kind: String) -> void:
+	if kind == "cushion":
+		var seat := Node3D.new()
+		seat.set_meta("idle_prop", true)
+		npc.add_child(seat)
+		var plum := Art.material("canvas", Color(0.28, 0.12, 0.3))
+		Kit.mesh(seat, Vector3(0, 0.05, -0.05), Vector3(0.62, 0.1, 0.62), plum)
+		Kit.mesh(seat, Vector3(0, 0.1, -0.05), Vector3(0.54, 0.02, 0.54), Art.material("canvas", Color(0.36, 0.16, 0.38)))
+		return
 	var skel := npc.find_child("Skeleton3D", true, false) as Skeleton3D
 	if skel == null:
 		return
@@ -194,16 +202,16 @@ static func _prop(npc: Node3D, kind: String) -> void:
 			compact.scale = unscale
 			at.add_child(compact)
 			var case := CylinderMesh.new()
-			case.top_radius = 0.045
-			case.bottom_radius = 0.045
+			case.top_radius = 0.065
+			case.bottom_radius = 0.065
 			case.height = 0.012
 			var shell := MeshInstance3D.new()
 			shell.mesh = case
 			shell.material_override = Art.material("timber", Color(0.12, 0.1, 0.14))
 			compact.add_child(shell)
 			var glass := CylinderMesh.new()
-			glass.top_radius = 0.038
-			glass.bottom_radius = 0.038
+			glass.top_radius = 0.056
+			glass.bottom_radius = 0.056
 			glass.height = 0.002
 			var face := MeshInstance3D.new()
 			face.mesh = glass
@@ -220,8 +228,8 @@ static func _prop(npc: Node3D, kind: String) -> void:
 			book.position = Vector3(-0.07, -0.02, 0.0)
 			book.scale = unscale
 			at.add_child(book)
-			Kit.mesh(book, Vector3.ZERO, Vector3(0.16, 0.025, 0.22), Art.material("canvas", Color(0.12, 0.08, 0.1)))
-			Kit.mesh(book, Vector3(0, 0.014, 0), Vector3(0.15, 0.006, 0.21), Art.material("canvas", Color(0.86, 0.82, 0.72)))
+			Kit.mesh(book, Vector3.ZERO, Vector3(0.2, 0.03, 0.28), Art.material("canvas", Color(0.3, 0.06, 0.12)))
+			Kit.mesh(book, Vector3(0, 0.017, 0), Vector3(0.19, 0.006, 0.27), Art.material("canvas", Color(0.86, 0.82, 0.72)))
 
 
 ## A moonlit window cut into Ophelia's back-wall drapes (for her smoking spot).
