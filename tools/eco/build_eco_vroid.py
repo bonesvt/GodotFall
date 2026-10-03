@@ -87,6 +87,7 @@ FOLD_Z = 0.733
 # v_body_tone.png: the mesh is too coarse over her belly to carve them.
 FIT_GLUTES = 0.05
 FIT_GLUTE_LIFT = 0.012
+FIT_ARCH = 0.014
 FIT_BELLY = 0.013
 FIT_WAIST = 0.0096
 FIT_LEGS = 0.012
@@ -540,13 +541,18 @@ def fit_shapes(objs):
     # small of her back and rounds under into the leg (no shelf): the push
     # leans backward and fades where the surface turns to face down, the
     # upper outer hip fills a little, and the bottom of each cheek lifts.
-    g = np.exp(-((ax - 0.06) / 0.06) ** 2 - ((z - 0.792) / 0.07) ** 2) * back
+    g = np.exp(-((ax - 0.06) / 0.06) ** 2 - ((z - 0.8) / 0.065) ** 2) * back
     facing = ss(-0.45, 0.35, N[:, 1] * 0.8 - N[:, 2] * 0.2)   # back, not underneath
     push = N * 0.55 + np.outer(np.ones(len(N)), (0, 0.45, 0.08))
     side = np.exp(-((ax - 0.095) / 0.03) ** 2 - ((z - 0.83) / 0.045) ** 2) * ss(-0.03, 0.02, y)
     lift = np.exp(-((ax - 0.062) / 0.05) ** 2 - ((z - 0.748) / 0.03) ** 2) * back
-    shapes["Fit_Glutes"] = (push * (FIT_GLUTES * g * facing)[:, None] + N * (0.35 * FIT_GLUTES * side)[:, None]
-                            + np.outer(FIT_GLUTE_LIFT * lift, (0, 0, 1)))
+    # ...and her lower back curves in deeper above them, so the swell starts
+    # from an arch rather than sticking out from a straight back; less
+    # fullness right at the bottom of each cheek keeps the fold soft.
+    arch = np.exp(-((z - 0.885) / 0.035) ** 2 - (x / 0.07) ** 2) * ss(0.0, 0.05, y)
+    low = ss(0.745, 0.785, z) * 0.6 + 0.4
+    shapes["Fit_Glutes"] = (push * (FIT_GLUTES * g * facing * low)[:, None] + N * (0.35 * FIT_GLUTES * side)[:, None]
+                            - N * (FIT_ARCH * arch)[:, None] + np.outer(FIT_GLUTE_LIFT * lift, (0, 0, 1)))
     # stomach: the lower belly drawn in, the waist narrower
     belly = np.exp(-((z - 0.885) / 0.035) ** 2 - (x / 0.065) ** 2) * front
     waist = np.exp(-((z - 0.95) / 0.035) ** 2) * ss(0.3, 0.8, out)
