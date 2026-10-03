@@ -78,7 +78,8 @@ func _go() -> void:
 			cam.size = 170.0
 		else:
 			cam.projection = Camera3D.PROJECTION_PERSPECTIVE
-		await _frames(8)
+		# Long enough for the dusk under the canopy (town_mood.gd) to settle.
+		await _frames(120)
 		root.get_viewport().get_texture().get_image().save_png(out.path_join("town_%s.png" % view))
 		print("shot ", view)
 	quit()
