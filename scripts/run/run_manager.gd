@@ -31,6 +31,7 @@ const Weapon := preload("res://scripts/weapon.gd")
 const Art := preload("res://scripts/ps2/ps2_assets.gd")
 const Garage := preload("res://scripts/hub/garage.gd")
 const TitanStyle := preload("res://scripts/run/titan_style.gd")
+const Tutorial := preload("res://scripts/run/tutorial.gd")
 
 const FALL_DAMAGE := 25
 ## Integrity lost when grunts take the pilot's health to zero.
@@ -92,6 +93,8 @@ var bench: BenchScreen
 ## Lays out loot and rolls drops, seeded per zone from the run seed so loot
 ## never shifts the run's own rolls.
 var loot_rng := RandomNumberGenerator.new()
+## Hints that teach the game in the first three zones (tutorial.gd).
+var tutorial: Tutorial
 
 
 static func ensure_input_actions() -> void:
@@ -134,6 +137,10 @@ func _ready() -> void:
 	hud = RunHud.new()
 	hud.name = "RunHUD"
 	add_child(hud)
+	tutorial = Tutorial.new()
+	tutorial.name = "Tutorial"
+	tutorial.run = self
+	add_child(tutorial)
 	equip_loadout()
 	if start_in_hub:
 		enter_hub()
@@ -187,6 +194,7 @@ func enter_hub() -> void:
 	phase = Phase.HUB
 	dress_hub()
 	place_player(zone_info["spawn"])
+	tutorial.start_level("hub")
 	if last_result != "":
 		hud.toast("Back at the temple.", HUB_LINE_SECONDS)
 		_whisper("home", 2.0)
@@ -214,6 +222,7 @@ func load_zone(index: int) -> void:
 		evac_open = false
 		hud.toast("THE FOREST'S EDGE: TITANFALL STANDING BY")
 	place_player(zone_info["spawn"])
+	tutorial.start_level("zone%d" % index if index < RunState.ZONE_COUNT else "arena")
 
 
 func place_player(pos: Vector3) -> void:
@@ -397,6 +406,7 @@ func _on_grunt_died(grunt: Node) -> void:
 		return
 	run.kills += 1
 	Loot.drop(zone_root, grunt.global_position, Loot.roll_grunt(loot_rng, run.zone), loot_rng)
+	tutorial.event("loot")
 
 
 ## The crate or alloy node the pilot is standing at, or null.
@@ -420,6 +430,7 @@ func _loot_tick(delta: float) -> void:
 		got = node.mine(delta)
 	if not got.is_empty():
 		Loot.drop(zone_root, node.global_position + Vector3(0, 0.4, 0), got, loot_rng)
+		tutorial.event("loot")
 
 
 func in_titan_yard() -> bool:
@@ -551,6 +562,7 @@ func _check_fall() -> bool:
 	else:
 		place_player(checkpoint)
 		hud.toast("FELL: -%d INTEGRITY" % FALL_DAMAGE)
+		tutorial.event("fell")
 	return true
 
 
@@ -570,6 +582,7 @@ func _on_pilot_downed() -> void:
 	else:
 		place_player(checkpoint)
 		hud.toast("DOWNED: -%d INTEGRITY" % DOWNED_DAMAGE)
+		tutorial.event("downed")
 
 
 ## Respawn point: the centre of the last platform the pilot stood on, or in a
@@ -600,11 +613,13 @@ func nearest_cache() -> Node3D:
 func open_salvage(cache: Node3D) -> void:
 	if not cache.can_open():
 		hud.toast("LOCKED: CLEAR THE GUARDS")
+		tutorial.event("locked")
 		return
 	open_cache = cache
 	offer = TitanParts.roll_offer(run.rng, run.zone, OFFER_SIZE)
 	phase = Phase.CHOOSING
 	get_tree().paused = true
+	tutorial.event("choosing")
 	hud.choice_panel.visible = true
 
 
