@@ -103,6 +103,8 @@ func _process(delta: float) -> void:
 
 func _scan() -> void:
 	for g in get_tree().get_nodes_in_group("enemies"):
+		if g.get("on_radio") == false:
+			continue  # the Choir and the wildlife aren't on the militia net
 		if not known.has(g):
 			_track(g)
 	for g in known.keys():
