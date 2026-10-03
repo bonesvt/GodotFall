@@ -15,7 +15,7 @@ var _sun: DirectionalLight3D
 var _base := {}
 var _amount := 0.0
 
-const DARK := {"ambient": 0.1, "sun": 0.12, "glow": 1.8, "threshold": 0.7, "sky": 0.3, "exposure": 0.85, "strength": 1.3}
+const DARK := {"ambient": 0.32, "sun": 0.28, "glow": 1.8, "threshold": 0.7, "sky": 0.5, "exposure": 0.95, "strength": 1.3}
 const HAZE := Color(0.16, 0.12, 0.24)
 
 

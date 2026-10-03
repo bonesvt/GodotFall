@@ -160,6 +160,11 @@ static func _ground(root: Node3D) -> void:
 			var z0: float = seg[0]
 			var z1: float = seg[1]
 			K.glow(root, Vector3(s * (STREET_HALF - 0.3), 0.1, (z0 + z1) * 0.5), Vector3(0.08, 0.05, z1 - z0), (CYAN if s < 0 else MAGENTA) * 1.6)
+			# Low fill lights so the neon spills onto the paving and the shopfronts.
+			var lz := z0 + 4.0 + (2.0 if s > 0 else 0.0)
+			while lz < z1 - 2.0:
+				K.light(root, Vector3(s * (STREET_HALF - 1.5), 1.2, lz), CYAN if s < 0 else MAGENTA, 0.7, 6.5)
+				lz += 8.0
 	# Puddles that pick up the neon.
 	var puddle := StandardMaterial3D.new()
 	# Dark and only semi-glossy: a mirror finish just reflected the bright sky.
@@ -349,10 +354,10 @@ static func _militia_office(root: Node3D, info: Dictionary) -> void:
 	TP.spawn(root, "scooter", Vector3(front + 6.0, 0, z - 3.5), 110.0, {"wall": Color(0.55, 0.62, 0.45)})
 	# Hazard lines painted round the forecourt, and MILITIA ONLY on the paving.
 	var hazard := TP.paint(Color(0.85, 0.7, 0.15), 0.2)
-	K.mesh(root, Vector3(front + 10.5, 0.1, z), Vector3(0.3, 0.02, 18.0), hazard)
+	K.mesh(root, Vector3(front + 12.0, 0.1, z), Vector3(0.7, 0.02, 18.0), hazard)
 	for dz: float in [-9.0, 9.0]:
-		K.mesh(root, Vector3(front + 5.25, 0.1, z + dz), Vector3(10.5, 0.02, 0.3), hazard)
-	var stencil := Kit.label(root, Vector3(front + 8.2, 0.12, z), "MILITIA ONLY", 110)
+		K.mesh(root, Vector3(front + 6.0, 0.1, z + dz), Vector3(12.0, 0.02, 0.7), hazard)
+	var stencil := Kit.label(root, Vector3(front + 10.6, 0.12, z), "MILITIA ONLY", 90)
 	stencil.billboard = BaseMaterial3D.BILLBOARD_DISABLED
 	stencil.rotation_degrees = Vector3(-90, 90, 0)
 	stencil.modulate = Color(0.85, 0.7, 0.15, 0.8)
