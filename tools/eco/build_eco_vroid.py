@@ -57,6 +57,7 @@ MED_PANEL = (0.11, 0.04, 0.016)   # its rust side panels and sleeve cuff
 MED_ZIP = 1.055                   # how far the jumpsuit is unzipped (rest-space z)
 MED_SLEEVE = 0.36                 # where the right sleeve is rolled to (rest-space x)
 TATTOO = (0.018, 0.024, 0.04)
+CREASE = (0.42, 0.24, 0.22)       # shadowed skin
 
 SIDE_CUT = 0.075   # how far the sides of the halter drop beside the bust (rest-space metres)
 CHEEKY = 1.6       # how steeply the back leg openings rise toward the hips
@@ -1224,8 +1225,8 @@ def suit_graph(nt, skin, cut="base"):
       light   her cloth wrap supports her chest and covers the sides, so the side
               cutouts close, the high collar goes (her choker sits on bare neck)
               and the keyhole becomes a wider opening across the top of her chest
-      medium  a mechanic's jumpsuit: crew neck unzipped to between her breasts,
-              two windows over the top of her glutes (a strap between them), full
+      medium  a mechanic's jumpsuit: crew neck unzipped in a wide V to between her
+              breasts, a heart window low on her back over the top of her glute crease, full
               legs, the left arm bare to the shoulder (a cog and wrench tattoo on
               it), the right sleeve rolled to the forearm, rust panels down the sides
     The light and medium cuts have no stretch shading over the bust.
@@ -1252,12 +1253,16 @@ def suit_graph(nt, skin, cut="base"):
         # right sleeve, rolled up to the middle of her forearm
         d_sleeve = g.mn(g.sub(MED_SLEEVE, ax), g.neg(x))
         d_suit = g.mn(d_neck, g.mx(d_arm, d_sleeve))
-        # unzipped to between her breasts: a V that opens up to the neckline
-        d_vee = g.mx(g.sub(ax, g.mx(g.mul(g.sub(z, MED_ZIP), 0.55), 0.0)), g.sub(MED_ZIP + 0.004, z))
+        # unzipped to between her breasts: a wide V that opens up to the neckline,
+        # stopping short of the shoulder strap
+        w_vee = g.mn(g.mx(g.mul(g.sub(z, MED_ZIP), 1.15), 0.0), 0.064)
+        d_vee = g.mx(g.sub(ax, w_vee), g.sub(MED_ZIP + 0.004, z))
         d_suit = g.mn(d_suit, g.mx(d_vee, g.mul(g.sub(0.5, front), 0.1)))
-        # two windows over the top of her glutes, a strap of suit left down the middle
-        wq = g.sqrt(g.add(g.sq(g.div(g.sub(ax, 0.058), 0.034)), g.sq(g.div(g.sub(z, 0.852), 0.027))))
-        d_win = g.mul(g.sub(wq, 1.0), 0.027)
+        # a heart-shaped window low on her back, its point over the top of her glute crease
+        lobe = g.sub(g.sqrt(g.add(g.sq(g.sub(ax, 0.024)), g.sq(g.sub(z, 0.872)))), 0.026)
+        wedge = g.mul(g.sub(ax, g.mul(g.sub(z, 0.8), 0.8)), 0.781)   # its sides meet the lobes tangentially
+        wedge = g.mx(wedge, g.sub(z, 0.856))
+        d_win = g.mn(lobe, wedge)
         d_suit = g.mn(d_suit, g.mx(d_win, g.mul(g.sub(0.5, tb), 0.1)))
         d_collar = None
     else:
@@ -1306,6 +1311,9 @@ def suit_graph(nt, skin, cut="base"):
         jaw = g.mul(g.band(jr, 0.0022, 0.0038, 0.0003), g.sstep(-0.0003, 0.0003, g.sub(g.abs(b_), 0.0011)))
         tat = g.mul(g.mx(g.mx(cog, bar), jaw), g.mul(g.sstep(1.155, 1.162, z), g.sstep(0.0, 0.004, x)))
         col = g.mixc(col, TATTOO, g.mul(tat, 0.85))
+        # the top of her glute crease, a soft shadow line showing through the heart
+        crease = g.mul(g.mul(g.sub(1.0, g.sstep(0.0005, 0.0022, ax)), g.sub(1.0, g.sstep(0.822, 0.842, z))), tb)
+        col = g.mixc(col, CREASE, g.mul(crease, 0.6))
     col = g.mixc(col, suit_col, c_suit)
     if medium:
         # rust panels down her sides and the outside of her legs, a stitched seam beside each
