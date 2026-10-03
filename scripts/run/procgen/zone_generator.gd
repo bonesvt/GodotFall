@@ -20,6 +20,7 @@ const F := preload("res://scripts/run/forest_kit.gd")
 const L := preload("res://scripts/run/laid_out.gd")
 
 const CELL := 2.0
+const THREAT_SPAWNER := "res://scripts/threats/threat_spawner.gd"
 const BLUE := Color(0.25, 0.5, 0.9)
 const ORANGE := Color(0.95, 0.55, 0.2)
 const GREEN := Color(0.3, 0.75, 0.4)
@@ -104,8 +105,32 @@ static func build_from_plan(root: Node3D, plan, zone_index: int) -> Dictionary:
 	_crate_spots(plan, info, keep_out, dress)
 	L.collect_cover(root, info)
 	B.far_scenery(root, dress, plan, ground)
+	_spawn_hooks(plan, info)
+	# The Choir and wildlife (scripts/threats/threat_spawner.gd), when that's in.
+	if ResourceLoader.exists(THREAT_SPAWNER):
+		load(THREAT_SPAWNER).populate(root, rng, info, zone_index)
 	Nav.setup(root, info)
 	return info
+
+
+## Places other spawners can put things: open ground in each field, the
+## water in marsh gullies, the sky over each yard. [{pos, section, facing}].
+static func _spawn_hooks(plan, info: Dictionary) -> void:
+	var hooks := []
+	var loud: int = plan.lane_of("loud")
+	for s in plan.sections:
+		var z: float = s["mid"]
+		var x: float = plan.lane_x(loud, z)
+		match s["kind"]:
+			"field", "resource":
+				hooks.append({"pos": _on(plan, (x + _patrol_x(plan, mini(loud + 1, plan.lanes.size() - 1), z)) * 0.5, z), "section": s["kind"], "facing": Vector3(0, 0, 1)})
+			"outpost", "camp":
+				hooks.append({"pos": _on(plan, x, z, 18.0), "section": "sky", "facing": Vector3(0, 0, 1)})
+		if plan.biome == "marsh":
+			for i in plan.lanes_of("quiet"):
+				if plan.gully_on(z) > 0.9 and plan.clearing(plan.lane_x(i, z), z) < 0.1:
+					hooks.append({"pos": _on(plan, plan.lane_x(i, z), z), "section": "water", "facing": Vector3(0, 0, 1)})
+	info["spawn_hooks"] = hooks
 
 
 # --- helpers -------------------------------------------------------------------
