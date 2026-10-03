@@ -18,7 +18,7 @@ uniform sampler2D albedo_tex : source_color, hint_default_white, filter_linear_m
 uniform float tint : hint_range(0.0, 1.0) = 0.35;
 uniform float alpha_cut : hint_range(0.0, 1.0) = 0.0;
 
-instance uniform vec4 paint : source_color = vec4(1.0);
+instance uniform vec4 paint : source_color, instance_index(2) = vec4(1.0);
 
 void vertex() {
 	vec4 view = MODELVIEW_MATRIX * vec4(VERTEX, 1.0);

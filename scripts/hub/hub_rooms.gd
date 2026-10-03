@@ -105,12 +105,12 @@ static func _mom(root: Node3D, info: Dictionary) -> void:
 	var bed := Vector3(xw + 1.1, F, r.end.y - T - 1.15)
 	K.wood(root, bed + Vector3(0, 0.2, 0), Vector3(1.6, 0.4, 2.1))
 	K.wood(root, bed + Vector3(0, 0.6, 1.0), Vector3(1.6, 1.2, 0.12))
-	K.mesh(root, bed + Vector3(0, 0.48, -0.05), Vector3(1.5, 0.18, 1.95), Art.material("fabric", Color(0.95, 0.92, 0.86)))
+	K.mesh(root, bed + Vector3(0, 0.48, -0.05), Vector3(1.5, 0.18, 1.95), Art.material("canvas", Color(0.95, 0.92, 0.86)))
 	var quilt := [Color(0.8, 0.45, 0.35), Color(0.55, 0.65, 0.5), Color(0.9, 0.75, 0.45), Color(0.5, 0.55, 0.7), Color(0.85, 0.6, 0.55)]
 	for i in 5:
-		K.mesh(root, bed + Vector3(0, 0.6, -0.95 + i * 0.3), Vector3(1.56, 0.07, 0.3), Art.material("fabric", quilt[i]))
+		K.mesh(root, bed + Vector3(0, 0.6, -0.95 + i * 0.3), Vector3(1.56, 0.07, 0.3), Art.material("canvas", quilt[i]))
 	for dx in [-0.38, 0.38]:
-		K.mesh(root, bed + Vector3(dx, 0.68, 0.75), Vector3(0.6, 0.16, 0.36), Art.material("fabric", Color(1.0, 0.97, 0.92)))
+		K.mesh(root, bed + Vector3(dx, 0.68, 0.75), Vector3(0.6, 0.16, 0.36), Art.material("canvas", Color(1.0, 0.97, 0.92)))
 	# Bedside crate with an oil lamp.
 	var side := bed + Vector3(1.15, 0, 0.6)
 	K.wood(root, side + Vector3(0, 0.3, 0), Vector3(0.5, 0.6, 0.5))
@@ -122,27 +122,27 @@ static func _mom(root: Node3D, info: Dictionary) -> void:
 		K.wood(root, Vector3(xw + 0.17, sy, cz + 0.2), Vector3(0.34, 0.06, 2.4))
 		for i in 6:
 			var tint: Color = [Color(0.85, 0.55, 0.3), Color(0.5, 0.65, 0.35), Color(0.9, 0.85, 0.65), Color(0.75, 0.35, 0.3)][(i + row) % 4]
-			K.mesh(root, Vector3(xw + 0.17, sy + 0.15, cz - 0.85 + i * 0.4), Vector3(0.18, 0.24 + (i % 2) * 0.06, 0.18), Art.material("fabric", tint))
+			K.mesh(root, Vector3(xw + 0.17, sy + 0.15, cz - 0.85 + i * 0.4), Vector3(0.18, 0.24 + (i % 2) * 0.06, 0.18), Art.material("canvas", tint))
 	for i in 5:
 		var f := K.mesh(root, Vector3(xw + 0.25, F + 2.8, cz - 0.6 + i * 0.3), Vector3(0.12, 0.45, 0.12), Art.material("moss", Color(1.0, 0.8, 0.6)))
 		f.rotation_degrees = Vector3(0, i * 30, 180)
 	# A window in the far wall: warm light through a curtain.
 	K.glow(root, Vector3(xw + 0.02, F + 1.9, cz - 2.4), Vector3(0.04, 0.9, 0.8), Color(1.0, 0.85, 0.6))
 	for dz in [-0.55, 0.55]:
-		K.mesh(root, Vector3(xw + 0.08, F + 1.9, cz - 2.4 + dz), Vector3(0.05, 1.2, 0.35), Art.material("fabric", Color(0.85, 0.7, 0.6)))
+		K.mesh(root, Vector3(xw + 0.08, F + 1.9, cz - 2.4 + dz), Vector3(0.05, 1.2, 0.35), Art.material("canvas", Color(0.85, 0.7, 0.6)))
 	# Rocking chair and sewing table by the door.
 	var chair := Vector3(xw + 0.9, F, r.position.y + T + 1.0)
 	K.wood(root, chair + Vector3(0, 0.25, 0), Vector3(0.6, 0.08, 0.6))
 	K.wood(root, chair + Vector3(-0.28, 0.65, 0), Vector3(0.08, 0.8, 0.6), Vector3(0, 0, -10))
 	for dz in [-0.28, 0.28]:
 		K.mesh(root, chair + Vector3(0, 0.08, dz), Vector3(0.9, 0.06, 0.06), Art.material("wood"), Vector3(0, 0, 8))
-	K.mesh(root, chair + Vector3(0.0, 0.35, 0), Vector3(0.5, 0.08, 0.5), Art.material("fabric", Color(0.8, 0.45, 0.4)))
-	K.mesh(root, chair + Vector3(0.05, 0.42, -0.05), Vector3(0.3, 0.12, 0.25), Art.material("fabric", Color(0.55, 0.65, 0.5)))  # knitting
+	K.mesh(root, chair + Vector3(0.0, 0.35, 0), Vector3(0.5, 0.08, 0.5), Art.material("canvas", Color(0.8, 0.45, 0.4)))
+	K.mesh(root, chair + Vector3(0.05, 0.42, -0.05), Vector3(0.3, 0.12, 0.25), Art.material("canvas", Color(0.55, 0.65, 0.5)))  # knitting
 	var table := Vector3(xw + 2.4, F, r.position.y + T + 0.7)
 	K.wood(root, table + Vector3(0, 0.38, 0), Vector3(0.9, 0.06, 0.6))
 	K.wood(root, table + Vector3(0, 0.18, 0), Vector3(0.7, 0.36, 0.4))
 	K.metal(root, table + Vector3(0.1, 0.5, 0), Vector3(0.36, 0.2, 0.18))  # an old sewing machine
-	K.mesh(root, table + Vector3(-0.3, 0.44, 0.1), Vector3(0.25, 0.05, 0.25), Art.material("fabric", Color(0.9, 0.55, 0.4)))
+	K.mesh(root, table + Vector3(-0.3, 0.44, 0.1), Vector3(0.25, 0.05, 0.25), Art.material("canvas", Color(0.9, 0.55, 0.4)))
 	# Dad's photo on the wall by the bed, a candle and a little vase under it.
 	var photo := Vector3(xw + 0.03, F + 1.7, bed.z - 1.6)
 	K.mesh(root, photo, Vector3(0.04, 0.5, 0.4), Art.material("wood"))
@@ -169,7 +169,7 @@ static func _ophelia(root: Node3D, info: Dictionary) -> void:
 	var zb := r.position.y + T       # inside face of the back wall
 	var x0 := r.position.x + T
 	var x1 := r.end.x - T
-	var drape := Art.material("fabric", Color(0.12, 0.1, 0.14))
+	var drape := Art.material("canvas", Color(0.12, 0.1, 0.14))
 	# Black drapes hung over the back and side walls, in folds.
 	for i in 12:
 		var x := x0 + 0.4 + i * 0.8
@@ -178,24 +178,26 @@ static func _ophelia(root: Node3D, info: Dictionary) -> void:
 		K.mesh(root, Vector3(x0 + 0.08, F + 1.75, z), Vector3(0.06, 3.4, 1.4), drape)
 	# Mattress on the floor in the back corner, purple sheets, a heap of pillows.
 	var bed := Vector3(x0 + 1.3, F, zb + 1.2)
-	K.mesh(root, bed + Vector3(0, 0.12, 0), Vector3(2.0, 0.24, 1.6), Art.material("fabric", Color(0.25, 0.22, 0.26)))
-	K.mesh(root, bed + Vector3(0.15, 0.27, 0.05), Vector3(1.6, 0.08, 1.5), Art.material("fabric", Color(0.38, 0.18, 0.5)), Vector3(0, 6, 0))
-	K.mesh(root, bed + Vector3(-0.7, 0.33, -0.2), Vector3(0.5, 0.18, 0.7), Art.material("fabric", Color(0.15, 0.12, 0.18)), Vector3(0, -12, 0))
-	K.mesh(root, bed + Vector3(-0.6, 0.38, 0.4), Vector3(0.4, 0.16, 0.5), Art.material("fabric", Color(0.6, 0.3, 0.7)), Vector3(0, 20, 8))
+	K.mesh(root, bed + Vector3(0, 0.12, 0), Vector3(2.0, 0.24, 1.6), Art.material("canvas", Color(0.25, 0.22, 0.26)))
+	K.mesh(root, bed + Vector3(0.15, 0.27, 0.05), Vector3(1.6, 0.08, 1.5), Art.material("canvas", Color(0.38, 0.18, 0.5)), Vector3(0, 6, 0))
+	K.mesh(root, bed + Vector3(-0.7, 0.33, -0.2), Vector3(0.5, 0.18, 0.7), Art.material("canvas", Color(0.15, 0.12, 0.18)), Vector3(0, -12, 0))
+	K.mesh(root, bed + Vector3(-0.6, 0.38, 0.4), Vector3(0.4, 0.16, 0.5), Art.material("canvas", Color(0.6, 0.3, 0.7)), Vector3(0, 20, 8))
 	# Fairy lights along the drapes, purple and pink.
 	for i in 30:
 		var t := i / 29.0
 		var p := Vector3(lerpf(x0 + 0.3, x1 - 0.3, t), F + 3.1 - sin(t * PI * 3.0) * 0.35, zb + 0.18)
 		K.glow(root, p, Vector3(0.06, 0.08, 0.06), VIOLET if i % 3 else Color(1.0, 0.4, 0.75))
-	K.light(root, Vector3(x0 + 2.5, F + 2.6, zb + 1.0), VIOLET, 0.9, 6.0)
-	K.light(root, Vector3(x1 - 2.5, F + 2.6, zb + 1.0), VIOLET, 0.7, 6.0)
+	K.light(root, Vector3(x0 + 2.5, F + 2.6, zb + 1.0), VIOLET, 1.6, 7.0)
+	K.light(root, Vector3(x1 - 2.5, F + 2.6, zb + 1.0), VIOLET, 1.4, 7.0)
+	# a soft cold fill from the doorway, so she reads against the drapes
+	K.light(root, Vector3(x0 + 4.6, F + 2.4, zb + 5.6), Color(0.75, 0.72, 0.95), 0.9, 6.0)
 	# A cluster of candles on a low crate and on the floor.
 	var c := Vector3(x0 + 3.2, F, zb + 0.6)
 	K.wood(root, c + Vector3(0, 0.2, 0), Vector3(0.7, 0.4, 0.5))
 	for spec in [[Vector3(-0.2, 0.5, 0), 0.22], [Vector3(0.05, 0.47, 0.1), 0.16], [Vector3(0.22, 0.45, -0.08), 0.12],
 			[Vector3(0.6, 0.06, 0.2), 0.14], [Vector3(0.75, 0.05, 0.0), 0.1], [Vector3(-0.6, 0.06, 0.3), 0.18]]:
 		var h: float = spec[1]
-		K.mesh(root, c + spec[0] + Vector3(0, h * 0.5 - 0.06, 0), Vector3(0.08, h, 0.08), Art.material("fabric", Color(0.92, 0.9, 0.85)))
+		K.mesh(root, c + spec[0] + Vector3(0, h * 0.5 - 0.06, 0), Vector3(0.08, h, 0.08), Art.material("canvas", Color(0.92, 0.9, 0.85)))
 		K.glow(root, c + spec[0] + Vector3(0, h - 0.02, 0), Vector3(0.03, 0.06, 0.03), CANDLE)
 	K.light(root, c + Vector3(0, 0.9, 0.4), CANDLE, 0.8, 4.0)
 	# Posters on the side wall: band art, all black, white and blood red.
@@ -210,15 +212,15 @@ static func _ophelia(root: Node3D, info: Dictionary) -> void:
 	var rp := Vector3(x1 - 0.6, F, zb + 4.6)
 	K.wood(root, rp + Vector3(0, 0.3, 0), Vector3(0.6, 0.6, 0.7))
 	K.metal(root, rp + Vector3(0, 0.66, 0), Vector3(0.5, 0.12, 0.5))
-	K.mesh(root, rp + Vector3(0, 0.73, 0), Vector3(0.36, 0.02, 0.36), Art.material("fabric", Color(0.05, 0.05, 0.06)), Vector3(0, 30, 0))
+	K.mesh(root, rp + Vector3(0, 0.73, 0), Vector3(0.36, 0.02, 0.36), Art.material("canvas", Color(0.05, 0.05, 0.06)), Vector3(0, 30, 0))
 	K.wood(root, rp + Vector3(0, 0.22, -0.9), Vector3(0.55, 0.44, 0.6))
 	for i in 8:
-		var rec := K.mesh(root, rp + Vector3(0, 0.5, -1.15 + i * 0.06), Vector3(0.44, 0.44, 0.02), Art.material("fabric", [Color(0.1, 0.1, 0.1), Color(0.45, 0.1, 0.12), Color(0.3, 0.2, 0.45)][i % 3]))
+		var rec := K.mesh(root, rp + Vector3(0, 0.5, -1.15 + i * 0.06), Vector3(0.44, 0.44, 0.02), Art.material("canvas", [Color(0.1, 0.1, 0.1), Color(0.45, 0.1, 0.12), Color(0.3, 0.2, 0.45)][i % 3]))
 		rec.rotation_degrees.x = -6
 	for i in 4:
-		K.mesh(root, Vector3(x0 + 2.6 + i * 0.45, F + 0.03 + i * 0.005, zb + 2.7 - (i % 2) * 0.3), Vector3(0.3, 0.03, 0.4), Art.material("fabric", [Color(0.08, 0.08, 0.1), Color(0.7, 0.68, 0.6)][i % 2]), Vector3(0, i * 35, 0))
+		K.mesh(root, Vector3(x0 + 2.6 + i * 0.45, F + 0.03 + i * 0.005, zb + 2.7 - (i % 2) * 0.3), Vector3(0.3, 0.03, 0.4), Art.material("canvas", [Color(0.08, 0.08, 0.1), Color(0.7, 0.68, 0.6)][i % 2]), Vector3(0, i * 35, 0))
 	# A full-length mirror, covered with a sheet.
-	K.mesh(root, Vector3(x1 - 0.4, F + 0.9, zb + 0.4), Vector3(0.6, 1.8, 0.1), Art.material("fabric", Color(0.75, 0.73, 0.75)), Vector3(4, -30, 0))
+	K.mesh(root, Vector3(x1 - 0.4, F + 0.9, zb + 0.4), Vector3(0.6, 1.8, 0.1), Art.material("canvas", Color(0.75, 0.73, 0.75)), Vector3(4, -30, 0))
 	_rug(root, Vector3(x0 + 4.4, 0, zb + 3.3), Vector2(3.2, 2.4), Color(0.22, 0.12, 0.28))
 	_npc(info, "ophelia", "Ophelia", Vector3(x0 + 4.6, F, zb + 3.4), 180.0)
 

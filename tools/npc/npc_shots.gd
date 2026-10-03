@@ -28,9 +28,13 @@ func _initialize() -> void:
 
 func _go() -> void:
 	await _frames(30)
+	# Just the world and the talk captions: no HUD, crosshair or gun.
 	for layer in root.find_children("*", "CanvasLayer", true, false):
-		if "help_label" in layer:
-			layer.help_label.visible = false
+		if layer != run_node.npc_talk:
+			layer.visible = false
+	var gun: Node3D = run_node.player.get_node_or_null("Head/Camera3D/Weapon")
+	if gun != null:
+		gun.visible = false
 	var f := Rooms.F
 	# The hall, with the new doors.
 	await _shot("1-hall-back-doors", Vector3(0, f, -17), Vector3(0, f + 1.8, -31))
@@ -49,7 +53,7 @@ func _go() -> void:
 		# Stand a couple of metres off toward the doorway and let them turn.
 		var away: Vector3 = (w[0] - npc.global_position)
 		away.y = 0.0
-		var at: Vector3 = npc.global_position + away.normalized() * 1.9
+		var at: Vector3 = npc.global_position + away.normalized() * 1.0
 		var head: Vector3 = npc.global_position + Vector3(0, 1.45 if who != "biggie" else 1.62, 0)
 		await _shot("%d-%s-face" % [i, who], at, head, 60)
 		run_node.talk_to(who)

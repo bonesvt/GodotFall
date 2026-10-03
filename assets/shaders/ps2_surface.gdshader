@@ -69,9 +69,9 @@ uniform float translucency : hint_range(0.0, 1.0) = 0.0;
 uniform float blend_sharpness = 6.0;
 
 // Per-object knobs, set with set_instance_shader_parameter (see ps2_model.gd).
-instance uniform float flash = 0.0;          // white hit flash, 0..1
-instance uniform float glow = 1.0;           // multiplies emission
-instance uniform vec4 paint : source_color = vec4(1.0);  // tints albedo and emission
+instance uniform float flash : instance_index(0) = 0.0;          // white hit flash, 0..1
+instance uniform float glow : instance_index(1) = 1.0;           // multiplies emission
+instance uniform vec4 paint : source_color, instance_index(2) = vec4(1.0);  // tints albedo and emission
 // Row of the part's transform relative to the model root that gives height:
 // height = dot(xyz, VERTEX) + w. Baked into each model part by tools/bake_models.gd.
 instance uniform vec4 part_height_row = vec4(0.0, 1.0, 0.0, 0.0);

@@ -199,8 +199,8 @@ func _build_caption() -> void:
 	_panel.anchor_bottom = 1.0
 	_panel.offset_left = -380
 	_panel.offset_right = 380
-	_panel.offset_top = -190
-	_panel.offset_bottom = -70
+	_panel.offset_top = -260   # above the speed readout
+	_panel.offset_bottom = -135
 	add_child(_panel)
 	var box := VBoxContainer.new()
 	box.add_theme_constant_override("separation", 4)

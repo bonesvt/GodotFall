@@ -44,9 +44,9 @@ uniform vec4 emission : source_color = vec4(0.0, 0.0, 0.0, 1.0);
 uniform float emission_energy = 0.0;
 
 // Per-object knobs shared with ps2_surface.gdshader (see ps2_model.gd).
-instance uniform float flash = 0.0;
-instance uniform float glow = 1.0;
-instance uniform vec4 paint : source_color = vec4(1.0);
+instance uniform float flash : instance_index(0) = 0.0;
+instance uniform float glow : instance_index(1) = 1.0;
+instance uniform vec4 paint : source_color, instance_index(2) = vec4(1.0);
 
 varying float v_sheen_mask;
 varying float v_rim;
