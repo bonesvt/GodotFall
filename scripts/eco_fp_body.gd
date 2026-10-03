@@ -5,12 +5,15 @@ extends Node3D
 ##   view-model pistol arm stands in for her hands), it casts no shadow, and it
 ##   is shifted each frame so her neck sits just under and behind the camera,
 ##   whatever the pose (run, crouch, slide).
-## - "Shadow": the whole of her at the player's feet, drawn only into shadows.
+## - "Shadow": the whole of her at the player's feet, drawn only into shadows,
+##   reacting to the world (scripts/ps2/eco_react.gd).
 ##   In third person (scripts/view_camera.gd) it is drawn for real and "Body"
 ##   hides.
 
 const ECO := preload("res://assets/models/eco.tscn")
 const EcoModel := preload("res://scripts/ps2/eco_model.gd")
+const EcoReact := preload("res://scripts/ps2/eco_react.gd")
+const EcoGunStance := preload("res://scripts/ps2/eco_gun_stance.gd")
 const HIDDEN_BONES := ["J_Bip_C_Neck", "J_Bip_C_Head", "J_Bip_R_UpperArm", "J_Bip_L_UpperArm"]
 
 ## Where the camera sits relative to the base of her neck: metres above it,
@@ -22,6 +25,10 @@ const HIDDEN_BONES := ["J_Bip_C_Neck", "J_Bip_C_Head", "J_Bip_R_UpperArm", "J_Bi
 
 var body: EcoModel
 var shadow: EcoModel
+## Layers her reactions to the world over the full model's animation.
+var react: EcoReact
+## Her pistol grip and combat stance in third person (after react).
+var stance: EcoGunStance
 var _camera: Camera3D
 var _neck_bone := -1
 var _third_person := false
@@ -43,6 +50,17 @@ func _ready() -> void:
 		_neck_bone = body.skeleton.find_bone("J_Bip_C_Neck") if body.skeleton != null else -1
 	if cast_shadow:
 		shadow = _spawn("Shadow", GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY)
+		# her whole body reacts to the ground, turns, wallruns and landings
+		if shadow.skeleton != null:
+			react = EcoReact.new()
+			react.name = "React"
+			react.body = get_parent() as CharacterBody3D
+			shadow.skeleton.add_child(react)
+			# and holds her pistol like a gunfighter in third person
+			stance = EcoGunStance.new()
+			stance.name = "GunStance"
+			stance.body = react.body
+			shadow.skeleton.add_child(stance)
 
 
 ## Suit pieces hidden on the first-person body: round her neck or on her face, they
@@ -141,6 +159,12 @@ func _rest_follow() -> void:
 
 func _process(_delta: float) -> void:
 	_rest_follow()
+	# her reactions and gun stance fade out while she sits or lies down
+	if shadow != null:
+		var rest_in: float = shadow.rest_weight() if shadow.resting() else 0.0
+		for layer: SkeletonModifier3D in [react, stance]:
+			if layer != null:
+				layer.influence = 1.0 - rest_in
 	if body == null or _third_person or body.skeleton == null:
 		return
 	var sk: Skeleton3D = body.skeleton
