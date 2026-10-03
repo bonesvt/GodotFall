@@ -54,7 +54,7 @@ INK = (0.012, 0.009, 0.014)
 STRETCH = (0.085, 0.09, 0.115)   # the suit where it stretches thin over her curves
 MED_SUIT = (0.03, 0.033, 0.026)   # the medium jumpsuit: charcoal olive
 MED_PANEL = (0.11, 0.04, 0.016)   # its rust side panels and sleeve cuff
-MED_ZIP = 1.0                     # how far the jumpsuit is unzipped (rest-space z)
+MED_ZIP = 0.86                    # where the jumpsuit's zip stops, below her belly button (rest-space z)
 MED_NAVEL = 0.902                 # her belly button (rest-space z)
 MED_SLEEVE = 0.36                 # where the right sleeve is rolled to (rest-space x)
 TATTOO = (0.018, 0.024, 0.04)
@@ -1271,8 +1271,8 @@ def suit_graph(nt, skin, cut="base"):
               and the keyhole becomes a wider opening across the top of her chest
       heavy   a padded undersuit quilted in diamonds, neck to gloves to boots,
               under a high collar (the plates and breastplate go over it)
-      medium  a mechanic's jumpsuit: crew neck unzipped in a wide V to between her
-              breasts, a small window over her belly button, a heart window low on her back over the top of her glute crease, full
+      medium  a mechanic's jumpsuit: crew neck unzipped in a wide V between her
+              breasts and on past her belly button, a heart window low on her back over the top of her glute crease, full
               legs, the left arm bare to the shoulder (a cog and wrench tattoo on
               it), the right sleeve rolled to the forearm, rust panels down the sides
     The light and medium cuts have no stretch shading over the bust.
@@ -1304,15 +1304,13 @@ def suit_graph(nt, skin, cut="base"):
         # right sleeve, rolled up to the middle of her forearm
         d_sleeve = g.mn(g.sub(MED_SLEEVE, ax), g.neg(x))
         d_suit = g.mn(d_neck, g.mx(d_arm, d_sleeve))
-        # unzipped to between her breasts: a wide V that opens up to the neckline,
+        # unzipped past her belly button: the edges part a little down her stomach
+        # (the belt crosses the gap) and open into a wide V between her breasts,
         # stopping short of the shoulder strap
-        w_vee = g.mn(g.mx(g.mul(g.sub(z, MED_ZIP), 0.6), 0.0), 0.064)   # narrow where her bust is fullest
+        w_gap = g.mx(g.mul(g.sub(z, MED_ZIP), 0.19), 0.0)
+        w_vee = g.mn(g.mx(g.mul(g.sub(z, 1.0), 0.6), w_gap), 0.064)   # narrow where her bust is fullest
         d_vee = g.mx(g.sub(ax, w_vee), g.sub(MED_ZIP + 0.004, z))
         d_suit = g.mn(d_suit, g.mx(d_vee, g.mul(g.sub(0.5, front), 0.1)))
-        # a little oval window at the front showing her belly button, under the belt
-        nq = g.sqrt(g.add(g.sq(g.div(x, 0.017)), g.sq(g.div(g.sub(z, MED_NAVEL - 0.004), 0.021))))
-        d_navel = g.mul(g.sub(nq, 1.0), 0.017)
-        d_suit = g.mn(d_suit, g.mx(d_navel, g.mul(g.sub(0.5, front), 0.1)))
         # a heart-shaped window low on her back, its point over the top of her glute crease
         lobe = g.sub(g.sqrt(g.add(g.sq(g.sub(ax, 0.024)), g.sq(g.sub(z, 0.85)))), 0.026)
         wedge = g.mul(g.sub(ax, g.mul(g.sub(z, 0.778), 0.8)), 0.781)   # its sides meet the lobes tangentially
@@ -1369,7 +1367,7 @@ def suit_graph(nt, skin, cut="base"):
         # the top of her glute crease, a soft shadow line showing through the heart
         crease = g.mul(g.mul(g.sub(1.0, g.sstep(0.0005, 0.0022, ax)), g.sub(1.0, g.sstep(0.81, 0.83, z))), tb)
         col = g.mixc(col, CREASE, g.mul(crease, 0.6))
-        # and her belly button, a soft dimple of shadow in the front window
+        # and her belly button, a soft dimple of shadow showing through the open zip
         dimple = g.sqrt(g.add(g.sq(g.div(x, 0.0026)), g.sq(g.div(g.sub(z, MED_NAVEL), 0.0042))))
         col = g.mixc(col, CREASE, g.mul(g.mul(g.sub(1.0, g.sstep(0.4, 1.0, dimple)), front), 0.7))
     col = g.mixc(col, suit_col, c_suit)
@@ -1401,9 +1399,9 @@ def suit_graph(nt, skin, cut="base"):
     if medium:
         ink = g.mx(ink, g.mul(g.band(ax, MED_SLEEVE - 0.027, MED_SLEEVE - 0.025), g.mul(g.sstep(0.0, 0.004, g.neg(x)), c_suit)))
         # the front zip, from the neck to the waist band, its pull glowing at the top
-        zip_ = g.mul(g.mul(g.band(x, -0.0011, 0.0011, 0.0002), g.band(z, 0.955, MED_ZIP)), g.mul(front, c_suit))
+        zip_ = g.mul(g.mul(g.band(x, -0.0011, 0.0011, 0.0002), g.band(z, 0.79, MED_ZIP)), g.mul(front, c_suit))
         col = g.mixc(col, PLATE, zip_)
-        ink = g.mx(ink, g.mul(g.mul(g.band(g.abs(x), 0.0011, 0.0017, 0.0002), g.band(z, 0.955, MED_ZIP)), g.mul(front, c_suit)))
+        ink = g.mx(ink, g.mul(g.mul(g.band(g.abs(x), 0.0011, 0.0017, 0.0002), g.band(z, 0.79, MED_ZIP)), g.mul(front, c_suit)))
         pull = g.sqrt(g.add(g.sq(g.div(x, 0.0035)), g.sq(g.div(g.sub(z, MED_ZIP - 0.004), 0.006))))
         trim = g.mx(trim, g.mul(g.sub(1.0, g.sstep(0.85, 1.0, pull)), g.mul(front, c_suit)))
     band_ = g.mul(g.band(z, 0.905, 0.955, 0.0004), c_suit)
