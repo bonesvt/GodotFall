@@ -2,7 +2,7 @@ extends SceneTree
 ## Pictures of the salon's haircuts (scripts/hub/hair.gd) on Eco and Ophelia,
 ## front and back, in the game's toon shading; then Juno in front of Cut &
 ## Chrome in town. For checking the look.
-##   xvfb-run -a godot --audio-driver Dummy --path . -s res://tools/salon/salon_shots.gd -- [out_dir] [--no-town]
+##   xvfb-run -a godot --audio-driver Dummy --path . -s res://tools/salon/salon_shots.gd -- [out_dir] [--no-town | --only-town]
 ## Needs a renderer (not --headless). Doesn't touch the real save files.
 
 const Hair := preload("res://scripts/hub/hair.gd")
@@ -13,6 +13,7 @@ const Town := preload("res://scripts/hub/town.gd")
 
 var out := "user://salon_shots"
 var town := true
+var only_town := false
 var cam: Camera3D
 
 
@@ -21,6 +22,8 @@ func _initialize() -> void:
 	for a in args:
 		if a == "--no-town":
 			town = false
+		elif a == "--only-town":
+			only_town = true
 		elif not a.begins_with("--"):
 			out = a
 	DirAccess.make_dir_recursive_absolute(out)
@@ -48,13 +51,12 @@ func _go() -> void:
 	cam.fov = 32.0
 	stage.add_child(cam)
 	cam.make_current()
-	for who in ["eco", "ophelia"]:
+	for who in (["eco", "ophelia"] if not only_town else []):
 		var holder := Node3D.new()
 		stage.add_child(holder)
 		var model: Node3D
 		if who == "eco":
 			model = ECO.instantiate()
-			model.idle_motion = false
 			model.springs_enabled = false
 			holder.add_child(model)
 		else:
@@ -62,15 +64,13 @@ func _go() -> void:
 			holder.add_child(npc)
 			await _frames(1)
 			model = npc.get_node("Model")
-			var anim := model.find_child("AnimationPlayer", true, false) as AnimationPlayer
-			if anim != null:
-				anim.pause()
-		var top := 1.38 if who == "eco" else 1.32
+		# head and shoulders, down to the waist for the long cuts
+		var mid := 1.42 if who == "eco" else 1.36
 		for style in Hair.style_ids(who):
 			Hair.apply(model, who, style)
 			for view in [["front", PI], ["back", 0.0], ["side", PI * 0.5]]:
 				holder.rotation.y = view[1]
-				cam.look_at_from_position(Vector3(0, top + 0.06, 2.3), Vector3(0, top - 0.12, 0))
+				cam.look_at_from_position(Vector3(0, mid + 0.05, 1.75), Vector3(0, mid, 0))
 				await _frames(3)
 				await _save("%s_%s_%s" % [who, style, view[0]])
 		holder.queue_free()
