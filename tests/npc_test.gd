@@ -2,11 +2,12 @@ extends SceneTree
 ## Headless test for the people in the hub (Mom, Ophelia, Biggie): each stands
 ## in their room, Eco can walk in through the door, F starts a talk that opens
 ## with their intro, F moves it on, walking off ends it, a finished run gets a
-## reaction, and every line has a voice file.
+## reaction, and every line babbles in its speaker's voice.
 ## Run: godot --headless --path . -s res://tests/npc_test.gd
 
 const Rooms := preload("res://scripts/hub/hub_rooms.gd")
 const NpcTalk := preload("res://scripts/hub/npc_talk.gd")
+const Babble := preload("res://scripts/hub/babble.gd")
 
 const WHO := ["mom", "ophelia", "biggie"]
 ## Where Eco stands in the hall to walk through each door, and which way is in.
@@ -57,7 +58,7 @@ func _run() -> void:
 
 	_check("Ophelia starts in her tee", run_node.hub_npcs["ophelia"].outfit == "tee", run_node.hub_npcs["ophelia"].outfit)
 
-	# Every line in every conversation has its voice.
+	# Every line in every conversation babbles, one beat per character.
 	var missing := []
 	var count := 0
 	for who in WHO:
@@ -69,9 +70,12 @@ func _run() -> void:
 		for conv in convs:
 			for line in conv:
 				count += 1
-				if not ResourceLoader.exists(NpcTalk.voice_path(line[0], line[1])):
+				var babble: Dictionary = Babble.make(line[0], line[1])
+				if babble["stream"].data.size() < 2000 or babble["times"].size() != line[1].length() + 1:
 					missing.append(line)
-	_check("every line is voiced (%d lines)" % count, missing.is_empty() and count > 60, missing.slice(0, 3))
+	_check("every line babbles (%d lines)" % count, missing.is_empty() and count > 60, missing.slice(0, 3))
+	var low: float = Babble.VOICES["biggie"]["pitch"]
+	_check("each has their own voice", low < Babble.VOICES["mom"]["pitch"] and Babble.VOICES["mom"]["pitch"] < Babble.VOICES["eco"]["pitch"], low)
 
 	for who in WHO:
 		var npc = run_node.hub_npcs[who]
@@ -95,6 +99,10 @@ func _run() -> void:
 		_check("prompt hidden while talking", run_node.hud.prompt_label.text == "", run_node.hud.prompt_label.text)
 		if intro[0][0] != "eco":
 			_check("%s plays talk anim and voice" % who, npc._anim.current_animation == "talk" and npc.voice.playing, npc._anim.current_animation)
+		_check("%s's caption types out" % who, run_node.npc_talk._text.visible_characters >= 0 and run_node.npc_talk._text.visible_characters < intro[0][1].length(), run_node.npc_talk._text.visible_characters)
+		await _press("interact")
+		await _ticks(2)
+		_check("F finishes %s's line" % who, run_node.npc_talk._text.visible_characters == -1 and run_node.npc_talk.current_line() == first, run_node.npc_talk._text.visible_characters)
 		await _press("interact")
 		await _ticks(2)
 		_check("F moves %s's talk on" % who, run_node.npc_talk.current_line() == "%s: %s" % intro[1], run_node.npc_talk.current_line())

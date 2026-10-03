@@ -1,8 +1,9 @@
 extends CanvasLayer
 ## Conversations between Eco and the people in the hub. Press F by one of them
-## (run_manager.gd) and they talk: each line is voiced (assets/audio/voice/npc/,
-## made by tools/npc/voices.py) and captioned at the bottom of the screen.
-## F skips to the next line; walking away ends it.
+## (run_manager.gd) and they talk: each line is babbled in the speaker's voice,
+## Animal Crossing style (babble.gd), while its caption types out at the
+## bottom of the screen. F finishes the line, or skips to the next once it's
+## all there; walking away ends it.
 ##
 ## The words live in dialogue/npc/<who>.txt: [intro] the first time Eco talks
 ## to them, [won] / [lost] once after each run that ended that way, otherwise
@@ -11,12 +12,11 @@ extends CanvasLayer
 
 signal finished(who: String)
 
+const Babble := preload("res://scripts/hub/babble.gd")
 const DIALOGUE_DIR := "res://dialogue/npc/"
-const VOICE_DIR := "res://assets/audio/voice/npc/"
 const DEFAULT_PATH := "user://hub_npcs.cfg"
-## Pause after each line, and how long a line with no voice file stays up.
-const GAP := 0.35
-const WORDS_PER_SEC := 2.6
+## How long a line stays up after it's all been said.
+const GAP := 0.9
 ## Walk this far (m) from whoever you're talking to and the talk ends.
 const LEAVE_RANGE := 5.5
 
@@ -30,6 +30,9 @@ var npc: Node3D
 var lines: Array = []
 var index := -1
 var line_left := 0.0
+## When each character of the line is said (Babble.make), and time into the line.
+var _times := PackedFloat32Array()
+var _line_t := 0.0
 var _eco_voice: AudioStreamPlayer
 var _panel: PanelContainer
 var _name: Label
@@ -111,10 +114,16 @@ func start(p_npc: Node3D, run_id: int, won: bool) -> void:
 	_next()
 
 
-## F: on to the next line now.
+## F: finish the line if it's still being said, else on to the next.
 func advance() -> void:
-	if active():
-		_next()
+	if not active():
+		return
+	if _text.visible_characters >= 0 and _text.visible_characters < _text.text.length():
+		_text.visible_characters = -1
+		_line_t = INF
+		line_left = minf(line_left, GAP)
+		return
+	_next()
 
 
 func stop() -> void:
@@ -129,10 +138,6 @@ func stop() -> void:
 	index = -1
 
 
-static func voice_path(speaker: String, text: String) -> String:
-	return VOICE_DIR + ("%s|%s" % [speaker, text]).sha1_text() + ".ogg"
-
-
 func _next() -> void:
 	index += 1
 	if index >= lines.size():
@@ -140,11 +145,11 @@ func _next() -> void:
 		return
 	var speaker: String = lines[index][0]
 	var text: String = lines[index][1]
-	var path := voice_path(speaker, text)
-	var stream: AudioStream = load(path) if ResourceLoader.exists(path) else null
-	var length := float(text.split(" ", false).size()) / WORDS_PER_SEC + 0.6
-	if stream != null:
-		length = stream.get_length()
+	var babble := Babble.make(speaker, text)
+	var stream: AudioStream = babble["stream"]
+	_times = babble["times"]
+	_line_t = 0.0
+	var length: float = babble["length"]
 	_eco_voice.stop()
 	if speaker == "eco":
 		npc.hush()
@@ -158,6 +163,7 @@ func _next() -> void:
 	_name.text = NAMES.get(speaker, speaker.to_upper())
 	_name.add_theme_color_override("font_color", COLORS.get(speaker, Color.WHITE))
 	_text.text = text
+	_text.visible_characters = 0
 	_panel.visible = true
 
 
@@ -170,6 +176,12 @@ func tick(delta: float, pilot: Vector3) -> void:
 		stop()
 		return
 	line_left -= delta
+	_line_t += delta
+	if _text.visible_characters >= 0:
+		var shown := 0
+		while shown < _times.size() - 1 and _times[shown] <= _line_t:
+			shown += 1
+		_text.visible_characters = -1 if shown >= _text.text.length() else shown
 	if line_left <= 0.0:
 		_next()
 
