@@ -6,7 +6,6 @@ extends SceneTree
 
 const GiftScreen := preload("res://scripts/hub/gift_screen.gd")
 const GiftShop := preload("res://scripts/hub/gift_shop.gd")
-const GiftBag := preload("res://scripts/hub/gift_bag.gd")
 const Armory := preload("res://scripts/hub/armory.gd")
 const NpcTalk := preload("res://scripts/hub/npc_talk.gd")
 const Romance := preload("res://scripts/hub/romance.gd")
@@ -26,8 +25,11 @@ func _initialize() -> void:
 func _go() -> void:
 	var armory: Armory = Armory.open("user://gift_shots_armory.cfg")
 	armory.stash = {"scrap": 85, "alloy": 22, "circuits": 1, "lock_cores": 0}
-	var bag := GiftBag.new("user://gift_shots_bag.cfg")
-	bag.items = {"candles": 1}
+	DirAccess.remove_absolute(ProjectSettings.globalize_path("user://gift_shots_talks.cfg"))
+	var bag: NpcTalk = NpcTalk.new()
+	bag.save_path = "user://gift_shots_talks.cfg"
+	root.add_child(bag)
+	bag.add_gift("candles")
 	var f := FileAccess.open("res://dialogue/npc/ophelia.txt", FileAccess.READ)
 	var taste := Romance.settings(NpcTalk.parse(f.get_as_text()))
 	var screen := GiftScreen.new(armory, bag, [{"who": "ophelia", "name": "Ophelia", "likes": taste["likes"], "dislikes": taste["dislikes"], "affection": 30}])

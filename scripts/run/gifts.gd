@@ -25,6 +25,8 @@ const CATALOG := {
 	"arcade_tokens": ["Glowbox tokens", "A roll of Glowbox tokens. That's a date, right there."],
 	"flowers": ["Wild flowers", "Flowers. Pretty. Ophelia's going to hate these, isn't she."],
 	"perfume": ["Officer's perfume", "Militia officer's perfume. Smells like money and bad decisions."],
+	"makeup": ["Midnight makeup palette", "A whole palette of dark shades. Off-world. She'll pretend not to care."],
+	"records": ["Gloom rock vinyl", "A record. Pre-war gloom rock. Ophelia's going to play it until it wears through."],
 }
 ## Chance a zone hides a gift, and the most one can hold.
 const CHANCE := 0.6

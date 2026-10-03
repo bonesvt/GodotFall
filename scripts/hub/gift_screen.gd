@@ -31,7 +31,7 @@ const SHOPKEEPER := [
 
 var armory: Armory
 var kind := "gifts"
-## Eco's carried gifts: count(id) -> int, add(id).
+## npc_talk.gd, which keeps Eco's gift bag: gifts() and add_gift(id).
 var bag: Object
 ## Who Eco is romancing: [{who, name, likes: [...], dislikes: [...], affection}].
 var partners: Array = []
@@ -106,7 +106,7 @@ func _ready() -> void:
 	_taste.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_taste.custom_minimum_size = Vector2(552, 0)
 	col.add_child(_taste)
-	_hint = _text("W/S pick   Space buy   Give gifts to someone in the hub (talk to them)   F or Esc done", 14, DIM)
+	_hint = _text("W/S pick   Space buy   G by someone in the hub gives a gift   F or Esc done", 14, DIM)
 	_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_hint.custom_minimum_size = Vector2(552, 0)
 	col.add_child(_hint)
@@ -156,7 +156,7 @@ func buy(id: String) -> bool:
 	if not armory._spend(GiftShop.cost(id)):
 		return false
 	armory.save()
-	bag.add(id)
+	bag.add_gift(id)
 	bought.append(id)
 	return true
 
@@ -204,7 +204,7 @@ func _row_view(i: int) -> PanelContainer:
 	var label := _text(GiftShop.gift_name(id), 17, ACCENT if on else INK)
 	label.custom_minimum_size = Vector2(250, 0)
 	line.add_child(label)
-	var n: int = bag.count(id)
+	var n: int = bag.gifts().count(id)
 	var have := _text("x%d in bag" % n if n > 0 else "", 15, GOOD)
 	have.custom_minimum_size = Vector2(90, 0)
 	line.add_child(have)

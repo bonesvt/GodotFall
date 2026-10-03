@@ -29,7 +29,6 @@ const BenchScreen := preload("res://scripts/hub/bench_screen.gd")
 const GunsmithScreen := preload("res://scripts/hub/gunsmith_screen.gd")
 const GiftScreen := preload("res://scripts/hub/gift_screen.gd")
 const GiftShop := preload("res://scripts/hub/gift_shop.gd")
-const GiftBag := preload("res://scripts/hub/gift_bag.gd")
 const Loot := preload("res://scripts/run/loot.gd")
 const Gifts := preload("res://scripts/run/gifts.gd")
 const NpcIdles := preload("res://scripts/hub/npc_idles.gd")
@@ -66,8 +65,6 @@ const HUB_LINE_SECONDS := 4.5
 @export var armory_path := Armory.DEFAULT_PATH
 ## Where who Eco has talked to in the hub (and what about) is saved.
 @export var npc_path := NpcTalk.DEFAULT_PATH
-## Where Eco's carried gifts are saved (gift_bag.gd; tests use their own path).
-@export var gifts_path := GiftBag.DEFAULT_PATH
 
 var run: RunState
 var phase := Phase.ZONE
@@ -92,8 +89,6 @@ var last_result := ""
 var runs_ended := 0
 ## The people living in the hub (hub_rooms.gd), by who, and their conversations.
 var hub_npcs := {}
-## The gifts Eco carries (bought at Lucky Lantern in Solace).
-var gift_bag: GiftBag
 var npc_talk: NpcTalk
 ## The parts your last run ended with; the hub's practice titan is built from them.
 var last_parts := {}
@@ -149,7 +144,6 @@ func _ready() -> void:
 	add_to_group("loot_collector")
 	ensure_input_actions()
 	armory = Armory.open(armory_path)
-	gift_bag = GiftBag.new(gifts_path)
 	npc_talk = NpcTalk.new()
 	npc_talk.save_path = npc_path
 	add_child(npc_talk)
@@ -488,7 +482,7 @@ func close_garage() -> void:
 ## Opens a workbench screen ("gunsmith", "rack", "workshop" or "suit"), pausing the hub.
 func open_bench(kind: String) -> void:
 	if kind == "gifts":
-		bench = GiftScreen.new(armory, gift_bag, romance_partners())
+		bench = GiftScreen.new(armory, npc_talk, romance_partners())
 	else:
 		bench = GunsmithScreen.new(armory) if kind == "gunsmith" else BenchScreen.new(armory, kind)
 	add_child(bench)
@@ -501,7 +495,7 @@ func open_bench(kind: String) -> void:
 func close_bench() -> void:
 	if bench is GiftScreen and not bench.bought.is_empty():
 		var names: Array = bench.bought.map(func(id): return GiftShop.gift_name(id))
-		hud.toast("Bought: %s. Give gifts to someone in the hub when you talk to them." % ", ".join(names), HUB_LINE_SECONDS)
+		hud.toast("Bought: %s. Press G by someone in the hub to give one." % ", ".join(names), HUB_LINE_SECONDS)
 	if not bench.unlocked.is_empty():
 		var names: Array = bench.unlocked.map(func(id): return Armory.WEAPONS[id]["name"].to_upper())
 		hud.toast("LEVEL %d: %s UNLOCKED. PICK %s AT THE WEAPON RACK" % [armory.pilot_level(), " AND ".join(names), "IT" if names.size() == 1 else "THEM"], 5.0)

@@ -1,20 +1,21 @@
 extends SceneTree
 ## Headless test for Lucky Lantern, Solace's gift shop (gift_shop.gd,
-## gift_screen.gd, gift_bag.gd): every gift has a model and a price in real
+## gift_screen.gd): every gift has a model and a price in real
 ## materials, Ophelia's dialogue knows every gift she loves, the cheap gifts
 ## cost only scrap and the ones she loves most cost rarer materials, buying
-## spends the stash and fills the bag (which saves), a gift you can't afford
+## spends the stash and puts the gift in the bag saved with the hub talks
+## (npc_talk.gd, where G gives it), every shop gift has a name there, a gift you can't afford
 ## isn't sold, and the taste notes only show once Eco knows someone well.
 ## Run: godot --headless --path . -s res://tests/gift_shop_test.gd
 
 const GiftShop := preload("res://scripts/hub/gift_shop.gd")
 const GiftScreen := preload("res://scripts/hub/gift_screen.gd")
-const GiftBag := preload("res://scripts/hub/gift_bag.gd")
+const Gifts := preload("res://scripts/run/gifts.gd")
 const Armory := preload("res://scripts/hub/armory.gd")
 const NpcTalk := preload("res://scripts/hub/npc_talk.gd")
 const Romance := preload("res://scripts/hub/romance.gd")
 const ARMORY_PATH := "user://test_gift_armory.cfg"
-const BAG_PATH := "user://test_gifts.cfg"
+const BAG_PATH := "user://test_gift_talks.cfg"
 
 var failures := 0
 
@@ -53,19 +54,23 @@ func _run() -> void:
 	# Buying.
 	var armory: Armory = Armory.open(ARMORY_PATH)
 	armory.stash = {"scrap": 50, "alloy": 20, "circuits": 1, "lock_cores": 0}
-	var bag := GiftBag.new(BAG_PATH)
+	var bag: NpcTalk = NpcTalk.new()
+	bag.save_path = BAG_PATH
+	root.add_child(bag)
+	for id in GiftShop.ids():
+		_check("%s has a name in the bag" % id, Gifts.CATALOG.has(id), id)
 	var screen := GiftScreen.new(armory, bag, [{"who": "ophelia", "name": "Ophelia", "likes": taste["likes"], "dislikes": taste["dislikes"], "affection": 5}])
 	root.add_child(screen)
 	await process_frame
 	_check("buy black candles", screen.buy("candles"), armory.stash)
 	_check("candles cost 25 scrap", armory.amount("scrap") == 25, armory.stash)
-	_check("candles in the bag", bag.count("candles") == 1, bag.items)
-	_check("can't buy what you can't afford", not screen.buy("book") and bag.count("book") == 0 and armory.amount("scrap") == 25, armory.stash)
+	_check("candles in the bag", bag.gifts() == ["candles"], bag.gifts())
+	_check("can't buy what you can't afford", not screen.buy("book") and not bag.gifts().has("book") and armory.amount("scrap") == 25, armory.stash)
 	_check("buy black lipstick (alloy + circuits)", screen.buy("black_lipstick") and armory.amount("alloy") == 0 and armory.amount("circuits") == 0, armory.stash)
 	_check("purchase saved the stash", Armory.open(ARMORY_PATH).amount("scrap") == 25, ARMORY_PATH)
-	var reopened := GiftBag.new(BAG_PATH)
-	_check("the bag is saved", reopened.count("candles") == 1 and reopened.count("black_lipstick") == 1, reopened.items)
-	_check("taking a gift out", reopened.take("candles") and reopened.count("candles") == 0 and not reopened.take("candles"), reopened.items)
+	var cfg := ConfigFile.new()
+	cfg.load(BAG_PATH)
+	_check("the bag is saved", cfg.get_value("_bag", "gifts", []) == ["candles", "black_lipstick"], cfg.get_value("_bag", "gifts", []))
 	_check("bought list for the toast", screen.bought == ["candles", "black_lipstick"], screen.bought)
 
 	# Taste notes: hidden until they're friends, then honest.
