@@ -149,8 +149,8 @@ static func _ground(root: Node3D) -> void:
 	for seg: Vector2 in ROWS:
 		var z := seg.x + 3.0
 		while z < seg.y - 2.0:
-			K.mesh(root, Vector3(0, 0.09, z), Vector3(STREET_HALF * 2 - 2.0, 0.02, 0.5), Art.material("gunmetal", Color(0.24, 0.24, 0.27)))
-			K.mesh(root, Vector3(-3.5 if int(z) % 2 == 0 else 3.5, 0.09, z + 2.5), Vector3(0.9, 0.02, 0.9), Art.material("gunmetal", Color(0.19, 0.19, 0.22)))
+			K.mesh(root, Vector3(0, 0.09, z), Vector3(STREET_HALF * 2 - 2.0, 0.02, 0.5), TP.paint(Color(0.08, 0.08, 0.09), 0.3))
+			K.mesh(root, Vector3(-3.5 if int(z) % 2 == 0 else 3.5, 0.09, z + 2.5), Vector3(0.9, 0.02, 0.9), TP.paint(Color(0.06, 0.06, 0.07), 0.3))
 			z += 7.0
 		for x: float in [-STREET_HALF + 1.0, STREET_HALF - 1.2]:
 			K.mesh(root, Vector3(x, 0.1, (seg.x + seg.y) * 0.5), Vector3(0.12, 0.08, seg.y - seg.x), TP.paint(Color(0.05, 0.05, 0.06), 0.5))
@@ -162,10 +162,11 @@ static func _ground(root: Node3D) -> void:
 			K.glow(root, Vector3(s * (STREET_HALF - 0.3), 0.1, (z0 + z1) * 0.5), Vector3(0.08, 0.05, z1 - z0), (CYAN if s < 0 else MAGENTA) * 1.6)
 	# Puddles that pick up the neon.
 	var puddle := StandardMaterial3D.new()
-	puddle.albedo_color = Color(0.05, 0.06, 0.08, 0.85)
+	# Dark and only semi-glossy: a mirror finish just reflected the bright sky.
+	puddle.albedo_color = Color(0.03, 0.035, 0.05, 0.8)
 	puddle.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	puddle.roughness = 0.02
-	puddle.metallic = 0.6
+	puddle.roughness = 0.25
+	puddle.metallic_specular = 0.25
 	for spec in [[Vector3(-2.5, 0.09, 140), Vector3(3.0, 0.02, 2.0)], [Vector3(3.0, 0.09, 151), Vector3(2.2, 0.02, 3.4)],
 			[Vector3(-1.0, 0.09, 197), Vector3(4.0, 0.02, 2.4)], [Vector3(2.4, 0.09, 207), Vector3(2.0, 0.02, 1.6)]]:
 		K.mesh(root, spec[0], spec[1], puddle, Vector3(0, spec[0].z * 7.0, 0))
@@ -268,6 +269,9 @@ static func _plaza(root: Node3D, info: Dictionary, rng: RandomNumberGenerator) -
 	for spec in [[Vector3(7.0, 0, 162.5), 0.0, AMBER], [Vector3(6.0, 0, 187.5), 180.0, LIME], [Vector3(-6.0, 0, 187.5), 180.0, MAGENTA]]:
 		TP.spawn(root, "market_stall", spec[0], spec[1], {"awning": (spec[2] as Color).lerp(Color.WHITE, 0.35), "shop": spec[2]})
 		_solid(root, spec[0] + Vector3(0, 1.2, 0), Vector3(3.0, 2.4, 1.8))
+	# Lamps round the Sun Tree.
+	for d: Vector3 in [Vector3(-6.5, 0, -6.5), Vector3(6.5, 0, -6.5), Vector3(-6.5, 0, 6.5), Vector3(6.5, 0, 6.5)]:
+		_solar_lamp(root, c + d, [LIME, AMBER, CYAN, MAGENTA][int(d.x > 0) + 2 * int(d.z > 0)])
 	_militia_office(root, info)
 	_greenhouse(root, info, rng)
 	_plaza_walls(root, rng)
@@ -325,7 +329,11 @@ static func _militia_office(root: Node3D, info: Dictionary) -> void:
 	TP.spawn(root, "militia_office", Vector3(front, 0, z), 90.0, {"wall": Color(0.62, 0.64, 0.62), "awning": Color(0.62, 0.6, 0.48)})
 	_solid(root, Vector3(front - 6.0, 4.5, z), Vector3(12.0, 9.0, 16.6))
 	_neon_text(root, Vector3(front + 0.62, 7.6, z), "MILITIA RECRUITMENT", RED, 72, 90.0)
-	_neon_text(root, Vector3(front + 0.64, 6.75, z), "PILOTS WANTED. MEN ONLY.", Color(1.0, 0.9, 0.85), 26, 90.0)
+	# The slogan on its own plaque over the door canopy, between the slit windows.
+	K.mesh(root, Vector3(front + 0.08, 5.1, z), Vector3(0.08, 1.5, 4.6), TP.paint(Color(0.05, 0.05, 0.06), 0.4))
+	K.glow(root, Vector3(front + 0.13, 5.1 + 0.72, z), Vector3(0.03, 0.05, 4.5), RED * 1.4)
+	K.glow(root, Vector3(front + 0.13, 5.1 - 0.72, z), Vector3(0.03, 0.05, 4.5), RED * 1.4)
+	_neon_text(root, Vector3(front + 0.14, 5.1, z), "PILOTS WANTED.\nMEN ONLY.", Color(1.0, 0.9, 0.85), 44, 90.0)
 	# The forecourt: concrete barriers, a floodlight, a propaganda screen.
 	for spec in [[Vector3(front + 5.0, 0, z - 6.5), 10.0], [Vector3(front + 6.0, 0, z + 6.0), -15.0], [Vector3(front + 8.5, 0, z - 2.0), 80.0]]:
 		var b: Vector3 = spec[0]
@@ -338,6 +346,18 @@ static func _militia_office(root: Node3D, info: Dictionary) -> void:
 		TP.spawn(root, "crates", spec[0], spec[1])
 		_solid(root, spec[0] + Vector3(0, 0.6, 0), Vector3(1.6, 1.2, 1.6))
 	TP.spawn(root, "scooter", Vector3(front + 7.0, 0, z + 3.5), 70.0, {"wall": Color(0.55, 0.62, 0.45)})
+	TP.spawn(root, "scooter", Vector3(front + 6.0, 0, z - 3.5), 110.0, {"wall": Color(0.55, 0.62, 0.45)})
+	# Hazard lines painted round the forecourt, and MILITIA ONLY on the paving.
+	var hazard := TP.paint(Color(0.85, 0.7, 0.15), 0.2)
+	K.mesh(root, Vector3(front + 10.5, 0.1, z), Vector3(0.3, 0.02, 18.0), hazard)
+	for dz: float in [-9.0, 9.0]:
+		K.mesh(root, Vector3(front + 5.25, 0.1, z + dz), Vector3(10.5, 0.02, 0.3), hazard)
+	var stencil := Kit.label(root, Vector3(front + 8.2, 0.12, z), "MILITIA ONLY", 110)
+	stencil.billboard = BaseMaterial3D.BILLBOARD_DISABLED
+	stencil.rotation_degrees = Vector3(-90, 90, 0)
+	stencil.modulate = Color(0.85, 0.7, 0.15, 0.8)
+	stencil.outline_size = 0
+	stencil.shaded = true
 	var flood := Vector3(front + 9.5, 0, z - 6.0)
 	K.mesh(root, flood + Vector3(0, 2.5, 0), Vector3(0.14, 5.0, 0.14), Art.material("gunmetal"))
 	K.mesh(root, flood + Vector3(0, 5.0, 0), Vector3(0.7, 0.45, 0.4), TP.paint(Color(0.07, 0.07, 0.09), 0.6), Vector3(-25, -60, 0))
@@ -376,7 +396,8 @@ static func _greenhouse(root: Node3D, info: Dictionary, _rng: RandomNumberGenera
 		_solid(root, spec[0], spec[1])
 	K.light(root, c + Vector3(0, 5.0, 0), WARM, 1.4, 12.0)
 	# Tables out front, clear of the door.
-	for t: Vector3 in [Vector3(18.5, 0, 169.0), Vector3(16.5, 0, 172.0), Vector3(16.5, 0, 178.5), Vector3(18.5, 0, 181.5)]:
+	for t: Vector3 in [Vector3(18.5, 0, 169.0), Vector3(16.5, 0, 172.0), Vector3(16.5, 0, 178.5), Vector3(18.5, 0, 181.5),
+			Vector3(13.0, 0, 172.0), Vector3(13.5, 0, 178.0)]:
 		TP.spawn(root, "cafe_table", t, t.z * 37.0, {"awning": Color(0.85, 1.0, 0.8)})
 		_solid(root, t + Vector3(0, 0.4, 0), Vector3(1.0, 0.8, 1.0))
 	_neon_text(root, Vector3(front - 0.1, 4.6, c.z), "greenhouse cafe", LIME, 64, -90.0)
@@ -625,7 +646,7 @@ static func _blade_sign(root: Node3D, side: int, z: float, text: String, color: 
 	var y := GF + 1.6 + h * 0.5
 	TP.spawn(root, "blade_sign_%d" % clampi(lines, 2, 3), Vector3(x, GF + 1.6, z), 0.0 if s > 0.0 else 180.0, {"neon": color})
 	for face: float in [-1.0, 1.0]:
-		var l := _neon_text(root, Vector3(x, y, z + face * 0.17), text, color, 52, 0.0 if face > 0 else 180.0)
+		var l := _neon_text(root, Vector3(x, y, z + face * 0.17), text, color, 40, 0.0 if face > 0 else 180.0)
 		l.line_spacing = -10.0
 	K.light(root, Vector3(x, y, z), color, 1.2, 8.0)
 

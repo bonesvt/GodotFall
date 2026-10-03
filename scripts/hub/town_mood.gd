@@ -15,8 +15,8 @@ var _sun: DirectionalLight3D
 var _base := {}
 var _amount := 0.0
 
-const DARK := {"ambient": 0.1, "sun": 0.12, "glow": 1.8, "threshold": 0.7}
-const HAZE := Color(0.32, 0.26, 0.42)
+const DARK := {"ambient": 0.1, "sun": 0.12, "glow": 1.8, "threshold": 0.7, "sky": 0.3, "exposure": 0.85, "strength": 1.3}
+const HAZE := Color(0.16, 0.12, 0.24)
 
 
 func _ready() -> void:
@@ -34,7 +34,9 @@ func _grab() -> void:
 		set_process(false)
 		return
 	_base = {"ambient": _env.ambient_light_energy, "sun": _sun.light_energy, "fog": _env.fog_light_color,
-		"glow": _env.glow_intensity, "threshold": _env.glow_hdr_threshold}
+		"glow": _env.glow_intensity, "threshold": _env.glow_hdr_threshold,
+		"sky": _env.background_energy_multiplier, "exposure": _env.tonemap_exposure, "strength": _env.glow_strength,
+		"vfog": _env.volumetric_fog_albedo}
 
 
 func _process(delta: float) -> void:
@@ -49,6 +51,11 @@ func _process(delta: float) -> void:
 	_env.ambient_light_energy = lerpf(_base["ambient"], _base["ambient"] * DARK["ambient"], t)
 	_sun.light_energy = lerpf(_base["sun"], _base["sun"] * DARK["sun"], t)
 	_env.fog_light_color = (_base["fog"] as Color).lerp(HAZE, t)
+	_env.volumetric_fog_albedo = (_base["vfog"] as Color).lerp(HAZE, t)
+	# The sky dims too: it lights the street's reflections and glares at the row ends.
+	for key: String in ["sky", "exposure", "strength"]:
+		var prop: String = {"sky": "background_energy_multiplier", "exposure": "tonemap_exposure", "strength": "glow_strength"}[key]
+		_env.set(prop, lerpf(_base[key], _base[key] * DARK[key], t))
 	_env.glow_intensity = lerpf(_base["glow"], _base["glow"] * DARK["glow"], t)
 	_env.glow_hdr_threshold = lerpf(_base["threshold"], minf(_base["threshold"], DARK["threshold"]), t)
 

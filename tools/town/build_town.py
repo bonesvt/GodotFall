@@ -623,11 +623,11 @@ def canopy_bay():
 
 
 def lantern():
-    """A paper lantern on a drop: dark cap and base, ribs, a glowing body (glow_shop)."""
+    """A paper lantern on a drop: dark cap and base, ribs, a glowing paper body (glow_paper)."""
     m = Model("lantern", 79)
     m.tube("metal", [(0, 0, 0), (0, 0, -0.3)], [0.012, 0.012], 3)
     m.cyl("dark", (0, 0, -0.33), 0.12, 0.06, sides=8)
-    m.tube("glow_shop", [(0, 0, -0.36), (0, 0, -0.5), (0, 0, -0.68), (0, 0, -0.8)], [0.14, 0.2, 0.2, 0.14], 10)
+    m.tube("glow_paper", [(0, 0, -0.36), (0, 0, -0.5), (0, 0, -0.68), (0, 0, -0.8)], [0.14, 0.2, 0.2, 0.14], 10)
     for k in range(6):
         a = k * math.pi / 3
         m.tube("dark", [(0.15 * math.cos(a), 0.15 * math.sin(a), -0.38), (0.205 * math.cos(a), 0.205 * math.sin(a), -0.58),

@@ -9,6 +9,7 @@ extends RefCounted
 const Art := preload("res://scripts/ps2/ps2_assets.gd")
 const Props := preload("res://scripts/hub/hub_props.gd")
 const TITAN_PAINT := preload("res://assets/shaders/titan_paint.gdshader")
+const PAPER := preload("res://assets/shaders/paper_lantern.gdshader")
 
 const DIR := "res://assets/models/town/"
 const IDS := ["shop_w13_f3", "shop_w13_f3b", "shop_w13_f2", "shop_w11_f4", "shop_w11_f3", "shop_w9_f3", "shop_w9_f2",
@@ -43,6 +44,10 @@ static func spawn(parent: Node, id: String, pos: Vector3, yaw_deg := 0.0, tints 
 			# Far backdrop (the city): flat colours that ignore the haze, a hazy blue silhouette.
 			mi.material_override = _unfogged(glow if glow.a > 0.0 else Color(0.3, 0.33, 0.42), glow.a > 0.0)
 			mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		elif kind == "glow_paper":
+			mi.material_override = _paper()
+			mi.set_instance_shader_parameter("paint", Color(glow.r, glow.g, glow.b))
+			mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		elif glow.a > 0.0:
 			mi.material_override = Art.material("light")
 			mi.set_instance_shader_parameter("paint", Color(glow.r, glow.g, glow.b))
@@ -61,7 +66,7 @@ static func glow_color(kind: String, tints: Dictionary) -> Color:
 		return GLOWS[kind] * 0.9
 	if GLOWS.has(kind):
 		return GLOWS[kind] * 1.5
-	if kind == "glow_shop":
+	if kind == "glow_shop" or kind == "glow_paper":
 		return tints.get("shop", WARM) * 0.75
 	if kind == "neon":
 		return tints.get("neon", tints.get("shop", WARM)) * 1.8
@@ -116,6 +121,14 @@ static func paint(color: Color, gloss: float) -> ShaderMaterial:
 		mat.set_shader_parameter("gloss", gloss)
 		_mats[key] = mat
 	return _mats[key]
+
+
+static func _paper() -> Material:
+	if not _mats.has("paper"):
+		var mat := ShaderMaterial.new()
+		mat.shader = PAPER
+		_mats["paper"] = mat
+	return _mats["paper"]
 
 
 static func _glass() -> Material:
