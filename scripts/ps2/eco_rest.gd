@@ -32,6 +32,11 @@ const THIGH := 0.383
 const SHIN := 0.451
 const ANKLE := 0.097
 
+## Arm turns for the sit (upperarm R/L forward, forearm R/L bend, forearm R/L in)
+## and sleep (upperarm R/L forward, upperarm R/L in, forearm R/L bend) poses.
+const SIT_ARMS := [30.0, 36.0, 18.0, 16.0, 42.0, -58.0]
+const SLEEP_ARMS := [78.0, 72.0, 24.0, -6.0, 96.0, 102.0]
+
 ## How quickly she settles into a pose, and moves from one pose to another.
 const SETTLE_RATE := 1.4
 const SHIFT_RATE := 1.1
@@ -182,19 +187,22 @@ func _sit() -> Dictionary:
 	# with her shins upright (a low seat raises her knees instead)
 	var dip := rad_to_deg(asin(clampf((seat_height + 0.08 - SHIN - ANKLE) / THIGH, -0.8, 0.8)))
 	var turns := [
-		["spine", R, 7.0], ["chest", R, -1.5 * b], ["neck", R, -4.0],
-		["head", R, -7.0 + 1.0 * b], ["head", U, 9.0 * sin(time * 0.35)],
+		# back straight and a little arched, shoulders back, head tilted
+		["spine", R, 4.0], ["chest", R, 5.0 - 1.5 * b], ["neck", R, -6.0],
+		["head", R, -5.0 + 1.0 * b], ["head", BACK, 7.0], ["head", U, 10.0 + 6.0 * sin(time * 0.35)],
 	]
 	turns.append_array(_arms_down())
 	turns.append_array([
-		# hands resting on her thighs, a little apart
-		["upperarm.R", R, 24.0], ["upperarm.L", R, 24.0], ["upperarm.R", F, -6.0], ["upperarm.L", F, 6.0],
-		["forearm.R", R, 14.0], ["forearm.L", R, 14.0],
-		["forearm.R", U, 32.0], ["forearm.L", U, -32.0],
-		["thigh.R", R, 90.0 - dip], ["thigh.L", R, 90.0 - dip],
-		["thigh.R", U, 3.0], ["thigh.L", U, -3.0],
-		["shin.R", R, -(90.0 - dip) + 10.0], ["shin.L", R, -(90.0 - dip) + 4.0],
-		["shin.R", U, -4.0], ["shin.L", U, 4.0],
+		# hands folded together on her top knee
+		["upperarm.R", R, SIT_ARMS[0]], ["upperarm.L", R, SIT_ARMS[1]],
+		["forearm.R", R, SIT_ARMS[2]], ["forearm.L", R, SIT_ARMS[3]],
+		["forearm.R", U, SIT_ARMS[4]], ["forearm.L", U, SIT_ARMS[5]],
+		["hand.R", R, 12.0], ["hand.L", R, 12.0],
+		# legs crossed, right over left, knees together, toes pointed
+		["thigh.L", R, 90.0 - dip], ["thigh.L", U, -5.0],
+		["shin.L", R, -(90.0 - dip) + 8.0], ["shin.L", U, 6.0], ["foot.L", R, -8.0],
+		["thigh.R", R, 108.0 - dip], ["thigh.R", U, 17.0],
+		["shin.R", R, -(93.0 - dip)], ["shin.R", U, -6.0], ["foot.R", R, -32.0],
 	])
 	return {"turns": turns, "hips": Vector3(0.0, seat_height + 0.08, 0.0)}
 
@@ -202,19 +210,20 @@ func _sit() -> Dictionary:
 func _lounge() -> Dictionary:
 	var b := _breath(4.2)
 	var turns := [
-		# curled up off the cushion at her end of the couch, looking down along herself
-		["spine", R, -10.0], ["chest", R, -8.0 - 1.5 * b], ["neck", R, -12.0], ["head", R, -16.0],
-		["head", U, -18.0 + 4.0 * sin(time * 0.3)],
+		# curled up off the cushion at her end of the couch, head tilted, looking out at the room
+		["spine", R, -10.0], ["chest", R, -6.0 - 1.5 * b], ["neck", R, -12.0], ["head", R, -14.0],
+		["head", BACK, -8.0], ["head", U, -18.0 + 4.0 * sin(time * 0.3)],
 	]
 	turns.append_array(_arms_down())
 	turns.append_array([
 		# right hand behind her head
 		["upperarm.R", F, -125.0], ["upperarm.R", R, 35.0], ["forearm.R", F, -14.0], ["forearm.R", F, -120.0],
-		# left hand on her stomach
+		# left hand resting on her stomach, wrist soft
 		["upperarm.L", R, 0.0], ["upperarm.L", F, 8.0], ["forearm.L", R, 20.0], ["forearm.L", U, -70.0],
-		# right knee up, left leg out along the couch
-		["thigh.R", R, 52.0], ["shin.R", R, -56.0], ["foot.R", R, -50.0],
-		["thigh.L", R, 18.0], ["thigh.L", U, -4.0], ["shin.L", R, -4.0], ["foot.L", R, -18.0],
+		["hand.L", R, 16.0],
+		# right knee up and leaning in over her left leg, which lies out along the couch, toes pointed
+		["thigh.R", R, 58.0], ["thigh.R", U, 22.0], ["shin.R", R, -64.0], ["foot.R", R, -55.0],
+		["thigh.L", R, 18.0], ["thigh.L", U, -3.0], ["shin.L", R, -6.0], ["foot.L", R, -45.0],
 		# tip her back
 		["hips", R, 72.0],
 	])
@@ -224,17 +233,19 @@ func _lounge() -> Dictionary:
 func _sleep() -> Dictionary:
 	var b := _breath(5.0)
 	var turns := [
-		["spine", R, -16.0], ["chest", R, -8.0 - 2.0 * b], ["neck", R, -8.0], ["head", R, -10.0],
+		["spine", R, -12.0], ["chest", R, -6.0 - 2.0 * b], ["neck", R, -10.0], ["head", R, -12.0],
 	]
 	turns.append_array(_arms_down())
 	turns.append_array([
-		# hands tucked up under her chin
-		["upperarm.R", R, 72.0], ["upperarm.L", R, 64.0], ["upperarm.R", U, 18.0], ["upperarm.L", U, -14.0],
-		["forearm.R", R, 88.0], ["forearm.L", R, 92.0],
-		# knees drawn up, the top leg a little further
-		["thigh.R", R, 88.0], ["thigh.L", R, 72.0],
-		["shin.R", R, -112.0], ["shin.L", R, -100.0],
-		["foot.R", R, -20.0], ["foot.L", R, -16.0],
+		# hands together under her cheek
+		["upperarm.R", R, SLEEP_ARMS[0]], ["upperarm.L", R, SLEEP_ARMS[1]],
+		["upperarm.R", U, SLEEP_ARMS[2]], ["upperarm.L", U, SLEEP_ARMS[3]],
+		["forearm.R", R, SLEEP_ARMS[4]], ["forearm.L", R, SLEEP_ARMS[5]],
+		["hand.R", R, 20.0], ["hand.L", R, 20.0],
+		# knees drawn up together, the top knee resting on the lower one, toes pointed
+		["thigh.R", R, 80.0], ["thigh.L", R, 70.0], ["thigh.R", U, 9.0],
+		["shin.R", R, -106.0], ["shin.L", R, -96.0],
+		["foot.R", R, -35.0], ["foot.L", R, -35.0],
 		# over onto her left side (her head goes to -X, she faces -Z), head up on the pillow
 		["hips", BACK, 84.0],
 	])
