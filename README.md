@@ -79,18 +79,29 @@ Out on runs you collect four materials, and the hub's workbenches spend them:
 Pickups fly to you when you get close. Extracting banks everything you carried (plus the
 enemy titan's salvage when you win); a lost run banks half. The HUD shows what you have.
 
-- **Gunsmith bench** (the workbench right of the door): **upgrades** for the gun in hand,
-  each gun its own. Dad's smart pistol has **Smart rounds**, 8 levels paid in lock cores:
+- **Gunsmith bench** (the workbench right of the door): click a gun in the list on the left
+  and it appears in 3D in the middle. Drag to spin it, scroll to zoom, and click the **+**
+  markers on its parts (barrel, cylinder, mag, grip, frame...) to see that part's
+  upgrades and attachments on the right. A locked attachment shows on the gun on the first
+  click and is bought on the second. **Upgrades** are per gun. Dad's smart pistol has **Smart rounds**, 8 levels paid in lock cores:
   each makes another eighth of every mag smart. Smart rounds fire first (pink pips on the
   HUD); while one is chambered the lock works again, closing on the grunt nearest the
   crosshair, and the shot flies to its chest (never its head, so headshots stay yours).
-  The other guns have Calibre, Action and Magazine (three small steps each). Every step
+  The **Heavy Revolver** gets Rivet heads (damage and headshots), Punch-through (rounds
+  carry on into the body behind), Stagger coils (hits knock a grunt off their aim) and a
+  Speed loader. The **Auto Handgun** gets Drum feed (more rounds), Recoil buffer, Overclock
+  (faster fire) and Hot streak (every hit in a row hits harder; a miss or a pause resets
+  it, and the tracers run orange as it heats). Three levels each. Every step
   moves the gun's look tier from 0 to 5. The bench also fits **attachments** (muzzle, mag, grip, each a
   trade-off: long barrel, compensator, extended mag, speed base, paracord wrap, skeleton
-  grip) plus free paint **finishes**. Q/E switches guns.
-- **Weapon rack** (on the wall past the bench): buy and pick your sidearm. Dad's smart
-  pistol, the **Rivet Cannon** (five heavy shots off a titan's rivet driver) or the
-  **Militia Machine Pistol** (full auto, hold the trigger).
+  grip) plus free paint **finishes** (on the shell or frame). Q/E switches guns, Tab parts.
+- **Weapon rack** (on the wall past the bench): pick your starting sidearm. Dad's smart
+  pistol from the start; the **Heavy Revolver** (six titan rivets in a hand-turned
+  cylinder) at **level 3**; the **Auto Handgun** (a militia machine pistol, full auto,
+  fifteen rounds a second) at **level 6**.
+- **Eco's level** is 1 plus every upgrade she has bought: weapon upgrades, titan refits and
+  suit upgrades. It shows in the hub HUD and on every bench, which also says what unlocks
+  next.
 - **Titan workshop** (gantry at the west edge of the titan yard): buy titan parts to start
   runs with (Mk I, instead of scrap; salvage can still replace them) and **refit** parts
   (+6% per level to every copy you install, salvaged ones and scrap included). The titan
