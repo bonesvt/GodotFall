@@ -75,6 +75,16 @@ const PARTNER_SHOTS := {
 		2: {"from": Vector3(-0.45, 1.7, 3.1), "to": Vector3(-0.45, 1.6, 2.9), "look": Vector3(-0.45, 0.25, 0.9), "fov": 50.0},
 	},
 }
+## With Mom, the squats and hip thrusts are shot from the front and the side,
+## wide on the two of them (a family workout, not the rear angles), on top of
+## PARTNER_SHOTS.
+const MOM_SHOTS := {
+	"squat": {
+		0: {"from": Vector3(0.75, 1.25, -1.85), "to": Vector3(0.7, 1.2, -1.7), "look": Vector3(0.72, 0.9, 0), "fov": 55.0},
+		1: {"from": Vector3(-1.7, 1.35, -0.4), "to": Vector3(-1.65, 1.3, -0.25), "look": Vector3(0.6, 0.95, 0), "fov": 52.0},
+	},
+	"bridge": {0: {"from": Vector3(1.9, 1.15, 1.1), "to": Vector3(1.85, 1.1, 1.25), "look": Vector3(-0.45, 0.3, 1.1), "fov": 52.0}},
+}
 ## How far (s) the partner's reps run behind hers, so they don't move in
 ## lockstep. At the bag they move with her punches.
 const PARTNER_LAG := 0.35
@@ -285,6 +295,8 @@ func skip() -> void:
 
 ## Shot `i` of this workout (with a partner, PARTNER_SHOTS where it has one).
 func _shot(i: int) -> Dictionary:
+	if partner == "mom" and MOM_SHOTS.get(workout, {}).has(i):
+		return MOM_SHOTS[workout][i]
 	if partner != "":
 		var swap: Dictionary = PARTNER_SHOTS.get(workout, {})
 		if swap.has(i):
