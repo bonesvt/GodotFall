@@ -26,6 +26,7 @@ const Titan := preload("res://scripts/run/titan.gd")
 const HubBuilder := preload("res://scripts/hub/hub_builder.gd")
 const Armory := preload("res://scripts/hub/armory.gd")
 const BenchScreen := preload("res://scripts/hub/bench_screen.gd")
+const GunsmithScreen := preload("res://scripts/hub/gunsmith_screen.gd")
 const Loot := preload("res://scripts/run/loot.gd")
 const Weapon := preload("res://scripts/weapon.gd")
 const Art := preload("res://scripts/ps2/ps2_assets.gd")
@@ -33,6 +34,7 @@ const Garage := preload("res://scripts/hub/garage.gd")
 const TitanStyle := preload("res://scripts/run/titan_style.gd")
 const HubNpc := preload("res://scripts/hub/hub_npc.gd")
 const NpcTalk := preload("res://scripts/hub/npc_talk.gd")
+const Tutorial := preload("res://scripts/run/tutorial.gd")
 
 const FALL_DAMAGE := 25
 ## Integrity lost when grunts take the pilot's health to zero.
@@ -97,10 +99,13 @@ var course_time := -1.0
 var course_best := 0.0
 var armory: Armory
 ## The workbench screen while one is open (the hub is paused under it).
-var bench: BenchScreen
+## A BenchScreen, or the GunsmithScreen at the gunsmith bench.
+var bench = null
 ## Lays out loot and rolls drops, seeded per zone from the run seed so loot
 ## never shifts the run's own rolls.
 var loot_rng := RandomNumberGenerator.new()
+## Hints that teach the game in the first three zones (tutorial.gd).
+var tutorial: Tutorial
 
 
 static func ensure_input_actions() -> void:
@@ -146,6 +151,10 @@ func _ready() -> void:
 	hud = RunHud.new()
 	hud.name = "RunHUD"
 	add_child(hud)
+	tutorial = Tutorial.new()
+	tutorial.name = "Tutorial"
+	tutorial.run = self
+	add_child(tutorial)
 	equip_loadout()
 	if start_in_hub:
 		enter_hub()
@@ -208,6 +217,7 @@ func enter_hub() -> void:
 	phase = Phase.HUB
 	dress_hub()
 	place_player(zone_info["spawn"])
+	tutorial.start_level("hub")
 	if last_result != "":
 		hud.toast("Back at the temple.", HUB_LINE_SECONDS)
 		_whisper("home", 2.0)
@@ -235,6 +245,7 @@ func load_zone(index: int) -> void:
 		evac_open = false
 		hud.toast("THE FOREST'S EDGE: TITANFALL STANDING BY")
 	place_player(zone_info["spawn"])
+	tutorial.start_level("zone%d" % index if index < RunState.ZONE_COUNT else "arena")
 
 
 func place_player(pos: Vector3) -> void:
@@ -352,7 +363,7 @@ func close_garage() -> void:
 
 ## Opens a workbench screen ("gunsmith", "rack" or "workshop"), pausing the hub.
 func open_bench(kind: String) -> void:
-	bench = BenchScreen.new(armory, kind)
+	bench = GunsmithScreen.new(armory) if kind == "gunsmith" else BenchScreen.new(armory, kind)
 	add_child(bench)
 	get_tree().paused = true
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
@@ -361,6 +372,9 @@ func open_bench(kind: String) -> void:
 
 
 func close_bench() -> void:
+	if not bench.unlocked.is_empty():
+		var names: Array = bench.unlocked.map(func(id): return Armory.WEAPONS[id]["name"].to_upper())
+		hud.toast("LEVEL %d: %s UNLOCKED. PICK %s AT THE WEAPON RACK" % [armory.pilot_level(), " AND ".join(names), "IT" if names.size() == 1 else "THEM"], 5.0)
 	bench.queue_free()
 	bench = null
 	get_tree().paused = false
@@ -410,7 +424,7 @@ func dress_hub() -> void:
 			tag.text = "IN HAND" if id == armory.equipped else Armory.WEAPONS[id]["short"]
 			tag.modulate = Color(1.0, 0.8, 0.35) if id == armory.equipped else Color(0.9, 0.88, 0.82)
 		else:
-			tag.text = "LOCKED"
+			tag.text = "LEVEL %d" % Armory.unlock_level(id) if armory.level_locked(id) else "LOCKED"
 			tag.modulate = Color(0.6, 0.6, 0.62)
 	var stand: Node3D = zone_info.get("workshop_titan")
 	if stand != null:
@@ -437,6 +451,7 @@ func _on_grunt_died(grunt: Node) -> void:
 		return
 	run.kills += 1
 	Loot.drop(zone_root, grunt.global_position, Loot.roll_grunt(loot_rng, run.zone), loot_rng)
+	tutorial.event("loot")
 
 
 ## The crate or alloy node the pilot is standing at, or null.
@@ -460,6 +475,7 @@ func _loot_tick(delta: float) -> void:
 		got = node.mine(delta)
 	if not got.is_empty():
 		Loot.drop(zone_root, node.global_position + Vector3(0, 0.4, 0), got, loot_rng)
+		tutorial.event("loot")
 
 
 func in_titan_yard() -> bool:
@@ -591,6 +607,7 @@ func _check_fall() -> bool:
 	else:
 		place_player(checkpoint)
 		hud.toast("FELL: -%d INTEGRITY" % FALL_DAMAGE)
+		tutorial.event("fell")
 	return true
 
 
@@ -610,6 +627,7 @@ func _on_pilot_downed() -> void:
 	else:
 		place_player(checkpoint)
 		hud.toast("DOWNED: -%d INTEGRITY" % DOWNED_DAMAGE)
+		tutorial.event("downed")
 
 
 ## Respawn point: the centre of the last platform the pilot stood on, or in a
@@ -640,11 +658,13 @@ func nearest_cache() -> Node3D:
 func open_salvage(cache: Node3D) -> void:
 	if not cache.can_open():
 		hud.toast("LOCKED: CLEAR THE GUARDS")
+		tutorial.event("locked")
 		return
 	open_cache = cache
 	offer = TitanParts.roll_offer(run.rng, run.zone, OFFER_SIZE)
 	phase = Phase.CHOOSING
 	get_tree().paused = true
+	tutorial.event("choosing")
 	hud.choice_panel.visible = true
 
 
@@ -806,7 +826,7 @@ func _whisper(category: String, delay := 0.0) -> void:
 func _update_hud() -> void:
 	hud.build_label.visible = phase != Phase.HUB
 	if phase == Phase.HUB:
-		var status := "THE TEMPLE    %s    Runs %d" % [_materials_text(armory.stash), runs_started]
+		var status := "THE TEMPLE    LEVEL %d    %s    Runs %d" % [armory.pilot_level(), _materials_text(armory.stash), runs_started]
 		if last_result != "":
 			status += "    Last run: %s" % last_result
 		if course_time >= 0.0:

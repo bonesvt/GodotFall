@@ -55,7 +55,7 @@ func _play_out(t: NpcTalk, pick := 0) -> Array:
 			t.choose(mini(pick, t.options.size() - 1))
 		else:
 			said.append(t.current_line())
-			t.advance()
+			_adv(t)
 	return said
 
 
@@ -74,6 +74,8 @@ func _run() -> void:
 	var q: Dictionary = b["heart"][0]["lines"][3]
 	_check("a choice has three answers with their replies", q.has("choice") and q["choice"].size() == 3 and q["choice"][0]["delta"] == 6 and q["choice"][0]["lines"].size() == 2 and q["choice"][0]["lines"][1][0] == "ophelia", q)
 	var last: Array = b["heart"][4]["lines"].back()["choice"]
+	var tape: Array = b["heart"][0]["lines"]
+	_check("moods parse off the speaker", tape[2][0] == "ophelia" and tape[2][2] == ["down", "blush"] and q["choice"][2]["lines"][1][2] == ["sad", "lookaway"], [tape[2], q["choice"][2]["lines"][1]])
 	_check("the last scene's answers carry flags", last.map(func(o): return o["flag"]) == ["together", "later", "friends"], last.map(func(o): return o["flag"]))
 
 	# First talk is her intro: no affection for that.
@@ -104,19 +106,19 @@ func _run() -> void:
 	t.start(oph, 2, true)
 	_check("heart scene plays", t.beat == 10 and t.current_line() == "ophelia: Hey. Mechanic.", t.current_line())
 	for i in 3:
-		t.advance()
+		_adv(t)
 	_check("it stops on a choice", t.options.size() == 3 and t.current_line().begins_with("choice: Scoot over"), t.current_line())
 	var held := t.index
 	t.tick(30.0, oph.global_position)
 	_check("a choice waits for Eco", t.active() and t.index == held and t.options.size() == 3, t.index)
-	t.advance()
+	_adv(t)
 	_check("F doesn't skip a choice", t.options.size() == 3, t.current_line())
 	var before := t.affection("ophelia")
 	t.choose(0)
 	_check("the answer plays, then her reply", t.current_line() == "eco: Scoot over. I'm in charge of the volume.", t.current_line())
-	t.advance()
+	_adv(t)
 	_check("her reply to that answer", t.current_line().begins_with("ophelia: Fine. Don't touch"), t.current_line())
-	t.advance()
+	_adv(t)
 	_check("then the scene goes on", t.current_line().begins_with("ophelia: Track three"), t.current_line())
 	_check("she liked it (+6)", t.affection("ophelia") == before + 6, t.affection("ophelia"))
 	_play_out(t)
@@ -166,7 +168,7 @@ func _run() -> void:
 	_check("kiss: together", Romance.status(t.state, "ophelia") == "together" and Romance.stage(t.state, "ophelia") == "together", Romance.status(t.state, "ophelia"))
 	t.start(oph, 3, true)
 	var first_together: Array = t.bank("ophelia")["together"][0]
-	_check("couple talks replace everyday ones", t.current_line() == "%s: %s" % first_together[0], t.current_line())
+	_check("couple talks replace everyday ones", t.current_line() == "%s: %s" % [first_together[0][0], first_together[0][1]], t.current_line())
 	t.stop()
 	_check("hearts full", Romance.hearts(t.state, "ophelia") == 5.0, Romance.hearts(t.state, "ophelia"))
 	var saved := ConfigFile.new()
@@ -230,7 +232,8 @@ func _hub_keys() -> void:
 	_check("prompt says she wants to talk", run_node.hud.prompt_label.text.ends_with("(wants to talk)"), run_node.hud.prompt_label.text)
 	await _press("interact")
 	for i in 3:
-		await _press("interact")
+		await _press("interact")   # finish the line
+		await _press("interact")   # next
 	await physics_frame
 	_check("hub: a choice is up", talk.options.size() == 3, talk.current_line())
 	_check("hub: the hearts show", talk._hearts.visible and talk._hearts.fill == 0.5, talk._hearts.fill)
@@ -240,8 +243,38 @@ func _hub_keys() -> void:
 	await physics_frame
 	_check("hub: 1 answers", talk.options.is_empty() and talk.current_line().begins_with("eco: Scoot over") and talk.affection("ophelia") == 16, [talk.current_line(), talk.affection("ophelia")])
 	_check("hub: she reacts", talk._reaction.visible and talk._reaction.text == "Ophelia really liked that.", talk._reaction.text)
+	# She blushes and smiles, and it shows on her face.
+	_check("hub: she has a blush pass and head gestures", oph._blush_mats.size() == 1 and oph._head != null and oph._faces.size() > 0, [oph._blush_mats.size(), oph._head])
+	_check("hub: liked answer makes her blush and smile", oph.blush > 0.4 and oph.face == "smile", [oph.blush, oph.face])
+	for i in 30:
+		await process_frame
+	var fun := 0.0
+	for fm in oph._faces:
+		fun = maxf(fun, fm[0].get_blend_shape_value(fm[1]["smile"][0][0]))
+	_check("hub: the smile shows", fun > 0.3, fun)
+	_check("hub: the blush shows", float(oph._blush_mats[0].get_shader_parameter("amount")) > 0.3, oph._blush_mats[0].get_shader_parameter("amount"))
+	# Her reply line: smile and tilt, held until her mood changes.
+	await _press("interact")
+	await _press("interact")
+	await physics_frame
+	_check("hub: a line's moods play", talk.current_line().begins_with("ophelia: Fine") and oph.gesture == "tilt", [talk.current_line(), oph.gesture])
+	var skel: Skeleton3D = oph.find_child("Skeleton3D", true, false)
+	var head := skel.find_bone("J_Bip_C_Head")
+	var still := skel.get_bone_global_pose(head).basis
+	for i in 40:
+		await process_frame
+	var tilted := skel.get_bone_global_pose(head).basis
+	_check("hub: her head tilts", still.get_rotation_quaternion().angle_to(tilted.get_rotation_quaternion()) > 0.08 or tilted.y.angle_to(Vector3.UP) > 0.1, tilted.y.angle_to(Vector3.UP))
 	talk.stop()
+	_check("hub: calm once the talk ends", oph.face == "" and oph.gesture == "", [oph.face, oph.gesture])
 	run_node.queue_free()
+
+
+## F twice: finish the line being said, then on to the next.
+func _adv(t: NpcTalk) -> void:
+	if t.active() and t.options.is_empty():
+		t._text.visible_characters = -1
+	t.advance()
 
 
 func _flat(conv: Array) -> Array:

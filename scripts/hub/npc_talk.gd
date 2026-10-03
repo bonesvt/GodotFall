@@ -1,8 +1,9 @@
 extends CanvasLayer
 ## Conversations between Eco and the people in the hub. Press F by one of them
-## (run_manager.gd) and they talk: each line is voiced (assets/audio/voice/npc/,
-## made by tools/npc/voices.py) and captioned at the bottom of the screen.
-## F skips to the next line; walking away ends it.
+## (run_manager.gd) and they talk: each line is babbled in the speaker's voice,
+## Animal Crossing style (babble.gd), while its caption types out at the
+## bottom of the screen. F finishes the line, or skips to the next once it's
+## all there; walking away ends it.
 ##
 ## The words live in dialogue/npc/<who>.txt: [intro] the first time Eco talks
 ## to them, [won] / [lost] once after each run that ended that way, otherwise
@@ -21,13 +22,12 @@ extends CanvasLayer
 signal finished(who: String)
 signal affection_changed(who: String, value: int, delta: int)
 
+const Babble := preload("res://scripts/hub/babble.gd")
 const DIALOGUE_DIR := "res://dialogue/npc/"
-const VOICE_DIR := "res://assets/audio/voice/npc/"
 const DEFAULT_PATH := "user://hub_npcs.cfg"
 const Romance := preload("res://scripts/hub/romance.gd")
-## Pause after each line, and how long a line with no voice file stays up.
-const GAP := 0.35
-const WORDS_PER_SEC := 2.6
+## How long a line stays up after it's all been said.
+const GAP := 0.9
 ## Walk this far (m) from whoever you're talking to and the talk ends.
 const LEAVE_RANGE := 5.5
 
@@ -41,6 +41,9 @@ var npc: Node3D
 var lines: Array = []
 var index := -1
 var line_left := 0.0
+## When each character of the line is said (Babble.make), and time into the line.
+var _times := PackedFloat32Array()
+var _line_t := 0.0
 var _eco_voice: AudioStreamPlayer
 var _panel: PanelContainer
 var _name: Label
@@ -79,7 +82,7 @@ func active() -> bool:
 static func parse(text: String) -> Dictionary:
 	var bank := {"any": [], "together": [], "heart": [], "date": {}, "gift": {}}
 	var cur: Array = []
-	var choice_re := RegEx.create_from_string("^choice\\s*([+-]?\\d+)?\\s*(?:!(\\w+))?\\s*:\\s*(\\w+)\\s*:\\s*(.+)$")
+	var choice_re := RegEx.create_from_string("^choice\\s*([+-]?\\d+)?\\s*(?:!(\\w+))?\\s*:\\s*(\\w+(?:\\s*\\([^)]*\\))?)\\s*:\\s*(.+)$")
 	for raw in text.split("\n"):
 		var line := raw.strip_edges()
 		if line == "" or line.begins_with("#"):
@@ -105,20 +108,36 @@ static func parse(text: String) -> Dictionary:
 			cur.back()["choice"].append({
 				"delta": int(m.get_string(1)) if m.get_string(1) != "" else 0,
 				"flag": m.get_string(2),
-				"lines": [[m.get_string(3), m.get_string(4).strip_edges()]],
+				"lines": [_line(m.get_string(3), m.get_string(4))],
 			})
 			continue
 		if line.begins_with(">"):
 			line = line.substr(1).strip_edges()
 			var c := line.find(":")
 			if c > 0 and not cur.is_empty() and cur.back() is Dictionary:
-				cur.back()["choice"].back()["lines"].append([line.substr(0, c).strip_edges(), line.substr(c + 1).strip_edges()])
+				cur.back()["choice"].back()["lines"].append(_line(line.substr(0, c), line.substr(c + 1)))
 			continue
 		var colon := line.find(":")
 		if colon > 0:
-			cur.append([line.substr(0, colon).strip_edges(), line.substr(colon + 1).strip_edges()])
+			cur.append(_line(line.substr(0, colon), line.substr(colon + 1)))
 	bank["heart"].sort_custom(func(a, b): return a["at"] < b["at"])
 	return bank
+
+
+## One line: [speaker, text], or [speaker, text, moods] when the speaker has
+## moods in brackets, "ophelia (shy, tilt): ...". Moods are always the face
+## of the person Eco is talking to, whoever speaks (hub_npc.gd mood()), and
+## hold until a line with other moods (or "plain").
+static func _line(speaker: String, text: String) -> Array:
+	speaker = speaker.strip_edges()
+	text = text.strip_edges()
+	var open := speaker.find("(")
+	if open < 0:
+		return [speaker, text]
+	var moods := []
+	for w in speaker.substr(open + 1).trim_suffix(")").split(",", false):
+		moods.append(w.strip_edges())
+	return [speaker.substr(0, open).strip_edges(), text, moods]
 
 
 func bank(who: String) -> Dictionary:
@@ -241,10 +260,17 @@ func give_gift(p_npc: Node3D, gift: String, run_id: int) -> int:
 	return delta
 
 
-## F: on to the next line now (not while Eco has to answer).
+## F: finish the line if it's still being said, else on to the next (not
+## while Eco has to answer).
 func advance() -> void:
-	if active() and options.is_empty():
-		_next()
+	if not active() or not options.is_empty():
+		return
+	if _text.visible_characters >= 0 and _text.visible_characters < _text.text.length():
+		_text.visible_characters = -1
+		_line_t = INF
+		line_left = minf(line_left, GAP)
+		return
+	_next()
 
 
 ## Eco's answer to the question on screen (0-based). Its lines play next.
@@ -277,6 +303,8 @@ func stop() -> void:
 			Romance.apply_flag(state, who, "later", beat)
 			state.save(save_path)
 		npc.hush()
+		if npc.has_method("calm"):
+			npc.calm()
 		npc = null
 		_eco_voice.stop()
 		_panel.visible = false
@@ -290,10 +318,6 @@ func stop() -> void:
 		_options.visible = false
 
 
-static func voice_path(speaker: String, text: String) -> String:
-	return VOICE_DIR + ("%s|%s" % [speaker, text]).sha1_text() + ".ogg"
-
-
 func _next() -> void:
 	index += 1
 	if index >= lines.size():
@@ -304,11 +328,13 @@ func _next() -> void:
 		return
 	var speaker: String = lines[index][0]
 	var text: String = lines[index][1]
-	var path := voice_path(speaker, text)
-	var stream: AudioStream = load(path) if ResourceLoader.exists(path) else null
-	var length := float(text.split(" ", false).size()) / WORDS_PER_SEC + 0.6
-	if stream != null:
-		length = stream.get_length()
+	if lines[index].size() > 2 and npc.has_method("mood"):
+		npc.mood(lines[index][2])
+	var babble := Babble.make(speaker, text)
+	var stream: AudioStream = babble["stream"]
+	_times = babble["times"]
+	_line_t = 0.0
+	var length: float = babble["length"]
 	_eco_voice.stop()
 	if speaker == "eco":
 		npc.hush()
@@ -323,6 +349,7 @@ func _next() -> void:
 	_name.add_theme_color_override("font_color", COLORS.get(speaker, Color.WHITE))
 	_text.text = text
 	_text.visible = true
+	_text.visible_characters = 0
 	_hint.text = "[F] next"
 	_panel.visible = true
 
@@ -338,6 +365,12 @@ func tick(delta: float, pilot: Vector3) -> void:
 	if not options.is_empty():
 		return   # waiting on Eco's answer
 	line_left -= delta
+	_line_t += delta
+	if _text.visible_characters >= 0:
+		var shown := 0
+		while shown < _times.size() - 1 and _times[shown] <= _line_t:
+			shown += 1
+		_text.visible_characters = -1 if shown >= _text.text.length() else shown
 	if line_left <= 0.0:
 		_next()
 
@@ -349,7 +382,7 @@ func current_line() -> String:
 		return ""
 	if not options.is_empty():
 		return "choice: " + " | ".join(PackedStringArray(options.map(func(o): return o["lines"][0][1])))
-	return "%s: %s" % lines[index]
+	return "%s: %s" % [lines[index][0], lines[index][1]]
 
 
 func _process(delta: float) -> void:
@@ -402,6 +435,23 @@ func _react(who: String, delta: int, flag: String) -> void:
 				text = "%s liked that." % name
 			elif delta < 0:
 				text = "%s didn't like that." % name
+	if npc.has_method("mood"):
+		match flag:
+			"together":
+				npc.mood(["fluster", "joy"])
+			"friends":
+				npc.mood(["sad", "down"])
+			"later":
+				npc.mood(["shy"])
+			_:
+				if delta >= 6:
+					npc.mood(["blush", "smile"])
+				elif delta > 0:
+					npc.mood(["smile"])
+				elif delta <= -5:
+					npc.mood(["angry"])
+				elif delta < 0:
+					npc.mood(["sad"])
 	if text == "":
 		return
 	_reaction.text = text

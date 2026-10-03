@@ -1,7 +1,8 @@
 extends SceneTree
 ## Screenshots of the workbenches, their screens, the guns in hand and the
 ## loot out in the forest, for checking the look.
-##   xvfb-run -a godot --path . -s res://tools/hub/bench_shots.gd -- [out_dir]
+##   xvfb-run -a godot --path . -s res://tools/hub/bench_shots.gd -- [out_dir] [gunsmith]
+## "gunsmith" shoots only the gunsmith screen (much quicker).
 ## Needs a renderer (not --headless). Uses its own armory save, stocked up.
 
 const Armory := preload("res://scripts/hub/armory.gd")
@@ -9,60 +10,75 @@ const PATH := "user://shots_armory.cfg"
 
 var run_node
 var out := "user://bench_shots"
+var only_gunsmith := false
 
 
 func _initialize() -> void:
 	var args := OS.get_cmdline_user_args()
 	if args.size() > 0:
 		out = args[0]
+	only_gunsmith = "gunsmith" in args
 	DirAccess.make_dir_recursive_absolute(out)
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(PATH))
 	var a = Armory.open(PATH)
 	a.stash = {"scrap": 2000, "alloy": 400, "circuits": 80, "lock_cores": 6}
-	a.buy_weapon("rivet_cannon")
-	a.buy_weapon("machine_pistol")
 	a.fit("rivet_cannon", "muzzle", "compensator")
 	a.fit("rivet_cannon", "grip", "skeleton")
 	a.set_finish("rivet_cannon", "midnight")
 	a.fit("smart_pistol", "muzzle", "long_barrel")
 	a.fit("smart_pistol", "mag", "extended")
-	a.buy_upgrade("smart_pistol", "calibre")
+	a.buy_refit("kit", "scrap")  # level 2: the heavy revolver is one upgrade off
 	a.set_start_part("chassis", "atlas")
 	a.set_start_part("weapon", "xo16")
 	a.equip("smart_pistol")
 	root.size = Vector2i(1600, 900)
+	# No tutorial cards in the shots, and none marked seen on your save.
+	preload("res://scripts/run/tutorial.gd").settings_path = "user://shots_settings.cfg"
 	run_node = load("res://scenes/run.tscn").instantiate()
 	run_node.run_seed = 1234
 	run_node.armory_path = PATH
 	root.add_child(run_node)
+	run_node.tutorial.set_enabled(false)
 	_go.call_deferred()
 
 
 func _go() -> void:
 	await _frames(20)
+	if only_gunsmith:
+		await _gunsmith_shots()
+		quit()
+		return
 	await _shot("1-gunsmith-bench", Vector3(8.2, 1.2, 1.2), Vector3(11, 2.0, 0.4))
 	await _shot("2-weapon-rack", Vector3(8.0, 1.2, -3.4), Vector3(11, 2.5, -3.4))
 	await _shot("3-workshop", Vector3(-13, 0.2, 33), Vector3(-16, 3.5, 47))
-	run_node.open_bench("gunsmith")
-	await _frames(12)
-	await _save("4-screen-gunsmith-upgrades")
-	run_node.bench.switch_tab(1)
-	run_node.bench.select(0)
-	run_node.bench.step(1)
-	await _frames(12)
-	await _save("5-screen-gunsmith-attachments")
-	run_node.close_bench()
+	await _gunsmith_shots()
 	run_node.open_bench("rack")
 	run_node.bench.select(1)
 	await _frames(12)
-	await _save("6-screen-rack")
+	await _save("6-screen-rack-locked")
 	run_node.close_bench()
 	run_node.open_bench("workshop")
 	await _frames(12)
 	await _save("7-screen-workshop")
+	# Refits level Eco up: 3 unlocks the heavy revolver, 6 the auto handgun.
 	run_node.bench.switch_tab(1)
+	run_node.bench.select(0)
+	run_node.bench.confirm()
 	await _frames(8)
-	await _save("8-screen-refits")
+	await _save("8-screen-refits-level-3")
+	run_node.bench.confirm()
+	run_node.bench.confirm()
+	run_node.bench.select(1)
+	run_node.bench.confirm()
+	await _frames(8)
+	await _save("8b-screen-refits-level-6")
+	run_node.close_bench()
+	await _frames(4)
+	await _shot("8c-weapon-rack-unlocked", Vector3(8.0, 1.2, -3.4), Vector3(11, 2.5, -3.4))
+	run_node.open_bench("rack")
+	run_node.bench.select(1)
+	await _frames(12)
+	await _save("6b-screen-rack-unlocked")
 	run_node.close_bench()
 	# Guns in hand.
 	for id in ["rivet_cannon", "machine_pistol"]:
@@ -134,6 +150,41 @@ func _save(name: String) -> void:
 	await _frames(2)
 	root.get_viewport().get_texture().get_image().save_png(out.path_join(name + ".png"))
 	print("shot ", name)
+
+
+## The gunsmith: the pistol in 3D with its part markers, a part picked, a
+## locked grip tried on, then the other two guns once a level up unlocks them.
+func _gunsmith_shots() -> void:
+	run_node.open_bench("gunsmith")
+	await _frames(12)
+	await _save("4-screen-gunsmith")
+	run_node.bench.select_part("muzzle")
+	run_node.bench._yaw += 0.9
+	await _frames(8)
+	await _save("5-screen-gunsmith-muzzle")
+	run_node.bench.select_part("grip")
+	run_node.bench.choose(run_node.bench.options.map(func(o): return o["id"]).find("wrap"))
+	run_node.bench._yaw -= 1.6
+	run_node.bench._pitch = 0.25
+	await _frames(8)
+	await _save("5a-screen-gunsmith-grip-preview")
+	run_node.close_bench()
+	var a = run_node.armory
+	var saved: Dictionary = a.refits.duplicate(true)
+	a.refits["shot:levels"] = 6  # level 7 for the shots, put back after
+	run_node.open_bench("gunsmith")
+	a.buy_upgrade("rivet_cannon", "punch_through")
+	a.buy_upgrade("machine_pistol", "hot_streak")
+	run_node.bench.select_weapon("rivet_cannon")
+	run_node.bench.select_part("barrel")
+	await _frames(12)
+	await _save("5b-screen-gunsmith-revolver")
+	run_node.bench.select_weapon("machine_pistol")
+	run_node.bench.select_part("barrel")
+	await _frames(12)
+	await _save("5c-screen-gunsmith-auto-handgun")
+	run_node.close_bench()
+	a.refits = saved
 
 
 func _frames(n: int) -> void:

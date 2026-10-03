@@ -1,20 +1,12 @@
-[gd_resource type="ShaderMaterial" load_steps=4 format=3]
+[gd_resource type="ShaderMaterial" load_steps=2 format=3]
 
-[ext_resource type="Shader" path="res://assets/shaders/ps2_surface.gdshader" id="1_shader"]
-[ext_resource type="Texture2D" path="res://assets/textures/gunmetal.png" id="2_tex"]
-[ext_resource type="Texture2D" path="res://assets/textures/gunmetal_n.png" id="3_n"]
+[ext_resource type="Shader" path="res://assets/shaders/eco_toon.gdshader" id="1_shader"]
 
 [resource]
 resource_name = "grunt_metal"
+render_priority = 0
 shader = ExtResource("1_shader")
-shader_parameter/albedo_tex = ExtResource("2_tex")
-shader_parameter/tex_scale = 5.0
-shader_parameter/world_space = false
-shader_parameter/albedo = Color(1.0, 1.0, 1.0, 1)
-shader_parameter/light_wrap = 0.35
-shader_parameter/light_softness = 0.35
-shader_parameter/vertex_ao = 1.0
-shader_parameter/gloss = 0.4
-shader_parameter/gloss_sharpness = 0.7
-shader_parameter/normal_tex = ExtResource("3_n")
-shader_parameter/metallic = 0.9
+shader_parameter/albedo = Color(0.58, 0.6, 0.66, 1)
+shader_parameter/exposure = 0.62
+shader_parameter/shade_tint = Vector3(0.62, 0.62, 0.8)
+shader_parameter/sheen = 0.4

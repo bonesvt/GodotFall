@@ -349,8 +349,8 @@ func stab() -> bool:
 
 ## The enemy the blade would hit right now, or null.
 func find_target() -> Node3D:
-	var cam: Camera3D = player.camera
-	var from := cam.global_position
+	# From her eyes, not the camera: in third person it hangs metres behind her.
+	var from: Vector3 = player.head.global_position
 	var fwd: Vector3 = -player.head.global_basis.z
 	var best: Node3D = null
 	var best_d := INF

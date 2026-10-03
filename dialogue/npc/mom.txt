@@ -4,7 +4,7 @@
 # One conversation per [block]. [intro] plays the first time Eco talks to her,
 # [won] / [lost] the first time after a run ends that way, then the [any]
 # blocks take turns. Each line is "speaker: words"; speakers are mom and eco.
-# Voices: tools/npc/voices.py turns every line into assets/audio/voice/npc/.
+# Voices: no recorded speech. scripts/hub/babble.gd sings each line as Animal Crossing-style babble in the speaker's own voice.
 
 [intro]
 mom: There you are. You were gone two days this time, Eco. Two.
