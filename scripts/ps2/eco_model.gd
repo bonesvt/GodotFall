@@ -14,6 +14,11 @@ extends "res://scripts/ps2/ps2_model.gd"
 @export var run_speed := 6.0
 ## Above this ground speed she runs instead of walking.
 @export var run_threshold := 3.2
+## Ground speed (m/s) the strut is authored at: off duty (player.gd strolling)
+## she walks with the walk animation plus the strut layered on top (_strut).
+@export var strut_speed := 1.55
+## How much strut to layer on the walk (1 = as tuned, 0 = a plain walk).
+@export_range(0.0, 2.0) var strut := 1.0
 ## Simulate the spring bones (hair, chest and glute jiggle).
 @export var springs_enabled := true
 ## How far her chest and glutes may bounce (1 = as tuned, 0 = not at all).
@@ -78,6 +83,13 @@ var skeleton: Skeleton3D
 var _anim: AnimationPlayer
 var _springs: Array[Dictionary] = []
 var _last_origin := Vector3.ZERO
+## Strut and off-duty stance blend in and out over a moment (0..1).
+var _strut_weight := 0.0
+var _pose_weight := 0.0
+var _bones := {}
+## What the strut changed last frame (bone -> [pose before, pose after]), so it
+## can be undone when nothing re-posed the bone since (a paused animation).
+var _strut_undo := {}
 
 
 func _ready() -> void:
@@ -101,6 +113,9 @@ func _ready() -> void:
 		# parents before children, so a lock's second joint follows its root
 		_springs.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return a["bone"] < b["bone"])
 		_last_origin = skeleton.global_position
+		for bone_name: String in STRUT_BONES:
+			_bones[bone_name] = skeleton.find_bone(STRUT_BONES[bone_name])
+		_bones["hips_at"] = _bones["hips"]
 	set_process(_anim != null or not _springs.is_empty())
 	apply_suit()
 	if _anim != null and idle_motion:
@@ -181,13 +196,22 @@ func pick_animation() -> Array:
 	if speed > run_threshold:
 		return ["run", speed / run_speed]
 	if speed > 0.3:
+		if strolling():
+			# a longer, more deliberate stride as she speeds up
+			return ["walk", speed / maxf(strut_speed, speed * 0.8)]
 		return ["walk", speed / walk_speed]
 	return ["idle", 1.0]
+
+
+## Whether she's off duty (the player's strolling flag: the hub and town).
+func strolling() -> bool:
+	return _body != null and _body.get("strolling") == true
 
 
 func _process(delta: float) -> void:
 	if _anim != null:
 		_animate()
+		_strut(delta)
 	if springs_enabled and skeleton != null:
 		_step_springs(delta)
 
@@ -203,6 +227,108 @@ func _animate() -> void:
 		var blend := 0.12 if anim_name in ["slide", "fall"] else 0.25
 		_anim.play(anim_name, blend)
 	_anim.speed_scale = pick[1]
+
+
+## Bones the strut moves (skeleton names), applied parents first.
+const STRUT_BONES := {
+	"hips": "J_Bip_C_Hips", "spine": "J_Bip_C_Spine", "chest": "J_Bip_C_Chest", "head": "J_Bip_C_Head",
+	"thigh.R": "J_Bip_R_UpperLeg", "thigh.L": "J_Bip_L_UpperLeg", "shin.L": "J_Bip_L_LowerLeg",
+	"upperarm.R": "J_Bip_R_UpperArm", "upperarm.L": "J_Bip_L_UpperArm",
+	"forearm.R": "J_Bip_R_LowerArm", "forearm.L": "J_Bip_L_LowerArm",
+	"hand.R": "J_Bip_R_Hand", "hand.L": "J_Bip_L_Hand",
+}
+
+
+## Off duty she struts: layered over the walk (in step with it), her hips sway
+## out over each standing leg and roll up on that side, each foot lands in
+## front of the other, her shoulders sit back and counter the hips, her arms
+## swing loose with the wrists flicked out, chin up. Standing still she rests
+## her weight on one hip. In skeleton space she faces -Z, her right is +X.
+func _strut(delta: float) -> void:
+	if skeleton == null or _bones.is_empty():
+		return
+	for key: String in _strut_undo:
+		var i: int = _bones[key]
+		var undo: Array = _strut_undo[key]
+		if key == "hips_at":
+			if skeleton.get_bone_pose_position(i).is_equal_approx(undo[1]):
+				skeleton.set_bone_pose_position(i, undo[0])
+		elif skeleton.get_bone_pose_rotation(i).is_equal_approx(undo[1]):
+			skeleton.set_bone_pose_rotation(i, undo[0])
+	_strut_undo.clear()
+	var off_duty := strolling() and strut > 0.0
+	var walking := off_duty and _anim.current_animation == "walk"
+	var standing := off_duty and _anim.current_animation == "idle"
+	_strut_weight = move_toward(_strut_weight, 1.0 if walking else 0.0, delta * 4.0)
+	_pose_weight = move_toward(_pose_weight, 1.0 if standing else 0.0, delta * 2.0)
+	if _strut_weight <= 0.0 and _pose_weight <= 0.0:
+		return
+	var w := _strut_weight * strut
+	var p := _pose_weight * strut
+	# the walk's own phase: its right thigh swings forward with sin(t)
+	var t := 0.0
+	if _anim.current_animation == "walk" and _anim.current_animation_length > 0.0:
+		t = _anim.current_animation_position / _anim.current_animation_length * TAU
+	var sw := sin(t)
+	var stance := -cos(t)  # +1 her weight on her right leg, -1 on her left
+	# hips: shift over the standing leg, roll up on its side, twist with the stride
+	var shift := 0.045 * stance * w + 0.055 * p
+	var roll := 9.0 * stance * w + 8.0 * p
+	_offset_hips(Vector3(shift, -0.012 * absf(stance) * w - 0.02 * p, 0.0))
+	_turn("hips", Vector3.BACK, roll)
+	_turn("hips", Vector3.UP, 7.0 * sw * w - 6.0 * p)
+	# legs: back to upright under the rolled hips, then crossed in toward the line
+	# she walks (most as each foot reaches forward, least as the legs pass)
+	var reach := 0.35 + 0.65 * absf(sw)
+	var lean := rad_to_deg(atan(shift / 0.88))
+	_turn("thigh.R", Vector3.BACK, -roll - lean - 4.5 * reach * w)
+	_turn("thigh.L", Vector3.BACK, -roll - lean + 4.5 * reach * w + 4.0 * p)
+	_turn("thigh.R", Vector3.RIGHT, 4.0 * sw * w)
+	_turn("thigh.L", Vector3.RIGHT, -4.0 * sw * w + 10.0 * p)
+	_turn("shin.L", Vector3.RIGHT, -18.0 * p)  # standing: her free knee bends in
+	# torso: upright, shoulders back, countering the hips so her head stays level
+	_turn("spine", Vector3.RIGHT, 2.0 * w + 1.0 * p)
+	_turn("chest", Vector3.BACK, -0.75 * roll)
+	_turn("chest", Vector3.UP, -6.0 * sw * w + 4.0 * p)
+	_turn("chest", Vector3.RIGHT, 3.0 * (w + p))
+	_turn("head", Vector3.BACK, -0.2 * roll + 4.0 * p)
+	_turn("head", Vector3.RIGHT, 3.0 * (w + p))
+	# arms: a looser, smaller swing kept a little behind her, elbows soft, wrists flicked out
+	_turn("upperarm.R", Vector3.RIGHT, 7.0 * sw * w - 4.0 * w)
+	_turn("upperarm.L", Vector3.RIGHT, -7.0 * sw * w - 4.0 * w)
+	_turn("upperarm.R", Vector3.BACK, 4.0 * w + 6.0 * p)
+	_turn("upperarm.L", Vector3.BACK, -4.0 * w - 2.0 * p)
+	_turn("forearm.R", Vector3.RIGHT, 10.0 * w + 8.0 * p)
+	_turn("forearm.L", Vector3.RIGHT, 10.0 * w + 6.0 * p)
+	_turn("hand.R", Vector3.BACK, 14.0 * (w + p))
+	_turn("hand.L", Vector3.BACK, -14.0 * (w + p))
+
+
+## Rotates a bone about a skeleton-space axis through its joint, on top of its
+## current pose (like tools/eco/build_eco_vroid.py turn()).
+func _turn(bone: String, axis: Vector3, deg: float) -> void:
+	var i: int = _bones.get(bone, -1)
+	if i < 0 or absf(deg) < 0.01:
+		return
+	var parent := skeleton.get_bone_parent(i)
+	var parent_basis := skeleton.get_bone_global_pose(parent).basis.orthonormalized() if parent >= 0 else Basis()
+	var before := skeleton.get_bone_pose_rotation(i)
+	var turned := (parent_basis.inverse() * Basis(axis, deg_to_rad(deg)) * parent_basis * Basis(before)).get_rotation_quaternion()
+	skeleton.set_bone_pose_rotation(i, turned)
+	_strut_undo[bone] = [_strut_undo[bone][0] if _strut_undo.has(bone) else before, turned]
+
+
+## Moves her hips (and everything on them) by a skeleton-space offset.
+func _offset_hips(offset: Vector3) -> void:
+	var i: int = _bones.get("hips", -1)
+	if i < 0:
+		return
+	var parent := skeleton.get_bone_parent(i)
+	var parent_basis := skeleton.get_bone_global_pose(parent).basis if parent >= 0 else Basis()
+	var before := skeleton.get_bone_pose_position(i)
+	var moved := before + parent_basis.inverse() * offset
+	skeleton.set_bone_pose_position(i, moved)
+	_strut_undo["hips_at"] = [before, moved]
 
 
 func _step_springs(delta: float) -> void:

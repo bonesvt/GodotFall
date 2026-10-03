@@ -21,6 +21,10 @@ signal second_winded
 @export var run_speed := 7.0
 @export var sprint_speed := 10.5
 @export var crouch_speed := 3.5
+## Off duty (the hub and the town, away from the training grounds) Eco doesn't
+## run: she struts. Ground speed then, and with sprint held.
+@export var stroll_speed := 1.9
+@export var stroll_brisk_speed := 3.0
 ## Running is snappy: you hit full speed and stop dead in a few frames.
 ## Momentum is carried by sliding, wallrunning and the grapple, not by running.
 @export var ground_accel := 110.0
@@ -134,6 +138,10 @@ var grapple_cooldown_timer := 0.0
 var crouching := false
 ## Ground speed multiplier (Eco runs lighter with only the knife out).
 var speed_mult := 1.0
+## Off duty: she walks at stroll_speed with a strut (eco_model.gd) instead of
+## running. The run manager sets it each tick in the hub and town, and clears
+## it on the training grounds and on runs.
+var strolling := false
 var cam_roll := 0.0
 var input_dir := Vector2.ZERO
 var wish_dir := Vector3.ZERO
@@ -273,6 +281,9 @@ func _ground_state(delta: float) -> void:
 
 	var sprinting := (auto_sprint or Input.is_action_pressed("sprint")) and input_dir.y < -0.3
 	var target := (crouch_speed if crouching else (sprint_speed if sprinting else run_speed)) * speed_mult * suit_speed
+	if strolling:
+		var brisk := Input.is_action_pressed("sprint") and input_dir.y < -0.3  # auto sprint doesn't apply
+		target = minf(crouch_speed, stroll_speed) if crouching else (stroll_brisk_speed if brisk else stroll_speed)
 	hvel = _ground_move(hvel, target, delta)
 
 	velocity.x = hvel.x
