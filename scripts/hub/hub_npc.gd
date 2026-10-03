@@ -53,7 +53,7 @@ func _ready() -> void:
 	voice.name = "Voice"
 	voice.position = Vector3(0, 1.6, 0)
 	voice.unit_size = 6.0
-	voice.bus = "Master"
+	voice.bus = "Voices"
 	add_child(voice)
 
 

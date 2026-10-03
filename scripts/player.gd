@@ -7,6 +7,7 @@ extends CharacterBody3D
 enum State { GROUND, AIR, SLIDE, WALLRUN, GRAPPLE }
 
 const SFX := preload("res://scripts/sfx.gd")
+const Prefs := preload("res://scripts/game/prefs.gd")
 ## Metres between footsteps on the ground and when running along a wall.
 const STRIDE := 2.4
 const WALL_STRIDE := 1.9
@@ -192,6 +193,9 @@ static func ensure_input_actions() -> void:
 		"reload": [KEY_R], "reset_arena": [KEY_G], "inspect": [KEY_I], "melee": [KEY_Z], "fire": [],
 		"toggle_view": [KEY_F5],
 	}
+	var buttons := {"grapple": [MOUSE_BUTTON_RIGHT], "fire": [MOUSE_BUTTON_LEFT], "melee": [MOUSE_BUTTON_XBUTTON1]}
+	# Only actions that don't exist yet get their defaults, so keys rebound in
+	# the settings (prefs.gd) stay rebound.
 	for action in keys:
 		if InputMap.has_action(action):
 			continue
@@ -200,15 +204,10 @@ static func ensure_input_actions() -> void:
 			var ev := InputEventKey.new()
 			ev.physical_keycode = key
 			InputMap.action_add_event(action, ev)
-	var rmb := InputEventMouseButton.new()
-	rmb.button_index = MOUSE_BUTTON_RIGHT
-	InputMap.action_add_event("grapple", rmb)
-	var lmb := InputEventMouseButton.new()
-	lmb.button_index = MOUSE_BUTTON_LEFT
-	InputMap.action_add_event("fire", lmb)
-	var thumb := InputEventMouseButton.new()
-	thumb.button_index = MOUSE_BUTTON_XBUTTON1
-	InputMap.action_add_event("melee", thumb)
+		for button in buttons.get(action, []):
+			var mb := InputEventMouseButton.new()
+			mb.button_index = button
+			InputMap.action_add_event(action, mb)
 
 
 func _ready() -> void:
@@ -224,8 +223,8 @@ func _ready() -> void:
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
-		rotate_y(-event.relative.x * mouse_sensitivity)
-		head.rotation.x = clampf(head.rotation.x - event.relative.y * mouse_sensitivity, -1.55, 1.55)
+		rotate_y(-Prefs.look_x(event.relative.x) * mouse_sensitivity)
+		head.rotation.x = clampf(head.rotation.x - Prefs.look_y(event.relative.y) * mouse_sensitivity, -1.55, 1.55)
 	elif event.is_action_pressed("ui_cancel"):
 		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	elif event is InputEventMouseButton and event.pressed and Input.mouse_mode != Input.MOUSE_MODE_CAPTURED:
@@ -682,7 +681,7 @@ func _update_camera(delta: float) -> void:
 	camera.rotation.z = cam_roll
 
 	var t := clampf((horizontal_speed() - run_speed) / (22.0 - run_speed), 0.0, 1.0)
-	camera.fov = lerpf(camera.fov, base_fov + speed_fov_bonus * t, 1.0 - exp(-6.0 * delta))
+	camera.fov = lerpf(camera.fov, base_fov + Prefs.fov_offset() + speed_fov_bonus * t, 1.0 - exp(-6.0 * delta))
 
 
 func _build_rope() -> void:
