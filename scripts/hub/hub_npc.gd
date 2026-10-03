@@ -28,6 +28,7 @@ const OUTFITS := {
 
 const NpcSprings := preload("res://scripts/hub/npc_springs.gd")
 const Hair := preload("res://scripts/hub/hair.gd")
+const Wardrobe := preload("res://scripts/hub/wardrobe.gd")
 
 var who := ""
 var outfit := ""
@@ -198,12 +199,15 @@ func calm() -> void:
 	mood(rest_mood)
 
 
-## Puts on their outfit for run number `run` (the same all through a stay in
-## the hub, a different one after each run).
+## Puts on their outfit for run number `run`: the one picked for them at
+## Eco's wardrobe (wardrobe.gd), or else the same all through a stay in the
+## hub and a different one after each run.
 func wear_for_run(run: int) -> void:
 	var list: Array = OUTFITS.get(who, [])
-	if not list.is_empty():
-		wear(list[run % list.size()])
+	if list.is_empty():
+		return
+	var pick := Wardrobe.choice(who)
+	wear(pick if list.has(pick) else list[run % list.size()])
 
 
 func wear(p_outfit: String) -> void:
