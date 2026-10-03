@@ -63,6 +63,8 @@ const HAIR_TIP := {"stiffness": 0.12, "drag": 0.2, "gravity": 0.6, "limit": 20.0
 const FRINGE := {"stiffness": 0.16, "drag": 0.22, "gravity": 0.5, "limit": 12.0, "inertia": 0.35}
 const FRINGE_TIP := {"stiffness": 0.14, "drag": 0.22, "gravity": 0.5, "limit": 10.0, "inertia": 0.35}
 const BUST := {"stiffness": 0.14, "drag": 0.08, "gravity": 0.15, "limit": 24.0, "inertia": 0.2, "jiggle": true}
+# the back hair chains below the nape: only the salon's long cuts (braids, ponytail; scripts/hub/hair.gd) hang from them
+const BRAID := {"stiffness": 0.1, "drag": 0.16, "gravity": 0.9, "limit": 28.0, "inertia": 0.5}
 const GLUTE := {"stiffness": 0.18, "drag": 0.09, "gravity": 0.15, "limit": 18.0, "inertia": 0.2, "jiggle": true}
 const SPRINGS := {
 	# locks 01-02 hang at the back, 03-04 at the sides, 05-09 are the fringe;
@@ -73,6 +75,8 @@ const SPRINGS := {
 	"J_Sec_Hair1_09": FRINGE,
 	"J_Sec_Hair2_05": FRINGE_TIP, "J_Sec_Hair2_06": FRINGE_TIP, "J_Sec_Hair2_07": FRINGE_TIP,
 	"J_Sec_Hair2_08": FRINGE_TIP, "J_Sec_Hair2_09": FRINGE_TIP,
+	"J_Sec_Hair2_01": BRAID, "J_Sec_Hair2_02": BRAID, "J_Sec_Hair3_01": BRAID, "J_Sec_Hair3_02": BRAID,
+	"J_Sec_Hair4_01": BRAID, "J_Sec_Hair4_02": BRAID,
 	"J_Sec_L_Bust1": BUST, "J_Sec_R_Bust1": BUST,
 	"J_Sec_L_Glute1": GLUTE, "J_Sec_R_Glute1": GLUTE,
 }
@@ -83,6 +87,7 @@ const LIGHT_BODY := preload("res://assets/materials/eco/eco_v_body_light.tres")
 const MEDIUM_BODY := preload("res://assets/materials/eco/eco_v_body_medium.tres")
 const HEAVY_BODY := preload("res://assets/materials/eco/eco_v_body_heavy.tres")
 const EcoRest := preload("res://scripts/ps2/eco_rest.gd")
+const Hair := preload("res://scripts/hub/hair.gd")
 ## Her face while she sleeps (blend shape -> weight); the import's fierce look
 ## comes back when she wakes.
 const ASLEEP_FACE := {"Fcl_EYE_Close": 1.0, "Fcl_EYE_Angry": 0.0, "Fcl_BRW_Angry": 0.25, "Fcl_MTH_Down": 0.0}
@@ -135,6 +140,7 @@ func _ready() -> void:
 		if not _rest.usable():
 			_rest = null
 	_face = find_child("Face", true, false) as MeshInstance3D
+	Hair.apply(self, "eco")  # her haircut from the salon in Solace
 	set_process(_anim != null or not _springs.is_empty())
 	apply_suit()
 	if _anim != null and idle_motion:
@@ -388,6 +394,16 @@ func _offset_hips(offset: Vector3) -> void:
 	var moved := before + parent_basis.inverse() * offset
 	skeleton.set_bone_pose_position(i, moved)
 	_strut_undo["hips_at"] = [before, moved]
+
+
+## Shoves her chest and glute springs by a world-space offset (metres at the
+## spring's tip), as if her body had jolted the other way: they swing out and
+## bounce back. The first-person body (scripts/eco_fp_body.gd) uses it so jumps,
+## landings and quick looks read on screen.
+func nudge(push: Vector3) -> void:
+	for s in _springs:
+		if s.get("jiggle", false) and s["ready"]:
+			s["tip"] += push
 
 
 func _step_springs(delta: float) -> void:

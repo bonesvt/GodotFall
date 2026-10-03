@@ -12,6 +12,10 @@ extends Node
 ##   until the next swap. In tight spots it also moves to the free shoulder.
 ## Eco's full model shows in third person; the first-person arms and gun hide,
 ## and a pistol rides in her right hand instead (tracers start from it).
+## Off duty (the hub and town, player.gd strolling) third person becomes a free
+## orbit camera instead: the mouse swings it all the way round her, the keys
+## walk her relative to the camera and she turns to face where she walks. It
+## blends back to the shoulder camera on the training grounds and on runs.
 
 const PlayerState := preload("res://scripts/ps2/eco_model.gd").PlayerState
 const GUN := preload("res://assets/models/smart_pistol/smart_pistol.glb")
@@ -45,9 +49,24 @@ static var prefer_third_person := false
 ## Collision: metres kept off walls.
 @export var wall_margin := 0.25
 
+@export_group("Orbit (hub and town)")
+## Metres from the point it circles (over her shoulders).
+@export var orbit_distance := 2.6
+## Height of that point above her feet.
+@export var orbit_height := 1.4
+## How far it may swing below and above level, in degrees.
+@export var orbit_pitch_min := -60.0
+@export var orbit_pitch_max := 35.0
+## How quickly it swaps between the orbit and the shoulder camera.
+@export var orbit_blend_rate := 5.0
+
 var third_person := false
 ## +1 = right shoulder, -1 = left.
 var side := 1.0
+## Orbiting her (third person while strolling), and where the orbit looks from.
+var orbiting := false
+var orbit_yaw := 0.0
+var orbit_pitch := 0.0
 
 var player: CharacterBody3D
 var _head: Node3D
@@ -60,6 +79,11 @@ var _swap_cooldown := 0.0
 var _fp_fov := 90.0
 var _gun: Node3D
 var _gun_muzzle: Node3D
+var _gun_source: Node3D
+## 0 = shoulder camera, 1 = orbit camera.
+var _orbit_blend := 0.0
+var _orbit_pivot := Vector3.ZERO
+var _orbit_was_on := false
 
 
 func _ready() -> void:
@@ -70,6 +94,16 @@ func _ready() -> void:
 	_eco_body = player.get_node_or_null("EcoBody")
 	_fp_fov = player.base_fov
 	set_third_person.call_deferred(prefer_third_person)
+
+
+func _input(event: InputEvent) -> void:
+	# The orbit takes the mouse before the player would turn her with it.
+	if orbiting and event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
+		var sens: float = player.get("mouse_sensitivity")
+		orbit_yaw = wrapf(orbit_yaw - event.relative.x * sens, -PI, PI)
+		orbit_pitch = clampf(orbit_pitch - event.relative.y * sens,
+			deg_to_rad(orbit_pitch_min), deg_to_rad(orbit_pitch_max))
+		get_viewport().set_input_as_handled()
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -91,7 +125,28 @@ func set_third_person(on: bool) -> void:
 	_attach_gun()
 	player.base_fov = tp_fov if on else _fp_fov
 	if not on:
+		_set_orbit(false)
+		_orbit_blend = 0.0
 		_camera.position = Vector3.ZERO
+		_camera.rotation = Vector3.ZERO
+
+
+## Starts or ends the orbit. Leaving it, she turns to where the camera looks,
+## so the shoulder camera picks up the same view.
+func _set_orbit(on: bool) -> void:
+	if on == orbiting:
+		return
+	orbiting = on
+	if on:
+		orbit_yaw = player.rotation.y
+		orbit_pitch = clampf(_head.rotation.x, deg_to_rad(orbit_pitch_min), deg_to_rad(orbit_pitch_max))
+		_orbit_pivot = player.global_position + Vector3.UP * orbit_height
+		_head.rotation.x = 0.0
+		player.set("move_yaw", orbit_yaw)
+	else:
+		player.set("move_yaw", NAN)
+		player.rotation.y = orbit_yaw
+		_head.rotation.x = clampf(orbit_pitch, -1.55, 1.55)
 
 
 ## Where tracers and the grapple rope start in third person: her pistol.
@@ -104,6 +159,11 @@ func muzzle_position() -> Vector3:
 func _process(delta: float) -> void:
 	if not third_person:
 		return
+	_set_orbit(player.get("strolling") == true)
+	_attach_gun()  # follows a gun change at the bench
+	if orbiting:
+		player.set("move_yaw", orbit_yaw)
+	_orbit_blend = move_toward(_orbit_blend, 1.0 if orbiting else 0.0, orbit_blend_rate * delta)
 	_swap_cooldown -= delta
 	_pick_shoulder()
 	_side_x = lerpf(_side_x, side, 1.0 - exp(-swap_rate * delta))
@@ -129,6 +189,42 @@ func _process(delta: float) -> void:
 		var d := maxf(pivot.distance_to(hit.position) - wall_margin, 0.05)
 		want = pivot + dir * d
 	_camera.position = _head.global_transform.affine_inverse() * want
+	if _orbit_blend > 0.0:
+		_blend_orbit(want, delta)
+	elif _orbit_was_on:
+		_camera.rotation = Vector3.ZERO  # hand the rotation back to the head
+	_orbit_was_on = _orbit_blend > 0.0
+
+
+## Places the camera on its orbit round her, blended with the shoulder view.
+func _blend_orbit(shoulder_at: Vector3, delta: float) -> void:
+	var target := _orbit_centre() + Vector3.UP * orbit_height
+	var a := 1.0 - exp(-follow_rate * delta)
+	_orbit_pivot = _orbit_pivot.lerp(target, a)
+	if _orbit_pivot.distance_to(target) > max_lag:
+		_orbit_pivot = target + (_orbit_pivot - target).normalized() * max_lag
+	var look := Basis.from_euler(Vector3(orbit_pitch, orbit_yaw, 0.0))
+	var at := _orbit_pivot + look * Vector3(0.0, 0.0, orbit_distance)
+	var hit := _ray(target, at)
+	if not hit.is_empty():
+		var dir := (at - target).normalized()
+		at = target + dir * maxf(target.distance_to(hit.position) - wall_margin, 0.05)
+	# ease in and out of the swap
+	var t := smoothstep(0.0, 1.0, _orbit_blend)
+	var shoulder_basis := _head.global_basis.orthonormalized()
+	var basis := Basis(shoulder_basis.get_rotation_quaternion().slerp(look.get_rotation_quaternion(), t))
+	_camera.global_transform = Transform3D(basis, shoulder_at.lerp(at, t))
+
+
+## Where the orbit circles: her feet, or the seat she has settled on while
+## resting (her model leaves the player for it, eco_fp_body.gd rest()).
+func _orbit_centre() -> Vector3:
+	if player.get("resting") == true:
+		var model = player.get_node_or_null("EcoBody")
+		var shadow: Node3D = model.get("shadow") if model != null else null
+		if shadow != null and shadow.top_level:
+			return shadow.global_position
+	return player.global_position
 
 
 ## Wallruns put the camera on the open side; a blocked shoulder hands over to a
@@ -159,16 +255,22 @@ func _ray(from: Vector3, to: Vector3) -> Dictionary:
 	return player.get_world_3d().direct_space_state.intersect_ray(q)
 
 
-## A copy of the pistol in her right hand while in third person.
+## A copy of the equipped gun in her right hand while in third person (the
+## gun stance, scripts/ps2/eco_gun_stance.gd, seats it in her palm and aims it).
 func _attach_gun() -> void:
 	if not third_person:
 		if _gun != null and is_instance_valid(_gun):
 			_gun.get_parent().queue_free()
 		_gun = null
 		_gun_muzzle = null
+		_gun_source = null
+		return
+	var weapon := _camera.get_node_or_null("Weapon")
+	var source: Node3D = weapon.get("_pistol") if weapon != null else null
+	if _gun != null and is_instance_valid(_gun) and source == _gun_source:
 		return
 	if _gun != null and is_instance_valid(_gun):
-		return
+		_gun.get_parent().free()
 	var model: Node = _eco_body.get("shadow") if _eco_body != null else null
 	var sk: Skeleton3D = model.get("skeleton") if model != null else null
 	if sk == null or sk.find_bone("J_Bip_R_Hand") < 0:
@@ -177,8 +279,19 @@ func _attach_gun() -> void:
 	hold.name = "GunHold"
 	hold.bone_name = "J_Bip_R_Hand"
 	sk.add_child(hold)
-	_gun = GUN.instantiate()
+	if source != null and is_instance_valid(source):
+		_gun = source.duplicate() as Node3D
+		var arm := _gun.get_node_or_null("Arm")  # the first-person arm rides on the view-model
+		if arm != null:
+			arm.free()
+	else:
+		_gun = GUN.instantiate()
+	_gun_source = source
+	_gun.transform = Transform3D()
 	hold.add_child(_gun)
-	# grip in the palm, barrel along her fingers
-	_gun.transform = Transform3D(Basis.from_euler(Vector3(deg_to_rad(-90.0), deg_to_rad(-90.0), 0.0)), Vector3(0.06, -0.02, 0.0))
+	for mi in _gun.find_children("*", "GeometryInstance3D", true, false):
+		(mi as GeometryInstance3D).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 	_gun_muzzle = _gun.find_child("Muzzle", true, false) as Node3D
+	var stance = _eco_body.get("stance")
+	if stance != null:
+		stance.gun = _gun

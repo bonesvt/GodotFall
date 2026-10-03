@@ -13,6 +13,7 @@ const TitanGun := preload("res://scripts/run/titan_gun.gd")
 const TitanStyle := preload("res://scripts/run/titan_style.gd")
 const FX := preload("res://scripts/fx.gd")
 const SFX := preload("res://scripts/sfx.gd")
+const Prefs := preload("res://scripts/game/prefs.gd")
 
 const GRAVITY := 30.0
 const ACCEL := 40.0
@@ -113,15 +114,15 @@ func _process(delta: float) -> void:
 	var s := shake * shake
 	camera.position = Vector3(sin(_shake_t * 1.3), sin(_shake_t * 1.7 + 1.0), 0.0) * s * 0.12
 	camera.rotation = Vector3(sin(_shake_t * 1.1 + 2.0) * 0.02, sin(_shake_t * 0.9) * 0.02, sin(_shake_t * 1.5) * 0.015) * s
-	camera.fov = lerpf(camera.fov, 85.0, 1.0 - exp(-8.0 * delta))
+	camera.fov = lerpf(camera.fov, 85.0 + Prefs.fov_offset(), 1.0 - exp(-8.0 * delta))
 
 
 func _unhandled_input(event: InputEvent) -> void:
 	if not piloted:
 		return
 	if event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
-		rotate_y(-event.relative.x * mouse_sensitivity)
-		head.rotation.x = clampf(head.rotation.x - event.relative.y * mouse_sensitivity, -1.2, 1.2)
+		rotate_y(-Prefs.look_x(event.relative.x) * mouse_sensitivity)
+		head.rotation.x = clampf(head.rotation.x - Prefs.look_y(event.relative.y) * mouse_sensitivity, -1.2, 1.2)
 	elif event.is_action_pressed("ui_cancel"):
 		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	elif event is InputEventMouseButton and event.pressed and Input.mouse_mode != Input.MOUSE_MODE_CAPTURED:

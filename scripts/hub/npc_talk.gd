@@ -80,6 +80,7 @@ func _ready() -> void:
 	layer = 6
 	state.load(save_path)
 	_eco_voice = AudioStreamPlayer.new()
+	_eco_voice.bus = "Voices"
 	add_child(_eco_voice)
 	_build_caption()
 

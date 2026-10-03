@@ -28,6 +28,8 @@ every file from the original downloads.
 | Radio | `radio_squelch_on` | radio_chatter.gd |
 | Workbenches | `ui_hover` (pick a row), `ui_switch` (browse), `ui_error` (can't afford), buying: `workbench_tools` (gunsmith), `reload_in` (weapon rack), `workbench_ratchet` (titan workshop) | bench_screen.gd |
 | Loot | `cache_open` (supply crate), `whack` + `debris_metal` (mining an alloy node), `ui_click` (picking up materials) | loot_crate.gd, resource_node.gd, material_pickup.gd |
+| The Choir | `choir_chord` (the attack tell), `choir_needle` (Hush rifle), `choir_hurt_*`, `choir_die`, `seraph_song`, `cantor_blast`, `hound_screech` | scripts/threats/ |
+| Wildlife | `glassback_low` `glassback_stampede` `lampjaw_snap` `quillcat_hiss` `quillcat_yowl` `picker_chitter` `veilray_call` | scripts/threats/ |
 | Ambience | forest zone: `forest_day` `forest_wind` `forest_birds`; forest's edge: `forest_wind` `forest_night`; temple hub: `temple_interior` `temple_drips` `wind_soft` `forest_birds` | forest_builder.gd, hub_builder.gd |
 
 Recorded but not wired in yet, ready for later: `step_gravel_*`,
@@ -116,3 +118,10 @@ beds `forest_morning` `swamp_creek` `rain` `temple_eerie` `campfire`
 | [The Free Firearm Sound Library](https://opengameart.org/content/the-free-firearm-sound-library) | bart | CC0 | `grunt_shot`, `scrap`, `xo16` |
 | [Tree Creaking](https://opengameart.org/content/tree-creaking) | AntumDeluge | CC0 | `tree_creak` |
 | [wind1](https://opengameart.org/content/wind1) | Luke.RUSTLTD | CC0 | `forest_wind` |
+
+## Synthesized
+
+The Choir's and the border wildlife's sounds (`choir_*`, `seraph_song`,
+`cantor_blast`, `hound_screech`, `glassback_*`, `lampjaw_snap`, `quillcat_*`,
+`picker_chitter`, `veilray_call`) are not recordings: they are synthesized
+into `.wav` files by `tools/threats/sounds.py`.
