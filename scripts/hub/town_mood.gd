@@ -15,7 +15,7 @@ var _sun: DirectionalLight3D
 var _base := {}
 var _amount := 0.0
 
-const DARK := {"ambient": 0.22, "sun": 0.3, "glow": 1.7}
+const DARK := {"ambient": 0.1, "sun": 0.12, "glow": 1.8, "threshold": 0.7}
 const HAZE := Color(0.32, 0.26, 0.42)
 
 
@@ -34,7 +34,7 @@ func _grab() -> void:
 		set_process(false)
 		return
 	_base = {"ambient": _env.ambient_light_energy, "sun": _sun.light_energy, "fog": _env.fog_light_color,
-		"glow": _env.glow_intensity}
+		"glow": _env.glow_intensity, "threshold": _env.glow_hdr_threshold}
 
 
 func _process(delta: float) -> void:
@@ -50,6 +50,7 @@ func _process(delta: float) -> void:
 	_sun.light_energy = lerpf(_base["sun"], _base["sun"] * DARK["sun"], t)
 	_env.fog_light_color = (_base["fog"] as Color).lerp(HAZE, t)
 	_env.glow_intensity = lerpf(_base["glow"], _base["glow"] * DARK["glow"], t)
+	_env.glow_hdr_threshold = lerpf(_base["threshold"], minf(_base["threshold"], DARK["threshold"]), t)
 
 
 ## 0 outside every zone, 1 deep inside one, fading over `fade` metres at the edges.

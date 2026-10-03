@@ -14,7 +14,7 @@ const DIR := "res://assets/models/town/"
 const IDS := ["shop_w13_f3", "shop_w13_f3b", "shop_w13_f2", "shop_w11_f4", "shop_w11_f3", "shop_w9_f3", "shop_w9_f2",
 	"militia_office", "greenhouse", "gate_pylon", "gate_arch", "checkpoint", "sun_tree", "solar_lamp",
 	"turbine_tower", "turbine_rotor", "noodle_stall", "scooter", "vending", "bench", "planter", "crates",
-	"blade_sign_2", "blade_sign_3", "pergola", "city_tower_a", "city_tower_b"]
+	"blade_sign_2", "blade_sign_3", "pergola", "city_tower_a", "city_tower_b", "lantern", "market_stall", "cafe_table"]
 
 const WARM := Color(1.0, 0.78, 0.5)
 const COOL := Color(0.72, 0.88, 1.0)
@@ -40,8 +40,8 @@ static func spawn(parent: Node, id: String, pos: Vector3, yaw_deg := 0.0, tints 
 		kind = kind.rstrip("0123456789").trim_suffix("_")
 		var glow := glow_color(kind, tints)
 		if tints.get("no_fog", false):
-			# Far backdrop (the city): flat colours that ignore the haze, so it stays a dark silhouette.
-			mi.material_override = _unfogged(glow if glow.a > 0.0 else Color(0.1, 0.11, 0.17), glow.a > 0.0)
+			# Far backdrop (the city): flat colours that ignore the haze, a hazy blue silhouette.
+			mi.material_override = _unfogged(glow if glow.a > 0.0 else Color(0.3, 0.33, 0.42), glow.a > 0.0)
 			mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		elif glow.a > 0.0:
 			mi.material_override = Art.material("light")

@@ -607,17 +607,78 @@ def canopy_bay():
         m.box("metal", (x, 0, 0.05), (0.18, 4.0, 0.25))
     for sx in (-1, 1):
         cx = sx * 3.9
-        m.box("panel", (cx, 0, 0.32), (7.4, 3.6, 0.06), rot=(0, sx * 0.08, 0))
+        m.box("panel", (cx, 0, 0.32), (7.6, 4.0, 0.06), rot=(0, sx * 0.08, 0))
         for k in range(1, 8):
             m.box("metal", (cx - 3.7 + k * 7.4 / 8, 0, 0.36 + sx * 0.0), (0.03, 3.6, 0.02), rot=(0, sx * 0.08, 0))
         for k in range(1, 4):
             m.box("metal", (cx, -1.8 + k * 0.9, 0.36), (7.4, 0.03, 0.02), rot=(0, sx * 0.08, 0))
+    m.box("base", (0, 0, 0.17), (16.0, 4.05, 0.04))  # closed underside, so it shades the street
     m.box("glow_cool", (0, 0, -0.2), (12.0, 0.08, 0.05))
     for x in (-5.5, 1.0, 6.0):
         m.sag("dark", (x - 1.5, -2.0, -0.1), (x + 1.5, 2.0, -0.1), 0.8, 0.03)
     for k in range(3):
         ln = m.rng.uniform(0.8, 2.2)
         m.box("moss", (m.rng.uniform(-7, 7), m.rng.choice([-2.0, 2.0]), -ln * 0.5), (0.4, 0.12, ln))
+    m.export()
+
+
+def lantern():
+    """A paper lantern on a drop: dark cap and base, ribs, a glowing body (glow_shop)."""
+    m = Model("lantern", 79)
+    m.tube("metal", [(0, 0, 0), (0, 0, -0.3)], [0.012, 0.012], 3)
+    m.cyl("dark", (0, 0, -0.33), 0.12, 0.06, sides=8)
+    m.tube("glow_shop", [(0, 0, -0.36), (0, 0, -0.5), (0, 0, -0.68), (0, 0, -0.8)], [0.14, 0.2, 0.2, 0.14], 10)
+    for k in range(6):
+        a = k * math.pi / 3
+        m.tube("dark", [(0.15 * math.cos(a), 0.15 * math.sin(a), -0.38), (0.205 * math.cos(a), 0.205 * math.sin(a), -0.58),
+                        (0.15 * math.cos(a), 0.15 * math.sin(a), -0.78)], [0.012] * 3, 3)
+    m.cyl("dark", (0, 0, -0.83), 0.1, 0.06, sides=8)
+    m.box("canvas", (0, 0, -0.95), (0.03, 0.03, 0.2))
+    m.export()
+
+
+def market_stall():
+    """A plaza market stall: a timber frame, a striped canvas roof, a counter of
+    crates of fruit and greens, a lamp. Faces -Y, 3 m wide."""
+    m = Model("market_stall", 83)
+    for x in (-1.4, 1.4):
+        for y in (-0.8, 0.8):
+            m.box("wood", (x, y, 1.25 if y < 0 else 1.05), (0.1, 0.1, 2.5 if y < 0 else 2.1))
+    for k in range(6):
+        m.box("canvas" if k % 2 == 0 else "trim", (-1.25 + k * 0.5, 0, 2.4), (0.5, 2.1, 0.04), rot=(-0.22, 0, 0))
+    m.box("wood", (0, -0.6, 0.45), (2.9, 0.7, 0.9), bevel=0.03)
+    for k in range(5):
+        x = -1.1 + k * 0.55
+        m.box("wood", (x, -0.65, 1.0), (0.48, 0.5, 0.2))
+        for j in range(4):
+            m.blob(["leaves", "glow_shop", "canvas"][k % 3] if k % 3 != 1 else "trim", (x + m.rng.uniform(-0.15, 0.15), -0.65 + m.rng.uniform(-0.15, 0.15), 1.15), (0.09, 0.09, 0.09), wobble=0.1)
+    m.box("wood", (0, 0.6, 0.9), (2.6, 0.4, 0.05))
+    for k in range(4):
+        m.blob("leaves", (-0.9 + k * 0.6, 0.6, 1.05), (0.22, 0.18, 0.15))
+    m.tube("metal", [(1.3, -0.9, 2.2), (1.3, -1.2, 2.0)], [0.02, 0.02], 3)
+    m.cyl("glow_warm", (1.3, -1.2, 1.85), 0.1, 0.25, sides=8)
+    m.export()
+
+
+def cafe_table():
+    """An outdoor cafe table with a parasol and two chairs."""
+    m = Model("cafe_table", 89)
+    m.cyl("trim", (0, 0, 0.74), 0.45, 0.04, sides=14)
+    m.cyl("metal", (0, 0, 0.37), 0.04, 0.74, sides=6)
+    m.cyl("metal", (0, 0, 0.02), 0.25, 0.04, sides=10)
+    m.cyl("metal", (0, 0, 1.4), 0.025, 1.4, sides=5)
+    tmp = bmesh.new()
+    res = bmesh.ops.create_cone(tmp, cap_ends=False, segments=8, radius1=1.2, radius2=0.02, depth=0.45)
+    bmesh.ops.translate(tmp, vec=Vector((0, 0, 2.2)), verts=res["verts"])
+    bp.merge(m.bm("canvas"), tmp)
+    m.box("glow_warm", (0, 0, 0.82), (0.07, 0.07, 0.12))
+    for a in (0.3, math.pi + 0.3):
+        x, y = 0.75 * math.cos(a), 0.75 * math.sin(a)
+        m.box("wood", (x, y, 0.45), (0.4, 0.4, 0.05), rot=(0, 0, a))
+        m.box("wood", (x + 0.22 * math.cos(a), y + 0.22 * math.sin(a), 0.7), (0.05, 0.4, 0.5), rot=(0, 0, a))
+        for dx in (-0.15, 0.15):
+            for dy in (-0.15, 0.15):
+                m.box("metal", (x + dx, y + dy, 0.22), (0.03, 0.03, 0.44))
     m.export()
 
 
@@ -820,6 +881,9 @@ def main():
     checkpoint()
     sun_tree()
     canopy_bay()
+    lantern()
+    market_stall()
+    cafe_table()
     solar_lamp()
     turbine_tower()
     turbine_rotor()
