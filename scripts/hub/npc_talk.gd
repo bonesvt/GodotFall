@@ -18,14 +18,25 @@ extends CanvasLayer
 ##   > ophelia: their answer to that      (plays only after that pick)
 ##   choice -4 !friends: eco: ...         (a flag: see Romance.apply_flag)
 ## Choices in a row form one question; the talk goes on after the answer.
+##
+## Family (family.gd, "Motherly Love") rides on them too, for anyone with a
+## [family] section: a bond meter instead of hearts, [bond N] scenes whose
+## answers move the bond, [close] talks once close, and the cuddle() and
+## care() talks staged by family_scene.gd. dialogue/family/<who>.txt is read
+## on top of dialogue/npc/<who>.txt, so the family lines live apart from the
+## everyday ones; its [soft] talks (Eco, gentler) join anyone's everyday talks
+## once Eco has softened enough.
 
 signal finished(who: String)
 signal affection_changed(who: String, value: int, delta: int)
+signal bond_changed(who: String, value: int, delta: int)
 
 const Babble := preload("res://scripts/hub/babble.gd")
 const DIALOGUE_DIR := "res://dialogue/npc/"
 const DEFAULT_PATH := "user://hub_npcs.cfg"
 const Romance := preload("res://scripts/hub/romance.gd")
+const Family := preload("res://scripts/hub/family.gd")
+const FAMILY_DIR := "res://dialogue/family/"
 const Gifts := preload("res://scripts/run/gifts.gd")
 const NpcIdles := preload("res://scripts/hub/npc_idles.gd")
 ## Where the gift bag lives in the save file.
@@ -59,6 +70,10 @@ var options: Array = []
 ## The [heart N] scene playing (its N), or -1.
 var beat := -1
 var _answered := false
+## The [bond N] scene playing (its N), or -1.
+var bond_scene := -1
+## A staged scene (family_scene.gd) holds the talk: walking off doesn't end it.
+var hold := false
 ## The pose the heart scene playing asks for ([heart N <spot>], npc_idles.gd).
 var scene_pose := ""
 ## A heart scene (or a date) gets its own camera, framed on them.
@@ -95,7 +110,8 @@ func active() -> bool:
 ## each conversation a list of [speaker, text] lines and {"choice": [{delta,
 ## flag, lines}, ...]} questions.
 static func parse(text: String) -> Dictionary:
-	var bank := {"any": [], "together": [], "flirt": [], "heart": [], "date": {}, "gift": {}, "spot": {}}
+	var bank := {"any": [], "together": [], "flirt": [], "heart": [], "date": {}, "gift": {}, "spot": {},
+		"bond": [], "close": [], "soft": [], "cuddle": [], "sick": []}
 	var cur: Array = []
 	var choice_re := RegEx.create_from_string("^choice\\s*([+-]?\\d+)?\\s*(?:!(\\w+))?\\s*:\\s*(\\w+(?:\\s*\\([^)]*\\))?)\\s*:\\s*(.+)$")
 	for raw in text.split("\n"):
@@ -107,10 +123,12 @@ static func parse(text: String) -> Dictionary:
 			var tag := line.substr(1, line.length() - 2).strip_edges()
 			var parts := tag.split(" ", false)
 			match parts[0]:
-				"any", "together", "flirt":
+				"any", "together", "flirt", "close", "soft", "cuddle", "sick":
 					bank[parts[0]].append(cur)
 				"heart":
 					bank["heart"].append({"at": int(parts[1]) if parts.size() > 1 else 0, "lines": cur, "pose": parts[2] if parts.size() > 2 else ""})
+				"bond":
+					bank["bond"].append({"at": int(parts[1]) if parts.size() > 1 else 0, "lines": cur})
 				"date", "gift":
 					bank[parts[0]][parts[1] if parts.size() > 1 else "any"] = cur
 				"spot":
@@ -144,6 +162,7 @@ static func parse(text: String) -> Dictionary:
 		if colon > 0:
 			cur.append(_line(line.substr(0, colon), line.substr(colon + 1)))
 	bank["heart"].sort_custom(func(a, b): return a["at"] < b["at"])
+	bank["bond"].sort_custom(func(a, b): return a["at"] < b["at"])
 	return bank
 
 
@@ -166,7 +185,19 @@ static func _line(speaker: String, text: String) -> Array:
 func bank(who: String) -> Dictionary:
 	if not _banks.has(who):
 		var f := FileAccess.open(DIALOGUE_DIR + who + ".txt", FileAccess.READ)
-		_banks[who] = parse(f.get_as_text()) if f != null else {"any": []}
+		var b := parse(f.get_as_text()) if f != null else parse("")
+		var fam := FileAccess.open(FAMILY_DIR + who + ".txt", FileAccess.READ)
+		if fam != null:
+			var extra := parse(fam.get_as_text())
+			for key in extra:
+				if not b.has(key):
+					b[key] = extra[key]
+				elif b[key] is Array:
+					b[key] += extra[key]
+				elif b[key] is Dictionary:
+					b[key].merge(extra[key])
+			b["bond"].sort_custom(func(x, y): return x["at"] < y["at"])
+		_banks[who] = b
 	return _banks[who]
 
 
@@ -175,12 +206,17 @@ func bank(who: String) -> Dictionary:
 func pick(who: String, run_id: int, won: bool, spot := "") -> Array:
 	var b := bank(who)
 	beat = -1
+	bond_scene = -1
 	scene_pose = ""
 	if not state.get_value(who, "met", false) and b.has("intro"):
 		state.set_value(who, "met", true)
 		state.set_value(who, "run_seen", run_id)
 		state.set_value(who, "warm_run", run_id)
+		state.set_value(who, "bond_run", run_id)
 		return b["intro"]
+	if Family.has_family(b) and int(state.get_value(who, "bond_run", -1)) != run_id:
+		state.set_value(who, "bond_run", run_id)
+		_add_bond(who, Family.TALK_GAIN)
 	# Time together counts, once a hub stay.
 	if Romance.romanceable(b) and int(state.get_value(who, "warm_run", -1)) != run_id:
 		state.set_value(who, "warm_run", run_id)
@@ -196,10 +232,26 @@ func pick(who: String, run_id: int, won: bool, spot := "") -> Array:
 		scene_pose = scene.get("pose", "")
 		Romance.mark_beat(state, who, beat)
 		return scene["lines"]
+	var fscene := Family.next_scene(state, b, who)
+	if not fscene.is_empty():
+		bond_scene = int(fscene["at"])
+		Family.mark_scene(state, who, bond_scene)
+		return fscene["lines"]
 	var at_spot := _spot_talk(who, run_id, spot)
 	if not at_spot.is_empty():
 		return at_spot
 	var list := Romance.talk_list(state, b, who)
+	if list == "any":
+		# Close to Mom: her [close] talks, and anyone's [soft] ones, take turns
+		# with the everyday ones.
+		var lists := ["any"]
+		if Family.close(state, b, who) and not b["close"].is_empty():
+			lists.append("close")
+		if Family.softness(state) >= Family.SOFT_TALKS_FROM and not b["soft"].is_empty():
+			lists.append("soft")
+		var turn: int = state.get_value(who, "list_turn", 0)
+		state.set_value(who, "list_turn", turn + 1)
+		list = lists[turn % lists.size()]
 	var any: Array = b[list]
 	if any.is_empty():
 		return []
@@ -233,7 +285,10 @@ func beat_waiting(who: String, run_id: int) -> bool:
 	if not state.get_value(who, "met", false):
 		return false
 	var extra := Romance.TALK_GAIN if int(state.get_value(who, "warm_run", -1)) != run_id else 0
-	return not Romance.next_beat(state, bank(who), who, extra).is_empty()
+	if not Romance.next_beat(state, bank(who), who, extra).is_empty():
+		return true
+	var more := Family.TALK_GAIN if int(state.get_value(who, "bond_run", -1)) != run_id else 0
+	return not Family.next_scene(state, bank(who), who, more).is_empty()
 
 
 func romanceable(who: String) -> bool:
@@ -242,6 +297,56 @@ func romanceable(who: String) -> bool:
 
 func affection(who: String) -> int:
 	return Romance.affection(state, who)
+
+
+func has_family(who: String) -> bool:
+	return Family.has_family(bank(who))
+
+
+func bond(who: String) -> int:
+	return Family.bond(state, who)
+
+
+func _add_bond(who: String, delta: int) -> void:
+	if delta == 0:
+		return
+	var v := Family.add(state, who, delta)
+	bond_changed.emit(who, v, delta)
+
+
+## Eco curls up with them (family_scene.gd stages it): one of their [cuddle]
+## talks in turn, and the bond, once a hub stay. False if it isn't open yet.
+func cuddle(p_npc: Node3D, run_id: int) -> bool:
+	var who: String = p_npc.who
+	var b := bank(who)
+	if not Family.can_cuddle(state, b, who, run_id) or b["cuddle"].is_empty():
+		return false
+	stop()
+	state.set_value(who, "cuddle_run", run_id)
+	_add_bond(who, Family.CUDDLE_GAIN)
+	_play(p_npc, _take_turn(who, "cuddle"))
+	return true
+
+
+## Eco came home sick and they look after her: one of their [sick] talks.
+func care(p_npc: Node3D, run_id: int) -> bool:
+	var who: String = p_npc.who
+	var b := bank(who)
+	if not Family.sick(state, run_id) or b["sick"].is_empty():
+		return false
+	stop()
+	Family.cared_for(state, run_id)
+	_add_bond(who, Family.CARE_GAIN)
+	_play(p_npc, _take_turn(who, "sick"))
+	return true
+
+
+## The next talk from one of their lists, in turn.
+func _take_turn(who: String, list: String) -> Array:
+	var talks: Array = bank(who)[list]
+	var n: int = state.get_value(who, "next_" + list, 0)
+	state.set_value(who, "next_" + list, (n + 1) % talks.size())
+	return talks[n % talks.size()]
 
 
 func _add_affection(who: String, delta: int) -> void:
@@ -390,6 +495,12 @@ func choose(i: int) -> void:
 			Romance.apply_flag(state, who, opt["flag"], beat)
 		_react(who, int(opt["delta"]), opt["flag"])
 		_refresh_hearts()
+	elif Family.has_family(bank(who)):
+		_add_bond(who, int(opt["delta"]))
+		if opt["flag"] == "later" and bond_scene >= 0:
+			Family.unmark_scene(state, who, bond_scene)
+		_react_family(who, int(opt["delta"]), opt["flag"])
+		_refresh_hearts()
 	state.save(save_path)
 	_next()
 
@@ -400,6 +511,9 @@ func stop() -> void:
 		# Walked off a heart scene before answering anything: it waits for next time.
 		if beat >= 0 and index < lines.size() and not _answered:
 			Romance.apply_flag(state, who, "later", beat)
+			state.save(save_path)
+		if bond_scene >= 0 and index < lines.size() and not _answered:
+			Family.unmark_scene(state, who, bond_scene)
 			state.save(save_path)
 		npc.hush()
 		if npc.has_method("calm"):
@@ -412,6 +526,7 @@ func stop() -> void:
 	index = -1
 	options = []
 	beat = -1
+	bond_scene = -1
 	scene_pose = ""
 	_answered = false
 	_scene_end()
@@ -463,7 +578,7 @@ func tick(delta: float, pilot: Vector3) -> void:
 	if not active():
 		return
 	_pilot = pilot
-	if not is_instance_valid(npc) or pilot.distance_to(npc.global_position) > LEAVE_RANGE:
+	if not is_instance_valid(npc) or (not hold and pilot.distance_to(npc.global_position) > LEAVE_RANGE):
 		stop()
 		return
 	if not options.is_empty():
@@ -629,13 +744,44 @@ func _react(who: String, delta: int, flag: String) -> void:
 
 
 func _refresh_hearts() -> void:
-	var show := npc != null and romanceable(npc.who)
+	var family := npc != null and not romanceable(npc.who) and has_family(npc.who)
+	var show := npc != null and (romanceable(npc.who) or family)
 	_hearts.visible = show
 	_stage.visible = show
 	if show:
-		_hearts.fill = Romance.hearts(state, npc.who)
+		_hearts.fill = Family.hearts(state, npc.who) if family else Romance.hearts(state, npc.who)
+		_hearts.color = HeartMeter.FAMILY if family else HeartMeter.ROMANCE
 		_hearts.queue_redraw()
-		_stage.text = Romance.stage(state, npc.who).to_upper()
+		_stage.text = (Family.stage(state, npc.who) if family else Romance.stage(state, npc.who)).to_upper()
+		_stage.add_theme_color_override("font_color", (HeartMeter.FAMILY if family else Color(1.0, 0.6, 0.75)).lerp(Color.WHITE, 0.2) * Color(1, 1, 1, 0.8))
+
+
+## "Mom loved that." under the caption after an answer in a family scene.
+## Warm faces only: no blush here.
+func _react_family(who: String, delta: int, flag: String) -> void:
+	var name: String = NAMES.get(who, who.to_upper()).capitalize()
+	var text := ""
+	if flag == "later":
+		text = "%s will try again another day." % name
+	elif delta >= 6:
+		text = "That meant the world to %s." % name
+	elif delta > 0:
+		text = "%s liked that." % name
+	elif delta < 0:
+		text = "That stung %s a little." % name
+	if npc.has_method("mood"):
+		if delta >= 6:
+			npc.mood(["joy", "tilt"])
+		elif delta > 0:
+			npc.mood(["smile", "nod"])
+		elif delta < 0 or flag == "later":
+			npc.mood(["sad", "down"])
+	if text == "":
+		return
+	_reaction.text = text
+	_reaction.add_theme_color_override("font_color", HeartMeter.FAMILY if delta >= 0 else Color(0.6, 0.62, 0.7))
+	_reaction.visible = true
+	_reaction_left = 2.6
 
 
 func _build_caption() -> void:
@@ -711,7 +857,11 @@ func _build_caption() -> void:
 ## A row of hearts, `fill` of them full (halves allowed). Drawn, not a font
 ## glyph, so it shows the same everywhere.
 class HeartMeter extends Control:
+	const ROMANCE := Color(1.0, 0.36, 0.55)
+	## Family bonds are warm gold, so the two never read alike.
+	const FAMILY := Color(1.0, 0.72, 0.35)
 	var fill := 0.0
+	var color := ROMANCE
 	const SIZE := 16.0
 	const GAP := 5.0
 
@@ -720,8 +870,8 @@ class HeartMeter extends Control:
 		mouse_filter = Control.MOUSE_FILTER_IGNORE
 
 	func _draw() -> void:
-		var pink := Color(1.0, 0.36, 0.55)
-		var dim := Color(1.0, 0.36, 0.55, 0.28)
+		var pink := color
+		var dim := Color(color, 0.28)
 		for i in 5:
 			var at := Vector2(i * (SIZE + GAP) + SIZE / 2.0, SIZE / 2.0 + 2.0)
 			var whole := _heart(at, false)
