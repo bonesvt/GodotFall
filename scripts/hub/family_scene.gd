@@ -209,7 +209,7 @@ func _stage(kind: String) -> void:
 		_mom_pose = Poses.hold(mom, "mom_sick")
 		_mom_pose.after = _place_bowl
 		_bowl = _bowl_of_soup()
-		_look(Vector3(b.x + 1.9, _f + 1.6, b.z + 0.1), Vector3(b.x + 0.15, _f + 0.8, b.z + 0.4))
+		_look(Vector3(b.x + 1.85, _f + 1.65, b.z - 0.35), Vector3(b.x + 0.15, _f + 0.8, b.z + 0.45))
 
 
 func _unstage() -> void:
