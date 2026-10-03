@@ -27,8 +27,11 @@ extends "res://scripts/ps2/ps2_model.gd"
 		suit_tier = clampi(value, 0, SUIT_TIERS)
 		if is_inside_tree():
 			apply_suit()
-## The suit's weight (armory.gd SUIT_WEIGHTS): light leaves off the pieces
-## marked "m" (suit_t<tier>m_*), only heavy wears the ones marked "h".
+## The suit's weight (armory.gd SUIT_WEIGHTS). Pieces are marked after their
+## tier: "l" light only (the cloth-and-leather light suit), "m" medium and
+## heavy, "h" heavy only, unmarked for all three. The light suit also swaps
+## her bodysuit for its own cut (eco_v_body_light: no side cutouts, open
+## across the top of her chest) once she has a suit tier.
 @export_enum("light", "medium", "heavy") var suit_weight := "medium":
 	set(value):
 		suit_weight = value
@@ -64,6 +67,7 @@ const SPRINGS := {
 
 const SUIT_TIERS := 5
 const LEGACY_PLATE := preload("res://assets/materials/eco/eco_v_armor_legacy.tres")
+const LIGHT_BODY := preload("res://assets/materials/eco/eco_v_body_light.tres")
 
 ## Movement states of scripts/player.gd (enum State).
 enum PlayerState { GROUND, AIR, SLIDE, WALLRUN, GRAPPLE }
@@ -101,14 +105,16 @@ func _ready() -> void:
 		_anim.play("idle")
 
 
-## The tier a suit_t<tier>[m|h]_* mesh belongs to (0 for everything else).
+## The tier a suit_t<tier>[l|m|h]_* mesh belongs to (0 for everything else).
 static func piece_tier(mesh_name: String) -> int:
 	return int(mesh_name.substr(6, 1)) if mesh_name.begins_with("suit_t") else 0
 
 
-## Whether a suit weight wears a piece: "m" pieces are medium and heavy, "h" heavy only.
+## Whether a suit weight wears a piece: "l" light only, "m" medium and heavy, "h" heavy only.
 static func piece_worn(mesh_name: String, weight: String) -> bool:
 	match mesh_name.substr(7, 1):
+		"l":
+			return weight == "light"
 		"m":
 			return weight != "light"
 		"h":
@@ -128,6 +134,11 @@ func apply_suit() -> void:
 				var m := mi.mesh.surface_get_material(i)
 				if m != null and m.resource_name == "eco_v_armor":
 					mi.set_surface_override_material(i, LEGACY_PLATE if legacy else null)
+		elif tier == 0 and mi.mesh != null:
+			for i in mi.mesh.get_surface_count():
+				var m := mi.mesh.surface_get_material(i)
+				if m != null and m.resource_name == "eco_v_body":
+					mi.set_surface_override_material(i, LIGHT_BODY if suit_weight == "light" and suit_tier > 0 else null)
 		mi.set_instance_shader_parameter("trim_gold", 1.0 if legacy else 0.0)
 
 

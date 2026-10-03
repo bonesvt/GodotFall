@@ -79,14 +79,24 @@ func _model() -> void:
 			and shown.size() == pieces.filter(func(p): return eco.piece_tier(String(p.name)) <= 3 and eco.piece_worn(String(p.name), "medium")).size(), shown.size())
 	_check("tier 3 plates are gunmetal", pieces[0].get_surface_override_material(0) == null, "")
 	eco.suit_tier = 5
-	_check("tier 5 medium shows all but the heavy pieces", pieces.all(func(p): return p.visible == (String(p.name).substr(7, 1) != "h")), "")
+	_check("tier 5 medium shows all but the heavy pieces", pieces.all(func(p): return p.visible == not (String(p.name).substr(7, 1) in ["h", "l"])), "")
 	eco.suit_weight = "heavy"
-	_check("heavy shows everything", pieces.all(func(p): return p.visible), "")
+	_check("heavy shows everything but the light suit", pieces.all(func(p): return p.visible == (String(p.name).substr(7, 1) != "l")), "")
 	eco.suit_weight = "light"
 	var light_hidden: Array = pieces.filter(func(p): return not p.visible).map(func(p): return String(p.name).substr(7, 1))
 	_check("light leaves off the lames, knee cops and heavy pieces", not light_hidden.is_empty() and light_hidden.all(func(c): return c in ["m", "h"]) \
 			and "m" in light_hidden, light_hidden)
+	_check("light wears its own cloth and leather", pieces.any(func(p): return p.visible and String(p.name).substr(7, 1) == "l"), "")
+	var body_mesh: MeshInstance3D = null
+	var body_surface := -1
+	for mi in eco.find_children("*", "MeshInstance3D", true, false):
+		for i in mi.mesh.get_surface_count():
+			if mi.mesh.surface_get_material(i) != null and mi.mesh.surface_get_material(i).resource_name == "eco_v_body":
+				body_mesh = mi
+				body_surface = i
+	_check("light swaps in its own bodysuit cut", body_mesh != null and body_mesh.get_surface_override_material(body_surface) == eco.LIGHT_BODY, body_surface)
 	eco.suit_weight = "medium"
+	_check("medium wears the plain bodysuit", body_mesh.get_surface_override_material(body_surface) == null, "")
 	var plate: MeshInstance3D = eco.find_child("suit_t1_bracer_l", true, false)
 	_check("tier 5 repaints the plates in Dad's colours", plate.get_surface_override_material(0) == eco.LEGACY_PLATE, "")
 	_check("tier 5 turns the trims gold", plate.get_instance_shader_parameter("trim_gold") == 1.0, "")

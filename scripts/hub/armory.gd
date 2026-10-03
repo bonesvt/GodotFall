@@ -204,7 +204,7 @@ const SUIT_TIERS := [
 const SUIT_WEIGHTS := {
 	"light": {"name": "Light", "armor_mult": 0.5, "speed": 1.1, "notice_mult": 0.85, "wallrun_time_mult": 1.15,
 		"bonus": "Half the armour. 10% faster on the ground, grunts notice you 15% slower, wallruns 15% longer.",
-		"look": "Stripped down: no extra shoulder or hip lames, no knee cops."},
+		"look": "Cloth and leather: a wrap that supports her chest and covers her sides, the suit open across the top of her chest, choker with Dad's tag, piercings, wrapped arms and shins, a leather shoulder guard and knee pads, her stiletto on a thigh garter."},
 	"medium": {"name": "Medium", "armor_mult": 1.0, "armor_regen_mult": 2.0,
 		"bonus": "The tier's armour. Armour refills twice as fast.",
 		"look": "Every tier's pieces."},
