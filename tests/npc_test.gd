@@ -101,7 +101,7 @@ func _run() -> void:
 		await _press("interact")
 		await _ticks(2)
 		var intro: Array = run_node.npc_talk.bank(who)["intro"]
-		var first := "%s: %s" % intro[0]
+		var first := "%s: %s" % intro[0].slice(0, 2)
 		_check("%s opens with their intro" % who, run_node.npc_talk.active() and run_node.npc_talk.current_line() == first, run_node.npc_talk.current_line())
 		_check("prompt hidden while talking", run_node.hud.prompt_label.text == "", run_node.hud.prompt_label.text)
 		if intro[0][0] != "eco":
@@ -112,7 +112,7 @@ func _run() -> void:
 		_check("F finishes %s's line" % who, run_node.npc_talk._text.visible_characters == -1 and run_node.npc_talk.current_line() == first, run_node.npc_talk._text.visible_characters)
 		await _press("interact")
 		await _ticks(2)
-		_check("F moves %s's talk on" % who, run_node.npc_talk.current_line() == "%s: %s" % intro[1], run_node.npc_talk.current_line())
+		_check("F moves %s's talk on" % who, run_node.npc_talk.current_line() == "%s: %s" % intro[1].slice(0, 2), run_node.npc_talk.current_line())
 		# Lines play out on their own too.
 		var at: int = run_node.npc_talk.index
 		await _ticks(int(run_node.npc_talk.line_left * 120.0) + 30)
@@ -156,7 +156,7 @@ func _run() -> void:
 	run_node.talk_to("mom")
 	await _ticks(2)
 	var any0: Array = run_node.npc_talk.bank("mom")["any"][0]
-	_check("Mom moves on from her intro", run_node.npc_talk.current_line() == "%s: %s" % any0[0], run_node.npc_talk.current_line())
+	_check("Mom moves on from her intro", run_node.npc_talk.current_line() == "%s: %s" % any0[0].slice(0, 2), run_node.npc_talk.current_line())
 	run_node.npc_talk.stop()
 
 	# After a lost run, they've heard; once.
@@ -181,11 +181,11 @@ func _run() -> void:
 	run_node.talk_to("mom")
 	await _ticks(2)
 	var lost: Array = run_node.npc_talk.bank("mom")["lost"]
-	_check("Mom reacts to the lost run", run_node.npc_talk.current_line() == "%s: %s" % lost[0], run_node.npc_talk.current_line())
+	_check("Mom reacts to the lost run", run_node.npc_talk.current_line() == "%s: %s" % lost[0].slice(0, 2), run_node.npc_talk.current_line())
 	run_node.npc_talk.stop()
 	run_node.talk_to("mom")
 	await _ticks(2)
-	_check("only once per run", run_node.npc_talk.current_line() != "%s: %s" % lost[0], run_node.npc_talk.current_line())
+	_check("only once per run", run_node.npc_talk.current_line() != "%s: %s" % lost[0].slice(0, 2), run_node.npc_talk.current_line())
 	run_node.npc_talk.stop()
 
 	# What they've said is remembered between sessions.

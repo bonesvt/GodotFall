@@ -1,0 +1,11 @@
+[gd_resource type="ShaderMaterial" load_steps=2 format=3]
+
+[ext_resource type="Shader" path="res://assets/shaders/eco_outline.gdshader" id="1_shader"]
+
+[resource]
+resource_name = "threat_ink"
+shader = ExtResource("1_shader")
+shader_parameter/ink = Color(0.16, 0.12, 0.16, 1)
+shader_parameter/width = 2.4
+shader_parameter/max_width = 0.012
+shader_parameter/tint = 0.0
