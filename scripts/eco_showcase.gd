@@ -20,6 +20,7 @@ const SHOTS := [
 	["face", -20.0, Vector3(0, 1.54, -0.72), Vector3(0, 1.515, 0), 30.0],
 	["face_front", 0.0, Vector3(0, 1.54, -0.72), Vector3(0, 1.515, 0), 30.0],
 	["first_person", 0.0, Vector3.ZERO, Vector3.ZERO, 75.0],
+	["torso", -25.0, Vector3(0, 1.0, -1.25), Vector3(0, 0.93, 0), 34.0],
 ]
 
 var eco: Node3D

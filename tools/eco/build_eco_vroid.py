@@ -83,15 +83,15 @@ FOLD_Z = 0.733
 # (rest-space metres, the most each can move her surface). Fit_Glutes fuller,
 # rounder and lifted; Fit_Belly a flatter lower belly and a narrower waist;
 # Fit_Legs quads, outer sweep, hamstrings and calves; Fit_Arms shoulder caps,
-# biceps, triceps and forearms. Abs are painted (v_body_tone.png): the mesh is
-# too coarse over her belly to carve them.
-FIT_GLUTES = 0.042
-FIT_GLUTE_LIFT = 0.01
-FIT_BELLY = 0.011
-FIT_WAIST = 0.008
-FIT_LEGS = 0.01
-FIT_CALVES = 0.011
-FIT_ARMS = 0.0075
+# biceps, triceps and forearms. Stomach lines and abs are shaded from heights in
+# v_body_tone.png: the mesh is too coarse over her belly to carve them.
+FIT_GLUTES = 0.05
+FIT_GLUTE_LIFT = 0.012
+FIT_BELLY = 0.013
+FIT_WAIST = 0.0096
+FIT_LEGS = 0.012
+FIT_CALVES = 0.013
+FIT_ARMS = 0.009
 
 # the fierce expression, applied as blend shapes on import (eco_import.gd)
 EXPRESSION = {"Fcl_BRW_Angry": 1.0, "Fcl_EYE_Angry": 0.55, "Fcl_MTH_Down": 0.1}
@@ -1685,11 +1685,11 @@ def bake_body(body, skin_img, cut="base"):
 
 
 def bake_tone(body):
-    """v_body_tone.png: muscle tone painted per pixel from rest positions, for
-    the gym (eco_toon.gdshaderinc tone_tex). Red is her abs, green her arms,
-    blue her legs; each is 0.5 where nothing changes, darker in the grooves
-    between muscles and lighter over them. The game fades each in with how
-    much she has trained it."""
+    """v_body_tone.png: muscle heights per pixel from rest positions, for the
+    gym (eco_toon.gdshaderinc tone_tex). Red is her abs, green her arms, blue
+    her legs, alpha her stomach; each is 0.5 where nothing changes, lower in
+    the grooves between muscles and higher over them. The game fades each in
+    with how much she has trained it and shades them as contours."""
     sc = bpy.context.scene
     m = bpy.data.materials.new("bake_tone")
     m.use_nodes = True
@@ -1706,28 +1706,37 @@ def bake_tone(body):
     def line(v, at_v, w):
         return g.op("EXPONENT", g.neg(g.sq(g.div(g.sub(v, at_v), w))))
 
-    # abs: the line down the middle, three rows of pads above her belly button
-    # and the lower pad below, the outer edges, and the obliques' lines down
-    # toward her hips (stopping well above the suit's leg line). Each pad is a
-    # soft dome between its grooves; the rows are fainter than the middle line.
+    # Her stomach and abs are heights the game shades as contours on the
+    # skin-tight suit (lit on the slopes toward the light, a crisp shadow on
+    # the far side) with thin ink lines in the deepest grooves.
+    # stomach (alpha), what a tighter stomach shows first: the line down the
+    # middle, the outer edges of the abs and the V lines down toward her hips
+    # (stopping well above the suit's leg line), over a softly rounded front.
     front = g.sub(1.0, g.sstep(-0.075, -0.05, y))
     rows = g.mul(g.sstep(0.868, 0.885, z), g.sstep(1.0, 0.985, z))
     inner = g.sstep(0.05, 0.038, ax)
+    t = g.div(g.sub(z, 0.85), 0.05)
 
-    def grooves(w):
+    def stomach_lines(w):
         mid = g.mul(line(x, 0.0, w), rows)
-        across = 0.0
-        for zc in (0.905, 0.937, 0.968):
-            across = g.mx(across, line(z, zc, w * 0.85)) if not isinstance(across, float) else line(z, zc, w * 0.85)
-        across = g.mul(g.mul(across, g.sstep(0.04, 0.026, ax)), 0.55)
-        edge = g.mul(g.mul(line(ax, g.add(0.046, g.mul(g.sub(z, 0.93), -0.06)), w * 1.1), rows), 0.7)
-        t = g.div(g.sub(z, 0.85), 0.05)
+        edge = g.mul(line(ax, g.add(0.046, g.mul(g.sub(z, 0.93), -0.06)), w * 1.1), rows)
         obl = g.mul(g.mul(line(ax, g.add(0.034, g.mul(t, 0.026)), w), g.sstep(0.85, 0.862, z)), g.sstep(0.905, 0.89, z))
-        return g.mx(g.mx(mid, across), g.mx(edge, g.mul(obl, 0.6)))
+        return g.mx(g.mx(mid, edge), g.mul(obl, 0.85))
 
-    groove = grooves(0.0045)
-    pads = g.mul(g.mul(rows, inner), g.sub(1.0, grooves(0.011)))
-    abs_v = g.mul(g.sub(g.mul(pads, 0.55), g.mul(groove, 0.8)), front)
+    dome = g.mul(g.mul(rows, inner), g.sub(1.0, stomach_lines(0.012)))
+    stomach_v = g.mul(g.sub(g.mul(dome, 0.35), g.mul(stomach_lines(0.0045), 0.85)), front)
+
+    # abs (red): the three rows across above her belly button, splitting the
+    # front into pads, each a rounder dome between its grooves.
+    def ab_rows(w):
+        across = None
+        for zc in (0.905, 0.937, 0.968):
+            r = line(z, zc, w * 0.85)
+            across = r if across is None else g.mx(across, r)
+        return g.mx(g.mul(across, g.sstep(0.044, 0.03, ax)), g.mul(stomach_lines(w), 0.6))
+
+    pads = g.mul(g.mul(rows, inner), g.sub(1.0, ab_rows(0.011)))
+    abs_v = g.mul(g.sub(g.mul(pads, 0.6), g.mul(ab_rows(0.0045), 0.85)), front)
     # arms: shoulder cap edge, biceps and triceps, the line between them underneath
     dy = g.sub(y, 0.022)
     dz = g.sub(z, 1.1445)
@@ -1758,18 +1767,24 @@ def bake_tone(body):
     keep = {i: body.material_slots[i].material for i in slots}
     for i in slots:
         body.material_slots[i].material = m
-    img = bpy.data.images.new("v_body_tone", 1024, 1024, alpha=False)
-    img.colorspace_settings.name = "Non-Color"
-    node = nt.nodes.new("ShaderNodeTexImage")
-    node.image = img
-    nt.nodes.active = node
     for o in bpy.data.objects:
         o.select_set(o == body)
     bpy.context.view_layer.objects.active = body
-    bpy.ops.object.bake(type="EMIT")
-    img.filepath_raw = os.path.join(TEX_OUT, "v_body_tone.png")
-    img.file_format = "PNG"
-    img.save()
+    node = nt.nodes.new("ShaderNodeTexImage")
+    nt.nodes.active = node
+    baked = []
+    for pass_ in ("rgb", "stomach"):
+        if pass_ == "stomach":
+            g.put(comb.inputs[0], g.add(0.5, g.mul(stomach_v, 0.5)))
+        img = bpy.data.images.new("v_body_tone_" + pass_, 1024, 1024, alpha=False)
+        img.generated_color = (0.5, 0.5, 0.5, 1.0)   # no change off her body
+        img.colorspace_settings.name = "Non-Color"
+        node.image = img
+        bpy.ops.object.bake(type="EMIT")
+        baked.append(read_px(img))
+    px = baked[0].copy()
+    px[..., 3] = baked[1][..., 0]
+    write_png(px, "v_body_tone")
     for i, mat in keep.items():
         body.material_slots[i].material = mat
     print("baked v_body_tone")

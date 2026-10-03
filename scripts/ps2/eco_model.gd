@@ -78,7 +78,7 @@ const HEAVY_BODY := preload("res://assets/materials/eco/eco_v_body_heavy.tres")
 
 ## Biggie's gym (scripts/hub/gym.gd): the blend shape (tools/eco/build_eco_vroid.py
 ## fit_shapes) each trained part fades in. Abs, arms and legs also fade in the
-## muscle tone painted into v_body_tone.png (eco_toon.gdshaderinc `tone`).
+## muscle heights in v_body_tone.png shaded as contours (eco_toon.gdshaderinc `tone`).
 const FIT_SHAPES := {"glutes": "Fit_Glutes", "stomach": "Fit_Belly", "legs": "Fit_Legs", "arms": "Fit_Arms"}
 
 ## Movement states of scripts/player.gd (enum State).
@@ -180,7 +180,7 @@ func set_fitness(amounts: Dictionary) -> void:
 
 
 func apply_fitness() -> void:
-	var tone := Vector3(fitness.get("abs", 0.0), fitness.get("arms", 0.0), fitness.get("legs", 0.0))
+	var tone := Vector4(fitness.get("abs", 0.0), fitness.get("arms", 0.0), fitness.get("legs", 0.0), fitness.get("stomach", 0.0))
 	for node in find_children("*", "MeshInstance3D", true, false):
 		var mi := node as MeshInstance3D
 		if mi.mesh == null:

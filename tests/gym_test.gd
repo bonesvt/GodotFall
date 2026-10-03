@@ -82,7 +82,7 @@ func _run() -> void:
 	_check("chalkboard keeps score", board.text == Gym.board_text(run_node.armory.fitness), board.text)
 	var eco = player.get_node("EcoBody").shadow
 	var shaped := 0.0
-	var toned := Vector3.ZERO
+	var toned := Vector4.ZERO
 	for mi: MeshInstance3D in eco.find_children("*", "MeshInstance3D", true, false):
 		var b := mi.find_blend_shape_by_name("Fit_Glutes")
 		if b >= 0 and mi.name.contains("Body"):
@@ -90,7 +90,7 @@ func _run() -> void:
 			toned = mi.get_instance_shader_parameter("tone")
 	var amounts := Gym.amounts(run_node.armory.fitness)
 	_check("her glutes fill out as she trains", is_equal_approx(shaped, amounts["glutes"]) and shaped > 0.0, shaped)
-	_check("her abs, arms and legs tone up", toned.is_equal_approx(Vector3(amounts["abs"], amounts["arms"], amounts["legs"])) and toned.x > 0.0, toned)
+	_check("her stomach, abs, arms and legs tone up", toned.is_equal_approx(Vector4(amounts["abs"], amounts["arms"], amounts["legs"], amounts["stomach"])) and toned.x > 0.0 and toned.w > 0.0, toned)
 
 	# A run later, the gym is open again.
 	run_node.start_run(5)

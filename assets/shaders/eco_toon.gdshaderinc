@@ -43,14 +43,20 @@ uniform float glow_tex_energy = 1.6;
 uniform vec4 emission : source_color = vec4(0.0, 0.0, 0.0, 1.0);
 uniform float emission_energy = 0.0;
 // Muscle tone from Biggie's gym (tools/eco/build_eco_vroid.py bake_tone):
-// red her abs, green her arms, blue her legs; 0.5 is no change, below it the
-// grooves between muscles, above it the muscles. Only read when use_tone is on.
+// heights, red her abs, green her arms, blue her legs, alpha her stomach; 0.5
+// is no change, below it the grooves between muscles, above it the muscles.
+// They are shaded as contours: on the skin-tight suit the slopes toward the
+// light catch a soft gloss and the steep groove walls turned away from it go
+// dark; on bare skin those walls fall into the shade tint and the deepest
+// grooves get a thin ink line. Only read when use_tone is on.
 uniform sampler2D tone_tex : hint_default_black, filter_linear_mipmap;
 uniform bool use_tone = false;
-// Shadow in the grooves on bare skin, and the paler sheen over muscle where
-// the suit stretches over it.
-uniform vec3 tone_crease = vec3(0.62, 0.42, 0.4);
-uniform vec3 tone_stretch = vec3(0.05, 0.052, 0.068);
+// How steep the contours read, where their shadow starts, how bright the
+// gloss on the suit gets, and the ink lines on skin.
+uniform float tone_bump = 3.5;
+uniform float tone_shadow = 0.3;
+uniform float tone_gloss = 0.14;
+uniform vec3 tone_ink = vec3(0.62, 0.45, 0.47);
 // Suit upgrade armour edges: how brightly they glow gold once her trims turn gold.
 uniform float gold_edge = 0.0;
 
@@ -62,12 +68,15 @@ instance uniform vec4 paint : source_color, instance_index(2) = vec4(1.0);
 // turns gold and the armour edges light up.
 instance uniform float trim_gold : instance_index(3) = 0.0;
 const vec3 GOLD = vec3(1.0, 0.68, 0.2);
-// How much she has trained her abs, arms and legs (eco_model.gd set_fitness), 0..1.
-instance uniform vec3 tone : instance_index(4) = vec3(0.0);
+// How much she has trained her abs, arms, legs and stomach (eco_model.gd set_fitness), 0..1.
+instance uniform vec4 tone : instance_index(4) = vec4(0.0);
 
 varying float v_sheen_mask;
 varying float v_rim;
 varying vec3 v_shade;
+// The contour slope from tone_tex (view space), 0 where she is untrained.
+varying vec3 v_form;
+varying float v_suit;
 
 void vertex() {
 	vec4 clip = PROJECTION_MATRIX * MODELVIEW_MATRIX * vec4(VERTEX, 1.0);
@@ -84,12 +93,15 @@ void fragment() {
 	vec2 mask = use_mask ? texture(mask_tex, UV).rg : vec2(1.0, 0.0);
 	v_sheen_mask = sheen * mask.r;
 	v_shade = mix(shade_tint, shade_tint_2, mask.g);
-	if (use_tone && (tone.x + tone.y + tone.z) > 0.0) {
-		float d = dot(texture(tone_tex, UV).rgb * 2.0 - 1.0, tone);
-		// skin: soft shadow in the grooves, a touch lighter over the muscle;
-		// suit: the grooves darken a little, the stretch over muscle reads paler
-		vec3 groove = mix(mix(vec3(1.0), tone_crease, -d), vec3(1.0 + 0.5 * d), mask.g);
-		col = d < 0.0 ? col * groove : col * (1.0 + 0.12 * d * (1.0 - mask.g)) + tone_stretch * d * mask.g;
+	v_form = vec3(0.0);
+	v_suit = mask.g;
+	if (use_tone && dot(tone, vec4(1.0)) > 0.0) {
+		vec2 px = 2.5 / vec2(textureSize(tone_tex, 0));
+		float h = dot(texture(tone_tex, UV) * 2.0 - 1.0, tone);
+		float hu = dot(texture(tone_tex, UV + vec2(px.x, 0.0)) - texture(tone_tex, UV - vec2(px.x, 0.0)), tone);
+		float hv = dot(texture(tone_tex, UV + vec2(0.0, px.y)) - texture(tone_tex, UV - vec2(0.0, px.y)), tone);
+		v_form = (TANGENT * hu - BINORMAL * hv) * tone_bump;   // texture v runs down
+		col *= mix(vec3(1.0), tone_ink, smoothstep(0.68, 0.85, -h) * (1.0 - mask.g));
 	}
 	ALBEDO = col * exposure;
 	if (use_normal) {
@@ -116,10 +128,16 @@ void fragment() {
 void light() {
 	float ndl = dot(NORMAL, LIGHT);
 	float lit = smoothstep(shade_edge - shade_softness, shade_edge + shade_softness, ndl);
+	// muscle contours: steep walls turned from the light in shadow, and on the
+	// suit a gloss over the slopes toward it
+	float form = dot(v_form, LIGHT);
+	lit *= 1.0 - smoothstep(tone_shadow - 0.03, tone_shadow + 0.03, form);
+	float gloss = smoothstep(0.02, 0.3, -form) * lit * v_suit;
 	vec3 radiance = ATTENUATION * LIGHT_COLOR / PI;
 	DIFFUSE_LIGHT += mix(v_shade, vec3(1.0), lit) * radiance;
 	// rim: light added straight on top, so it reads on dark suit and pale skin alike
 	SPECULAR_LIGHT += v_rim * exposure * radiance;
+	SPECULAR_LIGHT += sheen_color * gloss * tone_gloss * exposure * radiance;
 	if (v_sheen_mask > 0.0) {
 		vec3 h = normalize(LIGHT + VIEW);
 		float s = pow(max(dot(NORMAL, h), 0.0), 60.0);
