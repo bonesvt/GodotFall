@@ -178,6 +178,9 @@ var third_person := false
 var move_yaw := NAN
 ## How quickly she turns to face where she walks under the orbit camera.
 var move_turn_rate := 10.0
+## Eco is sitting or lying down somewhere (the run manager's rest spots): she
+## doesn't move, but you can still look around her.
+var resting := false
 
 
 static func ensure_input_actions() -> void:
@@ -242,6 +245,12 @@ func _physics_process(delta: float) -> void:
 		health = minf(health + regen_rate * delta, max_health)
 	elif regen_timer <= 0.0 and armor < max_armor:
 		armor = minf(armor + armor_regen_rate * _armor_regen_mult * delta, max_armor)
+	if resting:
+		velocity = Vector3.ZERO
+		input_dir = Vector2.ZERO
+		wish_dir = Vector3.ZERO
+		_update_camera(delta)
+		return
 
 	input_dir = Input.get_vector("move_left", "move_right", "move_forward", "move_back")
 	wish_dir = (transform.basis * Vector3(input_dir.x, 0.0, input_dir.y)).normalized()

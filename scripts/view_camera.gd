@@ -36,6 +36,8 @@ static var prefer_third_person := false
 ## How quickly a shoulder swap slides across (higher = snappier).
 @export var swap_rate := 5.0
 @export var tp_fov := 80.0
+## Metres behind her eyes while she sits or lies down somewhere (player.gd resting).
+@export var rest_distance := 2.2
 
 @export_group("Follow")
 ## How quickly the camera catches up with her body (higher = tighter).
@@ -175,7 +177,9 @@ func _process(delta: float) -> void:
 		_anchor = target + (_anchor - target).normalized() * max_lag
 
 	var speed_t := clampf((player.velocity.length() - 7.0) / 15.0, 0.0, 1.0)
-	var offset := Vector3(_side_x * shoulder, height, distance + speed_pullback * speed_t)
+	# resting (player.gd resting) the camera centres on her and stands back a little
+	var rest: bool = player.get("resting") == true
+	var offset := Vector3(0.0 if rest else _side_x * shoulder, height, (rest_distance if rest else distance) + speed_pullback * speed_t)
 	var want := _anchor + _head.global_basis * offset
 	# Pull in front of anything between her and the camera.
 	var pivot := target + _head.global_basis * Vector3(_side_x * shoulder * 0.5, height * 0.5, 0.0)
@@ -194,7 +198,7 @@ func _process(delta: float) -> void:
 
 ## Places the camera on its orbit round her, blended with the shoulder view.
 func _blend_orbit(shoulder_at: Vector3, delta: float) -> void:
-	var target := player.global_position + Vector3.UP * orbit_height
+	var target := _orbit_centre() + Vector3.UP * orbit_height
 	var a := 1.0 - exp(-follow_rate * delta)
 	_orbit_pivot = _orbit_pivot.lerp(target, a)
 	if _orbit_pivot.distance_to(target) > max_lag:
@@ -210,6 +214,17 @@ func _blend_orbit(shoulder_at: Vector3, delta: float) -> void:
 	var shoulder_basis := _head.global_basis.orthonormalized()
 	var basis := Basis(shoulder_basis.get_rotation_quaternion().slerp(look.get_rotation_quaternion(), t))
 	_camera.global_transform = Transform3D(basis, shoulder_at.lerp(at, t))
+
+
+## Where the orbit circles: her feet, or the seat she has settled on while
+## resting (her model leaves the player for it, eco_fp_body.gd rest()).
+func _orbit_centre() -> Vector3:
+	if player.get("resting") == true:
+		var model = player.get_node_or_null("EcoBody")
+		var shadow: Node3D = model.get("shadow") if model != null else null
+		if shadow != null and shadow.top_level:
+			return shadow.global_position
+	return player.global_position
 
 
 ## Wallruns put the camera on the open side; a blocked shoulder hands over to a

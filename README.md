@@ -386,11 +386,11 @@ boots with knee plates, teal glowing trims).
 
 ## Stealth
 Grunts start **unaware** and have to notice you first.
-- **Vision**: a 60° forward cone (each side) out to their sight range (40 m in the test level, 35-45 m in run zones). Unaware grunts slowly sweep their gaze around their post. Behind them or out of range they see nothing.
+- **Vision**: a 50° forward cone (each side). Unaware grunts only notice you within 70% of their sight range (about 28 m in the test level, 25-32 m in run zones); once alerted they track you out to the full range (40 m, 35-45 m). Unaware grunts slowly sweep their gaze around their post. Behind them or out of range they see nothing.
 - **Cover** blocks sight. A crouched pilot behind a low wall is hidden; standing up shows your head.
-- **Tall grass** (the forest's hiding spots): crouch in it and grunts can't see you past 4 m; standing in it halves how fast they notice you. Dense foliage blocks sight like a wall.
-- **Detection meter**: fills while they can see you, fast up close (about half a second at 5 m), slowly far away (about 3 s near max range). Moving fast doubles it, crouching halves it, showing only part of yourself past cover cuts it, and the edge of their vision is slower. It drains again a couple of seconds after you break sight.
-- **Hearing**: footsteps carry with speed (a sprint about 7 m, a crouch walk about 1 m; no footsteps in the air). The suppressed pistol is still heard out to 20 m, and within about 7 m it alerts outright. Bumping into a grunt always gets noticed.
+- **Tall grass** (the forest's hiding spots): crouch in it and grunts can't see you past 3 m; standing in it cuts how fast they notice you to 30%. Dense foliage blocks sight like a wall.
+- **Detection meter**: fills while they can see you, fast up close (under a second at 5 m), slowly far away (6 s or more near the edge of their notice range). Moving fast doubles it, crouching cuts it to about a third, showing only part of yourself past cover cuts it to 40%, and the edge of their vision is much slower. It starts draining 1.5 s after you break sight.
+- **Hearing**: footsteps carry with speed (a sprint about 5 m, a crouch walk well under 1 m; no footsteps in the air). The suppressed pistol is still heard out to 20 m, and within about 7 m it alerts outright. Bumping into a grunt always gets noticed.
 - **Over each grunt**: a **?** that grows from yellow to orange as it notices you (half full, it turns to look), then a red **!** once alerted. Visible through cover.
 - **Around the crosshair**: an arc points at every grunt noticing you, including ones behind you, and fills toward red.
 - **Sneak attacks**: anything that hits a grunt that hasn't noticed you does double damage, so a pistol headshot on an unaware grunt kills outright.
