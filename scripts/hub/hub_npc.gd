@@ -32,6 +32,12 @@ var _mouth: Array = []   # [[MeshInstance3D, blend shape index]]
 var _t := 0.0
 ## The face mood on now ("" plain), how red the cheeks are (0..1, fading on
 ## its own), and the head gesture with how long it has run.
+## Holding one of their poses (npc_idles.gd): they don't turn on the spot
+## or switch to their talk loop, just talk from where they are.
+var posed := false
+var spot := ""
+## The mood they settle back into (their spot's: eyes shut by the records).
+var rest_mood: Array = []
 var face := ""
 var blush := 0.0
 var gesture := ""
@@ -162,10 +168,21 @@ func mood(words: Array) -> void:
 			_gesture_t = 0.0
 
 
-## Back to a plain face and head (the blush keeps fading on its own).
+## Where their head is now (for cameras), in world space.
+func head_position() -> Vector3:
+	var skel := find_child("Skeleton3D", true, false) as Skeleton3D
+	if skel != null:
+		var i := skel.find_bone("J_Bip_C_Head")
+		if i >= 0:
+			return skel.global_transform * skel.get_bone_global_pose(i).origin + Vector3(0, 0.08, 0)
+	return global_position + Vector3(0, 1.45, 0)
+
+
+## Back to their resting face and head (the blush keeps fading on its own).
 func calm() -> void:
 	face = ""
 	gesture = ""
+	mood(rest_mood)
 
 
 ## Puts on their outfit for run number `run` (the same all through a stay in
@@ -199,7 +216,7 @@ func wear(p_outfit: String) -> void:
 
 func say(stream: AudioStream) -> void:
 	talking = true
-	if _anim != null and _anim.has_animation("talk") and _anim.current_animation != "talk":
+	if _anim != null and not posed and _anim.has_animation("talk") and _anim.current_animation != "talk":
 		_anim.play("talk", 0.3)
 	if stream != null:
 		voice.stream = stream
@@ -209,7 +226,7 @@ func say(stream: AudioStream) -> void:
 func hush() -> void:
 	talking = false
 	voice.stop()
-	if _anim != null and _anim.has_animation("idle") and _anim.current_animation != "idle":
+	if _anim != null and not posed and _anim.has_animation("idle") and _anim.current_animation != "idle":
 		_anim.play("idle", 0.4)
 
 
@@ -219,7 +236,7 @@ func _process(delta: float) -> void:
 	var want := home_yaw
 	if look_target != null and is_instance_valid(look_target):
 		var d := look_target.global_position - global_position
-		if Vector2(d.x, d.z).length() < NOTICE_RANGE or talking:
+		if not posed and (Vector2(d.x, d.z).length() < NOTICE_RANGE or talking):
 			want = atan2(-d.x, -d.z)   # the model faces -Z
 	rotation.y = lerp_angle(rotation.y, want, minf(1.0, delta * TURN_SPEED))
 	# Mouth flaps while their voice plays.
