@@ -28,6 +28,14 @@ base since the militia turned her away. Walk around, warm up the movement kit, a
 press **F** at the map table ("HEAD OUT") to start a run. When a run ends, won or lost,
 **Enter** brings you back here.
 
+Off duty (in the hub and the town, but not on the range, the movement course or the titan
+yard) Eco doesn't run: she struts at a stroll (`player.gd` `stroll_speed`, hold **Shift**
+for a brisker one), hips swaying over each step, one foot landing in front of the other,
+shoulders back, and stands with her weight on one hip. The strut is layered over her walk in
+`scripts/ps2/eco_model.gd` (`_strut`); the training grounds are `TRAINING_AREAS` in
+`hub_grounds.gd`. `xvfb-run -a godot --path . --fixed-fps 30 -s res://tools/eco/strut_shots.gd
+-- out_dir --view=front|side|back` renders it next to her plain walk.
+
 - **The hall**: an old hardwood temple, two rows of timber pillars down a nave and the
   roof fallen in over the middle so a shaft of sun lands on the idol. Carved, painted eye
   glyphs run along the walls. Eco has made it home: plank floors, rugs, string lights
@@ -106,6 +114,32 @@ enemy titan's salvage when you win); a lost run banks half. The HUD shows what y
   runs with (Mk I, instead of scrap; salvage can still replace them) and **refit** parts
   (+6% per level to every copy you install, salvaged ones and scrap included). The titan
   in the gantry is the one you'd start with.
+- **Suit locker** (left wall, past the rubble): upgrade Eco's suit, five tiers bought in
+  order. Each tier adds **armour** (a second bar over her health: it takes hits first and
+  comes back after the same pause, once health is full), one **passive**, and armour you
+  can see on her:
+
+  | Tier | Armour | Passive | Looks |
+  | --- | --- | --- | --- |
+  | 1 Scav Rig | 20 | Magnet pouches: materials fly to you from twice as far | forearm bracers, belt with hip pouches |
+  | 2 Seal Weave | 40 | Auto-seal: health and armour come back after 2 s, not 3 | layered shoulder plates, seal injector on her thigh |
+  | 3 Dampers | 60 | Hush dampers: grunts notice you 30% slower (sight and footsteps) | shin guards, knee cops, hip plates |
+  | 4 Jump Kit | 80 | Wallruns last 40% longer, grapple recharges 30% faster | jump pack low on her back, armoured collar |
+  | 5 Dad's Colours | 100 | Second wind: once per zone a downing hit leaves you on 1 HP, untouchable 1.5 s | plates in Dad's colours, shoulder crests, every trim gold |
+
+  Once she has a tier, the locker's **Weight** row refits the suit (free, any time):
+
+  | Weight | Armour | Bonus | Looks |
+  | --- | --- | --- | --- |
+  | Light | half | 10% faster on the ground, grunts notice you 15% slower, wallruns 15% longer | cloth and leather: a wrap that supports her chest and covers her sides, choker with Dad's tag, a nose ring, wrapped arms and shins, a leather shoulder guard and knee pads, her stiletto on a thigh garter |
+  | Medium | as listed | armour refills twice as fast | a mechanic's jumpsuit (unzipped in a wide V down past her belly button, a heart window over the top of her glutes, left arm bare with Dad's cog tattoo, right sleeve rolled), a knotted scarf, a cheek plaster, a tool pouch, a canvas yoke, rubber knee caps, a cargo pocket, a wrist computer |
+  | Heavy | +60% | every hit lands 15% softer, but 10% slower on the ground | a quilted padded undersuit under titan-hull armour: a breastplate (Dad's titan's core light from tier 4), a comm earpiece, bracers, pauldrons, shin guards, knee cops, hip, elbow, upper-arm and thigh plates, a back plate, an armoured collar |
+
+  Tier 5 also costs a lock core. The armour pieces are part of `eco.glb` (`suit_t<tier>_*`
+  meshes, modelled by `suit_armor()`, `light_suit()` and `medium_suit()`, `heavy_extras()` in
+  `tools/eco/build_eco_vroid.py`; each weight also bakes its own bodysuit cut,
+  `v_body*_light.png`, `v_body*_medium.png` and `v_body*_heavy.png`); `eco_model.gd` `suit_tier` and
+  `suit_weight` show them.
 
 On the screens: W/S pick a row, A/D browse, Space buy or fit, Tab or Q/E switch section,
 F or Esc to leave. Progress saves to `user://armory.cfg` (`scripts/hub/armory.gd` has every
@@ -341,7 +375,8 @@ boots with knee plates, teal glowing trims).
   ```
   The first-person arm (`eco_fp_arm.glb`) still comes from the older code-sculpted Eco
   (`tools/eco/build_eco.py ... --fp`).
-- **Reference sheet renders**: `godot res://scenes/eco_showcase.tscn -- --shots=<folder> [--clean]`.
+- **Reference sheet renders**: `godot res://scenes/eco_showcase.tscn -- --shots=<folder> [--clean] [--suit=<tier>] [--weight=light|medium|heavy] [--only=front,back]`.
+  In the showcase, S cycles her suit upgrade tiers and W the suit weight.
 
 ## Grunts
 - 60 HP, headshots count above the shoulders. Visor glows red during a 0.4 s wind-up before each shot.
@@ -442,6 +477,9 @@ select the Player node and tweak values in the Inspector, or change the defaults
 - `tests/armory_test.gd` headless workbench test (prices, upgrades, attachments, titan parts and
   refits, saving, the bench screens changing your gun, crates, alloy nodes and grunt drops):
   `godot --headless --path . -s res://tests/armory_test.gd`
+- `tests/suit_test.gd` Eco's suit upgrades (tiers bought in order, armour soaking hits and
+  coming back, each passive, the second wind, armour pieces per tier, the suit locker):
+  `godot --headless --path . -s res://tests/suit_test.gd`
 - `tools/hub/bench_shots.gd` screenshots of the benches, their screens, the guns and the loot
   (needs a renderer): `xvfb-run -a godot --path . -s res://tools/hub/bench_shots.gd -- out_dir`
 - `tests/run_loop_test.gd` headless run loop test (generator limits, a bot pilot clearing the

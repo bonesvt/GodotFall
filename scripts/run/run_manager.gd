@@ -245,6 +245,7 @@ func load_zone(index: int) -> void:
 		evac_open = false
 		hud.toast("THE FOREST'S EDGE: TITANFALL STANDING BY")
 	place_player(zone_info["spawn"])
+	player.second_wind_ready = player.second_wind  # Eco's suit: once per zone
 	tutorial.start_level("zone%d" % index if index < RunState.ZONE_COUNT else "arena")
 
 
@@ -255,6 +256,7 @@ func place_player(pos: Vector3) -> void:
 
 
 func _physics_process(delta: float) -> void:
+	player.strolling = phase == Phase.HUB and not on_training_ground()
 	match phase:
 		Phase.ZONE:
 			_zone_tick(delta)
@@ -356,7 +358,7 @@ func close_garage() -> void:
 		hud.toast("Call your titan again (V) to see the new paint.", HUB_LINE_SECONDS)
 
 
-## Opens a workbench screen ("gunsmith", "rack" or "workshop"), pausing the hub.
+## Opens a workbench screen ("gunsmith", "rack", "workshop" or "suit"), pausing the hub.
 func open_bench(kind: String) -> void:
 	bench = GunsmithScreen.new(armory) if kind == "gunsmith" else BenchScreen.new(armory, kind)
 	add_child(bench)
@@ -380,9 +382,11 @@ func close_bench() -> void:
 	dress_hub()
 
 
-## Puts the gun picked at the weapon rack, upgraded and fitted, in Eco's hand.
+## Puts the gun picked at the weapon rack, upgraded and fitted, in Eco's hand,
+## and her suit upgrade (suit locker) on her.
 func equip_loadout() -> void:
 	player.get_node("Head/Camera3D/Weapon").equip(armory.weapon_profile())
+	player.apply_suit(armory.suit_profile())
 
 
 ## Shows the armory on the benches: the equipped gun on the gunsmith's mat,
@@ -471,6 +475,18 @@ func _loot_tick(delta: float) -> void:
 	if not got.is_empty():
 		Loot.drop(zone_root, node.global_position + Vector3(0, 0.4, 0), got, loot_rng)
 		tutorial.event("loot")
+
+
+## Whether Eco is on the hub's training grounds (zone_info["training_areas"]:
+## the range, the movement course, the titan yard), where she moves at full
+## speed instead of strolling. A builder adds a Rect2 (x, z) there to make
+## another area one.
+func on_training_ground() -> bool:
+	var at := Vector2(player.global_position.x, player.global_position.z)
+	for area: Rect2 in zone_info.get("training_areas", []):
+		if area.has_point(at):
+			return true
+	return false
 
 
 func in_titan_yard() -> bool:

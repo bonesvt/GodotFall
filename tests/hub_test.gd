@@ -33,11 +33,14 @@ func _run() -> void:
 	_check("pilot stands on the temple floor", player.is_on_floor() and absf(player.global_position.y - HubBuilder.F) < 0.3, player.global_position)
 
 	# Walk down the nave toward the idol for two seconds: nothing blocks the middle of the hall.
+	# Off duty in the hub she struts at stroll speed instead of running.
 	var start: Vector3 = player.global_position
 	Input.action_press("move_forward")
 	await _ticks(240)
+	var strut_speed: float = player.horizontal_speed()
 	Input.action_release("move_forward")
-	_check("walk down the nave", start.z - player.global_position.z > 8.0 and player.is_on_floor(), player.global_position)
+	_check("walk down the nave", start.z - player.global_position.z > 3.0 and player.is_on_floor(), player.global_position)
+	_check("she struts in the hub", player.strolling and absf(strut_speed - player.stroll_speed) < 0.1, [player.strolling, strut_speed])
 
 	# Every interactable answers, and lines cycle.
 	var ids := []
@@ -94,7 +97,7 @@ func _run() -> void:
 	await _stand_at(ramp_from)
 	player.rotation.y = atan2(-(ramp_to.x - ramp_from.x), -(ramp_to.z - ramp_from.z))
 	Input.action_press("move_forward")
-	for i in 240:
+	for i in 1200:  # at strut speed
 		await physics_frame
 		if _on_gallery():
 			break
@@ -130,6 +133,7 @@ func _run() -> void:
 	var course: Dictionary = info["course"]
 	await _stand_at(course["start"])
 	_check("start pad arms the clock", run_node.course_armed, run_node.course_armed)
+	_check("full speed on the training grounds", not player.strolling, player.strolling)
 	_place(course["start"] + Vector3(4.5, 0.6, 0))
 	await _ticks(20)
 	_check("leaving the pad starts the clock", run_node.course_time > 0.0, run_node.course_time)
@@ -184,6 +188,8 @@ func _run() -> void:
 	await _press("interact")
 	await _ticks(3)
 	_check("map table starts a run", run_node.phase == run_node.Phase.ZONE and run_node.run.zone == 0 and run_node.run.run_seed == 99, run_node.phase)
+	await physics_frame
+	_check("no strut on a run", not player.strolling, player.strolling)
 	_check("hub cleared for the zone", run_node.zone_root.name == "Zone" and run_node.zone_info.has("caches"), run_node.zone_root.name)
 
 	# Losing the run goes back to the temple.
