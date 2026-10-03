@@ -27,6 +27,9 @@ const HubBuilder := preload("res://scripts/hub/hub_builder.gd")
 const Armory := preload("res://scripts/hub/armory.gd")
 const BenchScreen := preload("res://scripts/hub/bench_screen.gd")
 const GunsmithScreen := preload("res://scripts/hub/gunsmith_screen.gd")
+const GiftScreen := preload("res://scripts/hub/gift_screen.gd")
+const GiftShop := preload("res://scripts/hub/gift_shop.gd")
+const GiftBag := preload("res://scripts/hub/gift_bag.gd")
 const Loot := preload("res://scripts/run/loot.gd")
 const Weapon := preload("res://scripts/weapon.gd")
 const Art := preload("res://scripts/ps2/ps2_assets.gd")
@@ -61,6 +64,8 @@ const HUB_LINE_SECONDS := 4.5
 @export var armory_path := Armory.DEFAULT_PATH
 ## Where who Eco has talked to in the hub (and what about) is saved.
 @export var npc_path := NpcTalk.DEFAULT_PATH
+## Where Eco's carried gifts are saved (gift_bag.gd; tests use their own path).
+@export var gifts_path := GiftBag.DEFAULT_PATH
 
 var run: RunState
 var phase := Phase.ZONE
@@ -85,6 +90,8 @@ var last_result := ""
 var runs_ended := 0
 ## The people living in the hub (hub_rooms.gd), by who, and their conversations.
 var hub_npcs := {}
+## The gifts Eco carries (bought at Lucky Lantern in Solace).
+var gift_bag: GiftBag
 var npc_talk: NpcTalk
 ## The parts your last run ended with; the hub's practice titan is built from them.
 var last_parts := {}
@@ -140,6 +147,7 @@ func _ready() -> void:
 	add_to_group("loot_collector")
 	ensure_input_actions()
 	armory = Armory.open(armory_path)
+	gift_bag = GiftBag.new(gifts_path)
 	npc_talk = NpcTalk.new()
 	npc_talk.save_path = npc_path
 	add_child(npc_talk)
@@ -430,6 +438,19 @@ func talk_to(who: String) -> void:
 		npc_talk.start(hub_npcs[who], runs_ended, last_result == "RUN COMPLETE")
 
 
+## The people Eco can romance, for the gift shop's taste notes:
+## [{who, name, likes, dislikes, affection}].
+func romance_partners() -> Array:
+	var out := []
+	for who in hub_npcs:
+		if not npc_talk.romanceable(who):
+			continue
+		var s: Dictionary = NpcTalk.Romance.settings(npc_talk.bank(who))
+		out.append({"who": who, "name": String(NpcTalk.NAMES.get(who, who)).capitalize(),
+				"likes": s["likes"], "dislikes": s["dislikes"], "affection": npc_talk.affection(who)})
+	return out
+
+
 ## Opens Eco's paint shop on the chassis of your last titan, pausing the hub.
 func open_garage() -> void:
 	garage = Garage.new(last_parts.get("chassis", {}).get("id", "atlas"))
@@ -454,7 +475,10 @@ func close_garage() -> void:
 
 ## Opens a workbench screen ("gunsmith", "rack", "workshop" or "suit"), pausing the hub.
 func open_bench(kind: String) -> void:
-	bench = GunsmithScreen.new(armory) if kind == "gunsmith" else BenchScreen.new(armory, kind)
+	if kind == "gifts":
+		bench = GiftScreen.new(armory, gift_bag, romance_partners())
+	else:
+		bench = GunsmithScreen.new(armory) if kind == "gunsmith" else BenchScreen.new(armory, kind)
 	add_child(bench)
 	get_tree().paused = true
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
@@ -463,6 +487,9 @@ func open_bench(kind: String) -> void:
 
 
 func close_bench() -> void:
+	if bench is GiftScreen and not bench.bought.is_empty():
+		var names: Array = bench.bought.map(func(id): return GiftShop.gift_name(id))
+		hud.toast("Bought: %s. Give gifts to someone in the hub when you talk to them." % ", ".join(names), HUB_LINE_SECONDS)
 	if not bench.unlocked.is_empty():
 		var names: Array = bench.unlocked.map(func(id): return Armory.WEAPONS[id]["name"].to_upper())
 		hud.toast("LEVEL %d: %s UNLOCKED. PICK %s AT THE WEAPON RACK" % [armory.pilot_level(), " AND ".join(names), "IT" if names.size() == 1 else "THEM"], 5.0)

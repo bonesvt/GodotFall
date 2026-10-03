@@ -25,6 +25,7 @@ const Props := preload("res://scripts/hub/hub_props.gd")
 const Ambient := preload("res://scripts/hub/ambient.gd")
 const TP := preload("res://scripts/hub/town_props.gd")
 const TownMood := preload("res://scripts/hub/town_mood.gd")
+const GiftShop := preload("res://scripts/hub/gift_shop.gd")
 
 ## The road leaves the hub's front gate at z = ROAD_START and reaches the town gate at TOWN_GATE.
 const ROAD_START := 94.0
@@ -54,6 +55,7 @@ const SHOPS := {
 	"bar": "quest givers and rumours",
 	"cinema": "dates",
 	"ice_cream": "dates and treats",
+	"gifts": "gifts for romance partners (gift_shop.gd)",
 	"garden": "dates",
 }
 
@@ -278,8 +280,8 @@ static func _plaza(root: Node3D, info: Dictionary, rng: RandomNumberGenerator) -
 	for spec in [[Vector3(-12, 0, 166), 90.0], [Vector3(12, 0, 166), -90.0], [Vector3(-12, 0, 184), 90.0], [Vector3(12, 0, 184), -90.0]]:
 		_bench(root, spec[0], spec[1])
 		var pot: Vector3 = spec[0] + Vector3(signf(spec[0].x) * 3.5, 0, 0)
-		if pot.x < 0.0 and pot.z > 175.0:
-			continue  # Scoops stands there
+		if pot.z > 175.0:
+			continue  # Scoops and the gift shop stand there
 		TP.spawn(root, "planter", pot, 0.0, {"leaves": LEAF_TINTS[2]})
 		_solid(root, pot + Vector3(0, 0.4, 0), Vector3(2.4, 0.8, 2.4))
 		Props.tree(root, pot + Vector3(0, 0.8, 0), rng, 0.6)
@@ -301,6 +303,8 @@ static func _plaza(root: Node3D, info: Dictionary, rng: RandomNumberGenerator) -
 		TP.spawn(root, "market_stall", spec[0], spec[1], {"awning": (spec[2] as Color).lerp(Color.WHITE, 0.35), "shop": spec[2]})
 		_solid(root, spec[0] + Vector3(0, 1.2, 0), Vector3(3.0, 2.4, 1.8))
 	_ice_cream(root, info)
+	# Lucky Lantern, the gift shop, on the opposite corner by the bar (gift_shop.gd).
+	_gift_shop(root, info)
 	# Lamps round the Sun Tree.
 	for d: Vector3 in [Vector3(-6.5, 0, -6.5), Vector3(6.5, 0, -6.5), Vector3(-6.5, 0, 6.5), Vector3(6.5, 0, 6.5)]:
 		_solar_lamp(root, c + d, [LIME, AMBER, CYAN, MAGENTA][int(d.x > 0) + 2 * int(d.z > 0)])
@@ -326,6 +330,21 @@ static func _ice_cream(root: Node3D, info: Dictionary) -> void:
 		"Ophelia orders black sesame every time. Says it's the only flavour that matches her soul.",
 		"Two scoops, one bench, nobody shooting at me. That's a good day in Solace.",
 	], "ice_cream")
+
+
+## Lucky Lantern, the gift shop kiosk on the plaza's corner by the bar
+## (gift_shop.gd: its gifts on the shelves, the counter's shop screen).
+static func _gift_shop(root: Node3D, info: Dictionary) -> void:
+	var at := Vector3(15.5, 0, 186.0)
+	GiftShop.build(root, info, at)
+	# Walls to walk against: back, sides, the counter, the display table.
+	_solid(root, at + Vector3(0, 1.5, 3.1), Vector3(5.2, 3.0, 0.3))
+	for s: float in [-1.0, 1.0]:
+		_solid(root, at + Vector3(s * 2.5, 1.5, 1.6), Vector3(0.3, 3.0, 3.2))
+	_solid(root, at + Vector3(-1.45, 0.6, 0.75), Vector3(1.9, 1.2, 0.6))
+	_solid(root, at + Vector3(0, 0.6, GiftShop.SHELF_Y + 0.3), Vector3(GiftShop.SHELF_W, 1.2, 0.8))
+	_neon_text(root, at + Vector3(0, 3.25, -0.12), GiftShop.SIGN, Color(1.0, 0.45, 0.65), 64, 180.0)
+	K.light(root, at + Vector3(0, 2.4, 1.2), GiftShop.PINK.lerp(WARM, 0.4), 1.2, 7.0)
 
 
 ## The Sun Tree (tools/town/build_town.py): white ribs holding up leaf-shaped
@@ -358,7 +377,7 @@ static func _plaza_walls(root: Node3D, rng: RandomNumberGenerator) -> void:
 		K.mesh(root, Vector3(x + s * 3.5, 5.5, wall_z + dir * 0.06), Vector3(2.4, 8.0, 0.12), Art.material("moss", Color(0.72, 1.0, 0.62)))
 		for i in 8:
 			Props.spawn(root, "fern", Vector3(x + s * 3.5 + rng.randf_range(-0.9, 0.9), 1.8 + i * 1.0, wall_z + dir * 0.3), rng.randf_range(0, 360), 0.5, {"leaves": LEAF_TINTS[i % 4]})
-		if not (s < 0.0 and dir < 0.0):  # Scoops stands in front of the arcade's garden
+		if dir > 0.0:  # Scoops and the gift shop stand in front of the arcade's and the bar's gardens
 			TP.spawn(root, "planter", Vector3(x + s * 3.5, 0, wall_z + dir * 1.3), 0.0, {"leaves": LEAF_TINTS[1]})
 			_solid(root, Vector3(x + s * 3.5, 0.4, wall_z + dir * 1.3), Vector3(2.4, 0.8, 2.4))
 		# Billboard.
