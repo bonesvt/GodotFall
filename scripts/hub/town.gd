@@ -11,7 +11,7 @@ extends RefCounted
 ##   z 126..132  the town gate: solar pylons, the SOLACE sign, a militia checkpoint
 ##   z 132..160  Lantern Row: the outfitter and the clinic west, noodles and salvage east
 ##   z 160..190  Sun Plaza: the Sun Tree, the fountain, the job board, the militia
-##               office west, the greenhouse cafe east
+##               office west, the greenhouse cafe and Cut & Chrome (the hair salon) east
 ##   z 190..214  Low Row: the arcade and Eco's old flat west, the bar and the cinema east
 ##   z 214..244  the rooftop garden up the steps, looking out over the valley
 ##
@@ -55,6 +55,7 @@ const SHOPS := {
 	"cinema": "dates",
 	"ice_cream": "dates and treats",
 	"garden": "dates",
+	"salon": "haircuts (salon_screen.gd)",
 }
 
 const MAGENTA := Color(1.0, 0.25, 0.75)
@@ -306,6 +307,7 @@ static func _plaza(root: Node3D, info: Dictionary, rng: RandomNumberGenerator) -
 		_solar_lamp(root, c + d, [LIME, AMBER, CYAN, MAGENTA][int(d.x > 0) + 2 * int(d.z > 0)])
 	_militia_office(root, info)
 	_greenhouse(root, info, rng)
+	_salon(root, info)
 	_plaza_walls(root, rng)
 
 
@@ -457,6 +459,54 @@ static func _greenhouse(root: Node3D, info: Dictionary, _rng: RandomNumberGenera
 		"Every couple in Solace has had their first date in there. I've had coffee in there. Alone.",
 		"Someday somebody's going to ask me. And I'm going to make them pay.",
 	], "cafe")
+
+
+## Cut & Chrome, Juno's hair salon, on the plaza's east side between Sal's and
+## the greenhouse: a narrow shop facing the Sun Tree, pink neon, a chair and a
+## mirror out front. Juno (tools/salon/build_stylist.py) waits by the door, and
+## her chair opens the salon screen (salon_screen.gd): haircuts for Eco and her
+## romance options (hair.gd).
+const SALON_Z := 164.6
+const SALON_PINK := Color(1.0, 0.42, 0.78)
+
+
+static func _salon(root: Node3D, info: Dictionary) -> void:
+	var front := PLAZA.end.x
+	var z := SALON_Z
+	TP.spawn(root, "shop_w9_f2", Vector3(front, 0, z), -90.0, {"wall": Color(0.98, 0.9, 0.95), "shop": SALON_PINK, "neon": CYAN, "awning": Color(0.95, 0.5, 0.75)})
+	_solid(root, Vector3(front + DEPTH * 0.5 + 0.6, GF * 0.5, z), Vector3(DEPTH, GF, 9.0))
+	_solid(root, Vector3(front + DEPTH * 0.5 - 0.6, GF + 2 * UF * 0.5, z), Vector3(DEPTH, 2 * UF, 9.0))
+	K.light(root, Vector3(front - 1.2, 2.8, z), SALON_PINK.lerp(WARM, 0.3), 1.3, 9.0)
+	_neon_text(root, Vector3(front - 0.84, GF + 0.75, z - 0.8), "CUT & CHROME", SALON_PINK, 64, -90.0)
+	# A striped neon pole by the door, a styling chair and a tall mirror under the awning.
+	var pole := Vector3(front - 0.5, 0, z + 3.6)
+	K.mesh(root, pole + Vector3(0, 1.4, 0), Vector3(0.22, 2.8, 0.22), Art.material("gunmetal"))
+	for i in 5:
+		K.glow(root, pole + Vector3(0, 0.6 + i * 0.5, 0), Vector3(0.26, 0.2, 0.26), (SALON_PINK if i % 2 == 0 else CYAN) * 1.6, Vector3(0, 45, 18))
+	var chair := Vector3(front - 2.4, 0, z - 2.6)
+	var seat := TP.paint(Color(0.85, 0.2, 0.5), 0.5)
+	K.mesh(root, chair + Vector3(0, 0.3, 0), Vector3(0.14, 0.6, 0.14), Art.material("gunmetal"))
+	K.mesh(root, chair + Vector3(0, 0.05, 0), Vector3(0.7, 0.1, 0.7), Art.material("gunmetal"))
+	K.mesh(root, chair + Vector3(0, 0.66, 0), Vector3(0.62, 0.16, 0.62), seat)
+	K.mesh(root, chair + Vector3(0.28, 1.05, 0), Vector3(0.12, 0.7, 0.6), seat)
+	for dz: float in [-0.33, 0.33]:
+		K.mesh(root, chair + Vector3(0, 0.88, dz), Vector3(0.5, 0.08, 0.08), Art.material("gunmetal"))
+	_solid(root, chair + Vector3(0, 0.5, 0), Vector3(0.8, 1.0, 0.8))
+	var mirror := chair + Vector3(1.6, 0, 0)
+	K.mesh(root, mirror + Vector3(0, 1.3, 0), Vector3(0.1, 2.0, 1.1), TP.paint(Color(0.08, 0.08, 0.1), 0.6))
+	K.glow(root, mirror + Vector3(-0.06, 1.3, 0), Vector3(0.02, 1.8, 0.9), Color(0.75, 0.85, 0.95) * 0.5)
+	for dz: float in [-0.56, 0.56]:
+		K.glow(root, mirror + Vector3(-0.07, 1.3, dz), Vector3(0.04, 2.0, 0.05), SALON_PINK * 1.6)
+	K.light(root, chair + Vector3(-0.8, 2.2, 0), SALON_PINK, 0.8, 5.0)
+	_poster(root, Vector3(front - 0.03, 2.1, z + 2.0), -90.0, "NEW YOU\nSAME BAD\nATTITUDE", "walk-ins ok", SALON_PINK)
+	# Juno by her chair, facing the plaza.
+	if not info.has("npcs"):
+		info["npcs"] = []
+	info["npcs"].append({"who": "stylist", "pos": chair + Vector3(-0.2, 0, 1.3), "yaw": 90.0})
+	shop(info, "salon", chair + Vector3(-1.2, 0, 0.6), "[F] Cut & Chrome: Juno's chair (haircuts)", [
+		"Juno cut my hair when I was nine. Dad said I looked like a rebel. Juno said 'good.'",
+	], "salon")
+	info["interactables"].back()["screen"] = "salon"
 
 
 # --- Low Row --------------------------------------------------------------------
