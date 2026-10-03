@@ -147,14 +147,14 @@ func _process_modification() -> void:
 	var shoulder := sk.get_bone_global_pose(_bones["UpperArm.R"]).origin
 	var target := to_skel * _aim_point()
 	var aim_dir := (target - shoulder).normalized()
-	var ready_dir := Vector3(-0.15, -0.75, -0.65).normalized()
+	var ready_dir := Vector3(-0.12, -0.85, -0.5).normalized()
 	var since := _since_shot()
 	var recoil := exp(-since * settle) if since < 1.0 else 0.0
 	var dir := ready_dir.slerp(aim_dir, aim).normalized()
 	dir = (dir + Vector3.UP * tan(deg_to_rad(kick)) * recoil).normalized()
 	var length := _arm_length(sk, "R")
 	var wrist_aim := shoulder + aim_dir * length * reach - aim_dir * 0.03 * recoil
-	var wrist_ready := shoulder + Vector3(0.03, -0.36, -0.2)
+	var wrist_ready := shoulder + Vector3(0.09, -0.34, -0.22)
 	var wrist := wrist_ready.lerp(wrist_aim, aim)
 	var up := Basis(dir, deg_to_rad(cant) * aim) * Vector3.UP
 	var gun_basis := _look(dir, up)
