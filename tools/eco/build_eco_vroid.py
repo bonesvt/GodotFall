@@ -55,6 +55,7 @@ STRETCH = (0.085, 0.09, 0.115)   # the suit where it stretches thin over her cur
 MED_SUIT = (0.03, 0.033, 0.026)   # the medium jumpsuit: charcoal olive
 MED_PANEL = (0.11, 0.04, 0.016)   # its rust side panels and sleeve cuff
 MED_ZIP = 1.0                     # how far the jumpsuit is unzipped (rest-space z)
+MED_NAVEL = 0.902                 # her belly button (rest-space z)
 MED_SLEEVE = 0.36                 # where the right sleeve is rolled to (rest-space x)
 TATTOO = (0.018, 0.024, 0.04)
 HVY_SUIT = (0.03, 0.034, 0.045)   # the heavy suit's padded undersuit
@@ -571,7 +572,7 @@ def _armor_mats(me, names):
         me.materials.append(new_mat(n, cols[n]))
 
 
-def shell(name, keep, planes=(), gap=0.004, thick=0.004, plate="eco_v_armor", edge="eco_v_armor_edge"):
+def shell(name, keep, planes=(), gap=0.004, thick=0.004, plate="eco_v_armor", edge="eco_v_armor_edge", smooth=0):
     """A plate that follows her body: the Body faces `keep(centre, normal)` picks,
     welded, trimmed straight by `planes` ((point, normal): the normal side is cut
     away), lifted `gap` off her skin and given `thick`ness. It keeps the body's
@@ -602,6 +603,13 @@ def shell(name, keep, planes=(), gap=0.004, thick=0.004, plate="eco_v_armor", ed
     bm.normal_update()
     for v in bm.verts:
         v.co += v.normal * gap
+    if smooth:   # a stiff plate: soften the small dips and peaks under it, borders stay put
+        inner = [v for v in bm.verts if not v.is_boundary]
+        for _ in range(smooth):
+            bmesh.ops.smooth_vert(bm, verts=inner, factor=0.5, use_axis_x=True, use_axis_y=True, use_axis_z=True)
+        for f in bm.faces:
+            f.smooth = True
+        bm.normal_update()
     orig = set(bm.verts)
     bmesh.ops.solidify(bm, geom=bm.faces[:], thickness=thick)
     bm.normal_update()
@@ -788,24 +796,13 @@ def heavy_extras(bvh):
       1  a breastplate cut from Dad's titan's hull, a comm earpiece with a mic
       4  the titan's old core light set in the breastplate"""
     out = []
-    # a barrel-shaped plate (a slice of an ellipsoid) standing clear of her chest
-    C, RX, RY, RZ = Vector((0, -0.01, 1.05)), 0.13, 0.13, 0.16
-    bm = bmesh.new()
-    bmesh.ops.create_uvsphere(bm, u_segments=40, v_segments=24, radius=1.0)
-    for v in bm.verts:
-        v.co = C + Vector((v.co.x * RX, v.co.y * RY, v.co.z * RZ))
-    for co, no in (((0, 0, 0.985), (0, 0, -1)), ((0, 0, 1.118), (0, 0, 1)), ((0, -0.06, 0), (0, 1, 0))):
-        bmesh.ops.bisect_plane(bm, geom=bm.verts[:] + bm.edges[:] + bm.faces[:], dist=1e-6,
-                               plane_co=Vector(co), plane_no=Vector(no), clear_outer=True)
-    for f in bm.faces:
-        f.smooth = True
-    bm.normal_update()
-    orig = set(bm.verts)
-    bmesh.ops.solidify(bm, geom=bm.faces[:], thickness=0.007)
-    for f in bm.faces:
-        vs = set(f.verts)
-        f.material_index = 1 if (vs & orig) and (vs - orig) else 0
-    out.append(rigid("suit_t1h_breastplate", bm, ["eco_v_armor", "eco_v_armor_edge"], "J_Bip_C_Chest"))
+    # a plate shaped to her chest, lifted clear of the suit and smoothed so it reads as one stiff piece
+    plate = shell("suit_t1h_breastplate",
+                  lambda c, n: c.y < 0.0 and 0.94 < c.z < 1.14 and abs(c.x) < 0.14,
+                  planes=[((0, 0, 0.978), (0, 0, -1)), ((0, 0, 1.118), (0, 0, 1)), ((0.112, 0, 0), (1, 0, 0)),
+                          ((-0.112, 0, 0), (-1, 0, 0)), ((0, -0.02, 0), (0, 1, 0))],
+                  gap=0.012, thick=0.007, smooth=4)
+    out.append(plate)
     # comm earpiece over her left ear, a mic boom to the corner of her mouth
     bm = bmesh.new()
     ear = Vector((0.079, 0.012, 1.29))
@@ -817,8 +814,9 @@ def heavy_extras(bvh):
     cylinder(bm, tip - d.normalized() * 0.004, d, 0.0045, 0.009, 0, segments=8)
     out.append(rigid("suit_t1h_comm", bm, ["eco_v_armor", "eco_v_armor_glow"], "J_Bip_C_Head"))
     # --- tier 4: the core light in the middle of the breastplate
-    zc = 1.066
-    p = C + Vector((0, -RY * math.sqrt(1 - ((zc - C.z) / RZ) ** 2), zc - C.z))
+    dg = bpy.context.evaluated_depsgraph_get()
+    hit, _n = surface(BVHTree.FromObject(plate, dg), (0, -0.5, 1.066), (0, 1, 0))
+    p = hit if hit is not None else Vector((0, -0.11, 1.066))
     n = Vector((0, -1, 0))
     bm = bmesh.new()
     cylinder(bm, p - n * 0.003, n, 0.019, 0.007, 1, segments=16)
@@ -1274,7 +1272,7 @@ def suit_graph(nt, skin, cut="base"):
       heavy   a padded undersuit quilted in diamonds, neck to gloves to boots,
               under a high collar (the plates and breastplate go over it)
       medium  a mechanic's jumpsuit: crew neck unzipped in a wide V to between her
-              breasts, a heart window low on her back over the top of her glute crease, full
+              breasts, a small window over her belly button, a heart window low on her back over the top of her glute crease, full
               legs, the left arm bare to the shoulder (a cog and wrench tattoo on
               it), the right sleeve rolled to the forearm, rust panels down the sides
     The light and medium cuts have no stretch shading over the bust.
@@ -1311,6 +1309,10 @@ def suit_graph(nt, skin, cut="base"):
         w_vee = g.mn(g.mx(g.mul(g.sub(z, MED_ZIP), 0.6), 0.0), 0.064)   # narrow where her bust is fullest
         d_vee = g.mx(g.sub(ax, w_vee), g.sub(MED_ZIP + 0.004, z))
         d_suit = g.mn(d_suit, g.mx(d_vee, g.mul(g.sub(0.5, front), 0.1)))
+        # a little oval window at the front showing her belly button, under the belt
+        nq = g.sqrt(g.add(g.sq(g.div(x, 0.017)), g.sq(g.div(g.sub(z, MED_NAVEL - 0.004), 0.021))))
+        d_navel = g.mul(g.sub(nq, 1.0), 0.017)
+        d_suit = g.mn(d_suit, g.mx(d_navel, g.mul(g.sub(0.5, front), 0.1)))
         # a heart-shaped window low on her back, its point over the top of her glute crease
         lobe = g.sub(g.sqrt(g.add(g.sq(g.sub(ax, 0.024)), g.sq(g.sub(z, 0.85)))), 0.026)
         wedge = g.mul(g.sub(ax, g.mul(g.sub(z, 0.778), 0.8)), 0.781)   # its sides meet the lobes tangentially
@@ -1367,6 +1369,9 @@ def suit_graph(nt, skin, cut="base"):
         # the top of her glute crease, a soft shadow line showing through the heart
         crease = g.mul(g.mul(g.sub(1.0, g.sstep(0.0005, 0.0022, ax)), g.sub(1.0, g.sstep(0.81, 0.83, z))), tb)
         col = g.mixc(col, CREASE, g.mul(crease, 0.6))
+        # and her belly button, a soft dimple of shadow in the front window
+        dimple = g.sqrt(g.add(g.sq(g.div(x, 0.0026)), g.sq(g.div(g.sub(z, MED_NAVEL), 0.0042))))
+        col = g.mixc(col, CREASE, g.mul(g.mul(g.sub(1.0, g.sstep(0.4, 1.0, dimple)), front), 0.7))
     col = g.mixc(col, suit_col, c_suit)
     if medium:
         # rust panels down her sides and the outside of her legs, a stitched seam beside each
