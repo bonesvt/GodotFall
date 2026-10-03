@@ -31,7 +31,17 @@ func _run() -> void:
 	await _ticks(60)
 	_check("toggle goes third person", view.third_person and player.third_person, view.third_person)
 	var behind: float = (cam.global_position - player.get_node("Head").global_position).dot(player.global_basis.z)
-	_check("camera sits behind her", behind > 2.0, behind)
+	_check("camera sits close behind her", behind > 1.4 and behind < 2.2, behind)
+	# Framing, looking straight ahead: crosshair clears her head, knees just in shot
+	var sk: Skeleton3D = eco.shadow.skeleton
+	var size := Vector2(root.get_visible_rect().size)
+	var head_top: Vector3 = sk.global_transform * sk.get_bone_global_pose(sk.find_bone("J_Bip_C_Head")).origin + Vector3.UP * 0.2
+	var knee: Vector3 = sk.global_transform * sk.get_bone_global_pose(sk.find_bone("J_Bip_L_LowerLeg")).origin
+	var head_y: float = cam.unproject_position(head_top).y / size.y
+	var knee_y: float = cam.unproject_position(knee).y / size.y
+	print("frame: head top at %.2f, knee at %.2f of screen height (%s)" % [head_y, knee_y, size])
+	_check("crosshair clears her head", head_y > 0.5, head_y)
+	_check("knees just above the bottom edge", knee_y > 0.8 and knee_y < 1.0, knee_y)
 	var right: float = (cam.global_position - player.get_node("Head").global_position).dot(player.global_basis.x)
 	_check("over the right shoulder", right > 0.4, right)
 	_check("view-model gun hidden", not cam.get_node("Weapon").visible and not cam.get_node("Knife").visible, null)
@@ -42,12 +52,12 @@ func _run() -> void:
 	var muzzle: Vector3 = view.muzzle_position()
 	_check("tracers start near her, not the camera", muzzle.distance_to(player.global_position + Vector3.UP * 1.1) < 1.0, muzzle)
 
-	# Loose: when she moves, the camera trails, then catches up
+	# Tight: when she moves, the camera keeps up
 	var before: Vector3 = cam.global_position
 	player.global_position += Vector3(0, 0, -0.5)
-	await _frames(2)
-	var lagged: float = (cam.global_position - before).length()
-	_check("camera trails a sudden move", lagged < 0.45, lagged)
+	await _ticks(10)
+	var moved: float = (cam.global_position - before).length()
+	_check("camera keeps up with her", absf(moved - 0.5) < 0.05, moved)
 	await _ticks(90)
 
 	# Wallrun with the wall on her left: camera stays on the open (right) side

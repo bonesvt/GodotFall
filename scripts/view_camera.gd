@@ -1,11 +1,12 @@
 extends Node
 ## First / third person view for the player (child "ViewCam" of scenes/player.tscn).
-## F5 toggles it. Third person is a loose over-the-shoulder camera:
-## - turning and aiming stay tight (the camera still hangs off the Head, so the
-##   crosshair, shots and grapple aim exactly where it points);
-## - only its position trails the body, so runs, slides, jumps and landings make
-##   it sway and catch up instead of being bolted to her back;
-## - it pulls back a little at speed and pulls in front of walls it would clip;
+## F5 toggles it. Third person is a close over-the-shoulder camera:
+## - looking straight ahead it frames her from just over the top of her head
+##   (the crosshair clears it) down to just under her knees;
+## - turning and aiming are exact (the camera hangs off the Head, so the
+##   crosshair, shots and grapple aim exactly where it points), and it follows
+##   her body almost rigidly, with only a hint of give on landings;
+## - it pulls in front of walls it would clip;
 ## - it swaps shoulders on parkour: a wallrun puts it on the open side, away
 ##   from the wall (wall on your right = left shoulder), and it stays there
 ##   until the next swap. In tight spots it also moves to the free shoulder.
@@ -19,25 +20,26 @@ const GUN := preload("res://assets/models/smart_pistol/smart_pistol.glb")
 static var prefer_third_person := false
 
 @export_group("Shoulder")
-## Metres behind her eyes.
-@export var distance := 3.1
+## Metres behind her eyes. With height and tp_fov this frames her from over
+## her head to just under her knees when looking straight ahead.
+@export var distance := 1.7
 ## Metres to the side (the shoulder), before the side is picked.
-@export var shoulder := 0.75
-## Metres above her eyes.
-@export var height := 0.3
+@export var shoulder := 0.5
+## Metres above her eyes (puts the crosshair just over her head).
+@export var height := 0.25
 ## Extra metres pulled back at full speed.
-@export var speed_pullback := 0.9
+@export var speed_pullback := 0.0
 ## How quickly a shoulder swap slides across (higher = snappier).
 @export var swap_rate := 5.0
 @export var tp_fov := 80.0
 
-@export_group("Looseness")
+@export_group("Follow")
 ## How quickly the camera catches up with her body (higher = tighter).
-@export var follow_rate := 7.0
-## Vertical catch-up is slower, so jumps and landings breathe.
-@export var follow_rate_y := 5.0
+@export var follow_rate := 30.0
+## Vertical catch-up, a little softer so landings don't jolt.
+@export var follow_rate_y := 18.0
 ## The most it may trail behind, in metres.
-@export var max_lag := 0.9
+@export var max_lag := 0.12
 ## Collision: metres kept off walls.
 @export var wall_margin := 0.25
 
