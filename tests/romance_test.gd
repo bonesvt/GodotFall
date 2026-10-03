@@ -9,6 +9,7 @@ extends SceneTree
 
 const NpcTalk := preload("res://scripts/hub/npc_talk.gd")
 const Romance := preload("res://scripts/hub/romance.gd")
+const NpcIdles := preload("res://scripts/hub/npc_idles.gd")
 const PATH := "user://test_romance.cfg"
 
 var failures := 0
@@ -152,12 +153,52 @@ func _run() -> void:
 	t2.stop()
 	_check("a place she has no lines for", t2.date(oph, "diner", 0) and t2.current_line().begins_with("ophelia: So this is a date"), t2.current_line())
 	t2.stop()
-	_check("a gift she likes", t2.give_gift(oph, "tape", 0) == Romance.GIFT_LIKE and t2.current_line().begins_with("ophelia: You remembered"), t2.current_line())
+	var got := t2.give_gift(oph, "tape", 0)
+	_check("Eco hands it over", t2.current_line() == "eco: Here. Found you something. Cassette of sad songs.", t2.current_line())
+	_adv(t2)
+	_check("a gift she likes", got == Romance.GIFT_LIKE and t2.current_line().begins_with("ophelia: You remembered"), t2.current_line())
 	_check("one gift a run", t2.give_gift(oph, "tape", 0) == 0, t2.affection("ophelia"))
 	t2.stop()
-	_check("a book gets its own answer", t2.give_gift(oph, "book", 1) == Romance.GIFT_LIKE and t2.current_line().begins_with("ophelia: A book?"), t2.current_line())
+	got = t2.give_gift(oph, "book", 1)
+	_adv(t2)
+	_check("a book gets its own answer", got == Romance.GIFT_LIKE and t2.current_line().begins_with("ophelia: A book?"), t2.current_line())
 	t2.stop()
-	_check("a gift she hates", t2.give_gift(oph, "flowers", 2) == Romance.GIFT_DISLIKE and t2.current_line().begins_with("ophelia: Wow. I'll put it"), t2.current_line())
+	got = t2.give_gift(oph, "flowers", 2)
+	_adv(t2)
+	_check("a gift she hates", got == Romance.GIFT_DISLIKE and t2.current_line().begins_with("ophelia: Wow. I'll put it"), t2.current_line())
+	t2.stop()
+	# The gift bag: found on runs, offered with G (1-3 picks), used up when given.
+	t2.add_gift("book")
+	t2.add_gift("flowers")
+	t2.add_gift("book")
+	_check("gifts go in the bag", t2.gifts() == ["book", "flowers", "book"], t2.gifts())
+	_check("can't give twice in a run", not t2.can_give("ophelia", 2) and t2.can_give("ophelia", 3) and not t2.can_give("mom", 3), [t2.can_give("ophelia", 2), t2.can_give("ophelia", 3)])
+	t2.offer_gifts(oph, 3)
+	_check("G offers one of each kind", t2.options.size() == 2 and t2.current_line() == "choice: Water-stained paperback | Wild flowers", t2.current_line())
+	var a0 := t2.affection("ophelia")
+	t2.choose(0)
+	_check("picking one gives it", t2.gifts() == ["flowers", "book"] and t2.affection("ophelia") == a0 + Romance.GIFT_LIKE and t2.current_line().begins_with("eco: Here. Found you something. Water-stained"), [t2.gifts(), t2.current_line()])
+	t2.stop()
+	# From 60 they mostly flirt.
+	var t4 := _fresh()
+	t4.state.set_value("ophelia", "met", true)
+	t4.state.set_value("ophelia", "warm_run", 0)
+	var lists := []
+	for i in 6:
+		lists.append(Romance.talk_list(t4.state, t4.bank("ophelia"), "ophelia"))
+	_check("plain talks under 60", lists.count("any") == 6, lists)
+	Romance.add(t4.state, "ophelia", 60)
+	for at in [10, 25, 45, 55]:
+		Romance.mark_beat(t4.state, "ophelia", at)
+	lists = []
+	for i in 6:
+		lists.append(Romance.talk_list(t4.state, t4.bank("ophelia"), "ophelia"))
+	_check("mostly flirting from 60", lists.count("flirt") == 4 and lists.count("any") == 2, lists)
+	t4.start(oph, 0, false)
+	var flirts: Array = t4.bank("ophelia")["flirt"]
+	_check("a flirt talk plays", flirts.any(func(c): return t4.current_line() == "%s: %s" % [c[0][0], c[0][1]]), t4.current_line())
+	t4.stop()
+	t4.queue_free()
 	t2.stop()
 	t2.queue_free()
 
@@ -176,8 +217,8 @@ func _run() -> void:
 	_play_out(t, 0)
 	_check("kiss: together", Romance.status(t.state, "ophelia") == "together" and Romance.stage(t.state, "ophelia") == "together", Romance.status(t.state, "ophelia"))
 	t.start(oph, 3, true)
-	var first_together: Array = t.bank("ophelia")["together"][0]
-	_check("couple talks replace everyday ones", t.current_line() == "%s: %s" % [first_together[0][0], first_together[0][1]], t.current_line())
+	var couple: Array = t.bank("ophelia")["together"] + t.bank("ophelia")["flirt"]
+	_check("couple talks replace everyday ones", couple.any(func(c): return t.current_line() == "%s: %s" % [c[0][0], c[0][1]]), t.current_line())
 	t.stop()
 	_check("hearts full", Romance.hearts(t.state, "ophelia") == 5.0, Romance.hearts(t.state, "ophelia"))
 	var saved := ConfigFile.new()
@@ -240,6 +281,10 @@ func _hub_keys() -> void:
 		await physics_frame
 	_check("prompt says she wants to talk", run_node.hud.prompt_label.text.ends_with("(wants to talk)"), run_node.hud.prompt_label.text)
 	await _press("interact")
+	await physics_frame
+	_check("hub: the scene puts her in its pose", oph.spot == "read" and oph.posed and oph._anim.current_animation == "poses/idle_read", [oph.spot, oph._anim.current_animation])
+	_check("hub: a scene camera frames her", talk.in_scene() and root.get_viewport().get_camera_3d() == talk._scene_cam, root.get_viewport().get_camera_3d())
+	_check("hub: she has her book", oph.find_children("*", "BoneAttachment3D", true, false).size() == 1, oph.find_children("*", "BoneAttachment3D", true, false))
 	for i in 5:
 		await _press("interact")   # finish the line
 		await _press("interact")   # next
@@ -276,6 +321,50 @@ func _hub_keys() -> void:
 	_check("hub: her head turns away", still.get_rotation_quaternion().angle_to(tilted.get_rotation_quaternion()) > 0.08 or tilted.y.angle_to(Vector3.UP) > 0.1, tilted.y.angle_to(Vector3.UP))
 	talk.stop()
 	_check("hub: calm once the talk ends", oph.face == "" and oph.gesture == "", [oph.face, oph.gesture])
+	_check("hub: back to Eco's own camera", not talk.in_scene() and root.get_viewport().get_camera_3d() == player.camera, root.get_viewport().get_camera_3d())
+	# Between talks she hangs out somewhere new each stay.
+	var seen := {}
+	for run in range(1, 13):
+		var spot: String = NpcIdles.settle(oph, run_node.zone_info, run)
+		seen[spot] = true
+		await physics_frame
+		var ok: bool = spot == "stand" or (oph.posed and oph._anim.current_animation.begins_with("poses/idle_"))
+		var talk_at: Vector3 = run_node.zone_info["interactables"].filter(func(x): return x.get("npc", "") == "ophelia")[0]["pos"]
+		if not ok or talk_at.distance_to(oph.global_position) > 2.0:
+			_check("hub: idle spot %s" % spot, false, [oph._anim.current_animation, talk_at, oph.global_position])
+	_check("hub: idles cover bed, window, rug, records", seen.has("lounge") and seen.has("smoke") and seen.has("read") and seen.has("sway"), seen.keys())
+	NpcIdles.take(oph, "smoke", run_node.zone_info)
+	await physics_frame
+	_check("hub: a cigarette and smoke by the window", oph.find_children("*", "CPUParticles3D", true, false).size() == 1 and oph.spot == "smoke", oph.find_children("*", "CPUParticles3D", true, false))
+	NpcIdles.take(oph, "sway", run_node.zone_info)
+	await physics_frame
+	_check("hub: eyes shut by the records, props gone", oph.face == "closed" and oph.find_children("*", "CPUParticles3D", true, false).is_empty(), oph.face)
+	# Gifts out on runs: walking into one bags it.
+	run_node.start_run(7)
+	for i in 5:
+		await physics_frame
+	var found := 0
+	for z in 3:
+		run_node.load_zone(z)
+		await physics_frame
+		found += run_node.zone_info.get("gifts", []).size()
+	_check("hub: gifts turn up in runs", found >= 1, found)
+	var g = null
+	for z in 3:
+		run_node.load_zone(z)
+		await physics_frame
+		if not run_node.zone_info["gifts"].is_empty():
+			g = run_node.zone_info["gifts"][0]
+			break
+	if g != null:
+		var before_bag: int = talk.gifts().size()
+		for i in 3:
+			await physics_frame
+		player.global_position = g.global_position + Vector3(0, 0.2, 0)
+		player.velocity = Vector3.ZERO
+		for i in 10:
+			await physics_frame
+		_check("hub: walking into a gift bags it", talk.gifts().size() == before_bag + 1 and not is_instance_valid(g), talk.gifts())
 	run_node.queue_free()
 
 

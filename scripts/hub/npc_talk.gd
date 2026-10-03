@@ -26,6 +26,10 @@ const Babble := preload("res://scripts/hub/babble.gd")
 const DIALOGUE_DIR := "res://dialogue/npc/"
 const DEFAULT_PATH := "user://hub_npcs.cfg"
 const Romance := preload("res://scripts/hub/romance.gd")
+const Gifts := preload("res://scripts/run/gifts.gd")
+const NpcIdles := preload("res://scripts/hub/npc_idles.gd")
+## Where the gift bag lives in the save file.
+const BAG := "_bag"
 ## How long a line stays up after it's all been said.
 const GAP := 0.9
 ## Walk this far (m) from whoever you're talking to and the talk ends.
@@ -55,6 +59,16 @@ var options: Array = []
 ## The [heart N] scene playing (its N), or -1.
 var beat := -1
 var _answered := false
+## The pose the heart scene playing asks for ([heart N <spot>], npc_idles.gd).
+var scene_pose := ""
+## A heart scene (or a date) gets its own camera, framed on them.
+var _scene_cam: Camera3D
+var _prev_cam: Camera3D
+var _pilot := Vector3.INF
+var _fade: ColorRect
+var _fade_t := 0.0
+var _fade_hold := 0.0
+var _gift_run := 0
 var _hearts: HeartMeter
 var _stage: Label
 var _options: VBoxContainer
@@ -80,7 +94,7 @@ func active() -> bool:
 ## each conversation a list of [speaker, text] lines and {"choice": [{delta,
 ## flag, lines}, ...]} questions.
 static func parse(text: String) -> Dictionary:
-	var bank := {"any": [], "together": [], "heart": [], "date": {}, "gift": {}}
+	var bank := {"any": [], "together": [], "flirt": [], "heart": [], "date": {}, "gift": {}}
 	var cur: Array = []
 	var choice_re := RegEx.create_from_string("^choice\\s*([+-]?\\d+)?\\s*(?:!(\\w+))?\\s*:\\s*(\\w+(?:\\s*\\([^)]*\\))?)\\s*:\\s*(.+)$")
 	for raw in text.split("\n"):
@@ -92,10 +106,10 @@ static func parse(text: String) -> Dictionary:
 			var tag := line.substr(1, line.length() - 2).strip_edges()
 			var parts := tag.split(" ", false)
 			match parts[0]:
-				"any", "together":
+				"any", "together", "flirt":
 					bank[parts[0]].append(cur)
 				"heart":
-					bank["heart"].append({"at": int(parts[1]) if parts.size() > 1 else 0, "lines": cur})
+					bank["heart"].append({"at": int(parts[1]) if parts.size() > 1 else 0, "lines": cur, "pose": parts[2] if parts.size() > 2 else ""})
 				"date", "gift":
 					bank[parts[0]][parts[1] if parts.size() > 1 else "any"] = cur
 				_:
@@ -152,6 +166,7 @@ func bank(who: String) -> Dictionary:
 func pick(who: String, run_id: int, won: bool) -> Array:
 	var b := bank(who)
 	beat = -1
+	scene_pose = ""
 	if not state.get_value(who, "met", false) and b.has("intro"):
 		state.set_value(who, "met", true)
 		state.set_value(who, "run_seen", run_id)
@@ -169,11 +184,10 @@ func pick(who: String, run_id: int, won: bool) -> Array:
 	var scene := Romance.next_beat(state, b, who)
 	if not scene.is_empty():
 		beat = int(scene["at"])
+		scene_pose = scene.get("pose", "")
 		Romance.mark_beat(state, who, beat)
 		return scene["lines"]
-	var list := "any"
-	if Romance.status(state, who) == "together" and not b["together"].is_empty():
-		list = "together"
+	var list := Romance.talk_list(state, b, who)
 	var any: Array = b[list]
 	if any.is_empty():
 		return []
@@ -209,7 +223,14 @@ func _add_affection(who: String, delta: int) -> void:
 
 func start(p_npc: Node3D, run_id: int, won: bool) -> void:
 	stop()
-	_play(p_npc, pick(p_npc.who, run_id, won))
+	var l := pick(p_npc.who, run_id, won)
+	if beat >= 0 and not l.is_empty():
+		if scene_pose != "" and p_npc.has_method("calm"):
+			NpcIdles.take(p_npc, scene_pose)
+		_play(p_npc, l)
+		_scene_start()
+		return
+	_play(p_npc, l)
 
 
 ## Plays `p_lines` with `p_npc` (any conversation: a scene, a date, a gift).
@@ -238,6 +259,7 @@ func date(p_npc: Node3D, place: String, run_id: int) -> bool:
 		state.set_value(who, "date_run", run_id)
 		_add_affection(who, Romance.DATE_GAIN)
 	_play(p_npc, b["date"].get(place, b["date"].get("any", [])))
+	_scene_start()
 	return true
 
 
@@ -256,8 +278,46 @@ func give_gift(p_npc: Node3D, gift: String, run_id: int) -> int:
 		delta = Romance.gift_delta(taste)
 		_add_affection(who, delta)
 	var g: Dictionary = b["gift"]
-	_play(p_npc, g.get(gift, g.get(taste, g.get("any", []))))
+	var reply: Array = [["eco", "Here. Found you something. %s." % Gifts.display_name(gift)]]
+	reply.append_array(g.get(gift, g.get(taste, g.get("any", []))))
+	_play(p_npc, reply)
+	_refresh_hearts()
+	state.save(save_path)
 	return delta
+
+
+## The gifts Eco is carrying (ids, oldest first), found on runs (gifts.gd).
+func gifts() -> Array:
+	return state.get_value(BAG, "gifts", []).duplicate()
+
+
+func add_gift(id: String) -> void:
+	var bag := gifts()
+	bag.append(id)
+	state.set_value(BAG, "gifts", bag)
+	state.save(save_path)
+
+
+## True when G by them would offer a gift: they can be romanced, Eco has
+## something, and they haven't had one this run.
+func can_give(who: String, run_id: int) -> bool:
+	return romanceable(who) and not gifts().is_empty() and int(state.get_value(who, "gift_run", -1)) != run_id
+
+
+## G: Eco picks which gift to hand over (up to three kinds, 1-3).
+func offer_gifts(p_npc: Node3D, run_id: int) -> void:
+	stop()
+	var kinds := []
+	for id in gifts():
+		if not kinds.has(id):
+			kinds.append(id)
+	if kinds.is_empty():
+		return
+	var opts := []
+	for id in kinds.slice(0, 3):
+		opts.append({"delta": 0, "flag": "", "gift": id, "lines": [["eco", Gifts.display_name(id)]]})
+	_gift_run = run_id
+	_play(p_npc, [{"choice": opts}])
 
 
 ## F: finish the line if it's still being said, else on to the next (not
@@ -279,6 +339,15 @@ func choose(i: int) -> void:
 		return
 	var opt: Dictionary = options[i]
 	var who: String = npc.who
+	if opt.has("gift"):
+		var to := npc
+		var bag := gifts()
+		bag.erase(opt["gift"])
+		state.set_value(BAG, "gifts", bag)
+		var delta := give_gift(to, opt["gift"], _gift_run)
+		if Romance.romanceable(bank(who)):
+			_react(who, delta, "")
+		return
 	_answered = true
 	options = []
 	_options.visible = false
@@ -313,7 +382,9 @@ func stop() -> void:
 	index = -1
 	options = []
 	beat = -1
+	scene_pose = ""
 	_answered = false
+	_scene_end()
 	if _options != null:
 		_options.visible = false
 
@@ -330,6 +401,8 @@ func _next() -> void:
 	var text: String = lines[index][1]
 	if lines[index].size() > 2 and npc.has_method("mood"):
 		npc.mood(lines[index][2])
+		if "kiss" in lines[index][2]:
+			fade_through_black(1.8)
 	var babble := Babble.make(speaker, text)
 	var stream: AudioStream = babble["stream"]
 	_times = babble["times"]
@@ -359,6 +432,7 @@ func _next() -> void:
 func tick(delta: float, pilot: Vector3) -> void:
 	if not active():
 		return
+	_pilot = pilot
 	if not is_instance_valid(npc) or pilot.distance_to(npc.global_position) > LEAVE_RANGE:
 		stop()
 		return
@@ -385,7 +459,70 @@ func current_line() -> String:
 	return "%s: %s" % [lines[index][0], lines[index][1]]
 
 
+## The screen goes black for `hold` seconds then comes back (a kiss, a cut).
+func fade_through_black(hold: float) -> void:
+	_fade_hold = hold
+	_fade_t = 0.0
+
+
+func in_scene() -> bool:
+	return _scene_cam != null
+
+
+func _scene_start() -> void:
+	if npc == null or not npc.is_inside_tree() or _scene_cam != null:
+		return
+	_prev_cam = get_viewport().get_camera_3d()
+	_scene_cam = Camera3D.new()
+	_scene_cam.fov = 38.0
+	npc.get_parent().add_child(_scene_cam)
+	_frame_scene()
+	_scene_cam.current = true
+	fade_through_black(0.15)
+
+
+func _scene_end() -> void:
+	if _scene_cam == null:
+		return
+	if is_instance_valid(_prev_cam):
+		_prev_cam.current = true
+	_scene_cam.queue_free()
+	_scene_cam = null
+
+
+## Frames their face from Eco's side, a little off to one side.
+func _frame_scene() -> void:
+	if _scene_cam == null or npc == null:
+		return
+	var head: Vector3 = npc.head_position() if npc.has_method("head_position") else npc.global_position + Vector3(0, 1.45, 0)
+	var toward := (-npc.global_basis.z)
+	if _pilot != Vector3.INF:
+		toward = _pilot - head
+	toward.y = 0.0
+	toward = toward.normalized() if toward.length() > 0.01 else Vector3.BACK
+	var side := toward.cross(Vector3.UP).normalized()
+	var at := head + toward * 1.55 + side * 0.55 + Vector3(0, 0.08, 0)
+	_scene_cam.global_position = _scene_cam.global_position.lerp(at, 0.08) if _scene_cam.is_inside_tree() and _scene_cam.global_position != Vector3.ZERO else at
+	_scene_cam.look_at(head - side * 0.12 - Vector3(0, 0.05, 0))
+
+
 func _process(delta: float) -> void:
+	if _scene_cam != null:
+		_frame_scene()
+	if _fade_hold > 0.0 or _fade_t > 0.0:
+		_fade_t += delta
+		var a := 0.0
+		if _fade_t < 0.35:
+			a = _fade_t / 0.35
+		elif _fade_t < 0.35 + _fade_hold:
+			a = 1.0
+		elif _fade_t < 0.35 + _fade_hold + 0.6:
+			a = 1.0 - (_fade_t - 0.35 - _fade_hold) / 0.6
+		else:
+			_fade_t = 0.0
+			_fade_hold = 0.0
+		_fade.color.a = a
+		_fade.visible = a > 0.0
 	if _reaction_left > 0.0:
 		_reaction_left -= delta
 		_reaction.modulate.a = clampf(_reaction_left / 0.6, 0.0, 1.0)
@@ -408,11 +545,12 @@ func _ask(p_options: Array) -> void:
 		l.add_theme_font_size_override("font_size", 20)
 		l.add_theme_color_override("font_color", COLORS["eco"].lerp(Color.WHITE, 0.45))
 		_options.add_child(l)
-	_name.text = "ECO"
+	var giving: bool = options[0].has("gift")
+	_name.text = "GIVE %s A GIFT" % NAMES.get(npc.who, npc.who.to_upper()) if giving else "ECO"
 	_name.add_theme_color_override("font_color", COLORS["eco"])
 	_text.text = ""
 	_text.visible = false
-	_hint.text = "[1-%d] answer" % options.size()
+	_hint.text = "[1-%d] %s" % [options.size(), "give" if giving else "answer"]
 	_options.visible = true
 	_panel.visible = true
 
@@ -471,6 +609,12 @@ func _refresh_hearts() -> void:
 
 
 func _build_caption() -> void:
+	_fade = ColorRect.new()
+	_fade.color = Color(0, 0, 0, 0)
+	_fade.visible = false
+	_fade.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_fade.set_anchors_preset(Control.PRESET_FULL_RECT)
+	add_child(_fade)
 	_panel = PanelContainer.new()
 	_panel.visible = false
 	_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE

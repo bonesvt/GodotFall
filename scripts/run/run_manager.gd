@@ -28,6 +28,8 @@ const Armory := preload("res://scripts/hub/armory.gd")
 const BenchScreen := preload("res://scripts/hub/bench_screen.gd")
 const GunsmithScreen := preload("res://scripts/hub/gunsmith_screen.gd")
 const Loot := preload("res://scripts/run/loot.gd")
+const Gifts := preload("res://scripts/run/gifts.gd")
+const NpcIdles := preload("res://scripts/hub/npc_idles.gd")
 const Weapon := preload("res://scripts/weapon.gd")
 const Art := preload("res://scripts/ps2/ps2_assets.gd")
 const Garage := preload("res://scripts/hub/garage.gd")
@@ -112,7 +114,7 @@ static func ensure_input_actions() -> void:
 	var keys := {
 		"interact": [KEY_F], "choice_1": [KEY_1], "choice_2": [KEY_2], "choice_3": [KEY_3],
 		"choice_skip": [KEY_X], "titan_core": [KEY_V], "titan_dash": [KEY_SHIFT],
-		"run_restart": [KEY_ENTER],
+		"run_restart": [KEY_ENTER], "give_gift": [KEY_G],
 	}
 	for action in keys:
 		if InputMap.has_action(action):
@@ -213,7 +215,10 @@ func enter_hub() -> void:
 		npc.look_target = player
 		zone_root.add_child(npc)
 		npc.wear_for_run(runs_ended)
+		NpcIdles.settle(npc, zone_info, runs_ended)
 		hub_npcs[spec["who"]] = npc
+	if hub_npcs.has("ophelia"):
+		NpcIdles.build_window(zone_root)
 	phase = Phase.HUB
 	dress_hub()
 	place_player(zone_info["spawn"])
@@ -230,6 +235,10 @@ func load_zone(index: int) -> void:
 		zone_info = ZoneBuilder.build_zone(zone_root, run.rng, index)
 		loot_rng.seed = run.run_seed * 7919 + index
 		Loot.scatter(zone_root, zone_info, loot_rng, index)
+		# Gifts roll on their own generator, so they never shift the loot rolls.
+		var gift_rng := RandomNumberGenerator.new()
+		gift_rng.seed = run.run_seed * 104729 + index
+		Gifts.scatter(zone_root, zone_info, gift_rng)
 		for grunt in zone_info["grunts"]:
 			grunt.target = player
 			grunt.died.connect(_on_grunt_died)
@@ -313,6 +322,9 @@ func _hub_tick(delta: float) -> void:
 		embark_hub_titan()
 		return
 	var spot := nearest_hub_spot()
+	if spot.has("npc") and Input.is_action_just_pressed("give_gift") and npc_talk.can_give(spot["npc"], runs_ended):
+		npc_talk.offer_gifts(hub_npcs[spot["npc"]], runs_ended)
+		return
 	if spot.is_empty() or not Input.is_action_just_pressed("interact"):
 		return
 	if spot["id"] == "map_table":
@@ -443,6 +455,15 @@ func collect_material(kind: String, amount: int) -> void:
 	if run == null or phase == Phase.HUB:
 		return
 	run.materials[kind] = int(run.materials.get(kind, 0)) + amount
+
+
+## Eco walked into a gift (gifts.gd): into the bag for the hub, kept even if
+## the run is lost.
+func collect_gift(id: String) -> void:
+	if run == null or phase == Phase.HUB:
+		return
+	npc_talk.add_gift(id)
+	hud.toast("GIFT: %s\n%s" % [Gifts.display_name(id).to_upper(), Gifts.CATALOG.get(id, ["", ""])[1]], 4.0)
 
 
 ## Grunts drop scrap where they fall, sometimes a circuit.
@@ -875,9 +896,12 @@ func _prompt() -> String:
 				return "Leave the pad to start the clock"
 			var spot := nearest_hub_spot()
 			if not spot.is_empty():
+				var text: String = spot["prompt"]
 				if spot.has("npc") and npc_talk.beat_waiting(spot["npc"], runs_ended):
-					return spot["prompt"] + "  (wants to talk)"
-				return spot["prompt"]
+					text += "  (wants to talk)"
+				if spot.has("npc") and npc_talk.can_give(spot["npc"], runs_ended):
+					text += "    [G] Give a gift"
+				return text
 			if in_titan_yard():
 				return "[V] Call in your titan" if hub_titan == null else "[V] Call your titan here"
 		Phase.ZONE:
