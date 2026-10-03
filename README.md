@@ -374,6 +374,34 @@ res://tools/zones/shots.gd -- /some/dir [2|3]` saves screenshots and route maps 
   has the real player controller kick up a kick slot, run a billboard, grapple a mast, climb
   a corner kick and a pillar ledge, and grapple up onto a scaffold roost.
 
+## Level 1: The Deepwood
+
+The first real level after the tutorial run (`scripts/run/levels.gd`). It opens from the
+**level board** across the nave from the map table once you've won the Pinewoods run (bring
+a titan home once; older saves that have banked a lock core count). A level run is one long
+generated forest valley, laid out fresh from the run's seed every time, built to the level's
+own spec:
+
+- **Harder than the tutorial.** Generated at difficulty 4: three extra sections, sometimes a
+  second chasm, bigger squads, grunts that hit harder and see further. Grunts only: the Choir
+  and wildlife stay past the border.
+- **The salvage depot** (section `depot`): a yard like the outpost with the titan part the
+  militia crated up on a flatbed, the scrapped titan it came off, containers and a second
+  watchtower. Its squad is bigger and the crate stays locked until every guard is down. Its
+  offer is always top grade (tier 3). The outpost's and camp's caches are there too.
+- **The clearing** (section `finale`, in place of the extraction beacon): the valley opens
+  into a wide flat clearing with their titan parked on the road and the evac pad behind it,
+  blast walls and wrecks for titan cover, two grunts dug in where the road comes out. Walk
+  out into it and it's titanfall right there, no separate arena: call yours, fight, walk it
+  to the evac. Winning marks the level cleared in the armory save (`[progress] cleared`).
+- Hint cards for the level (intro, the depot, the clearing) come from `tutorial.gd`.
+- **Maps.** `xvfb-run -a godot --path . --rendering-driver opengl3 -s res://tools/procgen/maps.gd
+  -- /some/dir 5150 2024 --level=level1` draws the level for those seeds.
+- **Tests.** `godot --headless --path . -s res://tests/level1_test.gd` plans 40 seeds (depot,
+  flat clearing last), then plays one: the board locked and unlocked, the depot locked behind
+  its squad with a top grade offer, the clearing starting the fight, the titan dropping inside
+  it, and the evac completing and saving the level.
+
 ## Art: PS3 look (with the old PS2 look on F9)
 Everything is stylized in the spirit of Jak and Daxter and Shadow of the Colossus,
 rendered at roughly PS3-era quality. **F9** flips back to the original PS2 look to compare.

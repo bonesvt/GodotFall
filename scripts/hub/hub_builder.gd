@@ -490,6 +490,27 @@ static func _map_table(root: Node3D, info: Dictionary) -> void:
 	title.modulate = Color(0.55, 0.85, 1.0)
 	K.interactable(info, "uncharted_map", far + Vector3(0, 0.1, -0.4), "[F] Head out the long way (3 zones + 2 uncharted)", [], 1.6)
 	info["uncharted_map"] = far
+	_level_board(root, info)
+
+
+## Across the nave from the map table: a board of the real levels past the
+## tutorial run (levels.gd), one pinned sheet per level with a red string to
+## where it is. run_manager (dress_hub) writes whether each one is open yet.
+static func _level_board(root: Node3D, info: Dictionary) -> void:
+	var b := Vector3(3.2, F, 0.6)
+	for dx in [-0.9, 0.9]:
+		K.wood(root, b + Vector3(dx, 1.0, 0), Vector3(0.14, 2.0, 0.14))
+	K.wood(root, b + Vector3(0, 1.45, 0), Vector3(2.2, 1.3, 0.08))
+	var sheet := K.mesh(root, b + Vector3(-0.35, 1.5, 0.05), Vector3(0.9, 0.7, 0.01), Art.material("light"))
+	sheet.set_instance_shader_parameter("paint", Color(0.62, 0.55, 0.4))
+	# Her sketch of the depot: a crate, and the titan she'll have to get past.
+	K.glow(root, b + Vector3(-0.35, 1.45, 0.06), Vector3(0.16, 0.12, 0.01), Color(1.0, 0.65, 0.2))
+	K.glow(root, b + Vector3(-0.15, 1.65, 0.06), Vector3(0.1, 0.1, 0.01), Color(0.9, 0.2, 0.12))
+	K.mesh(root, b + Vector3(0.45, 1.35, 0.05), Vector3(0.6, 0.02, 0.01), Art.material("gunmetal"), Vector3(0, 0, 25))
+	var tag := Kit.label(root, b + Vector3(0, 2.45, 0.1), "LEVEL 1", 48)
+	tag.modulate = Color(1.0, 0.55, 0.4)
+	K.interactable(info, "level_board", b + Vector3(0, 0.1, 0.8), "[F] Level 1", [], 2.2)
+	info["level_board"] = {"id": "level1", "label": tag}
 
 
 ## Roof beams across the hall on the pillar lines. Over the hole they are
