@@ -120,6 +120,12 @@ var bench = null
 ## workouts Eco has done since her last run (each once per visit).
 var workout: Node3D
 var gym_done := {}
+## Who Eco has asked to train with her this visit (gym.gd PARTNERS; "" for
+## nobody, and Biggie coaches), and whether it's a date. They wait in the gym.
+var gym_partner := ""
+var gym_date := false
+## Who she just asked, sent to the gym once the talk is over.
+var _inviting := ""
 ## Lays out loot and rolls drops, seeded per zone from the run seed so loot
 ## never shifts the run's own rolls.
 var loot_rng := RandomNumberGenerator.new()
@@ -133,7 +139,7 @@ static func ensure_input_actions() -> void:
 	var keys := {
 		"interact": [KEY_F], "choice_1": [KEY_1], "choice_2": [KEY_2], "choice_3": [KEY_3],
 		"choice_skip": [KEY_X], "titan_core": [KEY_V], "titan_dash": [KEY_SHIFT],
-		"run_restart": [KEY_ENTER], "give_gift": [KEY_G],
+		"run_restart": [KEY_ENTER], "give_gift": [KEY_G], "invite_gym": [KEY_B],
 	}
 	for action in keys:
 		if InputMap.has_action(action):
@@ -239,6 +245,9 @@ func start_run(seed_value: int) -> void:
 	run.refits = armory.refit_bonus()
 	runs_started += 1
 	gym_done.clear()   # rested: the gym's workouts come back after the run
+	gym_partner = ""
+	gym_date = false
+	_inviting = ""
 	result = ""
 	titan = null
 	boss = null
@@ -289,7 +298,11 @@ func enter_hub() -> void:
 		zone_root.add_child(npc)
 		npc.wear_for_run(runs_ended)
 		NpcIdles.settle(npc, zone_info, runs_ended)
+		if spec["who"] in Gym.PARTNERS:
+			npc.set_fitness(Gym.amounts(armory.fitness_of(spec["who"])))
 		hub_npcs[spec["who"]] = npc
+	if hub_npcs.has(gym_partner):
+		_wait_in_gym(gym_partner)
 	if hub_npcs.has("ophelia"):
 		NpcIdles.build_window(zone_root)
 	phase = Phase.HUB
@@ -397,6 +410,9 @@ func _hub_tick(delta: float) -> void:
 		elif Input.is_action_just_pressed("interact"):
 			npc_talk.advance()
 		return
+	if _inviting != "":
+		_wait_in_gym(_inviting)
+		_inviting = ""
 	_course_tick(delta)
 	if Input.is_action_just_pressed("titan_core") and in_titan_yard():
 		call_hub_titan()
@@ -407,6 +423,9 @@ func _hub_tick(delta: float) -> void:
 	var spot := nearest_hub_spot()
 	if spot.has("npc") and Input.is_action_just_pressed("give_gift") and npc_talk.can_give(spot["npc"], runs_ended):
 		npc_talk.offer_gifts(hub_npcs[spot["npc"]], runs_ended)
+		return
+	if spot.has("npc") and Input.is_action_just_pressed("invite_gym") and can_invite(spot["npc"]):
+		invite_to_gym(spot["npc"])
 		return
 	if spot.is_empty() or not Input.is_action_just_pressed("interact"):
 		return
@@ -520,10 +539,13 @@ func start_workout(id: String) -> void:
 	if not spots.has(id):
 		return
 	if gym_done.has(id):
-		hud.toast("BIGGIE: " + Gym.RESTED_LINE, HUB_LINE_SECONDS + 1.5)
+		hud.toast(("ECO: " + Gym.RESTED_PARTNER_LINE) if gym_partner != "" else ("BIGGIE: " + Gym.RESTED_LINE), HUB_LINE_SECONDS + 1.5)
 		return
-	workout = GymWorkout.create(id, spots[id], zone_info.get("gym_bounds", Rect2()), armory.suit_profile(), Gym.amounts(armory.fitness))
+	workout = GymWorkout.create(id, spots[id], zone_info.get("gym_bounds", Rect2()), armory.suit_profile(), Gym.amounts(armory.fitness),
+			gym_partner, gym_date, Gym.amounts(armory.fitness_of(gym_partner)) if gym_partner != "" else {})
 	workout.set_meta("id", id)
+	if hub_npcs.has(gym_partner):
+		hub_npcs[gym_partner].visible = false   # the scene has its own copy of them
 	workout.set_meta("camera", get_viewport().get_camera_3d())
 	workout.finished.connect(end_workout)
 	zone_root.add_child(workout)
@@ -543,6 +565,13 @@ func end_workout() -> void:
 	workout = null
 	gym_done[id] = true
 	var got := armory.train(id)
+	var toast := Gym.gains_text(got)
+	if hub_npcs.has(gym_partner):
+		var npc: Node3D = hub_npcs[gym_partner]
+		npc.visible = true
+		var theirs := armory.train_partner(gym_partner, id)
+		npc.set_fitness(Gym.amounts(armory.fitness_of(gym_partner)))
+		toast += "\n%s  %s" % [String(NpcTalk.NAMES.get(gym_partner, gym_partner)).to_upper(), Gym.gains_text(theirs)]
 	get_tree().paused = false
 	player.visible = true
 	if cam != null and is_instance_valid(cam):
@@ -551,7 +580,53 @@ func end_workout() -> void:
 	pilot_hud.visible = true
 	player.apply_fitness(Gym.amounts(armory.fitness))
 	dress_hub()
-	hud.toast(Gym.gains_text(got), HUB_LINE_SECONDS)
+	hud.toast(toast, HUB_LINE_SECONDS)
+
+
+## Whether Eco can ask `who` to train with her now (gym.gd PARTNERS, not
+## already with her in the gym).
+func can_invite(who: String) -> bool:
+	return who in Gym.PARTNERS and hub_npcs.has(who) and gym_partner != who and _inviting == ""
+
+
+## Asks `who` to come and train with her in Biggie's gym (instead of anyone
+## she asked before). With Ophelia it's a date once she'll go on one
+## (npc_talk.gd date: her [date gym] lines). They head there once the talk ends.
+func invite_to_gym(who: String) -> void:
+	if not can_invite(who):
+		return
+	var npc: Node3D = hub_npcs[who]
+	gym_date = npc_talk.date(npc, "gym", runs_ended)
+	if not gym_date:
+		npc_talk.say(npc, Gym.INVITE_LINES[who])
+	_inviting = who
+
+
+## Sends `who` to wait for Eco in the gym (her "[F] Talk" spot goes with
+## her), and anyone she'd asked before back to their own spot.
+func _wait_in_gym(who: String) -> void:
+	var wait: Dictionary = zone_info.get("gym_wait", {})
+	if wait.is_empty() or not hub_npcs.has(who):
+		return
+	if gym_partner != "" and gym_partner != who and hub_npcs.has(gym_partner):
+		var before: Node3D = hub_npcs[gym_partner]
+		before.wear_for_run(runs_ended)
+		if NpcIdles.settle(before, zone_info, runs_ended) == "":
+			var home := _home_spot(gym_partner)
+			if not home.is_empty():
+				NpcIdles.place(before, "stand", home, zone_info)
+	gym_partner = who
+	var npc: Node3D = hub_npcs[who]
+	NpcIdles.place(npc, "gym", wait, zone_info)
+	npc.wear("tight")
+
+
+## Where hub_rooms.gd first stood `who` ({pos, yaw, anim}).
+func _home_spot(who: String) -> Dictionary:
+	for spec in zone_info.get("npcs", []):
+		if spec["who"] == who:
+			return {"pos": spec["pos"], "yaw": spec["yaw"], "anim": ""}
+	return {}
 
 
 ## The people Eco can romance, for the gift shop's taste notes:
@@ -1148,6 +1223,10 @@ func _prompt() -> String:
 					text += "  (wants to talk)"
 				if spot.has("npc") and npc_talk.can_give(spot["npc"], runs_ended):
 					text += "    [G] Give a gift"
+				if spot.has("npc") and can_invite(spot["npc"]):
+					text += "    [B] Train together"
+				if spot.has("workout") and gym_partner != "":
+					text += " with " + String(NpcTalk.NAMES.get(gym_partner, gym_partner)).capitalize()
 				return text
 			if in_titan_yard():
 				return "[V] Call in your titan" if hub_titan == null else "[V] Call your titan here"

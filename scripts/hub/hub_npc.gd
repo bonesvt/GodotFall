@@ -26,6 +26,9 @@ const OUTFITS := {
 	"mom": ["home", "bikini", "sheer", "tight", "lingerie"],
 }
 
+## Their trainable shapes (the same as Eco's, eco_model.gd FIT_SHAPES).
+const FIT_SHAPES := {"glutes": "Fit_Glutes", "stomach": "Fit_Belly", "legs": "Fit_Legs", "arms": "Fit_Arms"}
+
 const NpcSprings := preload("res://scripts/hub/npc_springs.gd")
 const Hair := preload("res://scripts/hub/hair.gd")
 
@@ -45,6 +48,7 @@ var _t := 0.0
 ## or switch to their talk loop, just talk from where they are.
 var posed := false
 var spot := ""
+var fitness := {}
 ## The mood they settle back into (their spot's: eyes shut by the records).
 var rest_mood: Array = []
 var face := ""
@@ -102,6 +106,8 @@ func _ready() -> void:
 			_head.npc = self
 			skel.add_child(_head)
 		Hair.apply(model, who)  # their haircut from the salon in Solace (if they get one)
+		if not fitness.is_empty():
+			set_fitness(fitness)
 	if _anim != null and _anim.has_animation("idle"):
 		_anim.play("idle")
 		_anim.seek(randf() * 3.0, true)   # so they don't breathe in step
@@ -225,6 +231,22 @@ func wear(p_outfit: String) -> void:
 				mine = mat.duplicate()
 				mi.set_surface_override_material(i, mine)
 			mine.set_shader_parameter("albedo_tex", tex)
+
+
+## How trained their body is from Biggie's gym (gym.gd amounts, 0..1 per
+## part): the same Fit_* shapes and muscle tone as Eco (eco_model.gd).
+func set_fitness(amounts: Dictionary) -> void:
+	fitness = amounts.duplicate()
+	var tone := Vector4(fitness.get("abs", 0.0), fitness.get("arms", 0.0), fitness.get("legs", 0.0), fitness.get("stomach", 0.0))
+	for node in find_children("*", "MeshInstance3D", true, false):
+		var mi := node as MeshInstance3D
+		if mi.mesh == null:
+			continue
+		for part: String in FIT_SHAPES:
+			var b := mi.find_blend_shape_by_name(FIT_SHAPES[part])
+			if b >= 0:
+				mi.set_blend_shape_value(b, float(fitness.get(part, 0.0)))
+		mi.set_instance_shader_parameter("tone", tone)
 
 
 func say(stream: AudioStream) -> void:

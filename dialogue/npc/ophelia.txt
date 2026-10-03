@@ -305,6 +305,11 @@ ophelia (blush, down): Black sesame. Two scoops. You remembered.
 eco: You told me to remember it. Very threateningly.
 ophelia (smile, tilt): This is a date. I'm on a date. In public. With the lights on.
 
+[date gym]
+ophelia (blush, down): Gym clothes. On purpose. Don't look. ...You can look a little.
+eco: Meet you on the mats. I'll spot you.
+ophelia (smile, lookaway): A date where we both sweat and nobody has to talk. You get me.
+
 [date any]
 ophelia (blush, down): So this is a date.
 eco: This is a date. You're allowed to smile on dates, you know.

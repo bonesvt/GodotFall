@@ -296,7 +296,7 @@ func _hub_keys() -> void:
 	player.velocity = Vector3.ZERO
 	for i in 20:
 		await physics_frame
-	_check("prompt says she wants to talk", run_node.hud.prompt_label.text.ends_with("(wants to talk)"), run_node.hud.prompt_label.text)
+	_check("prompt says she wants to talk", run_node.hud.prompt_label.text.contains("(wants to talk)"), run_node.hud.prompt_label.text)
 	await _press("interact")
 	await physics_frame
 	_check("hub: the scene puts her in its pose", oph.spot == "read" and oph.posed and oph._anim.current_animation == "poses/idle_read", [oph.spot, oph._anim.current_animation])

@@ -275,6 +275,8 @@ var suit_tier := 0
 var suit_weight := "medium"
 ## What Eco has trained in Biggie's gym (gym.gd PARTS -> points).
 var fitness := Gym.fresh()
+## What Mom and Ophelia have trained beside her (who -> the same as fitness).
+var partner_fitness := {}
 
 
 func _init(p_path := DEFAULT_PATH) -> void:
@@ -315,6 +317,7 @@ func load_file() -> void:
 	if not SUIT_WEIGHTS.has(suit_weight):
 		suit_weight = "medium"
 	fitness.merge(cfg.get_value("body", "fitness", {}), true)
+	partner_fitness = cfg.get_value("body", "partners", {})
 	if not WEAPONS.has(equipped) or not owns_weapon(equipped):
 		equipped = "smart_pistol"
 
@@ -335,6 +338,7 @@ func save() -> void:
 	cfg.set_value("suit", "tier", suit_tier)
 	cfg.set_value("suit", "weight", suit_weight)
 	cfg.set_value("body", "fitness", fitness)
+	cfg.set_value("body", "partners", partner_fitness)
 	cfg.save(path)
 
 
@@ -683,9 +687,6 @@ func set_suit_weight(weight: String) -> bool:
 	return true
 
 
-## What the suit does, for player.gd apply_suit(): the tier's armour scaled by
-## the weight, every passive up to the tier, and the weight's bonus (the bare
-## suit, tier 0, has no weight). Defaults to what she wears.
 ## One session of a workout in Biggie's gym (gym.gd WORKOUTS), saved. Returns
 ## the points it gave each part.
 func train(workout: String) -> Dictionary:
@@ -694,6 +695,23 @@ func train(workout: String) -> Dictionary:
 	return got
 
 
+## The same session for whoever trained beside her (gym.gd PARTNERS), saved.
+func train_partner(who: String, workout: String) -> Dictionary:
+	var got := Gym.train(fitness_of(who), workout)
+	save()
+	return got
+
+
+## What a gym partner has trained (gym.gd PARTS -> points).
+func fitness_of(who: String) -> Dictionary:
+	if not partner_fitness.has(who):
+		partner_fitness[who] = Gym.fresh()
+	return partner_fitness[who]
+
+
+## What the suit does, for player.gd apply_suit(): the tier's armour scaled by
+## the weight, every passive up to the tier, and the weight's bonus (the bare
+## suit, tier 0, has no weight). Defaults to what she wears.
 func suit_profile(tier := -1, weight := "") -> Dictionary:
 	return suit_profile_for(suit_tier if tier < 0 else tier, suit_weight if weight == "" else weight)
 

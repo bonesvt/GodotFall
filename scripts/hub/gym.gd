@@ -7,7 +7,8 @@ extends RefCounted
 ## painted into v_body_tone.png.
 ##
 ## Muscles grow while you rest: each workout can be done once per visit to
-## the temple, and comes back after the next run.
+## the temple, and comes back after the next run. Mom or Ophelia can come and
+## train beside her instead of Biggie (PARTNERS).
 
 ## What can be trained, and the most points each can hold (a fully trained body).
 const PARTS := ["stomach", "abs", "arms", "legs", "glutes"]
@@ -40,8 +41,48 @@ const DONE_LINES := {
 	"crunch": "Abs of a scavenger. Earned, not issued.",
 	"bag": "Pretend it's the recruiting officer. Every time.",
 }
+## Who Eco can invite to train with her ([T] by them in the hub; run_manager.gd
+## invite_to_gym). Biggie leaves the gym to them. Their bodies train the same
+## parts as hers (saved in armory.gd partner_fitness, shaped like hers by
+## hub_npc.gd set_fitness). With Ophelia it's a date once she'll go on one.
+const PARTNERS := ["mom", "ophelia"]
+## What each says when Eco asks (Ophelia's date answer is her [date gym] in
+## dialogue/npc/ophelia.txt).
+const INVITE_LINES := {
+	"mom": [["eco", "Want to work out with me, Mom?"], ["mom", "Oh! Let me find my good sneakers. Meet you in Biggie's gym, sweetheart."]],
+	"ophelia": [["eco", "Work out with me? Biggie's gym. No Biggie."], ["ophelia", "...Fine. If anyone sees me sweat, I'll deny it."]],
+}
+## What they say together through each workout, one line per shot (in place
+## of Biggie's coaching and Eco's last word): [speaker, text, moods].
+## "ophelia_date" is Ophelia when the workout is a date.
+const PARTNER_LINES := {
+	"mom": {
+		"squat": [["mom", "Knees out, sweetheart. Your father always forgot that."], ["eco", "Mom, you're out-squatting me."], ["mom", "Who do you think carried you up those stairs for six years?"]],
+		"bridge": [["mom", "Squeeze, hold, breathe. Just like I taught you to stay calm."], ["eco", "You never taught me this."], ["mom", "I'm teaching you now. Hold it, Eco."]],
+		"pullup": [["mom", "Slow down, you'll pull something. I'll get one... eventually."], ["eco", "Come on, Mom. One more."], ["mom", "There! Did you see that? Don't tell Biggie you helped."]],
+		"crunch": [["mom", "Hands light behind your head. Don't strain your neck, baby."], ["eco", "Mom. Count, don't coach."], ["mom", "Twelve. Thirteen. You used to do these to get out of chores."]],
+		"bag": [["mom", "I've got the bag. Elbows in. If anyone hurts you out there, you hit like that."], ["eco", "That's the plan."], ["mom", "Good. Now hug me before you go break something."]],
+	},
+	"ophelia": {
+		"squat": [["ophelia", "I don't do mornings, or legs. This is both."], ["eco", "You're doing great."], ["ophelia", "I'm doing something. Don't make it weird."]],
+		"bridge": [["ophelia", "Lying on a mat in the dark. Finally, a workout for me."], ["eco", "Hips up, Ophelia."], ["ophelia", "They're up. Spiritually."]],
+		"pullup": [["ophelia", "Hanging from a bar like a bat. Respect."], ["eco", "Pull, don't dangle."], ["ophelia", "One. That's a personal record and a personal limit."]],
+		"crunch": [["ophelia", "Every crunch is one less thing to feel."], ["eco", "That's... not how they work."], ["ophelia", "Twenty. Feeling nothing. It's working."]],
+		"bag": [["ophelia", "Can I write a name on it first?"], ["eco", "Whose?"], ["ophelia", "Everyone's. Hit it. I've got it."]],
+	},
+	"ophelia_date": {
+		"squat": [["ophelia", "I'm not looking at you. I'm looking at my form.", ["blush", "lookaway"]], ["eco", "Your form looks good too."], ["ophelia", "...Shut up. Again.", ["smile", "blush"]]],
+		"bridge": [["ophelia", "Side by side on the mats. Very romantic. Very sweaty."], ["eco", "You came, though."], ["ophelia", "I came for you. The sandbag's a bonus.", ["blush", "smile"]]],
+		"pullup": [["ophelia", "You make that look easy. It's annoying. It's also... a lot.", ["blush"]], ["eco", "Want a boost?"], ["ophelia", "Touch my waist and I'll fall off this bar.", ["fluster", "lookaway"]]],
+		"crunch": [["ophelia", "Nobody's ever counted my reps before."], ["eco", "Eighteen. Nineteen. Twenty."], ["ophelia", "Twenty-one is for you. Don't tell anyone.", ["smile", "blush"]]],
+		"bag": [["ophelia", "Remind me never to make you angry.", ["surprised"]], ["eco", "Hold it steady. Here comes the cross."], ["ophelia", "...I felt that in my teeth. This is a date. I'm on a gym date.", ["joy", "blush"]]],
+	},
+}
+
 ## Biggie, when she tries a workout she's already done this visit.
 const RESTED_LINE := "You've done that one today. Muscle grows when you rest. Go break something out there and come back."
+## What Eco says instead when she brought someone (Biggie isn't there).
+const RESTED_PARTNER_LINE := "We've done that one today. Biggie says muscle grows when you rest."
 
 
 ## A fresh body: nothing trained yet.

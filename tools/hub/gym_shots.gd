@@ -1,7 +1,7 @@
 extends SceneTree
 ## Screenshots of Biggie's gym and every workout scene's three shots, at the
 ## deepest point of a rep in each, for checking the poses and framing.
-##   xvfb-run -a godot --audio-driver Dummy --fixed-fps 30 --path . -s res://tools/hub/gym_shots.gd -- [out_dir] [--fit=<0..1>] [--only=squat,bag]
+##   xvfb-run -a godot --audio-driver Dummy --fixed-fps 30 --path . -s res://tools/hub/gym_shots.gd -- [out_dir] [--fit=<0..1>] [--only=squat,bag] [--partner=mom|ophelia] [--date]
 ## Needs a renderer (not --headless). Uses its own save file.
 
 const Gym := preload("res://scripts/hub/gym.gd")
@@ -12,12 +12,18 @@ var run_node
 var out := "user://gym_shots"
 var fit := -1.0
 var only: PackedStringArray = []
+var partner := ""
+var date := false
 
 
 func _initialize() -> void:
 	for arg in OS.get_cmdline_user_args():
 		if arg.begins_with("--fit="):
 			fit = float(arg.trim_prefix("--fit="))
+		elif arg.begins_with("--partner="):
+			partner = arg.trim_prefix("--partner=")
+		elif arg == "--date":
+			date = true
 		elif arg.begins_with("--only="):
 			only = arg.trim_prefix("--only=").split(",")
 		else:
@@ -27,7 +33,9 @@ func _initialize() -> void:
 	run_node = load("res://scenes/run.tscn").instantiate()
 	run_node.run_seed = 1234
 	run_node.armory_path = "user://shots_gym_armory.cfg"
-	DirAccess.remove_absolute(ProjectSettings.globalize_path(run_node.armory_path))
+	run_node.npc_path = "user://shots_gym_npcs.cfg"
+	for path in [run_node.armory_path, run_node.npc_path]:
+		DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
 	root.add_child(run_node)
 	_go.call_deferred()
 
@@ -37,6 +45,8 @@ func _go() -> void:
 	if fit >= 0.0:
 		for part in Gym.PARTS:
 			run_node.armory.fitness[part] = int(fit * Gym.MAX_POINTS)
+			if partner != "":
+				run_node.armory.fitness_of(partner)[part] = int(fit * Gym.MAX_POINTS)
 		run_node.equip_loadout()
 		run_node.dress_hub()
 	for layer in root.find_children("*", "CanvasLayer", true, false):
@@ -50,6 +60,10 @@ func _go() -> void:
 	var gun: Node3D = run_node.player.get_node_or_null("Head/Camera3D/Weapon")
 	if gun != null:
 		gun.visible = false
+	if partner != "":
+		run_node.gym_partner = partner
+		run_node.gym_date = date
+		run_node._wait_in_gym(partner)
 	var f := 1.2
 	if only.is_empty():
 		# The room from the door in Biggie's den, and from the far corner.

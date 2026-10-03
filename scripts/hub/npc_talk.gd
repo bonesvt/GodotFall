@@ -276,6 +276,13 @@ func _play(p_npc: Node3D, p_lines: Array) -> void:
 	_next()
 
 
+## Plays `p_lines` ([speaker, text] or [speaker, text, moods] each) as a
+## talk with them, outside their dialogue file (gym.gd INVITE_LINES).
+func say(p_npc: Node3D, p_lines: Array) -> void:
+	stop()
+	_play(p_npc, p_lines)
+
+
 ## A date with them at `place` (a hook for date spots outside the hub). Plays
 ## their [date <place>] lines, else [date any], and raises affection once per
 ## run. False if they won't go yet (see Romance.can_date).

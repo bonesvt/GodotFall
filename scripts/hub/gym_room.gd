@@ -32,6 +32,19 @@ const SPOTS := {
 	"crunch": {"pos": Vector3(8.4, 0, -40.6), "yaw": 90.0},
 	"bridge": {"pos": Vector3(11.0, 0, -41.2), "yaw": 90.0},
 }
+## Where Mom or Ophelia train beside her when she brings them (gym.gd
+## PARTNERS), in each spot's frame: [offset, turn (degrees)]. They squat with
+## a dumbbell to her right, hang from the far end of the pull-up bar, lie on
+## the spare mats, and hold the heavy bag for her from its far side.
+const PARTNER_SPOTS := {
+	"squat": [Vector3(1.45, 0, 0), 0.0],
+	"pullup": [Vector3(1.25, 0, 0), 0.0],
+	"bag": [Vector3(0, 0, -1.2), 180.0],
+	"crunch": [Vector3(-0.95, 0, 0), 0.0],
+	"bridge": [Vector3(-0.95, 0, 0), 0.0],
+}
+## Where whoever she invited waits for her (by the door, looking into the room).
+const WAIT_SPOT := {"pos": Vector3(13.4, 0, -40.0), "yaw": 90.0}
 ## Heights (m above the floor) of the squat rack's hooks and the pull-up bar.
 const RACK_H := 1.42
 const BAR_H := 2.18
@@ -61,6 +74,10 @@ static func build(root: Node3D, info: Dictionary, floor_y: float) -> void:
 	_bag(root, gym["bag"], F)
 	_mat(root, gym["crunch"], Color(0.3, 0.42, 0.55))
 	_mat(root, gym["bridge"], Color(0.55, 0.3, 0.25))
+	# spare mats beside them, for a partner
+	_mat(root, gym["crunch"], Color(0.36, 0.48, 0.42), PARTNER_SPOTS["crunch"][0])
+	_mat(root, gym["bridge"], Color(0.5, 0.36, 0.3), PARTNER_SPOTS["bridge"][0])
+	info["gym_wait"] = {"pos": WAIT_SPOT["pos"] + Vector3(0, F, 0), "yaw": WAIT_SPOT["yaw"], "anim": ""}
 	var sandbag := sandbag_model()
 	sandbag.position = _local(gym["bridge"], Vector3(0.35, 0.08, 1.3))
 	sandbag.rotation.y = deg_to_rad(gym["bridge"]["yaw"])
@@ -160,13 +177,14 @@ static func _squat_rack(root: Node3D, spot: Dictionary, F: float) -> void:
 		root.add_child(plate)
 
 
-## Two posts and a cross bar at BAR_H, braced to the floor.
+## Three posts and a cross bar at BAR_H, braced to the floor: two bays, so a
+## partner can hang beside her (PARTNER_SPOTS).
 static func _pullup(root: Node3D, spot: Dictionary, F: float) -> void:
-	for side in [-1.0, 1.0]:
-		K.metal(root, _local(spot, Vector3(side * 0.75, BAR_H * 0.5 + 0.05, -0.25)), Vector3(0.09, BAR_H + 0.1, 0.09), Vector3(0, spot["yaw"], 0))
-		K.mesh(root, _local(spot, Vector3(side * 0.75, 0.04, -0.25)), Vector3(0.12, 0.08, 1.0), Art.material("gunmetal"), Vector3(0, spot["yaw"], 0))
-	var bar := _rod(1.6, 0.017, Color(0.55, 0.55, 0.58))
-	bar.position = _local(spot, Vector3(0, BAR_H, -0.25))
+	for x in [-0.75, 0.75, 1.85]:
+		K.metal(root, _local(spot, Vector3(x, BAR_H * 0.5 + 0.05, -0.25)), Vector3(0.09, BAR_H + 0.1, 0.09), Vector3(0, spot["yaw"], 0))
+		K.mesh(root, _local(spot, Vector3(x, 0.04, -0.25)), Vector3(0.12, 0.08, 1.0), Art.material("gunmetal"), Vector3(0, spot["yaw"], 0))
+	var bar := _rod(2.7, 0.017, Color(0.55, 0.55, 0.58))
+	bar.position = _local(spot, Vector3(0.55, BAR_H, -0.25))
 	bar.basis = _basis(spot) * Basis(Vector3.BACK, PI / 2)
 	root.add_child(bar)
 
@@ -189,8 +207,8 @@ static func _bag(root: Node3D, spot: Dictionary, F: float) -> void:
 	spot["bag"] = bag
 
 
-static func _mat(root: Node3D, spot: Dictionary, tint: Color) -> void:
-	K.mesh(root, _local(spot, Vector3(0, 0.04, 0.85)), Vector3(0.8, 0.05, 2.0), Art.material("canvas", tint), Vector3(0, spot["yaw"], 0))
+static func _mat(root: Node3D, spot: Dictionary, tint: Color, offset := Vector3.ZERO) -> void:
+	K.mesh(root, _local(spot, offset + Vector3(0, 0.04, 0.85)), Vector3(0.8, 0.05, 2.0), Art.material("canvas", tint), Vector3(0, spot["yaw"], 0))
 
 
 ## A barbell: a long bar with two iron plates each end. Along X, centred.

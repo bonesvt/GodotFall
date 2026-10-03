@@ -85,6 +85,13 @@ static func make_material(who: String, key: String, source: Material) -> Materia
 	mat.set_shader_parameter("alpha_cut", spec[4])
 	mat.set_shader_parameter("rim", spec[5])
 	mat.set_shader_parameter("sheen", spec[6])
+	# Mom and Ophelia train in Biggie's gym like Eco: the same muscle tone
+	# heights (build_npc.py TRAINS), set per body by hub_npc.gd set_fitness.
+	var tone_path := "res://assets/textures/npc/%s/v_body_tone.png" % who
+	if part == "body" and ResourceLoader.exists(tone_path):
+		mat.set_shader_parameter("use_tone", true)
+		mat.set_shader_parameter("tone_tex", load(tone_path))
+		mat.set_shader_parameter("tone_ink", Vector3(0.7, 0.55, 0.57))
 	if spec[3] > 0.0:
 		var ink := ShaderMaterial.new()
 		ink.shader = OUTLINE

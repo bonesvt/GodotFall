@@ -6,6 +6,12 @@ extends Node3D
 ## piece. F skips it once it has started. run_manager.gd adds the points when
 ## `finished` fires.
 ##
+## When Eco brought Mom or Ophelia (gym.gd PARTNERS), Biggie leaves them to
+## it: the partner trains beside her (gym_room.gd PARTNER_SPOTS; at the heavy
+## bag they hold it for her) in a second copy of this scene that follows this
+## one's clock, posing their hub model the same way, and the captions are the
+## two of them talking (gym.gd PARTNER_LINES).
+##
 ## Poses are built each frame from her rest pose in skeleton space (she faces
 ## -Z, her right is +X, up is +Y): the hips are moved, the spine bones aimed,
 ## and arms and legs placed with two-bone IK on hand and foot targets.
@@ -16,6 +22,8 @@ const ECO := preload("res://assets/models/eco.tscn")
 const GymRoom := preload("res://scripts/hub/gym_room.gd")
 const Gym := preload("res://scripts/hub/gym.gd")
 const Babble := preload("res://scripts/hub/babble.gd")
+const HubNpc := preload("res://scripts/hub/hub_npc.gd")
+const PoseModifier := preload("res://scripts/ps2/eco_pose_modifier.gd")
 
 ## Seconds each camera shot holds.
 const SHOT_TIME := 3.3
@@ -55,6 +63,21 @@ const SHOTS := {
 		{"from": Vector3(1.4, 1.45, -1.2), "to": Vector3(1.3, 1.45, -1.05), "look": Vector3(0, 1.4, -0.2), "fov": 45.0},
 	],
 }
+## With a partner, these shots replace those of SHOTS (workout -> shot index ->
+## shot): the last one takes in the two of them, and the bridge's second
+## stands back past the partner's mat.
+const PARTNER_SHOTS := {
+	"squat": {2: {"from": Vector3(1.05, 1.3, -1.85), "to": Vector3(0.95, 1.3, -1.7), "look": Vector3(0.72, 1.0, 0), "fov": 55.0}},
+	"pullup": {2: {"from": Vector3(0.6, 1.6, -2.3), "to": Vector3(0.65, 1.65, -2.1), "look": Vector3(0.62, 1.85, -0.25), "fov": 52.0}},
+	"crunch": {2: {"from": Vector3(-0.45, 1.7, 3.0), "to": Vector3(-0.45, 1.6, 2.8), "look": Vector3(-0.45, 0.25, 1.0), "fov": 50.0}},
+	"bridge": {
+		1: {"from": Vector3(-2.2, 1.5, 1.9), "to": Vector3(-2.1, 1.45, 1.7), "look": Vector3(0, 0.35, 0.7), "fov": 46.0},
+		2: {"from": Vector3(-0.45, 1.7, 3.1), "to": Vector3(-0.45, 1.6, 2.9), "look": Vector3(-0.45, 0.25, 0.9), "fov": 50.0},
+	},
+}
+## How far (s) the partner's reps run behind hers, so they don't move in
+## lockstep. At the bag they move with her punches.
+const PARTNER_LAG := 0.35
 
 ## Each rep's length (s) and the share of it held at the top (or bottom).
 ## How far her wrist sits from a bar she grips: the bar lies in her palm.
@@ -96,21 +119,39 @@ var _voice: AudioStreamPlayer
 var _caption: Label
 var _name: Label
 var _panel: PanelContainer
+## Who trains with her (gym.gd PARTNERS), "" for Biggie, and whether it's a date.
+var partner := ""
+var date := false
+## The partner's copy of this scene (set on hers), and hers (set on the partner's).
+var follower: Node3D
+var leader: Node3D
+## Who this copy poses: Eco's model, or a holder with the partner's hub model in it.
+var body: Node3D
+var npc: Node3D
+## Run by eco_pose_modifier.gd inside the partner's skeleton update.
+var posing := Callable()
 
 
-static func create(p_workout: String, p_spot: Dictionary, p_bounds: Rect2, suit: Dictionary, fitness: Dictionary) -> Node3D:
+static func create(p_workout: String, p_spot: Dictionary, p_bounds: Rect2, suit: Dictionary, fitness: Dictionary,
+		p_partner := "", p_date := false, partner_fitness := {}) -> Node3D:
 	var w: Node3D = load("res://scripts/hub/gym_workout.gd").new()
 	w.workout = p_workout
 	w.spot = p_spot
 	w.bounds = p_bounds
+	w.partner = p_partner
+	w.date = p_date
 	w.set_meta("suit", suit)
 	w.set_meta("fitness", fitness)
+	w.set_meta("partner_fitness", partner_fitness)
 	w.name = "Workout"
 	return w
 
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
+	if leader != null:
+		_ready_partner()
+		return
 	var suit: Dictionary = get_meta("suit", {})
 	eco = ECO.instantiate()
 	eco.idle_motion = false
@@ -118,8 +159,68 @@ func _ready() -> void:
 	eco.suit_tier = suit.get("tier", 0)
 	add_child(eco)
 	eco.set_fitness(get_meta("fitness", {}))
+	body = eco
 	eco.global_transform = _eco_frame(0.0)
 	_sk = eco.skeleton
+	_map_bones()
+	if _sk != null:
+		eco.posing = _pose
+	var room_prop: Node3D = spot.get("prop")
+	if room_prop != null:
+		room_prop.visible = false
+	_add_prop()
+	if partner != "":
+		follower = load("res://scripts/hub/gym_workout.gd").new()
+		follower.name = "Partner"
+		follower.workout = workout
+		follower.spot = {"pos": spot.get("pos", Vector3.ZERO), "yaw": spot.get("yaw", 0.0)}
+		follower.bounds = bounds
+		follower.partner = partner
+		follower.date = date
+		follower.leader = self
+		follower.set_meta("fitness", get_meta("partner_fitness", {}))
+		add_child(follower)
+	camera = Camera3D.new()
+	camera.near = 0.04
+	add_child(camera)
+	camera.make_current()
+	_voice = AudioStreamPlayer.new()
+	add_child(_voice)
+	_build_caption()
+	_next_shot()
+
+
+## The partner's copy: their hub model (in gym clothes, trained as far as they
+## have), posed beside her by this script, their own bar or sandbag.
+func _ready_partner() -> void:
+	body = Node3D.new()
+	body.name = "Body"
+	add_child(body)
+	npc = HubNpc.create(partner, Vector3.ZERO, 0.0)
+	npc.posed = true
+	npc.set_fitness(get_meta("fitness", {}))
+	body.add_child(npc)
+	npc.wear("tight")
+	if npc._anim != null:
+		npc._anim.stop()
+	time = leader.time
+	body.global_transform = _eco_frame(0.0)
+	_sk = npc.find_child("Skeleton3D", true, false) as Skeleton3D
+	if _sk != null:
+		_sk.reset_bone_poses()
+	_map_bones()
+	if _sk != null and not _rest.is_empty():
+		posing = _pose
+		var mod := SkeletonModifier3D.new()
+		mod.set_script(PoseModifier)
+		mod.name = "Posing"
+		mod.set("model", self)
+		_sk.add_child(mod)
+	_add_prop()
+
+
+## Finds the bones posed here on the skeleton and notes their rest poses.
+func _map_bones() -> void:
 	if _sk != null:
 		for key: String in BONES:
 			_b[key] = _sk.find_bone(BONES[key])
@@ -136,24 +237,16 @@ func _ready() -> void:
 				var c: String = chain[1] + "." + side
 				if _rest.has(a) and _rest.has(c):
 					_len[a] = (_rest[c].origin - _rest[a].origin).length()
-		eco.posing = _pose
-	var room_prop: Node3D = spot.get("prop")
-	if room_prop != null:
-		room_prop.visible = false
+
+
+## The bar or sandbag she holds (the partner squats holding a dumbbell).
+func _add_prop() -> void:
 	if workout == "squat":
-		_prop = GymRoom.barbell_model()
+		_prop = GymRoom.dumbbell_model(1.3) if leader != null else GymRoom.barbell_model()
 	elif workout == "bridge":
 		_prop = GymRoom.sandbag_model()
 	if _prop != null:
 		add_child(_prop)
-	camera = Camera3D.new()
-	camera.near = 0.04
-	add_child(camera)
-	camera.make_current()
-	_voice = AudioStreamPlayer.new()
-	add_child(_voice)
-	_build_caption()
-	_next_shot()
 
 
 func _exit_tree() -> void:
@@ -163,6 +256,10 @@ func _exit_tree() -> void:
 
 
 func _process(delta: float) -> void:
+	if leader != null:
+		time = maxf(leader.time - (0.0 if workout == "bag" else PARTNER_LAG), 0.0)
+		body.global_transform = _eco_frame(time)
+		return
 	if done:
 		return
 	time += delta
@@ -171,7 +268,7 @@ func _process(delta: float) -> void:
 		_next_shot()
 		if done:
 			return
-	var s: Dictionary = SHOTS[workout][shot]
+	var s := _shot(shot)
 	var k := clampf((time - shot * SHOT_TIME) / SHOT_TIME, 0.0, 1.0)
 	var at := _clamped(_world(s["from"].lerp(s["to"], k * k * (3.0 - 2.0 * k))))
 	var look := _world(s["look"])
@@ -186,13 +283,29 @@ func skip() -> void:
 		_finish()
 
 
+## Shot `i` of this workout (with a partner, PARTNER_SHOTS where it has one).
+func _shot(i: int) -> Dictionary:
+	if partner != "":
+		var swap: Dictionary = PARTNER_SHOTS.get(workout, {})
+		if swap.has(i):
+			return swap[i]
+	return SHOTS[workout][i]
+
+
 func _next_shot() -> void:
 	shot += 1
 	var shots: Array = SHOTS[workout]
 	if shot >= shots.size():
 		_finish()
 		return
-	if shot < shots.size() - 1:
+	if partner != "":
+		var key := partner + "_date" if date and Gym.PARTNER_LINES.has(partner + "_date") else partner
+		var talk: Array = Gym.PARTNER_LINES[key][workout]
+		var line: Array = talk[shot % talk.size()]
+		if line.size() > 2 and follower != null and follower.npc != null:
+			follower.npc.mood(line[2])
+		_say(line[0], line[1])
+	elif shot < shots.size() - 1:
 		var lines: Array = Gym.COACHING[workout]
 		_say("biggie", lines[shot % lines.size()])
 	else:
@@ -207,20 +320,35 @@ func _finish() -> void:
 	finished.emit()
 
 
+## Caption name colours (the same as npc_talk.gd's).
+const SPEAKERS := {
+	"eco": ["ECO", Color(1.0, 0.45, 0.45)],
+	"biggie": ["BIGGIE", Color(0.95, 0.75, 0.4)],
+	"mom": ["MOM", Color(0.95, 0.7, 0.8)],
+	"ophelia": ["OPHELIA", Color(0.7, 0.6, 0.95)],
+}
+
+
 func _say(speaker: String, text: String) -> void:
 	var b := Babble.make(speaker, text)
 	_voice.stream = b["stream"]
 	_voice.play()
-	_name.text = "BIGGIE" if speaker == "biggie" else "ECO"
-	_name.add_theme_color_override("font_color", Color(0.95, 0.75, 0.4) if speaker == "biggie" else Color(1.0, 0.45, 0.45))
+	var who: Array = SPEAKERS.get(speaker, [speaker.to_upper(), Color.WHITE])
+	_name.text = who[0]
+	_name.add_theme_color_override("font_color", who[1])
 	_caption.text = text
 
 
 # --- where things are -------------------------------------------------------------
 
-## The spot's frame: its floor point, turned to its yaw.
+## The spot's frame: its floor point, turned to its yaw. The partner's is
+## moved over to their place beside her (gym_room.gd PARTNER_SPOTS).
 func _frame() -> Transform3D:
-	return Transform3D(Basis(Vector3.UP, deg_to_rad(spot.get("yaw", 0.0))), spot.get("pos", Vector3.ZERO))
+	var f := Transform3D(Basis(Vector3.UP, deg_to_rad(spot.get("yaw", 0.0))), spot.get("pos", Vector3.ZERO))
+	if leader != null:
+		var at: Array = GymRoom.PARTNER_SPOTS.get(workout, [Vector3.ZERO, 0.0])
+		f = f * Transform3D(Basis(Vector3.UP, deg_to_rad(at[1])), at[0])
+	return f
 
 
 func _world(local: Vector3) -> Vector3:
@@ -311,6 +439,16 @@ func _pose_squat() -> void:
 		var x := 1.0 if side == "R" else -1.0
 		var ankle: Vector3 = _rest["foot." + side].origin + Vector3(x * 0.06, 0, 0)
 		_leg(side, ankle, Vector3(x * 0.35, 0, -1), Vector3(x * 0.25, 0, -1))
+	if leader != null:
+		# a goblet squat: a dumbbell held upright against the chest, elbows in
+		var at_chest: Vector3 = _rest["upper_chest"].origin + Vector3(0, -0.06, -0.2)
+		var held := _follow("upper_chest", at_chest)
+		for side in ["L", "R"]:
+			var x := 1.0 if side == "R" else -1.0
+			_arm(side, held + Vector3(x * 0.05, -0.03, 0.02), Vector3(x * 0.4, -1.0, 0.1))
+			_grip(side, 1.0)
+		_place_prop(Transform3D(_turned("upper_chest") * Basis(Vector3.BACK, PI / 2), held))
+		return
 	# the bar rests across the top of her back, behind her neck; her hands hold it wide
 	var on_back: Vector3 = _rest["neck"].origin + Vector3(0, -0.07, 0.115)
 	for side in ["L", "R"]:
@@ -381,6 +519,9 @@ func _pose_pullup() -> void:
 
 
 func _pose_bag() -> void:
+	if leader != null:
+		_pose_hold_bag()
+		return
 	var beat := fmod(time, 1.0)
 	var jab := sin(clampf(beat / 0.32, 0.0, 1.0) * PI)
 	var cross := sin(clampf((beat - 0.45) / 0.36, 0.0, 1.0) * PI)
@@ -404,6 +545,25 @@ func _pose_bag() -> void:
 	var bag_node: Node3D = spot.get("bag")
 	if bag_node != null:
 		bag_node.rotation = Vector3(0.06 * maxf(jab, cross), 0, 0)
+
+
+## The partner bracing the heavy bag for her from the far side: feet set,
+## leaning in, arms round it, rocking back a little as each punch lands.
+func _pose_hold_bag() -> void:
+	var beat := fmod(time, 1.0)
+	var hit := maxf(sin(clampf((beat - 0.1) / 0.3, 0.0, 1.0) * PI), sin(clampf((beat - 0.58) / 0.3, 0.0, 1.0) * PI))
+	_move_hips(Vector3(0, -0.07, 0.03 * hit))
+	_turn("spine", Vector3.RIGHT, -8.0 + 3.0 * hit)
+	_turn("chest", Vector3.RIGHT, -6.0)
+	_turn("head", Vector3.UP, 25.0)   # cheek turned aside from the bag
+	_leg("L", _rest["foot.L"].origin + Vector3(-0.04, 0, -0.12), Vector3(-0.3, 0, -1), Vector3(-0.2, 0, -1))
+	_leg("R", _rest["foot.R"].origin + Vector3(0.06, 0, 0.2), Vector3(0.3, 0, -1), Vector3(0.3, 0, -1))
+	var to_skel := _sk.global_transform.affine_inverse()
+	var bag := to_skel * _world(Vector3(0, 1.3, -(1.2 - 0.78)))
+	for side in ["L", "R"]:
+		var x := 1.0 if side == "R" else -1.0
+		_arm(side, bag + Vector3(x * 0.2, (0.08 if side == "L" else -0.06), 0.05), Vector3(x, -0.6, 0.3))
+		_grip(side, 0.5)
 
 
 func _pose_of(key: String) -> Transform3D:

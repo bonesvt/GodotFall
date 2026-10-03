@@ -68,8 +68,13 @@ static func settle(npc: Node3D, info: Dictionary, run: int) -> String:
 ## Moves them to `spot` and strikes its pose (props and all).
 static func take(npc: Node3D, spot: String, info := {}) -> void:
 	var s: Dictionary = spots(npc.who).get(spot, {})
-	if s.is_empty():
-		return
+	if not s.is_empty():
+		place(npc, spot, s, info)
+
+
+## Moves them to spot `s` ({pos, yaw, anim, talk, props, mood}, as in _oph),
+## named `spot`, anywhere in the hub (Biggie's gym when Eco invites them).
+static func place(npc: Node3D, spot: String, s: Dictionary, info := {}) -> void:
 	npc.position = s["pos"]
 	npc.home_yaw = deg_to_rad(s["yaw"])
 	npc.rotation.y = npc.home_yaw

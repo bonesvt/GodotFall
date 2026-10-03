@@ -47,6 +47,9 @@ exec(compile(_src, _eco_path, "exec"), E)
 sys.argv = _saved
 
 TEX_OUT = os.path.join(ROOT, "assets", "textures", "npc", WHO)
+## Who can train in Biggie's gym with Eco (scripts/hub/gym.gd PARTNERS): their
+## bodies get Eco's gym shape keys and muscle heights (build_eco_vroid.py).
+TRAINS = ("mom", "ophelia")
 GLB_OUT = os.path.join(ROOT, "assets", "models", "npc", WHO + ".glb")
 E["TEX_OUT"] = TEX_OUT
 
@@ -1444,6 +1447,8 @@ def textures(objs, boots):
     clean = write_png(px, "body_skin_src")
     bake_body(body, clean)
     os.remove(os.path.join(TEX_OUT, "body_skin_src.png"))
+    if WHO in TRAINS:
+        E["bake_tone"](body)   # v_body_tone.png, as Eco's
     plan.append((body, next(iter(mat_index(body, "bake_body"))), "body"))
     for ob, i, name in plan:
         ob.material_slots[i].material = new_mat(P + name)
@@ -1755,6 +1760,8 @@ def main():
         bpy.data.objects["Topknot"].material_slots[0].material = beard_m
     if WHO in ("ophelia", "mom"):
         bpy.data.objects["Piercings"].material_slots[0].material = bpy.data.materials["npc_%s_body" % WHO]
+    if WHO in TRAINS:
+        E["fit_shapes"](objs)   # Fit_* shape keys, as Eco's
     prune_bones(arm)
     E["proportions"](arm, objs)
     E["face_forward_and_scale"](arm, objs)
