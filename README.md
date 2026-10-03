@@ -28,12 +28,21 @@ base since the militia turned her away. Walk around, warm up the movement kit, a
 press **F** at the map table ("HEAD OUT") to start a run. When a run ends, won or lost,
 **Enter** brings you back here.
 
-- **The hall**: two rows of pillars down a nave, the roof fallen in over the middle so a
-  shaft of sun lands on the idol. Carved eye glyphs run along the walls.
+- **The hall**: an old hardwood temple, two rows of timber pillars down a nave and the
+  roof fallen in over the middle so a shaft of sun lands on the idol. Carved, painted eye
+  glyphs run along the walls. Eco has made it home: plank floors, rugs, string lights
+  zigzagging across the nave, paper lanterns in the aisles, potted ferns, a porch with
+  lanterns over the door and a tarp over half the roof hole. (`HubBuilder.home_style`
+  can build it in the precursors' pale alloy instead, `"alloy"`.)
+- **Kitchen** (under the gallery): a barrel stove, a counter and shelf of jars, herbs
+  drying, a little table with two stools.
+- **Couch** (by the bench): a pilot seat from a scrapped Ogre on a crate base, with a
+  crate table and a spotlight floor lamp.
 - **The idol**: the precursor god, seated on a stepped dais with its hands open on its
   knees and one great eye still glowing in its brow. Fire bowls either side.
-- **Eco's corner** (left of the door): her bedroll and lantern, and the militia's letter
-  turning down her pilot application, pinned to the wall.
+- **Eco's corner** (left of the door): the bed she built, a curtain round it, her
+  lantern, a photo of her and her dad, her drawings, and the militia's letter turning
+  down her pilot application, pinned to the wall.
 - **Workbench** (right of the door): her father's smart pistol stripped down, its burnt
   auto-lock board on the bench. An `EcoSpot` marker beside it is where her character
   model will stand.
@@ -95,7 +104,8 @@ nodes and pickups by `tools/run/build_loot.py` (all `blender -b --python <script
 
 Press **F** near anything to have Eco say something about it; press again for more.
 Built in code by `scripts/hub/hub_builder.gd` and `hub_grounds.gd` (temple stone,
-carvings, moss, wood, grass, dirt, canvas and bark textures come from `tools/make_textures.py`).
+carvings, timber, alloy, moss, wood, grass, dirt, canvas and bark textures come from
+`tools/make_textures.py`).
 The trees, palms, bushes, ferns, grass, rocks, hills, tents and the idol are modelled in
 Blender by `tools/hub/build_props.py` (`blender -b --python tools/hub/build_props.py`, writes
 `assets/models/hub/*.glb`). Each mesh is named `<part>__<material>`, and

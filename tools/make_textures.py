@@ -1013,6 +1013,190 @@ def bark():
     save("bark", img, hh, 0.9, depth=s / 40, ao=0.6)
 
 
+# --- the home: old timber or precursor alloy ---------------------------------------
+
+def glyph_band(s, k):
+    """The god's eye glyph between two rows of step-fret (1 = cut), as on the
+    temple frieze, laid out on a 128 px tile scaled by k."""
+    x, y = coords(s)
+    cut = np.zeros((s, s))
+    for y0 in (4, 108):
+        band = (y >= y0 * k) & (y < (y0 + 16) * k)
+        fret = band & ((((x // (8 * k)) + ((y - y0 * k) // (8 * k))) % 2) == 0)
+        cut = np.maximum(cut, fret.astype(float))
+        rim = (np.abs(y - y0 * k) < k * 0.8) | (np.abs(y - (y0 + 16) * k) < k * 0.8)
+        cut = np.maximum(cut, rim * 0.7)
+    for cx in (32 * k, 96 * k):
+        cy = 64 * k
+        dx, dy = (x - cx) / (26 * k), (y - cy) / (14 * k)
+        almond = np.abs(dy) + dx * dx * 0.9 < 1.0
+        outline = almond & ~(np.abs(dy) * 1.25 + dx * dx * 1.1 < 1.0)
+        rr = np.sqrt((x - cx) ** 2 + (y - cy) ** 2)
+        ring = (rr > 6.5 * k) & (rr < 9.5 * k)
+        pupil = rr < 3.5 * k
+        rays = (np.abs(x - cx) < 2 * k) & (np.abs(y - cy) > 16 * k) & (np.abs(y - cy) < 26 * k)
+        cut = np.maximum(cut, (outline | ring | pupil | rays).astype(float))
+    return cut
+
+
+def wood_grain(s, seed, rings=14, vertical=False):
+    """Flowing plank grain 0..1 (along x, or along y when `vertical`)."""
+    x, y = coords(s)
+    along = (x if vertical else y).astype(float)
+    n = noise(s, 3, 4, seed)
+    r = np.sin(along / s * 2 * np.pi * rings + n * 10) * 0.5 + 0.5
+    r = warp(r, s / 60, seed + 1, 8)
+    if vertical:
+        streak = norm01(noise(s, 48, 4, seed + 2, cells_y=2))
+        fibre = norm01(noise(s, 128, 3, seed + 3, cells_y=8))
+    else:
+        streak = norm01(noise(s, 2, 4, seed + 2, cells_y=48))
+        fibre = norm01(noise(s, 8, 3, seed + 3, cells_y=128))
+    return np.clip(r * 0.35 + streak * 0.4 + fibre * 0.25, 0, 1)
+
+
+def timber_wall():
+    """Old temple timber: tall weathered boards of a dark tropical hardwood,
+    silvered where the weather got at them, pegged top and bottom."""
+    s = BIG
+    g = wood_grain(s, 301, 9, vertical=True)
+    boards = [(int(x0), -s, int(x0 + s / 6), 2 * s) for x0 in np.arange(0, s, s / 6)]  # no end joints: one board per column
+    h, ids, _ = plates(s, boards, s * 0.01, seed=302, chip=s * 0.006)
+    # silver weathering in broad vertical streaks
+    silver = smooth(0.45, 0.8, norm01(noise(s, 6, 4, 304, cells_y=2))) * 0.45
+    # Slide each board up or down its own amount, so the grain and weathering
+    # of neighbouring boards never line up into horizontal bands.
+    r = np.random.default_rng(308)
+    w = s // 6
+    for i in range(6):
+        off = int(r.uniform(0, s))
+        cols = slice(i * w, (i + 1) * w if i < 5 else s)
+        g[:, cols] = np.roll(g[:, cols], off, axis=0)
+        silver[:, cols] = np.roll(silver[:, cols], off, axis=0)
+    img = mix(g, (82, 54, 36), (138, 96, 62)) * (1 + per_id(ids, 303, -0.1, 0.1))[..., None]
+    img = img * (1 - silver[..., None]) + np.array([150, 140, 126]) * silver[..., None]
+    x, y = coords(s)
+    rail = np.zeros((s, s))
+    pegs = dome(s, [(x0 + s / 12, y0) for x0 in np.arange(0, s, s / 6) for y0 in (s * 0.04, s * 0.96)], s * 0.008)
+    img = img * (1 - pegs[..., None]) + np.array([60, 40, 28]) * pegs[..., None]
+    crack = lines_mask(s, walks(s, 5, 14, s / 160, 305, 0.1), s / 500) * 0.5
+    hh = h * 0.9 + rail * 0.15 + pegs * 0.2 + (g - 0.5) * 0.18 - crack * 0.4
+    img *= (1 - 0.3 * crack)[..., None] * grime(s, 306, 0.15)[..., None]
+    img += grain(s, 307, 5)
+    save("timber_wall", img, hh, 0.78 - 0.1 * pegs, depth=s / 90)
+
+
+def timber_floor():
+    """Floorboards: warm honey planks, staggered butt joints, worn paler down
+    the middle where she walks."""
+    s = BIG
+    g = wood_grain(s, 311, 16)
+    rows = 6
+    boards = []
+    r = np.random.default_rng(312)
+    for i in range(rows):
+        y0, y1 = int(i * s / rows), int((i + 1) * s / rows)
+        cut = int(r.uniform(0.2, 0.8) * s)
+        boards += [(0, y0, cut, y1), (cut, y0, s, y1)]
+    h, ids, _ = plates(s, boards, s * 0.008, seed=313, chip=s * 0.004)
+    img = mix(g, (120, 78, 44), (176, 124, 74)) * (1 + per_id(ids, 314, -0.12, 0.12))[..., None]
+    worn = smooth(0.5, 0.75, noise(s, 2, 2, 315))
+    img = img * (1 + 0.12 * worn)[..., None]
+    sc = lines_mask(s, scratch_segs(s, 50, 316, 0.06), 1.5)
+    nails = dome(s, [(bx + s * 0.02, (by0 + by1) / 2) for bx, by0, _, by1 in boards], s * 0.007)
+    img = img * (1 - 0.12 * sc - nails)[..., None] + np.array([50, 48, 46]) * nails[..., None]
+    hh = h + (g - 0.5) * 0.1 + nails * 0.15
+    img += grain(s, 317, 4)
+    save("timber_floor", img, hh, 0.55 - 0.15 * worn, depth=s / 110, metal=nails)
+
+
+def timber_carving():
+    """Carved and painted hardwood frieze: the eye glyph and step-fret cut into
+    dark wood, the cuts still holding flecks of old teal and red paint."""
+    s = BIG
+    k = s / 128
+    g = wood_grain(s, 321, 10)
+    img = mix(g, (78, 50, 32), (128, 86, 54))
+    cut = gauss(glyph_band(s, k), k * 0.6)
+    paint = smooth(0.4, 0.6, noise(s, 12, 3, 322))
+    flake = np.where(paint[..., None] > 0.5, np.array([62, 128, 118]), np.array([150, 56, 40]))
+    left = cut * smooth(0.35, 0.55, noise(s, 24, 3, 323))
+    img = img * (1 - 0.45 * cut[..., None])
+    img = img * (1 - 0.7 * left[..., None]) + flake * 0.7 * left[..., None]
+    hh = 1 - cut * 0.8 + (g - 0.5) * 0.15
+    img *= grime(s, 324, 0.15)[..., None]
+    img += grain(s, 325, 4)
+    save("timber_carving", img, hh, 0.7, depth=s / 50, ao=0.6, ao_radius=k * 3)
+
+
+def alloy_panel():
+    """Precursor alloy walls: pale pearl-white ceramic metal in big soft-edged
+    panels with fine seams, a faint hex weave in the surface and teal traces
+    running along some of the seams. Old, but it never rusted."""
+    s = BIG
+    rects = rects_px(s, [(0, 0, 80, 48), (80, 0, 128, 48), (0, 48, 48, 128), (48, 48, 128, 92), (48, 92, 128, 128)])
+    h, ids, dist = plates(s, rects, s * 0.03, seed=331)
+    x, y = coords(s)
+    # hex weave
+    hx = s / 64
+    q = (x / (hx * 1.732))
+    r = (y / hx - (x / (hx * 1.732)) * 0.5)
+    fq, fr = q - np.round(q), r - np.round(r)
+    hexd = np.maximum(np.abs(fq), np.maximum(np.abs(fr), np.abs(fq + fr)))
+    weave = smooth(0.44, 0.5, hexd) * 0.5
+    tone = norm01(noise(s, 3, 3, 332))
+    img = mix(tone, (196, 204, 198), (228, 230, 222)) * (1 + per_id(ids, 333, -0.04, 0.04))[..., None]
+    # pearly sheen: a slight cool/warm shift across each panel
+    sheen = norm01(noise(s, 2, 2, 334))
+    img += (np.array([-6, 4, 10]) * sheen[..., None] + np.array([8, 2, -6]) * (1 - sheen[..., None]))
+    img *= (1 - 0.05 * weave)[..., None]
+    seam = np.clip(1 - h, 0, 1)
+    trace = smooth(0.5, 0.9, seam) * (per_id(ids, 335, 0, 1) > 0.45)
+    img = img * (1 - 0.45 * seam[..., None])
+    img = img * (1 - trace[..., None]) + np.array([70, 200, 180]) * trace[..., None]
+    dust = grime(s, 336, 0.2)
+    img *= dust[..., None]
+    img += grain(s, 337, 3)
+    hh = h - weave * 0.04
+    save("alloy_panel", img, hh, 0.35 + 0.15 * seam + 0.1 * (1 - dust), depth=s / 120, metal=0.35 * (1 - seam))
+
+
+def alloy_floor():
+    """Precursor floor: big octagonal alloy tiles with small dark diamond
+    keys between them, dusty, with fine seams."""
+    s = BIG
+    x, y = coords(s)
+    t = s / 2
+    fx, fy = (x % t) / t - 0.5, (y % t) / t - 0.5
+    octd = np.maximum(np.maximum(np.abs(fx), np.abs(fy)), (np.abs(fx) + np.abs(fy)) * 0.72)
+    h = smooth(0.49, 0.46, octd)
+    ids = ((x // t) * 2 + (y // t)).astype(int)
+    key = (np.abs(fx) + np.abs(fy)) > 0.76
+    img = mix(norm01(noise(s, 4, 3, 341)), (172, 178, 172), (206, 208, 200)) * (1 + per_id(ids, 342, -0.05, 0.05))[..., None]
+    img = img * (1 - 0.45 * (1 - h)[..., None])
+    img = np.where(key[..., None], np.array([66, 92, 90]) * (0.8 + 0.4 * noise(s, 16, 2, 347))[..., None], img)
+    worn = smooth(0.55, 0.8, noise(s, 2, 2, 343))
+    img *= (1 + 0.06 * worn)[..., None] * grime(s, 344, 0.22)[..., None]
+    sc = lines_mask(s, scratch_segs(s, 40, 345, 0.05), 1.5)
+    img *= (1 - 0.1 * sc)[..., None]
+    img += grain(s, 346, 3)
+    hh = np.where(key, 0.7, h)
+    save("alloy_floor", img, hh, 0.45 - 0.1 * worn, depth=s / 140, metal=0.3 * h)
+
+
+def alloy_inlay():
+    """Precursor frieze: the eye glyph and step-fret inlaid in teal crystal
+    channels across a pearl alloy band."""
+    s = BIG
+    k = s / 128
+    img = mix(norm01(noise(s, 3, 3, 351)), (200, 206, 200), (228, 230, 222))
+    cut = gauss(glyph_band(s, k), k * 0.4)
+    img = img * (1 - cut[..., None]) + np.array([60, 196, 176]) * cut[..., None]
+    img *= grime(s, 352, 0.12)[..., None]
+    img += grain(s, 353, 3)
+    save("alloy_inlay", img, 1 - cut * 0.4, 0.3 + 0.1 * cut, depth=s / 80, metal=0.4 * (1 - cut))
+
+
 if __name__ == "__main__":
     args = [a for a in sys.argv[1:] if not a.startswith("--")]
     if "--half" in sys.argv:
@@ -1020,6 +1204,7 @@ if __name__ == "__main__":
     OUT.mkdir(parents=True, exist_ok=True)
     for fn in (concrete, metal_floor, wall_panel, hazard, crate, barrier, lava, gunmetal, glove,
                fabric, armor, titan_armor, titan_frame, sky, temple_stone, temple_floor,
-               temple_carving, moss, wood, grass, dirt, canvas, bark, skin, hair):
+               temple_carving, moss, wood, grass, dirt, canvas, bark, skin, hair,
+               timber_wall, timber_floor, timber_carving, alloy_panel, alloy_floor, alloy_inlay):
         if not args or fn.__name__ in args:
             fn()

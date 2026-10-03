@@ -8,13 +8,29 @@ const Art := preload("res://scripts/ps2/ps2_assets.gd")
 
 const STONE := Color(0.62, 0.55, 0.45)
 
+## What stone() and carved() build in: "stone" (the ruins), "timber" (old
+## hardwood) or "alloy" (the precursors' pale metal). The temple sets it while
+## it builds itself; the grounds stay stone.
+static var style := "stone"
+const STYLES := {
+	"stone": ["temple_stone", "temple_carving", ""],
+	"timber": ["timber", "timber_carving", "wood"],
+	"alloy": ["alloy", "alloy_inlay", "metal"],
+}
+
 
 static func stone(parent: Node, pos: Vector3, size: Vector3, rot := Vector3.ZERO, tint := Color.WHITE) -> StaticBody3D:
-	return Kit.box(parent, pos, size, STONE, rot, Art.material("temple_stone", tint))
+	return _styled(Kit.box(parent, pos, size, STONE, rot, Art.material(STYLES[style][0], tint)))
 
 
 static func carved(parent: Node, pos: Vector3, size: Vector3, rot := Vector3.ZERO, tint := Color.WHITE) -> StaticBody3D:
-	return Kit.box(parent, pos, size, STONE, rot, Art.material("temple_carving", tint))
+	return _styled(Kit.box(parent, pos, size, STONE, rot, Art.material(STYLES[style][1], tint)))
+
+
+static func _styled(body: StaticBody3D) -> StaticBody3D:
+	if STYLES[style][2] != "":
+		body.set_meta("surface", STYLES[style][2])  # footstep sounds (player.gd)
+	return body
 
 
 static func wood(parent: Node, pos: Vector3, size: Vector3, rot := Vector3.ZERO) -> StaticBody3D:
