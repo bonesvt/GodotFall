@@ -79,6 +79,7 @@ const HEAVY_BODY := preload("res://assets/materials/eco/eco_v_body_heavy.tres")
 ## Biggie's gym (scripts/hub/gym.gd): the blend shape (tools/eco/build_eco_vroid.py
 ## fit_shapes) each trained part fades in. Abs, arms and legs also fade in the
 ## muscle heights in v_body_tone.png shaded as contours (eco_toon.gdshaderinc `tone`).
+const PoseModifier := preload("res://scripts/ps2/eco_pose_modifier.gd")
 const FIT_SHAPES := {"glutes": "Fit_Glutes", "stomach": "Fit_Belly", "legs": "Fit_Legs", "arms": "Fit_Arms"}
 
 ## Movement states of scripts/player.gd (enum State).
@@ -87,9 +88,12 @@ enum PlayerState { GROUND, AIR, SLIDE, WALLRUN, GRAPPLE }
 var skeleton: Skeleton3D
 ## How trained each part of her is, 0..1 (gym.gd amounts()); see set_fitness().
 var fitness := {}
-## Something posing her by hand (gym_workout.gd), called every frame after her
-## animation and before her springs, with this model.
-var posing := Callable()
+## Something posing her by hand (gym_workout.gd), called every frame with this
+## model, inside the skeleton's update after her animation (eco_pose_modifier.gd).
+var posing := Callable():
+	set(value):
+		posing = value
+		_add_pose_modifier()
 var _anim: AnimationPlayer
 var _springs: Array[Dictionary] = []
 var _last_origin := Vector3.ZERO
@@ -244,8 +248,6 @@ func _process(delta: float) -> void:
 	if _anim != null:
 		_animate()
 		_strut(delta)
-	if posing.is_valid():
-		posing.call(self)
 	if springs_enabled and skeleton != null:
 		_step_springs(delta)
 
@@ -416,3 +418,13 @@ func _step_springs(delta: float) -> void:
 		var swing := Basis(Quaternion(from_skel, to_dir))
 		var local := parent_pose.basis.inverse() * swing * rest_pose.basis
 		skeleton.set_bone_pose_rotation(i, local.get_rotation_quaternion())
+
+
+func _add_pose_modifier() -> void:
+	if skeleton == null or not posing.is_valid() or skeleton.has_node("Posing"):
+		return
+	var mod := SkeletonModifier3D.new()
+	mod.set_script(PoseModifier)
+	mod.name = "Posing"
+	mod.set("model", self)
+	skeleton.add_child(mod)

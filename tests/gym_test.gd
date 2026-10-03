@@ -66,7 +66,7 @@ func _run() -> void:
 			continue
 		while w.time < 1.25 and w.shot < 1:
 			await process_frame
-		_check_pose(id, w)
+		await _check_pose(id, w)
 		await _press("interact")
 		await _ticks(3)
 		_check("%s skips with F" % id, run_node.workout == null and not paused and player.visible, run_node.workout)
@@ -129,8 +129,11 @@ func _expected(id: String) -> Dictionary:
 
 
 ## Her pose fits the equipment: hands on the bar, feet on the floor, lying on the mat.
+## Read as the skeleton updates, while her posing is applied.
 func _check_pose(id: String, w) -> void:
 	var sk: Skeleton3D = w.eco.skeleton
+	# the pose only holds inside the skeleton's update (eco_pose_modifier.gd)
+	await sk.skeleton_updated
 	var hand_r := sk.global_transform * sk.get_bone_global_pose(sk.find_bone("J_Bip_R_Hand")).origin
 	var hand_l := sk.global_transform * sk.get_bone_global_pose(sk.find_bone("J_Bip_L_Hand")).origin
 	var foot := sk.global_transform * sk.get_bone_global_pose(sk.find_bone("J_Bip_R_Foot")).origin
