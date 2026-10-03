@@ -252,6 +252,16 @@ def shop(name, width, floors, seed, roof="solar", awning=True, boarded=False):
                 ww = min(1.6, w / n - 0.8)
             wz = z0 + UF * 0.55
             m.box(pane, (x, uy - 0.03, wz), (ww, 0.06, 1.5))
+            m.box("dark", (x, uy - 0.07, wz), (0.07, 0.04, 1.5))           # mullion
+            m.box("dark", (x, uy - 0.07, wz + 0.25), (ww, 0.04, 0.06))     # transom
+            for js in (-1, 1):
+                m.box("trim", (x + js * (ww * 0.5 + 0.06), uy - 0.08, wz), (0.12, 0.16, 1.62))
+            if lit and rng.random() < 0.6:
+                # A blind half down, or a plant on the sill, so lit panes aren't flat colour.
+                if rng.random() < 0.5:
+                    m.box("canvas", (x, uy - 0.065, wz + 0.75 - 0.35), (ww - 0.05, 0.02, 0.7))
+                else:
+                    m.blob("leaves", (x + rng.uniform(-0.3, 0.3), uy - 0.15, wz - 0.55), (0.25, 0.15, 0.3))
             m.box("trim", (x, uy - 0.12, wz - 0.82), (ww + 0.3, 0.3, 0.12))  # sill
             m.box("trim", (x, uy - 0.08, wz + 0.8), (ww + 0.2, 0.2, 0.1))
             if style == "bands":
@@ -308,7 +318,7 @@ def shop(name, width, floors, seed, roof="solar", awning=True, boarded=False):
     m.tube("metal", [(px, uy - 0.15, 0.0), (px, uy - 0.15, top + 0.4)], [0.07, 0.07], 6)
     m.tube("dark", [(px + 0.2, uy - 0.12, GF), (px + 0.2, uy - 0.12, top)], [0.04, 0.04], 5)
     for k in range(rng.randint(1, floors)):
-        ac_unit(m, (rng.uniform(-hw + 1.2, hw - 1.2), uy - 0.35, GF + k * UF + 0.6))
+        ac_unit(m, (rng.uniform(-hw + 1.2, hw - 1.2), uy - 0.35, GF + (k + 1) * UF - 0.45))
     # Roof: parapet, then panels or a garden, a water tank, a mast.
     m.rounded("trim", (0, (uy + back) * 0.5, top + 0.1), (w + 0.2, back - uy + 0.2, 0.2), 1.2)
     m.box("metal", (0, uy + 0.3, top + 1.0), (w - 2.0, 0.05, 0.05))  # safety rail
@@ -459,12 +469,17 @@ def gate_pylon():
     m.box("moss", (1.33, 0, 5.0), (0.1, 2.0, 8.0))
     for k in range(9):
         m.blob("leaves", (1.55, m.rng.uniform(-0.8, 0.8), 1.5 + k * 0.95), (0.4, 0.55, 0.45))
+    # Solar petals fanned out on arms from a mast on top.
+    m.tube("metal", [(0, 0, 11.6), (0, 0, 13.0)], [0.12, 0.08], 6)
     for k in range(5):
-        a = -0.9 + k * 0.45
-        c = Vector((math.cos(a + math.pi / 2) * 1.6, 0, 12.0 + 0.3 * (2 - abs(k - 2))))
-        m.box("panel", (c.x * 0.2, math.sin(a) * 1.6, c.z), (1.4, 2.4, 0.06), rot=(a * 0.6, 0.3, 0))
-        m.box("glow_cyan", (c.x * 0.2, math.sin(a) * 1.6 - 1.2 * math.cos(a * 0.6), c.z - 0.1), (1.4, 0.05, 0.05), rot=(a * 0.6, 0.3, 0))
-    m.tube("metal", [(0, 0, 11.6), (0, 0, 12.6)], [0.1, 0.08], 6)
+        a = math.radians(-72 + k * 36)
+        d = Vector((0.0, math.sin(a), math.cos(a)))
+        c = Vector((0, 0, 12.8)) + d * 1.5
+        rot = (math.pi / 2 - a, 0, 0)
+        m.tube("metal", [(0, 0, 12.6), c - d * 0.9], [0.06, 0.05], 5)
+        m.box("panel", c, (1.4, 1.9, 0.06), rot=rot)
+        m.box("metal", c - Vector((0, 0, 0)), (1.5, 2.0, 0.03), rot=rot)
+        m.box("glow_cyan", c + d * 0.97, (1.4, 0.06, 0.06), rot=rot)
     m.box("glow_cyan", (0, -1.32, 6.0), (0.12, 0.04, 6.0))
     m.box("glow_cyan", (0, 1.32, 6.0), (0.12, 0.04, 6.0))
     m.export()
@@ -578,6 +593,31 @@ def sun_tree():
             m.blob("leaves", tip - Vector((0, 0, 0.6)), (0.5, 0.5, 0.7))
     # Crown: a glowing seed pod.
     m.blob("glow_lime", (0, 0, 11.2), (0.9, 0.9, 1.1), subdiv=2, wobble=0.1)
+    m.export()
+
+
+def canopy_bay():
+    """One bay of the solar canopy over the street: 16 m across (x), 4 m along
+    (y), a steel frame with two cell-gridded panels, a cool downlight strip
+    and cables hanging under it. Origin at the bay's centre, at frame height."""
+    m = Model("canopy_bay", 73)
+    for y in (-2.0, 2.0):
+        m.box("metal", (0, y, 0), (16.0, 0.2, 0.35))
+    for x in (-8.0, -4.0, 0.0, 4.0, 8.0):
+        m.box("metal", (x, 0, 0.05), (0.18, 4.0, 0.25))
+    for sx in (-1, 1):
+        cx = sx * 3.9
+        m.box("panel", (cx, 0, 0.32), (7.4, 3.6, 0.06), rot=(0, sx * 0.08, 0))
+        for k in range(1, 8):
+            m.box("metal", (cx - 3.7 + k * 7.4 / 8, 0, 0.36 + sx * 0.0), (0.03, 3.6, 0.02), rot=(0, sx * 0.08, 0))
+        for k in range(1, 4):
+            m.box("metal", (cx, -1.8 + k * 0.9, 0.36), (7.4, 0.03, 0.02), rot=(0, sx * 0.08, 0))
+    m.box("glow_cool", (0, 0, -0.2), (12.0, 0.08, 0.05))
+    for x in (-5.5, 1.0, 6.0):
+        m.sag("dark", (x - 1.5, -2.0, -0.1), (x + 1.5, 2.0, -0.1), 0.8, 0.03)
+    for k in range(3):
+        ln = m.rng.uniform(0.8, 2.2)
+        m.box("moss", (m.rng.uniform(-7, 7), m.rng.choice([-2.0, 2.0]), -ln * 0.5), (0.4, 0.12, ln))
     m.export()
 
 
@@ -779,6 +819,7 @@ def main():
     gate_arch()
     checkpoint()
     sun_tree()
+    canopy_bay()
     solar_lamp()
     turbine_tower()
     turbine_rotor()

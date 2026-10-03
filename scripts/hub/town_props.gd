@@ -39,7 +39,11 @@ static func spawn(parent: Node, id: String, pos: Vector3, yaw_deg := 0.0, tints 
 		var kind := parts[1] if parts.size() > 1 else "wall"
 		kind = kind.rstrip("0123456789").trim_suffix("_")
 		var glow := glow_color(kind, tints)
-		if glow.a > 0.0:
+		if tints.get("no_fog", false):
+			# Far backdrop (the city): flat colours that ignore the haze, so it stays a dark silhouette.
+			mi.material_override = _unfogged(glow if glow.a > 0.0 else Color(0.1, 0.11, 0.17), glow.a > 0.0)
+			mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		elif glow.a > 0.0:
 			mi.material_override = Art.material("light")
 			mi.set_instance_shader_parameter("paint", Color(glow.r, glow.g, glow.b))
 			mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
@@ -53,12 +57,14 @@ static func spawn(parent: Node, id: String, pos: Vector3, yaw_deg := 0.0, tints 
 
 ## The light colour for a glowing part (alpha 0 when the part doesn't glow).
 static func glow_color(kind: String, tints: Dictionary) -> Color:
+	if kind == "glow_warm" or kind == "glow_cool":
+		return GLOWS[kind] * 0.9
 	if GLOWS.has(kind):
-		return GLOWS[kind] * 0.85
+		return GLOWS[kind] * 1.5
 	if kind == "glow_shop":
-		return tints.get("shop", WARM) * 0.6
+		return tints.get("shop", WARM) * 0.75
 	if kind == "neon":
-		return tints.get("neon", tints.get("shop", WARM))
+		return tints.get("neon", tints.get("shop", WARM)) * 1.8
 	return Color(0, 0, 0, 0)
 
 
@@ -133,3 +139,17 @@ static func _water() -> Material:
 		water.metallic_specular = 0.9
 		_mats["water"] = water
 	return _mats["water"]
+
+
+static func _unfogged(color: Color, lit: bool) -> Material:
+	var key := "nofog%s%s" % [color.to_html(), lit]
+	if not _mats.has(key):
+		var mat := StandardMaterial3D.new()
+		mat.albedo_color = Color(color.r, color.g, color.b)
+		mat.disable_fog = true
+		if lit:
+			mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		else:
+			mat.roughness = 0.6
+		_mats[key] = mat
+	return _mats[key]

@@ -140,7 +140,7 @@ static func _boundary(root: Node3D, rng: RandomNumberGenerator) -> void:
 		var p := Vector3.ZERO
 		while true:
 			p = Vector3(rng.randf_range(-WALL_X - 34, WALL_X + 34), 0, rng.randf_range(WALL_BACK - 34, WALL_FRONT + 34))
-			var on_road := absf(p.x) < Town.ROAD_HALF + 4.0 and p.z > WALL_FRONT
+			var on_road := p.z > WALL_FRONT and (absf(p.x) < Town.ROAD_HALF + 4.0 or (p.z > Town.TOWN_GATE - 14.0 and absf(p.x) < 18.0))
 			if (absf(p.x) > WALL_X + 2.5 or p.z < WALL_BACK - 2.5 or p.z > WALL_FRONT + 2.5) and not on_road:
 				break
 		var id: String = Props.TREES[i % Props.TREES.size()]

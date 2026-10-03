@@ -15,7 +15,7 @@ const VIEWS := {
 	"gate": [Vector3(-2, 0.1, 118), Vector3(0, 7, 136)],
 	"row": [Vector3(-2.5, 0.1, 131), Vector3(0.5, 4.5, 160)],
 	"noodles": [Vector3(-3.5, 0.1, 145), Vector3(6.5, 3.0, 139)],
-	"plaza": [Vector3(-8, 0.1, 162), Vector3(6, 7, 180)],
+	"plaza": [Vector3(3, 0.1, 161), Vector3(-2, 6, 178)],
 	"militia": [Vector3(-6, 0.1, 172), Vector3(-22, 4, 176)],
 	"cafe": [Vector3(8, 0.1, 168), Vector3(24, 3, 176)],
 	"lowrow": [Vector3(2.5, 0.1, 188), Vector3(-1, 4.5, 214)],
@@ -58,6 +58,10 @@ func _go() -> void:
 	var player = run_node.player
 	player.process_mode = Node.PROCESS_MODE_DISABLED
 	var cam: Camera3D = player.get_node("Head/Camera3D")
+	# No gun or its muzzle light in the way.
+	for child in cam.get_children():
+		if child is Node3D:
+			child.visible = false
 	for view in VIEWS:
 		if not only.is_empty() and not view in only:
 			continue

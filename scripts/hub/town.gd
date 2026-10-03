@@ -24,6 +24,7 @@ const Art := preload("res://scripts/ps2/ps2_assets.gd")
 const Props := preload("res://scripts/hub/hub_props.gd")
 const Ambient := preload("res://scripts/hub/ambient.gd")
 const TP := preload("res://scripts/hub/town_props.gd")
+const TownMood := preload("res://scripts/hub/town_mood.gd")
 
 ## The road leaves the hub's front gate at z = ROAD_START and reaches the town gate at TOWN_GATE.
 const ROAD_START := 94.0
@@ -36,6 +37,10 @@ const TOWN_END := 246.0
 const PLAZA := Rect2(-22.0, 160.0, 44.0, 30.0)
 const GARDEN_Y := 5.0
 const GARDEN := Rect2(-16.0, 220.0, 32.0, 22.0)
+## The two covered shop rows, (start z, end z).
+const ROWS := [Vector2(132.0, 160.0), Vector2(190.0, 214.0)]
+## Height of the solar canopy over the rows.
+const CANOPY_Y := 10.6
 
 ## What each shop will be for once its feature exists.
 const SHOPS := {
@@ -84,6 +89,12 @@ static func build(root: Node3D, info: Dictionary) -> void:
 	_canopy(town, rng)
 	_surroundings(town, rng)
 	_fences(town)
+	# Dusk under the canopy, sun on the plaza (town_mood.gd).
+	var mood: Node = TownMood.new()
+	mood.name = "TownMood"
+	for seg: Vector2 in ROWS:
+		mood.zones.append(Rect2(-STREET_HALF - 1.0, seg.x, STREET_HALF * 2 + 2.0, seg.y - seg.x))
+	root.add_child(mood)
 
 
 ## Shops and spots in the town (ids from info["interactables"]).
@@ -98,12 +109,6 @@ static func shop(info: Dictionary, id: String, pos: Vector3, prompt: String, lin
 static func _road(root: Node3D, _info: Dictionary, rng: RandomNumberGenerator) -> void:
 	var length := TOWN_GATE - ROAD_START
 	K.mesh(root, Vector3(0, 0.03, ROAD_START + length * 0.5), Vector3(ROAD_HALF * 2, 0.04, length), Art.material("dirt"))
-	# Old pilgrim flagstones, broken, then the town's newer pavers.
-	for i in 14:
-		var z := ROAD_START + 3.0 + i * 2.2
-		if rng.randf() < 0.7:
-			K.mesh(root, Vector3(rng.randf_range(-1.2, 1.2), 0.05, z), Vector3(rng.randf_range(1.2, 2.2), 0.06, 1.4),
-					Art.material("temple_stone", Color(0.85, 0.88, 0.82)), Vector3(0, rng.randf_range(-12, 12), 0))
 	# Wooden lamps near the temple, solar lamps nearer town.
 	for i in 5:
 		var z := ROAD_START + 5.0 + i * 6.5
@@ -118,7 +123,7 @@ static func _road(root: Node3D, _info: Dictionary, rng: RandomNumberGenerator) -
 	K.carved(root, Vector3(-ROAD_HALF - 2.5, 1.0, ROAD_START + 14), Vector3(1.4, 2.0, 1.0), Vector3(0, 20, 6), Color(0.75, 0.85, 0.78))
 	K.mesh(root, Vector3(-ROAD_HALF - 2.5, 2.1, ROAD_START + 14), Vector3(1.6, 0.6, 1.2), Art.material("moss"), Vector3(0, 20, 6))
 	for p in [Vector3(ROAD_HALF + 2, 0, ROAD_START + 9), Vector3(-ROAD_HALF - 2, 0, ROAD_START + 24), Vector3(ROAD_HALF + 2.5, 0, ROAD_START + 28)]:
-		Props.spawn(root, ["bush_a", "bush_b", "fern"][rng.randi() % 3], p, rng.randf_range(0, 360), 1.1, {"leaves": LEAF_TINTS[rng.randi() % 4]})
+		Props.spawn(root, ["bush_a", "bush_b", "fern"][rng.randi() % 3], p, rng.randf_range(0, 360), 0.6, {"leaves": LEAF_TINTS[rng.randi() % 4]})
 
 
 ## A white lamp post with a little solar panel on top and a coloured glow.
@@ -131,18 +136,27 @@ static func _solar_lamp(root: Node3D, p: Vector3, color: Color) -> void:
 
 static func _ground(root: Node3D) -> void:
 	# Dark, wet paving down the street, pale stone on the plaza.
-	var street := TP.paint(Color(0.16, 0.17, 0.2), 0.75)
+	var street := Art.material("concrete", Color(0.3, 0.3, 0.34))
 	Kit.box(root, Vector3(0, -0.45, (TOWN_GATE + TOWN_END) * 0.5), Vector3(TOWN_HALF * 2, 1.0, TOWN_END - TOWN_GATE), K.STONE, Vector3.ZERO,
 			Art.material("concrete", Color(0.42, 0.42, 0.46))).set_meta("surface", "metal")
 	K.mesh(root, Vector3(0, 0.06, 176), Vector3(STREET_HALF * 2, 0.04, 88), street)
 	K.mesh(root, Vector3(PLAZA.get_center().x, 0.07, PLAZA.get_center().y), Vector3(PLAZA.size.x, 0.04, PLAZA.size.y),
 			Art.material("temple_stone", Color(1.0, 1.0, 0.96)))
+	# Steel grates, drain covers and cable runs down the street.
+	for seg: Vector2 in ROWS:
+		var z := seg.x + 3.0
+		while z < seg.y - 2.0:
+			K.mesh(root, Vector3(0, 0.09, z), Vector3(STREET_HALF * 2 - 2.0, 0.02, 0.5), Art.material("gunmetal", Color(0.5, 0.5, 0.55)))
+			K.mesh(root, Vector3(-3.5 if int(z) % 2 == 0 else 3.5, 0.09, z + 2.5), Vector3(0.9, 0.02, 0.9), Art.material("gunmetal", Color(0.4, 0.4, 0.45)))
+			z += 7.0
+		for x: float in [-STREET_HALF + 1.0, STREET_HALF - 1.2]:
+			K.mesh(root, Vector3(x, 0.1, (seg.x + seg.y) * 0.5), Vector3(0.12, 0.08, seg.y - seg.x), TP.paint(Color(0.05, 0.05, 0.06), 0.5))
 	# Gutter lights along the kerbs, cyan on one side and magenta on the other.
 	for s: float in [-1.0, 1.0]:
 		for seg in [[132.0, 160.0], [190.0, 214.0]]:
 			var z0: float = seg[0]
 			var z1: float = seg[1]
-			K.glow(root, Vector3(s * (STREET_HALF - 0.3), 0.1, (z0 + z1) * 0.5), Vector3(0.08, 0.05, z1 - z0), CYAN if s < 0 else MAGENTA)
+			K.glow(root, Vector3(s * (STREET_HALF - 0.3), 0.1, (z0 + z1) * 0.5), Vector3(0.08, 0.05, z1 - z0), (CYAN if s < 0 else MAGENTA) * 1.6)
 	# Puddles that pick up the neon.
 	var puddle := StandardMaterial3D.new()
 	puddle.albedo_color = Color(0.05, 0.06, 0.08, 0.85)
@@ -249,6 +263,7 @@ static func _plaza(root: Node3D, info: Dictionary, rng: RandomNumberGenerator) -
 	], "jobs")
 	_militia_office(root, info)
 	_greenhouse(root, info, rng)
+	_plaza_walls(root, rng)
 
 
 ## The Sun Tree (tools/town/build_town.py): white ribs holding up leaf-shaped
@@ -263,6 +278,38 @@ static func _sun_tree(root: Node3D, c: Vector3) -> void:
 	K.light(root, c + Vector3(0, 7.0, 0), Color(0.55, 1.0, 0.9), 1.5, 16.0)
 
 
+## The side walls of the four row-end buildings face the plaza: a vertical
+## garden on each and a lit billboard over it.
+static func _plaza_walls(root: Node3D, rng: RandomNumberGenerator) -> void:
+	var ads := [
+		[-1.0, 159.0, 1.0, "MERCY CLINIC\nIMPLANTS ON CREDIT", LIME],
+		[1.0, 159.0, 1.0, "SAL'S\nWE BUY SCRAP\nNO QUESTIONS", RED],
+		[-1.0, 190.0, -1.0, "GLOWBOX\nTITAN BRAWL III", VIOLET],
+		[1.0, 190.0, -1.0, "RUSTED HALO\nHAPPY HOUR ALL NIGHT", AMBER],
+	]
+	for ad in ads:
+		var s: float = ad[0]
+		var wall_z: float = ad[1] + ad[2] * 0.08
+		var dir: float = ad[2]
+		var x := s * 12.4
+		# Vertical garden: a moss panel thick with leaves, up from a planter.
+		K.mesh(root, Vector3(x + s * 3.5, 5.5, wall_z + dir * 0.06), Vector3(2.4, 8.0, 0.12), Art.material("moss", Color(0.72, 1.0, 0.62)))
+		for i in 8:
+			Props.spawn(root, "fern", Vector3(x + s * 3.5 + rng.randf_range(-0.9, 0.9), 1.8 + i * 1.0, wall_z + dir * 0.3), rng.randf_range(0, 360), 0.5, {"leaves": LEAF_TINTS[i % 4]})
+		TP.spawn(root, "planter", Vector3(x + s * 3.5, 0, wall_z + dir * 1.3), 0.0, {"leaves": LEAF_TINTS[1]})
+		_solid(root, Vector3(x + s * 3.5, 0.4, wall_z + dir * 1.3), Vector3(2.4, 0.8, 2.4))
+		# Billboard.
+		var col: Color = ad[4]
+		var at := Vector3(x - s * 1.5, 7.5, wall_z + dir * 0.15)
+		K.mesh(root, at, Vector3(5.6, 3.4, 0.2), TP.paint(Color(0.06, 0.06, 0.08), 0.5))
+		K.glow(root, at + Vector3(0, 0, dir * 0.11), Vector3(5.2, 3.0, 0.02), col * 0.35)
+		for e: float in [-1.0, 1.0]:
+			K.glow(root, at + Vector3(0, e * 1.72, dir * 0.12), Vector3(5.6, 0.06, 0.06), col * 1.8)
+			K.glow(root, at + Vector3(e * 2.82, 0, dir * 0.12), Vector3(0.06, 3.4, 0.06), col * 1.8)
+		_neon_text(root, at + Vector3(0, 0, dir * 0.14), ad[3], Color(1, 0.97, 0.92), 56, 0.0 if dir > 0 else 180.0)
+		K.light(root, at + Vector3(0, 0, dir * 2.0), col, 0.9, 8.0)
+
+
 ## The militia recruiting office on the plaza's west side: a grey concrete block
 ## with slit windows, sandbags, cameras, a red sign, flags and a locked door.
 static func _militia_office(root: Node3D, info: Dictionary) -> void:
@@ -271,8 +318,20 @@ static func _militia_office(root: Node3D, info: Dictionary) -> void:
 	TP.spawn(root, "militia_office", Vector3(front, 0, z), 90.0, {"wall": Color(0.62, 0.64, 0.62), "awning": Color(0.62, 0.6, 0.48)})
 	_solid(root, Vector3(front - 6.0, 4.5, z), Vector3(12.0, 9.0, 16.6))
 	_neon_text(root, Vector3(front + 0.62, 7.6, z), "MILITIA RECRUITMENT", RED, 72, 90.0)
-	_neon_text(root, Vector3(front + 0.04, 6.4, z), "PILOTS WANTED. MEN ONLY.", Color(1.0, 0.9, 0.85), 34, 90.0)
-	K.light(root, Vector3(front + 2.0, 6.0, z), RED, 1.2, 10.0)
+	_neon_text(root, Vector3(front + 0.04, 6.4, z), "PILOTS WANTED. MEN ONLY.", Color(1.0, 0.9, 0.85), 26, 90.0)
+	# The forecourt: concrete barriers, a floodlight, a propaganda screen.
+	for spec in [[Vector3(front + 5.0, 0, z - 6.5), 10.0], [Vector3(front + 6.0, 0, z + 6.0), -15.0], [Vector3(front + 8.5, 0, z - 2.0), 80.0]]:
+		var b: Vector3 = spec[0]
+		var body := _solid(root, b + Vector3(0, 0.45, 0), Vector3(2.2, 0.9, 0.7))
+		body.rotation_degrees.y = spec[1]
+		K.mesh(body, Vector3.ZERO, Vector3(2.2, 0.9, 0.7), Art.material("concrete", Color(0.62, 0.62, 0.6)))
+		K.glow(body, Vector3(0, 0.25, 0.36), Vector3(1.6, 0.06, 0.02), RED * 1.4)
+	var screen := Vector3(front + 4.0, 0, z + 9.5)
+	K.mesh(root, screen + Vector3(0, 2.2, 0), Vector3(0.2, 4.4, 0.2), Art.material("gunmetal"))
+	K.mesh(root, screen + Vector3(0, 4.2, 0), Vector3(3.6, 2.0, 0.15), TP.paint(Color(0.06, 0.06, 0.07), 0.5))
+	K.glow(root, screen + Vector3(0, 4.2, -0.09), Vector3(3.3, 1.75, 0.02), RED * 0.35)
+	_neon_text(root, screen + Vector3(0, 4.2, -0.12), "THE MILITIA\nKEEPS SOLACE SAFE", Color(1.0, 0.85, 0.8), 40, 180.0)
+	K.light(root, Vector3(front + 2.0, 6.0, z), RED, 1.6, 14.0)
 	for dz: float in [-3.0, 3.0]:
 		var pole := Vector3(front + 2.2, 0, z + dz)
 		K.mesh(root, pole + Vector3(0, 3.5, 0), Vector3(0.1, 7.0, 0.1), Art.material("gunmetal"))
@@ -318,7 +377,7 @@ static func _low_row(root: Node3D, info: Dictionary, rng: RandomNumberGenerator)
 	# Eco's old flat, boarded up.
 	var flat := Vector3(-STREET_HALF, 0, 209.0)
 	_building(root, -1, 209.0, "shop_w9_f3", 9.0, {"wall": Color(0.82, 0.8, 0.76), "shop": WARM, "neon": Color(0.2, 0.2, 0.2)}, "")
-	_graffiti(root, flat + Vector3(-0.55, 3.0, 2.6), 90.0, "TRAITOR'S KID", RED)
+	_graffiti(root, Vector3(-STREET_HALF - 1.42, 2.0, 209.0), 90.0, "TRAITOR'S KID", RED, 150)
 	shop(info, "old_flat", flat + Vector3(1.8, 0, 0), "[F] Look at the old flat", [
 		"Our old flat. Somebody painted that the week after Dad's funeral.",
 		"Mom wanted to scrub it off. I wanted them to look at it every day.",
@@ -345,7 +404,7 @@ static func _low_row(root: Node3D, info: Dictionary, rng: RandomNumberGenerator)
 static func _garden(root: Node3D, info: Dictionary, rng: RandomNumberGenerator) -> void:
 	var g := GARDEN
 	var top := GARDEN_Y
-	var white := Art.material("concrete", Color(0.96, 0.96, 0.92))
+	var white := Art.material("concrete", Color(0.82, 0.84, 0.8))
 	# The terrace it sits on, with a ramp of steps up from the street.
 	Kit.box(root, Vector3(g.get_center().x, top * 0.5, g.get_center().y), Vector3(g.size.x, top, g.size.y), K.STONE, Vector3.ZERO, white)
 	var ramp_len := 9.0
@@ -355,6 +414,19 @@ static func _garden(root: Node3D, info: Dictionary, rng: RandomNumberGenerator) 
 	for s: float in [-1.0, 1.0]:
 		K.mesh(root, Vector3(s * 3.1, top * 0.5 + 0.9, g.position.y - ramp_len * 0.5), Vector3(0.08, 0.08, sqrt(ramp_len * ramp_len + top * top)), Art.material("gunmetal"), Vector3(-ang, 0, 0))
 	K.mesh(root, Vector3(0, top + 0.05, g.get_center().y), Vector3(g.size.x - 1.0, 0.1, g.size.y - 1.0), Art.material("grass"))
+	# Dress the terrace's street face: ivy, planters by the steps, a sign over them.
+	for i in 10:
+		var x := -15.0 + i * 3.2
+		if absf(x) < 4.0:
+			continue
+		K.mesh(root, Vector3(x, top - 1.6, g.position.y - 0.08), Vector3(rng.randf_range(1.2, 2.6), rng.randf_range(2.0, 3.6), 0.15), Art.material("moss", Color(0.72, 1.0, 0.62)))
+		Props.spawn(root, "fern", Vector3(x, top + 0.05, g.position.y + 0.8), rng.randf_range(0, 360), 0.6, {"leaves": LEAF_TINTS[i % 4]})
+	for sx: float in [-1.0, 1.0]:
+		TP.spawn(root, "planter", Vector3(sx * 5.5, 0, g.position.y - 2.0), 0.0, {"leaves": LEAF_TINTS[2]})
+		_solid(root, Vector3(sx * 5.5, 0.4, g.position.y - 2.0), Vector3(2.4, 0.8, 2.4))
+		K.mesh(root, Vector3(sx * 3.2, top + 1.6, g.position.y), Vector3(0.18, 3.2, 0.18), Art.material("gunmetal"))
+	K.mesh(root, Vector3(0, top + 3.2, g.position.y), Vector3(6.6, 0.2, 0.25), Art.material("gunmetal"))
+	_neon_text(root, Vector3(0, top + 2.7, g.position.y - 0.14), "ROOFTOP GARDEN", LIME, 64, 180.0)
 	# Low walls round the edge (not across the steps).
 	for spec in [[Vector3(g.position.x + 0.3, top + 0.5, g.get_center().y), Vector3(0.6, 1.0, g.size.y)],
 			[Vector3(g.end.x - 0.3, top + 0.5, g.get_center().y), Vector3(0.6, 1.0, g.size.y)],
@@ -384,31 +456,38 @@ static func _garden(root: Node3D, info: Dictionary, rng: RandomNumberGenerator) 
 
 # --- overhead: canopy, cables, vines -----------------------------------------
 
-## A lattice of solar panels on beams over the street, with gaps for the sun,
-## cables strung between the buildings, paper lanterns and hanging vines.
+## A solar canopy over each shop row (canopy_bay models, a few bays left out
+## so the sun stripes through), cables strung across lower down with paper
+## lanterns, the occasional holo ad.
 static func _canopy(root: Node3D, rng: RandomNumberGenerator) -> void:
-	var h := 15.5
-	for seg in [[132.0, 160.0], [190.0, 214.0]]:
-		var z0: float = seg[0]
-		var z1: float = seg[1]
-		var z := z0 + 1.0
-		while z < z1:
-			K.mesh(root, Vector3(0, h, z), Vector3(STREET_HALF * 2 + 2, 0.25, 0.25), TP.paint(Color(0.2, 0.21, 0.24), 0.4))
-			if rng.randf() < 0.75:
-				K.mesh(root, Vector3(rng.randf_range(-2.5, 2.5), h + 0.2, z + 1.5), Vector3(rng.randf_range(5.0, 9.0), 0.08, 2.6), TP.paint(Color(0.1, 0.16, 0.32), 0.9), Vector3(0, 0, rng.randf_range(-8, 8)))
-			if rng.randf() < 0.5:
-				K.mesh(root, Vector3(rng.randf_range(-6, 6), h - 1.2, z), Vector3(0.6, 2.4, 0.6), Art.material("moss", Color(0.7, 1.0, 0.6)))
+	for seg: Vector2 in ROWS:
+		var z := seg.x + 2.0
+		var i := 0
+		while z < seg.y - 1.0:
+			if i % 4 != 2:
+				TP.spawn(root, "canopy_bay", Vector3(0, CANOPY_Y, z), 0.0, {"leaves": LEAF_TINTS[i % 4]})
 			z += 4.0
+			i += 1
 		# Cables strung across lower down, with lanterns.
-		var cz := z0 + 2.5
-		while cz < z1:
-			var y := rng.randf_range(6.5, 9.5)
+		var cz := seg.x + 2.5
+		while cz < seg.y:
+			var y := rng.randf_range(6.0, 8.5)
 			K.mesh(root, Vector3(0, y, cz), Vector3(STREET_HALF * 2, 0.04, 0.04), Art.material("gunmetal"), Vector3(0, rng.randf_range(-6, 6), 0))
 			var tints := [MAGENTA, CYAN, AMBER, WARM, LIME]
-			for i in 3:
-				var lx := -4.0 + i * 4.0 + rng.randf_range(-0.8, 0.8)
-				K.glow(root, Vector3(lx, y - 0.45, cz), Vector3(0.36, 0.5, 0.36), tints[rng.randi() % tints.size()] * 0.8)
+			for k in 3:
+				var lx := -4.0 + k * 4.0 + rng.randf_range(-0.8, 0.8)
+				var col: Color = tints[rng.randi() % tints.size()]
+				K.mesh(root, Vector3(lx, y - 0.15, cz), Vector3(0.02, 0.3, 0.02), Art.material("gunmetal"))
+				K.glow(root, Vector3(lx, y - 0.5, cz), Vector3(0.36, 0.5, 0.36), col * 1.8)
 			cz += rng.randf_range(4.0, 7.0)
+		# A holo ad hanging under the canopy halfway along.
+		var hz := (seg.x + seg.y) * 0.5
+		var side := -1.0 if seg.x < 150.0 else 1.0
+		K.mesh(root, Vector3(side * 3.0, CANOPY_Y - 0.6, hz), Vector3(0.03, 1.2, 0.03), Art.material("gunmetal"))
+		var holo := K.glow(root, Vector3(side * 3.0, CANOPY_Y - 2.2, hz), Vector3(0.05, 2.0, 3.4), (VIOLET if side < 0 else CYAN) * 0.7)
+		holo.transparency = 0.35
+		var ad := _neon_text(root, Vector3(side * 3.0 + 0.04, CANOPY_Y - 2.2, hz), "SOLACE POWER\nCLEAN SUN\nFOR CLEAN CITIZENS" if side < 0 else "ENLIST TODAY\nBE THE MAN\nYOUR TITAN NEEDS", Color(1, 1, 1), 34, 90.0)
+		ad.billboard = BaseMaterial3D.BILLBOARD_FIXED_Y
 
 
 # --- around the town ------------------------------------------------------------
@@ -432,12 +511,17 @@ static func _surroundings(root: Node3D, rng: RandomNumberGenerator) -> void:
 		Props.scatter(root, id, trees[id], LEAF_TINTS[Props.TREES.find(id) % LEAF_TINTS.size()])
 	# Back of the town: terraced garden walls between the rows and the jungle.
 	for s: float in [-1.0, 1.0]:
-		for spec in [[146.0, 28.0], [202.0, 24.0]]:
-			Kit.box(root, Vector3(s * (TOWN_HALF - 12), 3.0, spec[0]), Vector3(24, 6.0, spec[1]), K.STONE, Vector3.ZERO,
-					Art.material("concrete", Color(0.9, 0.9, 0.86)))
-			K.mesh(root, Vector3(s * (TOWN_HALF - 12), 6.1, spec[0]), Vector3(23, 0.2, spec[1] - 1), Art.material("moss", Color(0.75, 1.0, 0.65)))
+		for spec in [[146.0, 28.0, 6.0 if s < 0 else 9.0], [202.0, 24.0, 4.0 if s < 0 else 7.5]]:
+			var th: float = spec[2]
+			Kit.box(root, Vector3(s * (TOWN_HALF - 12), th * 0.5, spec[0]), Vector3(24, th, spec[1]), K.STONE, Vector3.ZERO,
+					Art.material("concrete", Color(0.86, 0.87, 0.83)))
+			K.mesh(root, Vector3(s * (TOWN_HALF - 12), th + 0.1, spec[0]), Vector3(23, 0.2, spec[1] - 1), Art.material("moss", Color(0.75, 1.0, 0.65)))
+			# A lower step on the street side, and ivy down the wall.
+			Kit.box(root, Vector3(s * (TOWN_HALF - 22.5), th * 0.3, spec[0]), Vector3(3, th * 0.6, spec[1] * 0.7), K.STONE, Vector3.ZERO,
+					Art.material("concrete", Color(0.8, 0.81, 0.78)))
+			K.mesh(root, Vector3(s * (TOWN_HALF - 24.05), th * 0.5, spec[0] + 3.0), Vector3(0.12, th * 0.8, 5.0), Art.material("moss", Color(0.72, 1.0, 0.62)))
 			for i in 4:
-				Props.tree(root, Vector3(s * (TOWN_HALF - 6 - i * 3.5), 6.0, spec[0] - spec[1] * 0.35 + i * spec[1] * 0.22), rng, 0.6, false)
+				Props.tree(root, Vector3(s * (TOWN_HALF - 6 - i * 3.5), th, spec[0] - spec[1] * 0.35 + i * spec[1] * 0.22), rng, 0.5 + 0.15 * (i % 3), false)
 	# Wind turbines on the ridges, turned to face the town.
 	for spec in [Vector3(-70, 0, 230), Vector3(-45, 0, 275), Vector3(60, 0, 250), Vector3(20, 0, 300), Vector3(-15, 0, 320)]:
 		var tower := TP.spawn(root, "turbine_tower", spec, 180.0)
@@ -448,7 +532,7 @@ static func _surroundings(root: Node3D, rng: RandomNumberGenerator) -> void:
 		var x := -180.0 + i * 17.0 + rng.randf_range(-5, 5)
 		var scale := rng.randf_range(0.6, 1.2) * (1.3 if absf(x) < 60 else 1.0)
 		TP.spawn(root, "city_tower_a" if i % 3 != 1 else "city_tower_b", Vector3(x, -10.0, rng.randf_range(430.0, 480.0)), 180.0,
-				{"shop": [AMBER, CYAN, MAGENTA][i % 3] / 0.6}, scale)
+				{"shop": [AMBER, CYAN, MAGENTA][i % 3] / 0.6, "no_fog": true}, scale)
 
 
 ## Invisible fences: either side of the road and round the town.
@@ -519,8 +603,8 @@ static func _neon_text(root: Node3D, pos: Vector3, text: String, color: Color, s
 	return l
 
 
-static func _graffiti(root: Node3D, pos: Vector3, yaw: float, text: String, color: Color) -> void:
-	var l := Kit.label(root, pos, text, 70)
+static func _graffiti(root: Node3D, pos: Vector3, yaw: float, text: String, color: Color, size := 70) -> void:
+	var l := Kit.label(root, pos, text, size)
 	l.billboard = BaseMaterial3D.BILLBOARD_DISABLED
 	l.rotation_degrees = Vector3(0, yaw, -4)
 	l.modulate = color.darkened(0.15)
@@ -628,6 +712,26 @@ static func _animated(parent: Node, pos: Vector3, mode: int, amount: float, spee
 	return node
 
 
+static var _puff_tex: Texture2D
+
+
+## A soft round puff for steam sprites.
+static func _puff() -> Texture2D:
+	if _puff_tex == null:
+		var grad := Gradient.new()
+		grad.set_color(0, Color(1, 1, 1, 1))
+		grad.set_color(1, Color(1, 1, 1, 0))
+		var tex := GradientTexture2D.new()
+		tex.gradient = grad
+		tex.fill = GradientTexture2D.FILL_RADIAL
+		tex.fill_from = Vector2(0.5, 0.5)
+		tex.fill_to = Vector2(1.0, 0.5)
+		tex.width = 64
+		tex.height = 64
+		_puff_tex = tex
+	return _puff_tex
+
+
 ## Steam from a vent or a kitchen.
 static func _smoke(root: Node3D, p: Vector3) -> void:
 	var smoke := CPUParticles3D.new()
@@ -641,6 +745,7 @@ static func _smoke(root: Node3D, p: Vector3) -> void:
 	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
 	mat.albedo_color = Color(0.85, 0.85, 0.9, 0.25)
+	mat.albedo_texture = _puff()
 	mat.vertex_color_use_as_albedo = true
 	quad.material = mat
 	smoke.mesh = quad
