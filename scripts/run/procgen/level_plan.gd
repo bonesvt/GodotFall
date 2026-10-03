@@ -229,6 +229,8 @@ func _plan_sections(rng: RandomNumberGenerator) -> void:
 	for s in sections:
 		if s["kind"] in ["chasm", "outpost", "camp", "start", "end"]:
 			s["level"] = _noise_height(s["mid"])
+			if biome == "marsh":
+				s["level"] = maxf(s["level"], 0.5)  # yards and bridge decks stay above the water
 
 
 ## No chasm first or last, no chasm or wall next to another of either, and

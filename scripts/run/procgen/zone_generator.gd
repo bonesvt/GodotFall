@@ -255,6 +255,7 @@ static func _picket(root: Node3D, plan, info: Dictionary, keep_out: Array, s: Di
 	B.cover_low(root, _on(plan, c - 6.5, z + 0.5), 0.0, dress)
 	F.barrels(root, _on(plan, c + 7.5, z - 2.5), 20.0)
 	F.floodlight(root, _on(plan, c - 9.0, z - 3.0), 20.0)
+	keep_out.append(Rect2(c - 11, z - 6, 22, 12))
 	var count := rng.randi_range(1, 2 + int(zone_index >= 4))
 	for k in count:
 		var gx: float = c + [2.5, -6.5, 6.0][k]
@@ -317,6 +318,7 @@ static func _wall(root: Node3D, plan, info: Dictionary, keep_out: Array, s: Dict
 	if _lane_dist(plan, tx, wz - 7.0) < 5.0:
 		tx = lx - gate_side * 6.0
 	var deck := F.watchtower(root, _on(plan, tx, wz - 7.0))
+	_occupy(info, keep_out, Vector2(tx, wz - 7.0), Vector2(7, 7))
 	_grunt(root, info, deck + Vector3(0, 0, 0.6), zone_index, 0.6)
 	_grunt(root, info, _on(plan, lx + 2.0, wz - 5.0), zone_index)
 	F.floodlight(root, _on(plan, lx + gate_side * 4.5, wz - 2.5), 10.0)
@@ -344,9 +346,9 @@ static func _wall_run(root: Node3D, plan, x0: float, x1: float, wz: float) -> vo
 		Kit.box(root, Vector3(mid, y + WALL_H * 0.5, wz), Vector3(rest, WALL_H, 0.8), CONCRETE, Vector3.ZERO, Art.material("concrete"))
 
 
-## A tree came down through the wall: rubble and the trunk to hop.
+## A shell blew a hole through the wall: rubble and the broken slab ends
+## either side, the road clear through the middle.
 static func _breach(root: Node3D, plan, x: float, wz: float) -> void:
-	F.fallen_log(root, _on(plan, x, wz + 0.5), 28.0)
 	for spec in [[Vector3(-2.6, 0.5, 1.2), Vector3(2.4, 1.0, 1.6), Vector3(8, 25, 6)],
 			[Vector3(2.8, 0.45, -1.4), Vector3(2.0, 0.9, 1.4), Vector3(-6, -30, 10)],
 			[Vector3(-3.4, 1.4, -0.2), Vector3(1.0, 2.8, 0.8), Vector3(0, 0, 12)],
@@ -576,8 +578,9 @@ static func _bridge(root: Node3D, plan, info: Dictionary, keep_out: Array, x: fl
 	F.bridge_stub(root, Vector3(x, y, near_end + 5.0), 0.0)
 	F.bridge_stub(root, Vector3(x, y, far_end - 5.0), 180.0)
 	var side := -1.0 if rng.randf() < 0.5 else 1.0
-	var shield := Kit.box(root, Vector3(x + side * SHIELD_X, y, mid), Vector3(1, 12, gap), BLUE)
-	Kit.box(root, Vector3(x + side * SHIELD_X, y + 6.4, mid), Vector3(0.7, 0.8, near - far + 4.0), CONCRETE, Vector3.ZERO, Art.material("gunmetal"))
+	# A slab of the old bridge pier still stands in the river beside the deck: wallrun it.
+	var pier_h := LevelPlan.CHASM_DEPTH + 6.0
+	var shield := Kit.box(root, Vector3(x + side * SHIELD_X, y + 6.0 - pier_h * 0.5, mid), Vector3(1, pier_h, gap), BLUE)
 	info["segments"].append({"type": "wallrun", "gap": gap, "rise": 0.0})
 	var anchor_z := near_end - gap * 0.6
 	F.pylon(root, Vector3(x - side * ANCHOR_X, y, anchor_z - 9.0), 0.0)
@@ -628,8 +631,8 @@ static func _lanes(root: Node3D, plan, info: Dictionary, keep_out: Array, dress:
 					var x: float = plan.lane_x(i, z)
 					for side in [-1.0, 1.0]:
 						if dress.randf() < 0.45:
-							F.rock(root, ["rock_a", "rock_b", "rock_c"][dress.randi() % 3], _on(plan, x + side * 2.8, z + dress.randf_range(-2, 2)),
-									dress.randf_range(0, 360), dress.randf_range(0.7, 1.1), false)
+							F.rock(root, ["rock_a", "rock_b", "rock_c"][dress.randi() % 3], _on(plan, x + side * 1.7, z + dress.randf_range(-2, 2), -0.2),
+									dress.randf_range(0, 360), dress.randf_range(0.5, 0.8), false)
 					if dress.randf() < 0.18:
 						B.hide(root, plan.ground, dress, info, x + dress.randf_range(-1.0, 1.0), z, Vector2(2.4, 3.5))
 				z -= 7.0
@@ -663,7 +666,7 @@ static func _wilds(root: Node3D, plan, info: Dictionary, keep_out: Array, dress:
 			return true
 		for i in plan.lanes.size():
 			var d := absf(x - plan.lane_x(i, z))
-			if d < (6.5 if plan.lanes[i]["kind"] == "high" else 5.0):
+			if d < (7.5 if plan.lanes[i]["kind"] == "high" else 6.5):
 				return true
 		if plan.clearing(x, z) > 0.5:
 			return true

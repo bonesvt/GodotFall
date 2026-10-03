@@ -99,7 +99,10 @@ func _go() -> void:
 	var wall: Dictionary = plan.sections_of("wall")[0]
 	await _shot("%d-wall" % n, at.call(loud, wall["wall_z"] + 18.0, 2.0), at.call(loud, wall["wall_z"], 3.0))
 	n += 1
-	# From above, down the valley.
+	# From above, down the valley, without the haze.
+	for env in run_node.zone_root.find_children("*", "WorldEnvironment", true, false):
+		env.environment.fog_enabled = false
+		env.environment.volumetric_fog_enabled = false
 	var mid_z: float = plan.spawn_z - 30.0
 	await _shot("%d-overview" % n, Vector3(plan.center_x(mid_z), 70.0, plan.spawn_z + 40.0), Vector3(plan.center_x(mid_z - 120.0), 0.0, mid_z - 120.0))
 	quit()
