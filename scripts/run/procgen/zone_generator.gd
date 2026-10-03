@@ -348,7 +348,10 @@ static func _yard(root: Node3D, plan, info: Dictionary, keep_out: Array, s: Dict
 			high_cache = roof
 	# Which side of the road the big buildings go: away from the nearest quiet lane.
 	var side := 1.0
-	var q: int = plan.lane_of("quiet")
+	var q := -1
+	for i in plan.lanes_of("quiet"):
+		if q < 0 or absf(plan.lanes[i]["offset"]) < absf(plan.lanes[q]["offset"]):
+			q = i  # the quiet lane nearest the road
 	if q >= 0 and plan.lane_x(q, mid) > c:
 		side = -1.0
 	if camp:
