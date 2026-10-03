@@ -6,8 +6,8 @@ extends RefCounted
 ## - Ophelia: behind the back wall, left of the idol. Black drapes, a
 ##   mattress on the floor, purple fairy lights, candles, posters, records.
 ## - Biggie: behind the back wall, right of the idol. An old soldier's den:
-##   cot, footlocker, sandbags, a battle map pinned to the wall, a radio, a
-##   beer cooler and a dartboard.
+##   cot, footlocker, sandbags, a battle map pinned to the wall, a radio, his
+##   tea things on the table, a beer cooler and a dartboard.
 ## Each room has its NPC's stand spot (info["npcs"]) and a "[F] Talk" spot.
 
 const Art := preload("res://scripts/ps2/ps2_assets.gd")
@@ -273,7 +273,15 @@ static func _biggie(root: Node3D, info: Dictionary) -> void:
 	for dx in [-0.7, 0.7]:
 		K.mesh(root, t + Vector3(dx, 0.36, 0), Vector3(0.05, 0.72, 0.7), Art.material("gunmetal"))
 	K.mesh(root, t + Vector3(-0.3, 0.77, 0.1), Vector3(0.5, 0.02, 0.4), Art.material("light"), Vector3(0, 12, 0))  # a field manual
-	K.mesh(root, t + Vector3(0.45, 0.85, -0.1), Vector3(0.09, 0.22, 0.09), Art.material("fabric", Color(0.3, 0.45, 0.25)))  # a bottle
+	# His tea things: a clay pot and two cups, one for whoever drops by.
+	var pot := t + Vector3(0.42, 0.75, -0.1)
+	var clay := Art.material("fabric", Color(0.55, 0.3, 0.18))
+	K.mesh(root, pot + Vector3(0, 0.08, 0), Vector3(0.2, 0.15, 0.2), clay, Vector3(0, 45, 0))
+	K.mesh(root, pot + Vector3(0, 0.17, 0), Vector3(0.1, 0.03, 0.1), clay, Vector3(0, 45, 0))
+	K.mesh(root, pot + Vector3(0.14, 0.11, 0), Vector3(0.12, 0.03, 0.03), clay, Vector3(0, 0, 30))  # spout
+	K.mesh(root, pot + Vector3(-0.12, 0.1, 0), Vector3(0.03, 0.1, 0.06), clay)  # handle
+	for i in 2:
+		K.mesh(root, pot + Vector3(-0.05 + i * 0.16, 0.03, 0.2), Vector3(0.07, 0.06, 0.07), Art.material("fabric", Color(0.85, 0.8, 0.7)))
 	for dz in [0.75]:
 		K.wood(root, t + Vector3(0.5, 0.25, dz), Vector3(0.6, 0.5, 0.4))
 	var radio := Vector3(x0 + 0.8, F, zb + 1.4)

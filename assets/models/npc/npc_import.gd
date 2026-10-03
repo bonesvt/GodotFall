@@ -36,7 +36,7 @@ const PARTS := {
 const FACES := {
 	"mom": {"Fcl_BRW_Sorrow": 0.55, "Fcl_EYE_Natural": 0.2, "Fcl_MTH_Up": 0.15},
 	"ophelia": {"Fcl_EYE_Sorrow": 0.3, "Fcl_BRW_Sorrow": 0.3, "Fcl_MTH_Down": 0.25},
-	"biggie": {"Fcl_BRW_Angry": 0.35, "Fcl_EYE_Close": 0.35, "Fcl_MTH_Down": 0.2},
+	"biggie": {"Fcl_BRW_Joy": 0.6, "Fcl_EYE_Joy": 0.45, "Fcl_MTH_Fun": 0.3},
 }
 
 

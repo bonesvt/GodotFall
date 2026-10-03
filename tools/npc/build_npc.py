@@ -75,10 +75,11 @@ SPEC = {
                    (0.86, (0.30, 0.06, 0.55)), (1.0, (0.55, 0.25, 0.85))],
     },
     "biggie": {
-        "height": 1.9, "head": 0.86, "legs": 1.0,
-        "face": {"Fcl_BRW_Angry": 0.35, "Fcl_EYE_Close": 0.35, "Fcl_MTH_Down": 0.2},
-        "hair": [(0.30, (0.10, 0.10, 0.10)), (0.62, (0.25, 0.24, 0.23)),
-                 (0.86, (0.45, 0.44, 0.42)), (1.0, (0.70, 0.69, 0.67))],
+        "height": 1.78, "head": 0.92, "legs": 0.96,
+        "face": {"Fcl_BRW_Joy": 0.6, "Fcl_EYE_Joy": 0.45, "Fcl_MTH_Fun": 0.3},
+        # silver-white
+        "hair": [(0.30, (0.22, 0.21, 0.2)), (0.62, (0.42, 0.41, 0.39)),
+                 (0.86, (0.62, 0.61, 0.59)), (1.0, (0.85, 0.84, 0.82))],
     },
 }[WHO]
 
@@ -198,9 +199,18 @@ def hair_ophelia():
 
 
 def hair_biggie():
-    """No hair object at all: the preset's scalp shell (the body's HairBack
-    material) reads as a grey buzz cut once dyed."""
+    """No hair object: the preset's scalp shell (the body's HairBack material)
+    dyed silver and cut back to an old man's horseshoe, bald over the crown
+    and forehead, grey round the sides and back, with a strip pulled back from
+    the crown to his topknot (topknot())."""
     bpy.data.objects.remove(bpy.data.objects["Hair"])
+    body = bpy.data.objects["Body"]
+    cap = mat_index(body, "HairBack")
+
+    def bald(c):
+        strip = abs(c.x) < 0.018 and c.y > 0.0   # pulled back to the knot
+        return (c.z > 1.325 + 0.035 * smooth(-0.02, 0.07, c.y) and not strip) or (c.y < -0.035 and c.z > 1.29)
+    delete_faces(body, lambda f: not (f.material_index in cap and bald(f.calc_center_median())))
 
 
 # --- face -----------------------------------------------------------------------------
@@ -331,42 +341,126 @@ def body_ophelia():
     def amount(P, N):
         z = P[:, 2]
         out = N[:, 0] * np.sign(P[:, 0])
-        return -0.006 * np.exp(-((z - 0.74) / 0.08) ** 2) * np.clip(out, 0, 1) - 0.004 * ss(0.5, 0.6, z) * ss(0.75, 0.68, z)
+        # the piercings lift the fabric a touch
+        nip = 0.0026 * gauss(P, NIP[0], -0.12, NIP[1], 0.006, 0.012, 0.006) * ss(-0.08, -0.11, P[:, 1])
+        return nip - 0.006 * np.exp(-((z - 0.74) / 0.08) ** 2) * np.clip(out, 0, 1) - 0.004 * ss(0.5, 0.6, z) * ss(0.75, 0.68, z)
     print("ophelia body: up to %.1f mm" % (push(bpy.data.objects["Body"], amount) * 1000))
 
 
+# Biggie's build, worked out as cross-sections (rest space, before scaling):
+# the torso's half-width, depth in front of and behind its centre line at each
+# height. A barrel: round all over, widest at the belly, a broad flat back
+# and seat, no waist. Legs: thick round columns.
+TORSO = [   # z, half-width, front, back
+    (0.70, 0.150, 0.080, 0.080),
+    (0.76, 0.162, 0.105, 0.084),
+    (0.82, 0.176, 0.140, 0.086),
+    (0.88, 0.184, 0.160, 0.088),
+    (0.94, 0.184, 0.158, 0.092),
+    (1.00, 0.178, 0.140, 0.096),
+    (1.06, 0.166, 0.118, 0.094),
+    (1.11, 0.140, 0.090, 0.082),
+]
+LEGS = [    # z, radius
+    (0.14, 0.044), (0.24, 0.062), (0.34, 0.070), (0.46, 0.064),
+    (0.56, 0.078), (0.64, 0.088), (0.72, 0.096),
+]
+
+
+def profile(table, z):
+    zs = np.array([t[0] for t in table])
+    return [np.interp(z, zs, np.array([t[k] for t in table])) for k in range(1, len(table[0]))]
+
+
+def reshape(ob, target_fn, passes=8):
+    """Move every point to target_fn(P) -> (new P, weight), the move smoothed
+    over the surface and welded across UV seams (as push())."""
+    me = ob.data
+    n = len(me.vertices)
+    P = np.empty(n * 3, np.float32)
+    me.vertices.foreach_get("co", P)
+    P = P.reshape(n, 3)
+    Q, w = target_fn(P)
+    D = (Q - P) * w[:, None]
+    groups = {}
+    for i, k in enumerate(map(tuple, np.round(P, 5))):
+        groups.setdefault(k, []).append(i)
+    multi = [ids for ids in groups.values() if len(ids) > 1]
+    for ids in multi:
+        D[ids] = D[ids].mean(0)
+    edges = np.array([e.vertices[:] for e in me.edges])
+    for _ in range(passes):
+        acc = np.zeros_like(D)
+        cnt = np.zeros(n)
+        np.add.at(acc, edges[:, 0], D[edges[:, 1]])
+        np.add.at(acc, edges[:, 1], D[edges[:, 0]])
+        np.add.at(cnt, edges[:, 0], 1)
+        np.add.at(cnt, edges[:, 1], 1)
+        D = 0.5 * D + 0.5 * acc / np.maximum(cnt, 1)[:, None]
+        for ids in multi:
+            D[ids] = D[ids].mean(0)
+    me.vertices.foreach_set("co", (P + D).ravel())
+    me.update()
+    return np.linalg.norm(D, axis=1).max()
+
+
 def body_biggie(arm):
-    """The preset rebuilt as a big, soft man: the bust gone into a heavy,
-    soft chest, a big round gut that sags a little, love handles, a thick
-    waist, a thick neck going into his jaw, a soft upper back, heavy arms and
-    legs, broader shoulders and bigger hands."""
+    """Biggie from scratch, not the preset with a gut on: a stout, round old
+    man (think a kindly retired general). His torso and legs are rebuilt to
+    cross-sections (TORSO, LEGS): every point keeps its direction from the
+    centre line but moves out to the barrel's surface, so her waist, hips,
+    bust and seat are gone, not padded over. Then a thick neck, sloping heavy
+    shoulders, soft heavy arms, broader shoulders and big hands."""
     body = bpy.data.objects["Body"]
+
+    def torso(P):
+        x, y, z = P[:, 0], P[:, 1], P[:, 2]
+        A, F, B = profile(TORSO, z)
+        cy = -0.02
+        dx, dy = x, y - cy
+        D = np.where(dy < 0, F, B)
+        n = 2.4   # a little boxy: a barrel, not a ball
+        k = 1.0 / np.maximum((np.abs(dx / A) ** n + np.abs(dy / D) ** n) ** (1 / n), 1e-6)
+        Q = P.copy()
+        Q[:, 0] = dx * k
+        Q[:, 1] = cy + dy * k
+        ax = np.abs(x)
+        w = ss(0.70, 0.78, z) * ss(1.13, 1.09, z)
+        w *= 1 - ss(1.06, 1.1, z) * ss(0.1, 0.14, ax)     # not the arms
+        return Q, w
+
+    def legs(P):
+        x, y, z = P[:, 0], P[:, 1], P[:, 2]
+        (R,) = profile(LEGS, z)
+        s = np.sign(x)
+        cx = s * (0.0686 + 0.012 * ss(0.45, 0.72, z))
+        cy = 0.012
+        dx, dy = x - cx, y - cy
+        r = np.maximum(np.hypot(dx, dy), 1e-6)
+        inner = (dx * s) < 0
+        # never past the middle: the thighs meet, they don't pass through
+        lim = np.abs(cx) - 0.003
+        Rx = np.where(inner, np.minimum(R, lim), R)
+        Rt = np.hypot(Rx * dx / r, R * 0.92 * dy / r)
+        k = Rt / r
+        Q = P.copy()
+        Q[:, 0] = cx + dx * k
+        Q[:, 1] = cy + dy * k
+        w = ss(0.12, 0.18, z) * ss(0.78, 0.7, z)
+        return Q, w
+
+    print("biggie torso: up to %.1f mm" % (reshape(body, torso) * 1000))
+    print("biggie legs: up to %.1f mm" % (reshape(body, legs, passes=6) * 1000))
 
     def amount(P, N):
         x, y, z = P[:, 0], P[:, 1], P[:, 2]
         ax = np.abs(x)
-        out = N[:, 0] * np.sign(x)
-        front = ss(-0.02, -0.06, y)
-        # the bust goes, but into a soft, heavy chest rather than a hard one
-        bust = -0.036 * gauss(P, 0.06, -0.115, 1.045, 0.045, 0.05, 0.045) * front
-        chest = 0.02 * gauss(P, 0.068, -0.085, 1.015, 0.065, 0.06, 0.05) * front
-        gut = 0.1 * gauss(P, 0.0, -0.09, 0.875, 0.11, 0.09, 0.09) * ss(0.0, -0.05, y)
-        sag = 0.03 * gauss(P, 0.0, -0.1, 0.81, 0.1, 0.07, 0.04) * ss(0.0, -0.05, y)
-        handles = 0.03 * gauss(P, 0.12, 0.0, 0.86, 0.05, 0.08, 0.06) * np.clip(out, 0, 1)
-        waist = 0.03 * np.exp(-((z - 0.9) / 0.09) ** 2) * (ax < 0.2) * (0.4 + 0.6 * np.clip(out, 0, 1))
-        # a man's flat seat and straight hips, whatever the gut does
-        hips = -0.024 * np.exp(-((z - 0.77) / 0.09) ** 2) * np.clip(out, 0, 1) - 0.026 * gauss(P, 0.06, 0.06, 0.77, 0.055, 0.05, 0.065) * ss(0.0, 0.05, y)
-        neck = 0.024 * ss(1.13, 1.16, z) * ss(1.26, 1.22, z) * (ax < 0.06)
+        neck = 0.026 * ss(1.11, 1.15, z) * ss(1.26, 1.21, z) * (ax < 0.07)
         jowl = 0.012 * ss(1.18, 1.21, z) * ss(1.26, 1.23, z) * (ax < 0.05) * ss(-0.0, -0.03, y)
-        traps = 0.028 * gauss(P, 0.075, 0.01, 1.16, 0.055, 0.05, 0.035)
-        back = 0.026 * gauss(P, 0.07, 0.08, 1.04, 0.09, 0.06, 0.1) * ss(0.02, 0.06, y)
-        flanks = 0.018 * gauss(P, 0.13, 0.0, 1.02, 0.04, 0.08, 0.08) * np.clip(out, 0, 1)
-        # fill the preset's waist from behind, so his back runs straight down
-        lower_back = 0.024 * gauss(P, 0.05, 0.07, 0.9, 0.08, 0.05, 0.07) * ss(0.02, 0.06, y)
-        arms = (0.03 + 0.01 * np.exp(-((ax - 0.2) / 0.06) ** 2)) * ss(0.09, 0.13, ax) * ss(0.5, 0.44, ax) * (np.abs(z - 1.145) < 0.08)
-        legs = 0.02 * ss(0.12, 0.2, z) * ss(0.7, 0.6, z) + 0.01 * ss(0.4, 0.5, z) * ss(0.72, 0.65, z) * (1 - np.clip(out, 0, 1)) + 0.01 * ss(0.14, 0.24, z) * ss(0.44, 0.36, z)
-        return bust + chest + gut + sag + handles + waist + hips + neck + jowl + traps + back + flanks + lower_back + arms + legs
-    print("biggie body: up to %.1f mm" % (push(body, amount, passes=8) * 1000))
+        traps = 0.03 * gauss(P, 0.08, 0.01, 1.15, 0.06, 0.05, 0.035)
+        arms = (0.03 + 0.012 * np.exp(-((ax - 0.2) / 0.06) ** 2)) * ss(0.1, 0.14, ax) * ss(0.5, 0.44, ax) * (np.abs(z - 1.145) < 0.08)
+        return neck + jowl + traps + arms
+    print("biggie arms, neck: up to %.1f mm" % (push(body, amount, passes=8) * 1000))
 
     # broader shoulders and bigger hands: move points (and bones) outward
     WIDEN, HAND = 0.058, 1.25
@@ -420,11 +514,11 @@ def beard(arm):
         chin = math.exp(-((p.x / 0.05) ** 2 + ((p.z - 1.205) / 0.04) ** 2))
         stache = math.exp(-((p.x / 0.024) ** 2 + ((p.z - 1.2455) / 0.004) ** 2)) * smooth(-0.03, -0.05, p.y)
         edge = smooth(top(ax, p.y) - 0.005, top(ax, p.y), p.z)   # thin out toward the top edge
-        t = (0.004 + 0.014 * chin + 0.004 * stache) * (1 - 0.75 * edge)
+        t = (0.005 + 0.018 * chin + 0.005 * stache) * (1 - 0.75 * edge)
         q = p + v.normal * t
         # the chin's hair hangs down and forward, rounded at the bottom
         hang = chin * smooth(1.235, 1.19, p.z)
-        q += Vector((0, -0.012 * hang, -0.05 * hang))
+        q += Vector((0, -0.016 * hang, -0.075 * hang))
         v.co = q
     # a few soft points along the bottom edge
     for v in bm.verts:
@@ -447,6 +541,40 @@ def beard(arm):
     for p in me.polygons:
         p.use_smooth = True
     ob = bpy.data.objects.new("Beard", me)
+    bpy.context.scene.collection.objects.link(ob)
+    vg = ob.vertex_groups.new(name="J_Bip_C_Head")
+    vg.add(list(range(len(me.vertices))), 1.0, "REPLACE")
+    ob.parent = arm
+    mod = ob.modifiers.new("Armature", "ARMATURE")
+    mod.object = arm
+    return ob
+
+
+def topknot(arm):
+    """His hair pulled back into a small knot high on the back of his head,
+    with a dark band round its base, skinned to the head."""
+    bm = bmesh.new()
+    C = Vector((0.0, 0.048, 1.4))
+    bmesh.ops.create_uvsphere(bm, u_segments=16, v_segments=10, radius=1.0)
+    for v in bm.verts:
+        v.co = C + Vector((v.co.x * 0.026, v.co.y * 0.026, v.co.z * 0.032))
+    knot = len(bm.verts)
+    made = bmesh.ops.create_cone(bm, cap_ends=True, segments=16, radius1=0.016, radius2=0.016, depth=0.008)["verts"]
+    for v in made:
+        v.co = C + Vector((v.co.x, v.co.y, v.co.z - 0.03))
+    me = bpy.data.meshes.new("Topknot")
+    bm.to_mesh(me)
+    bm.free()
+    me.materials.append(bpy.data.materials["npc_biggie_beard"])
+    me.materials.append(new_mat("npc_biggie_metal", (0.05, 0.035, 0.02)))
+    for p in me.polygons:
+        p.material_index = 1 if all(v >= knot for v in p.vertices) else 0
+        p.use_smooth = True
+    uv = me.uv_layers.new(name="UVMap")
+    for loop in me.loops:
+        co = me.vertices[loop.vertex_index].co - C
+        uv.data[loop.index].uv = (0.5 + math.atan2(co.x, co.y) / math.pi, 0.5 + co.z * 10)
+    ob = bpy.data.objects.new("Topknot", me)
     bpy.context.scene.collection.objects.link(ob)
     vg = ob.vertex_groups.new(name="J_Bip_C_Head")
     vg.add(list(range(len(me.vertices))), 1.0, "REPLACE")
@@ -664,6 +792,8 @@ def skin_tone(px):
 # bake to body_<outfit>.png and hub_npc.gd swaps them in.
 OUTFITS = {"ophelia": ["tee", "hoodie", "night"]}
 OUTFIT = "tee"
+# where her piercings sit (rest space, mirrored): x, z
+NIP = (0.056, 1.049)
 
 
 def ophelia_outfit(g, skin, x, y, z, ax, front, cov, edge, sine, neck_r):
@@ -680,6 +810,16 @@ def ophelia_outfit(g, skin, x, y, z, ax, front, cov, edge, sine, neck_r):
     net = g.mx(g.sstep(0.82, 0.92, sine(g.add(x, z), 0.01)), g.sstep(0.82, 0.92, sine(g.sub(x, z), 0.01)))
     choker = g.mul(g.band(z, 1.178, 1.192), g.sub(1.0, g.sstep(0.065, 0.075, neck_r)))
     o_ring = g.mul(g.mul(g.band(g.sqrt(g.add(g.sq(x), g.sq(g.sub(z, 1.174)))), 0.004, 0.0055), front), g.sstep(1.16, 1.165, z))
+    # her nipple piercings: small barbells that show through whatever she
+    # wears, a raised point catching the light with a bar end either side
+    nx = g.sub(ax, NIP[0])
+    nz = g.sub(z, NIP[1])
+    nub = g.mul(g.sub(1.0, g.sstep(0.0035, 0.0055, g.sqrt(g.add(g.sq(nx), g.sq(nz))))), front)
+    ends = g.mul(g.sub(1.0, g.sstep(0.0016, 0.0026, g.sqrt(g.add(g.sq(g.sub(g.abs(nx), 0.0085)), g.sq(nz))))), front)
+
+    def pierce(col):
+        col = g.mixc(col, (0.16, 0.15, 0.18), g.mul(nub, 0.55))
+        return g.mixc(col, (0.42, 0.42, 0.46), g.mul(ends, 0.8))
     if OUTFIT == "tee":
         neck_z = g.lerp(g.sub(1.168, g.mul(0.012, front)), 1.4, g.sstep(0.065, 0.09, ax))
         d_tee = g.mn(g.mn(g.sub(neck_z, z), g.sub(z, 0.865)), g.sub(0.175, ax))
@@ -710,7 +850,7 @@ def ophelia_outfit(g, skin, x, y, z, ax, front, cov, edge, sine, neck_r):
         col = g.mixc(col, STUD, g.mx(studs, o_ring))
         col = g.mixc(col, BLACK, choker)
         ink = g.mx(g.mx(edge(d_tee), edge(d_jeans)), edge(g.mn(g.sub(ax, 0.3), g.sub(0.475, ax))))
-        return g.mixc(col, INK, ink)
+        return pierce(g.mixc(col, INK, ink))
     if OUTFIT == "hoodie":
         neck_z = g.lerp(g.sub(1.172, g.mul(0.006, front)), 1.4, g.sstep(0.07, 0.095, ax))
         # sleeves come down over the backs of her hands; the thumb hole is skin
@@ -750,7 +890,7 @@ def ophelia_outfit(g, skin, x, y, z, ax, front, cov, edge, sine, neck_r):
         col = g.mixc(col, STUD, o_ring)
         col = g.mixc(col, BLACK, choker)
         ink = g.mx(g.mx(edge(d_hood), g.mul(edge(open_), hood)), g.mx(edge(d_jeans), g.mul(edge(g.sub(0.075, g.add(ax, g.mul(g.sub(z, 0.78), 0.4)))), g.mul(pocket, 1.0))))
-        return g.mixc(col, INK, ink)
+        return pierce(g.mixc(col, INK, ink))
     # night
     neck_z = g.lerp(1.172, 1.4, g.sstep(0.065, 0.09, ax))
     d_mesh = g.mn(g.mn(g.sub(neck_z, z), g.sub(z, 0.84)), g.sub(0.47, ax))
@@ -777,7 +917,7 @@ def ophelia_outfit(g, skin, x, y, z, ax, front, cov, edge, sine, neck_r):
     col = g.mixc(col, STUD, g.mx(g.mx(studs, o_ring), g.mul(lace, shorts)))
     col = g.mixc(col, BLACK, choker)
     ink = g.mx(g.mx(edge(d_cami), edge(d_shorts)), g.mx(g.mul(edge(d_socks), 1.0), g.mul(edge(d_mesh), 0.6)))
-    return g.mixc(col, INK, ink)
+    return pierce(g.mixc(col, INK, ink))
 
 
 def clothes_graph(nt, skin):
@@ -808,23 +948,39 @@ def clothes_graph(nt, skin):
     neck_r = g.sqrt(g.add(g.sq(x), g.sq(g.sub(y, 0.022))))
     # sleeves end at d_cuff = cuff - ax; the upper body starts at d_hem = z - hem
     if WHO == "mom":
-        SAGE, SAGE_D, SHIRT, TROUSER, BELT, TAG = (0.16, 0.22, 0.14), (0.1, 0.14, 0.09), (0.12, 0.16, 0.24), (0.1, 0.075, 0.055), (0.06, 0.03, 0.015), (0.55, 0.56, 0.58)
+        SAGE, SAGE_D, SHIRT, SHEER, SHORTS, BELT, TAG = (0.16, 0.22, 0.14), (0.1, 0.14, 0.09), (0.12, 0.16, 0.24), (0.035, 0.025, 0.02), (0.018, 0.016, 0.018), (0.06, 0.03, 0.015), (0.55, 0.56, 0.58)
+        LEG = (0.62, 0.42, 0.35)
         scoop = g.mul(g.mul(0.055, front), g.op("EXPONENT", g.mul(g.sq(g.div(ax, 0.045)), -1.0)))
         neck_z = g.lerp(g.sub(1.168, scoop), 1.4, g.sstep(0.065, 0.09, ax))
-        d_top = g.mn(g.mn(g.sub(neck_z, z), g.sub(z, 0.755)), g.sub(0.468, ax))
+        # the shirt and cardigan ride up at the back (4 in. in game, 0.086 here)
+        hem_z = g.add(0.755, g.mul(g.sub(1.0, front), 0.086))
+        d_top = g.mn(g.mn(g.sub(neck_z, z), g.sub(z, hem_z)), g.sub(0.468, ax))
         top = cov(d_top)
         # the cardigan is open down the front over the shirt
         # only on the front: on the back (front 0) it must stay well outside the opening
         open_ = g.sub(g.mul(front, g.sub(0.024, g.sub(ax, g.mul(g.sub(1.2, z), 0.12)))), g.sub(1.0, front))
         cardi = g.mul(top, g.sub(1.0, cov(open_)))
-        rib = g.mul(g.mx(g.band(z, 0.755, 0.78), g.band(ax, 0.44, 0.468)), cardi)
+        rib = g.mul(g.mx(g.band(g.sub(z, hem_z), 0.0, 0.025), g.band(ax, 0.44, 0.468)), cardi)
         knit = g.mul(g.mul(g.sstep(0.6, 0.9, sine(g.add(x, g.mul(z, 0.3)), 0.012)), 0.25), cardi)
-        trousers = cov(g.mn(g.sub(0.775, z), g.sub(z, 0.12)))
-        belt = g.mul(g.band(z, 0.765, 0.785), trousers)
+        # sheer dark trousers, her skin showing through, over high-cut black
+        # shorts (cut higher at the back)
+        waist_z = g.add(0.785, g.mul(g.sub(1.0, front), 0.03))   # higher at the back
+        d_trousers = g.mn(g.sub(waist_z, z), g.sub(z, 0.12))
+        trousers = cov(d_trousers)
+        open_z = g.add(0.705, g.mul(g.sub(1.0, front), 0.03))
+        d_shorts = g.mn(g.sub(waist_z, z), g.sub(z, open_z))
+        shorts = cov(d_shorts)
+        belt = g.mul(g.band(g.sub(z, waist_z), -0.02, 0.0), trousers)
+        seam = g.mul(g.band(g.abs(y), 0.0, 0.0012), g.mul(trousers, g.sstep(0.055, 0.075, ax)))
         col = g.mixc(skin, SHIRT, top)
         col = g.mixc(col, SAGE, cardi)
         col = g.mixc(col, SAGE_D, g.mx(rib, knit))
-        col = g.mixc(col, TROUSER, trousers)
+        # the preset's skin texture has its stockings painted into the legs:
+        # under the sheer fabric her legs are plain skin
+        col = g.mixc(col, LEG, g.mul(trousers, g.sstep(0.77, 0.72, z)))
+        col = g.mixc(col, SHEER, g.mul(trousers, 0.58))
+        col = g.mixc(col, SHEER, g.mul(seam, 0.6))
+        col = g.mixc(col, SHORTS, shorts)
         col = g.mixc(col, BELT, belt)
         # his dog tags on a chain, resting on her shirt
         chain = g.mul(g.band(g.sub(z, g.sub(1.16, g.mul(g.sq(g.div(ax, 0.05)), 0.06))), -0.0006, 0.0006), front)
@@ -832,41 +988,49 @@ def clothes_graph(nt, skin):
         tag = g.mul(g.mul(g.sub(1.0, g.sstep(0.007, 0.008, g.abs(g.sub(x, 0.004)))), g.band(z, 1.075, 1.098)), front)
         tag2 = g.mul(g.mul(g.sub(1.0, g.sstep(0.007, 0.008, g.abs(g.add(x, 0.006)))), g.band(z, 1.071, 1.094)), front)
         col = g.mixc(col, TAG, g.mx(g.mx(chain, tag), tag2))
-        ink = g.mx(g.mx(edge(d_top), g.mul(edge(open_), top)), edge(g.mn(g.sub(0.775, z), g.sub(z, 0.12))))
+        ink = g.mx(g.mx(edge(d_top), g.mul(edge(open_), top)), g.mx(g.mul(edge(d_trousers), 0.5), edge(d_shorts)))
         col = g.mixc(col, INK, ink)
         return col
     if WHO == "ophelia":
         return ophelia_outfit(g, skin, x, y, z, ax, front, cov, edge, sine, neck_r)
-    # biggie
-    OLIVE, OLIVE_D, TEE, KHAKI, BRACE, BELT = (0.075, 0.08, 0.04), (0.045, 0.05, 0.025), (0.22, 0.22, 0.21), (0.17, 0.14, 0.09), (0.02, 0.02, 0.022), (0.04, 0.025, 0.015)
-    neck_z = g.lerp(1.17, 1.4, g.sstep(0.065, 0.09, ax))
-    d_top = g.mn(g.mn(g.sub(neck_z, z), g.sub(z, 0.72)), g.sub(0.47, ax))
-    top = cov(d_top)
-    # only on the front: on the back (front 0) it must stay well outside the opening
-    open_ = g.sub(g.mul(front, g.sub(0.03, ax)), g.sub(1.0, front))
-    jacket = g.mul(top, g.sub(1.0, cov(open_)))
-    pocket = g.mul(g.mul(cov(g.mn(g.sub(0.022, g.abs(g.sub(ax, 0.058))), g.sub(0.02, g.abs(g.sub(z, 1.03))))), front), jacket)
-    flap = g.mul(pocket, g.band(z, 1.04, 1.05))
-    ribbons = g.mul(g.mul(cov(g.mn(g.sub(0.024, g.abs(g.sub(x, 0.06))), g.sub(0.004, g.abs(g.sub(z, 1.075))))), front), jacket)
-    rib_col = g.mixc(g.mixc((0.5, 0.05, 0.04), (0.04, 0.12, 0.4), g.sstep(0.051, 0.052, x)), (0.6, 0.45, 0.05), g.sstep(0.067, 0.068, x))
-    patch = g.mul(g.mul(cov(g.sub(0.018, g.sqrt(g.add(g.sq(g.sub(ax, 0.16)), g.sq(g.add(y, 0.0)))))), g.sstep(1.12, 1.13, z)), jacket)
-    trousers = cov(g.mn(g.sub(0.75, z), g.sub(z, 0.12)))
-    cargo = g.mul(cov(g.mn(g.sub(0.03, g.abs(g.sub(z, 0.6))), g.sub(ax, 0.09))), trousers)
-    brace = g.mul(cov(g.sub(0.05, g.abs(g.sub(z, 0.47)))), g.mul(trousers, g.sstep(0.0, -0.01, x)))
-    straps = g.mul(brace, g.mx(g.band(z, 0.49, 0.5), g.band(z, 0.44, 0.45)))
-    belt = g.mul(g.band(z, 0.74, 0.765), trousers)
-    col = g.mixc(skin, TEE, top)
-    col = g.mixc(col, OLIVE, jacket)
-    col = g.mixc(col, OLIVE_D, g.mx(flap, g.mul(g.band(z, 0.72, 0.74), jacket)))
-    col = g.mixc(col, OLIVE_D, g.mul(pocket, 0.5))
+    # biggie: an old soldier gone gentle. A long rust-red wrap coat crossed
+    # left over right with an ochre trim, a cream undershirt in the V, a wide
+    # dark sash tied over his belly, his old ribbons still pinned on, loose
+    # trousers with the shins wrapped in cloth down into his boots
+    RUST, RUST_D, TRIM, UNDER, SASH, TROUSER, WRAP = (0.16, 0.042, 0.026), (0.1, 0.025, 0.016), (0.42, 0.27, 0.07), (0.5, 0.46, 0.37), (0.05, 0.03, 0.022), (0.07, 0.05, 0.034), (0.36, 0.33, 0.27)
+    neck_z = g.lerp(1.172, 1.4, g.sstep(0.07, 0.095, ax))
+    d_coat = g.mn(g.mn(g.sub(neck_z, z), g.sub(z, 0.70)), g.sub(0.445, ax))
+    coat = cov(d_coat)
+    # the V: undershirt shows down to where the coat crosses
+    v_half = g.mul(g.sub(z, 0.985), 0.28)
+    d_v = g.sub(g.mul(front, g.sub(v_half, ax)), g.sub(1.0, front))
+    vee = g.mul(cov(d_v), coat)
+    v_trim = g.mul(g.mul(g.band(g.sub(ax, v_half), 0.0, 0.009), front), g.mul(g.sstep(0.98, 0.99, z), coat))
+    # below the V the right side's edge runs down across him to the sash
+    edge_x = g.mul(g.sub(0.985, z), 0.45)
+    lap = g.mul(g.mul(g.band(g.sub(x, edge_x), -0.0045, 0.0045), front), g.mul(g.sstep(0.99, 0.98, z), g.sstep(0.70, 0.71, z)))
+    cuffs = g.mul(g.band(ax, 0.40, 0.445), coat)
+    hem = g.mul(g.band(z, 0.70, 0.722), coat)
+    sash = g.mul(g.band(z, 0.825, 0.89), coat)
+    knot = g.mul(g.mul(cov(g.sub(0.02, g.sqrt(g.add(g.sq(g.div(g.sub(x, -0.09), 1.0)), g.sq(g.sub(z, 0.857)))))), front), coat)
+    tails = g.mul(g.mul(cov(g.mn(g.sub(0.012, g.abs(g.sub(x, -0.095))), g.sub(0.858, z))), g.sstep(0.74, 0.76, z)), front)
+    ribbons = g.mul(g.mul(cov(g.mn(g.sub(0.024, g.abs(g.sub(x, 0.075))), g.sub(0.004, g.abs(g.sub(z, 1.06))))), front), coat)
+    rib_col = g.mixc(g.mixc((0.5, 0.05, 0.04), (0.04, 0.12, 0.4), g.sstep(0.066, 0.067, x)), (0.6, 0.45, 0.05), g.sstep(0.082, 0.083, x))
+    folds = g.mul(g.mul(g.sstep(0.55, 1.0, sine(g.add(x, g.mul(z, 0.15)), 0.05)), 0.35), g.mul(coat, g.sstep(0.89, 0.9, z)))
+    d_trousers = g.mn(g.sub(0.75, z), g.sub(z, 0.12))
+    trousers = cov(d_trousers)
+    wraps = g.mul(cov(g.mn(g.sub(0.33, z), g.sub(z, 0.12))), trousers)
+    wrap_lines = g.mul(g.band(g.op("FRACT", g.div(g.add(z, g.mul(x, 0.6)), 0.022)), 0.0, 0.12), wraps)
+    col = g.mixc(skin, TROUSER, trousers)
+    col = g.mixc(col, WRAP, wraps)
+    col = g.mixc(col, g.mixc(WRAP, (0.0, 0.0, 0.0, 1), 0.35), wrap_lines)
+    col = g.mixc(col, RUST, coat)
+    col = g.mixc(col, RUST_D, folds)
+    col = g.mixc(col, UNDER, vee)
+    col = g.mixc(col, TRIM, g.mx(g.mx(v_trim, lap), g.mx(cuffs, hem)))
+    col = g.mixc(col, SASH, g.mx(sash, g.mx(knot, tails)))
     col = g.mixc(col, rib_col, ribbons)
-    col = g.mixc(col, (0.5, 0.12, 0.06), patch)
-    col = g.mixc(col, KHAKI, trousers)
-    col = g.mixc(col, g.mixc(KHAKI, (0.0, 0.0, 0.0, 1), 0.35), cargo)
-    col = g.mixc(col, BRACE, brace)
-    col = g.mixc(col, (0.25, 0.25, 0.27), straps)
-    col = g.mixc(col, BELT, belt)
-    ink = g.mx(g.mx(edge(d_top), g.mul(edge(open_), top)), edge(g.mn(g.sub(0.75, z), g.sub(z, 0.12))))
+    ink = g.mx(g.mx(edge(d_coat), g.mul(edge(d_v), coat)), g.mx(edge(d_trousers), g.mul(g.mx(g.band(z, 0.823, 0.827), g.band(z, 0.888, 0.892)), coat)))
     col = g.mixc(col, INK, ink)
     return col
 
@@ -932,7 +1096,7 @@ def textures(objs, boots):
             plan.append((face, i, "face"))
         elif "FaceBrow" in m.name:
             px = read_px(img).copy()
-            px[..., :3] = to_srgb(np.array({"mom": (0.07, 0.016, 0.012), "ophelia": (0.01, 0.01, 0.014), "biggie": (0.07, 0.065, 0.06)}[WHO]))
+            px[..., :3] = to_srgb(np.array({"mom": (0.07, 0.016, 0.012), "ophelia": (0.01, 0.01, 0.014), "biggie": (0.5, 0.48, 0.45)}[WHO]))
             px[..., 3] = ss(0.12, 0.45, px[..., 3])
             write_png(px, "brow")
             plan.append((face, i, "brow"))
@@ -974,10 +1138,8 @@ def textures(objs, boots):
     for i, m in enumerate(body.data.materials):
         if m and "HairBack" in m.name:
             px = dye(read_px(tex_of(m)), SPEC["hair"])
-            if WHO == "biggie":   # a short grey crop: flatter, with a stubble grain
-                rng = np.random.default_rng(3)
-                g = rng.random(px.shape[:2])[..., None] * 0.18
-                px[..., :3] = np.clip(px[..., :3] * 0.55 + 0.25 + g - 0.09, 0, 1)
+            if WHO == "biggie":   # silver, combed back: a little flatter than the preset's shine
+                px[..., :3] = np.clip(px[..., :3] * 0.7 + 0.2, 0, 1)
             write_png(px, "hair_cap")
             plan.append((body, i, "hair_cap"))
     for i, m in enumerate(boots.data.materials):
@@ -1068,21 +1230,19 @@ def stance():
         add(p, "forearm.R", X, 10)
         add(p, "forearm.L", X, 10)
     else:
-        # heavy: a stoop, knees soft, arms hanging wide of the gut, leaning off
-        # his bad (right) knee
-        add(p, "upperarm.R", Y, -10)
-        add(p, "upperarm.L", Y, 10)
-        add(p, "forearm.R", X, 12)
-        add(p, "forearm.L", X, 12)
-        add(p, "spine", X, -6)
-        add(p, "chest", X, -5)
-        add(p, "neck", X, 6)
-        add(p, "head", X, 4)
-        add(p, "hips", Y, -4)
-        add(p, "thigh.R", Y, 5)
-        add(p, "thigh.L", Y, -3)
-        add(p, "shin.L", X, -6)
-        add(p, "thigh.L", X, 4)
+        # at ease: upright, belly out, hands folded on top of it, head tilted
+        # a little, the way a man listens who has time for you
+        add(p, "upperarm.R", Y, -14)
+        add(p, "upperarm.L", Y, 14)
+        add(p, "upperarm.R", X, 10)
+        add(p, "upperarm.L", X, 10)
+        add(p, "forearm.R", X, 70)
+        add(p, "forearm.L", X, 70)
+        add(p, "forearm.R", Z, 40)
+        add(p, "forearm.L", Z, -40)
+        add(p, "spine", X, 3)
+        add(p, "head", Y, -5)
+        add(p, "head", X, -3)
     return p
 
 
@@ -1303,7 +1463,7 @@ def main():
     extras = []
     if WHO == "biggie":
         extras.append(beard(arm))
-        extras.append(beanie(arm))
+        extras.append(topknot(arm))
     if WHO == "ophelia":
         extras.append(lip_ring(arm))
     objs = [bpy.data.objects[n] for n in ("Body", "Face", "Hair") if n in bpy.data.objects] + [boots] + extras
@@ -1311,6 +1471,7 @@ def main():
     if WHO == "biggie":
         beard_m = bpy.data.materials["npc_biggie_beard"]
         bpy.data.objects["Beard"].material_slots[0].material = beard_m
+        bpy.data.objects["Topknot"].material_slots[0].material = beard_m
     prune_bones(arm)
     E["proportions"](arm, objs)
     E["face_forward_and_scale"](arm, objs)

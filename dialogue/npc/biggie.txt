@@ -74,3 +74,14 @@ eco: Mine's broken. No lock.
 biggie: Even better. A gun that thinks for you makes you lazy. Yours makes you good.
 eco: Was that... a compliment?
 biggie: Don't get used to it. Go on, get out of here. I'm napping.
+
+[any]
+biggie: Sit down a minute. Kettle's just boiled.
+eco: I don't have time for tea, old man.
+biggie: Nobody has time for tea. That's why you make it anyway.
+eco: Fine. One cup.
+biggie: Ginger, and something I found growing behind the temple. Probably not poison.
+eco: Probably?
+biggie: Your father said the same thing. Then he had three cups.
+eco: It's actually good.
+biggie: Good tea and a good fight. Both go wrong when you rush them.
