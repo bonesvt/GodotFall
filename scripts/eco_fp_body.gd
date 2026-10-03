@@ -5,12 +5,14 @@ extends Node3D
 ##   view-model pistol arm stands in for her hands), it casts no shadow, and it
 ##   is shifted each frame so her neck sits just under and behind the camera,
 ##   whatever the pose (run, crouch, slide).
-## - "Shadow": the whole of her at the player's feet, drawn only into shadows.
+## - "Shadow": the whole of her at the player's feet, drawn only into shadows,
+##   reacting to the world (scripts/ps2/eco_react.gd).
 ##   In third person (scripts/view_camera.gd) it is drawn for real and "Body"
 ##   hides.
 
 const ECO := preload("res://assets/models/eco.tscn")
 const EcoModel := preload("res://scripts/ps2/eco_model.gd")
+const EcoReact := preload("res://scripts/ps2/eco_react.gd")
 const HIDDEN_BONES := ["J_Bip_C_Neck", "J_Bip_C_Head", "J_Bip_R_UpperArm", "J_Bip_L_UpperArm"]
 
 ## Where the camera sits relative to the base of her neck: metres above it,
@@ -22,6 +24,8 @@ const HIDDEN_BONES := ["J_Bip_C_Neck", "J_Bip_C_Head", "J_Bip_R_UpperArm", "J_Bi
 
 var body: EcoModel
 var shadow: EcoModel
+## Layers her reactions to the world over the full model's animation.
+var react: EcoReact
 var _camera: Camera3D
 var _neck_bone := -1
 var _third_person := false
@@ -38,6 +42,12 @@ func _ready() -> void:
 		_neck_bone = body.skeleton.find_bone("J_Bip_C_Neck") if body.skeleton != null else -1
 	if cast_shadow:
 		shadow = _spawn("Shadow", GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY)
+		# her whole body reacts to the ground, turns, wallruns and landings
+		if shadow.skeleton != null:
+			react = EcoReact.new()
+			react.name = "React"
+			react.body = get_parent() as CharacterBody3D
+			shadow.skeleton.add_child(react)
 
 
 ## Suit pieces hidden on the first-person body: round her neck or on her face, they

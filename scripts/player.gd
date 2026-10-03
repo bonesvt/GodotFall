@@ -172,6 +172,12 @@ var _base_grapple_cooldown := -1.0
 var step_dist := 0.0
 ## Set by the ViewCam child (scripts/view_camera.gd) while in third person.
 var third_person := false
+## Set by the ViewCam's orbit camera (hub and town): the keys walk her relative
+## to this yaw (the camera's) instead of her facing, and she turns to face
+## where she walks. NAN when off.
+var move_yaw := NAN
+## How quickly she turns to face where she walks under the orbit camera.
+var move_turn_rate := 10.0
 
 
 static func ensure_input_actions() -> void:
@@ -239,6 +245,10 @@ func _physics_process(delta: float) -> void:
 
 	input_dir = Input.get_vector("move_left", "move_right", "move_forward", "move_back")
 	wish_dir = (transform.basis * Vector3(input_dir.x, 0.0, input_dir.y)).normalized()
+	if not is_nan(move_yaw):
+		wish_dir = (Basis(Vector3.UP, move_yaw) * Vector3(input_dir.x, 0.0, input_dir.y)).normalized()
+		if wish_dir != Vector3.ZERO:
+			rotation.y = lerp_angle(rotation.y, atan2(-wish_dir.x, -wish_dir.z), 1.0 - exp(-move_turn_rate * delta))
 	if Input.is_action_just_pressed("jump"):
 		jump_buffer_timer = jump_buffer
 	if Input.is_action_just_pressed("crouch") and state != State.GROUND and state != State.SLIDE:
@@ -282,7 +292,8 @@ func _ground_state(delta: float) -> void:
 	var sprinting := (auto_sprint or Input.is_action_pressed("sprint")) and input_dir.y < -0.3
 	var target := (crouch_speed if crouching else (sprint_speed if sprinting else run_speed)) * speed_mult * suit_speed
 	if strolling:
-		var brisk := Input.is_action_pressed("sprint") and input_dir.y < -0.3  # auto sprint doesn't apply
+		# auto sprint doesn't apply; under the orbit camera any direction counts
+		var brisk := Input.is_action_pressed("sprint") and (input_dir.y < -0.3 or (not is_nan(move_yaw) and input_dir != Vector2.ZERO))
 		target = minf(crouch_speed, stroll_speed) if crouching else (stroll_brisk_speed if brisk else stroll_speed)
 	hvel = _ground_move(hvel, target, delta)
 
