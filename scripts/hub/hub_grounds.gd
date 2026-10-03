@@ -41,6 +41,15 @@ const COURSE_PAD_HALF := Vector3(3, 1.5, 3)
 ## The range's firing line runs along x = RANGE_LINE; targets stand downrange in -X.
 const RANGE_LINE := -21.0
 
+## The training grounds (x, z, width, depth): the range, the movement course and
+## the titan yard. Everywhere else in the hub and town Eco is off duty and struts
+## (player.gd strolling); in here she moves at full speed.
+const TRAINING_AREAS := [
+	Rect2(-68.0, -2.0, 52.0, 36.0),    # shooting range
+	Rect2(-44.0, -82.0, 104.0, 40.0),  # movement course and slide
+	TITAN_YARD,
+]
+
 const BLUE := Color(0.25, 0.5, 0.9)
 const ORANGE := Color(0.95, 0.55, 0.2)
 const FIRE := Color(1.0, 0.55, 0.18)
@@ -59,6 +68,7 @@ static func build(root: Node3D, info: Dictionary) -> void:
 	_course(root, info)
 	_titan_yard(root, info)
 	_paint_shop(root, info)
+	info["training_areas"] = TRAINING_AREAS.duplicate()
 	_greenery(root, rng)
 	_birds(root)
 

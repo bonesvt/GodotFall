@@ -256,6 +256,7 @@ func place_player(pos: Vector3) -> void:
 
 
 func _physics_process(delta: float) -> void:
+	player.strolling = phase == Phase.HUB and not on_training_ground()
 	match phase:
 		Phase.ZONE:
 			_zone_tick(delta)
@@ -474,6 +475,18 @@ func _loot_tick(delta: float) -> void:
 	if not got.is_empty():
 		Loot.drop(zone_root, node.global_position + Vector3(0, 0.4, 0), got, loot_rng)
 		tutorial.event("loot")
+
+
+## Whether Eco is on the hub's training grounds (zone_info["training_areas"]:
+## the range, the movement course, the titan yard), where she moves at full
+## speed instead of strolling. A builder adds a Rect2 (x, z) there to make
+## another area one.
+func on_training_ground() -> bool:
+	var at := Vector2(player.global_position.x, player.global_position.z)
+	for area: Rect2 in zone_info.get("training_areas", []):
+		if area.has_point(at):
+			return true
+	return false
 
 
 func in_titan_yard() -> bool:

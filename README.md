@@ -28,6 +28,14 @@ base since the militia turned her away. Walk around, warm up the movement kit, a
 press **F** at the map table ("HEAD OUT") to start a run. When a run ends, won or lost,
 **Enter** brings you back here.
 
+Off duty (in the hub and the town, but not on the range, the movement course or the titan
+yard) Eco doesn't run: she struts at a stroll (`player.gd` `stroll_speed`, hold **Shift**
+for a brisker one), hips swaying over each step, one foot landing in front of the other,
+shoulders back, and stands with her weight on one hip. The strut is layered over her walk in
+`scripts/ps2/eco_model.gd` (`_strut`); the training grounds are `TRAINING_AREAS` in
+`hub_grounds.gd`. `xvfb-run -a godot --path . --fixed-fps 30 -s res://tools/eco/strut_shots.gd
+-- out_dir --view=front|side|back` renders it next to her plain walk.
+
 - **The hall**: an old hardwood temple, two rows of timber pillars down a nave and the
   roof fallen in over the middle so a shaft of sun lands on the idol. Carved, painted eye
   glyphs run along the walls. Eco has made it home: plank floors, rugs, string lights
