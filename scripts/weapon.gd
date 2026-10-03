@@ -112,17 +112,17 @@ const INSPECT_LINES := [
 @export var reload_time := 1.5
 
 @export_group("Accuracy (degrees)")
-@export var base_spread := 0.25
-@export var bloom_per_shot := 1.1
+@export var base_spread := 0.17
+@export var bloom_per_shot := 0.75
 ## Bloom starts shrinking this long after the last shot...
 @export var bloom_recovery_delay := 0.25
 ## ...at this many degrees per second. Paced shots stay accurate, spam does not.
 @export var bloom_recovery := 6.0
-@export var max_bloom := 4.5
+@export var max_bloom := 3.0
 ## Added at full sprint speed on the ground.
-@export var move_spread := 0.9
+@export var move_spread := 0.6
 ## Added while airborne or grappling (not while wallrunning or sliding).
-@export var air_spread := 1.2
+@export var air_spread := 0.8
 @export var recoil_kick := 1.4
 ## Share of each kick the camera drifts back down on its own.
 @export var recoil_recovery := 0.75
