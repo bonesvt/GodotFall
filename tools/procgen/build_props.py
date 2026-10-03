@@ -933,6 +933,725 @@ def sandbag_nest(name, seed):
 
 # =============================================================================
 
+# =============================================================================
+# Round 2: more buildings, biome props, wall styles, climbs and grapple roosts
+# =============================================================================
+
+def cabin(name, seed):
+    """A militia cabin of logs, 6 W x 5 D, eaves at 2.8 and a pitched roof to
+    4.3 you can run up, a stovepipe, a porch with a lamp."""
+    begin(name)
+    rng = random.Random(seed)
+    wood = new_bm()
+    sbox(wood, (0, 0, 1.4), (6.0, 5.0, 2.8))
+    for z in [0.25 + k * 0.45 for k in range(6)]:
+        for s in (-1, 1):
+            tapered_tube(wood, [(-3.15, s * 2.55, z), (3.15, s * 2.55, z)], [0.2, 0.2], sides=6)
+    part(wood, "logs", "timber")
+    roof = new_bm()
+    slope = math.degrees(math.atan2(1.5, 2.9))
+    for s in (-1, 1):
+        sbox(roof, (0, s * 1.45, 3.55), (6.8, math.hypot(2.9, 1.5) + 0.4, 0.2), tilt=-s * slope)
+    for s in (-1, 1):
+        tbox(roof, (s * 3.0, 0, 3.4), (0.1, 5.4, 1.3))
+    part(roof, "roof", "gunmetal")
+    porch = new_bm()
+    sbox(porch, (0, -3.2, 0.15), (3.2, 1.4, 0.3))
+    for x in (-1.5, 1.5):
+        tbox(porch, (x, -3.8, 1.3), (0.15, 0.15, 2.6))
+    tbox(porch, (0, -3.3, 2.65), (3.4, 1.6, 0.12), tilt=-12)
+    cyl(porch, (1.8, 1.0, 3.6), (1.8, 1.0, 5.0), 0.15, sides=6)
+    part(porch, "porch", "wood")
+    dark = new_bm()
+    tbox(dark, (-0.6, -2.62, 1.05), (1.0, 0.05, 2.1))
+    part(dark, "door", "shadow")
+    lit = new_bm()
+    tbox(lit, (1.5, -2.62, 1.6), (1.0, 0.05, 0.6))
+    tbox(lit, (-1.4, -3.75, 2.4), (0.25, 0.25, 0.25))
+    part(lit, "windows", "light")
+    top((0, 0, 4.3))
+    footprint(6.8, 7.2)
+    export(name)
+
+
+def quonset(name, length):
+    """A half-round steel hut, 6 m across and 3 m high, `length` long along
+    Y, a door and two windows in the front end. You can run along its curve."""
+    begin(name)
+    steel = new_bm()
+    n = 9
+    half = length * 0.5
+    for k in range(n):
+        a0 = math.pi * k / n
+        a1 = math.pi * (k + 1) / n
+        p0 = (math.cos(a0) * 3.0, math.sin(a0) * 3.0)
+        p1 = (math.cos(a1) * 3.0, math.sin(a1) * 3.0)
+        cx, cz = (p0[0] + p1[0]) * 0.5, (p0[1] + p1[1]) * 0.5
+        w = math.hypot(p1[0] - p0[0], p1[1] - p0[1])
+        ang = math.degrees(math.atan2(p1[1] - p0[1], p1[0] - p0[0]))
+        # A strip along Y, turned about Y by the arc's slope: build it as a
+        # box tilted about X after a quarter turn, i.e. along X, then turned.
+        tmp = bmesh.new()
+        res = bmesh.ops.create_cube(tmp, size=1.0)
+        bmesh.ops.scale(tmp, vec=Vector((w + 0.05, length, 0.12)), verts=res["verts"])
+        bmesh.ops.rotate(tmp, verts=list(tmp.verts), cent=Vector((0, 0, 0)), matrix=Matrix.Rotation(math.radians(-ang), 3, "Y"))
+        bmesh.ops.translate(tmp, vec=Vector((cx, 0, cz)), verts=list(tmp.verts))
+        _merge(steel, tmp)
+    for y in range(int(-half) + 1, int(half), 2):
+        for k in range(n):
+            a0 = math.pi * k / n
+            a1 = math.pi * (k + 1) / n
+            cyl(steel, (math.cos(a0) * 3.08, y, math.sin(a0) * 3.08), (math.cos(a1) * 3.08, y, math.sin(a1) * 3.08), 0.04, sides=3)
+    part(steel, "shell", "gunmetal")
+    # Colliders: a box for the body and two slabs for the shoulders.
+    solid((0, 0, 1.0), (5.6, length, 2.0))
+    solid((0, 0, 2.5), (3.6, length, 1.0))
+    ends = new_bm()
+    for s in (-1, 1):
+        verts = [(math.cos(math.pi * k / 12) * 2.95, s * (half - 0.05), math.sin(math.pi * k / 12) * 2.95) for k in range(13)]
+        FP["face2"](ends, verts)
+    part(ends, "ends", "concrete")
+    dark = new_bm()
+    tbox(dark, (0, -half - 0.03, 1.1), (1.4, 0.05, 2.2))
+    part(dark, "door", "shadow")
+    lit = new_bm()
+    for x in (-1.8, 1.8):
+        tbox(lit, (x, -half - 0.03, 1.4), (0.8, 0.05, 0.5))
+    part(lit, "windows", "light")
+    top((0, 0, 3.0))
+    footprint(6.2, length + 0.4)
+    export(name)
+
+
+def radio_hut(name):
+    """A plywood radio hut, 4 x 4, roof at 2.8, beside a 14 m lattice radio
+    mast with a hook block at its top and a dish halfway up."""
+    begin(name)
+    wood = new_bm()
+    sbox(wood, (0, 0, 1.3), (4.0, 4.0, 2.6))
+    sbox(wood, (0, 0, 2.7), (4.4, 4.4, 0.2))
+    part(wood, "hut", "wood")
+    steel = new_bm()
+    mx, my = 3.2, 1.2
+    for sx in (-0.45, 0.45):
+        for sy in (-0.45, 0.45):
+            tbox(steel, (mx + sx, my + sy, 7.0), (0.1, 0.1, 14.0))
+    for k in range(7):
+        z = 0.5 + k * 2.0
+        cyl(steel, (mx - 0.45, my - 0.45, z), (mx + 0.45, my + 0.45, z + 2.0), 0.03, sides=3)
+        cyl(steel, (mx + 0.45, my - 0.45, z), (mx - 0.45, my + 0.45, z + 2.0), 0.03, sides=3)
+    solid((mx, my, 7.0), (1.0, 1.0, 14.0))
+    FP["cone"](steel, (mx - 0.9, my, 7.0), 0.9, -0.4, sides=10)
+    part(steel, "mast", "gunmetal")
+    orange = new_bm()
+    metal = new_bm()
+    hook_block(metal, orange, (mx, my, 14.6), 1.2)
+    part(orange, "hook", "anchor")
+    part(metal, "eye", "gunmetal")
+    dark = new_bm()
+    tbox(dark, (-0.8, -2.02, 1.0), (0.9, 0.05, 2.0))
+    part(dark, "door", "shadow")
+    lit = new_bm()
+    tbox(lit, (0.9, -2.02, 1.6), (1.0, 0.05, 0.5))
+    tbox(lit, (mx, my, 15.4), (0.25, 0.25, 0.25))
+    part(lit, "windows", "light")
+    top((0, 0, 2.8))
+    footprint(8.0, 5.0)
+    export(name)
+
+
+def blockhouse_low(name):
+    """A one-storey blockhouse, 7 W x 6 D, flat roof at 3.4 behind a low
+    parapet, steps up its +X side."""
+    begin(name)
+    con = new_bm()
+    sbox(con, (0, 0, 1.6), (7.0, 6.0, 3.2), bevel=0.06)
+    sbox(con, (0, 0, 3.3), (7.4, 6.4, 0.2))
+    for s in (-1, 1):
+        tbox(con, (0, s * 3.15, 3.6), (7.4, 0.12, 0.4))
+    part(con, "base", "concrete")
+    steps = new_bm()
+    for k in range(4):
+        sbox(steps, (4.2, -2.2 + k * 1.3, 0.425 + k * 0.85 - 0.425 * 0 - 0.0), (1.4, 1.3, 0.85 + k * 0.85))
+    part(steps, "steps", "concrete")
+    dark = new_bm()
+    tbox(dark, (-1.5, -3.02, 1.1), (1.2, 0.06, 2.2))
+    tbox(dark, (1.6, -3.02, 2.2), (2.0, 0.06, 0.35))
+    part(dark, "door", "shadow")
+    band = new_bm()
+    tbox(band, (0, -3.04, 3.0), (6.9, 0.03, 0.3))
+    part(band, "band", "anchor")
+    top((0, 0, 3.4))
+    footprint(9.4, 6.6)
+    export(name)
+
+
+# --- props shared by every biome ----------------------------------------------
+
+def ammo_crates(name, seed):
+    """Militia ammo crates: two stacked and one beside, about 1.4 high."""
+    begin(name)
+    rng = random.Random(seed)
+    wood = new_bm()
+    tbox(wood, (0, 0, 0.35), (1.2, 0.8, 0.7))
+    tbox(wood, (0.05, 0.02, 1.05), (1.1, 0.75, 0.7), yaw=rng.uniform(-8, 8))
+    tbox(wood, (1.05, 0.1, 0.3), (0.8, 0.6, 0.6), yaw=rng.uniform(-20, 20))
+    solid((0.3, 0, 0.7), (1.9, 0.9, 1.4))
+    part(wood, "crates", "wood")
+    band = new_bm()
+    for z in (0.35, 1.05):
+        tbox(band, (0, -0.42, z), (1.0, 0.03, 0.12))
+    part(band, "stencil", "anchor")
+    footprint(2.2, 1.2)
+    export(name)
+
+
+def comms_dish(name):
+    """A field comms dish on a tripod, about 2.6 m, aimed up and out."""
+    begin(name)
+    steel = new_bm()
+    for k in range(3):
+        a = k * 2.1
+        cyl(steel, (math.cos(a) * 0.9, math.sin(a) * 0.9, 0), (0, 0, 1.6), 0.04, sides=4)
+    tbox(steel, (0, 0, 1.8), (0.2, 0.2, 0.5))
+    part(steel, "tripod", "gunmetal")
+    dish = new_bm()
+    FP["cone"](dish, (0, -0.3, 2.1), 1.0, -0.35, sides=12)
+    # Tip it to face up and toward -Y.
+    bmesh.ops.rotate(dish, verts=list(dish.verts), cent=Vector((0, -0.3, 2.1)), matrix=Matrix.Rotation(math.radians(-50), 3, "X"))
+    part(dish, "dish", "concrete")
+    lit = new_bm()
+    tbox(lit, (0, -0.9, 2.5), (0.12, 0.12, 0.12))
+    part(lit, "tip", "light")
+    column((0, 0, 0), 0.5, 2.2)
+    footprint(2.2, 2.2)
+    export(name)
+
+
+def lamp_post(name):
+    """A work-light post, 5 m, two lamps on an arm."""
+    begin(name)
+    steel = new_bm()
+    tapered_tube(steel, [(0, 0, 0), (0, 0, 5.0)], [0.12, 0.08], sides=6)
+    tbox(steel, (0, -0.6, 4.9), (0.1, 1.3, 0.1))
+    tbox(steel, (0, 0, 0.1), (0.5, 0.5, 0.2))
+    part(steel, "post", "gunmetal")
+    lit = new_bm()
+    for x in (-0.25, 0.25):
+        tbox(lit, (x, -1.2, 4.75), (0.35, 0.3, 0.2))
+    part(lit, "lamps", "light")
+    column((0, 0, 0), 0.15, 5.0)
+    footprint(0.8, 1.6)
+    export(name)
+
+
+def tarp_shelter(name, seed):
+    """A tarp lean-to on poles over a bench and crates, 4 x 3, 2.4 high at
+    the front, 1.4 at the back. Crouch under it, or climb its roof."""
+    begin(name)
+    rng = random.Random(seed)
+    wood = new_bm()
+    for x in (-1.9, 1.9):
+        tbox(wood, (x, -1.4, 1.2), (0.12, 0.12, 2.4))
+        tbox(wood, (x, 1.4, 0.7), (0.12, 0.12, 1.4))
+    tbox(wood, (0, 0.6, 0.45), (2.6, 0.5, 0.1))
+    for x in (-1.0, 1.0):
+        tbox(wood, (x, 0.6, 0.2), (0.1, 0.4, 0.4))
+    part(wood, "poles", "wood")
+    tarp = new_bm()
+    ang = math.degrees(math.atan2(1.0, 2.8))
+    tbox(tarp, (0, 0, 1.95), (4.4, math.hypot(2.8, 1.0) + 0.3, 0.05), tilt=-ang)
+    for k in range(3):
+        tbox(tarp, (rng.uniform(-1.5, 1.5), -1.55, 2.3 - rng.uniform(0, 0.3)), (0.5, 0.05, 0.4))
+    part(tarp, "tarp", "canvas")
+    for x in (-1.9, 1.9):
+        column((x, -1.4, 0), 0.1, 2.4)
+        column((x, 1.4, 0), 0.1, 1.4)
+    solid((0, 0, 1.95), (4.4, math.hypot(2.8, 1.0) + 0.3, 0.1), tilt=-ang)
+    crates = new_bm()
+    tbox(crates, (1.2, 1.0, 0.35), (0.9, 0.6, 0.7))
+    part(crates, "crates", "wood")
+    footprint(4.6, 3.4)
+    export(name)
+
+
+def field_table(name, seed):
+    """A folding table with a map and a radio, two stools: someone's post."""
+    begin(name)
+    rng = random.Random(seed)
+    wood = new_bm()
+    tbox(wood, (0, 0, 0.78), (1.8, 0.9, 0.06))
+    for sx in (-0.8, 0.8):
+        for sy in (-0.38, 0.38):
+            tbox(wood, (sx, sy, 0.38), (0.05, 0.05, 0.76))
+    for x in (-0.5, 0.6):
+        tbox(wood, (x, -0.8, 0.25), (0.4, 0.4, 0.5))
+    part(wood, "table", "wood")
+    paper = new_bm()
+    tbox(paper, (-0.3, 0.05, 0.82), (0.8, 0.55, 0.01), yaw=rng.uniform(-10, 10))
+    part(paper, "map", "canvas")
+    radio = new_bm()
+    tbox(radio, (0.55, 0.1, 0.95), (0.4, 0.3, 0.3))
+    cyl(radio, (0.65, 0.15, 1.1), (0.7, 0.2, 1.7), 0.01, sides=3)
+    part(radio, "radio", "gunmetal")
+    lit = new_bm()
+    tbox(lit, (0.55, -0.06, 1.0), (0.2, 0.01, 0.08))
+    part(lit, "dial", "light")
+    solid((0, 0, 0.4), (1.8, 0.9, 0.8))
+    footprint(2.0, 2.0)
+    export(name)
+
+
+# --- props of one biome each --------------------------------------------------
+
+def lumber_stack(name, seed):
+    """Forest: sawn planks stacked on bunks with stickers between, 4 x 1.4 x 1.3."""
+    begin(name)
+    rng = random.Random(seed)
+    wood = new_bm()
+    for x in (-1.5, 0.0, 1.5):
+        tbox(wood, (x, 0, 0.1), (0.2, 1.4, 0.2))
+    for layer in range(5):
+        z = 0.28 + layer * 0.22
+        for k in range(5):
+            tbox(wood, (rng.uniform(-0.1, 0.1), -0.56 + k * 0.28, z), (4.0 - rng.uniform(0, 0.4), 0.25, 0.12))
+        for x in (-1.5, 0.0, 1.5):
+            tbox(wood, (x, 0, z + 0.09), (0.05, 1.4, 0.05))
+    solid((0, 0, 0.65), (4.0, 1.4, 1.3))
+    part(wood, "planks", "timber")
+    straps = new_bm()
+    for x in (-1.0, 1.0):
+        tbox(straps, (x, 0, 0.7), (0.05, 1.45, 1.35))
+    part(straps, "straps", "anchor")
+    footprint(4.2, 1.6)
+    export(name)
+
+
+def woodpile(name, seed):
+    """Forest: split firewood heaped against a chopping stump with an axe in it."""
+    begin(name)
+    rng = random.Random(seed)
+    wood = new_bm()
+    for k in range(26):
+        x = rng.uniform(-1.0, 1.0)
+        y = rng.uniform(-0.4, 0.4)
+        z = 0.12 + (1.0 - abs(x)) * rng.uniform(0.0, 0.7)
+        a = rng.uniform(-0.3, 0.3)
+        tapered_tube(wood, [(x, y - 0.35, z), (x + a, y + 0.35, z)], [0.1, 0.1], sides=4)
+    tapered_tube(wood, [(1.6, 0, 0), (1.6, 0, 0.6)], [0.35, 0.33], sides=8)
+    part(wood, "logs", "bark")
+    steel = new_bm()
+    tbox(steel, (1.6, 0, 0.75), (0.05, 0.25, 0.15), tilt=30)
+    cyl(steel, (1.6, 0.05, 0.7), (1.6, 0.6, 1.1), 0.03, sides=4)
+    part(steel, "axe", "gunmetal")
+    solid((0.2, 0, 0.45), (2.4, 1.0, 0.9))
+    footprint(3.0, 1.4)
+    export(name)
+
+
+def rowboat(name, seed):
+    """Marsh: a flat-bottomed rowboat pulled up and tipped on its side, 4 m."""
+    begin(name)
+    rng = random.Random(seed)
+    wood = new_bm()
+    pts = [(-2.0, 0, 0.5), (-1.0, 0, 0.45), (1.0, 0, 0.45), (2.0, 0, 0.6)]
+    for s in (-1, 1):
+        for k in range(len(pts) - 1):
+            a, b = pts[k], pts[k + 1]
+            wa = 0.15 if k == 0 else 0.7
+            wb = 0.7 if k < len(pts) - 2 else 0.25
+            FP["face2"](wood, [(a[0], s * wa, 0.1), (b[0], s * wb, 0.1), (b[0], s * wb, 0.75), (a[0], s * wa, 0.75)])
+    tbox(wood, (0, 0, 0.1), (3.6, 1.2, 0.08))
+    for x in (-0.6, 0.6):
+        tbox(wood, (x, 0, 0.5), (0.3, 1.3, 0.06))
+    bmesh.ops.rotate(wood, verts=list(wood.verts), cent=Vector((0, 0, 0)), matrix=Matrix.Rotation(math.radians(70), 3, "X"))
+    bmesh.ops.translate(wood, vec=Vector((0, 0, 0.5)), verts=list(wood.verts))
+    part(wood, "hull", "wood")
+    oar = new_bm()
+    tbox(oar, (0.3, -1.0, 0.08), (2.4, 0.08, 0.05), yaw=rng.uniform(-20, 20))
+    part(oar, "oar", "timber")
+    solid((0, 0, 0.6), (4.0, 0.9, 1.2))
+    footprint(4.2, 2.0)
+    export(name)
+
+
+def net_rack(name, seed):
+    """Marsh: poles with fishing nets hung to dry, 4 m long, 2.2 high."""
+    begin(name)
+    rng = random.Random(seed)
+    wood = new_bm()
+    for x in (-2.0, 0.0, 2.0):
+        tbox(wood, (x, 0, 1.1), (0.12, 0.12, 2.2))
+    tbox(wood, (0, 0, 2.15), (4.3, 0.1, 0.1))
+    part(wood, "poles", "wood")
+    net = new_bm()
+    for k in range(4):
+        x0 = -2.0 + k
+        FP["face2"](net, [(x0, 0, 2.1), (x0 + 1.0, 0, 2.1), (x0 + 1.0, rng.uniform(-0.1, 0.1), rng.uniform(0.6, 1.0)), (x0, rng.uniform(-0.1, 0.1), rng.uniform(0.5, 0.9))])
+    part(net, "net", "rope")
+    floats = new_bm()
+    for k in range(6):
+        blob(floats, (-1.8 + k * 0.7, 0, 2.0), (0.1, 0.1, 0.1), rng, subdiv=1, wobble=0.0, seed=k)
+    part(floats, "floats", "anchor")
+    for x in (-2.0, 0.0, 2.0):
+        column((x, 0, 0), 0.1, 2.2)
+    footprint(4.4, 1.0)
+    export(name)
+
+
+def buoy(name, seed):
+    """Marsh: a channel buoy washed up, rusty, on its side, 1.4 across."""
+    begin(name)
+    rng = random.Random(seed)
+    steel = new_bm()
+    tapered_tube(steel, [(-0.9, 0, 0.6), (-0.3, 0, 0.7), (0.5, 0, 0.7), (1.1, 0, 0.5)], [0.4, 0.7, 0.7, 0.2], sides=10)
+    part(steel, "body", "anchor")
+    band = new_bm()
+    tapered_tube(band, [(0.0, 0, 0.7), (0.3, 0, 0.7)], [0.72, 0.72], sides=10)
+    tbox(band, (1.3, 0, 0.5), (0.5, 0.08, 0.08))
+    part(band, "band", "concrete")
+    solid((0, 0, 0.6), (2.0, 1.3, 1.2))
+    footprint(2.4, 1.6)
+    export(name)
+
+
+def rib_arch(name, seed):
+    """Boneyard: a titan's ribcage plate arching out of the ground, 7 m across
+    and 5 m high: walk under it, run along its flank."""
+    begin(name)
+    rng = random.Random(seed)
+    hull = new_bm()
+    n = 10
+    for k in range(n):
+        a0 = math.pi * k / n
+        a1 = math.pi * (k + 1) / n
+        p0 = Vector((math.cos(a0) * 3.5, 0, math.sin(a0) * 5.0))
+        p1 = Vector((math.cos(a1) * 3.5, 0, math.sin(a1) * 5.0))
+        tapered_tube(hull, [p0, p1], [0.45 - 0.1 * math.sin(a0), 0.45 - 0.1 * math.sin(a1)], sides=6)
+    for s in (-1, 1):
+        blob(hull, (s * 3.5, 0, 0.3), (0.9, 0.9, 0.5), rng, subdiv=1, wobble=0.2, seed=s + 5)
+    part(hull, "rib", "titan_armor")
+    plates = new_bm()
+    for k in range(3):
+        a = math.pi * (0.2 + 0.3 * k)
+        tbox(plates, (math.cos(a) * 3.3, 0.35, math.sin(a) * 4.7), (1.2, 0.15, 0.8), yaw=0, tilt=0)
+    part(plates, "plates", "gunmetal")
+    for s in (-1, 1):
+        solid((s * 3.2, 0, 1.6), (1.0, 0.9, 3.2))
+    solid((0, 0, 4.8), (3.6, 0.9, 0.8))
+    footprint(8.2, 2.0)
+    export(name)
+
+
+def hull_plate(name, seed):
+    """Boneyard: a sheet of titan hull armour driven edge-down into the ground,
+    5 m long and 3.5 high, leaning a little: cover, or a short wall to run."""
+    begin(name)
+    rng = random.Random(seed)
+    hull = new_bm()
+    sbox(hull, (0, 0.25, 1.7), (5.0, 0.35, 3.6), tilt=8)
+    for k in range(6):
+        tbox(hull, (rng.uniform(-2.2, 2.2), 0.05, rng.uniform(0.6, 3.0)), (0.12, 0.1, 0.12), tilt=8)
+    part(hull, "plate", "titan_armor")
+    paint = new_bm()
+    tbox(paint, (-0.8, 0.02, 2.4), (1.6, 0.03, 0.5), tilt=8)
+    part(paint, "marking", "anchor")
+    footprint(5.4, 1.8)
+    export(name)
+
+
+def engine_block(name, seed):
+    """Boneyard: a titan's reactor housing torn out and dumped, 3 x 2.2 x 2.4,
+    cables spilling out of it."""
+    begin(name)
+    rng = random.Random(seed)
+    steel = new_bm()
+    sbox(steel, (0, 0, 1.0), (3.0, 2.2, 2.0), bevel=0.15)
+    tapered_tube(steel, [(0, 0, 2.0), (0, 0, 2.5)], [0.8, 0.6], sides=8)
+    for x in (-1.0, 0.0, 1.0):
+        tbox(steel, (x, -1.12, 1.2), (0.6, 0.06, 1.4))
+    part(steel, "housing", "titan_armor")
+    cable = new_bm()
+    for k in range(4):
+        p0 = Vector((rng.uniform(-1.2, 1.2), 1.1, rng.uniform(0.6, 1.6)))
+        p1 = p0 + Vector((rng.uniform(-0.6, 0.6), rng.uniform(0.6, 1.4), -p0.z + 0.08))
+        tapered_tube(cable, [p0, (p0 + p1) * 0.5 + Vector((0, 0, 0.2)), p1], [0.08, 0.08, 0.08], sides=4)
+    part(cable, "cables", "shadow")
+    glow = new_bm()
+    tbox(glow, (0, -1.16, 1.6), (0.8, 0.03, 0.3))
+    part(glow, "core", "light")
+    footprint(3.4, 3.6)
+    export(name)
+
+
+# --- walls to run ------------------------------------------------------------
+
+def panel_wall(name, length, seed):
+    """Plywood hoarding on posts, painted over with militia slogans: `length`
+    along X, 4.4 high. Blue trim along the top and bottom."""
+    begin(name)
+    rng = random.Random(seed)
+    wood = new_bm()
+    sbox(wood, (0, 0, 2.4), (length, 0.3, 4.0))
+    n = int(length / 1.2)
+    for k in range(n):
+        x = -length * 0.5 + (k + 0.5) * length / n
+        tbox(wood, (x, -0.16, 2.4 + rng.uniform(-0.05, 0.05)), (length / n - 0.04, 0.03, 3.9))
+    part(wood, "boards", "wood")
+    posts = new_bm()
+    for x in [(-length * 0.5 + 0.3) + k * (length - 0.6) / 4 for k in range(5)]:
+        tbox(posts, (x, 0.25, 2.2), (0.2, 0.2, 4.4))
+        column((x, 0.25, 0), 0.15, 0.4)
+    part(posts, "posts", "timber")
+    trim = new_bm()
+    for s in (-1, 1):
+        for z in (0.55, 4.25):
+            tbox(trim, (0, s * 0.17, z), (length, 0.03, 0.2))
+    part(trim, "trim", "wallrun")
+    paint = new_bm()
+    for k in range(3):
+        tbox(paint, (rng.uniform(-length * 0.35, length * 0.35), -0.18, rng.uniform(1.4, 3.4)), (rng.uniform(1.2, 2.4), 0.02, rng.uniform(0.3, 0.6)), yaw=0)
+    part(paint, "paint", "anchor")
+    footprint(length + 0.4, 1.4)
+    export(name)
+
+
+def container_wall(name, seed):
+    """Two shipping containers end to end with a third stacked across the
+    joint: a 12 m wall, 5.2 high in the middle. Blue chevrons along its side."""
+    begin(name)
+    rng = random.Random(seed)
+    steel = new_bm()
+    for x in (-3.05, 3.05):
+        sbox(steel, (x, 0, 1.3), (6.0, 2.4, 2.6))
+        for k in range(12):
+            tbox(steel, (x - 2.75 + k * 0.5, -1.22, 1.3), (0.15, 0.05, 2.5))
+    sbox(steel, (0, 0.05, 3.9), (6.0, 2.4, 2.6))
+    for k in range(12):
+        tbox(steel, (-2.75 + k * 0.5, -1.17, 3.9), (0.15, 0.05, 2.5))
+    part(steel, "containers", "gunmetal")
+    trim = new_bm()
+    for x in (-3.05, 3.05):
+        tbox(trim, (x, -1.26, 2.3), (5.6, 0.02, 0.25))
+    tbox(trim, (0, -1.21, 4.9), (5.6, 0.02, 0.25))
+    part(trim, "chevrons", "wallrun")
+    doors = new_bm()
+    for x in (-6.07, 6.07):
+        tbox(doors, (x, 0, 1.3), (0.05, 2.2, 2.4))
+    part(doors, "doors", "shadow")
+    top((0, 0.05, 5.2))
+    footprint(12.4, 2.8)
+    export(name)
+
+
+def hull_wall(name, seed):
+    """Titan hull plates riveted to a girder frame: a 12 m wall, 5 high."""
+    begin(name)
+    rng = random.Random(seed)
+    hull = new_bm()
+    sbox(hull, (0, 0, 2.7), (12.0, 0.4, 4.6))
+    for k in range(5):
+        x = -4.8 + k * 2.4
+        tbox(hull, (x, -0.24, 2.7 + rng.uniform(-0.2, 0.2)), (2.3, 0.08, 4.4 + rng.uniform(-0.3, 0.3)), yaw=rng.uniform(-2, 2))
+    part(hull, "plates", "titan_armor")
+    frame = new_bm()
+    for x in (-5.8, -2.9, 0.0, 2.9, 5.8):
+        tbox(frame, (x, 0.35, 2.5), (0.3, 0.3, 5.0))
+        cyl(frame, (x, 1.8, 0.0), (x, 0.4, 3.5), 0.08, sides=4)
+        column((x, 0.35, 0), 0.2, 0.4)
+    part(frame, "girders", "gunmetal")
+    trim = new_bm()
+    tbox(trim, (0, -0.29, 0.6), (12.0, 0.02, 0.25))
+    tbox(trim, (0, -0.29, 4.8), (12.0, 0.02, 0.25))
+    part(trim, "trim", "wallrun")
+    footprint(12.4, 2.4)
+    export(name)
+
+
+# --- climbs and roosts ---------------------------------------------------------
+
+def corner_kick(name, height):
+    """Two concrete walls `height` high meeting in a corner, 7 m each, and a
+    deck behind the corner flush with their tops, railed on the far side. Run
+    the inside of one wall into the corner, kick off it, and double jump over
+    the end wall (or wallrun it and kick back off it) onto the deck. (A deck inside the corner sits in the way of
+    the run.)"""
+    begin(name)
+    con = new_bm()
+    # Wall A along Y on the +X side (run it toward +Y); wall B along X at +Y.
+    sbox(con, (3.3, 0, height * 0.5), (0.6, 7.0, height), bevel=0.04)
+    sbox(con, (0, 3.3, height * 0.5), (7.0, 0.6, height), bevel=0.04)
+    part(con, "walls", "concrete")
+    deck = new_bm()
+    sbox(deck, (0.15, 5.1, height - 0.15), (7.3, 3.0, 0.3))
+    for x in (-3.3, 3.5):
+        tbox(deck, (x, 6.5, height * 0.5), (0.2, 0.2, height))
+        column((x, 6.5, 0), 0.12, height)
+    part(deck, "deck", "gunmetal")
+    rail = new_bm()
+    sbox(rail, (0.15, 6.55, height + 0.55), (7.3, 0.1, 1.1))
+    for x in (-3.45, 3.75):
+        sbox(rail, (x, 5.1, height + 0.55), (0.1, 3.0, 1.1))
+    part(rail, "rail", "gunmetal")
+    blue = new_bm()
+    z = 1.0
+    while z < height - 0.3:
+        tbox(blue, (2.99, -0.5, z), (0.02, 6.0, 0.25))
+        tbox(blue, (-0.5, 2.99, z), (6.0, 0.02, 0.25))
+        z += 1.1
+    part(blue, "chevrons", "wallrun")
+    orange = new_bm()
+    tbox(orange, (0, 2.99, height - 0.12), (7.0, 0.02, 0.24))
+    part(orange, "edge", "anchor")
+    top((0.15, 5.1, height))
+    footprint(7.6, 14.0)
+    export(name)
+
+
+def pillar_ledge(name, height):
+    """A concrete block `height` high, 6 W x 3 D, with a squat pillar half its
+    height built against its face: hop the pillar, then onto the block."""
+    begin(name)
+    con = new_bm()
+    sbox(con, (0, 1.5, height * 0.5), (6.0, 3.0, height), bevel=0.05)
+    pillar_h = height * 0.5
+    sbox(con, (0, -0.9, pillar_h * 0.5), (2.0, 1.8, pillar_h), bevel=0.05)
+    part(con, "block", "concrete")
+    steel = new_bm()
+    for s in (-1, 1):
+        tbox(steel, (s * 2.9, 1.5, height + 0.5), (0.08, 2.8, 0.08))
+        tbox(steel, (s * 2.9, 0.2, height + 0.25), (0.08, 0.08, 0.5))
+        tbox(steel, (s * 2.9, 2.8, height + 0.25), (0.08, 0.08, 0.5))
+    part(steel, "rail", "gunmetal")
+    orange = new_bm()
+    tbox(orange, (0, -0.01, height - 0.15), (6.0, 0.02, 0.3))
+    tbox(orange, (0, -1.81, pillar_h - 0.12), (2.0, 0.02, 0.24))
+    part(orange, "edges", "anchor")
+    top((0, 1.5, height))
+    footprint(6.4, 6.2)
+    export(name)
+
+
+def scaffold_roost(name):
+    """A tall scaffold tower, 3 x 3, a plank deck at 7 m with a hook hung
+    3.2 m over it on a gallows arm: grapple up and land on the deck."""
+    begin(name)
+    pipe = new_bm()
+    for x in (-1.5, 1.5):
+        for y in (-1.5, 1.5):
+            tbox(pipe, (x, y, 5.0), (0.1, 0.1, 10.0))
+            column((x, y, 0), 0.08, 7.0)
+    for z in (1.5, 3.0, 4.5, 6.0, 7.9):
+        for s in (-1, 1):
+            tbox(pipe, (0, s * 1.5, z), (3.0, 0.08, 0.08))
+            tbox(pipe, (s * 1.5, 0, z), (0.08, 3.0, 0.08))
+    for s in (-1, 1):
+        cyl(pipe, (s * 1.5, -1.5, 0.1), (s * 1.5, 1.5, 3.0), 0.04, sides=4)
+        cyl(pipe, (s * 1.5, 1.5, 3.1), (s * 1.5, -1.5, 6.9), 0.04, sides=4)
+    tbox(pipe, (1.5, 1.5, 10.2), (0.12, 0.12, 0.5))
+    tbox(pipe, (0.4, 0.4, 10.4), (2.6, 0.12, 0.12), yaw=45)
+    part(pipe, "pipes", "gunmetal")
+    wood = new_bm()
+    sbox(wood, (0, 0, 6.9), (3.2, 3.2, 0.2))
+    part(wood, "deck", "wood")
+    tarp = new_bm()
+    tbox(tarp, (0, 1.55, 7.6), (3.0, 0.04, 1.2))
+    tbox(tarp, (-1.55, 0, 7.6), (0.04, 3.0, 1.2))
+    part(tarp, "screens", "canvas")
+    orange = new_bm()
+    metal = new_bm()
+    cyl(metal, (-0.4, -0.4, 10.4), (-0.4, -0.4, 10.0), 0.02, sides=3)
+    hook_block(metal, orange, (-0.4, -0.4, 10.2), 0.9)
+    part(orange, "hook", "anchor")
+    part(metal, "eye", "gunmetal")
+    top((0, 0, 7.0))
+    footprint(3.6, 3.6)
+    export(name)
+
+
+def hook_pole(name):
+    """A steel pole 9 m tall planted just behind a wall, a hook block on top:
+    grapple it from outside and swing over."""
+    begin(name)
+    steel = new_bm()
+    tapered_tube(steel, [(0, 0, 0), (0, 0, 8.4)], [0.22, 0.16], sides=6)
+    tbox(steel, (0, 0, 0.3), (0.8, 0.8, 0.6))
+    column((0, 0, 0), 0.22, 8.4)
+    part(steel, "pole", "gunmetal")
+    orange = new_bm()
+    metal = new_bm()
+    hook_block(metal, orange, (0, 0, 9.0), 1.2)
+    part(orange, "hook", "anchor")
+    part(metal, "eye", "gunmetal")
+    footprint(1.2, 1.2)
+    export(name)
+
+
+def shield_towers(name, span, drop):
+    """For a chasm: two lattice towers standing in the river `span` apart
+    along Y, a blast shield hung between them on chains, its face from 0.5 to
+    6 m above the lip (origin) for wallrunning across. The towers reach `drop`
+    m down to the riverbed."""
+    begin(name)
+    half = span * 0.5
+    steel = new_bm()
+    for y in (-half - 1.2, half + 1.2):
+        for sx in (-0.7, 0.7):
+            for sy in (-0.7, 0.7):
+                tbox(steel, (sx, y + sy, (10.0 - drop) * 0.5), (0.14, 0.14, 10.0 + drop))
+        for k in range(int((10 + drop) / 2.5)):
+            z = -drop + k * 2.5
+            cyl(steel, (-0.7, y - 0.7, z), (0.7, y + 0.7, z + 2.5), 0.04, sides=3)
+            cyl(steel, (0.7, y - 0.7, z), (-0.7, y + 0.7, z + 2.5), 0.04, sides=3)
+        solid((0, y, (10.0 - drop) * 0.5), (1.5, 1.5, 10.0 + drop))
+    tbox(steel, (0, 0, 9.8), (0.4, span + 3.8, 0.4))
+    for y in (-half + 1.0, -half * 0.3, half * 0.3, half - 1.0):
+        cyl(steel, (0, y, 9.6), (0, y, 6.1), 0.03, sides=3)
+    part(steel, "towers", "gunmetal")
+    shield = new_bm()
+    sbox(shield, (0, 0, 3.25), (1.0, span, 5.5))
+    part(shield, "shield", "concrete")
+    blue = new_bm()
+    for s in (-1, 1):
+        for z in (1.0, 5.5):
+            tbox(blue, (s * 0.51, 0, z), (0.02, span - 0.4, 0.3))
+    part(blue, "trim", "wallrun")
+    lit = new_bm()
+    for y in (-half - 1.2, half + 1.2):
+        tbox(lit, (0, y, 10.2), (0.3, 0.3, 0.3))
+    part(lit, "beacons", "light")
+    footprint(2.0, span + 4.0)
+    export(name)
+
+
+def round2():
+    cabin("cabin", 501)
+    quonset("quonset", 10.0)
+    radio_hut("radio_hut")
+    blockhouse_low("blockhouse_low")
+    ammo_crates("ammo_crates", 503)
+    comms_dish("comms_dish")
+    lamp_post("lamp_post")
+    tarp_shelter("tarp_shelter", 507)
+    field_table("field_table", 509)
+    lumber_stack("lumber_stack", 511)
+    woodpile("woodpile", 513)
+    rowboat("rowboat", 517)
+    net_rack("net_rack", 519)
+    buoy("buoy", 521)
+    rib_arch("rib_arch", 523)
+    hull_plate("hull_plate", 527)
+    engine_block("engine_block", 529)
+    panel_wall("panel_wall", 12.0, 531)
+    container_wall("container_wall", 533)
+    hull_wall("hull_wall", 537)
+    corner_kick("corner_kick", 3.2)
+    pillar_ledge("pillar_ledge", 4.0)
+    scaffold_roost("scaffold_roost")
+    hook_pole("hook_pole")
+    shield_towers("shield_towers", 16.0, 16.0)
+
+
 def write_shapes():
     def v3(v):
         return "Vector3(%.3f, %.3f, %.3f)" % tuple(round(c, 3) + 0.0 for c in v)
@@ -994,6 +1713,7 @@ def main():
     supply_pod("supply_pod")
     warning_sign("warning_sign")
     sandbag_nest("sandbag_nest", 457)
+    round2()
     write_shapes()
 
 

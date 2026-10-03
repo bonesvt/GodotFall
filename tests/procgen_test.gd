@@ -23,6 +23,7 @@ const ROOF_RISE := 1.6
 var failures := 0
 ## Every set piece id the built zones used, to check they vary.
 var kinds_seen := {}
+var kits_seen := {}
 
 
 func _initialize() -> void:
@@ -35,7 +36,8 @@ func _run() -> void:
 	for spec in [[11, 3, "forest"], [12, 4, "marsh"], [13, 5, "boneyard"], [14, 5, "forest"], [15, 3, "marsh"], [16, 4, "boneyard"]]:
 		await _zone_checks(spec[0], spec[1], spec[2])
 	_check("the built zones use %d of the %d set pieces" % [kinds_seen.size(), SetPieces.Shapes.SHAPES.size()],
-			kinds_seen.size() >= 20, kinds_seen.keys())
+			kinds_seen.size() >= 36, kinds_seen.keys())
+	_check("each zone draws its own mix of pieces (%d different kits in %d zones)" % [kits_seen.size(), 6], kits_seen.size() >= 5, kits_seen.keys())
 	await _run_checks()
 	print("procgen test: %s (%d failures)" % ["PASS" if failures == 0 else "FAIL", failures])
 	quit(1 if failures > 0 else 0)
@@ -180,6 +182,7 @@ func _zone_checks(seed_value: int, lanes: int, biome: String) -> void:
 	for p in info["set_pieces"]:
 		ids[p["id"]] = true
 		kinds_seen[p["id"]] = true
+	kits_seen[str(info["kit"])] = true
 	bad = []
 	for hook in info["grapple_spots"]:
 		var seen := false

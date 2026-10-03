@@ -29,6 +29,9 @@ func _run() -> void:
 	await _kick_slot()
 	await _billboard()
 	await _grapple_mast()
+	await _corner_kick()
+	await _pillar_ledge()
+	await _roost()
 	print("RESULT: %s (%d failures)" % ["PASS" if failures == 0 else "FAIL", failures])
 	quit(failures)
 
@@ -130,6 +133,86 @@ func _grapple_mast() -> void:
 		closest = minf(closest, (player.global_position + Vector3.UP).distance_to(hook))
 	Input.action_release("grapple")
 	_check("grapple mast: hook caught and pulled in (%.1f m)" % closest, hooked and closest < 4.0, player.grapple_point)
+
+
+## Wallrun the corner's inside wall into the corner, kick off it, and double
+## jump over onto the deck in the corner.
+func _corner_kick() -> void:
+	var at := Vector3(0, 0, 60)
+	SetPieces.place(world, "corner_kick", at, 0.0)
+	var top: Vector3 = at + Shapes.SHAPES["corner_kick"]["tops"][0]
+	_place(at + Vector3(2.4, 0.1, 11.0), 0.0)
+	var r := await _climb(top, 3.0)
+	_check("corner kick: wallrun, kick, onto the deck at %.1f m (best %.1f)" % [top.y, r[1]], r[0], player.global_position)
+
+
+## Hop onto the squat pillar, then from it up onto the block.
+func _pillar_ledge() -> void:
+	var at := Vector3(30, 0, 60)
+	SetPieces.place(world, "pillar_ledge", at, 0.0)
+	var top: Vector3 = at + Shapes.SHAPES["pillar_ledge"]["tops"][0]
+	_place(at + Vector3(0, 0.1, 9.0), 0.0)
+	var r := await _climb(top, 0.0)
+	_check("pillar ledge: pillar, then onto the block at %.1f m (best %.1f)" % [top.y, r[1]], r[0], player.global_position)
+
+
+## Hold forward and jump at every chance: off the floor once moving (and off
+## anything stood on below the top), wall jumps, and the double jump on the
+## way down. Returns [stood on top, best height].
+func _climb(top: Vector3, side_push: float) -> Array:
+	Input.action_press("move_forward")
+	await _ticks(25)
+	var best := 0.0
+	var start_y: float = player.global_position.y
+	for i in 300:
+		await physics_frame
+		var s: String = player.state_name()
+		var y: float = player.global_position.y
+		if OS.has_environment("DBG") and i % 6 == 0:
+			print(i, " ", s, " ", player.global_position, " ", player.velocity, " wall=", player.is_on_wall())
+		best = maxf(best, y)
+		if player.is_on_floor() and y > top.y - 0.3:
+			break
+		if player.is_on_floor():
+			if player.global_position.z - top.z < 6.0 or y > start_y + 0.5:
+				await _press("jump")
+				if side_push != 0.0:
+					player.velocity.x = side_push
+		elif s == "WALLRUN" and player.wallrun_timer > 0.12:
+			await _press("jump")
+		elif s == "AIR" and player.velocity.y < -0.5 and player.air_jumps_left > 0:
+			await _press("jump")
+		if y < start_y - 0.5 and i > 30:
+			break
+	Input.action_release("move_forward")
+	var ok: bool = player.is_on_floor() and player.global_position.y > top.y - 0.3
+	return [ok, best]
+
+
+## Grapple the roost's hook from the ground and drop onto its deck.
+func _roost() -> void:
+	var at := Vector3(60, 0, 60)
+	var placed := SetPieces.place(world, "scaffold_roost", at, 0.0)
+	var hook: Vector3 = placed["hooks"][0]
+	var top: Vector3 = placed["tops"][0]
+	_place(at + Vector3(0, 0.1, 14.0), 0.0)
+	await _ticks(10)
+	var to: Vector3 = hook - player.camera.global_position
+	player.get_node("Head").rotation.x = atan2(to.y, Vector2(to.x, to.z).length())
+	Input.action_press("grapple")
+	var landed := false
+	for i in 240:
+		await physics_frame
+		if OS.has_environment("DBG") and i % 6 == 0:
+			print(i, " ", player.state_name(), " ", player.global_position, " ", player.velocity)
+		var p: Vector3 = player.global_position
+		if Input.is_action_pressed("grapple") and absf(p.z - top.z) < 1.0 and p.y > top.y:
+			Input.action_release("grapple")
+		if player.is_on_floor() and p.y > top.y - 0.3:
+			landed = true
+			break
+	Input.action_release("grapple")
+	_check("scaffold roost: grapple the hook and land on the deck at %.1f m" % top.y, landed, player.global_position)
 
 
 func _place(pos: Vector3, yaw: float) -> void:

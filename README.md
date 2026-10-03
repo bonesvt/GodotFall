@@ -334,6 +334,17 @@ res://tools/zones/shots.gd -- /some/dir [2|3]` saves screenshots and route maps 
   masts (13 and 9 m) and a hook bracket. Props: jersey barriers, tank traps, tyres, cable
   reels, burnt-out jeeps, fire barrels, concrete pipes, supply pods, warning signs and a
   sandbag MG nest. Blue trim means run or kick off it; an orange block is a grapple hook.
+  Round two adds a cabin, quonset hut, radio hut (hook up its mast) and low blockhouse;
+  plywood, container and titan-hull walls (12 m) to wallrun; a corner kick (wallrun into a
+  corner, kick and double jump over onto a deck), a pillar ledge (hop a pillar onto a
+  block), a scaffold roost (grapple up onto a deck 7 m up), a hook pole planted behind a
+  wall, and a chasm's blast shield hung between lattice towers; and props: ammo crates,
+  comms dish, lamp post, tarp shelter, field table, plus the biome's own (lumber and
+  woodpiles in the forest; rowboats, net racks and buoys in the marsh; titan ribs, hull
+  plates and engine blocks in the Boneyard). Each zone draws its own mix (`biome.gd`
+  `kit()`): 7-9 props, three kinds of building, two kinds of wall, two climbs, a pier or
+  towers over the chasm, a hook bracket or pole on the wall. A supply crate waits on top of
+  every climb, roost and water tower.
   Yards pick their barracks (hut, bunker, blockhouse, garage), centrepiece (the biome's own
   or the warehouse) and landmark (fuel tank, silo, water tower, crane); a rooftop run is
   huts, scaffolds or bunkers; a chasm's grapple is the crane pylon or a tower crane; walls
@@ -360,7 +371,8 @@ res://tools/zones/shots.gd -- /some/dir [2|3]` saves screenshots and route maps 
   that grunts and caches stand on something, that the patrols can walk their loops on the
   navmesh, that loot settles, that every grapple hook can be reached from a lane, and that a
   long run reaches the uncharted zones. `tests/set_pieces_test.gd` loads every set piece and
-  has the real player controller kick up a kick slot, run a billboard and grapple a mast.
+  has the real player controller kick up a kick slot, run a billboard, grapple a mast, climb
+  a corner kick and a pillar ledge, and grapple up onto a scaffold roost.
 
 ## Art: PS3 look (with the old PS2 look on F9)
 Everything is stylized in the spirit of Jak and Daxter and Shadow of the Colossus,

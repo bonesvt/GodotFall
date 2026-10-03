@@ -11,11 +11,23 @@ extends RefCounted
 ##     hook_bracket
 ##   props: jersey_barrier, tank_trap, tire_stack, cable_reel, jeep,
 ##     fire_barrel, pipe_stack, supply_pod, warning_sign, sandbag_nest
+##   round two (the PC version's ideas, rebuilt in Blender):
+##     buildings: cabin, quonset, radio_hut (hook on its mast), blockhouse_low
+##     walls: panel_wall, container_wall, hull_wall (12 m, wallrun)
+##     climbs: corner_kick (wallrun into a corner, kick, over onto a deck),
+##       pillar_ledge (hop a pillar onto a block), scaffold_roost (grapple up
+##       onto a deck 7 m up), hook_pole (behind a wall), shield_towers (a
+##       chasm's blast shield hung between lattice towers)
+##     props: ammo_crates, comms_dish, lamp_post, tarp_shelter, field_table,
+##       and each biome's own: lumber_stack, woodpile (forest); rowboat,
+##       net_rack, buoy (marsh); rib_arch, hull_plate, engine_block (boneyard)
 ##
 ## place() notes what it put down in the zone's info, when given one:
 ##   info["set_pieces"]: [{id, pos, yaw}]
 ##   info["grapple_spots"]: every hook's world position (orange blocks)
 ##   info["wallruns"]: [{id, from, to, height}] walls made to run along
+##   info["reward_spots"]: the tops of climbs and towers, where a supply crate
+##     waits for whoever gets up there
 
 const F := preload("res://scripts/run/forest_kit.gd")
 const Z := preload("res://scripts/run/zone_kit.gd")
@@ -39,7 +51,14 @@ const RUNS := {
 	"lean_slab": [Vector3(-4.0, 0, 0), Vector3(4.0, 0, 0), 4.9],
 	"kick_slot": [Vector3(0, 0, 6.0), Vector3(0, 0, -6.0), 4.6],
 	"ruin_house": [Vector3(4.0, 0, 3.0), Vector3(4.0, 0, -3.0), 6.0],
+	"panel_wall": [Vector3(-6.0, 0, 0), Vector3(6.0, 0, 0), 4.4],
+	"container_wall": [Vector3(-6.0, 0, 0), Vector3(6.0, 0, 0), 5.2],
+	"hull_wall": [Vector3(-6.0, 0, 0), Vector3(6.0, 0, 0), 5.0],
+	"corner_kick": [Vector3(3.0, 0, 3.5), Vector3(3.0, 0, -3.0), 3.2],
+	"shield_towers": [Vector3(0, 0, 8.0), Vector3(0, 0, -8.0), 6.0],
 }
+## Pieces with a supply crate waiting on top.
+const REWARDS := ["kick_slot", "corner_kick", "pillar_ledge", "scaffold_roost", "water_tower"]
 
 static var _scenes := {}
 
@@ -91,6 +110,10 @@ static func place(root: Node3D, id: String, pos: Vector3, yaw := 0.0, info = nul
 			info["grapple_spots"] = []
 			info["wallruns"] = []
 		info["set_pieces"].append({"id": id, "pos": pos, "yaw": yaw})
+		if id in REWARDS and not tops.is_empty():
+			if not info.has("reward_spots"):
+				info["reward_spots"] = []
+			info["reward_spots"].append((tops[0] as Vector3) + Vector3(0, 0.2, 0))
 		info["grapple_spots"].append_array(hooks)
 		if RUNS.has(id):
 			var r: Array = RUNS[id]

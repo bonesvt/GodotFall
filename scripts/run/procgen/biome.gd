@@ -7,6 +7,11 @@ extends RefCounted
 ## generated zones' own set pieces (set_pieces.gd: bunkers, blockhouses,
 ## garages, silos, water towers, cranes, barriers and wrecks) so no two yards
 ## are built the same.
+##
+## Each zone draws its own mix of those pieces (kit()): a handful of props
+## (always the biome's own), three kinds of building, two kinds of wall to
+## wallrun, two climbs, a chasm crossing and a wall hook. Two zones of the
+## same biome share the look but not the furniture.
 
 const Kit := preload("res://scripts/run/level_kit.gd")
 const Art := preload("res://scripts/ps2/ps2_assets.gd")
@@ -82,6 +87,71 @@ static func biome_of(root: Node3D) -> String:
 	return root.get_meta("biome", "forest")
 
 
+## Props anyone might leave lying about, and each biome's own.
+const SHARED_PROPS := ["jersey_barrier", "tank_trap", "tire_stack", "cable_reel", "jeep", "fire_barrel", "pipe_stack",
+		"supply_pod", "ammo_crates", "comms_dish", "lamp_post", "tarp_shelter", "field_table"]
+const BIOME_PROPS := {
+	"forest": ["lumber_stack", "woodpile"],
+	"marsh": ["rowboat", "net_rack", "buoy"],
+	"boneyard": ["rib_arch", "hull_plate", "engine_block"],
+}
+const BUILDINGS := ["bunker", "blockhouse", "garage", "cabin", "quonset", "radio_hut", "blockhouse_low"]
+const WALLS := ["billboard", "blast", "panel_wall", "container_wall", "hull_wall"]
+const CLIMBS := ["kick_slot", "scaffold", "corner_kick", "pillar_ledge"]
+## What each use of a prop takes, by the room it has.
+const LOW_PROPS := ["jersey_barrier", "ammo_crates", "woodpile", "buoy"]
+const TALL_PROPS := ["pipe_stack", "engine_block", "net_rack"]
+const WILD_PROPS := ["jeep", "tank_trap", "supply_pod", "tire_stack", "cable_reel", "hull_plate", "engine_block", "rowboat",
+		"lumber_stack", "woodpile", "buoy"]
+const YARD_PROPS := ["fire_barrel", "tire_stack", "cable_reel", "jersey_barrier", "supply_pod", "ammo_crates", "comms_dish",
+		"lamp_post", "field_table", "woodpile", "buoy", "engine_block"]
+## Too big for a cover slot: set down where there's room (zone_generator._traversal).
+const BIG_PROPS := ["rib_arch", "tarp_shelter", "rowboat", "hull_plate", "lumber_stack", "net_rack", "comms_dish"]
+
+
+## This zone's mix of set pieces, from its own seed:
+##   props: 7-9 ids, the biome's own first; buildings: 3; walls: 2 (wallrun);
+##   climbs: 2; chasm: "towers" (a shield hung between lattice towers) or
+##   "pier"; wall_hook: "bracket" (on the wall's top) or "pole" (behind it).
+static func kit(biome: String, rng: RandomNumberGenerator) -> Dictionary:
+	var props: Array = BIOME_PROPS.get(biome, []).duplicate()
+	var shared := _shuffled(SHARED_PROPS, rng)
+	var want := rng.randi_range(7, 9)
+	while props.size() < want and not shared.is_empty():
+		props.append(shared.pop_back())
+	var walls := _shuffled(WALLS, rng)
+	if biome == "boneyard" and not "hull_wall" in walls.slice(0, 2):
+		walls[1] = "hull_wall"  # the Boneyard's walls are made of titans
+	return {
+		"props": props,
+		"buildings": _shuffled(BUILDINGS, rng).slice(0, 3),
+		"walls": walls.slice(0, 2),
+		"climbs": _shuffled(CLIMBS, rng).slice(0, 2),
+		"chasm": "towers" if rng.randf() < 0.5 else "pier",
+		"wall_hook": "pole" if rng.randf() < 0.5 else "bracket",
+	}
+
+
+static func _shuffled(a: Array, rng: RandomNumberGenerator) -> Array:
+	var out := a.duplicate()
+	for k in range(out.size() - 1, 0, -1):
+		var j := rng.randi_range(0, k)
+		var t = out[k]
+		out[k] = out[j]
+		out[j] = t
+	return out
+
+
+## One of this zone's props that suits `allowed`, or "" (none in the mix, or
+## outside a build: the old kit then).
+static func kit_prop(root: Node3D, rng: RandomNumberGenerator, allowed: Array) -> String:
+	var info = _info(root)
+	if info == null or not info.has("kit"):
+		return ""
+	var ok := (info["kit"]["props"] as Array).filter(func(id): return id in allowed)
+	return "" if ok.is_empty() else ok[rng.randi() % ok.size()]
+
+
 ## The zone's info while it's being built (zone_generator.gd sets it), so set
 ## pieces note their hooks and walls; null outside a build.
 static func _info(root: Node3D):
@@ -90,9 +160,11 @@ static func _info(root: Node3D):
 
 ## Low cover (crouch behind it), about 2 m wide and 1.2 m high.
 static func cover_low(root: Node3D, pos: Vector3, yaw: float, rng: RandomNumberGenerator) -> void:
-	if rng.randf() < 0.3:
-		SP.place(root, "jersey_barrier", pos, yaw, _info(root))
-		return
+	if rng.randf() < 0.35:
+		var id := kit_prop(root, rng, LOW_PROPS)
+		if id != "":
+			SP.place(root, id, pos - Vector3(0, 0.05, 0), yaw, _info(root))
+			return
 	match biome_of(root):
 		"boneyard":
 			if rng.randf() < 0.5:
@@ -105,9 +177,11 @@ static func cover_low(root: Node3D, pos: Vector3, yaw: float, rng: RandomNumberG
 
 ## Tall cover (stand behind it).
 static func cover_tall(root: Node3D, pos: Vector3, yaw: float, rng: RandomNumberGenerator) -> void:
-	if rng.randf() < 0.25:
-		SP.place(root, "pipe_stack", pos, yaw + 90.0, _info(root))
-		return
+	if rng.randf() < 0.3:
+		var id := kit_prop(root, rng, TALL_PROPS)
+		if id != "":
+			SP.place(root, id, pos - Vector3(0, 0.05, 0), yaw + 90.0, _info(root))
+			return
 	match biome_of(root):
 		"boneyard":
 			if rng.randf() < 0.5:
@@ -121,9 +195,9 @@ static func cover_tall(root: Node3D, pos: Vector3, yaw: float, rng: RandomNumber
 ## Cover out in the wilds: a log, a boulder, a wreck.
 static func wild_cover(root: Node3D, pos: Vector3, rng: RandomNumberGenerator) -> void:
 	var yaw := rng.randf_range(0, 360)
-	if rng.randf() < 0.3:
-		# Left behind by the militia: a burnt-out jeep, tank traps, a drop pod.
-		var id: String = ["jeep", "tank_trap", "tank_trap", "supply_pod", "tire_stack", "cable_reel"][rng.randi() % 6]
+	var id := kit_prop(root, rng, WILD_PROPS) if rng.randf() < 0.35 else ""
+	if id != "":
+		# Left behind: a burnt-out jeep, tank traps, a drop pod, the biome's own junk.
 		SP.place(root, id, pos - Vector3(0, 0.05, 0), yaw, _info(root))
 		if id == "tank_trap":
 			for k in 2:
@@ -193,11 +267,17 @@ static func perch(root: Node3D, pos: Vector3, rng: RandomNumberGenerator, style 
 ## A yard's barracks, broadside to the road (long along X). Returns its footprint size (x, z).
 static func barracks(root: Node3D, pos: Vector3, rng: RandomNumberGenerator) -> Vector2:
 	var roll := rng.randf()
+	var info = _info(root)
 	if roll < 0.6:
-		# A bunker, a two-storey blockhouse (stairs up to a hook on its roof) or a garage.
-		var id: String = ["bunker", "blockhouse", "garage"][int(roll / 0.2)]
-		SP.place(root, id, pos, 0.0, _info(root))
-		return SP.size(id)
+		# One of the zone's three kinds: a bunker, a two-storey blockhouse
+		# (stairs up to a hook on its roof), a garage, a cabin, a quonset hut, a
+		# radio hut (a mast with a hook) or a low blockhouse.
+		var kinds: Array = info["kit"]["buildings"] if info != null and info.has("kit") else ["bunker", "blockhouse", "garage"]
+		var id: String = kinds[int(roll / 0.6 * kinds.size())]
+		# A quonset's long side along X, like the rest.
+		var yaw := 90.0 if id == "quonset" else 0.0
+		SP.place(root, id, pos, yaw, info)
+		return SP.turned_size(id, yaw)
 	match biome_of(root):
 		"marsh":
 			Z.stilt_hut(root, pos - Vector3(0, 1.5, 0), 0.0)
@@ -231,9 +311,11 @@ static func yard_clutter(root: Node3D, pos: Vector3, rng: RandomNumberGenerator)
 	var yaw := rng.randf_range(0, 360)
 	var pick := rng.randi() % 10
 	if pick >= 5:
-		var id: String = ["fire_barrel", "tire_stack", "cable_reel", "jersey_barrier", "supply_pod"][pick - 5]
-		SP.place(root, id, pos - Vector3(0, 0.05, 0), yaw, _info(root))
-		return
+		var id := kit_prop(root, rng, YARD_PROPS)
+		if id != "":
+			SP.place(root, id, pos - Vector3(0, 0.05, 0), yaw, _info(root))
+			return
+		pick = 4
 	match pick:
 		0:
 			F.barrels(root, pos, yaw)
