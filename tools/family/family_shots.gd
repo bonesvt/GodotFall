@@ -1,20 +1,23 @@
 extends SceneTree
 ## Shots of the Motherly Love scenes as they play in the hub (family_scene.gd):
 ## curled up with Mom on her bed, and Mom looking after Eco when she's sick.
-##   xvfb-run -a godot --audio-driver Dummy --path . -s res://tools/family/family_shots.gd -- [out_dir]
+##   xvfb-run -a godot --audio-driver Dummy --path . -s res://tools/family/family_shots.gd -- [out_dir] [cuddle|sick]
 ## Needs a renderer (not --headless). Slow on software Vulkan (~1 min a shot).
 
 const Family := preload("res://scripts/hub/family.gd")
 
 var out := "user://family_shots"
+var only := ""
 
 
 func _initialize() -> void:
 	var args := OS.get_cmdline_user_args()
 	if args.size() > 0:
 		out = args[0]
+	if args.size() > 1:
+		only = args[1]
 	DirAccess.make_dir_recursive_absolute(out)
-	root.size = Vector2i(1280, 720)
+	root.size = Vector2i(960, 540)
 	_go.call_deferred()
 
 
@@ -33,17 +36,21 @@ func _go() -> void:
 	Family.add(talk.state, "mom", 30)
 	for at in [10, 25]:
 		Family.mark_scene(talk.state, "mom", at)
-	fam.cuddle()
-	await _shot("1_cuddle", 60)
-	fam._camera.look_at_from_position(fam.bed() + Vector3(0.75, 1.2, -0.9), fam.bed() + Vector3(-0.05, 1.2, 0.6))
-	await _shot("2_cuddle_close", 20)
-	talk.stop()
-	await _frames(5)
+	if only != "sick":
+		fam.cuddle()
+		await _shot("1_cuddle", 12)
+		fam._camera.look_at_from_position(fam.bed() + Vector3(0.75, 1.2, -0.9), fam.bed() + Vector3(-0.05, 1.2, 0.6))
+		await _shot("2_cuddle_close", 4)
+		talk.stop()
+		await _frames(5)
+	if only == "cuddle":
+		quit()
+		return
 	talk.state.set_value("eco", "sick_run", run_node.runs_ended)
 	fam.care()
-	await _shot("3_sick", 60)
-	fam._camera.look_at_from_position(fam.bed() + Vector3(0.9, 1.25 + 0.6, -0.3), fam.bed() + Vector3(0.0, 0.7, 0.55))
-	await _shot("4_sick_close", 20)
+	await _shot("3_sick", 12)
+	fam._camera.look_at_from_position(fam.bed() + Vector3(0.4, 2.0, -2.5), fam.bed() + Vector3(0.25, 0.75, 0.3))
+	await _shot("4_sick_wide", 4)
 	quit()
 
 

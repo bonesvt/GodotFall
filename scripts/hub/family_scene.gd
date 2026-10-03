@@ -145,7 +145,7 @@ func _stage(kind: String) -> void:
 		# Side by side against the headboard, facing the foot of the bed; Eco on Mom's right.
 		_place(mom, Vector3(b.x - 0.26, _f - 0.27, b.z + 0.72), 0.0)
 		_mom_pose = Poses.hold(mom, "mom_cuddle")
-		eco.global_position = Vector3(b.x + 0.22, _f - 0.28, b.z + 0.7)
+		eco.global_position = Vector3(b.x + 0.17, _f - 0.28, b.z + 0.7)
 		eco.rotation = Vector3.ZERO
 		Poses.hold(eco, "eco_cuddle")
 		_face(eco, {"Fcl_EYE_Close": 0.85, "Fcl_ALL_Fun": 0.35})
@@ -153,11 +153,11 @@ func _stage(kind: String) -> void:
 		_look(Vector3(b.x + 1.4, _f + 1.55, b.z - 2.1), Vector3(b.x, _f + 1.05, b.z + 0.5))
 	else:
 		# Eco tucked in on her back, head on the pillows; Mom on a stool beside her.
-		eco.global_position = Vector3(b.x + 0.05, _f + 0.69, b.z - 0.72)
+		eco.global_position = Vector3(b.x + 0.28, _f + 0.69, b.z - 0.72)
 		eco.rotation = Vector3(deg_to_rad(90.0), 0.0, 0.0)
 		Poses.hold(eco, "eco_sick").after = _place_cloth
 		_face(eco, {"Fcl_EYE_Close": 0.75, "Fcl_ALL_Sorrow": 0.4})
-		_quilt(Vector3(b.x, _f + 0.72, b.z - 0.25), Vector3(1.55, 0.22, 1.45))
+		_quilt(Vector3(b.x, _f + 0.76, b.z - 0.29), Vector3(1.55, 0.2, 1.42))
 		_cloth = _box(Vector3.ZERO, Vector3(0.2, 0.03, 0.09), Art.material("canvas", Color(0.97, 0.97, 1.0)))
 		var stool := b + Vector3(1.2, 0, -0.2)
 		_box(stool + Vector3(0, 0.22, 0), Vector3(0.38, 0.44, 0.38), Art.material("wood"))
@@ -166,9 +166,8 @@ func _stage(kind: String) -> void:
 		_place(mom, at, atan2(-(to.x - at.x), -(to.z - at.z)))
 		_mom_pose = Poses.hold(mom, "mom_sick")
 		_mom_pose.after = _place_bowl
-		_bowl = _box(Vector3.ZERO, Vector3(0.18, 0.08, 0.18), Art.material("wood", Color(0.85, 0.7, 0.55)))
-		_box(Vector3(0, 0.035, 0), Vector3(0.15, 0.02, 0.15), Art.material("canvas", Color(0.9, 0.7, 0.4)), _bowl)
-		_look(Vector3(b.x + 0.4, _f + 2.0, b.z - 2.5), Vector3(b.x + 0.25, _f + 0.75, b.z + 0.3))
+		_bowl = _bowl_of_soup()
+		_look(Vector3(b.x + 1.9, _f + 1.55, b.z + 0.55), Vector3(b.x + 0.1, _f + 0.8, b.z + 0.3))
 
 
 func _unstage() -> void:
@@ -238,6 +237,29 @@ func _box(pos: Vector3, size: Vector3, mat: Material, parent: Node = null) -> Me
 	if parent == null:
 		_props.append(mi)
 	return mi
+
+
+## A wooden bowl with soup in it, for Mom's hands.
+func _bowl_of_soup() -> MeshInstance3D:
+	var cup := CylinderMesh.new()
+	cup.top_radius = 0.085
+	cup.bottom_radius = 0.055
+	cup.height = 0.07
+	cup.material = Art.material("wood", Color(0.85, 0.7, 0.55))
+	var bowl := MeshInstance3D.new()
+	bowl.mesh = cup
+	add_child(bowl)
+	_props.append(bowl)
+	var top := CylinderMesh.new()
+	top.top_radius = 0.075
+	top.bottom_radius = 0.075
+	top.height = 0.01
+	top.material = Art.material("canvas", Color(0.9, 0.68, 0.38))
+	var soup := MeshInstance3D.new()
+	soup.mesh = top
+	soup.position = Vector3(0, 0.03, 0)
+	bowl.add_child(soup)
+	return bowl
 
 
 ## Her nightclothes or casual wear when she has them (eco_model.gd wear(),
