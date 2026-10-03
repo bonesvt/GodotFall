@@ -226,7 +226,11 @@ func _check_partner_pose(id: String, f) -> void:
 			_check("%s with Mom: lying on her mat" % id, absf(head.y - floor_y) < 0.45 and absf(foot.y - floor_y) < 0.2, [head.y - floor_y, foot.y - floor_y])
 		"bag":
 			var bag: Vector3 = f.leader.spot["bag"].global_position
-			_check("bag with Mom: she holds the bag", hand_r.distance_to(bag) < 0.4 and hand_l.distance_to(bag) < 0.4 and absf(foot.y - floor_y) < 0.2, [hand_r.distance_to(bag), hand_l.distance_to(bag)])
+			var off_r := Vector2(hand_r.x - bag.x, hand_r.z - bag.z).length()
+			var off_l := Vector2(hand_l.x - bag.x, hand_l.z - bag.z).length()
+			var eco_side: Vector3 = (f.leader.eco.global_position - bag) * Vector3(1, 0, 1)
+			_check("bag with Mom: palms on her side of the bag, not through it", off_r > 0.2 and off_r < 0.36 and off_l > 0.2 and off_l < 0.36
+					and (hand_r - bag).dot(eco_side) < 0.0 and (hand_l - bag).dot(eco_side) < 0.0 and absf(foot.y - floor_y) < 0.2, [off_r, off_l])
 
 
 func _npc_spot(info: Dictionary, who: String) -> Dictionary:

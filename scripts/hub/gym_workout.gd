@@ -457,7 +457,7 @@ func _pose_squat() -> void:
 		_leg(side, ankle, Vector3(x * 0.35, 0, -1), Vector3(x * 0.25, 0, -1))
 	if leader != null:
 		# a goblet squat: a dumbbell held upright against the chest, elbows in
-		var at_chest: Vector3 = _rest["upper_chest"].origin + Vector3(0, -0.06, -0.27)
+		var at_chest: Vector3 = _rest["upper_chest"].origin + Vector3(0, -0.06, -0.31)
 		var held := _follow("upper_chest", at_chest)
 		for side in ["L", "R"]:
 			var x := 1.0 if side == "R" else -1.0
@@ -564,7 +564,8 @@ func _pose_bag() -> void:
 
 
 ## The partner bracing the heavy bag for her from the far side: feet set,
-## leaning in, arms round it, rocking back a little as each punch lands.
+## leaning in, palms flat on her side of it (nothing reaches round to where
+## Eco hits), rocking back a little as each punch lands.
 func _pose_hold_bag() -> void:
 	var beat := fmod(time, 1.0)
 	var hit := maxf(sin(clampf((beat - 0.1) / 0.3, 0.0, 1.0) * PI), sin(clampf((beat - 0.58) / 0.3, 0.0, 1.0) * PI))
@@ -575,12 +576,13 @@ func _pose_hold_bag() -> void:
 	_leg("L", _rest["foot.L"].origin + Vector3(-0.04, 0, -0.12), Vector3(-0.3, 0, -1), Vector3(-0.2, 0, -1))
 	_leg("R", _rest["foot.R"].origin + Vector3(0.06, 0, 0.2), Vector3(0.3, 0, -1), Vector3(0.3, 0, -1))
 	var to_skel := _sk.global_transform.affine_inverse()
-	var bag := to_skel * _world(Vector3(0, 1.15, -(1.2 - 0.78)))
+	var bag := to_skel * _world(Vector3(0, 1.2, -(1.2 - 0.78)))
 	for side in ["L", "R"]:
 		var x := 1.0 if side == "R" else -1.0
-		# wrists on the sides of the bag, a little past its middle, hands round it
-		_arm(side, bag + Vector3(x * 0.2, (0.08 if side == "L" else -0.06), -0.04), Vector3(x, -0.6, 0.3))
-		_grip(side, 0.85)
+		# wrists just off the near face of the bag (radius 0.2), a hand's
+		# breadth apart, palms pressed flat on it
+		_arm(side, bag + Vector3(x * 0.13, (0.08 if side == "L" else -0.06), 0.27), Vector3(x * 0.7, -1.0, 0.2))
+		_grip(side, 0.15)
 
 
 func _pose_of(key: String) -> Transform3D:
