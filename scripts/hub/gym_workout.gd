@@ -31,7 +31,7 @@ const LYING_Y := 0.11
 const SHOTS := {
 	"squat": [
 		{"from": Vector3(0.75, 0.75, 1.7), "to": Vector3(0.4, 0.8, 1.55), "look": Vector3(0, 0.75, 0), "fov": 42.0},
-		{"from": Vector3(1.35, 0.5, -1.75), "to": Vector3(1.5, 0.55, -1.5), "look": Vector3(0, 0.8, 0), "fov": 50.0},
+		{"from": Vector3(1.55, 0.6, -0.2), "to": Vector3(1.65, 0.65, 0.1), "look": Vector3(0, 0.8, -0.1), "fov": 50.0},
 		{"from": Vector3(-0.5, 1.35, -1.9), "to": Vector3(-0.3, 1.3, -1.7), "look": Vector3(0, 1.3, 0), "fov": 38.0},
 	],
 	"bridge": [
@@ -243,7 +243,7 @@ func _eco_frame(t: float) -> Transform3D:
 		"bridge", "crunch":
 			return Transform3D(f.basis * Basis(Vector3.RIGHT, PI / 2), f.origin + Vector3(0, LYING_Y, 0))
 		"pullup":
-			return Transform3D(f.basis, f * Vector3(0, _hang_y() + 0.5 * depth(t), -0.22))
+			return Transform3D(f.basis, f * Vector3(0, _hang_y() + 0.6 * depth(t), -0.22))
 	return f
 
 
@@ -333,7 +333,7 @@ func _pose_bridge() -> void:
 	_aim("neck", "head", Vector3(0, 1, 0.12))
 	_lying_legs()
 	var hips := _pose_of("hips").origin
-	var bag := hips + Vector3(0, -0.02, -0.16)
+	var bag := hips + Vector3(0, 0.02, -0.13)
 	for side in ["L", "R"]:
 		var x := 1.0 if side == "R" else -1.0
 		_arm(side, bag + Vector3(x * 0.2, 0, -0.02), Vector3(x, 0, 1))
