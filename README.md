@@ -376,6 +376,14 @@ through static. She only listens; she never talks back.
 - Behind: **grapple towers** with floating platforms.
 - Far right (about 60 m): **grunt arena** with six grunts, cover, and wallrun walls on both sides.
 
+## Movement feel
+Running on foot is tight: full sprint in about a tenth of a second, and letting go or switching
+direction stops you almost dead. Speed above a sprint (from a slide, wallrun or grapple) is kept
+for a moment after landing, then bleeds back to a run unless you slide. Hold or tap crouch in the
+air just before touching down to land straight into a slide that keeps your speed; landing from a
+big drop into a slide also turns part of the fall into forward speed. A slide started by a tap
+keeps going on its own until you jump, slow down or tap crouch again.
+
 ## Tuning
 Every number lives in `scripts/player.gd`, `scripts/weapon.gd` and `scripts/grunt.gd` as an exported variable. Open `scenes/player.tscn`,
 select the Player node and tweak values in the Inspector, or change the defaults in the script.
@@ -411,6 +419,9 @@ select the Player node and tweak values in the Inspector, or change the defaults
   `godot --headless --path . -s res://tests/radio_test.gd`
 - `tests/movement_test.gd` headless smoke test:
   `godot --headless --path . -s res://tests/movement_test.gd`
+- `tests/ground_feel_test.gd` running feel (quick starts, stops, reversals and turns; landing
+  speed bleeds unless you slide; slide pressed just before landing; drop-into-slide boost):
+  `godot --headless --path . -s res://tests/ground_feel_test.gd`
 - `tests/combat_test.gd` headless combat smoke test:
   `godot --headless --path . -s res://tests/combat_test.gd`
 - `tests/stealth_test.gd` headless stealth test (vision cone, sight range, cover, detection meter,

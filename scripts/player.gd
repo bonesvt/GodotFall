@@ -19,12 +19,17 @@ signal damaged(amount: float, from: Vector3)
 @export var run_speed := 7.0
 @export var sprint_speed := 10.5
 @export var crouch_speed := 3.5
-@export var ground_accel := 70.0
-@export var ground_decel := 50.0
+## Running is snappy: you hit full speed and stop dead in a few frames.
+## Momentum is carried by sliding, wallrunning and the grapple, not by running.
+@export var ground_accel := 110.0
+@export var ground_decel := 90.0
+## How fast sideways or backwards drift is killed when you change direction.
+@export var ground_turn_decel := 95.0
 ## How fast you bleed speed above sprint speed while on the ground.
-@export var overspeed_decel := 14.0
-## Seconds after landing before ground friction applies, so slide-hops keep speed.
-@export var bhop_grace := 0.12
+@export var overspeed_decel := 40.0
+## Seconds after landing before carried speed above sprint speed bleeds off,
+## so slide-hops and late slide presses keep momentum.
+@export var bhop_grace := 0.15
 ## Sprint automatically when moving forward (hold Shift to sprint when off).
 @export var auto_sprint := true
 
@@ -49,6 +54,14 @@ signal damaged(amount: float, from: Vector3)
 @export var slide_end_speed := 3.5
 @export var slide_steer := 2.5
 @export var slide_max_speed := 26.0
+## Landing into a slide turns part of a big fall into forward speed.
+## Falls slower than slide_land_min_fall (a normal hop) add nothing.
+@export var slide_land_min_fall := 10.5
+@export var slide_land_boost := 0.35
+@export var slide_land_max_boost := 5.0
+## Seconds a crouch tap in the air is remembered, so pressing slide just
+## before you touch down still lands you in a slide.
+@export var slide_land_buffer := 0.25
 
 @export_group("Wallrun")
 @export var wallrun_min_speed := 4.0
@@ -99,6 +112,10 @@ var coyote_timer := 0.0
 var jump_buffer_timer := 0.0
 var ground_time := 0.0
 var slide_boost_timer := 0.0
+var slide_buffer_timer := 0.0
+## A buffered landing slide keeps going while crouch is released, until you
+## jump, slow down, or press crouch again.
+var slide_latched := false
 var wallrun_timer := 0.0
 var wall_normal := Vector3.ZERO
 var last_wall_normal := Vector3.ZERO
@@ -174,6 +191,7 @@ func _physics_process(delta: float) -> void:
 	wall_coyote_timer -= delta
 	grapple_cooldown_timer -= delta
 	jump_buffer_timer -= delta
+	slide_buffer_timer -= delta
 	regen_timer -= delta
 	if regen_timer <= 0.0 and health < max_health:
 		health = minf(health + regen_rate * delta, max_health)
@@ -182,6 +200,8 @@ func _physics_process(delta: float) -> void:
 	wish_dir = (transform.basis * Vector3(input_dir.x, 0.0, input_dir.y)).normalized()
 	if Input.is_action_just_pressed("jump"):
 		jump_buffer_timer = jump_buffer
+	if Input.is_action_just_pressed("crouch") and state != State.GROUND and state != State.SLIDE:
+		slide_buffer_timer = slide_land_buffer
 	if Input.is_action_just_pressed("grapple"):
 		_try_grapple()
 	if Input.is_action_just_pressed("reset") or global_position.y < -40.0:
@@ -220,16 +240,7 @@ func _ground_state(delta: float) -> void:
 
 	var sprinting := (auto_sprint or Input.is_action_pressed("sprint")) and input_dir.y < -0.3
 	var target := (crouch_speed if crouching else (sprint_speed if sprinting else run_speed)) * speed_mult
-	var speed := hvel.length()
-	if wish_dir != Vector3.ZERO:
-		if speed > target:
-			# Keep carried momentum briefly after landing, then bleed it off.
-			if ground_time > bhop_grace:
-				hvel = hvel.move_toward(wish_dir * target, overspeed_decel * delta)
-		else:
-			hvel = hvel.move_toward(wish_dir * target, ground_accel * delta)
-	elif ground_time > bhop_grace:
-		hvel = hvel.move_toward(Vector3.ZERO, ground_decel * delta)
+	hvel = _ground_move(hvel, target, delta)
 
 	velocity.x = hvel.x
 	velocity.z = hvel.z
@@ -240,6 +251,31 @@ func _ground_state(delta: float) -> void:
 	move_and_slide()
 	if not is_on_floor() and state == State.GROUND:
 		state = State.AIR
+
+
+## Responsive running: the part of your velocity along the keys you hold
+## ramps to target fast, and drift in any other direction is braked hard,
+## so turns and stops are crisp instead of skating. Speed above target
+## (from a slide, wallrun or grapple) is kept for bhop_grace after landing,
+## then bled off at overspeed_decel.
+func _ground_move(hvel: Vector3, target: float, delta: float) -> Vector3:
+	var speed := hvel.length()
+	if speed > target and ground_time <= bhop_grace:
+		return hvel
+	if wish_dir == Vector3.ZERO:
+		var brake := ground_decel if speed <= target else maxf(overspeed_decel, ground_decel)
+		return hvel.move_toward(Vector3.ZERO, brake * delta)
+	var along := hvel.dot(wish_dir)
+	var drift := hvel - wish_dir * along
+	if along > target:
+		along = move_toward(along, target, overspeed_decel * delta)
+	elif along < 0.0:
+		# Reversing: brake the old direction and push the new one together.
+		along = move_toward(along, target, (ground_accel + ground_decel) * delta)
+	else:
+		along = move_toward(along, target, ground_accel * delta)
+	drift = drift.move_toward(Vector3.ZERO, ground_turn_decel * delta)
+	return wish_dir * along + drift
 
 
 func _air_state(delta: float) -> void:
@@ -292,9 +328,11 @@ func _slide_state(delta: float) -> void:
 	if not is_on_floor():
 		state = State.AIR
 		coyote_timer = coyote_time
-	elif not Input.is_action_pressed("crouch"):
+	elif not (Input.is_action_pressed("crouch") or slide_latched):
 		state = State.GROUND
 		_set_crouch(false)
+	elif slide_latched and Input.is_action_just_pressed("crouch"):
+		state = State.GROUND  # tap again to cancel a buffered slide
 	elif Vector3(velocity.x, 0.0, velocity.z).length() < slide_end_speed:
 		state = State.GROUND
 
@@ -411,17 +449,29 @@ func _land() -> void:
 	step_dist = STRIDE * 0.5
 	# Camera dips on hard landings so falls have weight.
 	land_dip = minf(maxf(fall_speed - 4.0, 0.0) * land_dip_per_speed, land_dip_max)
-	fall_speed = 0.0
 	air_jumps_left = air_jumps
-	var hspeed := Vector3(velocity.x, 0.0, velocity.z).length()
-	if Input.is_action_pressed("crouch") and hspeed >= slide_min_speed:
-		_start_slide()
-	else:
-		state = State.GROUND
+	var held := Input.is_action_pressed("crouch")
+	var buffered := slide_buffer_timer > 0.0
+	slide_buffer_timer = 0.0
+	if held or buffered:
+		var hvel := Vector3(velocity.x, 0.0, velocity.z)
+		var bonus := clampf((fall_speed - slide_land_min_fall) * slide_land_boost, 0.0, slide_land_max_boost)
+		var dir := hvel.normalized() if hvel.length() > 0.5 else wish_dir
+		if hvel.length() + bonus >= slide_min_speed and dir != Vector3.ZERO:
+			hvel = dir * (hvel.length() + bonus)
+			velocity.x = hvel.x
+			velocity.z = hvel.z
+			fall_speed = 0.0
+			_start_slide()
+			slide_latched = not held
+			return
+	fall_speed = 0.0
+	state = State.GROUND
 
 
 func _start_slide() -> void:
 	state = State.SLIDE
+	slide_latched = false
 	_set_crouch(true)
 	var hvel := Vector3(velocity.x, 0.0, velocity.z)
 	if slide_boost_timer <= 0.0 and hvel.length() > 0.1:
