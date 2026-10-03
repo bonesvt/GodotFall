@@ -3,15 +3,16 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://c2y0ir7p47a2u"
-path="res://.godot/imported/alloy_floor.png-d4085b4ae07f9d7d42c917cdfa9b4dba.ctex"
+path.bptc="res://.godot/imported/alloy_floor.png-d4085b4ae07f9d7d42c917cdfa9b4dba.bptc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 
 [deps]
 
 source_file="res://assets/textures/alloy_floor.png"
-dest_files=["res://.godot/imported/alloy_floor.png-d4085b4ae07f9d7d42c917cdfa9b4dba.ctex"]
+dest_files=["res://.godot/imported/alloy_floor.png-d4085b4ae07f9d7d42c917cdfa9b4dba.bptc.ctex"]
 
 [params]
 
