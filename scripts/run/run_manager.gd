@@ -27,6 +27,8 @@ const HubBuilder := preload("res://scripts/hub/hub_builder.gd")
 const Armory := preload("res://scripts/hub/armory.gd")
 const BenchScreen := preload("res://scripts/hub/bench_screen.gd")
 const GunsmithScreen := preload("res://scripts/hub/gunsmith_screen.gd")
+const GiftScreen := preload("res://scripts/hub/gift_screen.gd")
+const GiftShop := preload("res://scripts/hub/gift_shop.gd")
 const SalonScreen := preload("res://scripts/hub/salon_screen.gd")
 const Loot := preload("res://scripts/run/loot.gd")
 const Gifts := preload("res://scripts/run/gifts.gd")
@@ -496,6 +498,19 @@ func talk_to(who: String) -> void:
 		npc_talk.start(hub_npcs[who], runs_ended, last_result == "RUN COMPLETE")
 
 
+## The people Eco can romance, for the gift shop's taste notes:
+## [{who, name, likes, dislikes, affection}].
+func romance_partners() -> Array:
+	var out := []
+	for who in hub_npcs:
+		if not npc_talk.romanceable(who):
+			continue
+		var s: Dictionary = NpcTalk.Romance.settings(npc_talk.bank(who))
+		out.append({"who": who, "name": String(NpcTalk.NAMES.get(who, who)).capitalize(),
+				"likes": s["likes"], "dislikes": s["dislikes"], "affection": npc_talk.affection(who)})
+	return out
+
+
 ## Opens Eco's paint shop on the chassis of your last titan, pausing the hub.
 func open_garage() -> void:
 	garage = Garage.new(last_parts.get("chassis", {}).get("id", "atlas"))
@@ -518,10 +533,12 @@ func close_garage() -> void:
 		hud.toast("Call your titan again (V) to see the new paint.", HUB_LINE_SECONDS)
 
 
-## Opens a workbench screen ("gunsmith", "rack", "workshop" or "suit"), or the
-## hair salon's ("salon", in town), pausing the hub.
+## Opens a workbench screen ("gunsmith", "rack", "workshop" or "suit"), or a
+## town shop's ("salon", "gifts"), pausing the hub.
 func open_bench(kind: String) -> void:
-	if kind == "salon":
+	if kind == "gifts":
+		bench = GiftScreen.new(armory, npc_talk, romance_partners())
+	elif kind == "salon":
 		bench = SalonScreen.new()
 	else:
 		bench = GunsmithScreen.new(armory) if kind == "gunsmith" else BenchScreen.new(armory, kind)
@@ -533,6 +550,9 @@ func open_bench(kind: String) -> void:
 
 
 func close_bench() -> void:
+	if bench is GiftScreen and not bench.bought.is_empty():
+		var names: Array = bench.bought.map(func(id): return GiftShop.gift_name(id))
+		hud.toast("Bought: %s. Press G by someone in the hub to give one." % ", ".join(names), HUB_LINE_SECONDS)
 	if not bench.unlocked.is_empty():
 		var names: Array = bench.unlocked.map(func(id): return Armory.WEAPONS[id]["name"].to_upper())
 		hud.toast("LEVEL %d: %s UNLOCKED. PICK %s AT THE WEAPON RACK" % [armory.pilot_level(), " AND ".join(names), "IT" if names.size() == 1 else "THEM"], 5.0)
