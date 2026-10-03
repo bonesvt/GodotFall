@@ -286,7 +286,12 @@ func _hub_tick(delta: float) -> void:
 		return
 	if npc_talk.active():
 		npc_talk.tick(delta, player.global_position)
-		if Input.is_action_just_pressed("interact"):
+		if not npc_talk.options.is_empty():
+			for i in npc_talk.options.size():
+				if Input.is_action_just_pressed("choice_%d" % (i + 1)):
+					npc_talk.choose(i)
+					break
+		elif Input.is_action_just_pressed("interact"):
 			npc_talk.advance()
 		return
 	_course_tick(delta)
@@ -850,6 +855,8 @@ func _prompt() -> String:
 				return "Leave the pad to start the clock"
 			var spot := nearest_hub_spot()
 			if not spot.is_empty():
+				if spot.has("npc") and npc_talk.beat_waiting(spot["npc"], runs_ended):
+					return spot["prompt"] + "  (wants to talk)"
 				return spot["prompt"]
 			if in_titan_yard():
 				return "[V] Call in your titan" if hub_titan == null else "[V] Call your titan here"
