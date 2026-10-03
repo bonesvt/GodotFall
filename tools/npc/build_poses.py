@@ -202,9 +202,9 @@ def sit(f, n):
     add(p, "neck", X, -10)
     add(p, "head", X, -6 + 2 * wave(f, n, 1))
     for s, sgn in (("R", 1), ("L", -1)):
-        add(p, "thigh." + s, X, 120)
+        add(p, "thigh." + s, X, 140)
         add(p, "thigh." + s, Y, -sgn * 6)
-        add(p, "shin." + s, X, -140)
+        add(p, "shin." + s, X, -82)
         add(p, "foot." + s, X, 25)
         add(p, "upperarm." + s, X, 50)
         add(p, "forearm." + s, X, 30)
@@ -265,7 +265,7 @@ def _reach(side):
     for s, out in (("R", -1), ("L", 1)):
         add(p, "upperarm." + s, X, 155)
         # a little wide, clear of her hair
-        add(p, "upperarm." + s, Y, out * 12)
+        add(p, "upperarm." + s, Y, out * 18)
         add(p, "forearm." + s, X, -4)
     add(p, "spine", Y, side * 10)
     add(p, "chest", Y, side * 12)

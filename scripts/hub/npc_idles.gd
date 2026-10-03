@@ -119,8 +119,8 @@ static func _prop(npc: Node3D, kind: String) -> void:
 		seat.set_meta("idle_prop", true)
 		npc.add_child(seat)
 		var plum := Art.material("canvas", Color(0.28, 0.12, 0.3))
-		Kit.mesh(seat, Vector3(0, 0.05, -0.05), Vector3(0.62, 0.1, 0.62), plum)
-		Kit.mesh(seat, Vector3(0, 0.1, -0.05), Vector3(0.54, 0.02, 0.54), Art.material("canvas", Color(0.36, 0.16, 0.38)))
+		Kit.mesh(seat, Vector3(0, 0.035, 0.0), Vector3(0.62, 0.07, 0.62), plum)
+		Kit.mesh(seat, Vector3(0, 0.07, 0.0), Vector3(0.54, 0.02, 0.54), Art.material("canvas", Color(0.36, 0.16, 0.38)))
 		return
 	var skel := npc.find_child("Skeleton3D", true, false) as Skeleton3D
 	if skel == null:
@@ -207,7 +207,7 @@ static func _prop(npc: Node3D, kind: String) -> void:
 			case.height = 0.012
 			var shell := MeshInstance3D.new()
 			shell.mesh = case
-			shell.material_override = Art.material("timber", Color(0.12, 0.1, 0.14))
+			shell.material_override = Art.material("timber", Color(0.85, 0.4, 0.65))
 			compact.add_child(shell)
 			var glass := CylinderMesh.new()
 			glass.top_radius = 0.056
@@ -217,19 +217,42 @@ static func _prop(npc: Node3D, kind: String) -> void:
 			face.mesh = glass
 			face.position.y = 0.007
 			var shine := StandardMaterial3D.new()
-			shine.albedo_color = Color(0.75, 0.8, 0.9)
-			shine.metallic = 1.0
-			shine.roughness = 0.05
+			shine.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+			shine.albedo_color = Color(0.78, 0.85, 1.0)
 			face.material_override = shine
 			compact.add_child(face)
+			# glass both sides, so it reads from wherever Eco stands
+			var back := face.duplicate() as MeshInstance3D
+			back.position.y = -0.007
+			compact.add_child(back)
+			_face_head(npc, skel, compact)
 		"book":
 			at.bone_name = bone_name
 			var book := Node3D.new()
 			book.position = Vector3(-0.07, -0.02, 0.0)
 			book.scale = unscale
 			at.add_child(book)
-			Kit.mesh(book, Vector3.ZERO, Vector3(0.2, 0.03, 0.28), Art.material("canvas", Color(0.3, 0.06, 0.12)))
+			Kit.mesh(book, Vector3.ZERO, Vector3(0.2, 0.03, 0.28), Art.material("canvas", Color(0.55, 0.08, 0.18)))
 			Kit.mesh(book, Vector3(0, 0.017, 0), Vector3(0.19, 0.006, 0.27), Art.material("canvas", Color(0.86, 0.82, 0.72)))
+			Kit.glow(book, Vector3(0, -0.016, 0.06), Vector3(0.12, 0.004, 0.02), Color(0.9, 0.75, 0.4))
+			_face_head(npc, skel, book)
+
+
+## Once their pose has blended in, turns a held prop's face (its +Y) toward
+## their face: the pages of a book, the glass of a mirror.
+static func _face_head(npc: Node3D, skel: Skeleton3D, prop: Node3D) -> void:
+	var head := skel.find_bone("J_Bip_C_Head")
+	if head < 0 or not npc.is_inside_tree():
+		return
+	npc.get_tree().create_timer(0.5).timeout.connect(func():
+		if not is_instance_valid(prop) or not prop.is_inside_tree():
+			return
+		var eyes := (skel.global_transform * skel.get_bone_global_pose(head)).origin + Vector3(0, 0.06, 0)
+		var to := eyes - prop.global_position
+		if to.length() > 0.01:
+			var at := prop.global_position
+			prop.global_basis = Basis(Quaternion(Vector3.UP, to.normalized()))
+			prop.global_position = at)
 
 
 ## A moonlit window cut into Ophelia's back-wall drapes (for her smoking spot).
