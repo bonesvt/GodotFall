@@ -16,9 +16,17 @@ extends Node3D
 ## How close (m) Eco has to be before they turn to face her.
 const NOTICE_RANGE := 4.5
 const TURN_SPEED := 2.5
+## The furthest (degrees) they turn from where they stand facing to follow
+## Eco; past that they hold at the limit rather than spin round after her.
+const MAX_TURN := 60.0
 ## Who has more than one outfit (body.png first, then body_<outfit>.png from
 ## tools/npc/build_npc.py). They change between runs.
-const OUTFITS := {"ophelia": ["tee", "hoodie", "night"]}
+const OUTFITS := {
+	"ophelia": ["tee", "hoodie", "night", "bikini", "sheer", "tight", "lingerie"],
+	"mom": ["home", "bikini", "sheer", "tight", "lingerie"],
+}
+
+const NpcSprings := preload("res://scripts/hub/npc_springs.gd")
 const Hair := preload("res://scripts/hub/hair.gd")
 
 var who := ""
@@ -78,6 +86,9 @@ func _ready() -> void:
 		model.name = "Model"
 		add_child(model)
 		_anim = model.find_child("AnimationPlayer", true, false) as AnimationPlayer
+		var springs := NpcSprings.make(who, model.find_child("Skeleton3D", true, false) as Skeleton3D)
+		if springs != null:
+			add_child(springs)
 		for mi in model.find_children("*", "MeshInstance3D", true, false):
 			_fill_textures(mi)
 			var b := (mi as MeshInstance3D).find_blend_shape_by_name("Fcl_MTH_A")
@@ -239,7 +250,9 @@ func _process(delta: float) -> void:
 	if look_target != null and is_instance_valid(look_target):
 		var d := look_target.global_position - global_position
 		if not posed and (Vector2(d.x, d.z).length() < NOTICE_RANGE or talking):
-			want = atan2(-d.x, -d.z)   # the model faces -Z
+			var toward := angle_difference(home_yaw, atan2(-d.x, -d.z))   # the model faces -Z
+			var most := deg_to_rad(MAX_TURN)
+			want = home_yaw + clampf(toward, -most, most)
 	rotation.y = lerp_angle(rotation.y, want, minf(1.0, delta * TURN_SPEED))
 	# Mouth flaps while their voice plays.
 	var open := 0.0
