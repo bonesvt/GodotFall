@@ -2,7 +2,7 @@ extends SceneTree
 ## Screenshots of Eco's third person gun stance (scripts/ps2/eco_gun_stance.gd):
 ## standing stance from the front and side, a close-up of her grip, the game's
 ## own shoulder view, low ready on the run, mid-twirl and a shot's kick.
-##   godot --path . --fixed-fps 60 -s res://tools/stance_shots.gd -- [out_dir]
+##   godot --path . --fixed-fps 60 -s res://tools/stance_shots.gd -- [out_dir] [--only=1,3]
 ## Needs a renderer (not --headless).
 
 var out := "user://stance_shots"
@@ -12,7 +12,9 @@ var shot_cam: Camera3D
 
 func _initialize() -> void:
 	for a in OS.get_cmdline_user_args():
-		if not a.begins_with("--"):
+		if a.begins_with("--only="):
+			only.assign(a.trim_prefix("--only=").split(","))
+		elif not a.begins_with("--"):
 			out = a
 	DirAccess.make_dir_recursive_absolute(out)
 	root.size = Vector2i(1600, 900)
@@ -24,7 +26,13 @@ func _frames(n: int) -> void:
 		await process_frame
 
 
+## --only=3,4 renders just those shots (the rest still pose, unsaved).
+var only: Array[String] = []
+
+
 func _save(shot_name: String) -> void:
+	if not only.is_empty() and not shot_name.get_slice("_", 0) in only:
+		return
 	root.get_viewport().get_texture().get_image().save_png(out.path_join(shot_name + ".png"))
 	print("shot ", shot_name)
 
@@ -53,7 +61,7 @@ func _go() -> void:
 	player.rotation.y = 0.0
 	player.velocity = Vector3.ZERO
 	stance.idle_twirl_after = 1000.0  # no idle twirls mid-shot
-	await _frames(60)
+	await _frames(40)
 
 	_from(Vector3(1.6, 1.5, -2.0), 1.2)
 	await _frames(2)

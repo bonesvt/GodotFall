@@ -21,7 +21,7 @@ const PlayerState := preload("res://scripts/ps2/eco_model.gd").PlayerState
 
 ## Where the pistol's grip is in its own space (centre of the grip), and the
 ## trigger pivot it spins round.
-const GRIP := Vector3(0.0, -0.08, 0.07)
+const GRIP := Vector3(0.0, -0.075, 0.05)
 const TWIRL_PIVOT := Vector3(0.0, -0.03, -0.01)
 ## Finger curl round the grip, degrees per joint: the trigger finger stays
 ## straighter, along the frame.
@@ -35,7 +35,7 @@ const CURL := {
 ## Pistol cant, degrees (top tipped in toward her).
 @export var cant := 18.0
 ## Standing, how far she turns her body side-on, degrees (gun shoulder forward).
-@export var blade := 30.0
+@export var blade := 50.0
 ## Recoil: degrees the gun kicks up per shot, and how fast she settles it.
 @export var kick := 11.0
 @export var settle := 14.0
@@ -111,7 +111,7 @@ func _calibrate(sk: Skeleton3D) -> void:
 	up = (up - barrel * up.dot(barrel)).normalized()
 	var z := -barrel
 	var g := Basis(up.cross(z), up, z)
-	var grip_at := f_l * 0.05 + n_l * 0.03 - up * 0.015
+	var grip_at := f_l * 0.07 + n_l * 0.03 - up * 0.045
 	_calib = Transform3D(g, grip_at - g * GRIP)
 
 
@@ -132,11 +132,11 @@ func _process_modification() -> void:
 	var s := stance * combat
 	var a := aim * combat
 	var turn := deg_to_rad(blade) * maxf(s, a * 0.6)
-	_rotate(sk, "Hips", Vector3.UP, turn * 0.35)
+	_rotate(sk, "Hips", Vector3.UP, turn * 0.45)
 	_rotate(sk, "Hips", Vector3.BACK, deg_to_rad(-6.0) * s)
-	_rotate(sk, "Spine", Vector3.UP, turn * 0.25)
+	_rotate(sk, "Spine", Vector3.UP, turn * 0.2)
 	_rotate(sk, "Chest", Vector3.UP, turn * 0.2)
-	_rotate(sk, "UpperChest", Vector3.UP, turn * 0.2)
+	_rotate(sk, "UpperChest", Vector3.UP, turn * 0.15)
 	# eyes back on the target, chin down a touch and cocked
 	_rotate(sk, "Neck", Vector3.UP, -turn * 0.45)
 	_rotate(sk, "Head", Vector3.UP, -turn * 0.55)
@@ -300,7 +300,7 @@ func _curl(sk: Skeleton3D, side: String, w: float) -> void:
 	var f: Vector3 = hb * (fr[0] as Vector3)
 	var n: Vector3 = hb * (fr[1] as Vector3)
 	# fingers fold from pointing along the hand toward the palm side
-	var axis := f.cross(-n).normalized()
+	var axis := f.cross(n).normalized()
 	for finger: String in CURL:
 		var angles: Array = CURL[finger]
 		for j in 3:
