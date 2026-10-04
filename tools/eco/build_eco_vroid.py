@@ -1695,22 +1695,20 @@ def vesper_graph(nt, skin):
     AA = 0.00045
     # the top: up to the collar at the front, cut away over the shoulders, a low band behind
     zf = g.sub(1.175, g.mul(1.7, g.mx(g.sub(ax, 0.04), 0.0)))
-    # the hem: at V_HEM under each tip (the limit), rising toward the middle so more
-    # of her underside shows between them; the back band stays level
-    hem_f = g.add(V_HEM, g.mul(0.35, g.mx(g.sub(0.04, ax), 0.0)))
-    d_top = g.mn(g.sub(g.lerp(zf, 1.05, tb), z), g.sub(z, g.add(g.lerp(hem_f, V_HEM, tb), g.mul(0.012, tb))))
+    hem = g.add(V_HEM, g.mul(0.0 if unzip else 0.01, g.op("EXPONENT", g.mul(g.sq(g.div(x, 0.022)), -1.0))))
+    d_top = g.mn(g.sub(g.lerp(zf, 1.05, tb), z), g.sub(z, g.add(hem, g.mul(0.012, tb))))
     r = g.sqrt(g.add(g.sq(x), g.sq(g.sub(y, 0.022))))
     d_collar = g.mn(g.mn(g.sub(z, 1.15), g.sub(1.2, z)), g.sub(0.064, r))
     d_top = g.mx(d_top, d_collar)
-    # the V: a narrow one below the collar, or unzipped down to a band at the hem.
-    # Unzipped, each cup's inner edge is a straight line passing 1 cm clear of the
-    # covered zone round her tip (vesper-limits: a 2.2 cm disc), so it stays a real
-    # triangle cup while the top inner corners open; it stops widening at 5 cm to
-    # leave halter straps to the collar
+    # the V: a narrow one below the collar, or unzipped to the hem and straight up
+    # past her bust, leaving halter straps to the collar. Unzipped, it also never
+    # comes nearer than 1 cm to the covered zone round each tip (vesper-limits: a
+    # 2.2 cm disc): a line tangent to that zone plus 1 cm bounds it
+    v0, slope = (V_HEM + 0.004, 2.0) if unzip else (1.075, 0.32)
+    w_v = g.mul(g.mx(g.sub(z, v0), 0.0), slope)
     if unzip:
-        d_v = g.mn(g.sub(g.mn(g.add(0.014, g.mul(0.9, g.sub(z, APEX_POS[2]))), 0.05), ax), g.sub(z, g.add(hem_f, 0.010)))
-    else:
-        d_v = g.sub(g.mul(g.mx(g.sub(z, 1.075), 0.0), 0.32), ax)
+        w_v = g.mn(g.mn(w_v, 0.043), g.add(0.014, g.mul(0.9, g.sub(z, APEX_POS[2]))))
+    d_v = g.sub(w_v, ax)
     d_v = g.mn(d_v, g.mul(g.sub(front, 0.5), 0.1))   # (front only)
     d_top = g.mn(d_top, g.neg(d_v))
     # the shorts: low-rise front, the back band dipping over her cheeks, cheeky legs
@@ -1755,7 +1753,7 @@ def vesper_graph(nt, skin):
     col = g.mixc(col, (1.0, 0.86, 0.45), g.mul(g.mul(g.mul(gleam, c_top), front), 0.55))
     if unzip:   # zipper teeth down each edge of the opening, the pull at the bottom
         col = g.mixc(col, (0.45, 0.42, 0.38), g.mul(g.mul(g.band(d_v, -0.0026, -0.0010, 0.0003), c_top), front))
-        pull = g.mul(g.band(ax, -0.001, 0.0035, 0.0004), g.band(z, V_HEM + 0.017, V_HEM + 0.023, 0.0004))
+        pull = g.mul(g.band(ax, -0.001, 0.0035, 0.0004), g.band(z, V_HEM, V_HEM + 0.006, 0.0004))
         col = g.mixc(col, (0.7, 0.66, 0.6), g.mul(pull, c_top))
     col = g.mixc(col, GEAR, c_gear)
     cover = g.mx(g.mx(g.mx(c_top, c_sh), c_st), g.mx(c_sl, c_gear))
