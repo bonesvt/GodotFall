@@ -637,15 +637,6 @@ def shell(name, keep, planes=(), gap=0.004, thick=0.004, plate="eco_v_armor", ed
         # let the ring inside follow, so no face folds over the moved edge
         ring = {e.other_vert(v) for v in rim for e in v.link_edges} - set(rim)
         bmesh.ops.smooth_vert(bm, verts=list(ring), factor=0.5, use_axis_x=True, use_axis_y=True, use_axis_z=True)
-    trimmed = set()
-    if border:   # a band of the edge material `border` faces wide all round its edge
-        edge_v = {v for v in bm.verts if v.is_boundary}
-        for _ in range(border):
-            faces = {f for v in edge_v for f in v.link_faces}
-            trimmed |= faces
-            edge_v = {v for f in faces for v in f.verts}
-        for f in bm.faces:
-            f.material_index = 1 if f in trimmed else 0
     bm.normal_update()
     for v in bm.verts:
         v.co += v.normal * gap
@@ -661,7 +652,14 @@ def shell(name, keep, planes=(), gap=0.004, thick=0.004, plate="eco_v_armor", ed
     bm.normal_update()
     for f in bm.faces:
         vs = set(f.verts)
-        f.material_index = 1 if (vs & orig) and (vs - orig) else (f.material_index if border else 0)
+        f.material_index = 1 if (vs & orig) and (vs - orig) else 0
+    if border:   # a band of the edge material `border` faces wide all round its edge, on both sides
+        edge_v = {v for f in bm.faces if f.material_index == 1 for v in f.verts}
+        for _ in range(border):
+            faces = {f for v in edge_v for f in v.link_faces}
+            for f in faces:
+                f.material_index = 1
+            edge_v = {v for f in faces for v in f.verts}
     bm.to_mesh(ob.data)
     bm.free()
     ob.data.materials.clear()
@@ -757,10 +755,10 @@ def base_jacket():
             return c.z > 1.0   # the sleeves
         if c.z < 1.04:
             return False
-        return not (c.y < 0 and ax < 0.095 + 0.3 * max(0.0, 1.12 - c.z))   # open front, curving away
+        return not (c.y < 0 and ax < 0.07 + 0.2 * max(0.0, 1.12 - c.z))   # open front, curving away
     ob = shell("base_jacket", keep,
                  planes=[((0, 0, 1.035), (0, 0, -1)), ((0.25, 0, 0), (1, 0, 0)), ((-0.25, 0, 0), (-1, 0, 0))],
-                 gap=0.006, thick=0.006, plate="eco_v_jacket", edge="eco_v_jacket_edge", smooth=2, smooth_edge=5, border=1)
+                 gap=0.006, thick=0.006, plate="eco_v_jacket", edge="eco_v_jacket_edge", smooth=2, smooth_edge=5, border=2)
     # nothing may stand off her: a stray vertex here once made spikes behind her head
     bvh = _body_bvh()
     far = max((bvh.find_nearest(ob.matrix_world @ v.co)[3] or 0.0) for v in ob.data.vertices)
