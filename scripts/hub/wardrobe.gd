@@ -1,8 +1,9 @@
 extends RefCounted
 ## Eco's wardrobe in the hub: one place to pick what everyone wears (Eco,
 ## Mom, Ophelia). The picks are saved; an NPC left on "changes every run"
-## rotates through her outfits as before (hub_npc.gd wear_for_run). Eco wears
-## her pick at home and in town and her pilot suit on a run. The screen is
+## rotates through her outfits as before (hub_npc.gd wear_for_run). Eco's
+## outfits are her pilot suits (eco_model.gd OUTFITS); she wears her pick
+## everywhere, and anything that isn't a pilot suit only at home. The screen is
 ## wardrobe_screen.gd; build() puts the wardrobe itself in her loft bedroom.
 
 const K := preload("res://scripts/hub/hub_kit.gd")
@@ -15,7 +16,8 @@ const HUB_NPC := "res://scripts/hub/hub_npc.gd"
 const PEOPLE := [["eco", "ECO"], ["mom", "MOM"], ["ophelia", "OPHELIA"]]
 ## What each outfit is called on the screen (anything missing is capitalised).
 const NAMES := {
-	"suit": "Pilot suit", "sleep": "Sleepwear", "work": "Work clothes", "date": "Date night",
+	"suit": "Pilot suit", "suit_ghost": "Ghost suit", "suit_racer": "Racer suit",
+	"suit_harness": "Harness suit", "suit_techwear": "Techwear suit", "sleep": "Sleepwear", "work": "Work clothes", "date": "Date night",
 	"casual": "Casual", "swim": "Bikini", "bikini": "Bikini", "sheer": "Sheer layers",
 	"tight": "Tight and daring", "lingerie": "Lingerie", "home": "Home clothes",
 	"tee": "Band tee", "hoodie": "Hoodie", "night": "Nightwear",
@@ -25,13 +27,14 @@ const ROTATE := ""
 
 ## Where the picks are saved ([wardrobe] <who> = <outfit>).
 static var save_path := "user://wardrobe.cfg"
-## What Eco has on when she isn't resting: her pick at home, the suit on a run.
+## What Eco has on when she isn't resting: her pick at home, and on a run her
+## pick if it's a pilot suit, else her own.
 ## eco_fp_body.gd puts her back in it when she gets up.
 static var eco_now := "suit"
 
 
 ## The outfits someone has. Eco's come from her model (eco_model.gd OUTFITS);
-## until her outfits are in the game that is just the suit.
+## (her pilot suits).
 static func outfits(who: String) -> Array:
 	if who == "eco":
 		var eco: Script = load(ECO_MODEL)
@@ -78,7 +81,8 @@ static func choose(who: String, outfit: String) -> void:
 ## Puts Eco (the player's full-body model) in her pick at home, or her suit
 ## on a run. Left alone while she's lying down or sitting.
 static func dress_eco(player: Node, at_home: bool) -> void:
-	eco_now = choice("eco") if at_home else "suit"
+	var pick := choice("eco")
+	eco_now = pick if at_home or pick.begins_with("suit") else "suit"
 	var body := player.get_node_or_null("EcoBody") if player != null else null
 	if body == null:
 		return
