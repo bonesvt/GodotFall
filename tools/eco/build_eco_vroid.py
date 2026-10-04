@@ -38,6 +38,7 @@ argv = sys.argv[sys.argv.index("--") + 1:]
 SRC = argv[0]
 ROOT = argv[1]
 PREVIEW = argv[argv.index("--preview") + 1] if "--preview" in argv else None
+STYLE_NAME = argv[argv.index("--style") + 1] if "--style" in argv else "gwen"   # the base suit's style (BASE_STYLES)
 TEX_OUT = os.path.join(ROOT, "assets", "textures", "eco")
 GLB_OUT = os.path.join(ROOT, "assets", "models", "eco", "eco.glb")
 
@@ -68,6 +69,33 @@ BASE_NET = (0.02, 0.022, 0.03)    # the breathable mesh's net
 BASE_CORSET = (0.012, 0.011, 0.014)
 JACKET = (0.02, 0.09, 0.1)        # the cropped jacket: deep teal
 ZIP = (0.42, 0.44, 0.5)           # the back zip's silver teeth
+# The base suit's styles. "gwen" is the one in the game; the others are a lookbook
+# for Bones (build with --style <name>), each its own colours and details:
+#   neck     sweetheart or vee: breathable mesh above that line up to the collar
+#   panels   sides (panels down her sides and legs, sleeves from `sleeve` out),
+#            racer (a sash across her, her left leg and stripes), harness (pilot
+#            harness straps), wrap (a wrap top and glowing circuit lines)
+#   belt     corset, obi, utility, sash or none
+#   vents    ribs (perforated side panels) or spine (mesh strips beside her spine)
+#   jacket   cropped, bomber, capelet or None (base_jacket)
+BASE_STYLES = {
+    "gwen": dict(suit=SUIT, panel=BASE_RED, belt=BASE_CORSET, accent=BASE_RED, net=BASE_NET, stretch=STRETCH,
+                 glow=TRIM, neck="sweetheart", panels="sides", sleeve=0.165, belt_kind="corset", vents="ribs",
+                 jacket="cropped"),
+    "ghost": dict(suit=(0.6, 0.62, 0.68), panel=(0.012, 0.012, 0.016), belt=(0.012, 0.012, 0.016), accent=BASE_RED,
+                  net=(0.008, 0.008, 0.012), stretch=(0.75, 0.77, 0.84), glow=(0.95, 0.06, 0.2), neck="vee",
+                  panels="sides", sleeve=0.27, belt_kind="obi", vents="ribs", jacket="cropped"),
+    "racer": dict(suit=(0.016, 0.017, 0.021), panel=(0.55, 0.11, 0.01), belt=(0.05, 0.03, 0.018),
+                  accent=(0.55, 0.11, 0.01), net=BASE_NET, stretch=(0.06, 0.06, 0.07), glow=(1.0, 0.4, 0.05),
+                  neck=None, panels="racer", belt_kind="utility", vents="spine", jacket="bomber"),
+    "harness": dict(suit=(0.028, 0.04, 0.068), panel=(0.06, 0.063, 0.068), belt=(0.06, 0.063, 0.068),
+                    accent=(0.8, 0.22, 0.015), net=BASE_NET, stretch=(0.06, 0.08, 0.12), glow=(1.0, 0.42, 0.04),
+                    neck=None, panels="harness", belt_kind="none", vents=None, jacket=None),
+    "techwear": dict(suit=(0.02, 0.016, 0.03), panel=(0.13, 0.115, 0.17), belt=(0.02, 0.016, 0.03),
+                     accent=(0.09, 0.075, 0.12), net=BASE_NET, stretch=(0.05, 0.045, 0.07), glow=(0.55, 0.22, 1.0),
+                     neck=None, panels="wrap", belt_kind="sash", vents="spine", jacket="capelet"),
+}
+STYLE = BASE_STYLES[STYLE_NAME]
 
 SIDE_CUT = 0.075   # how far the sides of the halter drop beside the bust (rest-space metres)
 CHEEKY = 1.6       # how steeply the back leg openings rise toward the hips
@@ -603,7 +631,7 @@ def _armor_mats(me, names):
             "eco_v_leather": LEATHER, "eco_v_canvas": CANVAS, "eco_v_rust": RUST, "eco_v_tape": TAPE,
             "eco_v_jacket": JACKET, "eco_v_jacket_edge": BASE_RED}
     for n in names:
-        me.materials.append(new_mat(n, cols[n]))
+        me.materials.append(new_mat(n, cols.get(n, (0.5, 0.5, 0.5))))
 
 
 def shell(name, keep, planes=(), gap=0.004, thick=0.004, plate="eco_v_armor", edge="eco_v_armor_edge", smooth=0,
@@ -775,21 +803,37 @@ def torus(bm, centre, axis, major, minor, mat, segs=(16, 6)):
 
 def base_jacket():
     """The base suit's fashion piece (base_*, shown by eco_model.gd only with no
-    suit upgrade): a cropped deep teal jacket, short sleeves, open at the front so
-    the suit's sweetheart line shows, its hem above her ribs at the back, a thick
-    crimson edge all round."""
+    suit upgrade), by STYLE["jacket"]:
+      cropped  a cropped jacket, short sleeves, open at the front so the suit's
+               neckline shows, its hem above her ribs at the back, an edge in
+               the second colour all round ("gwen": deep teal, crimson edge)
+      bomber   the same with sleeves to her forearms and a longer back
+      capelet  a short cape over her left shoulder only
+    None of them for a style without one. Its materials are eco_v_jacket[_<style>]
+    and ..._edge."""
+    shape = STYLE["jacket"]
+    if not shape:
+        return None
+    hem, cuff = (1.0, 0.33) if shape == "bomber" else (1.035, 0.25)
+
     def keep(c, n):
         ax = abs(c.x)
         if c.z > 1.215 or (c.z > 1.165 and math.hypot(c.x, c.y - 0.022) < 0.075):
             return False   # her neck, under the collar, and anything of the body up inside her head
+        if shape == "capelet":
+            return c.x > 0.02 and c.z > 1.075 and not (c.y < -0.04 and n.z < -0.3)
         if ax > 0.15:
             return c.z > 1.0   # the sleeves
-        if c.z < 1.04 or (c.y < -0.04 and (c.z < 1.065 or n.z < -0.3)):
+        if c.z < hem or (c.y < -0.04 and (c.z < 1.065 or n.z < -0.3)):
             return False   # the fronts stop above the underside of her bust
         return not (c.y < 0 and ax < 0.07 + 0.2 * max(0.0, 1.12 - c.z))   # open front, curving away
-    ob = shell("base_jacket", keep,
-                 planes=[((0, 0, 1.035), (0, 0, -1)), ((0.25, 0, 0), (1, 0, 0)), ((-0.25, 0, 0), (-1, 0, 0))],
-                 gap=0.006, thick=0.006, plate="eco_v_jacket", edge="eco_v_jacket_edge", smooth=2, smooth_edge=5, border=1)
+    if shape == "capelet":
+        planes = [((0, 0, 1.07), (0, 0, -1)), ((0.24, 0, 0), (1, 0, 0))]
+    else:
+        planes = [((0, 0, hem), (0, 0, -1)), ((cuff, 0, 0), (1, 0, 0)), ((-cuff, 0, 0), (-1, 0, 0))]
+    mat = "eco_v_jacket" + ("" if STYLE_NAME == "gwen" else "_" + STYLE_NAME)
+    ob = shell("base_jacket", keep, planes=planes, gap=0.006, thick=0.006, plate=mat, edge=mat + "_edge",
+               smooth=2, smooth_edge=5, border=1)
     # nothing may stand off her: a stray vertex here once made spikes behind her head
     bvh = _body_bvh()
     far = max((bvh.find_nearest(ob.matrix_world @ v.co)[3] or 0.0) for v in ob.data.vertices)
@@ -1377,8 +1421,9 @@ def crease_lines(g, x, y, z, width):
 
 
 def base_details(g, x, y, z, skin, col, c_suit, c_gear, front, AA):
-    """The base pilot suit's look, over the plain bodysuit: a full stretch suit
-    built to move and breathe, with some fashion on it.
+    """The base pilot suit's look over the plain bodysuit, in the STYLE picked
+    (BASE_STYLES). The game's style, "gwen": a full stretch suit built to move and
+    breathe, with some fashion on it.
       - a sweetheart line over her bust, solid below it and breathable black mesh
         above it up to the collar, piped in teal
       - crimson panels down her sides and the outside of her legs (perforated
@@ -1387,42 +1432,138 @@ def base_details(g, x, y, z, skin, col, c_suit, c_gear, front, AA):
       - a zip down her back, collar to the small of her back, so she can get in
       - no knee plates, and her ankle boots with no painted shafts above them
     Returns (colour, ink line, glowing trim)."""
+    S = STYLE
     ax = g.abs(x)
     on = g.mul(c_suit, g.sub(1.0, c_gear))
-    # sweetheart: two arcs over her bust dipping between them
-    dip = g.op("EXPONENT", g.neg(g.sq(g.div(ax, 0.013))))
-    zs = g.sub(g.sub(1.088, g.mul(2.2, g.sq(g.sub(ax, 0.06)))), g.mul(0.024, dip))
-    d_yoke = g.mn(g.mn(g.sub(z, zs), g.sub(1.163, z)), g.sub(0.15, ax))
-    yoke = g.mul(g.mul(g.sstep(-AA, AA, d_yoke), front), on)
+    back = g.sstep(0.02, 0.04, y)
+    ink = g.mul(on, 0.0)
+    trim = g.mul(on, 0.0)
+
     def lines(v, step):
         f = g.op("FRACT", g.div(v, step))
         return g.mx(g.sub(1.0, g.sstep(0.0, 0.2, f)), g.sstep(0.8, 1.0, f))
-    net = g.mx(lines(g.add(x, z), 0.0065), lines(g.sub(x, z), 0.0065))
-    mesh = g.mixc(g.mixc(skin, SUIT, 0.55), BASE_NET, net)
-    col = g.mixc(col, mesh, yoke)
-    ink = g.mul(g.mul(g.band(d_yoke, -0.0008, 0.0), front), on)
-    trim = g.mul(g.mul(g.band(d_yoke, -0.0024, -0.0012), front), on)
-    # crimson side panels, the outsides of her legs, and her sleeves
-    th = g.lerp(0.108, 0.084, g.sstep(0.76, 0.8, z))
-    th = g.mul(th, g.sstep(0.42, 0.52, z))   # below her knees the crimson wraps all the way round (no seam ringing her calf)
-    below_arm = g.sub(1.0, g.sstep(0.985, 0.995, z))
-    d_panel = g.sub(ax, th)
-    panel = g.mul(g.mul(g.sstep(-AA, AA, d_panel), below_arm), on)
-    d_sleeve = g.mx(g.sub(ax, 0.165), g.sub(1.0, z))   # her arms only (out sideways at rest), never her hips
-    sleeve = g.mul(g.sstep(-AA, AA, d_sleeve), on)
-    col = g.mixc(col, BASE_RED, g.mx(panel, sleeve))
-    # perforated over her ribs so it breathes
+
     def frac(v, step):
         return g.sub(g.op("FRACT", g.div(v, step)), 0.5)
-    hole = g.sqrt(g.add(g.sq(frac(y, 0.0085)), g.sq(frac(z, 0.0085))))
-    vent = g.mul(g.mul(g.sub(1.0, g.sstep(0.22, 0.3, hole)), g.band(z, 0.952, 0.982, 0.004)), g.mul(panel, g.sstep(0.004, 0.008, d_panel)))
-    col = g.mixc(col, g.mixc(skin, INK, 0.45), vent)
-    edge = g.mx(g.mul(g.band(d_panel, 0.0006, 0.0018), below_arm), g.band(d_sleeve, 0.0006, 0.0018))
-    trim = g.mx(trim, g.mul(edge, on))
-    ink = g.mx(ink, g.mul(g.mx(g.mul(g.band(d_panel, -0.0004, 0.0006), below_arm), g.band(d_sleeve, -0.0004, 0.0006)), on))
+
+    def fill(d):   # inside a signed distance, on the suit
+        return g.mul(g.sstep(-AA, AA, d), on)
+
+    def edge(d, m=None):   # its ink line and the glowing piping just inside it
+        nonlocal ink, trim
+        k = on if m is None else g.mul(on, m)
+        ink = g.mx(ink, g.mul(g.band(d, -0.0004, 0.0006), k))
+        trim = g.mx(trim, g.mul(g.band(d, 0.0008, 0.0018), k))
+
+    def box(cx, cz, hw, hh, side=front):   # a small rectangle (buckles, pouches) at |x| = cx
+        return g.mul(g.mul(g.band(ax, cx - hw, cx + hw), g.band(z, cz - hh, cz + hh)), g.mul(side, on))
+
+    def stripe(v, lo, hi):
+        return g.band(v, lo, hi, 0.0003)
+
+    # breathable mesh above the neckline, up to the collar
+    if S["neck"]:
+        if S["neck"] == "sweetheart":   # two arcs over her bust dipping between them
+            dip = g.op("EXPONENT", g.neg(g.sq(g.div(ax, 0.013))))
+            zs = g.sub(g.sub(1.088, g.mul(2.2, g.sq(g.sub(ax, 0.06)))), g.mul(0.024, dip))
+        else:   # a V, its point above her bust
+            zs = g.add(1.062, g.mul(0.9, ax))
+        d_yoke = g.mn(g.mn(g.sub(z, zs), g.sub(1.163, z)), g.sub(0.15, ax))
+        yoke = g.mul(fill(d_yoke), front)
+        net = g.mx(lines(g.add(x, z), 0.0065), lines(g.sub(x, z), 0.0065))
+        col = g.mixc(col, g.mixc(g.mixc(skin, S["suit"], 0.55), S["net"], net), yoke)
+        ink = g.mx(ink, g.mul(g.mul(g.band(d_yoke, -0.0008, 0.0), front), on))
+        trim = g.mx(trim, g.mul(g.mul(g.band(d_yoke, -0.0024, -0.0012), front), on))
+
+    torso = g.mul(g.sub(1.0, g.sstep(0.16, 0.17, ax)), g.sstep(0.82, 0.84, z))   # not her arms or legs
+    if S["panels"] == "sides":
+        # panels down her sides and the outsides of her legs, and her sleeves
+        th = g.lerp(0.108, 0.084, g.sstep(0.76, 0.8, z))
+        th = g.mul(th, g.sstep(0.42, 0.52, z))   # below her knees it wraps all the way round (no seam ringing her calf)
+        below_arm = g.sub(1.0, g.sstep(0.985, 0.995, z))
+        d_panel = g.sub(ax, th)
+        panel = g.mul(fill(d_panel), below_arm)
+        d_sleeve = g.mx(g.sub(ax, S["sleeve"]), g.sub(1.0, z))   # her arms only (out sideways at rest), never her hips
+        col = g.mixc(col, S["panel"], g.mx(panel, fill(d_sleeve)))
+        if S["vents"] == "ribs":   # perforated over her ribs so it breathes
+            hole = g.sqrt(g.add(g.sq(frac(y, 0.0085)), g.sq(frac(z, 0.0085))))
+            vent = g.mul(g.mul(g.sub(1.0, g.sstep(0.22, 0.3, hole)), g.band(z, 0.952, 0.982, 0.004)), g.mul(panel, g.sstep(0.004, 0.008, d_panel)))
+            col = g.mixc(col, g.mixc(skin, INK, 0.45), vent)
+        edge(d_panel, below_arm)
+        edge(d_sleeve)
+    elif S["panels"] == "racer":
+        # a broad sash from her right shoulder across to her left hip, front and back
+        d_sash = g.sub(0.022, g.abs(g.div(g.sub(g.mul(g.add(x, 0.13), -0.33), g.mul(g.sub(z, 1.17), 0.25)), 0.414)))
+        d_sash = g.mn(d_sash, g.sub(0.17, ax))
+        col = g.mixc(col, S["panel"], fill(d_sash))
+        edge(d_sash, torso)
+        # her left leg in colour, two racing stripes down the front of her right
+        d_leg = g.mn(g.sub(x, 0.02), g.sub(g.add(0.66, g.mul(1.385, g.sub(x, 0.03))), z))   # a diagonal from her hip to below her crotch
+        col = g.mixc(col, S["panel"], fill(d_leg))
+        edge(d_leg)
+        rs = g.mul(g.mx(stripe(x, -0.0785, -0.0735), stripe(x, -0.0665, -0.0615)), g.mul(g.band(z, 0.2, 0.74), front))
+        col = g.mixc(col, S["panel"], g.mul(rs, on))
+        # and two down the outside of each arm
+        arm = g.mul(g.sstep(0.17, 0.18, ax), g.sstep(1.135, 1.145, z))
+        st = g.mul(g.mx(stripe(y, 0.0135, 0.0185), stripe(y, 0.0255, 0.0305)), arm)
+        col = g.mixc(col, S["panel"], g.mul(st, on))
+    elif S["panels"] == "harness":
+        # a pilot's harness: straps over her shoulders down past her chest to a
+        # belt, a strap across her upper chest, and a loop round each thigh tied
+        # to the belt; orange stitching, silver buckles, chevrons on her left arm
+        webs = []
+        webs.append(g.mn(g.mn(g.sub(ax, 0.098), g.sub(0.118, ax)), g.mn(g.sub(z, 0.885), g.sub(1.21, z))))
+        webs.append(g.mn(g.mn(g.sub(z, 1.104), g.sub(1.12, z)), g.mn(g.sub(0.118, ax), g.sub(0.5, back))))
+        webs.append(g.mn(g.sub(z, 0.885), g.sub(0.915, z)))
+        webs.append(g.mn(g.mn(g.sub(ax, 0.069), g.sub(0.085, ax)), g.mn(g.mn(g.sub(z, 0.635), g.sub(0.885, z)), g.sub(0.5, back))))
+        webs.append(g.mn(g.mn(g.sub(z, 0.635), g.sub(0.652, z)), g.sub(0.2, ax)))
+        d_web = webs[0]
+        for w in webs[1:]:
+            d_web = g.mx(d_web, w)
+        col = g.mixc(col, S["panel"], fill(d_web))
+        col = g.mixc(col, S["accent"], g.mul(g.band(d_web, 0.0011, 0.0017), on))   # stitching
+        ink = g.mx(ink, g.mul(g.band(d_web, -0.0004, 0.0006), on))
+        bk = g.mx(g.mx(box(0.108, 1.112, 0.012, 0.011), box(0.0, 0.9, 0.016, 0.017)), box(0.077, 0.6435, 0.011, 0.011))
+        col = g.mixc(col, ZIP, bk)
+        lamp = g.sqrt(g.add(g.sq(g.div(x, 0.004)), g.sq(g.div(g.sub(z, 0.9), 0.004))))
+        trim = g.mx(trim, g.mul(g.mul(g.sub(1.0, g.sstep(0.8, 1.0, lamp)), front), on))
+        chev = g.sub(1.0, g.sstep(0.4, 0.45, g.op("FRACT", g.div(g.add(x, g.mul(g.abs(g.sub(y, 0.022)), 1.2)), 0.016))))
+        chev = g.mul(g.mul(chev, g.band(x, 0.19, 0.24)), g.sstep(1.14, 1.15, z))
+        col = g.mixc(col, S["accent"], g.mul(chev, on))
+    elif S["panels"] == "wrap":
+        # a wrap top over the front of the suit, its lapel crossing from her
+        # right collarbone to her left hip, tied there; glowing circuit lines
+        # down her left arm and right leg; two straps round her right thigh
+        wrap = g.mul(g.mul(g.band(z, 0.88, 1.17, 0.0004), g.sub(1.0, g.sstep(0.155, 0.165, ax))), front)
+        col = g.mixc(col, S["accent"], g.mul(wrap, on))
+        d_lap = g.sub(x, g.add(-0.03, g.mul(g.sub(1.17, z), 0.48)))
+        lap = g.mul(g.sstep(-AA, AA, d_lap), wrap)
+        col = g.mixc(col, S["panel"], g.mul(lap, on))
+        ink = g.mx(ink, g.mul(g.mul(g.band(d_lap, -0.0004, 0.0008), wrap), on))
+        ink = g.mx(ink, g.mul(g.mul(g.band(z, 0.8795, 0.8812), g.sub(1.0, g.sstep(0.155, 0.165, ax))), g.mul(front, on)))
+        knot = g.sqrt(g.add(g.sq(g.div(g.sub(x, 0.112), 0.012)), g.sq(g.div(g.sub(z, 0.884), 0.01))))
+        tails = g.mul(g.mx(g.band(x, 0.1, 0.108), g.band(x, 0.114, 0.122)), g.band(z, 0.83, 0.884))
+        tie = g.mul(g.mx(g.sub(1.0, g.sstep(0.9, 1.0, knot)), tails), front)
+        col = g.mixc(col, S["panel"], g.mul(tie, on))
+        ink = g.mx(ink, g.mul(g.mul(g.band(knot, 0.92, 1.05), front), on))
+        larm = g.mul(g.mul(g.sstep(0.17, 0.18, x), g.sstep(1.14, 1.15, z)), g.add(stripe(y, 0.021, 0.0235),
+                     g.mul(g.band(g.op("FRACT", g.div(x, 0.035)), 0.0, 0.12), stripe(y, 0.0235, 0.034))))
+        rleg = g.mul(g.mx(g.mul(stripe(x, -0.0715, -0.0685), g.band(z, 0.45, 0.82)),
+                          g.mx(g.mul(stripe(x, -0.0615, -0.0585), g.band(z, 0.22, 0.4515)),
+                               g.mul(g.band(z, 0.4485, 0.4515), g.band(x, -0.0715, -0.0585)))), front)
+        trim = g.mx(trim, g.mul(g.mx(larm, rleg), on))
+        straps = g.mul(g.mx(g.band(z, 0.62, 0.632), g.band(z, 0.66, 0.672)), g.sstep(-0.02, -0.03, x))
+        col = g.mixc(col, BASE_CORSET, g.mul(straps, on))
+        col = g.mixc(col, ZIP, g.mul(g.mul(g.band(z, 0.62, 0.672), g.band(x, -0.125, -0.112)), on))
+    if S["vents"] == "spine":   # mesh strips either side of her spine
+        vs = g.mul(g.mul(g.band(ax, 0.02, 0.045), g.band(z, 0.98, 1.15)), back)
+        net = g.mx(lines(g.add(x, z), 0.005), lines(g.sub(x, z), 0.005))
+        col = g.mixc(col, g.mixc(g.mixc(skin, S["suit"], 0.55), BASE_NET, net), g.mul(vs, on))
+        ink = g.mx(ink, g.mul(g.mul(g.band(ax, 0.0195, 0.0205), g.band(z, 0.98, 1.15)), g.mul(back, on)))
+        ink = g.mx(ink, g.mul(g.mul(g.band(ax, 0.0445, 0.0455), g.band(z, 0.98, 1.15)), g.mul(back, on)))
+
     # how she gets in: a zip down her spine from the collar to the small of her
-    # back (the corset belt goes over it), its pull glowing at the top
-    back = g.sstep(0.02, 0.04, y)
+    # back (the belt goes over it), its pull glowing at the top
     zip_ = g.mul(g.mul(g.band(x, -0.0019, 0.0019, 0.0002), g.band(z, 0.86, 1.2)), g.mul(back, on))
     col = g.mixc(col, ZIP, zip_)   # silver, so it reads down her spine
     teeth = g.mul(g.sstep(0.4, 0.6, g.op("FRACT", g.div(z, 0.0022))), zip_)
@@ -1430,19 +1571,43 @@ def base_details(g, x, y, z, skin, col, c_suit, c_gear, front, AA):
     ink = g.mx(ink, g.mul(g.mul(g.band(ax, 0.0019, 0.0025, 0.0002), g.band(z, 0.86, 1.2)), g.mul(back, on)))
     pull = g.sqrt(g.add(g.sq(g.div(x, 0.0035)), g.sq(g.div(g.sub(z, 1.19), 0.007))))
     trim = g.mx(trim, g.mul(g.sub(1.0, g.sstep(0.85, 1.0, pull)), g.mul(back, on)))
-    # a black corset belt, its top rising to a point at the front, laced in crimson
-    top = g.sub(0.978, g.mul(0.3, ax))
-    bot = g.add(0.872, g.mul(0.18, ax))
-    d_cor = g.mn(g.sub(top, z), g.sub(z, bot))
-    cor = g.mul(g.sstep(-AA, AA, d_cor), on)
-    col = g.mixc(col, BASE_CORSET, cor)
-    gap = g.mul(g.mul(g.sstep(-AA, AA, g.sub(0.007, ax)), front), cor)
-    col = g.mixc(col, SUIT, gap)
-    lace = g.mx(lines(g.add(z, ax), 0.011), lines(g.sub(z, ax), 0.011))
-    lace = g.mul(g.mul(lace, g.sstep(-AA, AA, g.sub(0.011, ax))), g.mul(front, cor))
-    col = g.mixc(col, BASE_RED, lace)
-    ink = g.mx(ink, g.mul(g.band(d_cor, -0.0006, 0.0003), on))
-    trim = g.mx(trim, g.mul(g.band(d_cor, 0.0012, 0.0022), on))
+
+    if S["belt_kind"] == "corset":
+        # a corset belt, its top rising to a point at the front, laced up the front
+        top = g.sub(0.978, g.mul(0.3, ax))
+        bot = g.add(0.872, g.mul(0.18, ax))
+        d_cor = g.mn(g.sub(top, z), g.sub(z, bot))
+        cor = fill(d_cor)
+        col = g.mixc(col, S["belt"], cor)
+        col = g.mixc(col, S["suit"], g.mul(g.mul(g.sstep(-AA, AA, g.sub(0.007, ax)), front), cor))
+        lace = g.mx(lines(g.add(z, ax), 0.011), lines(g.sub(z, ax), 0.011))
+        lace = g.mul(g.mul(lace, g.sstep(-AA, AA, g.sub(0.011, ax))), g.mul(front, cor))
+        col = g.mixc(col, S["accent"], lace)
+        ink = g.mx(ink, g.mul(g.band(d_cor, -0.0006, 0.0003), on))
+        trim = g.mx(trim, g.mul(g.band(d_cor, 0.0012, 0.0022), on))
+    elif S["belt_kind"] == "obi":
+        # a wide obi sash with a cord round its middle, knotted at her left hip
+        d_obi = g.mn(g.sub(z, 0.885), g.sub(0.965, z))
+        col = g.mixc(col, S["belt"], fill(d_obi))
+        edge(d_obi)
+        col = g.mixc(col, S["accent"], g.mul(g.band(z, 0.922, 0.93), on))
+        knot = g.sqrt(g.add(g.sq(g.div(g.sub(x, 0.1), 0.011)), g.sq(g.div(g.sub(z, 0.926), 0.009))))
+        tails = g.mul(g.mx(g.band(x, 0.092, 0.097), g.band(x, 0.103, 0.108)), g.band(z, 0.855, 0.926))
+        col = g.mixc(col, S["accent"], g.mul(g.mul(g.mx(g.sub(1.0, g.sstep(0.9, 1.0, knot)), tails), front), on))
+    elif S["belt_kind"] == "utility":
+        # a belt with a silver buckle and a pouch on each hip
+        d_belt = g.mn(g.sub(z, 0.875), g.sub(0.9, z))
+        col = g.mixc(col, S["belt"], fill(d_belt))
+        ink = g.mx(ink, g.mul(g.band(d_belt, -0.0004, 0.0006), on))
+        col = g.mixc(col, ZIP, box(0.0, 0.8875, 0.013, 0.014))
+        pouch = box(0.095, 0.855, 0.02, 0.019)
+        col = g.mixc(col, S["belt"], pouch)
+        ink = g.mx(ink, g.mul(g.mx(g.band(ax, 0.0745, 0.0755), g.band(ax, 0.1145, 0.1155)), g.mul(g.band(z, 0.836, 0.874), g.mul(front, on))))
+        ink = g.mx(ink, g.mul(g.band(z, 0.8355, 0.8365), g.mul(g.band(ax, 0.075, 0.115), g.mul(front, on))))
+    elif S["belt_kind"] == "sash":   # a thin sash at the waist under the wrap's tie
+        d_s = g.mn(g.sub(z, 0.873), g.sub(0.887, z))
+        col = g.mixc(col, S["panel"], fill(d_s))
+        ink = g.mx(ink, g.mul(g.band(d_s, -0.0004, 0.0006), on))
     return col, ink, trim
 
 
@@ -1474,7 +1639,7 @@ def suit_graph(nt, skin, cut="base"):
     tb = g.sstep(-0.025, 0.045, y)                    # 0 at the front, 1 at the back
     front = g.sub(1.0, g.sstep(-0.045, -0.025, y))
     AA = 0.00045
-    suit_col = MED_SUIT if medium else HVY_SUIT if heavy else SUIT
+    suit_col = MED_SUIT if medium else HVY_SUIT if heavy else STYLE["suit"] if base else SUIT
     if heavy or base:
         # neck to gloves to boots, under a high collar (heavy: a padded undersuit;
         # base: the stretch bodysuit)
@@ -1612,7 +1777,7 @@ def suit_graph(nt, skin, cut="base"):
         stretch = bell(0.062, 0.06, 0.775, 0.042)
         if not light:
             stretch = g.mx(bell(0.057, -0.105, 1.045, 0.03), stretch)
-        col = g.mixc(col, STRETCH, g.mul(g.mul(stretch, 0.35 if base else 0.55), suit_only))
+        col = g.mixc(col, STYLE["stretch"] if base else STRETCH, g.mul(g.mul(stretch, 0.35 if base else 0.55), suit_only))
         if not (light or base):   # the base suit's fabric is thicker: no peaks drawn through it   # the light wrap holds her bust: no peaks drawn through it
             # drawn the anime way: a soft gleam on each peak of her bust with a small shadow under it
             col = g.mixc(col, INK, g.mul(g.mul(bell(APEX_POS[0], APEX_POS[1] + 0.0015, APEX_POS[2] - 0.0048, 0.0032), 0.8), suit_only))
@@ -1624,7 +1789,7 @@ def suit_graph(nt, skin, cut="base"):
     if not (medium or heavy):
         col = g.mixc(col, INK, g.mul(g.mul(crease, 0.85), c_suit))
     col = g.mixc(col, INK, ink)
-    col = g.mixc(col, TRIM, trim)
+    col = g.mixc(col, STYLE["glow"] if base else TRIM, trim)
     return col, trim, g.mx(c_suit, c_gear), ink, c_gear
 
 
@@ -1666,7 +1831,7 @@ def bake_body(body, skin_img, cut="base"):
         o.select_set(o == body)
     bpy.context.view_layer.objects.active = body
     results = {}
-    for name, size, src in (("v_body", 2048, col), ("v_body_glow", 1024, g.mixc((0, 0, 0, 1), TRIM, trim)),
+    for name, size, src in (("v_body", 2048, col), ("v_body_glow", 1024, g.mixc((0, 0, 0, 1), STYLE["glow"] if cut == "base" else TRIM, trim)),
                             ("v_body_mask", 1024, comb.outputs[0])):
         img = bpy.data.images.new(name, size, size, alpha=False)
         img.colorspace_settings.name = "sRGB" if name != "v_body_mask" else "Non-Color"
@@ -2064,7 +2229,9 @@ def main():
     objs = [bpy.data.objects[n] for n in ("Body", "Face", "Hair")] + [boots, gog]
     textures_and_materials(objs, boots)
     objs += suit_armor()
-    objs.append(base_jacket())
+    jacket = base_jacket()
+    if jacket is not None:
+        objs.append(jacket)
     glute_bones(arm)
     prune_bones(arm)
     proportions(arm, objs)
