@@ -8,6 +8,7 @@ extends SceneTree
 const Rooms := preload("res://scripts/hub/hub_rooms.gd")
 const NpcTalk := preload("res://scripts/hub/npc_talk.gd")
 const Babble := preload("res://scripts/hub/babble.gd")
+const Wardrobe := preload("res://scripts/hub/wardrobe.gd")
 
 const WHO := ["mom", "ophelia", "biggie"]
 ## Where Eco stands in the hall to walk through each door, and which way is in.
@@ -27,7 +28,8 @@ func _initialize() -> void:
 	run_node.run_seed = 7
 	run_node.armory_path = "user://test_npc_armory.cfg"
 	run_node.npc_path = "user://test_npcs.cfg"
-	for p in [run_node.armory_path, run_node.npc_path]:
+	Wardrobe.save_path = "user://test_npc_wardrobe.cfg"   # not the player's own picks
+	for p in [run_node.armory_path, run_node.npc_path, Wardrobe.save_path]:
 		DirAccess.remove_absolute(ProjectSettings.globalize_path(p))
 	root.add_child(run_node)
 	_run.call_deferred()
