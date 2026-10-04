@@ -3,7 +3,7 @@
 # Who's talking: the colony's grunts. Back home, people are ranked by what
 # they can build; the ones who can't build anything get a rifle and a ship
 # ticket. They're bored, bitter, homesick, and scared of the local Pilot their
-# reports call "the Gremlin". They don't know who killed her father (nobody on
+# reports call "the Dancer". They don't know who killed her father (nobody on
 # their side ever claimed it).
 #
 # Edit, add or delete lines freely; press O in game to reload (it also
@@ -38,10 +38,10 @@ a: Smell that? | b: Lampjaw nest. | a: Hell, where? | b: Downwind. Pray it stays
 
 # Gossip about Eco, not knowing she's listening.
 [rumor_eco]
-a: Supply says the Gremlin hit another convoy. | b: The Gremlin isn't real, pal. Quartermasters say it when they've sold the crates.
+a: Supply says the Dancer hit another convoy. | b: The Dancer isn't real, pal. Quartermasters say it when they've sold the crates.
 a: Report says she's a local. Some mechanic's kid. | b: A kid did all that? | a: A kid with a wrench and a grudge.
 a: Commander wants her in a cage for the parade. | b: Front row seats. I'll bring snacks.
-hq: All units, the bounty on the Gremlin just doubled. | a: Doubled? | hq: Bring her in and you'll never hold a rifle again. | b: Hell, I'd shoot my own mother for that.
+hq: All units, the bounty on the Dancer just doubled. | a: Doubled? | hq: Bring her in and you'll never hold a rifle again. | b: Hell, I'd shoot my own mother for that.
 a: Heard she's the daughter of that local Pilot. The one who stole our frame. | b: The thief? He's dead. | a: Who got him? | b: ...Nobody ever claimed it. Weird, right?
 a: She's been stripping our wrecks for parts. | b: For what? | a: Building something. A titan, they think. | b: Out of OUR scrap? Unbelievable.
 a: Saw her through the scope yesterday. | b: Why didn't you shoot? | a: She waved at me. | b: ...She waved? | a: Then she shot my scope.
@@ -53,7 +53,7 @@ a: Brass says she's just one girl with a pistol. | b: Brass doesn't walk patrols
 a: Scout heard her crying in the ruins last night. | b: Crying? | a: Then laughing. Then she blew up his damn truck.
 a: Builders back home are taking bets on how long she lasts. | b: What're the odds? | a: Getting worse every week. For us.
 a: Bet she's a lot less mouthy with a rifle in her face.
-a: The Gremlin's the only thing on this rock that scares me. | b: More than the lampjaws? | a: Lampjaws don't hold grudges.
+a: The Dancer's the only thing on this rock that scares me. | b: More than the lampjaws? | a: Lampjaws don't hold grudges.
 a: Found a smiley face drawn on the depot wall this morning. Haven't slept since.
 
 # Salvage and titan part rumours.
@@ -63,7 +63,7 @@ a: What's in the crates? | b: Titan scrap. Someone said a {part}. | a: For who? 
 a: Brass wants every scrap locked down. | b: Afraid someone builds one? | a: Afraid someone builds one and comes for them.
 hq: Recovery team is delayed. Hold the salvage. | a: How delayed? | hq: Recovery team is dead. Hold the damn salvage.
 a: Somebody left a {part} out in the open. | b: Bait. Leave it and watch who comes sniffing.
-a: Command's shipping every wrecked frame home. | b: Why the rush? | a: 'Cause the Gremlin's been eating our leftovers.
+a: Command's shipping every wrecked frame home. | b: Why the rush? | a: 'Cause the Dancer's been eating our leftovers.
 a: That {part} came off a frame the locals stole from us. | b: Then we're stealing it back. Circle of life.
 
 # Heard or glimpsed something.
@@ -73,9 +73,9 @@ a: You hear that? | b: Yeah. Safeties off.
 a: {b}, did you throw something? | b: No. | a: ...Then somebody else did.
 a: Flash on the ridge. | hq: Investigate. If it breathes, put it down.
 a: Something's off. | b: Then go find out what, before it finds you.
-a: Could be the Gremlin. | b: Could be a quillcat. | a: Pray it's the quillcat.
+a: Could be the Dancer. | b: Could be a quillcat. | a: Pray it's the quillcat.
 a: Who's there? ...I see you. Probably. Come on out.
-a: I know you're out there, Gremlin. You can't hide forever.
+a: I know you're out there, Dancer. You can't hide forever.
 
 # Suspicious grunt gives up.
 [stand_down]
@@ -88,14 +88,14 @@ a: Must've been nothing. | b: Nothing doesn't leave footprints.
 # First contact.
 [alerted]
 a: Contact! Fuck, she's on the wall! | b: Then shoot the wall! Shoot the whole damn wall!
-a: It's the Gremlin! | b: Weapons free!
+a: It's the Dancer! | b: Weapons free!
 a: There she is! Told you she was real! | b: Shut up and shoot!
 a: Eyes on her! Goggles, wrench, attitude! | hq: Weapons free. Cut her down.
 a: Hostile! It's the local! | b: Light her up! That bounty's ours!
 a: There you are, you little rat! | b: Stop talking and kill her, {a}!
 hq: Hostile in your grid! | a: It's just the girl! | hq: Then put her in the dirt and stop wasting my time.
 a: She's here! Wake up, {b}! The bounty's walking right at us!
-a: Found you, Gremlin. Time to die.
+a: Found you, Dancer. Time to die.
 a: Oh hell. Oh hell, it's her.
 
 # Mid fight.
@@ -105,7 +105,7 @@ a: Somebody hit her, goddammit! | b: I'm trying! She won't stay put!
 a: Reloading! | b: Hurry the hell up!
 hq: Status! | a: She's still breathing! | hq: Then fix that!
 a: She's just one girl! | b: Then why the hell are we losing?!
-a: Give it up, Gremlin! There's a thousand more of us! | b: Fewer every minute!
+a: Give it up, Dancer! There's a thousand more of us! | b: Fewer every minute!
 a: Kill her before she reaches the cache!
 a: You can't win this! Nobody beats the colony!
 a: Is she smiling?! Why is she smiling?! | b: Don't look at her face! Aim center mass!
@@ -130,7 +130,7 @@ a: She just did a flip. She did a flip and shot Davis. | b: Stop admiring it!
 [hurt]
 a: Tagged her! | b: Do it again!
 a: Got a piece of her! She's bleeding! | b: Keep on her!
-a: Ha! How's that feel, Gremlin?
+a: Ha! How's that feel, Dancer?
 a: Hit her! She's slowing down! | b: Finish it!
 a: Hit confirmed! Holy shit, I hit her!
 a: Got her! Put that on my report!
@@ -169,4 +169,4 @@ a: Lost contact. | b: Check your helmet for smiley faces. | a: That's not funny,
 hq: Squad, report. | hq: Squad? ...Squad, respond, damn it.
 hq: Patrol, you've gone quiet. Check in. | hq: ...Mark the grid. Send a recovery team.
 hq: Any station on this channel. | hq: ...Shit. Not again.
-hq: If you can hear this, Gremlin, you're a dead woman. You hear me? Dead.
+hq: If you can hear this, Dancer, you're a dead woman. You hear me? Dead.
