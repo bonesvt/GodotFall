@@ -47,8 +47,12 @@ float lin_depth(vec2 uv, mat4 inv_proj) {
 	return -v.z / v.w;
 }
 
+// Sin-free hash: the sin() kind turns into a regular crosshatch once its
+// input gets large (fp32 precision).
 float hash(vec2 p) {
-	return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453);
+	vec3 p3 = fract(vec3(p.xyx) * 0.1031);
+	p3 += dot(p3, p3.yzx + 33.33);
+	return fract((p3.x + p3.y) * p3.z);
 }
 
 float vnoise(vec2 p) {
@@ -145,7 +149,7 @@ void fragment() {
 	col *= 1.0 - vignette * dot(c, c) * 2.2;
 	if (grain > 0.0) {
 		// New grain 24 times a second, like film.
-		float gn = vnoise(FRAGCOORD.xy / grain_size + 17.0 + floor(TIME * 24.0) * vec2(37.1, 91.7)) - 0.5;
+		float gn = vnoise(FRAGCOORD.xy / grain_size + 17.0 + mod(floor(TIME * 24.0), 61.0) * vec2(37.1, 91.7)) - 0.5;
 		col += gn * grain;
 	}
 	ALBEDO = clamp(col, 0.0, 1.0);

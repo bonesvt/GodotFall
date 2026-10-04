@@ -61,7 +61,7 @@ static func apply_env(env: Environment, ps3: bool, anime := false) -> void:
 			# Flat painted light: no contact shadows, a brighter exposure so
 			# roofed rooms don't go murky under the cel shading.
 			env.ssao_enabled = false
-			env.tonemap_exposure = 1.3
+			env.tonemap_exposure = 1.45
 	else:
 		env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 		env.reflected_light_source = Environment.REFLECTION_SOURCE_DISABLED

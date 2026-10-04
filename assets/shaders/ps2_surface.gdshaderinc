@@ -15,7 +15,7 @@ global uniform float ps3_look;
 // Looked out from tools/art/style_shots.gd concepts ("blend", 2026-10-04).
 global uniform float anime_look;
 const float ANIME_FLAT = 3.6;        // extra mip levels of blur
-const float ANIME_DETAIL = 0.3;      // share of the texture's own variation kept
+const float ANIME_DETAIL = 0.2;      // share of the texture's own variation kept
 const float ANIME_POSTERIZE = 4.0;   // brightness steps
 const float ANIME_SATURATION = 0.95;
 const float ANIME_CEL_SOFT = 0.06;

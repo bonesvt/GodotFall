@@ -63,7 +63,7 @@ func _go() -> void:
 	var cam: Camera3D = player.get_node("Head/Camera3D")
 	# No gun or its muzzle light in the way.
 	for child in cam.get_children():
-		if child is Node3D:
+		if child is Node3D and child.name != "AnimePost":  # keep the Anime look's screen pass
 			child.visible = false
 	for view in VIEWS:
 		if not only.is_empty() and not view in only:

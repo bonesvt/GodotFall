@@ -91,6 +91,9 @@ func _make_post() -> MeshInstance3D:
 	post.gi_mode = GeometryInstance3D.GI_MODE_DISABLED
 	var pm := ShaderMaterial.new()
 	pm.shader = ANIME_POST
+	# It reads the opaque scene's screen copy, so it must draw before every other
+	# transparent (labels, smoke, glass, hair) or it paints over them.
+	pm.render_priority = Material.RENDER_PRIORITY_MIN
 	pm.set_shader_parameter("grain", _grain * MAX_GRAIN)
 	post.material_override = pm
 	return post
