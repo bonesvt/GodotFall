@@ -549,7 +549,7 @@ Grunts start **unaware** and have to notice you first.
 
 ## Enemy radio
 Get within about 45 m of grunts and Eco picks up their squad net. A small **INTERCEPT** box
-above your health shows who's talking (amber callsigns, militia HQ in red) as the lines type out
+above your health shows who's talking (amber callsigns, colony command in red) as the lines type out
 through static. She only listens; she never talks back.
 - **Calm squads** trade banter, gossip about "the Pilot reject" (they don't know she's listening), and pass
   around salvage rumours naming real titan parts.
@@ -559,8 +559,8 @@ through static. She only listens; she never talks back.
   a terrified last man, and HQ calling into silence once the squad is gone.
 - Bigger events cut off small talk; lines never repeat back to back, and every exchange plays before any repeats.
 - Speakers near the edge of range break up: fewer signal bars and garbled characters.
-- **Dialogue rating**: press **O** to cycle E, T, M and AO (saved between sessions; default M). Not F8: that stops the game when it runs from the Godot editor.
-  E and T have their own clean line banks; AO currently uses the M bank. `scripts/radio/content_rating.gd`
+- **Dialogue rating**: press **O** to switch between Teen and Mature (saved between sessions; default M). Not F8: that stops the game when it runs from the Godot editor.
+  Each rating has its own line files in `dialogue/`. `scripts/radio/content_rating.gd`
   holds the setting.
 - Lines live in `scripts/radio/radio_lines.gd`, one exchange per string (`"a: ... | b: ... | hq: ..."`).
   `radio_chatter.gd` emits `line_started(callsign, text, category)` for voice-over later.
@@ -602,7 +602,9 @@ select the Player node and tweak values in the Inspector, or change the defaults
 - `scripts/hud.gd` crosshair, hitmarkers, health, ammo, speedometer, state and cooldown readout
 - `scripts/radio/` enemy radio: `radio_chatter.gd` (listens to grunt awareness and deaths, picks lines),
   `radio_popup.gd` (the intercept box), `radio_lines.gd` (every line, by situation)
-- Eco's whispers (`scripts/radio/`): she can't answer the militia on their net, so she talks back
+- `dialogue/` every radio and whisper line as plain text, one file per rating; edit and press O in
+  game to reload. Format and situation names: `dialogue/README.md`
+- Eco's whispers (`scripts/radio/`): she can't answer the colony grunts on their net, so she talks back
   under her breath once an exchange ends, and mutters through kills, takedowns, getting hurt, quiet
   stretches and the run's beats. `eco_whispers.gd` (triggers, cooldowns, breath sound),
   `eco_whisper_lines.gd` (every line, by situation and rating; `keyword>` lines answer what the radio

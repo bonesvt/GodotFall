@@ -282,7 +282,7 @@ func _game_tab() -> void:
 	_options(box, "Dialogue rating (O)", ratings.map(func(r): return RadioLines.RATING_NAMES[r]),
 		ratings.find(Prefs.rating()),
 		func(i): Prefs.set_rating(ratings[i]))
-	box.add_child(UI.label("How rough the militia radio and Eco's whispers get.", 18, UI.MUTED))
+	box.add_child(UI.label("Teen or Mature: how rough the enemy radio and Eco's whispers get.", 18, UI.MUTED))
 	# Hints are kept per save slot, so they're only offered with a game going.
 	if tutorial != null:
 		_toggle(box, "Tutorial hints (F1)", _hints_on(), _set_hints)

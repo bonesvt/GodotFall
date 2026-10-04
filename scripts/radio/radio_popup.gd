@@ -1,6 +1,6 @@
 extends Control
 ## Radio popup: a small intercepted-transmission box above the health readout.
-## Callsigns in amber (militia HQ in red), text types out with static, and
+## Callsigns in amber (command in red), text types out with static, and
 ## words break up when the speaker is near the edge of radio range.
 ## radio_chatter.gd feeds it with show_line() and end_transmission().
 
@@ -131,7 +131,7 @@ func _draw() -> void:
 	var hy := box.position.y + PAD + HEADER_SIZE
 	var blink := on_air and int(Time.get_ticks_msec() / 400) % 2 == 0
 	draw_circle(Vector2(hx + 5, hy - 5), 4.0, Color(1, 0.2, 0.15) if blink else Color(0.4, 0.1, 0.1))
-	draw_string(font, Vector2(hx + 16, hy), "INTERCEPT  //  MILITIA NET  CH 7", HORIZONTAL_ALIGNMENT_LEFT, -1, HEADER_SIZE, DIM)
+	draw_string(font, Vector2(hx + 16, hy), "INTERCEPT  //  COLONY NET  CH 7", HORIZONTAL_ALIGNMENT_LEFT, -1, HEADER_SIZE, DIM)
 	var clarity: float = entries[-1]["clarity"]
 	for b in 4:
 		var lit := clarity >= (b + 0.5) / 4.0

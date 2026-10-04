@@ -1,0 +1,172 @@
+# Colony radio chatter, rated M (Mature 17+).
+#
+# Who's talking: the colony's grunts. Back home, people are ranked by what
+# they can build; the ones who can't build anything get a rifle and a ship
+# ticket. They're bored, bitter, homesick, and scared of the local Pilot their
+# reports call "the Starling". They don't know who killed her father (nobody on
+# their side ever claimed it).
+#
+# Edit, add or delete lines freely; press O in game to reload (it also
+# switches rating). Format:
+#   [category]      lines below belong to this situation (names are fixed,
+#                   see the list in dialogue/README.md)
+#   one exchange per line: speakers split by " | ", each "role: text"
+#   roles: a = the grunt it's about (or any nearby grunt), b and c = other
+#   nearby grunts, hq = colony command
+#   {a} {b} {c} = callsigns, {dead} = the grunt who just died,
+#   {part} = a random titan part
+#   lines starting with # are notes and are ignored
+
+
+# Unaware, nothing going on.
+[idle]
+a: Six hours on this damn ridge and the scariest thing I've seen is a bird. | b: That bird stole Hollis's lunch and shit on his helmet. Respect the bird.
+a: My brother designs reactor coils. I hold a rifle. Guess which one of us Mom brags about. | b: Builders get balconies, we get bullet holes. Same as it ever was.
+hq: Reminder: patrol quotas are up twelve percent this cycle. | a: Up? We're already dead on our feet. | hq: Then be dead on your feet twelve percent harder.
+a: I could've been a builder, you know. | b: You failed the wiring test three times. | a: The test was rigged. | b: The test was a plug, {a}.
+a: Another double shift. | b: Overtime pay? | a: Ha. Overtime pay. Good one.
+hq: Command net, radio check. | a: {a}. Still alive, more's the pity. | b: {b}. Ditto.
+a: Quillcat got into the ration crates again. | b: Shoot it. | a: I tried. It took my sidearm.
+a: This planet's too damn green. Back home the sky's the color of a dead monitor. | b: You miss it? | a: ...Every day.
+a: Survey team found ruins up north. Stones humming. | b: Stones don't hum. | a: These do. Survey team won't go back.
+a: How many locals have we cleared this month? | b: Don't know. Don't count. | a: Why not? | b: 'Cause then I'd have to think about it.
+a: Talking to myself again. Only one out here who outranks me.
+hq: Any unit sleeping on watch will have rations docked. | a: Docked from what? We get one bar.
+a: Bet you a smoke I can hit that can from here. | b: Bet you can't. | a: ...Shit. | b: Pay up.
+a: What're we even mining out here? | b: Ore. Fuel. Whatever the builders say. | a: Ever seen any of it? | b: Not a damn crumb.
+a: Smell that? | b: Lampjaw nest. | a: Hell, where? | b: Downwind. Pray it stays that way.
+
+# Gossip about Eco, not knowing she's listening.
+[rumor_eco]
+a: Supply says the Starling hit another convoy. | b: The Starling isn't real, pal. Quartermasters say it when they've sold the crates.
+a: Report says she's a local. Some mechanic's kid. | b: A kid did all that? | a: A kid with a wrench and a grudge.
+a: Commander wants her in a cage for the parade. | b: Front row seats. I'll bring snacks.
+hq: All units, the bounty on the Starling just doubled. | a: Doubled? | hq: Bring her in and you'll never hold a rifle again. | b: Hell, I'd shoot my own mother for that.
+a: Heard she's the daughter of that local Pilot. The one who stole our frame. | b: The thief? He's dead. | a: Who got him? | b: ...Nobody ever claimed it. Weird, right?
+a: She's been stripping our wrecks for parts. | b: For what? | a: Building something. A titan, they think. | b: Out of OUR scrap? Unbelievable.
+a: Saw her through the scope yesterday. | b: Why didn't you shoot? | a: She waved at me. | b: ...She waved? | a: Then she shot my scope.
+a: The locals say she went recluse. Hiding in the hills. | b: Hiding? She hit three outposts this week.
+a: She leaves a little smiley face on every wreck she strips. | b: That's creepy. | a: That's the worst part. It's cute.
+a: What do you think she wants? | b: Same as us. To go home. | a: She is home, {b}. That's the problem.
+a: Little rat blew the fuel depot. | b: When I catch her, I'm taking that wrench and shoving it somewhere special.
+a: Brass says she's just one girl with a pistol. | b: Brass doesn't walk patrols out here.
+a: Scout heard her crying in the ruins last night. | b: Crying? | a: Then laughing. Then she blew up his damn truck.
+a: Builders back home are taking bets on how long she lasts. | b: What're the odds? | a: Getting worse every week. For us.
+a: Bet she's a lot less mouthy with a rifle in her face.
+a: The Starling's the only thing on this rock that scares me. | b: More than the lampjaws? | a: Lampjaws don't hold grudges.
+a: Found a smiley face drawn on the depot wall this morning. Haven't slept since.
+
+# Salvage and titan part rumours.
+[rumor_salvage]
+hq: Salvage crate with a {part} in your sector. Anyone touches it, shoot them. | a: Even ours? | hq: Especially ours.
+a: What's in the crates? | b: Titan scrap. Someone said a {part}. | a: For who? | b: For the melt. Everything goes home for the melt.
+a: Brass wants every scrap locked down. | b: Afraid someone builds one? | a: Afraid someone builds one and comes for them.
+hq: Recovery team is delayed. Hold the salvage. | a: How delayed? | hq: Recovery team is dead. Hold the damn salvage.
+a: Somebody left a {part} out in the open. | b: Bait. Leave it and watch who comes sniffing.
+a: Command's shipping every wrecked frame home. | b: Why the rush? | a: 'Cause the Starling's been eating our leftovers.
+a: That {part} came off a frame the locals stole from us. | b: Then we're stealing it back. Circle of life.
+
+# Heard or glimpsed something.
+[suspicious]
+a: Hold up. Something moved. | b: Wind. | a: The wind doesn't wear boots.
+a: You hear that? | b: Yeah. Safeties off.
+a: {b}, did you throw something? | b: No. | a: ...Then somebody else did.
+a: Flash on the ridge. | hq: Investigate. If it breathes, put it down.
+a: Something's off. | b: Then go find out what, before it finds you.
+a: Could be the Starling. | b: Could be a quillcat. | a: Pray it's the quillcat.
+a: Who's there? ...I see you. Probably. Come on out.
+a: I know you're out there, Starling. You can't hide forever.
+
+# Suspicious grunt gives up.
+[stand_down]
+a: Nothing there. | b: Rats again. | a: Then I'm shooting the next rat I see.
+a: False alarm. | hq: Another one and you're on latrine duty.
+a: Lost it. Back to my post. | b: Keep your eyes open, {a}. Last guy who didn't woke up with a smiley face on his helmet.
+a: Clear. For now. She's out there, though. I can feel it.
+a: Must've been nothing. | b: Nothing doesn't leave footprints.
+
+# First contact.
+[alerted]
+a: Contact! Fuck, she's on the wall! | b: Then shoot the wall! Shoot the whole damn wall!
+a: It's the Starling! | b: Weapons free!
+a: There she is! Told you she was real! | b: Shut up and shoot!
+a: Eyes on her! Goggles, wrench, attitude! | hq: Weapons free. Cut her down.
+a: Hostile! It's the local! | b: Light her up! That bounty's ours!
+a: There you are, you little rat! | b: Stop talking and kill her, {a}!
+hq: Hostile in your grid! | a: It's just the girl! | hq: Then put her in the dirt and stop wasting my time.
+a: She's here! Wake up, {b}! The bounty's walking right at us!
+a: Found you, Starling. Time to die.
+a: Oh hell. Oh hell, it's her.
+
+# Mid fight.
+[combat]
+a: Flank her! Box her in! | b: Moving!
+a: Somebody hit her, goddammit! | b: I'm trying! She won't stay put!
+a: Reloading! | b: Hurry the hell up!
+hq: Status! | a: She's still breathing! | hq: Then fix that!
+a: She's just one girl! | b: Then why the hell are we losing?!
+a: Give it up, Starling! There's a thousand more of us! | b: Fewer every minute!
+a: Kill her before she reaches the cache!
+a: You can't win this! Nobody beats the colony!
+a: Is she smiling?! Why is she smiling?! | b: Don't look at her face! Aim center mass!
+a: Stop dancing and fight, damn you!
+a: Cover me! | b: With what?! She shot my magazine!
+a: This is above my pay grade! | b: Everything's above your pay grade!
+a: I'm gonna mount that wrench over my bunk!
+a: Grenade! | b: Ours or hers?! | a: Does it matter?!
+
+# Eco is wallrunning, sliding or in the air while they're fighting her.
+[pilot_moving]
+a: She's on the walls! What the hell?! | b: Shoot the damn walls!
+a: She's moving like a Pilot! | b: She's NOT a Pilot! | a: Tell her that!
+a: I can't hit her when she does that! | b: Then aim where she's going, idiot!
+a: Was that a double jump?! | b: Who the hell gave her a jump kit?! | a: We did! She stole it!
+a: Get down here and fight like a soldier, you coward!
+a: She's sliding under everything! | b: Aim low, damn it!
+a: Quit showing off and hold still!
+a: She just did a flip. She did a flip and shot Davis. | b: Stop admiring it!
+
+# A grunt shot Eco.
+[hurt]
+a: Tagged her! | b: Do it again!
+a: Got a piece of her! She's bleeding! | b: Keep on her!
+a: Ha! How's that feel, Starling?
+a: Hit her! She's slowing down! | b: Finish it!
+a: Hit confirmed! Holy shit, I hit her!
+a: Got her! Put that on my report!
+
+# One of them went down; spoken by survivors.
+[man_down]
+a: {dead}'s down! | b: Forget him, kill her!
+a: She got {dead}! | b: Son of a bitch! Make her pay!
+a: Man down! Man down! | hq: Hold your position! | a: She's tearing us apart!
+a: {dead}! Talk to me! | b: He's gone, {a}. Get your head down!
+a: Shit, she's better than the reports said. | b: Then the reports can come fight her!
+a: We lost {dead}! | b: He had two weeks left on his contract! Two weeks!
+
+# Only one grunt left nearby.
+[last_man]
+a: Please! I've got a mom! I'll go home! I'll never come back, I swear!
+a: Command, it's just me left! Requesting backup! | hq: Negative. Hold the line. | a: Hold it with WHAT?!
+a: Guys? ...Guys? Oh God. Oh God, they're all dead.
+a: Command, please, I need extraction! | hq: Nobody's coming, soldier. Make it count.
+a: Stay back! Stay the hell back! I'll kill you, I swear!
+a: I never killed any local Pilot! We don't even have the clearance to fly those! It wasn't me!
+a: Okay! Okay, you win! Take the scrap! Take all of it!
+a: Command, this is {a}. Everyone's dead. Everyone. Send someone or I swear I'm walking home.
+
+# They lost track of her.
+[lost]
+a: Anything? | b: Footprints, then nothing. She went up the wall like a damn squirrel. | a: Up where? | b: Up, genius. Up.
+a: Lost her! | b: How do you lose one goddamn girl?!
+a: Where'd she go? | hq: Find her or don't come back.
+a: No visual. She ran. | b: Let her run. She'll bleed out somewhere.
+a: She's gone. | b: Gone or hiding? | a: Hiding. Watch your back.
+a: Lost contact. | b: Check your helmet for smiley faces. | a: That's not funny, {b}.
+
+# Everyone nearby is dead; command calls into silence.
+[no_answer]
+hq: Squad, report. | hq: Squad? ...Squad, respond, damn it.
+hq: Patrol, you've gone quiet. Check in. | hq: ...Mark the grid. Send a recovery team.
+hq: Any station on this channel. | hq: ...Shit. Not again.
+hq: If you can hear this, Starling, you're a dead woman. You hear me? Dead.
