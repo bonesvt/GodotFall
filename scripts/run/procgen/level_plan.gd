@@ -23,7 +23,7 @@ extends RefCounted
 ##   start: Eco's drop-off, with the spawn on the road.
 ##   field: open wilds with a grunt patrol walking between the lanes.
 ##   picket: a small guard post on the road.
-##   wall: the militia's wall across the valley: a breach on the road, a
+##   wall: the colony's wall across the valley: a breach on the road, a
 ##     culvert under it in each gully, a catwalk over it on each ridge.
 ##   outpost / camp: a clearing with buildings, a dug-in squad, a watchtower.
 ##     Each holds one salvage cache: one of them is guarded by its squad, the
@@ -37,7 +37,7 @@ extends RefCounted
 ##     log, the ridges rock pillars.
 ##   end: the extraction beacon on the road.
 ## A real level (levels.gd, make_level) can also have:
-##   depot: the militia's salvage depot, a yard like the outpost with a
+##   depot: the colony's salvage depot, a yard like the outpost with a
 ##     bigger squad guarding a crated titan part (the level's objective).
 ##   finale: in place of the end, a wide clearing across the whole valley
 ##     where the enemy titan waits: call yours in, fight, walk it to the evac.

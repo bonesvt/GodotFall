@@ -23,7 +23,7 @@ const SPIN_SPEED := 0.4
 const CLIENTS := [["eco", "ECO"], ["ophelia", "OPHELIA"]]
 ## Juno's lines when a haircut is done (the first for Eco, the second for anyone else).
 const DONE_LINES := [
-	"Done. Look at you. The militia's going to cry into their rifles.",
+	"Done. Look at you. The colony's going to cry into their rifles.",
 	"Done. Tell her it was my idea if she sulks.",
 ]
 

@@ -4,7 +4,7 @@ extends RefCounted
 ## zone is laid out (procgen/zone_generator.gd), and so does the old platform
 ## chain (zone_builder.gd build_chain).
 ##
-## Past the border the militia is gone: every grunt the zone placed becomes a
+## Past the border the colony is gone: every grunt the zone placed becomes a
 ## Choir unit on the same spot, with the same post, leash, facing and patrol
 ## (Hush mostly, Hounds on the patrol loops, the odd Cantor dug in). Then
 ## spawn_hooks (the generator's {pos, section, facing} spots) get creatures
@@ -173,7 +173,7 @@ static func _place(root: Node3D, n: Node3D, pos: Vector3, yaw: float) -> void:
 	n.set("post", pos)
 
 
-## Swaps the militia grunts the zone placed for the Choir. A cache guard is
+## Swaps the colony grunts the zone placed for the Choir. A cache guard is
 ## swapped in its squad objective too, so clearing the squad still opens it.
 static func _convert_grunts(root: Node3D, rng: RandomNumberGenerator, info: Dictionary, zone_index: int) -> void:
 	var guard_of := {}

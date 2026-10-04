@@ -47,7 +47,7 @@ e["explosion_metal"]={"layers":[{"src":"mechanical_explosion.wav","fadeout":0.4}
 e["debris_rock"]={"layers":[{"src":"bfh1_rock_breaking_01.ogg","fadeout":0.3}]}
 e["debris_metal"]={"layers":[{"src":"bfh1_metal_falling_01.ogg","fadeout":0.3}]}
 e["glass_break"]={"layers":[{"src":"bfh1_glass_breaking_01.ogg","fadeout":0.3}]}
-# Grunts (militia voices)
+# Grunts (colony voices)
 cuts=[(0.5,1.45),(3.97,2.2),(6.93,0.5),(8.35,0.82),(14.44,1.72),(20.41,1.76),(23.87,1.84),(27.59,0.94),(29.84,0.52),(31.53,1.03),(35.97,1.4)]
 for i,(s,d) in enumerate(cuts):
     e[f"grunt_pain_{i+1}"]={"layers":[{"src":G,"start":s,"dur":d,"fadeout":0.15}],"norm":-2}

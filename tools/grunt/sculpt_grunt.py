@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Sculpts the militia grunt from signed distance fields and saves each part as
+"""Sculpts the colony grunt from signed distance fields and saves each part as
 .npz (vertices, faces) for build_grunt.py to assemble in Blender. Needs numpy
 and scikit-image.
 

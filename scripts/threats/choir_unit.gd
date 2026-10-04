@@ -5,7 +5,7 @@ extends "res://scripts/grunt.gd"
 ## changes is the body (assets/models/threats/<model_name>.glb, in Eco's toon
 ## style) and the tell: instead of a visor turning red, every slit and pipe
 ## flares from cold cyan to white while a chord rises (choir_chord.wav).
-## They never speak, so the militia radio doesn't pick them up (on_radio).
+## They never speak, so the colony radio doesn't pick them up (on_radio).
 ## The units themselves are hush.gd, hound.gd, cantor.gd and seraph.gd.
 
 const ThreatModel := preload("res://scripts/threats/threat_model.gd")
@@ -19,7 +19,7 @@ const CYAN := Color(0.55, 0.95, 1.0)
 ## Hits higher than this above the feet are headshots.
 @export var head_y := 1.95
 
-## The militia radio (radio_chatter.gd) leaves the Choir out: they never talk.
+## The colony radio (radio_chatter.gd) leaves the Choir out: they never talk.
 var on_radio := false
 ## Chord sound playing through the current wind-up.
 var _chord: Node

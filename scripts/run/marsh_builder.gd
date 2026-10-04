@@ -1,5 +1,5 @@
 extends RefCounted
-## Zone 2, Blackwater: a flooded fen at dusk, the militia's fuel line.
+## Zone 2, Blackwater: a flooded fen at dusk, the colony's fuel line.
 ##
 ## A laid-out level like the Pinewoods (forest_builder.gd): you wade north (-Z)
 ## through knee-deep water and swamp cypress, with three ways through.
@@ -13,7 +13,7 @@ extends RefCounted
 ##     it, across the stilt huts' tin roofs, grapple the crane over the
 ##     channel, then up the junk and the station's pipe onto the pump house roof.
 ## Sections, in order: Eco's skiff on the bank where she came in; the roadblock
-## on the causeway; the stilt village the militia took from the fishers; the
+## on the causeway; the stilt village the colony took from the fishers; the
 ## channel with the causeway bridge blown (wallrun the grounded barge's side,
 ## grapple the crane, hop the old piers, or walk the drowned titan); the pump
 ## station (pump house, storage tanks, watchtower); the extraction beacon on
@@ -270,7 +270,7 @@ static func _village(root: Node3D, rng: RandomNumberGenerator, dress: RandomNumb
 			for k in n:
 				var t := (k + 0.5) / n
 				Z.boardwalk(root, Vector3(lerpf(road_edge, deck_edge, t), ROAD_Y, pos.z + 1.6), 90.0)
-	# Militia stuff on the decks and along the road.
+	# Colony stuff on the decks and along the road.
 	F.floodlight(root, _road(-90.0, -4.0), 30.0)
 	F.floodlight(root, _road(-112.0, 4.5), -150.0)
 	F.antenna(root, _road(-80.0, -6.0))

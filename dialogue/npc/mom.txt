@@ -25,12 +25,72 @@ mom: Sit. Let me see that arm.
 eco: It's fine. It's a scratch.
 mom: It's a hole, Eco. I can see the bone.
 eco: Then it's a cool scratch.
-mom: You think it's funny. I sat up all night listening to the militia band, waiting to hear your name.
-eco: ...They don't say my name, Mom. They don't think I'm worth it.
-mom: Good. Let them keep thinking that, and come home.
+mom: You think it's funny. I sat up all night listening to their radio, waiting to hear your name.
+eco: ...They don't say my name, Mom. They call me "the Starling".
+mom: Good. Let them keep calling you a bird, and keep coming home.
+
+# What Mom told the town this time. Each time Eco comes home from a run, the
+# next [excuse] plays straight after Mom's [won] / [lost] talk, in order, and
+# they get wilder as the town gets more suspicious. Once they run out, the
+# last three take turns.
+[excuse]
+mom: And before you ask: you have a cold. Mrs. Tran sent soup.
+eco: Do I get the soup?
+mom: You get the soup if you cough when she asks after you.
+eco: Cough, cough. Like that?
+mom: Worse. You're very sick, sweetheart.
+
+[excuse]
+mom: Juno asked why you're never in town. You've taken up birdwatching.
+eco: Birdwatching?
+mom: You leave at dawn and come back covered in mud. It fit.
+eco: What's my favourite bird?
+mom: The starling. Don't look at me like that, it was the first one I thought of.
+
+[excuse]
+mom: The checkpoint boys asked about you. You have a boyfriend in the next valley now.
+eco: Mom!
+mom: He farms goats. He's very shy. That's why nobody's met him.
+eco: If I die out there my headstone's going to say "goat farmer's girlfriend".
+mom: Then don't die out there. Problem solved.
+
+[excuse]
+mom: Mara wanted to know what you do all day. You're taking a course by post. Pottery.
+eco: Pottery.
+mom: She wants a bowl.
+eco: I can weld her a bowl.
+mom: I hate lying for you, you know. I'm just very good at it.
+
+[excuse]
+mom: Old Hiro saw lights up at the temple last night. I told him you sleepwalk.
+eco: To the temple? That's miles.
+mom: You're a very determined sleepwalker.
+eco: Did he buy it?
+mom: He asked a lot of questions for a man who sells noodles. Be more careful with the lights.
+
+[excuse]
+mom: Now half the plaza thinks the temple is haunted. I may have said it was your father's ghost.
+eco: Mom.
+mom: They've started leaving flowers at the gate. It's sweet. Also, stop flying things over the town at night.
+eco: That was one time.
+mom: That was one time on Tuesday.
+
+[excuse]
+mom: Doc Imani asked why you keep coming in with burns. You were struck by lightning. Twice.
+eco: Twice?
+mom: The first one didn't take.
+eco: Nobody's going to believe that.
+mom: She didn't. She just looked at me for a very long time and gave me extra bandages.
+
+[excuse]
+mom: I'm running out, Eco. Today I told Mrs. Tran you ran off to join a travelling circus.
+eco: ...Did she believe it?
+mom: She asked if you do the trapeze. I said yes. You may need to learn the trapeze.
+eco: I wallrun. That's basically trapeze.
+mom: People are starting to talk, sweetheart. Not about goats.
 
 [any]
-mom: The militia came through the valley road again. Six of them, laughing.
+mom: A colony patrol came up the valley road again. Six of them, laughing.
 eco: Did they see you?
 mom: No. I know how to be quiet. I learned when your father was flying.
 eco: Stay inside when they pass. Please.
@@ -40,7 +100,7 @@ mom: Listen to you. Telling your mother what to do.
 mom: I found his tags in your old jacket pocket. I've put them on.
 eco: You can keep them. I've got the pistol.
 mom: That gun is what got him killed.
-eco: No. The militia got him killed. The gun's what I'm getting even with.
+eco: No. Whoever shot him got him killed. The gun's what I'm getting even with.
 mom: Even isn't a thing, sweetheart. There's just more graves.
 
 [any]
@@ -76,38 +136,6 @@ mom: Come here. Your hair's a mess.
 eco: Mom, I'm literally about to go shoot people.
 mom: Then you'll shoot them with tidy hair. Hold still.
 eco: Ugh. Fine. Thirty seconds.
-
-[any]
-mom: Turn around. Let me look at you.
-eco: Why do I feel like this is a trap?
-mom: That suit. It doesn't leave much to the imagination, does it?
-eco: It's for mobility, Mom.
-mom: Mm. Well, you got your father's shoulders. The rest you clearly borrowed from me.
-eco: Borrowed. Wow.
-mom: Borrowed, sweetheart. I kept the good half.
-
-[any]
-eco: Why are you staring at me like that?
-mom: Just thinking. When I was your age I couldn't walk past the motor pool without three mechanics dropping their wrenches.
-eco: Mom. Please.
-mom: Your father dropped his on his own foot. Broke a toe. Married me anyway.
-eco: I am going to go stand in the lava now.
-mom: Don't sulk. You'll fill out. Maybe. Eventually.
-
-[any]
-mom: Hand me that jar on the top shelf.
-eco: You're closer to it.
-mom: I am. But if I reach up, these hips knock the whole shelf down. You don't have that problem.
-eco: Was that a compliment or an insult?
-mom: Yes.
-
-[any]
-eco: Can I borrow one of your shirts? Mine's got a hole in it.
-mom: Of course. It'll hang off you like a tent, but of course.
-eco: It will not.
-mom: Darling, I nursed two babies in that shirt. It has seen things you are not built for.
-eco: I hate this family.
-mom: You love this family. Now come here and let me take it in at the waist for you.
 
 [any]
 mom: Turn around. Let me look at you.

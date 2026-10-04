@@ -4,7 +4,7 @@
 
 Writes assets/models/sidearms/*.glb:
   rivet_cannon.glb     Eco's heavy revolver, built round a titan's rivet driver
-  machine_pistol.glb   a militia machine pistol she took off a grunt
+  machine_pistol.glb   a colony machine pistol she took off a grunt
   att_*.glb            attachments the gunsmith bench bolts on
 
 Same conventions as build_pistol.py (whose helpers this reuses): authored in
@@ -131,7 +131,7 @@ def rivet_cannon():
 # --- machine pistol -------------------------------------------------------------
 
 def machine_pistol():
-	"""A militia machine pistol, full auto, taken off a grunt who won't need it.
+	"""A colony machine pistol, full auto, taken off a grunt who won't need it.
 	Boxy and cheap: a stamped upper, a slotted snout, a red-dot on the rail.
 	Eco has taped the mag and stuck a heart on the side, out of spite."""
 	bp.reset()

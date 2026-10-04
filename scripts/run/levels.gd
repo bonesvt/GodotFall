@@ -33,7 +33,7 @@ const LEVELS := {
 		"threats": false,
 		"part_bonus": 2,
 		"needs": "tutorial",
-		"blurb": "Past the forest's edge the militia run a salvage line out of the deep woods. "
+		"blurb": "Past the forest's edge the colony runs a salvage line out of the deep woods. "
 			+ "Their depot has a titan part crated up for the coast. Take it, then deal with the titan they keep on the road.",
 	},
 }
