@@ -21,10 +21,7 @@ const TURN_SPEED := 2.5
 const MAX_TURN := 60.0
 ## Who has more than one outfit (body.png first, then body_<outfit>.png from
 ## tools/npc/build_npc.py). They change between runs.
-const OUTFITS := {
-	"ophelia": ["tee", "hoodie", "night", "bikini", "sheer", "tight", "lingerie"],
-	"mom": ["home", "bikini", "sheer", "tight", "lingerie"],
-}
+const OUTFITS := {"ophelia": ["tee", "hoodie", "night"]}
 
 const NpcSprings := preload("res://scripts/hub/npc_springs.gd")
 const Hair := preload("res://scripts/hub/hair.gd")

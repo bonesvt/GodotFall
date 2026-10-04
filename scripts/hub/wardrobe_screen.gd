@@ -22,7 +22,7 @@ const SPIN_SPEED := 0.4
 
 ## Which screen this is (the run manager and tests read it from any bench screen).
 var kind := "wardrobe"
-## Whose clothes are up (an index into Wardrobe.PEOPLE), and the outfit picked.
+## Whose clothes are up (an index into Wardrobe.people()), and the outfit picked.
 var person := 0
 var selected := 0
 ## Picks made while the screen was open, [who, outfit] (for the run manager).
@@ -123,7 +123,7 @@ func _input(event: InputEvent) -> void:
 
 ## Whose clothes are up.
 func who() -> String:
-	return Wardrobe.PEOPLE[person][0]
+	return Wardrobe.people()[person][0]
 
 
 func _options() -> Array:
@@ -137,7 +137,7 @@ func select(index: int) -> void:
 
 
 func switch_person(dir: int) -> void:
-	person = posmod(person + dir, Wardrobe.PEOPLE.size())
+	person = posmod(person + dir, Wardrobe.people().size())
 	selected = maxi(_options().find(Wardrobe.choice(who())), 0)
 	SFX.play(self, "ui_switch", -8.0)
 	refresh()
@@ -157,7 +157,7 @@ func confirm() -> bool:
 
 
 func refresh() -> void:
-	_tab_label.text = "   ".join(Wardrobe.PEOPLE.map(func(p): return ("[ %s ]" % p[1]) if p[0] == who() else p[1]))
+	_tab_label.text = "   ".join(Wardrobe.people().map(func(p): return ("[ %s ]" % p[1]) if p[0] == who() else p[1]))
 	for c in _list.get_children():
 		c.queue_free()
 	var now := Wardrobe.choice(who())
@@ -169,9 +169,7 @@ func refresh() -> void:
 			line += "   (wearing)"
 		var colour := ACCENT if i == selected else (GOOD if outfit == now else INK)
 		_list.add_child(_text(line, 18, colour))
-	if who() == "eco" and options.size() == 1:
-		_detail.text = "Just the suit for now. The rest of her clothes are still at the tailor's."
-	elif options[selected] == Wardrobe.ROTATE:
+	if options[selected] == Wardrobe.ROTATE:
 		_detail.text = "She picks for herself: something different after every run."
 	else:
 		_detail.text = "Eco wears it at home and in town, and the suit on a run." if who() == "eco" else ""

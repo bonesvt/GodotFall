@@ -10,7 +10,8 @@ const Art := preload("res://scripts/ps2/ps2_assets.gd")
 const ECO_MODEL := "res://scripts/ps2/eco_model.gd"
 const HUB_NPC := "res://scripts/hub/hub_npc.gd"
 
-## Whose clothes are in it, in tab order, with their tab names.
+## Whose clothes can be in it, in tab order, with their tab names (people()
+## leaves out anyone with only the one outfit for now).
 const PEOPLE := [["eco", "ECO"], ["mom", "MOM"], ["ophelia", "OPHELIA"]]
 ## What each outfit is called on the screen (anything missing is capitalised).
 const NAMES := {
@@ -37,6 +38,11 @@ static func outfits(who: String) -> Array:
 		return eco.get_script_constant_map().get("OUTFITS", ["suit"]).duplicate()
 	var npc: Script = load(HUB_NPC)
 	return npc.get_script_constant_map().get("OUTFITS", {}).get(who, []).duplicate()
+
+
+## The tabs on the screen: everyone in PEOPLE with more than one outfit.
+static func people() -> Array:
+	return PEOPLE.filter(func(p): return outfits(p[0]).size() > 1)
 
 
 ## The options on the screen: the NPCs' first is "changes every run".
