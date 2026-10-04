@@ -86,7 +86,7 @@ PEOPLE = {
     "tobin": {
         "sex": "m", "height": 1.7, "head": 0.93, "legs": 0.97, "skin": (0.9, 0.76, 0.64),
         "hair": WHITE, "cut": "horseshoe", "iris": (0.18, 0.22, 0.26), "lips": None, "age": 1.0, "stubble": 0.15,
-        "build": {"hip": 0.146, "waist": 0.152, "chest": 0.15, "hip_front": 0.088, "belly": 0.155, "pecs": 0.1, "back": 0.072,
+        "build": {"hip": 0.146, "waist": 0.152, "chest": 0.15, "hip_front": 0.088, "belly": 0.155, "pecs": 0.088, "back": 0.072,
                   "thigh": 0.06, "knee": 0.047, "calf": 0.05, "ankle": 0.037, "widen": 0.03, "hand": 1.12, "arms": 0.016, "neck": 0.018},
         "boots": ((0.02, 0.014, 0.01), (0.14, 0.1, 0.07)),
         "outfit": {"top": (0.6, 0.56, 0.48), "sleeve": 0.468, "hem": 0.72, "neck": 0.0, "cardigan": (0.17, 0.09, 0.045),
@@ -107,7 +107,7 @@ PEOPLE = {
     "harl": {
         "sex": "m", "height": 1.8, "head": 0.92, "legs": 1.0, "skin": (0.5, 0.35, 0.27),
         "hair": BROWN, "cut": "crop", "iris": (0.08, 0.05, 0.03), "lips": None, "age": 0.35, "stubble": 0.6,
-        "build": {"hip": 0.134, "waist": 0.134, "chest": 0.144, "hip_front": 0.074, "belly": 0.118, "pecs": 0.094, "back": 0.068,
+        "build": {"hip": 0.134, "waist": 0.134, "chest": 0.144, "hip_front": 0.074, "belly": 0.118, "pecs": 0.09, "back": 0.068,
                   "thigh": 0.058, "knee": 0.046, "calf": 0.051, "ankle": 0.037, "widen": 0.05, "hand": 1.2, "arms": 0.016, "neck": 0.02},
         "boots": ((0.02, 0.012, 0.006), (0.18, 0.1, 0.05)),
         "outfit": {"top": (0.3, 0.09, 0.04), "sleeve": 0.468, "hem": 0.72, "neck": 0.02,
@@ -148,7 +148,7 @@ PEOPLE = {
         "sex": "m", "height": 1.84, "head": 0.92, "legs": 1.0, "skin": (0.7, 0.52, 0.4),
         "hair": [(0.30, (0.05, 0.02, 0.005)), (0.62, (0.14, 0.06, 0.015)), (0.86, (0.3, 0.14, 0.04)), (1.0, (0.6, 0.35, 0.15))],
         "cut": "crop", "iris": (0.15, 0.2, 0.12), "lips": None, "age": 0.0, "stubble": 0.35,
-        "build": {"hip": 0.128, "waist": 0.118, "chest": 0.164, "hip_front": 0.07, "belly": 0.09, "pecs": 0.104, "back": 0.074,
+        "build": {"hip": 0.128, "waist": 0.118, "chest": 0.164, "hip_front": 0.07, "belly": 0.09, "pecs": 0.09, "back": 0.08,
                   "thigh": 0.062, "knee": 0.048, "calf": 0.056, "ankle": 0.039, "widen": 0.07, "hand": 1.25, "arms": 0.028, "neck": 0.03,
                   "delts": 0.016},
         "boots": ((0.02, 0.015, 0.008), (0.2, 0.14, 0.07)),
