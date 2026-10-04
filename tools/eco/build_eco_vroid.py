@@ -596,7 +596,7 @@ def _armor_mats(me, names):
 
 
 def shell(name, keep, planes=(), gap=0.004, thick=0.004, plate="eco_v_armor", edge="eco_v_armor_edge", smooth=0,
-          smooth_edge=0):
+          smooth_edge=0, border=0):
     """A plate that follows her body: the Body faces `keep(centre, normal)` picks,
     welded, trimmed straight by `planes` ((point, normal): the normal side is cut
     away), lifted `gap` off her skin and given `thick`ness. It keeps the body's
@@ -634,6 +634,18 @@ def shell(name, keep, planes=(), gap=0.004, thick=0.004, plate="eco_v_armor", ed
                 new[v] = v.co * 0.5 + (nb[0].co + nb[1].co) * 0.25
         for v, co in new.items():
             v.co = co
+        # let the ring inside follow, so no face folds over the moved edge
+        ring = {e.other_vert(v) for v in rim for e in v.link_edges} - set(rim)
+        bmesh.ops.smooth_vert(bm, verts=list(ring), factor=0.5, use_axis_x=True, use_axis_y=True, use_axis_z=True)
+    trimmed = set()
+    if border:   # a band of the edge material `border` faces wide all round its edge
+        edge_v = {v for v in bm.verts if v.is_boundary}
+        for _ in range(border):
+            faces = {f for v in edge_v for f in v.link_faces}
+            trimmed |= faces
+            edge_v = {v for f in faces for v in f.verts}
+        for f in bm.faces:
+            f.material_index = 1 if f in trimmed else 0
     bm.normal_update()
     for v in bm.verts:
         v.co += v.normal * gap
@@ -649,7 +661,7 @@ def shell(name, keep, planes=(), gap=0.004, thick=0.004, plate="eco_v_armor", ed
     bm.normal_update()
     for f in bm.faces:
         vs = set(f.verts)
-        f.material_index = 1 if (vs & orig) and (vs - orig) else 0
+        f.material_index = 1 if (vs & orig) and (vs - orig) else (f.material_index if border else 0)
     bm.to_mesh(ob.data)
     bm.free()
     ob.data.materials.clear()
@@ -739,16 +751,24 @@ def base_jacket():
     crimson edge all round."""
     def keep(c, n):
         ax = abs(c.x)
-        if c.z > 1.165 and math.hypot(c.x, c.y - 0.022) < 0.075:
-            return False   # her neck, under the collar
+        if c.z > 1.215 or (c.z > 1.165 and math.hypot(c.x, c.y - 0.022) < 0.075):
+            return False   # her neck, under the collar, and anything of the body up inside her head
         if ax > 0.15:
             return c.z > 1.0   # the sleeves
         if c.z < 1.04:
             return False
         return not (c.y < 0 and ax < 0.095 + 0.3 * max(0.0, 1.12 - c.z))   # open front, curving away
-    return shell("base_jacket", keep,
+    ob = shell("base_jacket", keep,
                  planes=[((0, 0, 1.035), (0, 0, -1)), ((0.25, 0, 0), (1, 0, 0)), ((-0.25, 0, 0), (-1, 0, 0))],
-                 gap=0.006, thick=0.009, plate="eco_v_jacket", edge="eco_v_jacket_edge", smooth=2, smooth_edge=12)
+                 gap=0.006, thick=0.006, plate="eco_v_jacket", edge="eco_v_jacket_edge", smooth=2, smooth_edge=5, border=1)
+    # nothing may stand off her: a stray vertex here once made spikes behind her head
+    bvh = _body_bvh()
+    far = max((bvh.find_nearest(ob.matrix_world @ v.co)[3] or 0.0) for v in ob.data.vertices)
+    top = max(v.co.z for v in ob.data.vertices)
+    print("base_jacket: furthest point %.3f m off her, top at z %.3f" % (far, top))
+    assert top < 1.23, "base_jacket reaches up into her head"
+    assert far < 0.03, "base_jacket has a spike"
+    return ob
 
 
 def light_suit(bvh):
