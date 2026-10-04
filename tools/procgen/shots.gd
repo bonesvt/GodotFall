@@ -5,7 +5,8 @@ extends SceneTree
 ## the view from the spawn, each lane as you come up to the first yard, the
 ## road, gullies and ridges at the first chasm, the wall, and one from above
 ## looking down the valley. With --level, a real level (levels.gd) instead:
-## the spawn, the salvage depot and its titan part, and the finale's clearing.
+## the spawn, the salvage depot and its titan part (or the holding block and
+## the prisoner's cell), and the finale's clearing.
 
 const LevelPlan := preload("res://scripts/run/procgen/level_plan.gd")
 const ZoneGenerator := preload("res://scripts/run/procgen/zone_generator.gd")
@@ -138,13 +139,16 @@ func _go() -> void:
 func _level_shots(plan, info: Dictionary, at: Callable) -> void:
 	var loud: int = plan.lane_of("loud")
 	await _shot("1-spawn", at.call(loud, plan.spawn_z + 4.0), at.call(loud, plan.spawn_z - 40.0, 0.0))
-	var depot: Dictionary = plan.sections_of("depot")[0]
-	await _shot("2-depot-from-the-road", at.call(loud, depot["z0"] + 12.0, 2.2), at.call(loud, depot["mid"], 1.0))
-	var crate: Vector3 = info["depot_cache"].position
-	var c: float = plan.lane_x(loud, depot["mid"])
-	var side := signf(crate.x - c) if absf(crate.x - c) > 0.5 else 1.0
-	await _shot("3-depot-titan-part", crate + Vector3(-side * 7.0, 3.0, 9.0), crate + Vector3(0, 1.0, 0))
-	await _shot("4-depot-from-above", Vector3(c - side * 30.0, plan.ground(c, depot["mid"]) + 26.0, depot["z0"] + 20.0), Vector3(c, plan.ground(c, depot["mid"]), depot["mid"]))
+	if not plan.sections_of("holding").is_empty():
+		await _holding_shots(plan, info, at)
+	else:
+		var depot: Dictionary = plan.sections_of("depot")[0]
+		await _shot("2-depot-from-the-road", at.call(loud, depot["z0"] + 12.0, 2.2), at.call(loud, depot["mid"], 1.0))
+		var crate: Vector3 = info["depot_cache"].position
+		var c: float = plan.lane_x(loud, depot["mid"])
+		var side := signf(crate.x - c) if absf(crate.x - c) > 0.5 else 1.0
+		await _shot("3-depot-titan-part", crate + Vector3(-side * 7.0, 3.0, 9.0), crate + Vector3(0, 1.0, 0))
+		await _shot("4-depot-from-above", Vector3(c - side * 30.0, plan.ground(c, depot["mid"]) + 26.0, depot["z0"] + 20.0), Vector3(c, plan.ground(c, depot["mid"]), depot["mid"]))
 	var arena: Dictionary = info["arena"]
 	var boss: Vector3 = info["boss"].position
 	await _shot("5-clearing-out-of-the-trees", at.call(loud, arena["enter_z"] + 10.0, 1.7), boss + Vector3(0, 5.0, 0))
@@ -154,6 +158,21 @@ func _level_shots(plan, info: Dictionary, at: Callable) -> void:
 	var mid: Vector3 = arena["center"]
 	await _shot("6-clearing-from-above", mid + Vector3(-40.0, 55.0, 60.0), mid)
 	await _shot("7-valley-overview", Vector3(plan.center_x(plan.spawn_z), 80.0, plan.spawn_z + 50.0), Vector3(plan.center_x(plan.spawn_z - 150.0), 0.0, plan.spawn_z - 150.0))
+
+
+## A rescue level's holding block: up the street to it, Ophelia in her cell
+## through the screen, and the block from above.
+func _holding_shots(plan, info: Dictionary, at: Callable) -> void:
+	var loud: int = plan.lane_of("loud")
+	var block: Dictionary = plan.sections_of("holding")[0]
+	await _shot("2-holding-from-the-road", at.call(loud, block["z0"] + 12.0, 2.2), at.call(loud, block["mid"], 1.0))
+	var cell: Node3D = info["holding_cell"]
+	var xf: Transform3D = cell.transform
+	await _shot("3-ophelia-in-her-cell", xf * Vector3(1.2, 1.7, 4.2), xf * Vector3(0.3, 0.7, -2.0))
+	await _shot("4-holding-cell-wide", xf * Vector3(-5.0, 3.0, 11.0), xf * Vector3(0, 1.5, -1.0))
+	var c: float = plan.lane_x(loud, block["mid"])
+	var side := signf(cell.position.x - c)
+	await _shot("4b-holding-from-above", Vector3(c - side * 30.0, plan.ground(c, block["mid"]) + 26.0, block["z0"] + 20.0), Vector3(c, plan.ground(c, block["mid"]), block["mid"]))
 
 
 func _shot(shot_name: String, eye: Vector3, look: Vector3) -> void:

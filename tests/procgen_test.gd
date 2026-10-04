@@ -92,7 +92,7 @@ func _plan_checks() -> void:
 			bad.is_empty(), bad.slice(0, 6))
 	_check("plans use 3, 4 and 5 lanes and every biome", lane_counts.size() == 3 and biomes.size() == LevelPlan.BIOMES.size(), [lane_counts.keys(), biomes.keys()])
 	# The depot and the finale are the real levels' own (levels.gd), never in an uncharted zone.
-	_check("plans use every kind of section, ruins included", fillers.size() == LevelPlan.SECTION_LEN.size() - 2 and not fillers.has("depot") and not fillers.has("finale"), fillers.keys())
+	_check("plans use every kind of section, ruins included", fillers.size() == LevelPlan.SECTION_LEN.size() - 3 and not fillers.has("depot") and not fillers.has("holding") and not fillers.has("finale"), fillers.keys())
 	_check("same seed, same plan", LevelPlan.make(77, 4).describe() == LevelPlan.make(77, 4).describe() and LevelPlan.make(77, 4).describe() != LevelPlan.make(78, 4).describe(),
 			LevelPlan.make(77, 4).describe())
 

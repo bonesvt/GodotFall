@@ -15,7 +15,8 @@ extends RefCounted
 ## A real level's finale (levels.gd) adds boss, evac, evac_node and arena
 ## ({rect, enter_z, center}: run_manager starts the titan fight once you're
 ## past enter_z), and has no beacon; its depot cache is the titan part
-## (depot_cache, with meta "part_bonus").
+## (depot_cache, with meta "part_bonus"). A level with a rescue has a holding
+## block instead: holding_cell (holding_cell.gd) with the prisoner in it.
 ## How every lane gets through each kind of section is in level_plan.gd.
 
 const LevelPlan := preload("res://scripts/run/procgen/level_plan.gd")
@@ -28,6 +29,7 @@ const L := preload("res://scripts/run/laid_out.gd")
 const SP := preload("res://scripts/run/procgen/set_pieces.gd")
 const ForestBuilder := preload("res://scripts/run/forest_builder.gd")
 const Boss := preload("res://scripts/run/boss.gd")
+const HoldingCell := preload("res://scripts/run/holding_cell.gd")
 
 const CELL := 2.0
 const THREAT_SPAWNER := "res://scripts/threats/threat_spawner.gd"
@@ -109,7 +111,7 @@ static func build_from_plan(root: Node3D, plan, zone_index: int) -> Dictionary:
 				_picket(root, plan, info, keep_out, s, rng, dress, zone_index)
 			"wall":
 				_wall(root, plan, info, keep_out, s, rng, dress, zone_index)
-			"outpost", "camp", "depot":
+			"outpost", "camp", "depot", "holding":
 				_yard(root, plan, info, keep_out, s, rng, dress, zone_index)
 			"resource":
 				_resource(root, plan, info, keep_out, s, rng, dress, zone_index)
@@ -419,6 +421,7 @@ static func _yard(root: Node3D, plan, info: Dictionary, keep_out: Array, s: Dict
 	var c: float = plan.lane_x(loud, mid)
 	var camp: bool = s["kind"] == "camp"
 	var depot: bool = s["kind"] == "depot"
+	var holding: bool = s["kind"] == "holding"
 	# The rooftop runs first: they set where the high lanes go.
 	var high_cache := Vector3.INF
 	for i in plan.lanes_of("high"):
@@ -442,12 +445,16 @@ static func _yard(root: Node3D, plan, info: Dictionary, keep_out: Array, s: Dict
 	else:
 		for k in 2:
 			var at := Vector2(c + (side if k == 0 else -side) * 10.5, mid + (6.0 if k == 0 else -8.0))
-			if _lane_dist(plan, at.x, at.y) < 7.5:
+			if _lane_dist(plan, at.x, at.y) < 7.5 or (holding and k == 0):
 				continue
 			var size := B.barracks(root, _on(plan, at.x, at.y), dress)
 			_occupy(info, keep_out, at, size)
 		F.antenna(root, _on(plan, c + side * 6.0, z0 - 6.0))
 		keep_out.append(Rect2(c + side * 6.0 - 1.5, z0 - 7.5, 3, 3))
+	# The holding block takes the back of the yard on the far side (_holding).
+	var block := Rect2(c + side * 8.5 - 5.0, z1 + 0.5, 10.0, 33.0)
+	if holding:
+		keep_out.append(block)
 	# The landmark in the back corner, and a watchtower at the front.
 	var lm := Vector2(c + side * 9.0, z1 + 7.0)
 	if _free(keep_out, lm, Vector2(8, 8)) and _lane_dist(plan, lm.x, lm.y) > 6.0:
@@ -465,7 +472,7 @@ static func _yard(root: Node3D, plan, info: Dictionary, keep_out: Array, s: Dict
 	# The squad's cover across the road, facing the way the pilot comes in.
 	var posts := [Vector2(c - 4.0, mid + 3.0), Vector2(c + 3.5, mid + 1.5), Vector2(c + 0.5, mid - 4.0), Vector2(c - 7.0, mid - 5.0)]
 	var squad := []
-	var size_n := rng.randi_range(2, 3) + mini(zone_index - 3, 1) + int(depot)
+	var size_n := rng.randi_range(2, 3) + mini(zone_index - 3, 1) + int(depot or holding)
 	for k in posts.size():
 		var p: Vector2 = posts[k]
 		if k == 2:
@@ -477,6 +484,9 @@ static func _yard(root: Node3D, plan, info: Dictionary, keep_out: Array, s: Dict
 			squad.append(_grunt(root, info, _on(plan, p.x, p.y - (1.3 if k == 2 else 1.1)), zone_index))
 	if depot:
 		_depot(root, plan, info, keep_out, s, rng, dress, zone_index, c, side, squad)
+	elif holding:
+		keep_out.erase(block)
+		_holding(root, plan, info, keep_out, s, rng, dress, zone_index, c, side, squad)
 	elif s["cache"] == "guarded":
 		L.guard(root, info, L.cache(root, info, _on(plan, c + 2.0, z1 + 6.0)), squad)
 	elif high_cache != Vector3.INF:
@@ -561,6 +571,50 @@ static func _depot(root: Node3D, plan, info: Dictionary, keep_out: Array, s: Dic
 	SP.place(root, "warning_sign", sign_at, dress.randf_range(-10, 10), info)
 	var title := Kit.label(root, sign_at + Vector3(0, 3.4, 0), "SALVAGE DEPOT", 64)
 	title.modulate = Color(0.95, 0.4, 0.3)
+
+
+## The colony's holding block: a concrete cell at the back of the yard,
+## facing the road across a strip of security wall, its energy screen held up
+## until the whole squad is down; a checkpoint on the way in, a guard tower
+## over the back. The prisoner (levels.gd "rescue") sits inside.
+static func _holding(root: Node3D, plan, info: Dictionary, keep_out: Array, s: Dictionary, rng: RandomNumberGenerator,
+		dress: RandomNumberGenerator, zone_index: int, c: float, side: float, squad: Array) -> void:
+	var z1: float = s["z1"]
+	var z0: float = s["z0"]
+	var at := Vector2(c + side * 8.5, z1 + 17.0)  # the cell's open front
+	var cell = HoldingCell.new()
+	cell.name = "HoldingCell"
+	root.add_child(cell)
+	cell.position = _on(plan, at.x, at.y)
+	cell.rotation.y = -side * PI * 0.5  # open toward the road
+	info["holding_cell"] = cell
+	var back := at.x + side * 2.3  # the cell's middle, front to back
+	_occupy(info, keep_out, Vector2(back, at.y), Vector2(5.4, 6.6))
+	keep_out.append(Rect2(at.x - side * 2.5 - 2.5, at.y - 3.5, 5.0, 7.0))  # the street in front stays clear
+	var lbl := Kit.label(root, _on(plan, back, at.y, 5.4), "HOLDING BLOCK", 72)
+	lbl.modulate = Color(0.55, 0.85, 1.0)
+	# Security wall either side of the cell, in line with it; a drone pylon
+	# and a street light out front.
+	for dz in [-1.0, 1.0]:
+		var wall := Vector2(back, at.y + dz * 9.8)
+		SP.place(root, "city_security_wall", _on(plan, wall.x, wall.y), 90.0, info)
+		_occupy(info, keep_out, wall, Vector2(1.8, 12.4))
+	_put(root, plan, info, keep_out, "city_drone_pylon", at + Vector2(-side * 5.0, 7.5), dress.randf_range(0, 360), 2.5)
+	_put(root, plan, info, keep_out, "city_streetlight", at + Vector2(-side * 5.0, -6.0), 0.0, 1.5)
+	# Guards: one posted at the screen, one on each corner of the block, and
+	# a tower over the back of the yard.
+	var front := Vector2(at.x - side * 3.2, at.y)
+	squad.append(_grunt(root, info, _on(plan, front.x, front.y + 2.0), zone_index, 1.2, Vector3(-side, 0, 0)))
+	squad.append(_grunt(root, info, _on(plan, front.x - side * 1.5, front.y - 4.5), zone_index, 1.2, Vector3(0, 0, 1)))
+	var tw := Vector2(c - side * 9.5, z1 + 8.0)
+	if _free(keep_out, tw, Vector2(5, 5)) and _lane_dist(plan, tw.x, tw.y) > 4.0:
+		var deck := F.watchtower(root, _on(plan, tw.x, tw.y), 180.0)
+		_occupy(info, keep_out, tw, Vector2(5, 5))
+		squad.append(_grunt(root, info, deck + Vector3(0, 0, -0.6), zone_index, 0.6, Vector3(0, 0, 1)))
+	L.guard(root, info, cell, squad)
+	# The checkpoint on the road in.
+	if _put(root, plan, info, keep_out, "city_checkpoint", Vector2(c + side * 1.5, z0 - 1.5), 0.0 if side > 0.0 else 180.0, 0.0).is_empty():
+		SP.place(root, "warning_sign", _on(plan, c + side * 3.4, z0 - 2.0), dress.randf_range(-10, 10), info)
 
 
 ## A row of rooftops along a high lane through a yard, from the ridge's end to

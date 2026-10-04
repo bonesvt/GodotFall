@@ -57,6 +57,16 @@ melt > Melt it? Over my dead... no. Over yours.
 bait > Bait. Obviously. Taking it anyway.
 stole|stealing > Stealing it back from the thieves who stole it. Dizzy yet?
 
+# Level 2 only: after the radio gossips about the girl in their holding block.
+[prisoner]
+Hang on. I'm coming. Just hang on.
+Somebody's coming for her, boys. Spoiler: it's me.
+Nobody noticed she was gone? Well. I did.
+blanket > Aw. One of you has a heart. Still kicking your door in.
+drawing|wall > She drew you ugly? Accurate. I like her already.
+bit > Ha! Good. Bite harder.
+Starling|orphan > Nobody random to me. Not anymore.
+
 # After the grunts' idle radio banter.
 [idle]
 Wow. Riveting stuff, boys.

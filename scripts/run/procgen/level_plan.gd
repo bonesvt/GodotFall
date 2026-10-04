@@ -39,6 +39,8 @@ extends RefCounted
 ## A real level (levels.gd, make_level) can also have:
 ##   depot: the militia's salvage depot, a yard like the outpost with a
 ##     bigger squad guarding a crated titan part (the level's objective).
+##   holding: the colony's holding block, a yard like the depot where the
+##     bigger squad guards a prisoner's cell instead (levels.gd "rescue").
 ##   finale: in place of the end, a wide clearing across the whole valley
 ##     where the enemy titan waits: call yours in, fight, walk it to the evac.
 ## Everything is seeded: the same seed always plans the same zone.
@@ -67,10 +69,10 @@ const BRIDGE_REACH := 2.0
 const SECTION_LEN := {
 	"start": 36.0, "field": 44.0, "picket": 36.0, "wall": 28.0,
 	"outpost": 56.0, "camp": 56.0, "resource": 44.0, "chasm": 48.0, "end": 36.0, "ruins": 48.0,
-	"depot": 64.0, "finale": 112.0,
+	"depot": 64.0, "holding": 64.0, "finale": 112.0,
 }
 ## Sections that are a flat yard with buildings, a squad and a cache.
-const YARDS := ["outpost", "camp", "depot"]
+const YARDS := ["outpost", "camp", "depot", "holding"]
 ## Flat ground round the spawn and the beacon.
 const SPAWN_CLEAR := 10.0
 const BIOMES := ["forest", "marsh", "boneyard", "city", "military"]
@@ -436,7 +438,7 @@ func _plan_ridges() -> void:
 		match s["kind"]:
 			"start":
 				spans.append([spawn_z - 2.0, s["z1"], 16.0, 0.0])
-			"outpost", "camp", "depot":
+			"outpost", "camp", "depot", "holding":
 				pass
 			"wall":
 				spans.append([s["z0"], s["wall_z"] + 3.0, 0.0, 0.0])

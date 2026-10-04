@@ -16,11 +16,15 @@ extends RefCounted
 ##   threats: let the Choir and wildlife in (threat_spawner.gd).
 ##   part_bonus: tiers added to the depot's titan part roll (titan_parts.gd).
 ##   needs: the level (or "tutorial") that has to be cleared first.
+##   rescue: who is held in the level's holding block (its "holding"
+##     section, holding_cell.gd). The clearing at the end stays shut until
+##     they're out, and they leave on the evac with you. rescue_lines is
+##     what's said when the cell opens.
 
 const ZoneGenerator := preload("res://scripts/run/procgen/zone_generator.gd")
 const LevelPlan := preload("res://scripts/run/procgen/level_plan.gd")
 
-const ORDER := ["level1"]
+const ORDER := ["level1", "level2"]
 const LEVELS := {
 	"level1": {
 		"number": 1,
@@ -35,6 +39,30 @@ const LEVELS := {
 		"needs": "tutorial",
 		"blurb": "Past the forest's edge the militia run a salvage line out of the deep woods. "
 			+ "Their depot has a titan part crated up for the coast. Take it, then deal with the titan they keep on the road.",
+	},
+	"level2": {
+		"number": 2,
+		"name": "THE GLASS DISTRICT",
+		"biome": "city",
+		"difficulty": 5,
+		"lanes": 0,
+		"must": ["holding"],
+		"finale": true,
+		"threats": false,
+		"part_bonus": 2,
+		"needs": "level1",
+		"rescue": "ophelia",
+		# What they say when the screen drops (rated T both ways).
+		"rescue_lines": [
+			"OPHELIA: ...You're not one of them.",
+			"ECO: Nope! Eco. Hi. I'm the rescue. Surprise.",
+			"OPHELIA: Nobody was supposed to come. Nobody even knows I'm gone.",
+			"ECO: I knew. Their radio wouldn't shut up about you. Can you run?",
+			"OPHELIA: Watch me.",
+			"ECO: Evac's past the plaza. Stay low, I'll clear the road. And don't die, it'd ruin my whole night.",
+		],
+		"blurb": "The colony's radio keeps joking about a girl from town in their holding block downtown. "
+			+ "Nobody in town has even noticed she's gone. Ophelia. Get her out, then get her past the titan they park in the plaza.",
 	},
 }
 

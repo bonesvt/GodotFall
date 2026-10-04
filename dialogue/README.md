@@ -45,7 +45,8 @@ a: Caught another deserter by the river. | b: And? | a: And now he's digging lat
   random titan part name.
 
 Radio situations: `idle`, `rumor_eco`, `rumor_salvage`, `suspicious`, `stand_down`, `alerted`,
-`combat`, `pilot_moving`, `hurt`, `man_down`, `last_man`, `lost`, `no_answer`.
+`combat`, `pilot_moving`, `hurt`, `man_down`, `last_man`, `lost`, `no_answer`, and `prisoner`
+(calm chatter about the girl in the holding block, only in Level 2 until she's out).
 
 ### Eco's lines
 
@@ -60,7 +61,7 @@ Words before `>` (split by `|`) are whole words or phrases. When the exchange sh
 mentions one, that line is picked over the plain ones; otherwise it never plays there.
 
 Eco situations:
-- answering the radio: `rumor_eco`, `rumor_salvage`, `idle`, `suspicious`, `stand_down`, `alerted`,
+- answering the radio: `rumor_eco`, `rumor_salvage`, `prisoner`, `idle`, `suspicious`, `stand_down`, `alerted`,
   `lost`, `man_down`, `last_man`, `no_answer`
 - her own moments: `kill`, `headshot`, `takedown`, `hurt`, `dry` (mag empty), `downed`, `quiet`
 - the run: `zone_start`, `part_installed`, `titanfall`, `boss_down`, `home`

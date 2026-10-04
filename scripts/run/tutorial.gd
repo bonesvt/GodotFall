@@ -115,7 +115,7 @@ func _flash(text: String) -> void:
 
 # --- the run manager's side -----------------------------------------------------
 
-## "zone0".."zone2", "arena", "level1", "hub" or anything else (no beats).
+## "zone0".."zone2", "arena", "level1", "level2", "hub" or anything else (no beats).
 func start_level(which: String) -> void:
 	_finish()
 	level = which
@@ -133,6 +133,8 @@ func start_level(which: String) -> void:
 			beats = _arena()
 		"level1":
 			beats = _level1() + _anywhere()
+		"level2":
+			beats = _level2() + _anywhere()
 		"hub":
 			beats = _hub()
 	var radio = _radio()
@@ -696,6 +698,30 @@ func _level1() -> Array:
 			"body": "The road runs out into a clearing and their titan is parked on it. Step out of the trees and it's titanfall: call yours in, beat theirs, walk it to the evac.",
 			"when": func(): return _info().has("arena") and _pos().z < float(_info()["arena"]["enter_z"]) + 45.0 and run.phase == run.Phase.ZONE},
 	]
+
+
+func _level2() -> Array:
+	return [
+		{"id": "level2_intro", "title": "LEVEL 2: THE GLASS DISTRICT", "color": AMBER, "max": 14.0,
+			"body": "The colony's own streets: walls to run, rooftops for the high road, drones and checkpoints on the main drag. Somewhere down here is their holding block, and Ophelia's in it.",
+			"targets": func(): return _route_tags(_info().get("routes", [])),
+			"when": func(): return level_time > 2.0},
+		{"id": "level2_cell", "title": "HOLDING BLOCK", "color": RED, "max": 16.0,
+			"body": "Her cell's behind an energy screen the guards hold up. Drop every one of them in the yard, the tower too, then walk up to the screen and press [F].",
+			"targets": func(): return _cell_tag(),
+			"when": func(): return _cell_tag().size() > 0 and _near(_info()["holding_cell"].global_position, 70.0),
+			"done": func(): return _info()["holding_cell"].opened},
+		{"id": "level2_finale", "title": "THE PLAZA", "color": GREEN, "max": 14.0,
+			"body": "She's making for the evac. Their titan's parked in the plaza at the end of the street: call yours in, beat theirs, walk it to the pad where she's waiting.",
+			"when": func(): return _events.has("rescued") and level_time > 0.0},
+	]
+
+
+func _cell_tag() -> Array:
+	var c = _info().get("holding_cell")
+	if c == null or not is_instance_valid(c) or c.opened:
+		return []
+	return [{"node": c, "tag": "OPHELIA", "color": ORANGE}]
 
 
 func _depot_tag() -> Array:

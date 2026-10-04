@@ -65,6 +65,17 @@ a: Somebody left a {part} out in the open. | b: Bait. Leave it and watch who com
 a: Command's shipping every wrecked frame home. | b: Why the rush? | a: Because the Starling's been eating our leftovers.
 a: That {part} came off a frame the locals stole from us. | b: Then we're stealing it back. Circle of life.
 
+# Level 2 only, while Ophelia's in the holding block: gossip about the prisoner.
+[prisoner]
+a: How long are we holding the girl? | b: Till Command remembers she exists. | a: So forever.
+a: The prisoner asked for a blanket. | b: Did you get her one? | a: ...Maybe. Don't tell Brass.
+hq: Holding block, status on the detainee. | a: Still sitting there. Still glaring. | hq: Noted.
+a: Nobody's come asking about her. Not one person from town. | b: That's kind of sad. | a: Kind of convenient, Command says.
+a: Why'd we even pick her up? | b: She was out past curfew drawing on our wall. | a: What'd she draw? | b: Us. Unflattering.
+a: She hasn't said a word in three days. | b: She said one to me. | a: What was it? | b: Not one I'll repeat on the net.
+a: Command thinks the Starling might come for her. | b: For some random orphan? | a: That's what worries me. Nobody knows what the Starling wants.
+a: She's got the black nail polish, the whole look. | b: Like a little storm cloud. | a: A storm cloud that bit Hollis.
+
 # Heard or glimpsed something.
 [suspicious]
 a: Hold up. Something moved. | b: Wind. | a: The wind doesn't wear boots.
