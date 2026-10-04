@@ -8,7 +8,8 @@
 //   - ROUGHNESS is written as 0.5 so the post pass can tell the set (painted)
 //     from the characters (Eco's toon shaders write 1.0).
 // The style file defines CONCEPT_FLAT, CONCEPT_CEL_SOFT, CONCEPT_POSTERIZE,
-// CONCEPT_SATURATION and CONCEPT_SHADOW (vec4: rgb tint, a strength) first.
+// CONCEPT_SATURATION, CONCEPT_SHADOW (vec4: rgb tint, a strength),
+// CONCEPT_LAMP_ENERGY and CONCEPT_LAMP_NEUTRAL first.
 
 // Snap grid width in pixels for vertex positions (PS1/PS2 wobble). 0 is off.
 // Set project-wide in Project Settings > Shader Globals.
@@ -205,14 +206,16 @@ void light() {
 	float shade = min(ndl, ATTENUATION * 2.0 - 0.5);
 	float cel = smoothstep(-CONCEPT_CEL_SOFT, CONCEPT_CEL_SOFT, shade);
 	vec3 radiance = LIGHT_COLOR;
-	if (!IS_DIRECTIONAL) {
+	if (!LIGHT_IS_DIRECTIONAL) {
 		// Lamps: a soft painted glow pool that still ends in a clean edge.
 		float pool = ATTENUATION;
-		cel = smoothstep(0.0, 0.25, ndl) * smoothstep(0.0, 0.08, pool) * min(pool * 2.5, 1.0);
+		cel = smoothstep(0.0, 0.1, ndl) * smoothstep(0.12, 0.17, pool) * CONCEPT_LAMP_ENERGY;
+		// Lamps lean toward white so warm bulbs don't flood the whole set orange.
+		radiance = mix(radiance, vec3(dot(radiance, vec3(0.333))), CONCEPT_LAMP_NEUTRAL);
 	}
 	// Shadow side keeps a tinted share of the light: coloured shadows, not grey.
 	vec3 lit = mix(CONCEPT_SHADOW.rgb * CONCEPT_SHADOW.a, vec3(1.0), cel);
-	if (!IS_DIRECTIONAL) {
+	if (!LIGHT_IS_DIRECTIONAL) {
 		lit = vec3(cel);
 	}
 	DIFFUSE_LIGHT += lit * radiance / PI;
