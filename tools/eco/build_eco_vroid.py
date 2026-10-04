@@ -2285,7 +2285,7 @@ def outfit_pieces():
     out.append(rigid("outfit_casual_t_knot", bm, ["eco_v_flannel_knot"], "J_Bip_C_Hips"))
     out.append(skirt("outfit_date_t_skirt", 0.92, 0.42, ["eco_v_satin", "eco_v_gold"], gap=0.012, flare=0.06,
                      slit=(-60.0, 9.0, 0.56), trim=True, follow=(0.6, 0.92), rows=18))
-    out.append(skirt("outfit_date_m_skirt", 0.866, 0.672, ["eco_v_satin", "eco_v_gold"], gap=0.012, flare=0.01,
+    out.append(skirt("outfit_date_m_skirt", 0.866, 0.672, ["eco_v_satin", "eco_v_gold"], gap=0.006, flare=0.012,
                      slit=(-35.0, 22.0, 0.85), trim=True, follow=(0.88, 0.97), rows=12))
     face = bpy.data.objects["Face"]
     bm = bmesh.new()
@@ -2368,7 +2368,7 @@ def outfit_graph(nt, skin, kind):
             # where she is fullest, apex z 1.047), its back cut low
             zn = g.lerp(g.add(1.075, g.mul(4.0, g.sq(ax))), 1.07, tb)
             d_body = g.mn(g.mn(g.sub(zn, z), g.sub(0.15, ax)), g.sub(z, g.lerp(0.998, 1.0, tb)))
-            under = g.op("EXPONENT", g.neg(g.sq(g.div(g.sub(ax, 0.057), 0.03))))   # arching up under each breast
+            under = g.op("EXPONENT", g.neg(g.sq(g.div(g.sub(ax, 0.057), 0.036))))   # arching up under each breast
             hem = g.add(0.998, g.mul(g.mul(under, 0.024), g.sub(1.0, tb)))
             d_body = g.mn(d_body, g.sub(z, hem))
             d_straps = g.mn(g.mn(g.sub(0.007, g.abs(g.sub(ax, 0.062))), g.sub(z, 1.05)), g.sub(1.215, z))
@@ -2394,7 +2394,7 @@ def outfit_graph(nt, skin, kind):
             state["ink"] = g.mx(state["ink"], g.mul(g.mul(pocket, front), c_s))
             wear(g.mn(g.sub(z, g.sub(zt, 0.016)), g.sub(zt, z)), BELT)
             paint(g.mul(g.mul(g.band(ax, 0.0, 0.009), g.band(z, 0.842, 0.86)), front), (0.3, 0.27, 0.2))   # buckle
-            wear(g.mn(g.sub(z, 0.17), g.sub(0.565, z)), SOCK)                                # thigh-high socks
+            wear(g.mn(g.sub(z, 0.17), g.sub(0.565, z)), (0.012, 0.012, 0.016))               # black thigh-high socks
             paint(g.mx(g.band(z, 0.535, 0.545), g.band(z, 0.515, 0.525)), TEE_PRINT)         # two teal stripes at the top
         else:
             # high-waisted jeans, small rips at the knees with threads across them
@@ -2419,7 +2419,7 @@ def outfit_graph(nt, skin, kind):
             w_v = g.mul(0.3, g.mx(g.sub(z, 0.93), 0.0))
             d_front = g.mn(g.mn(g.sub(g.sub(1.12, g.mul(0.3, ax)), z), g.sub(ax, w_v)), g.sub(0.108, ax))
             d_front = g.mn(g.mn(d_front, g.mul(g.sub(0.5, tb), 0.02)), g.sub(z, 0.86))
-            d_lower = g.mn(g.sub(z, 0.65), g.sub(0.866, z))
+            d_lower = g.mn(g.sub(z, 0.686), g.sub(0.866, z))   # under the skirt, never below its hem
             u = g.div(g.sub(z, 1.1), 0.09)
             d_strap = g.mn(g.mn(g.sub(0.0075, g.abs(g.sub(ax, g.lerp(0.05, 0.026, u)))), g.mn(g.sub(z, 1.1), g.sub(1.19, z))),
                            g.mul(g.sub(0.5, tb), 0.02))
@@ -2435,7 +2435,7 @@ def outfit_graph(nt, skin, kind):
         c = wear(d_dress, SATIN)
         paint(g.mul(g.band(d_dress, 0.001, 0.0028), c), GOLD_PAINT)                         # gold piping
         if mature:   # a gold chain slung round her hips over the bare skin
-            paint(g.band(g.sub(z, g.add(0.872, g.mul(0.5, g.sq(x)))), -0.0011, 0.0011), GOLD_PAINT)
+            paint(g.band(g.sub(z, g.add(0.9, g.mul(0.5, g.sq(x)))), -0.0012, 0.0012), GOLD_PAINT)
         else:
             wear(g.mn(g.sub(z, 0.912), g.sub(0.922, z)), GOLD_PAINT)                        # a thin gold belt
         if mature:
