@@ -28,6 +28,7 @@ const NO_BOOTS := ["night"]
 const NpcSprings := preload("res://scripts/hub/npc_springs.gd")
 const Hair := preload("res://scripts/hub/hair.gd")
 const Wardrobe := preload("res://scripts/hub/wardrobe.gd")
+const ContentRating := preload("res://scripts/radio/content_rating.gd")
 
 var who := ""
 var outfit := ""
@@ -39,6 +40,8 @@ var look_target: Node3D
 var _anim: AnimationPlayer
 var _mouth: Array = []   # [[MeshInstance3D, blend shape index]]
 var _t := 0.0
+## The content rating the meshes were last shown for (the O key can change it in the hub).
+var _rating_seen := ""
 ## The face mood on now ("" plain), how red the cheeks are (0..1, fading on
 ## its own), and the head gesture with how long it has run.
 ## Holding one of their poses (npc_idles.gd): they don't turn on the spot
@@ -234,14 +237,23 @@ func wear(p_outfit: String) -> void:
 
 ## Shows an outfit's own meshes (Outfit_<outfit>_*: Mom's nightgown,
 ## Ophelia's pajama legs) and hides every other outfit's, and the boots when
-## the outfit has none.
+## the outfit has none. Ophelia's piercings ("Piercings") show only with the
+## content rating on Mature (or above).
 func _dress_meshes(p_outfit: String) -> void:
+	_rating_seen = ContentRating.current()
 	for mi in find_children("*", "MeshInstance3D", true, false):
 		var n := String(mi.name)
-		if n.begins_with("Outfit_"):
+		if n.begins_with("Piercings"):
+			mi.visible = mature()
+		elif n.begins_with("Outfit_"):
 			mi.visible = n.begins_with("Outfit_%s_" % p_outfit)
 		elif n.begins_with("Boots"):
 			mi.visible = not p_outfit in NO_BOOTS
+
+
+## Whether the content rating lets mature details show (anything above Teen).
+static func mature() -> bool:
+	return not ContentRating.current() in ["E", "T"]
 
 
 func say(stream: AudioStream) -> void:
@@ -261,6 +273,8 @@ func hush() -> void:
 
 
 func _process(delta: float) -> void:
+	if _rating_seen != ContentRating.current():
+		_dress_meshes(outfit if outfit != "" else OUTFITS.get(who, [""])[0])
 	_t += delta
 	# Turn toward Eco when she's close, back to their spot when she leaves.
 	var want := home_yaw

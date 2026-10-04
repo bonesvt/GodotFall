@@ -9,6 +9,7 @@ const Rooms := preload("res://scripts/hub/hub_rooms.gd")
 const NpcTalk := preload("res://scripts/hub/npc_talk.gd")
 const Babble := preload("res://scripts/hub/babble.gd")
 const Wardrobe := preload("res://scripts/hub/wardrobe.gd")
+const ContentRating := preload("res://scripts/radio/content_rating.gd")
 
 const WHO := ["mom", "ophelia", "biggie"]
 ## Where Eco stands in the hall to walk through each door, and which way is in.
@@ -74,8 +75,21 @@ func _run() -> void:
 		npc.wear("night")
 		_check("%s's nightwear meshes show at night" % who, not meshes.is_empty() and meshes.all(func(m): return m.visible) and boots.all(func(b): return not b.visible), [meshes.size(), boots.size()])
 		npc.wear(list[0])
-		_check("%s's nightwear meshes hide by day" % who, meshes.all(func(m): return not m.visible) and boots.all(func(b): return b.visible))
+		_check("%s's nightwear meshes hide by day" % who, meshes.all(func(m): return not m.visible) and boots.all(func(b): return b.visible), npc.outfit)
 		npc.wear(before)
+
+	# Ophelia's piercings: only with the rating on Mature
+	var oph: Node = run_node.hub_npcs["ophelia"]
+	var bars: Array = oph.find_children("Piercings*", "MeshInstance3D", true, false)
+	var was := ContentRating.current()
+	ContentRating.set_rating("T", false)
+	oph._process(0.0)
+	_check("Ophelia's piercings hidden on Teen", not bars.is_empty() and bars.all(func(b): return not b.visible), bars.size())
+	ContentRating.set_rating("M", false)
+	oph._process(0.0)
+	_check("Ophelia's piercings show on Mature", not bars.is_empty() and bars.all(func(b): return b.visible), bars.size())
+	ContentRating.set_rating(was, false)
+	oph._process(0.0)
 
 	# Every line in every conversation babbles, one beat per character.
 	var missing := []
