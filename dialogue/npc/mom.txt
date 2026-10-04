@@ -110,13 +110,6 @@ eco: I hate this family.
 mom: You love this family. Now come here and let me take it in at the waist for you.
 
 [any]
-mom: Ophelia borrowed my bikini for the hot spring yesterday.
-eco: Did it fit her?
-mom: Nothing of mine fits anyone, dear. That's the curse of the women in this family. Well. Most of the women.
-eco: I'm standing right here.
-mom: I know, sweetheart. I can see all of you from here. It doesn't take long.
-
-[any]
 mom: Turn around. Let me look at you.
 eco: Why do I feel like this is a trap?
 mom: That suit. It doesn't leave much to the imagination, does it?
@@ -148,9 +141,3 @@ mom: Darling, I carried and fed two babies in that shirt. It has room you were n
 eco: I hate this family.
 mom: You love this family. Now come here and let me take it in at the waist for you.
 
-[any]
-mom: Ophelia borrowed my bikini for the hot spring yesterday.
-eco: Did it fit her?
-mom: Nothing of mine fits anyone, dear. That's the curse of the women in this family. Well. Most of the women.
-eco: I'm standing right here.
-mom: I know, sweetheart. I can see all of you from here. It doesn't take long.

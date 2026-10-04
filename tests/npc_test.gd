@@ -8,6 +8,8 @@ extends SceneTree
 const Rooms := preload("res://scripts/hub/hub_rooms.gd")
 const NpcTalk := preload("res://scripts/hub/npc_talk.gd")
 const Babble := preload("res://scripts/hub/babble.gd")
+const Wardrobe := preload("res://scripts/hub/wardrobe.gd")
+const ContentRating := preload("res://scripts/radio/content_rating.gd")
 
 const WHO := ["mom", "ophelia", "biggie"]
 ## Where Eco stands on each tent's porch to walk in, and which way is in.
@@ -23,7 +25,8 @@ func _initialize() -> void:
 	run_node.run_seed = 7
 	run_node.armory_path = "user://test_npc_armory.cfg"
 	run_node.npc_path = "user://test_npcs.cfg"
-	for p in [run_node.armory_path, run_node.npc_path]:
+	Wardrobe.save_path = "user://test_npc_wardrobe.cfg"   # not the player's own picks
+	for p in [run_node.armory_path, run_node.npc_path, Wardrobe.save_path]:
 		DirAccess.remove_absolute(ProjectSettings.globalize_path(p))
 	root.add_child(run_node)
 	_run.call_deferred()
@@ -59,7 +62,30 @@ func _run() -> void:
 		for i in range(1, list.size()):
 			if not ResourceLoader.exists("res://assets/textures/npc/%s/body_%s.png" % [who, list[i]]):
 				gone.append(list[i])
-		_check("%s has all %d outfits" % [who, list.size()], gone.is_empty() and list.has("lingerie"), gone)
+		_check("%s has all %d outfits" % [who, list.size()], gone.is_empty() and list.has("night"), gone)
+		# nightwear meshes show only at night, and the boots come off
+		var npc: Node = run_node.hub_npcs[who]
+		var before: String = npc.outfit
+		var meshes: Array = npc.find_children("Outfit_night_*", "MeshInstance3D", true, false)
+		var boots: Array = npc.find_children("Boots*", "MeshInstance3D", true, false)
+		npc.wear("night")
+		_check("%s's nightwear meshes show at night" % who, not meshes.is_empty() and meshes.all(func(m): return m.visible) and boots.all(func(b): return not b.visible), [meshes.size(), boots.size()])
+		npc.wear(list[0])
+		_check("%s's nightwear meshes hide by day" % who, meshes.all(func(m): return not m.visible) and boots.all(func(b): return b.visible), npc.outfit)
+		npc.wear(before)
+
+	# Ophelia's piercings: only with the rating on Mature
+	var oph_p: Node = run_node.hub_npcs["ophelia"]
+	var bars: Array = oph_p.find_children("Piercings*", "MeshInstance3D", true, false)
+	var was := ContentRating.current()
+	ContentRating.set_rating("T", false)
+	oph_p._process(0.0)
+	_check("Ophelia's piercings hidden on Teen", not bars.is_empty() and bars.all(func(b): return not b.visible), bars.size())
+	ContentRating.set_rating("M", false)
+	oph_p._process(0.0)
+	_check("Ophelia's piercings show on Mature", not bars.is_empty() and bars.all(func(b): return b.visible), bars.size())
+	ContentRating.set_rating(was, false)
+	oph_p._process(0.0)
 
 	# Every line in every conversation babbles, one beat per character.
 	var missing := []
