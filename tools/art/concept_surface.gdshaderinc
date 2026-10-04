@@ -169,7 +169,11 @@ void fragment() {
 	}
 	vec3 col = tex.rgb * albedo.rgb * paint.rgb;
 	if (CONCEPT_POSTERIZE > 0.0) {
-		col = floor(col * CONCEPT_POSTERIZE + 0.5) / CONCEPT_POSTERIZE;
+		// Quantise brightness only (in gamma space) and keep the hue, so a
+		// texture becomes a few flat tones of its own colour.
+		float l = max(dot(col, vec3(0.2126, 0.7152, 0.0722)), 1e-4);
+		float lq = pow(floor(pow(l, 1.0 / 2.2) * CONCEPT_POSTERIZE + 0.5) / CONCEPT_POSTERIZE, 2.2);
+		col *= max(lq, 0.02) / l;
 	}
 	float grey = dot(col, vec3(0.299, 0.587, 0.114));
 	col = max(mix(vec3(grey), col, CONCEPT_SATURATION), vec3(0.0));

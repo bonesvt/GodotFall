@@ -53,9 +53,9 @@ const LOOKS := {
 		"post": {
 			"paint_radius": 5, "ink": Color(0.08, 0.06, 0.08, 1.0), "ink_width": 1.8,
 			"depth_edge": 0.07, "normal_edge": 0.4, "ink_far": 30.0,
-			"saturation": 0.82, "contrast": 1.12, "split": 0.55,
-			"shadow_tone": Color(0.30, 0.50, 0.60), "highlight_tone": Color(0.64, 0.52, 0.36),
-			"black_lift": 0.1, "halation": 0.5, "halation_color": Color(1.0, 0.4, 0.2),
+			"saturation": 0.82, "contrast": 1.12, "split": 0.4,
+			"shadow_tone": Color(0.36, 0.46, 0.58), "highlight_tone": Color(0.64, 0.52, 0.36),
+			"black_lift": 0.14, "halation": 0.5, "halation_color": Color(1.0, 0.4, 0.2),
 			"vignette": 0.35, "grain": 0.035, "grain_size": 1.4, "paper": 0.12,
 		},
 	},
