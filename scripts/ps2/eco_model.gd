@@ -121,9 +121,9 @@ const OUTFIT_BODY := {
 	"date_t": preload("res://assets/materials/eco/eco_v_body_date_t.tres"),
 	"date_m": preload("res://assets/materials/eco/eco_v_body_date_m.tres"),
 }
-## Clothes she leaves her goggles off for, and her boots (sandals on a date).
+## Clothes she leaves her goggles off for, and her boots (none yet: she laces her boots up for a date).
 const NO_GOGGLES := ["date"]
-const NO_BOOTS := ["date"]
+const NO_BOOTS := []
 ## Her date-night makeup (deeper smoky eyes, a sharper wing, red lips).
 const DATE_FACE := preload("res://assets/materials/eco/eco_v_face_date.tres")
 const ContentRating := preload("res://scripts/radio/content_rating.gd")

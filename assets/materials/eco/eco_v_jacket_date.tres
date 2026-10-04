@@ -9,11 +9,11 @@ shader = ExtResource("2_outline")
 shader_parameter/width = 1.2
 
 [resource]
-resource_name = "eco_v_gold"
+resource_name = "eco_v_jacket_date"
 render_priority = 0
 next_pass = SubResource("ShaderMaterial_ink")
 shader = ExtResource("1_shader")
-shader_parameter/albedo = Color(0.78, 0.62, 0.3, 1)
+shader_parameter/albedo = Color(0.09, 0.085, 0.095, 1)
 shader_parameter/shade_tint = Vector3(0.6, 0.6, 0.72)
-shader_parameter/sheen = 0.5
+shader_parameter/sheen = 0.0
 

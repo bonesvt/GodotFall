@@ -2,8 +2,8 @@ extends SceneTree
 ## Headless test for Eco's clothes off duty (eco_model.gd outfit "casual" and
 ## "date"): each has a Teen and a Mature version picked by the content rating
 ## (scripts/radio/content_rating.gd), with its own body texture and loose parts
-## and every suit piece hidden; she goes without goggles and boots on a date (in
-## her date-night makeup), the other version goes on when the rating changes,
+## and every suit piece hidden; on a date she leaves her goggles off but
+## keeps her boots (in her date-night makeup), the other version goes on when the rating changes,
 ## and back in a suit her armour comes back. The wardrobe keeps clothes for home.
 ## Run: godot --headless --path . -s res://tests/outfit_test.gd
 
@@ -32,8 +32,8 @@ func _run() -> void:
 	var boots: Node3D = eco.find_child("Boots*", true, false)
 	var face: MeshInstance3D = eco.find_child("Face", true, false)
 	_check("model has goggles, boots and a face", goggles != null and boots != null and face != null, "")
-	for part in ["outfit_casual_t_flannel", "outfit_casual_t_knot", "outfit_date_t_skirt", "outfit_date_m_skirt",
-			"outfit_date_any_hoops", "outfit_date_any_bangles_l"]:
+	for part in ["outfit_casual_t_flannel", "outfit_casual_t_knot", "outfit_date_t_jacket", "outfit_date_m_jacket",
+			"outfit_date_m_skirt", "outfit_date_any_hoops"]:
 		_check("%s is in the model" % part, eco.find_child(part, true, false) != null, "")
 	_check("starts in her suit", eco.outfit == "suit" and pieces.any(func(p): return p.visible), "")
 	for rating in ["T", "M"]:
@@ -51,13 +51,13 @@ func _run() -> void:
 					and String(m.name).get_slice("_", 2) in [rating.to_lower(), "any"]))
 			_check("%s shows only its own loose parts" % look, wrong.is_empty(), wrong.map(func(m): return m.name))
 			var dated: bool = outfit == "date"
-			_check("%s goggles and boots %s" % [look, "off" if dated else "on"], goggles.visible != dated and boots.visible != dated, "")
+			_check("%s goggles %s, boots on" % [look, "off" if dated else "on"], goggles.visible != dated and boots.visible, "")
 			_check("%s makeup" % look, _face(face) == (eco.DATE_FACE if dated else null), _face(face))
 	eco.wear("date")
 	ContentRating.set_rating("T", false)
 	await process_frame
 	_check("a rating change puts the other version on", eco.look() == "date_t" and _body(eco) == eco.OUTFIT_BODY["date_t"] \
-			and eco.find_child("outfit_date_t_skirt", true, false).visible and not eco.find_child("outfit_date_m_skirt", true, false).visible, eco.look())
+			and eco.find_child("outfit_date_t_jacket", true, false).visible and not eco.find_child("outfit_date_m_skirt", true, false).visible, eco.look())
 	eco.wear("suit")
 	_check("back in her suit her armour comes back", pieces.any(func(p): return p.visible) and goggles.visible and boots.visible \
 			and _body(eco) == eco.HEAVY_BODY and _face(face) == null and eco.look() == "", "")
