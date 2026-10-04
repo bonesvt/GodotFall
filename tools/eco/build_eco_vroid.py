@@ -38,7 +38,6 @@ argv = sys.argv[sys.argv.index("--") + 1:]
 SRC = argv[0]
 ROOT = argv[1]
 PREVIEW = argv[argv.index("--preview") + 1] if "--preview" in argv else None
-STYLE_NAME = argv[argv.index("--style") + 1] if "--style" in argv else "gwen"   # the base suit's style (BASE_STYLES)
 TEX_OUT = os.path.join(ROOT, "assets", "textures", "eco")
 GLB_OUT = os.path.join(ROOT, "assets", "models", "eco", "eco.glb")
 
@@ -69,8 +68,9 @@ BASE_NET = (0.02, 0.022, 0.03)    # the breathable mesh's net
 BASE_CORSET = (0.012, 0.011, 0.014)
 JACKET = (0.02, 0.09, 0.1)        # the cropped jacket: deep teal
 ZIP = (0.42, 0.44, 0.5)           # the back zip's silver teeth
-# The base suit's styles. "gwen" is the one in the game; the others are a lookbook
-# for Bones (build with --style <name>), each its own colours and details:
+# The base suit's styles, all baked (v_body[_<style>].png) and each with its own
+# jacket (base_<style>_jacket); Eco picks one in her wardrobe (eco_model.gd OUTFITS:
+# "suit" is gwen, the others "suit_<style>"). Each has its own colours and details:
 #   neck     sweetheart or vee: breathable mesh above that line up to the collar
 #   panels   sides (panels down her sides and legs, sleeves from `sleeve` out),
 #            racer (a sash across her, her left leg and stripes), harness (pilot
@@ -95,7 +95,13 @@ BASE_STYLES = {
                      accent=(0.2, 0.13, 0.36), net=BASE_NET, stretch=(0.05, 0.045, 0.07), glow=(0.55, 0.22, 1.0),
                      neck=None, panels="wrap", belt_kind="sash", vents="spine", jacket="half"),
 }
+STYLE_NAME = "gwen"   # the style being baked or built (set while each one is)
 STYLE = BASE_STYLES[STYLE_NAME]
+
+
+def use_style(name):
+    global STYLE_NAME, STYLE
+    STYLE_NAME, STYLE = name, BASE_STYLES[name]
 
 SIDE_CUT = 0.075   # how far the sides of the halter drop beside the bust (rest-space metres)
 CHEEKY = 1.6       # how steeply the back leg openings rise toward the hips
@@ -801,6 +807,18 @@ def torus(bm, centre, axis, major, minor, mat, segs=(16, 6)):
             f.material_index = mat
 
 
+def base_jackets():
+    """Every style's jacket (base_<style>_jacket)."""
+    out = []
+    for name in BASE_STYLES:
+        use_style(name)
+        ob = base_jacket()
+        if ob is not None:
+            out.append(ob)
+    use_style("gwen")
+    return out
+
+
 def base_jacket():
     """The base suit's fashion piece (base_*, shown by eco_model.gd only with no
     suit upgrade), by STYLE["jacket"]:
@@ -829,13 +847,13 @@ def base_jacket():
         return not (c.y < 0 and ax < 0.07 + 0.2 * max(0.0, 1.12 - c.z))   # open front, curving away
     planes = [((0, 0, hem), (0, 0, -1)), ((cuff, 0, 0), (1, 0, 0)), ((-cuff, 0, 0), (-1, 0, 0))]
     mat = "eco_v_jacket" + ("" if STYLE_NAME == "gwen" else "_" + STYLE_NAME)
-    ob = shell("base_jacket", keep, planes=planes, gap=0.006, thick=0.006, plate=mat, edge=mat + "_edge",
+    ob = shell("base_%s_jacket" % STYLE_NAME, keep, planes=planes, gap=0.006, thick=0.006, plate=mat, edge=mat + "_edge",
                smooth=2, smooth_edge=5, border=1)
     # nothing may stand off her: a stray vertex here once made spikes behind her head
     bvh = _body_bvh()
     far = max((bvh.find_nearest(ob.matrix_world @ v.co)[3] or 0.0) for v in ob.data.vertices)
     top = max(v.co.z for v in ob.data.vertices)
-    print("base_jacket: furthest point %.3f m off her, top at z %.3f" % (far, top))
+    print("base_%s_jacket: furthest point %.3f m off her, top at z %.3f" % (STYLE_NAME, far, top))
     assert top < 1.23, "base_jacket reaches up into her head"
     assert far < 0.03, "base_jacket has a spike"
     return ob
@@ -1817,8 +1835,9 @@ def bake_body(body, skin_img, cut="base"):
     """Bake the suit into four textures: albedo, glow (teal trims), a mask
     (red: where a thin sheen may show, green: suit or skin) and a normal map.
     The weight cuts (suit_graph) are v_body*_light.png, v_body*_medium.png and
-    v_body*_heavy.png, without a normal map."""
-    sfx = "" if cut == "base" else "_" + cut
+    v_body*_heavy.png, without a normal map; the base suit's styles other than
+    gwen (STYLE_NAME) are v_body*_<style>.png and share gwen's normal map."""
+    sfx = ("" if STYLE_NAME == "gwen" else "_" + STYLE_NAME) if cut == "base" else "_" + cut
     sc = bpy.context.scene
     sc.render.engine = "CYCLES"
     sc.cycles.samples = 4
@@ -1865,8 +1884,8 @@ def bake_body(body, skin_img, cut="base"):
         img.save()
         results[name] = img
         print("baked", name)
-    if cut != "base":
-        return results   # the wrap, the jumpsuit or the padding holds her chest: no cling normal map
+    if cut != "base" or STYLE_NAME != "gwen":
+        return results   # the wrap, the jumpsuit or the padding holds her chest: no cling normal map (other styles share gwen's)
     # normal map: crisp detail on top of the shapes curves() gave the mesh, the
     # peaks of her bust under the suit (nothing under it) and the creases of her glutes
     at = nt.nodes.new("ShaderNodeAttribute")
@@ -1965,6 +1984,11 @@ def textures_and_materials(objs, boots):
     bake_body(body, clean, "light")
     bake_body(body, clean, "medium")
     bake_body(body, clean, "heavy")
+    for name in BASE_STYLES:
+        if name != "gwen":
+            use_style(name)
+            bake_body(body, clean)
+    use_style("gwen")
     bake_body(body, clean)
     os.remove(os.path.join(TEX_OUT, "v_body_skin_src.png"))
     plan.append((body, next(iter(mat_index(body, "bake_body"))), "eco_v_body"))
@@ -2249,9 +2273,7 @@ def main():
     objs = [bpy.data.objects[n] for n in ("Body", "Face", "Hair")] + [boots, gog]
     textures_and_materials(objs, boots)
     objs += suit_armor()
-    jacket = base_jacket()
-    if jacket is not None:
-        objs.append(jacket)
+    objs += base_jackets()
     glute_bones(arm)
     prune_bones(arm)
     proportions(arm, objs)

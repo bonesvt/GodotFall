@@ -42,6 +42,15 @@ extends "res://scripts/ps2/ps2_model.gd"
 		suit_weight = value
 		if is_inside_tree():
 			apply_suit()
+## Which pilot suit she has on (wear() by name; picked in her wardrobe,
+## scripts/hub/wardrobe.gd): "suit" is her own (gwen), the others are the
+## other looks baked by tools/eco/build_eco_vroid.py BASE_STYLES. It shows
+## with no suit upgrade; the upgrades' cuts go over any of them.
+@export_enum("suit", "suit_ghost", "suit_racer", "suit_harness", "suit_techwear") var outfit := "suit":
+	set(value):
+		outfit = value if value in OUTFITS else "suit"
+		if is_inside_tree():
+			apply_suit()
 ## A rest pose layered over her animation (scripts/ps2/eco_rest.gd): "sleep",
 ## "sit" or "lounge"; "" lets her animation play. She settles into it (and back
 ## out) over a moment, and moves from one to another without standing up.
@@ -86,6 +95,15 @@ const LEGACY_PLATE := preload("res://assets/materials/eco/eco_v_armor_legacy.tre
 const LIGHT_BODY := preload("res://assets/materials/eco/eco_v_body_light.tres")
 const MEDIUM_BODY := preload("res://assets/materials/eco/eco_v_body_medium.tres")
 const HEAVY_BODY := preload("res://assets/materials/eco/eco_v_body_heavy.tres")
+## Her pilot suits (outfit): each but her own has its bodysuit material, and
+## each its jacket in the glb as base_<style>_jacket (harness has none).
+const OUTFITS := ["suit", "suit_ghost", "suit_racer", "suit_harness", "suit_techwear"]
+const STYLE_BODY := {
+	"suit_ghost": preload("res://assets/materials/eco/eco_v_body_ghost.tres"),
+	"suit_racer": preload("res://assets/materials/eco/eco_v_body_racer.tres"),
+	"suit_harness": preload("res://assets/materials/eco/eco_v_body_harness.tres"),
+	"suit_techwear": preload("res://assets/materials/eco/eco_v_body_techwear.tres"),
+}
 const EcoRest := preload("res://scripts/ps2/eco_rest.gd")
 const Hair := preload("res://scripts/hub/hair.gd")
 ## Her face while she sleeps (blend shape -> weight); the import's fierce look
@@ -165,6 +183,20 @@ static func piece_worn(mesh_name: String, weight: String) -> bool:
 	return true
 
 
+## Puts her in one of her pilot suits (OUTFITS) by name; false (and nothing
+## changes) for anything else, such as clothes she doesn't have.
+func wear(outfit_name: String) -> bool:
+	if not outfit_name in OUTFITS:
+		return false
+	outfit = outfit_name
+	return true
+
+
+## Her suit's style: "gwen" for her own, else the name after "suit_".
+func style() -> String:
+	return "gwen" if outfit == "suit" else outfit.trim_prefix("suit_")
+
+
 ## Shows the armour of every tier up to suit_tier, in Dad's colours at the top tier.
 func apply_suit() -> void:
 	var legacy := suit_tier >= SUIT_TIERS
@@ -172,7 +204,7 @@ func apply_suit() -> void:
 		var mi := node as MeshInstance3D
 		var tier := piece_tier(String(mi.name))
 		if String(mi.name).begins_with("base_"):  # the bare suit's own pieces (its jacket)
-			mi.visible = suit_tier == 0
+			mi.visible = suit_tier == 0 and String(mi.name).begins_with("base_%s_" % style())
 		elif tier > 0 and mi.mesh != null:
 			mi.visible = tier <= suit_tier and piece_worn(String(mi.name), suit_weight)
 			for i in mi.mesh.get_surface_count():
@@ -191,7 +223,7 @@ func apply_suit() -> void:
 ## suit_graph); the bare suit uses the base one.
 func body_material() -> Material:
 	if suit_tier <= 0:
-		return null
+		return STYLE_BODY.get(outfit)
 	match suit_weight:
 		"light":
 			return LIGHT_BODY
