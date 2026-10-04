@@ -79,17 +79,17 @@ func _run() -> void:
 		npc.wear(before)
 
 	# Ophelia's piercings: only with the rating on Mature
-	var oph: Node = run_node.hub_npcs["ophelia"]
-	var bars: Array = oph.find_children("Piercings*", "MeshInstance3D", true, false)
+	var oph_p: Node = run_node.hub_npcs["ophelia"]
+	var bars: Array = oph_p.find_children("Piercings*", "MeshInstance3D", true, false)
 	var was := ContentRating.current()
 	ContentRating.set_rating("T", false)
-	oph._process(0.0)
+	oph_p._process(0.0)
 	_check("Ophelia's piercings hidden on Teen", not bars.is_empty() and bars.all(func(b): return not b.visible), bars.size())
 	ContentRating.set_rating("M", false)
-	oph._process(0.0)
+	oph_p._process(0.0)
 	_check("Ophelia's piercings show on Mature", not bars.is_empty() and bars.all(func(b): return b.visible), bars.size())
 	ContentRating.set_rating(was, false)
-	oph._process(0.0)
+	oph_p._process(0.0)
 
 	# Every line in every conversation babbles, one beat per character.
 	var missing := []
