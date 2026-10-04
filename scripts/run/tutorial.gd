@@ -570,7 +570,7 @@ func _pinewoods() -> Array:
 	out.append(_materials_beat())
 	if crate != null:
 		out.append({"id": "supply_crate", "title": "SUPPLY CRATE", "max": 25.0, "at": crate.global_position,
-			"body": "Militia supplies. Press [F] to pry the lid off.\nInside is scrap, and sometimes circuits: the gunsmith's bench at the temple turns them into weapon upgrades.",
+			"body": "Colony supplies. Press [F] to pry the lid off.\nInside is scrap, and sometimes circuits: the gunsmith's bench at the temple turns them into weapon upgrades.",
 			"targets": func(): return [{"node": crate, "tag": "SUPPLY CRATE", "color": AMBER}],
 			"when": func(): return is_instance_valid(crate) and not crate.opened and _near(crate.global_position, 14.0),
 			"done": func(): return not is_instance_valid(crate) or crate.opened})
@@ -637,7 +637,7 @@ func _boneyard() -> Array:
 func _anywhere() -> Array:
 	return [
 		{"id": "salvage_cache", "title": "SALVAGE CACHE", "max": 20.0,
-			"body": "Titan parts, hidden by the militia. Open it with [F] and keep one part for the titan you'll call in at the end of the run.",
+			"body": "Titan parts, hidden by the colony. Open it with [F] and keep one part for the titan you'll call in at the end of the run.",
 			"targets": func(): return _target_for(_cache(false, 25.0), "SALVAGE", AMBER),
 			"when": func(): return _cache(false, 25.0) != null,
 			"done": func(): return _cache(false, 30.0) == null},
@@ -684,7 +684,7 @@ func _arena() -> Array:
 func _level1() -> Array:
 	return [
 		{"id": "level1_intro", "title": "LEVEL 1: THE DEEPWOOD", "color": AMBER, "max": 14.0,
-			"body": "No more training wheels. The woods are laid out fresh every run, the militia hit harder and see further. Pick a lane: the road, the quiet gully or the high ridge.",
+			"body": "No more training wheels. The woods are laid out fresh every run, the colony's grunts hit harder and see further. Pick a lane: the road, the quiet gully or the high ridge.",
 			"targets": func(): return _route_tags(_info().get("routes", [])),
 			"when": func(): return level_time > 2.0},
 		{"id": "level1_depot", "title": "SALVAGE DEPOT", "color": RED, "max": 16.0,
@@ -721,7 +721,7 @@ func _materials_beat() -> Dictionary:
 
 
 func _grunt_beat() -> Dictionary:
-	return {"id": "grunts", "title": "MILITIA", "color": RED, "max": 12.0,
+	return {"id": "grunts", "title": "COLONY GRUNT", "color": RED, "max": 12.0,
 		"body": "He hasn't seen you. Unaware grunts take double damage, and the stiletto [Z] kills them outright. Get spotted and he calls his squad in.",
 		"targets": func(): return _target_for(_seen_grunt(45.0), "UNAWARE", RED, false),
 		"when": func(): return _seen_grunt(40.0) != null,

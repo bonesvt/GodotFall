@@ -305,7 +305,7 @@ static func _picket(root: Node3D, plan, info: Dictionary, keep_out: Array, s: Di
 		_grunt(root, info, _on(plan, hx, z - 4.0), zone_index, 1.0)
 
 
-## The militia's wall across the valley: a breach on the road, a gate beside
+## The colony's wall across the valley: a breach on the road, a gate beside
 ## it, a culvert under it in each gully, a catwalk over it on each ridge.
 static func _wall(root: Node3D, plan, info: Dictionary, keep_out: Array, s: Dictionary, rng: RandomNumberGenerator,
 		dress: RandomNumberGenerator, zone_index: int) -> void:
@@ -460,7 +460,7 @@ static func _yard(root: Node3D, plan, info: Dictionary, keep_out: Array, s: Dict
 	_grunt(root, info, deck + Vector3(0, 0, 0.6), zone_index, 0.6)
 	F.floodlight(root, _on(plan, c + side * 3.5, z0 - 3.0), 0.0)
 	F.floodlight(root, _on(plan, c - side * 4.0, z1 + 4.0), 180.0)
-	# The militia's welcome on the way in.
+	# The colony's welcome on the way in.
 	SP.place(root, "warning_sign", _on(plan, c - side * 3.2, z0 + 3.0), dress.randf_range(-15, 15), info)
 	# The squad's cover across the road, facing the way the pilot comes in.
 	var posts := [Vector2(c - 4.0, mid + 3.0), Vector2(c + 3.5, mid + 1.5), Vector2(c + 0.5, mid - 4.0), Vector2(c - 7.0, mid - 5.0)]
@@ -789,7 +789,7 @@ static func _finale(root: Node3D, plan, info: Dictionary, keep_out: Array, s: Di
 			placed += 1
 	F.floodlight(root, Vector3(c - hw + 3.0, y, z1 + 8.0), 150.0)
 	F.floodlight(root, Vector3(c + hw - 3.0, y, z1 + 8.0), 210.0)
-	# The last of the militia, dug in where the road comes out of the trees.
+	# The last of the colony's grunts, dug in where the road comes out of the trees.
 	for k in 2:
 		var gx := road_x + (-5.0 if k == 0 else 5.5)
 		var gz := enter_z + 7.0 - k * 3.0

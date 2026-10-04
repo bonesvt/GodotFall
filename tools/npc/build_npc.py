@@ -13,7 +13,7 @@ clothes:
 - ophelia: twenties, emo. Choppy black hair with a fringe over her right eye
   and a violet streak, pale skin, heavy liner, dark lips, a lip ring; band tee,
   striped arm warmers, studded belt, ripped black jeans over fishnets, choker.
-- biggie: an old militia veteran gone soft. The preset rebuilt as a big man:
+- biggie: an old Pilot who flew beside Eco's father, retired by a bad hit. The preset rebuilt as a big man:
   flat chest, broad shoulders, a gut, thick limbs, a grey buzz cut and a big
   grey beard, a scar over his left eye; his faded field jacket (too tight now)
   over a grey tee, ribbons on his chest, cargo trousers and a knee brace.

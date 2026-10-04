@@ -86,7 +86,7 @@ const WEAPONS := {
 	},
 	"machine_pistol": {
 		"name": "Auto Handgun", "short": "AUTO HANDGUN", "cost": {}, "unlock_level": 6, "model": "machine_pistol",
-		"desc": "A militia machine pistol: full auto, fifteen rounds a second, sprays wide. Hold the trigger, mind the bloom.",
+		"desc": "A colony machine pistol: full auto, fifteen rounds a second, sprays wide. Hold the trigger, mind the bloom.",
 		"smart": false, "automatic": true, "suppressed": false,
 		"upgrades": ["drum_feed", "recoil_buffer", "overclock", "hot_streak"],
 		"sound": "machine_pistol", "sound_last": "machine_pistol", "tracer": Color(1.0, 0.9, 0.6, 0.7),
@@ -98,7 +98,7 @@ const WEAPONS := {
 		},
 		"lines": [
 			"Took it off a grunt who called me 'sweetheart'. He won't need it.",
-			"Militia junk. Cheap, loud, and it works. Like them.",
+			"Colony junk. Cheap, loud, and it works. Like them.",
 			"The heart sticker is load-bearing.",
 		],
 	},

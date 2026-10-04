@@ -1,5 +1,5 @@
 extends Node3D
-## Grunt showcase: a turntable for the militia grunt in the game's PS2 look.
+## Grunt showcase: a turntable for the colony grunt in the game's PS2 look.
 ## Open scenes/grunt_showcase.tscn and press F6.
 ##   Left / Right   turn him         Space   pause the turntable
 ##   1  full body   2  face   3  squad (idle swagger, walking, winding up a shot)

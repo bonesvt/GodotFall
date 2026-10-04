@@ -59,7 +59,7 @@ func _run() -> void:
 			break
 		await physics_frame
 	_check("the Hush's needle rifle hits hard", player.health <= hp - h.damage * 0.5, [hp, player.health])
-	_check("the Choir stays off the militia radio", h.on_radio == false and h.is_in_group("choir"), h.on_radio)
+	_check("the Choir stays off the colony radio", h.on_radio == false and h.is_in_group("choir"), h.on_radio)
 	var hit_head: bool = h.is_headshot(h.global_position + Vector3.UP * 2.1)
 	_check("Hush headshots land on the mask", hit_head and not h.is_headshot(h.global_position + Vector3.UP * 1.2), hit_head)
 	_clear()
@@ -196,9 +196,9 @@ func _run() -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 4242
 	var zinfo: Dictionary = ZoneBuilder.build_chain(zone, rng, 3)
-	var militia: Array = zinfo["grunts"].filter(func(g): return g.get_script() == Grunt)
+	var colony: Array = zinfo["grunts"].filter(func(g): return g.get_script() == Grunt)
 	var choir: Array = zinfo["grunts"].filter(func(g): return g.is_in_group("choir"))
-	_check("no militia grunts past the border", militia.is_empty() and not choir.is_empty(), [militia.size(), choir.size()])
+	_check("no colony grunts past the border", colony.is_empty() and not choir.is_empty(), [colony.size(), choir.size()])
 	var guards_ok := true
 	for o in zinfo["objectives"]:
 		for g in o.grunts:
@@ -214,7 +214,7 @@ func _run() -> void:
 	var home := Node3D.new()
 	root.add_child(home)
 	var hinfo: Dictionary = ZoneBuilder.build_chain(home, rng, 2)
-	_check("before the border it's still the militia", hinfo["grunts"].all(func(g): return g.get_script() == Grunt) and not hinfo.has("wildlife"), hinfo.keys())
+	_check("before the border it's still the colony", hinfo["grunts"].all(func(g): return g.get_script() == Grunt) and not hinfo.has("wildlife"), hinfo.keys())
 	home.queue_free()
 	_check("the spawn table knows the generator's sections",
 			not Spawner.table("field", 0, rng).is_empty() and not Spawner.table("sky", 0, rng).is_empty()

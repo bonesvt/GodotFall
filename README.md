@@ -150,7 +150,7 @@ enemy titan's salvage when you win); a lost run banks half. The HUD shows what y
   grip) plus free paint **finishes** (on the shell or frame). Q/E switches guns, Tab parts.
 - **Weapon rack** (on the wall past the bench): pick your starting sidearm. Dad's smart
   pistol from the start; the **Heavy Revolver** (six titan rivets in a hand-turned
-  cylinder) at **level 3**; the **Auto Handgun** (a militia machine pistol, full auto,
+  cylinder) at **level 3**; the **Auto Handgun** (a colony machine pistol, full auto,
   fifteen rounds a second) at **level 6**.
 - **Eco's level** is 1 plus every upgrade she has bought: weapon upgrades, titan refits and
   suit upgrades. It shows in the hub HUD and on every bench, which also says what unlocks
@@ -224,10 +224,10 @@ The movement and grunt test level is still at `scenes/test_level.tscn` (open it 
    group, and dense patches also have an invisible `sight_blocker` body on collision layer 16
    (mask 0) that blocks grunt line of sight but not the player, grunts or the grapple.
    The routes are listed in `zone_info["routes"]`, and the map shot draws them.
-   **Zone 2: Blackwater.** A flooded fen at dusk in the rain, where the militia runs its
+   **Zone 2: Blackwater.** A flooded fen at dusk in the rain, where the colony runs its
    fuel line. You start on the bank where Eco left her skiff and wade north through
    knee-deep water and swamp cypress: the roadblock on the old causeway, a stilt village the
-   militia took from the fishers (lookouts on the porches, a squad dug in on the road), the
+   colony took from the fishers (lookouts on the porches, a squad dug in on the road), the
    channel where the causeway bridge was blown (wallrun the side of a grounded barge, grapple
    the crane, hop the old piers, or walk the back of a titan that drowned there in the war),
    the pump station (pump house, storage tanks, watchtower, a squad in the yard), and the
@@ -239,12 +239,12 @@ The movement and grunt test level is still at `scenes/test_level.tscn` (open it 
    guarded by the village's or the station's squad; the other is on a hut roof or the pump
    house roof. Falling into the channel costs integrity like the ravine does.
    **Zone 3: the Boneyard.** The old front line where the titans died, a burnt valley of
-   craters and wrecks under a smoky sky, where the militia strip the dead titans for parts.
+   craters and wrecks under a smoky sky, where the colony strips the dead titans for parts.
    You start behind the war's front-line trench: no-man's land (wire, craters, a titan dead on
    its knees, the picket), the salvage yard (wall and gate, a gantry crane over a titan they're
    stripping, the strip shed, container stacks, a watchtower), the rift (wallrun a titan's
    tower shield wedged in it, grapple the crane, hop the precursor columns standing in it, or
-   walk a fallen precursor obelisk), the ruins of the precursor's shrine where the militia set
+   walk a fallen precursor obelisk), the ruins of the precursor's shrine where the colony set
    up a radio post (the god's eye still glows on the standing stone), and the beacon at the
    edge of the burn, where the living forest starts again. Three ways through: the **haul
    road** (loud), the **old trenches** (quiet: down the communication trench, out through a
@@ -399,7 +399,7 @@ own spec:
   second chasm, bigger squads, grunts that hit harder and see further. Grunts only: the Choir
   and wildlife stay past the border.
 - **The salvage depot** (section `depot`): a yard like the outpost with the titan part the
-  militia crated up on a flatbed, the scrapped titan it came off, containers and a second
+  colony crated up on a flatbed, the scrapped titan it came off, containers and a second
   watchtower. Its squad is bigger and the crate stays locked until every guard is down. Its
   offer is always top grade (tier 3). The outpost's and camp's caches are there too.
 - **The clearing** (section `finale`, in place of the extraction beacon): the valley opens
@@ -487,7 +487,7 @@ Weak on purpose, so skill decides fights.
   reload and inspect (I). All feel; none of it changes the numbers above.
 
 ## Eco, the heroine
-A young mechanic who went rogue after the militia turned her down as a Pilot. She fights with
+A 21-year-old mechanic and weaponsmith from Solace. When her father, the village's only Pilot, was killed in the war against the off-world colony, the recruiters turned her away for crying, so she fights the colony on her own from a Precursor temple outside town. She fights with
 her late father's broken smart pistol and builds titans from scrap. Anime toon look: a short,
 daring dark-red bob with a fringe swept over her right eye, a fierce face with mature makeup,
 pilot goggles pushed up on her head, full hips and thighs, and a skin-tight pilot suit (halter

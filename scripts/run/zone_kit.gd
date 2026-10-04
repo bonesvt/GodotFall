@@ -39,9 +39,9 @@ const SCENES := {
 ## Swamp needles: olive and a little yellow, under grey moss beards.
 const CYPRESS_TINTS := [Color(0.55, 0.62, 0.4), Color(0.62, 0.64, 0.38), Color(0.48, 0.58, 0.42)]
 const MOSS_BEARD := Color(0.72, 0.74, 0.62)
-## Dead titans: militia olive and old blue-grey, rusted and sun-bleached.
+## Dead titans: colony olive and old blue-grey, rusted and sun-bleached.
 const HULL_TINTS := [Color(0.62, 0.6, 0.52), Color(0.55, 0.6, 0.66), Color(0.66, 0.55, 0.46)]
-## Container paint: rust red, faded blue, militia green, dirty white.
+## Container paint: rust red, faded blue, colony green, dirty white.
 const CONTAINER_TINTS := [Color(0.8, 0.42, 0.32), Color(0.45, 0.58, 0.72), Color(0.5, 0.6, 0.42), Color(0.82, 0.8, 0.72)]
 ## The precursor's eye glows the same as the idol's in the temple.
 const EYE := Color(0.55, 1.0, 0.85)

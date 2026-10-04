@@ -7,7 +7,7 @@ tools/hub/build_props.py (whose helpers this reuses): low-poly, flat shaded,
 objects named "<part>__<material>" so the game swaps in its own materials,
 origins on the ground.
 
-  supply_crate   a militia supply crate; press F to pry the lid off
+  supply_crate   a colony supply crate; press F to pry the lid off
   alloy_node     a titan wreck half sunk in the ground, alloy veins glowing
                  through the cracks; hold F to mine it
   scrap_bundle   pickup: bent plate and a bolt, bound with wire

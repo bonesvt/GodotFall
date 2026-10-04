@@ -31,7 +31,7 @@ const GIFTS := {
 	"book": {"name": "Old paperback", "cost": {"scrap": 30}, "blurb": "'The Keeper of the Light'. Dog-eared. Somebody cried on page 90."},
 	"cigarettes": {"name": "Night Owls", "cost": {"scrap": 30}, "blurb": "Black papers, gold filters, a steel lighter thrown in."},
 	"perfume": {"name": "Plaza perfume", "cost": {"scrap": 35}, "blurb": "Rose and sugar in a pink bottle. Very loud."},
-	"horror_movie": {"name": "Holo-reel: Nobody Came", "cost": {"scrap": 30, "alloy": 10}, "blurb": "Banned by the militia for 'morale'. Best horror film ever made."},
+	"horror_movie": {"name": "Holo-reel: Nobody Came", "cost": {"scrap": 30, "alloy": 10}, "blurb": "Banned by the recruiters for 'morale'. Best horror film ever made."},
 	"records": {"name": "Vinyl: Drowned Lanterns", "cost": {"scrap": 40, "alloy": 15}, "blurb": "First pressing, purple sleeve. Pre-war gloom rock."},
 	"black_lipstick": {"name": "Black lipstick", "cost": {"alloy": 20, "circuits": 1}, "blurb": "Off-world import. Pim keeps it under the counter."},
 	"makeup": {"name": "Midnight palette", "cost": {"alloy": 30, "circuits": 2}, "blurb": "Six shades of dark in a mirrored compact. The good stuff."},

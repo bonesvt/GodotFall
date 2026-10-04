@@ -4,13 +4,14 @@ extends RefCounted
 ## Solarpunk on top, dark cyberpunk underneath: white terraces hung with
 ## gardens, solar sails and wind turbines up in the sun, and under the panel
 ## canopy a narrow street of neon, wet paving, cables and steam. The town has
-## mostly decided Eco is trouble, and the militia that turned her away keeps a
-## recruiting office on the plaza.
+## thinks Eco shut herself away after her father died (Mom keeps the story
+## going), and the recruiters who turned her away for crying keep a branch
+## office on the plaza.
 ##
 ##   z 96..126   the pilgrim road through the jungle, wooden lamps giving way to solar ones
-##   z 126..132  the town gate: solar pylons, the SOLACE sign, a militia checkpoint
+##   z 126..132  the town gate: solar pylons, the SOLACE sign, an army checkpoint
 ##   z 132..160  Lantern Row: the outfitter and the clinic west, noodles and salvage east
-##   z 160..190  Sun Plaza: the Sun Tree, the fountain, the job board, the militia
+##   z 160..190  Sun Plaza: the Sun Tree, the fountain, the job board, the recruitment
 ##               office west, the greenhouse cafe and Cut & Chrome (the hair salon) east
 ##   z 190..214  Low Row: the arcade and Eco's old flat west, the bar and the cinema east
 ##   z 214..244  the rooftop garden up the steps, looking out over the valley
@@ -217,17 +218,17 @@ static func _gate(root: Node3D, info: Dictionary) -> void:
 	_neon_text(root, Vector3(0, 10.4, z - 0.56), "SOLACE", CYAN, 150, 180.0)
 	_neon_text(root, Vector3(0, 10.4, z + 0.56), "SOLACE", CYAN, 150, 0.0)
 	K.light(root, Vector3(0, 9.0, z - 2.0), CYAN, 1.6, 12.0)
-	# Militia checkpoint on the east side: booth, raised boom, barriers, a flag, a poster.
+	# The army checkpoint on the east side: booth, raised boom, barriers, a flag, a poster.
 	var booth := Vector3(STREET_HALF + 4.5, 0, z - 3.0)
 	TP.spawn(root, "checkpoint", booth, 0.0, {"wall": Color(0.62, 0.66, 0.6)})
 	_solid(root, booth + Vector3(0, 1.4, 0), Vector3(2.6, 2.8, 2.6))
 	var flag := _animated(root, booth + Vector3(1.0, 6.6, -1.0), Ambient.Mode.SWAY, 5.0, 0.9)
 	K.mesh(flag, Vector3(0, -0.5, 0.75), Vector3(0.04, 1.0, 1.5), Art.material("fabric", Color(0.55, 0.62, 0.45)))
-	_poster(root, Vector3(STREET_HALF + 1.5, 2.6, z - 1.42), 180.0, "THE MILITIA\nNEEDS MEN", "and girls who can fix\nyour titans. -E", Color(0.55, 0.62, 0.45))
+	_poster(root, Vector3(STREET_HALF + 1.5, 2.6, z - 1.42), 180.0, "ONLY THE\nHARDENED FIGHT", "and the ones who cry\nfix your titans. -E", Color(0.55, 0.62, 0.45))
 	shop(info, "town_gate", Vector3(0, 0, z - 3.5), "[F] Read the town sign", [
-		"Solace. Home. Everybody here knows my name, and most of them say it like a curse.",
-		"Keep your head down, Eco. Buy what you need. Don't start anything.",
-		"The checkpoint boys still wave everyone through but me.",
+		"Solace. Home. Everybody here thinks I locked myself away after Dad. Mom lets them.",
+		"Keep your head down, Eco. Buy what you need. Look tragic. Don't start anything.",
+		"The checkpoint boys ask how I'm feeling. Depends what Mom told them this week.",
 	])
 
 
@@ -239,7 +240,7 @@ static func _lantern_row(root: Node3D, info: Dictionary, rng: RandomNumberGenera
 	_blade_sign(root, -1, 134.0, "STITCH\n&\nSTEEL", MAGENTA)
 	_mannequins(root, -1, 139.0)
 	shop(info, "shop_outfitter", outfitter, "[F] Stitch & Steel: outfits (coming soon)", [
-		"Mara made my first flight suit. Now she pretends she's never seen me.",
+		"Mara made my first flight suit. Now she asks Mom if I'm eating.",
 		"Still takes my money though. Money doesn't have a reputation.",
 	], "outfitter")
 
@@ -262,7 +263,7 @@ static func _lantern_row(root: Node3D, info: Dictionary, rng: RandomNumberGenera
 	_blade_sign(root, 1, 150.0, "SAL'S\nSALVAGE", RED)
 	_scrap_pile(root, Vector3(STREET_HALF + 1.4, 0, 157.5))
 	shop(info, "shop_salvage", salvage, "[F] Sal's Salvage: trade titan parts (coming soon)", [
-		"Sal buys from the militia's junkyard and sells to me at twice the price. Everybody wins but me.",
+		"Sal buys colony scrap off the scavengers and sells it to me at twice the price. Everybody wins but me.",
 		"Don't ask where the serial numbers went.",
 	], "salvage")
 	_street_life(root, 132.0, 160.0, rng)
@@ -296,7 +297,7 @@ static func _plaza(root: Node3D, info: Dictionary, rng: RandomNumberGenerator) -
 				Art.material("canvas", Color(1.0, 0.97, 0.88)), Vector3(0, 0, rng.randf_range(-8, 8)))
 	K.glow(root, board + Vector3(0, 2.75, -0.1), Vector3(2.4, 0.08, 0.08), WARM)
 	shop(info, "job_board", board + Vector3(0, 0, -1.6), "[F] Read the job board (quests coming soon)", [
-		"Lost goat. Broken pump. 'Pilot wanted, no girls.' Someone circled that one for me. Cute.",
+		"Lost goat. Broken pump. 'Pilots wanted, hardened only.' Somebody drew a crying face on it. Cute.",
 		"Half these jobs pay in favours. I'm owed a lot of favours.",
 	], "jobs")
 	# Market stalls along the plaza's open sides, facing the tree.
@@ -394,19 +395,21 @@ static func _plaza_walls(root: Node3D, rng: RandomNumberGenerator) -> void:
 		K.light(root, at + Vector3(0, 0, dir * 2.0), col, 0.9, 8.0)
 
 
-## The militia recruiting office on the plaza's west side: a grey concrete block
-## with slit windows, sandbags, cameras, a red sign, flags and a locked door.
+## The branch recruitment office on the plaza's west side, where Eco was turned
+## away for crying about her father: a grey concrete block with slit windows,
+## sandbags, cameras, a red sign, flags and a locked door. (The model keeps its
+## old file name, militia_office.)
 static func _militia_office(root: Node3D, info: Dictionary) -> void:
 	var front := PLAZA.position.x
 	var z := 175.0
 	TP.spawn(root, "militia_office", Vector3(front, 0, z), 90.0, {"wall": Color(0.62, 0.64, 0.62), "awning": Color(0.62, 0.6, 0.48)})
 	_solid(root, Vector3(front - 6.0, 4.5, z), Vector3(12.0, 9.0, 16.6))
-	_neon_text(root, Vector3(front + 0.62, 7.6, z), "MILITIA RECRUITMENT", RED, 72, 90.0)
+	_neon_text(root, Vector3(front + 0.62, 7.6, z), "RECRUITMENT", RED, 72, 90.0)
 	# The slogan on its own plaque over the door canopy, between the slit windows.
 	K.mesh(root, Vector3(front + 0.08, 5.1, z), Vector3(0.08, 1.5, 4.6), TP.paint(Color(0.05, 0.05, 0.06), 0.4))
 	K.glow(root, Vector3(front + 0.13, 5.1 + 0.72, z), Vector3(0.03, 0.05, 4.5), RED * 1.4)
 	K.glow(root, Vector3(front + 0.13, 5.1 - 0.72, z), Vector3(0.03, 0.05, 4.5), RED * 1.4)
-	_neon_text(root, Vector3(front + 0.14, 5.1, z), "PILOTS WANTED.\nMEN ONLY.", Color(1.0, 0.9, 0.85), 44, 90.0)
+	_neon_text(root, Vector3(front + 0.14, 5.1, z), "PILOTS WANTED.\nNO TEARS.", Color(1.0, 0.9, 0.85), 44, 90.0)
 	# The forecourt: concrete barriers, a floodlight, a propaganda screen.
 	for spec in [[Vector3(front + 5.0, 0, z - 6.5), 10.0], [Vector3(front + 6.0, 0, z + 6.0), -15.0], [Vector3(front + 8.5, 0, z - 2.0), 80.0]]:
 		var b: Vector3 = spec[0]
@@ -414,18 +417,18 @@ static func _militia_office(root: Node3D, info: Dictionary) -> void:
 		body.rotation_degrees.y = spec[1]
 		K.mesh(body, Vector3.ZERO, Vector3(2.2, 0.9, 0.7), Art.material("concrete", Color(0.62, 0.62, 0.6)))
 		K.glow(body, Vector3(0, 0.25, 0.36), Vector3(1.6, 0.06, 0.02), RED * 1.4)
-	# Supply crates, a militia scooter and a floodlight on the forecourt.
+	# Supply crates, army scooters and a floodlight on the forecourt.
 	for spec in [[Vector3(front + 3.2, 0, z - 5.0), 15.0], [Vector3(front + 3.0, 0, z + 6.2), -8.0]]:
 		TP.spawn(root, "crates", spec[0], spec[1])
 		_solid(root, spec[0] + Vector3(0, 0.6, 0), Vector3(1.6, 1.2, 1.6))
 	TP.spawn(root, "scooter", Vector3(front + 7.0, 0, z + 3.5), 70.0, {"wall": Color(0.55, 0.62, 0.45)})
 	TP.spawn(root, "scooter", Vector3(front + 6.0, 0, z - 3.5), 110.0, {"wall": Color(0.55, 0.62, 0.45)})
-	# Hazard lines painted round the forecourt, and MILITIA ONLY on the paving.
+	# Hazard lines painted round the forecourt, and RECRUITS ONLY on the paving.
 	var hazard := TP.paint(Color(0.85, 0.7, 0.15), 0.2)
 	K.mesh(root, Vector3(front + 11.0, 0.1, z), Vector3(0.7, 0.02, 15.7), hazard)
 	for dz: float in [-7.5, 7.5]:
 		K.mesh(root, Vector3(front + 5.5, 0.1, z + dz), Vector3(11.0, 0.02, 0.7), hazard)
-	var stencil := Kit.label(root, Vector3(front + 9.8, 0.12, z), "MILITIA ONLY", 90)
+	var stencil := Kit.label(root, Vector3(front + 9.8, 0.12, z), "RECRUITS ONLY", 90)
 	stencil.billboard = BaseMaterial3D.BILLBOARD_DISABLED
 	stencil.rotation_degrees = Vector3(-90, 90, 0)
 	stencil.modulate = Color(0.85, 0.7, 0.15, 0.8)
@@ -441,7 +444,7 @@ static func _militia_office(root: Node3D, info: Dictionary) -> void:
 	K.mesh(root, screen + Vector3(0, 2.2, 0), Vector3(0.2, 4.4, 0.2), Art.material("gunmetal"))
 	K.mesh(root, screen + Vector3(0, 4.2, 0), Vector3(3.6, 2.0, 0.15), TP.paint(Color(0.06, 0.06, 0.07), 0.5))
 	K.glow(root, screen + Vector3(0, 4.2, -0.09), Vector3(3.3, 1.75, 0.02), RED * 0.35)
-	_neon_text(root, screen + Vector3(0, 4.2, -0.12), "THE MILITIA\nKEEPS SOLACE SAFE", Color(1.0, 0.85, 0.8), 40, 180.0)
+	_neon_text(root, screen + Vector3(0, 4.2, -0.12), "THE HARDENED\nKEEP SOLACE SAFE", Color(1.0, 0.85, 0.8), 40, 180.0)
 	K.light(root, Vector3(front + 2.0, 6.0, z), RED, 1.6, 14.0)
 	for dz: float in [-3.0, 3.0]:
 		var pole := Vector3(front + 2.2, 0, z + dz)
@@ -449,10 +452,10 @@ static func _militia_office(root: Node3D, info: Dictionary) -> void:
 		var flag := _animated(root, pole + Vector3(0, 6.8, 0), Ambient.Mode.SWAY, 4.0, 0.7 + dz * 0.05)
 		K.mesh(flag, Vector3(0, -0.7, 0.8), Vector3(0.04, 1.4, 1.6), Art.material("fabric", Color(0.55, 0.62, 0.45)))
 	_poster(root, Vector3(front + 0.03, 2.2, z - 6.2), 90.0, "SERVE.\nPROTECT.\nOBEY.", "", Color(0.55, 0.62, 0.45))
-	shop(info, "militia_office", Vector3(front + 3.0, 0, z), "[F] Militia recruitment", [
-		"'Pilots wanted. Men only.' They didn't even bother to repaint it after I applied.",
-		"I could fix every titan in their yard blindfolded. They offered me a broom.",
-		"One day they'll come knocking for a pilot. I hope I'm busy.",
+	shop(info, "militia_office", Vector3(front + 3.0, 0, z), "[F] Recruitment office", [
+		"'Pilots wanted. No tears.' I cried about Dad in there for one minute and they sent me home.",
+		"I could fix every titan in their yard blindfolded. They offered me a tissue.",
+		"One day they'll come knocking for a Pilot. I hope I'm busy.",
 	])
 
 
@@ -558,7 +561,7 @@ static func _low_row(root: Node3D, info: Dictionary, rng: RandomNumberGenerator)
 	var cinema := _building(root, 1, 209.5, "shop_w9_f2", 9.0, {"wall": Color(0.84, 0.88, 0.94), "shop": CYAN}, "HOLO-CINEMA")
 	_neon_text(root, Vector3(STREET_HALF - 0.62, GF - 1.6, 209.5), "TONIGHT: TITANFALL ROMANCE", Color(1.0, 0.95, 0.85), 30, -90.0)
 	shop(info, "shop_cinema", cinema, "[F] Holo-Cinema: dates (coming soon)", [
-		"They only play militia war films now. The heroes all look like the guys who turned me down.",
+		"They only play war films now. The heroes never cry. Not once. Not even when the dog dies.",
 	], "cinema")
 	_street_life(root, 190.0, 214.0, rng)
 
@@ -664,14 +667,14 @@ static func _canopy(root: Node3D, rng: RandomNumberGenerator) -> void:
 		K.mesh(root, Vector3(side * 3.0, CANOPY_Y - 0.6, hz), Vector3(0.03, 1.2, 0.03), Art.material("gunmetal"))
 		var holo := K.glow(root, Vector3(side * 3.0, CANOPY_Y - 2.2, hz), Vector3(0.05, 2.0, 3.4), (VIOLET if side < 0 else CYAN) * 0.7)
 		holo.transparency = 0.35
-		var ad := _neon_text(root, Vector3(side * 3.0 + 0.04, CANOPY_Y - 2.2, hz), "SOLACE POWER\nCLEAN SUN\nFOR CLEAN CITIZENS" if side < 0 else "ENLIST TODAY\nBE THE MAN\nYOUR TITAN NEEDS", Color(1, 1, 1), 34, 90.0)
+		var ad := _neon_text(root, Vector3(side * 3.0 + 0.04, CANOPY_Y - 2.2, hz), "SOLACE POWER\nCLEAN SUN\nFOR CLEAN CITIZENS" if side < 0 else "ENLIST TODAY\nHARDENED\nHEARTS ONLY", Color(1, 1, 1), 34, 90.0)
 		ad.billboard = BaseMaterial3D.BILLBOARD_FIXED_Y
 
 
 # --- around the town ------------------------------------------------------------
 
-## Jungle behind the buildings, wind turbines on the ridge, and the dark city
-## on the horizon the militia answers to.
+## Jungle behind the buildings, wind turbines on the ridge, and the capital's
+## towers dark on the horizon.
 static func _surroundings(root: Node3D, rng: RandomNumberGenerator) -> void:
 	var trees := {}
 	for id in Props.TREES:

@@ -590,7 +590,10 @@ static func _solid(root: Node3D, center: Vector3, size: Vector3) -> void:
 
 ## Her father's titan, or what came back of it: slumped against the right wall
 ## of the aisle, left arm torn off and lying beside it, core dark. Cables run
-## from it to a bank of salvaged batteries: she's been trying.
+## from it to a bank of salvaged batteries: she's been trying. It's also the
+## first clue: the canopy hangs open (unlatched, not blown) and a huge shell
+## went in point-blank through the front of the cockpit. The casing she pulled
+## out of his seat sits on the batteries, bigger than any colony gun fires.
 static func _fathers_titan(root: Node3D, info: Dictionary) -> void:
 	var pos := Vector3(HALF - 2.6, F - 1.75, -12.0)
 	var titan := Art.titan("atlas", "xo16")
@@ -603,9 +606,27 @@ static func _fathers_titan(root: Node3D, info: Dictionary) -> void:
 	titan.find_child("LegR", true, false).rotation_degrees = Vector3(70, 0, 8)
 	titan.find_child("WeaponMount", true, false).visible = false
 	root.add_child(titan)
+	# The canopy, swung up on its back edge: he opened it himself.
+	var canopy := titan.find_child("Canopy", true, false) as Node3D
+	if canopy != null:
+		var hinge := Node3D.new()
+		hinge.name = "CanopyHinge"
+		hinge.position = Vector3(0, 5.95, 0.6)
+		canopy.get_parent().add_child(hinge)
+		canopy.get_parent().remove_child(canopy)
+		hinge.add_child(canopy)
+		canopy.position = -hinge.position
+		hinge.rotation_degrees.x = 62.0
 	titan.set_param("glow", 0.0)
 	titan.set_param("paint", Color(0.72, 0.7, 0.66))
 	titan.find_child("ArmL", true, false).visible = false
+	# The shell hole, point-blank through the front of the cockpit: a scorched
+	# ring, the black hole and a last ember deep inside.
+	var scorch := K.mesh(titan, Vector3(0, 6.05, -1.02), Vector3(1.25, 1.0, 0.04), Art.material("gunmetal", Color(0.16, 0.13, 0.12)))
+	scorch.name = "ShellScorch"
+	var hole := K.mesh(titan, Vector3(0, 6.05, -1.05), Vector3(0.72, 0.62, 0.05), Art.material("gunmetal", Color(0.02, 0.02, 0.02)))
+	hole.name = "ShellHole"
+	K.glow(titan, Vector3(0, 5.95, -0.9), Vector3(0.3, 0.2, 0.04), Color(1.0, 0.35, 0.08) * 0.5)
 	# The torn arm, taken off a second copy and laid on the floor.
 	var donor := Art.titan("atlas", "xo16")
 	var arm: Node3D = donor.find_child("ArmL", true, false)
@@ -634,11 +655,30 @@ static func _fathers_titan(root: Node3D, info: Dictionary) -> void:
 	K.glow(root, bank + Vector3(-0.51, 0.75, -0.4), Vector3(0.02, 0.1, 0.1), Color(1.0, 0.4, 0.1))
 	for i in 3:
 		K.mesh(root, Vector3(HALF - 1.6 - i * 0.25, F + 0.04, -8.9), Vector3(0.08, 0.08, 3.0), Art.material("gunmetal"), Vector3(0, 8 - i * 9, 0))
+	# The casing she pulled out of his seat, on top of the batteries.
+	var casing := MeshInstance3D.new()
+	casing.name = "ShellCasing"
+	var tube := CylinderMesh.new()
+	tube.top_radius = 0.085
+	tube.bottom_radius = 0.095
+	tube.height = 0.8
+	tube.radial_segments = 10
+	casing.mesh = tube
+	casing.material_override = Art.material("gunmetal", Color(1.35, 1.0, 0.5))
+	casing.position = bank + Vector3(-0.05, 1.5, 0.3)
+	casing.rotation_degrees = Vector3(0, 25, 90)
+	root.add_child(casing)
 	K.interactable(info, "titan", Vector3(HALF - 6.4, F + 0.1, -12.0), "[F] Look at Dad's titan", [
 		"Dad's titan. They sent back what was left of it. Not him.",
-		"Core's cracked and the left arm's gone. I've rebuilt worse.",
-		"Every part I find out there, I'm finding for both of us.",
+		"The canopy was up when it hit. Not blown off. Unlatched. Dad never opened up in a fight.",
+		"One shell, point-blank, straight into the cockpit. Whoever did it was standing right in front of him.",
+		"Core's cracked and the left arm's gone. I've rebuilt worse. Every part I find out there, I'm finding for both of us.",
 	], 3.2)
+	K.interactable(info, "casing", bank + Vector3(-1.5, 0.1, 0.3), "[F] Look at the shell casing", [
+		"I pulled this out of Dad's seat. It's as long as my arm.",
+		"I've stripped every colony frame I could reach. Not one of them fires a round this big.",
+		"Dad used to say the only thing that can kill a Pilot is an equal. So who did he open up for?",
+	], 1.6)
 
 
 ## In the nave: the mission table, a long crate table with a map of the

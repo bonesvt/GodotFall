@@ -8,7 +8,9 @@ extends CanvasLayer
 ## The words live in dialogue/npc/<who>.txt: [intro] the first time Eco talks
 ## to them, [won] / [lost] once after each run that ended that way, otherwise
 ## the [any] conversations in turn. Who has met whom and where each of them is
-## in their [any] list is saved to `save_path`.
+## in their [any] list is saved to `save_path`. Anyone with [excuse] talks
+## (Mom: what she told the town this time) tacks the next one, in order, onto
+## the first talk after each run.
 ##
 ## Romance (romance.gd) rides on the same talks: for anyone with a [romance]
 ## section a heart meter sits by their name, their [heart N] scenes come
@@ -111,7 +113,7 @@ func active() -> bool:
 ## flag, lines}, ...]} questions.
 static func parse(text: String) -> Dictionary:
 	var bank := {"any": [], "together": [], "flirt": [], "heart": [], "date": {}, "gift": {}, "spot": {},
-		"bond": [], "close": [], "soft": [], "cuddle": [], "sick": []}
+		"bond": [], "close": [], "soft": [], "cuddle": [], "sick": [], "excuse": []}
 	var cur: Array = []
 	var choice_re := RegEx.create_from_string("^choice\\s*([+-]?\\d+)?\\s*(?:!(\\w+))?\\s*:\\s*(\\w+(?:\\s*\\([^)]*\\))?)\\s*:\\s*(.+)$")
 	for raw in text.split("\n"):
@@ -123,7 +125,7 @@ static func parse(text: String) -> Dictionary:
 			var tag := line.substr(1, line.length() - 2).strip_edges()
 			var parts := tag.split(" ", false)
 			match parts[0]:
-				"any", "together", "flirt", "close", "soft", "cuddle", "sick":
+				"any", "together", "flirt", "close", "soft", "cuddle", "sick", "excuse":
 					bank[parts[0]].append(cur)
 				"heart":
 					bank["heart"].append({"at": int(parts[1]) if parts.size() > 1 else 0, "lines": cur, "pose": parts[2] if parts.size() > 2 else ""})
@@ -224,8 +226,11 @@ func pick(who: String, run_id: int, won: bool, spot := "") -> Array:
 	if run_id > int(state.get_value(who, "run_seen", 0)):
 		state.set_value(who, "run_seen", run_id)
 		var tag := "won" if won else "lost"
+		var excuse := _next_excuse(who)
 		if b.has(tag):
-			return b[tag]
+			return b[tag] + excuse
+		if not excuse.is_empty():
+			return excuse
 	var scene := Romance.next_beat(state, b, who)
 	if not scene.is_empty():
 		beat = int(scene["at"])
@@ -259,6 +264,20 @@ func pick(who: String, run_id: int, won: bool, spot := "") -> Array:
 	var n: int = state.get_value(who, key, 0)
 	state.set_value(who, key, (n + 1) % any.size())
 	return any[n % any.size()]
+
+
+## The next of their [excuse] talks, in file order, once per run home; when
+## they run out the last three take turns. [] if they have none.
+func _next_excuse(who: String) -> Array:
+	var list: Array = bank(who)["excuse"]
+	if list.is_empty():
+		return []
+	var n: int = state.get_value(who, "next_excuse", 0)
+	state.set_value(who, "next_excuse", n + 1)
+	if n < list.size():
+		return list[n]
+	var tail := mini(3, list.size())
+	return list[list.size() - tail + (n - list.size()) % tail]
 
 
 ## The first talk of a hub stay where they're up to something (their idle

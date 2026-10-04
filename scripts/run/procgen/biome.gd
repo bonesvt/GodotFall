@@ -19,7 +19,7 @@ extends RefCounted
 ##     towers and shopfronts, holo-ad walls and security walls to wallrun,
 ##     drone pylons and monorail pillars to grapple, planters and streetlights
 ##     for trees, neon everywhere, rain and machine hum.
-##   military: the militia's bases and outposts. Packed earth, tarmac roads,
+##   military: the colony's bases and outposts. Packed earth, tarmac roads,
 ##     hangars, barracks and command posts, HESCO and T-wall rows to wallrun,
 ##     comms and guard towers to grapple, APCs and AA guns, scrub pines.
 

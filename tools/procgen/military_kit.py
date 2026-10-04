@@ -1,4 +1,4 @@
-"""The militia's bases and outposts: the forward bases of the crude soldiers
+"""The colony's bases and outposts: the forward bases of the crude soldiers
 Eco fights, set out like a Titanfall forward operating base but in chunky
 PS2-era shapes. Olive drab painted steel, corrugated sheds, HESCO and T-wall
 lines, camo netting, tarmac pads, sandbags, red beacons and stencilled numbers.

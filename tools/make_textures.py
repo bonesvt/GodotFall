@@ -439,7 +439,7 @@ def hazard():
 
 
 def crate():
-    """Cover: chunky olive militia crate, painted planks with grain showing
+    """Cover: chunky olive colony crate, painted planks with grain showing
     through, steel corner brackets and a stencilled marking."""
     s = SMALL
     k = s / 64
@@ -1350,7 +1350,7 @@ def curtain():
     save("curtain", img, hh, rough, depth=s / 100, metal=metal, ao=0.3)
 
 
-# --- the militia's bases and outposts ----------------------------------------
+# --- the colony's bases and outposts ----------------------------------------
 
 def corrugated():
     """Hangars and sheds: corrugated steel sheet painted a dull green-grey,

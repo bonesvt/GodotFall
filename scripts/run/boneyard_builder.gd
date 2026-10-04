@@ -3,7 +3,7 @@ extends RefCounted
 ##
 ## A laid-out level like the Pinewoods (forest_builder.gd): a burnt valley of
 ## craters and dead titans heading north (-Z) under a smoky sky, where the
-## militia strip the wrecks for parts. Three ways through.
+## colony strips the wrecks for parts. Three ways through.
 ##   The haul road (loud): the strippers' truck road up the middle, past the
 ##     picket, through the salvage yard's gate, over the blown haul bridge and
 ##     into the ruins they made a radio post of.
@@ -21,7 +21,7 @@ extends RefCounted
 ## over a titan they're stripping, strip shed, containers, watchtower); the rift
 ## (wallrun a titan's tower shield wedged in it, grapple the crane, hop the
 ## ruin columns, or walk the obelisk); the ruins of the precursor's shrine with
-## the militia's radio post; the extraction beacon at the edge of the burn,
+## the colony's radio post; the extraction beacon at the edge of the burn,
 ## where the living forest starts again.
 ## One cache is guarded (the yard's squad or the ruins', by the run seed) and
 ## the other is up high: on a container stack in the yard or a ruin column.
@@ -472,7 +472,7 @@ static func _ruins(root: Node3D, rng: RandomNumberGenerator, dress: RandomNumber
 			continue
 		Z.ruin_pillar(root, _on(p.x, p.y, -0.1), rad_to_deg(a) + 180.0, i % 3 == 1)
 	Z.eye_shrine(root, _on(c, -226.0, -0.1), 0.0)
-	# The militia's radio post in the court.
+	# The colony's radio post in the court.
 	F.antenna(root, _on(c + 12.0, -192.0))
 	var hut := _on(c - 14.0, -204.0)
 	var hut_roof := F.hut(root, hut, 90.0)

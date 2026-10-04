@@ -180,7 +180,7 @@ def bunker(name):
 
 
 def blockhouse(name):
-    """A two-storey militia blockhouse: concrete below, steel above, a flat roof
+    """A two-storey colony blockhouse: concrete below, steel above, a flat roof
     at 6.5 with a hook on its back corner. Stairs climb its +X side to a
     landing at 3.2, then along the back to the roof."""
     begin(name)
@@ -308,7 +308,7 @@ def warehouse(name):
 
 
 def silo(name):
-    """A grain silo the militia turned into a lookout: 5.2 m across, 11 m to
+    """A grain silo the colony turned into a lookout: 5.2 m across, 11 m to
     the walkway ring, a cone cap and a hook on its peak."""
     begin(name)
     steel = new_bm()
@@ -556,7 +556,7 @@ def tower_crane(name):
 # =============================================================================
 
 def billboard(name, length, height, seed):
-    """A militia propaganda board on steel legs, `length` along X, its face from
+    """A colony propaganda board on steel legs, `length` along X, its face from
     1.0 m up to 1.0 + `height`. Blue trim top and bottom: run along it."""
     begin(name)
     rng = random.Random(seed)
@@ -582,7 +582,7 @@ def billboard(name, length, height, seed):
         tbox(trim, (0, s * 0.19, bottom + 0.12), (length, 0.03, 0.24))
         tbox(trim, (0, s * 0.19, bottom + height - 0.12), (length, 0.03, 0.24))
     part(trim, "trim", "wallrun")
-    # The poster: a stencilled militia fist and a slogan bar, both faces.
+    # The poster: a stencilled colony fist and a slogan bar, both faces.
     art = new_bm()
     for s in (-1, 1):
         cx = rng.uniform(-length * 0.25, length * 0.25)
@@ -803,7 +803,7 @@ def cable_reel(name):
 
 
 def jeep(name, seed):
-    """A burnt-out militia jeep, 4.4 L along X, sitting low on a flat tyre."""
+    """A burnt-out colony jeep, 4.4 L along X, sitting low on a flat tyre."""
     begin(name)
     rng = random.Random(seed)
     hull = new_bm()
@@ -866,7 +866,7 @@ def pipe_stack(name):
 
 
 def supply_pod(name):
-    """A militia supply drop: a pod punched into the ground at a tilt, its
+    """A colony supply drop: a pod punched into the ground at a tilt, its
     chute draped behind it."""
     begin(name)
     steel = new_bm()
@@ -889,7 +889,7 @@ def supply_pod(name):
 
 
 def warning_sign(name):
-    """A post with a militia warning board: TURN BACK, painted crude."""
+    """A post with a colony warning board: TURN BACK, painted crude."""
     begin(name)
     wood = new_bm()
     tbox(wood, (0, 0, 1.1), (0.14, 0.14, 2.2))
@@ -938,7 +938,7 @@ def sandbag_nest(name, seed):
 # =============================================================================
 
 def cabin(name, seed):
-    """A militia cabin of logs, 6 W x 5 D, eaves at 2.8 and a pitched roof to
+    """A colony cabin of logs, 6 W x 5 D, eaves at 2.8 and a pitched roof to
     4.3 you can run up, a stovepipe, a porch with a lamp."""
     begin(name)
     rng = random.Random(seed)
@@ -1089,7 +1089,7 @@ def blockhouse_low(name):
 # --- props shared by every biome ----------------------------------------------
 
 def ammo_crates(name, seed):
-    """Militia ammo crates: two stacked and one beside, about 1.4 high."""
+    """Colony ammo crates: two stacked and one beside, about 1.4 high."""
     begin(name)
     rng = random.Random(seed)
     wood = new_bm()
@@ -1387,7 +1387,7 @@ def engine_block(name, seed):
 # --- walls to run ------------------------------------------------------------
 
 def panel_wall(name, length, seed):
-    """Plywood hoarding on posts, painted over with militia slogans: `length`
+    """Plywood hoarding on posts, painted over with colony slogans: `length`
     along X, 4.4 high. Blue trim along the top and bottom."""
     begin(name)
     rng = random.Random(seed)

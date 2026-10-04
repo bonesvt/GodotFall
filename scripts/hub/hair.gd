@@ -20,7 +20,7 @@ const STYLES := {
 		["shoulder", "Shoulder Layers", "Grown out to the shoulders and let loose. Softer, if you can believe it."],
 		["braids", "Long Braids", "Two braids down to your waist. Extensions, babe. Nobody needs to know."],
 		["ponytail", "Braided Ponytail", "Pulled tight to a high braided tail. Out of your goggles, still swings when you run."],
-		["undercut", "Undercut", "Left side buzzed, right side a bob. The militia will hate it. That's the point."],
+		["undercut", "Undercut", "Left side buzzed, right side a bob. The recruiters will hate it. That's the point."],
 	],
 	"ophelia": [
 		["choppy", "Choppy Fringe", "Her own: ragged at the jaw, fringe over one eye, violet streak."],
