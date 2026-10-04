@@ -665,9 +665,9 @@ static func _mission_table(root: Node3D, info: Dictionary) -> void:
 		K.mesh(root, t + Vector3(-0.1 + i * 0.6, 1.045, 0.25 - i * 0.2), Vector3(0.65, 0.01, 0.03), Art.material("gunmetal"), Vector3(0, 25 - i * 50, 0))
 	# The temple, home, marked with the eye.
 	K.glow(root, t + Vector3(0.9, 1.05, 0.6), Vector3(0.16, 0.02, 0.1), EYE)
-	var title := Kit.label(root, t + Vector3(0, 2.6, 0), "MISSIONS", 48)
+	var title := Kit.label(root, t + Vector3(0, 3.3, 0), "MISSIONS", 48)
 	title.modulate = Color(1.0, 0.85, 0.5)
-	var tag := Kit.label(root, lv + Vector3(0, 0.95, 0), "LEVEL 1", 40)
+	var tag := Kit.label(root, lv + Vector3(-0.4, 1.25, 0), "LEVEL 1", 40)
 	tag.modulate = Color(1.0, 0.55, 0.4)
 	K.interactable(info, "level_board", t + Vector3(-0.7, 0.1, 1.3), "[F] Level 1", [], 1.8)
 	info["level_board"] = {"id": "level1", "label": tag}
@@ -677,7 +677,7 @@ static func _mission_table(root: Node3D, info: Dictionary) -> void:
 	chart.set_instance_shader_parameter("paint", Color(0.55, 0.58, 0.6))
 	for i in 3:
 		K.glow(root, far + Vector3(-0.6 + i * 0.6, 1.06, -0.1 + (i % 2) * 0.2), Vector3(0.1, 0.02, 0.1), Color(0.3, 0.7, 1.0))
-	var blue := Kit.label(root, far + Vector3(0, 1.8, -0.4), "UNCHARTED", 36)
+	var blue := Kit.label(root, far + Vector3(1.2, 1.6, -0.4), "UNCHARTED", 36)
 	blue.modulate = Color(0.55, 0.85, 1.0)
 	K.interactable(info, "uncharted_map", t + Vector3(0, 0.1, -1.4), "[F] Head out the long way (3 zones + 2 uncharted)", [], 1.6)
 	info["uncharted_map"] = far
