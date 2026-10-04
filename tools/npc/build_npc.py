@@ -753,22 +753,31 @@ def garment(name, part, top, hem, gap=0.008, gap_top=None, tilt=0.0, v_span=None
     grid = []
     zs = []
     widest = [0.0] * cols
+    hulls = {}
+
+    def hull_at(zz):
+        key = round(zz, 3)
+        if key not in hulls:
+            keep = (co[:, 2] > key - 0.012) & (co[:, 2] < key + 0.012) & (np.abs(co[:, 0]) < 0.25)
+            if side:
+                keep &= co[:, 0] * side > 0.004
+            hulls[key] = _hull([(round(p[0], 5), round(p[1], 5)) for p in co[keep]])
+        return hulls[key]
+
     for r in range(rows + 1):
         t = r / rows
         z = top + (hem - top) * t
-        keep = (co[:, 2] > z - 0.012) & (co[:, 2] < z + 0.012) & (np.abs(co[:, 0]) < 0.25)
-        if side:
-            keep &= co[:, 0] * side > 0.004
-        hull = _hull([(round(p[0], 5), round(p[1], 5)) for p in co[keep]])
+        hull = hull_at(z)
         c = Vector((float(np.mean([h[0] for h in hull])), float(np.mean([h[1] for h in hull]))))
         ring = []
         for k in range(cols):
             a = 2 * math.pi * k / cols
             d = Vector((math.cos(a), math.sin(a)))
-            raw = _ray_hull(hull, c, d) + (gap if gap_top is None else gap_top + (gap - gap_top) * min(1.0, t * 4))
+            # tilt: the top rides higher at the back (+y), hugging her at that height
+            lift = tilt * max(0.0, d.y) ** 1.5 * (1.0 - t)
+            raw = _ray_hull(hull_at(z + lift) if lift > 0.002 else hull, c, d) + (gap if gap_top is None else gap_top + (gap - gap_top) * min(1.0, t * 4))
             widest[k] = max(widest[k], raw) if hang else max(raw, 0.8 * widest[k])
             rad = widest[k] + flare * t * t
-            lift = tilt * max(0.0, d.y) * (1.0 - t)   # tilt: the top rides higher at the back (+y)
             ring.append(bm.verts.new((c.x + d.x * rad, c.y + d.y * rad, z + lift)))
         grid.append(ring)
         zs.append(z)
@@ -904,7 +913,8 @@ def nipple_bars(arm, bars=True, r=0.0052, h=0.005):
 
 
 # Ophelia's pajama pants ride low: their waist sits well under her navel
-PJ_WAIST = 0.768
+PJ_WAIST = 0.756
+PJ_BACK = 0.045   # but it rides up at the back so her seat stays covered
 GOWN_ROSE, GOWN_SPRIG = (0.62, 0.38, 0.4), (0.3, 0.13, 0.2)
 
 
@@ -932,10 +942,10 @@ def nightwear(arm):
     elif WHO == "ophelia":
         # snug over her hips; each leg starts just above the hip piece's bottom
         # edge, tucked inside it, and the plaid runs on across the join (v_span)
-        out.append(garment("Outfit_night_PantsHips", "pajama", PJ_WAIST, 0.7, gap=0.006, gap_top=0.002,
+        out.append(garment("Outfit_night_PantsHips", "pajama", PJ_WAIST, 0.7, gap=0.005, gap_top=0.002, tilt=PJ_BACK,
                            v_span=(0.1, 0.8), rows=8))
         for sd, nm in ((1, "L"), (-1, "R")):
-            out.append(garment("Outfit_night_Pants" + nm, "pajama", 0.712, 0.1, gap=0.014, gap_top=0.004, flare=0.012, side=sd, v_span=(0.1, 0.8),
+            out.append(garment("Outfit_night_Pants" + nm, "pajama", 0.714, 0.1, gap=0.014, gap_top=0.001, flare=0.012, side=sd, v_span=(0.1, 0.8),
                                follow=(0.8, 0.98), rows=22, hang=False))
         # black and violet tartan, a darker cuff at the hem rows
         a = (np.sin(uu * 2 * math.pi * 12) > 0.3).astype(np.float32)
