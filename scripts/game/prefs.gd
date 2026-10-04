@@ -21,7 +21,7 @@ const DEFAULTS := {
 	"controls": {"sensitivity": 1.0, "invert_y": false, "fov": 90.0},
 	"audio": {"Master": 0.9, "Effects": 1.0, "Ambience": 1.0, "Voices": 1.0},
 	"video": {"display": "windowed", "vsync": true, "max_fps": 0, "look": "anime", "film_grain": 0.4, "ps2_look": false},
-	"game": {"third_person": false},
+	"game": {"third_person": false, "jiggle_style": "classic"},
 }
 ## The FOV the cameras were tuned at; the FOV setting shifts every camera by
 ## its difference from this.
@@ -162,6 +162,25 @@ static func remember_look(name: String) -> void:
 	set_value("video", "look", name)
 	set_value("video", "ps2_look", name == "ps2")
 	save()
+
+
+# --- jiggle style ---------------------------------------------------------------
+
+## Eco's jiggle style (eco_model.gd JIGGLE_STYLES): "classic", "anime" or "realistic".
+const JIGGLE_STYLES := ["classic", "anime", "realistic"]
+
+
+static func jiggle_style() -> String:
+	var style := String(get_value("game", "jiggle_style"))
+	return style if style in JIGGLE_STYLES else "classic"
+
+
+## Saves the style and puts it on every Eco that follows the setting.
+static func set_jiggle_style(style: String) -> void:
+	set_value("game", "jiggle_style", style if style in JIGGLE_STYLES else "classic")
+	save()
+	if Engine.get_main_loop() is SceneTree:
+		(Engine.get_main_loop() as SceneTree).call_group("eco_jiggle", "follow_jiggle_setting")
 
 
 # --- dialogue rating ------------------------------------------------------------
