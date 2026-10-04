@@ -19,7 +19,7 @@ const NAMES := {
 	"suit": "Pilot suit", "suit_ghost": "Ghost suit", "suit_racer": "Racer suit",
 	"suit_harness": "Harness suit", "suit_techwear": "Techwear suit", "suit_shade": "Shade catsuit",
 	"suit_homemade": "Mom's handmade suit", "suit_ophelia": "Ophelia's suit", "sleep": "Sleepwear", "work": "Work clothes", "date": "Date night",
-	"casual": "Casual", "swim": "Bikini", "bikini": "Bikini", "sheer": "Sheer layers",
+	"skater": "Skater brat", "y2k": "Y2K pop", "casual": "Casual", "swim": "Bikini", "bikini": "Bikini", "sheer": "Sheer layers",
 	"tight": "Tight and daring", "lingerie": "Lingerie", "home": "Home clothes",
 	"tee": "Band tee", "hoodie": "Hoodie", "night": "Nightwear",
 }

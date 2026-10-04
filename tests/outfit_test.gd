@@ -1,9 +1,10 @@
 extends SceneTree
-## Headless test for Eco's clothes off duty (eco_model.gd outfit "casual" and
-## "date"): each has a Teen and a Mature version picked by the content rating
+## Headless test for Eco's clothes off duty (eco_model.gd outfit "skater",
+## "y2k" and "date"): each has a Teen and a Mature version picked by the content rating
 ## (scripts/radio/content_rating.gd), with its own body texture and loose parts
-## and every suit piece hidden; on a date she leaves her goggles off but
-## keeps her boots (in her date-night makeup), the other version goes on when the rating changes,
+## and every suit piece hidden; she leaves her goggles off in all of them,
+## swaps her boots for sneakers in the casual ones, keeps them on a date (in
+## her date-night makeup), the other version goes on when the rating changes,
 ## and back in a suit her armour comes back. The wardrobe keeps clothes for home.
 ## Run: godot --headless --path . -s res://tests/outfit_test.gd
 
@@ -32,13 +33,15 @@ func _run() -> void:
 	var boots: Node3D = eco.find_child("Boots*", true, false)
 	var face: MeshInstance3D = eco.find_child("Face", true, false)
 	_check("model has goggles, boots and a face", goggles != null and boots != null and face != null, "")
-	for part in ["outfit_casual_t_flannel", "outfit_casual_t_knot", "outfit_date_t_jacket", "outfit_date_m_jacket",
+	for part in ["outfit_skater_t_hoodie", "outfit_skater_m_hoodie", "outfit_skater_any_hood", "outfit_skater_any_shoes",
+			"outfit_skater_any_buns", "outfit_y2k_t_skirt", "outfit_y2k_m_skirt", "outfit_y2k_t_warmers", "outfit_y2k_m_warmers",
+			"outfit_y2k_any_shoes", "outfit_y2k_any_clips", "outfit_date_t_jacket", "outfit_date_m_jacket",
 			"outfit_date_m_skirt", "outfit_date_any_hoops"]:
 		_check("%s is in the model" % part, eco.find_child(part, true, false) != null, "")
 	_check("starts in her suit", eco.outfit == "suit" and pieces.any(func(p): return p.visible), "")
 	for rating in ["T", "M"]:
 		ContentRating.set_rating(rating, false)
-		for outfit in ["casual", "date"]:
+		for outfit in ["skater", "y2k", "date"]:
 			var look := "%s_%s" % [outfit, rating.to_lower()]
 			_check("wears %s" % outfit, eco.wear(outfit) and eco.look() == look, eco.look())
 			var tex: Texture2D = eco.body_material().get_shader_parameter("albedo_tex")
@@ -51,7 +54,7 @@ func _run() -> void:
 					and String(m.name).get_slice("_", 2) in [rating.to_lower(), "any"]))
 			_check("%s shows only its own loose parts" % look, wrong.is_empty(), wrong.map(func(m): return m.name))
 			var dated: bool = outfit == "date"
-			_check("%s goggles %s, boots on" % [look, "off" if dated else "on"], goggles.visible != dated and boots.visible, "")
+			_check("%s goggles off, boots %s" % [look, "on" if dated else "off"], not goggles.visible and boots.visible == dated, "")
 			_check("%s makeup" % look, _face(face) == (eco.DATE_FACE if dated else null), _face(face))
 	eco.wear("date")
 	ContentRating.set_rating("T", false)
@@ -63,7 +66,7 @@ func _run() -> void:
 			and _body(eco) == eco.HEAVY_BODY and _face(face) == null and eco.look() == "", "")
 	Wardrobe.save_path = PATH
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(PATH))
-	_check("the wardrobe has her clothes", Wardrobe.options("eco").has("casual") and Wardrobe.options("eco").has("date"), "")
+	_check("the wardrobe has her clothes", Wardrobe.options("eco").has("skater") and Wardrobe.options("eco").has("y2k") and Wardrobe.options("eco").has("date"), "")
 	Wardrobe.choose("eco", "date")
 	Wardrobe.dress_eco(null, true)
 	_check("she wears them at home", Wardrobe.eco_now == "date", Wardrobe.eco_now)

@@ -46,11 +46,11 @@ extends "res://scripts/ps2/ps2_model.gd"
 ## scripts/hub/wardrobe.gd). "suit" is her own pilot suit (gwen), the other
 ## suit_* are the other looks baked by tools/eco/build_eco_vroid.py
 ## BASE_STYLES: each shows with no suit upgrade, and the upgrades' cuts go over
-## any of them. "casual" and "date" are her clothes off duty (outfit_graph),
+## any of them. "skater", "y2k" and "date" are her clothes off duty (outfit_graph),
 ## every suit piece hidden; each comes in a Teen and a Mature version, picked
 ## by the content rating (scripts/radio/content_rating.gd, O key) as it changes.
 @export_enum("suit", "suit_ghost", "suit_racer", "suit_harness", "suit_techwear", "suit_shade", "suit_homemade",
-		"suit_ophelia", "casual", "date") var outfit := "suit":
+		"suit_ophelia", "skater", "y2k", "date") var outfit := "suit":
 	set(value):
 		outfit = value if value in OUTFITS else "suit"
 		if is_inside_tree():
@@ -103,7 +103,7 @@ const HEAVY_BODY := preload("res://assets/materials/eco/eco_v_body_heavy.tres")
 ## suit but her own has its bodysuit material, and its own pieces in the glb as
 ## base_<style>_* (a jacket, cowl, vest or skirt; harness has none).
 const OUTFITS := ["suit", "suit_ghost", "suit_racer", "suit_harness", "suit_techwear", "suit_shade", "suit_homemade",
-		"suit_ophelia", "casual", "date"]
+		"suit_ophelia", "skater", "y2k", "date"]
 const STYLE_BODY := {
 	"suit_ghost": preload("res://assets/materials/eco/eco_v_body_ghost.tres"),
 	"suit_racer": preload("res://assets/materials/eco/eco_v_body_racer.tres"),
@@ -116,14 +116,17 @@ const STYLE_BODY := {
 ## Her clothes' body textures, by look() (<outfit>_t Teen, <outfit>_m Mature);
 ## their loose parts are the glb's outfit_<outfit>_<t|m|any>_* meshes.
 const OUTFIT_BODY := {
-	"casual_t": preload("res://assets/materials/eco/eco_v_body_casual_t.tres"),
-	"casual_m": preload("res://assets/materials/eco/eco_v_body_casual_m.tres"),
+	"skater_t": preload("res://assets/materials/eco/eco_v_body_skater_t.tres"),
+	"skater_m": preload("res://assets/materials/eco/eco_v_body_skater_m.tres"),
+	"y2k_t": preload("res://assets/materials/eco/eco_v_body_y2k_t.tres"),
+	"y2k_m": preload("res://assets/materials/eco/eco_v_body_y2k_m.tres"),
 	"date_t": preload("res://assets/materials/eco/eco_v_body_date_t.tres"),
 	"date_m": preload("res://assets/materials/eco/eco_v_body_date_m.tres"),
 }
-## Clothes she leaves her goggles off for, and her boots (none yet: she laces her boots up for a date).
-const NO_GOGGLES := ["date"]
-const NO_BOOTS := []
+## Clothes she leaves her goggles off for, and her boots for (her sneakers
+## are outfit_<outfit>_any_shoes; she laces her boots up for a date).
+const NO_GOGGLES := ["date", "skater", "y2k"]
+const NO_BOOTS := ["skater", "y2k"]
 ## Her date-night makeup (deeper smoky eyes, a sharper wing, red lips).
 const DATE_FACE := preload("res://assets/materials/eco/eco_v_face_date.tres")
 const ContentRating := preload("res://scripts/radio/content_rating.gd")
