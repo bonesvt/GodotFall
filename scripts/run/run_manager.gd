@@ -1,6 +1,7 @@
 extends Node3D
 ## Scrap Titan run loop.
-## A run is RunState.ZONE_COUNT traversal zones, then a titan fight. Each zone
+## A run is RunState.ZONE_COUNT traversal zones (a long run adds
+## RunState.UNCHARTED_ZONES generated ones after them), then a titan fight. Each zone
 ## has two salvage caches; opening one offers three titan parts and you keep one.
 ## Empty slots stay scrap. At the end you call in the titan you assembled and
 ## fight with it. Falls and getting downed by grunts cost pilot integrity, which
@@ -26,11 +27,28 @@ const Titan := preload("res://scripts/run/titan.gd")
 const HubBuilder := preload("res://scripts/hub/hub_builder.gd")
 const Armory := preload("res://scripts/hub/armory.gd")
 const BenchScreen := preload("res://scripts/hub/bench_screen.gd")
+const GunsmithScreen := preload("res://scripts/hub/gunsmith_screen.gd")
+const GiftScreen := preload("res://scripts/hub/gift_screen.gd")
+const GiftShop := preload("res://scripts/hub/gift_shop.gd")
+const SalonScreen := preload("res://scripts/hub/salon_screen.gd")
+const WardrobeScreen := preload("res://scripts/hub/wardrobe_screen.gd")
+const Wardrobe := preload("res://scripts/hub/wardrobe.gd")
 const Loot := preload("res://scripts/run/loot.gd")
+const Gifts := preload("res://scripts/run/gifts.gd")
+const NpcIdles := preload("res://scripts/hub/npc_idles.gd")
 const Weapon := preload("res://scripts/weapon.gd")
 const Art := preload("res://scripts/ps2/ps2_assets.gd")
 const Garage := preload("res://scripts/hub/garage.gd")
 const TitanStyle := preload("res://scripts/run/titan_style.gd")
+const HubNpc := preload("res://scripts/hub/hub_npc.gd")
+const NpcTalk := preload("res://scripts/hub/npc_talk.gd")
+const Family := preload("res://scripts/hub/family.gd")
+const FamilyScene := preload("res://scripts/hub/family_scene.gd")
+const Tutorial := preload("res://scripts/run/tutorial.gd")
+const ViewCamera := preload("res://scripts/view_camera.gd")
+const Prefs := preload("res://scripts/game/prefs.gd")
+const Saves := preload("res://scripts/game/saves.gd")
+const PauseMenu := preload("res://scripts/ui/pause_menu.gd")
 
 const FALL_DAMAGE := 25
 ## Integrity lost when grunts take the pilot's health to zero.
@@ -52,8 +70,13 @@ const HUB_LINE_SECONDS := 4.5
 @export var start_in_hub := true
 ## 0 picks a random seed each run.
 @export var run_seed := 0
+## Generated zones added after the handmade ones when the scene drops straight
+## into a run (start_in_hub off). The hub's uncharted map sets it per run.
+@export var uncharted_zones := 0
 ## Where Eco's armory (materials, guns, upgrades, titan parts) is saved.
 @export var armory_path := Armory.DEFAULT_PATH
+## Where who Eco has talked to in the hub (and what about) is saved.
+@export var npc_path := NpcTalk.DEFAULT_PATH
 
 var run: RunState
 var phase := Phase.ZONE
@@ -74,8 +97,19 @@ var evac_open := false
 var hub_reads := {}
 var runs_started := 0
 var last_result := ""
+## Runs finished this session, so the people in the hub react once to each.
+var runs_ended := 0
+## The people living in the hub (hub_rooms.gd), by who, and their conversations.
+var hub_npcs := {}
+var npc_talk: NpcTalk
+## Motherly Love scenes in Mom's room (family_scene.gd), in the hub only.
+var family_scene: FamilyScene
 ## The parts your last run ended with; the hub's practice titan is built from them.
 var last_parts := {}
+## The hub spot Eco is sitting or lying down at ({} = she's on her feet), and
+## the rest pose she's in there (spot["rest"] or its "alt").
+var rest_spot := {}
+var rest_pose := ""
 ## The practice titan in the hub's titan yard, and whether you're in it.
 var hub_titan: Titan
 var hub_piloting := false
@@ -88,17 +122,22 @@ var course_time := -1.0
 var course_best := 0.0
 var armory: Armory
 ## The workbench screen while one is open (the hub is paused under it).
-var bench: BenchScreen
+## A BenchScreen, the GunsmithScreen at the gunsmith bench, or the SalonScreen.
+var bench = null
 ## Lays out loot and rolls drops, seeded per zone from the run seed so loot
 ## never shifts the run's own rolls.
 var loot_rng := RandomNumberGenerator.new()
+## Hints that teach the game in the first three zones (tutorial.gd).
+var tutorial: Tutorial
+## Esc menu (pause_menu.gd).
+var pause_menu: CanvasLayer
 
 
 static func ensure_input_actions() -> void:
 	var keys := {
 		"interact": [KEY_F], "choice_1": [KEY_1], "choice_2": [KEY_2], "choice_3": [KEY_3],
 		"choice_skip": [KEY_X], "titan_core": [KEY_V], "titan_dash": [KEY_SHIFT],
-		"run_restart": [KEY_ENTER],
+		"run_restart": [KEY_ENTER], "give_gift": [KEY_G],
 	}
 	for action in keys:
 		if InputMap.has_action(action):
@@ -120,7 +159,13 @@ func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	add_to_group("loot_collector")
 	ensure_input_actions()
+	# Normally the title screen did these; played straight from the editor, do them here.
+	Prefs.apply_all()
+	_use_save_slot()
 	armory = Armory.open(armory_path)
+	npc_talk = NpcTalk.new()
+	npc_talk.save_path = npc_path
+	add_child(npc_talk)
 	player = PLAYER_SCENE.instantiate()
 	player.name = "Player"
 	player.process_mode = Node.PROCESS_MODE_PAUSABLE
@@ -134,17 +179,65 @@ func _ready() -> void:
 	hud = RunHud.new()
 	hud.name = "RunHUD"
 	add_child(hud)
+	tutorial = Tutorial.new()
+	tutorial.name = "Tutorial"
+	tutorial.run = self
+	add_child(tutorial)
+	pause_menu = PauseMenu.new()
+	pause_menu.name = "PauseMenu"
+	pause_menu.run = self
+	add_child(pause_menu)
 	equip_loadout()
 	if start_in_hub:
 		enter_hub()
 	else:
-		start_run(run_seed)
+		start_run(run_seed, uncharted_zones)
 
 
-func start_run(seed_value: int) -> void:
+## Reads and writes the save slot picked on the title screen (saves.gd). Left
+## alone when a test pointed the saves somewhere of its own.
+func _use_save_slot() -> void:
+	var own_paths := armory_path != Armory.DEFAULT_PATH or npc_path != NpcTalk.DEFAULT_PATH
+	if Saves.active == 0 and Tutorial.settings_path != Tutorial.SETTINGS:
+		own_paths = true
+	if own_paths:
+		return
+	if Saves.active == 0:
+		Saves.migrate_legacy()
+		var last := Saves.last_slot()
+		Saves.use(last if last != 0 else 1)
+	armory_path = Saves.armory_path()
+	npc_path = Saves.npc_path()
+
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_WM_CLOSE_REQUEST:
+		Saves.flush()
+
+
+## A run is under way (not in the hub, not on the summary after one).
+func in_run() -> bool:
+	return phase in [Phase.ZONE, Phase.CHOOSING, Phase.ARENA, Phase.FIGHT]
+
+
+## The pause menu stays shut while a workbench or the paint shop is open.
+func menu_blocked() -> bool:
+	return bench != null or garage != null
+
+
+## Pause menu: give up on this run. It ends like a lost one.
+func abandon_run() -> void:
+	if not in_run():
+		return
+	get_tree().paused = false
+	hud.choice_panel.visible = false
+	end_run("RUN ABANDONED", "Eco pulled out before the job was done.")
+
+
+func start_run(seed_value: int, uncharted := 0) -> void:
 	if seed_value == 0:
 		seed_value = randi_range(1, 999999)
-	run = RunState.new(seed_value)
+	run = RunState.new(seed_value, uncharted)
 	for part in armory.start_parts().values():
 		run.install(part)
 	run.refits = armory.refit_bonus()
@@ -157,10 +250,21 @@ func start_run(seed_value: int) -> void:
 	hud.summary_panel.visible = false
 	hud.choice_panel.visible = false
 	_set_pilot_active(true)
+	# The closer she's grown to Mom, the gentler she talks on the run.
+	var w: Node = pilot_hud.get("whispers") if pilot_hud != null else null
+	if w != null:
+		w.set("softness", Family.softness(npc_talk.state))
 	load_zone(0)
 
 
 func _fresh_level(level_name: String) -> void:
+	if npc_talk != null:
+		npc_talk.stop()
+	if not rest_spot.is_empty():
+		get_up()
+		rest_spot = {}
+		player.resting = false
+		_set_rest_view(false)
 	if zone_root != null:
 		remove_child(zone_root)
 		zone_root.free()
@@ -184,27 +288,49 @@ func enter_hub() -> void:
 	course_time = -1.0
 	_fresh_level("Hub")
 	zone_info = HubBuilder.build(zone_root)
+	hub_npcs = {}
+	for spec in zone_info.get("npcs", []):
+		var npc := HubNpc.create(spec["who"], spec["pos"], spec["yaw"])
+		npc.look_target = player
+		zone_root.add_child(npc)
+		npc.wear_for_run(runs_ended)
+		NpcIdles.settle(npc, zone_info, runs_ended)
+		hub_npcs[spec["who"]] = npc
+	family_scene = FamilyScene.new()
+	zone_root.add_child(family_scene)
+	family_scene.setup(self, zone_info)
+	var sick := Family.roll_sick(npc_talk.state, runs_ended, last_result == "RUN COMPLETE", npc_talk.state.get_value("mom", "met", false), randf())
+	npc_talk.state.save(npc_talk.save_path)
+	if hub_npcs.has("ophelia"):
+		NpcIdles.build_window(zone_root)
+	Wardrobe.dress_eco(player, true)
 	phase = Phase.HUB
 	dress_hub()
 	place_player(zone_info["spawn"])
+	tutorial.start_level("hub")
 	if last_result != "":
-		hud.toast("Back at the temple.", HUB_LINE_SECONDS)
+		hud.toast("Back at the temple." + ("  You're burning up. Go find Mom." if sick else ""), HUB_LINE_SECONDS)
 		_whisper("home", 2.0)
 
 
 func load_zone(index: int) -> void:
 	_fresh_level("Zone")
 	run.zone = index
-	if index < RunState.ZONE_COUNT:
+	if index < run.zone_count:
 		zone_info = ZoneBuilder.build_zone(zone_root, run.rng, index)
 		loot_rng.seed = run.run_seed * 7919 + index
 		Loot.scatter(zone_root, zone_info, loot_rng, index)
+		# Gifts roll on their own generator, so they never shift the loot rolls.
+		var gift_rng := RandomNumberGenerator.new()
+		gift_rng.seed = run.run_seed * 104729 + index
+		Gifts.scatter(zone_root, zone_info, gift_rng)
 		for grunt in zone_info["grunts"]:
 			grunt.target = player
 			grunt.died.connect(_on_grunt_died)
 		phase = Phase.ZONE
 		var zone_name: String = zone_info.get("name", "")
-		hud.toast("ZONE %d / %d%s" % [index + 1, RunState.ZONE_COUNT, ": " + zone_name if zone_name != "" else ""])
+		var uncharted := "UNCHARTED: " if index >= RunState.ZONE_COUNT else ""
+		hud.toast("ZONE %d / %d: %s%s" % [index + 1, run.zone_count, uncharted, zone_name])
 		_whisper("zone_start", 2.5)
 	else:
 		zone_info = ZoneBuilder.build_arena(zone_root)
@@ -213,7 +339,10 @@ func load_zone(index: int) -> void:
 		phase = Phase.ARENA
 		evac_open = false
 		hud.toast("THE FOREST'S EDGE: TITANFALL STANDING BY")
+	Wardrobe.dress_eco(player, false)
 	place_player(zone_info["spawn"])
+	player.second_wind_ready = player.second_wind  # Eco's suit: once per zone
+	tutorial.start_level("zone%d" % index if index < run.zone_count else "arena")
 
 
 func place_player(pos: Vector3) -> void:
@@ -223,6 +352,8 @@ func place_player(pos: Vector3) -> void:
 
 
 func _physics_process(delta: float) -> void:
+	Saves.tick(delta)
+	player.strolling = phase == Phase.HUB and not on_training_ground()
 	match phase:
 		Phase.ZONE:
 			_zone_tick(delta)
@@ -238,7 +369,7 @@ func _physics_process(delta: float) -> void:
 				if start_in_hub:
 					enter_hub()
 				else:
-					start_run(0)
+					start_run(0, uncharted_zones)
 		Phase.HUB:
 			_hub_tick(delta)
 	_update_hud()
@@ -263,6 +394,19 @@ func _hub_tick(delta: float) -> void:
 	if player.global_position.y < float(zone_info["floor_y"]) - KILL_DEPTH:
 		place_player(zone_info["spawn"])
 		return
+	if not rest_spot.is_empty():
+		_rest_tick()
+		return
+	if npc_talk.active():
+		npc_talk.tick(delta, player.global_position)
+		if not npc_talk.options.is_empty():
+			for i in npc_talk.options.size():
+				if Input.is_action_just_pressed("choice_%d" % (i + 1)):
+					npc_talk.choose(i)
+					break
+		elif Input.is_action_just_pressed("interact"):
+			npc_talk.advance()
+		return
 	_course_tick(delta)
 	if Input.is_action_just_pressed("titan_core") and in_titan_yard():
 		call_hub_titan()
@@ -271,10 +415,16 @@ func _hub_tick(delta: float) -> void:
 		embark_hub_titan()
 		return
 	var spot := nearest_hub_spot()
+	if spot.has("npc") and Input.is_action_just_pressed("give_gift") and npc_talk.can_give(spot["npc"], runs_ended):
+		npc_talk.offer_gifts(hub_npcs[spot["npc"]], runs_ended)
+		return
 	if spot.is_empty() or not Input.is_action_just_pressed("interact"):
 		return
 	if spot["id"] == "map_table":
 		start_run(run_seed)
+		return
+	if spot["id"] == "uncharted_map":
+		start_run(run_seed, RunState.UNCHARTED_ZONES)
 		return
 	if spot.has("screen"):
 		open_bench(spot["screen"])
@@ -282,10 +432,114 @@ func _hub_tick(delta: float) -> void:
 	if spot["id"] == "garage":
 		open_garage()
 		return
+	if spot.has("npc"):
+		talk_to(spot["npc"])
+		return
+	if spot.has("family"):
+		family_scene.use()
+		return
+	if spot.has("rest"):
+		rest_at(spot)
 	var lines: Array = spot["lines"]
 	var n: int = hub_reads.get(spot["id"], 0)
 	hub_reads[spot["id"]] = n + 1
 	hud.toast(lines[n % lines.size()], HUB_LINE_SECONDS)
+
+
+## Eco sits or lies down at a hub spot with a "rest" entry ({pose, at, seat,
+## alt}: hub_builder.gd): the view goes to third person while she rests, and
+## you can look around her. F at a spot with an "alt" pose moves her between
+## the two (sit up, stretch out); F anywhere else, jump or a move key gets her up.
+func rest_at(spot: Dictionary, alt := false) -> void:
+	var eco_body := player.get_node_or_null("EcoBody")
+	if eco_body == null or not eco_body.has_method("rest"):
+		return
+	var rest: Dictionary = spot["rest"]
+	var pose: Dictionary = rest["alt"] if alt else rest
+	if rest_spot.is_empty():
+		player.resting = true
+		_set_rest_view(true)
+		# face her where she settles, looking down a little
+		var at: Vector3 = (pose["at"] as Transform3D).origin
+		var to := Vector2(at.x - player.global_position.x, at.z - player.global_position.z)
+		if to.length() > 0.3:
+			player.rotation.y = atan2(-to.x, -to.y)
+		player.head.rotation.x = deg_to_rad(-22.0)
+	rest_spot = spot
+	rest_pose = pose["pose"]
+	eco_body.rest(rest_pose, pose["at"], float(rest.get("seat", 0.5)))
+
+
+## Gets Eco back on her feet; the player is free once she's up (_rest_tick).
+func get_up() -> void:
+	var eco_body := player.get_node_or_null("EcoBody")
+	if eco_body != null:
+		eco_body.get_up()
+	rest_pose = ""
+
+
+func _rest_tick() -> void:
+	var eco_body := player.get_node_or_null("EcoBody")
+	if rest_pose == "":
+		if eco_body == null or not eco_body.is_resting():
+			rest_spot = {}
+			player.resting = false
+			_set_rest_view(false)
+		return
+	var moving := Input.get_vector("move_left", "move_right", "move_forward", "move_back") != Vector2.ZERO
+	if moving or Input.is_action_just_pressed("jump"):
+		get_up()
+	elif Input.is_action_just_pressed("interact"):
+		var rest: Dictionary = rest_spot["rest"]
+		if rest.has("alt"):
+			rest_at(rest_spot, rest_pose == rest["pose"])
+		else:
+			get_up()
+
+
+## Resting shows her in third person (whatever the F5 view) with the gun and
+## knife put away; getting up puts the player's view back.
+func _set_rest_view(on: bool) -> void:
+	var view := player.get_node_or_null("ViewCam")
+	if view != null:
+		view.set_third_person(on or ViewCamera.prefer_third_person)
+	for path in ["Head/Camera3D/Weapon", "Head/Camera3D/Knife"]:
+		var n := player.get_node_or_null(path)
+		if n != null:
+			n.process_mode = Node.PROCESS_MODE_DISABLED if on else Node.PROCESS_MODE_INHERIT
+
+
+## The prompt while she rests.
+func _rest_prompt() -> String:
+	if rest_pose == "":
+		return ""
+	var rest: Dictionary = rest_spot["rest"]
+	if rest.has("alt"):
+		var other := "Stretch out" if rest_pose == rest["pose"] else "Sit up"
+		return "[F] %s    [Space] Get up" % other
+	return "[F] Get up"
+
+
+## Starts a conversation between Eco and one of the people in the hub.
+func talk_to(who: String) -> void:
+	# Sick: once Mom has said her piece about the run, she puts Eco to bed.
+	if who == "mom" and family_scene != null and int(npc_talk.state.get_value("mom", "run_seen", 0)) >= runs_ended and family_scene.care():
+		return
+	if hub_npcs.has(who):
+		npc_talk.start(hub_npcs[who], runs_ended, last_result == "RUN COMPLETE")
+
+
+## The people Eco can romance, for the gift shop's taste notes:
+## [{who, name, likes, dislikes, affection}].
+func romance_partners() -> Array:
+	var out := []
+	for who in hub_npcs:
+		if not npc_talk.romanceable(who):
+			continue
+		var s: Dictionary = NpcTalk.Romance.settings(npc_talk.bank(who))
+		out.append({"who": who, "name": String(NpcTalk.NAMES.get(who, who)).capitalize(),
+				"likes": s["likes"], "dislikes": s["dislikes"], "affection": npc_talk.affection(who)})
+	return out
 
 
 ## Opens Eco's paint shop on the chassis of your last titan, pausing the hub.
@@ -310,9 +564,17 @@ func close_garage() -> void:
 		hud.toast("Call your titan again (V) to see the new paint.", HUB_LINE_SECONDS)
 
 
-## Opens a workbench screen ("gunsmith", "rack" or "workshop"), pausing the hub.
+## Opens a workbench screen ("gunsmith", "rack", "workshop" or "suit"), or a
+## town shop's ("salon", "gifts"), pausing the hub.
 func open_bench(kind: String) -> void:
-	bench = BenchScreen.new(armory, kind)
+	if kind == "gifts":
+		bench = GiftScreen.new(armory, npc_talk, romance_partners())
+	elif kind == "salon":
+		bench = SalonScreen.new()
+	elif kind == "wardrobe":
+		bench = WardrobeScreen.new(runs_ended)
+	else:
+		bench = GunsmithScreen.new(armory) if kind == "gunsmith" else BenchScreen.new(armory, kind)
 	add_child(bench)
 	get_tree().paused = true
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
@@ -321,6 +583,16 @@ func open_bench(kind: String) -> void:
 
 
 func close_bench() -> void:
+	if bench is GiftScreen and not bench.bought.is_empty():
+		var names: Array = bench.bought.map(func(id): return GiftShop.gift_name(id))
+		hud.toast("Bought: %s. Press G by someone in the hub to give one." % ", ".join(names), HUB_LINE_SECONDS)
+	if not bench.unlocked.is_empty():
+		var names: Array = bench.unlocked.map(func(id): return Armory.WEAPONS[id]["name"].to_upper())
+		hud.toast("LEVEL %d: %s UNLOCKED. PICK %s AT THE WEAPON RACK" % [armory.pilot_level(), " AND ".join(names), "IT" if names.size() == 1 else "THEM"], 5.0)
+	if bench is WardrobeScreen and not bench.changed.is_empty():
+		for npc in hub_npcs.values():
+			npc.wear_for_run(runs_ended)
+		Wardrobe.dress_eco(player, true)
 	bench.queue_free()
 	bench = null
 	get_tree().paused = false
@@ -331,9 +603,11 @@ func close_bench() -> void:
 	dress_hub()
 
 
-## Puts the gun picked at the weapon rack, upgraded and fitted, in Eco's hand.
+## Puts the gun picked at the weapon rack, upgraded and fitted, in Eco's hand,
+## and her suit upgrade (suit locker) on her.
 func equip_loadout() -> void:
 	player.get_node("Head/Camera3D/Weapon").equip(armory.weapon_profile())
+	player.apply_suit(armory.suit_profile())
 
 
 ## Shows the armory on the benches: the equipped gun on the gunsmith's mat,
@@ -370,7 +644,7 @@ func dress_hub() -> void:
 			tag.text = "IN HAND" if id == armory.equipped else Armory.WEAPONS[id]["short"]
 			tag.modulate = Color(1.0, 0.8, 0.35) if id == armory.equipped else Color(0.9, 0.88, 0.82)
 		else:
-			tag.text = "LOCKED"
+			tag.text = "LEVEL %d" % Armory.unlock_level(id) if armory.level_locked(id) else "LOCKED"
 			tag.modulate = Color(0.6, 0.6, 0.62)
 	var stand: Node3D = zone_info.get("workshop_titan")
 	if stand != null:
@@ -391,12 +665,22 @@ func collect_material(kind: String, amount: int) -> void:
 	run.materials[kind] = int(run.materials.get(kind, 0)) + amount
 
 
+## Eco walked into a gift (gifts.gd): into the bag for the hub, kept even if
+## the run is lost.
+func collect_gift(id: String) -> void:
+	if run == null or phase == Phase.HUB:
+		return
+	npc_talk.add_gift(id)
+	hud.toast("GIFT: %s\n%s" % [Gifts.display_name(id).to_upper(), Gifts.CATALOG.get(id, ["", ""])[1]], 4.0)
+
+
 ## Grunts drop scrap where they fall, sometimes a circuit.
 func _on_grunt_died(grunt: Node) -> void:
 	if run == null or zone_root == null or not is_instance_valid(grunt):
 		return
 	run.kills += 1
 	Loot.drop(zone_root, grunt.global_position, Loot.roll_grunt(loot_rng, run.zone), loot_rng)
+	tutorial.event("loot")
 
 
 ## The crate or alloy node the pilot is standing at, or null.
@@ -420,6 +704,19 @@ func _loot_tick(delta: float) -> void:
 		got = node.mine(delta)
 	if not got.is_empty():
 		Loot.drop(zone_root, node.global_position + Vector3(0, 0.4, 0), got, loot_rng)
+		tutorial.event("loot")
+
+
+## Whether Eco is on the hub's training grounds (zone_info["training_areas"]:
+## the range, the movement course, the titan yard), where she moves at full
+## speed instead of strolling. A builder adds a Rect2 (x, z) there to make
+## another area one.
+func on_training_ground() -> bool:
+	var at := Vector2(player.global_position.x, player.global_position.z)
+	for area: Rect2 in zone_info.get("training_areas", []):
+		if area.has_point(at):
+			return true
+	return false
 
 
 func in_titan_yard() -> bool:
@@ -551,6 +848,7 @@ func _check_fall() -> bool:
 	else:
 		place_player(checkpoint)
 		hud.toast("FELL: -%d INTEGRITY" % FALL_DAMAGE)
+		tutorial.event("fell")
 	return true
 
 
@@ -570,6 +868,7 @@ func _on_pilot_downed() -> void:
 	else:
 		place_player(checkpoint)
 		hud.toast("DOWNED: -%d INTEGRITY" % DOWNED_DAMAGE)
+		tutorial.event("downed")
 
 
 ## Respawn point: the centre of the last platform the pilot stood on, or in a
@@ -600,11 +899,13 @@ func nearest_cache() -> Node3D:
 func open_salvage(cache: Node3D) -> void:
 	if not cache.can_open():
 		hud.toast("LOCKED: CLEAR THE GUARDS")
+		tutorial.event("locked")
 		return
 	open_cache = cache
 	offer = TitanParts.roll_offer(run.rng, run.zone, OFFER_SIZE)
 	phase = Phase.CHOOSING
 	get_tree().paused = true
+	tutorial.event("choosing")
 	hud.choice_panel.visible = true
 
 
@@ -731,10 +1032,12 @@ func end_run(title: String, reason: String) -> void:
 	phase = Phase.OVER
 	result = title
 	last_result = title
+	runs_ended += 1
 	last_parts = run.parts.duplicate()
 	var won := title == "RUN COMPLETE"
 	var haul := Armory.run_haul(run.materials, won)
 	armory.bank(haul)
+	Saves.record_run(won)
 	if boss != null:
 		boss.active = false
 	if titan != null:
@@ -765,7 +1068,7 @@ func _whisper(category: String, delay := 0.0) -> void:
 func _update_hud() -> void:
 	hud.build_label.visible = phase != Phase.HUB
 	if phase == Phase.HUB:
-		var status := "THE TEMPLE    %s    Runs %d" % [_materials_text(armory.stash), runs_started]
+		var status := "THE TEMPLE    LEVEL %d    %s    Runs %d" % [armory.pilot_level(), _materials_text(armory.stash), runs_started]
 		if last_result != "":
 			status += "    Last run: %s" % last_result
 		if course_time >= 0.0:
@@ -780,7 +1083,7 @@ func _update_hud() -> void:
 			var dash_text := "%d/%d" % [hub_titan.dashes, int(hub_titan.stats["dashes"])]
 			hud.fight_label.text = "PRACTICE TITAN    DASH [Shift] %s    Left mouse fire\n[F] Climb out" % dash_text
 		return
-	var where := "ZONE %d/%d" % [run.zone + 1, RunState.ZONE_COUNT] if run.zone < RunState.ZONE_COUNT else "FINAL"
+	var where := "ZONE %d/%d" % [run.zone + 1, run.zone_count] if run.zone < run.zone_count else "FINAL"
 	hud.status_label.text = "RUN %d    %s    PILOT %d    %s    %s\n%s" % [
 		run.run_seed, where, run.pilot_hp, _clock(run.time), _materials_text(run.materials), CONTROLS]
 
@@ -808,11 +1111,24 @@ func _prompt() -> String:
 				return "Titanfall inbound"
 			if _hub_titan_in_reach():
 				return "[F] Embark"
+			if npc_talk.active():
+				return ""
+			if not rest_spot.is_empty():
+				return _rest_prompt()
 			if course_armed:
 				return "Leave the pad to start the clock"
 			var spot := nearest_hub_spot()
 			if not spot.is_empty():
-				return spot["prompt"]
+				if spot.has("family"):
+					return family_scene.prompt()
+				if spot.get("npc", "") == "mom" and Family.sick(npc_talk.state, runs_ended):
+					return spot["prompt"] + "  (you're burning up)"
+				var text: String = spot["prompt"]
+				if spot.has("npc") and npc_talk.beat_waiting(spot["npc"], runs_ended):
+					text += "  (wants to talk)"
+				if spot.has("npc") and npc_talk.can_give(spot["npc"], runs_ended):
+					text += "    [G] Give a gift"
+				return text
 			if in_titan_yard():
 				return "[V] Call in your titan" if hub_titan == null else "[V] Call your titan here"
 		Phase.ZONE:

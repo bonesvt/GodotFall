@@ -1,0 +1,240 @@
+# Motherly Love: Eco and her mom (scripts/hub/family.gd). Read on top of
+# dialogue/npc/mom.txt. Wholesome, family only: Mom is warm, tired and
+# frightened for her; Eco starts bratty and prickly and lets her guard down a
+# little at a time. She never stops being Eco: she still sasses, she just
+# means it softer.
+#
+# [bond N]  scenes that play once each when the bond reaches N, in order
+# [cuddle]  talks while Eco is curled up with Mom on her bed (one a hub stay)
+# [sick]    Eco comes home sick and Mom tucks her into her own bed
+# [close]   everyday talks once they're close (bond 50+)
+# choice +N: eco: ...      an answer; +N bond if Eco picks it (1-3 keys)
+# > mom: ...               Mom's reply to that answer only
+# choice +0 !later: ...    puts the scene back for another day
+# Words in brackets after a speaker are Mom's face from that line on:
+# smile, joy, sad, surprised, closed, plain; lookaway, down, tilt, nod, shake.
+
+[family]
+cuddle_from: 10
+close_from: 50
+
+# --- Bond scenes -------------------------------------------------------------
+
+[bond 10]
+mom (smile): Eco. Sit with me a minute.
+eco: I'm kind of in the middle of something.
+mom: You're always in the middle of something. One minute. I'll time it.
+choice +6: eco: ...Fine. One minute. Starting now.
+> mom (joy): Come here then. Put your feet up. Mine are cold.
+> eco: Your feet are always cold. That's not my problem.
+> mom (smile, tilt): It is now.
+choice +3: eco: Ugh. Do I have to?
+> mom (smile): Yes. Mothers outrank pilots.
+> eco: I'm not a pilot. They made that very clear.
+> mom (sad): Then you outrank them. Sit.
+choice +0 !later: eco: Not now, Mom. Seriously.
+> mom (sad, down): All right. The spot's still here when you want it.
+mom (smile): There. That wasn't so terrible, was it?
+eco: Jury's still out.
+mom: My bed's warm any time you want it, you know. Like when you were little.
+
+[bond 25]
+mom (smile): Turn around. Your braid's come out again.
+eco: I don't have a braid.
+mom: You had one when you left. The militia don't get to undo my braids.
+eco: You can't braid hair this short, Mom.
+mom (tilt): Watch me.
+eco: ...Are you humming Dad's reload song?
+mom (closed): Four notes. He hummed them over every gun he ever fixed. And over your crib.
+choice +6: eco: ...Keep going. Don't stop.
+> mom (smile, closed): I won't.
+choice +3: eco: He was so off-key.
+> mom (joy): Terribly. You were the only one who ever slept through it.
+choice -2: eco: Can you not? It's weird.
+> mom (sad, lookaway): Sorry. I forget you're grown.
+> eco: ...No. Sorry. It's fine. It's just a lot.
+
+[bond 40]
+eco: Mom. You awake?
+mom (surprised): Eco? It's the middle of the night. What's wrong?
+eco: Nothing. Bad dream. It's stupid.
+mom: The titan again?
+eco: I hear it every time I close my eyes. The fall, then the quiet after.
+mom (sad): When you were small and it stormed, you'd climb into my bed with your boots still on.
+choice +7: eco: ...Can I? Just tonight. Boots off.
+> mom (smile): Get in. Mind my cold feet.
+> eco: Unbelievable. Even now.
+choice +4: eco: I'm not five anymore.
+> mom (smile, tilt): No. You're a grown woman with boots on my quilt. The door's open either way.
+choice -1: eco: Forget it. I'll go fix something.
+> mom (sad): The bad dreams wait for you at the bench too, sweetheart.
+mom: Whatever you dream, I'm right here when you wake up.
+
+[bond 55]
+mom (smile): Look what I found in your old crate.
+eco: Oh no. Is that... the radio?
+mom (joy): You were six. You took apart the only radio in Lantern Row and put it back together better.
+eco: It got three more stations. Everyone should've thanked me.
+mom: Old Mrs. Tannen chased you down the street with a broom.
+eco: She was jealous of my genius.
+mom (tilt): Your father carried that radio to every deployment after. He said it was his good luck.
+eco: ...Mom. I'm scared I'm going to end up like him.
+choice +7: eco: I don't want you to hear my titan go quiet too.
+> mom (sad): Then come home. Every time. That's the only promise I want.
+> eco: I'll come home. I promise.
+choice +4: eco: Forget I said that. I'm fine.
+> mom (sad, tilt): You're allowed to be scared with me. That's what I'm for.
+mom: Whatever happens out there, you are my girl first. Not his ghost.
+
+[bond 70]
+mom (smile): You're quiet tonight.
+eco: Just thinking.
+mom: About?
+eco: How I never say it. And how Dad always did. Every time he left.
+mom (surprised): Say what, sweetheart?
+choice +8: eco: I love you, Mom.
+> mom (joy, closed): Oh. Oh, Eco.
+> mom (smile): I love you too. More than the whole sky.
+> eco: Okay, don't cry. If you cry I'll cry and then we're both a mess.
+choice +5: eco: You know. The thing. The mushy thing.
+> mom (smile, tilt): I know. I'll take it as said.
+> eco: It is said. Officially. Don't make me say it twice.
+> mom (joy): I'll make you say it a thousand times.
+mom: Come here. That deserves a hug.
+
+[bond 85]
+mom (smile): I have something for you. It was mine when I was your age.
+eco: Mom, you don't have to give me stuff.
+mom: It's a locket. Your father's picture on one side, and an empty side.
+eco: What goes in the empty side?
+mom (tilt): Whatever you want to come home to.
+choice +8: eco: You. Obviously. Dork.
+> mom (joy): Mommy's girl after all.
+> eco: Shh. Tell anyone and I'll deny it to my grave.
+> mom (smile): Your secret's safe with me, baby.
+choice +5: eco: I'll put a titan core in it.
+> mom (smile): Of course you will.
+> eco: ...Kidding. It's you. It's always been you.
+eco: I'm still going to tease you about your cold feet, though.
+mom (joy): I'd be worried if you didn't.
+
+# --- Curled up together ------------------------------------------------------
+
+[cuddle]
+mom (smile, closed): There's my girl.
+eco: Don't make it weird. I'm just cold.
+mom: You're never cold. You run hot like your father.
+eco: Then I'm... tired. Shh. Five minutes.
+mom (smile): Take ten. I won't tell.
+
+[cuddle]
+eco: Your hair smells like the kitchen.
+mom (smile): It smells like dinner. Which you will be eating.
+eco: Is it the mystery meat stew?
+mom: It's the you'll-eat-it-and-like-it stew.
+eco: ...Fair.
+
+[cuddle]
+mom (smile): You used to fall asleep right here, after storms.
+eco: I was tiny.
+mom: You still fit.
+eco: Barely. My knees are in your ribs.
+mom (closed): My ribs have survived worse.
+
+[cuddle]
+eco: Mom? Hum the song.
+mom (surprised): Which one?
+eco: You know which one. Dad's four notes.
+mom (smile, closed): Hm-hm-hm-hmm.
+eco: ...Again.
+
+[cuddle]
+mom: You don't have to be brave in here, you know.
+eco: I'm always brave. It's my whole thing.
+mom (smile): In here you can be my girl instead. Just for a bit.
+eco: ...Just for a bit.
+
+[cuddle]
+eco: When this is over, I'm taking you to Scoops. The good table by the window.
+mom (joy): A date with my daughter?
+eco: Ew. Don't call it that. ...Yes. Fine. It's a date.
+mom (smile): I'll wear my nice cardigan.
+
+[cuddle]
+mom (smile, tilt): You've gone all soft lately.
+eco: Have not. I punched a grunt in the face yesterday.
+mom: You thanked me for breakfast this morning.
+eco: That was a slip. It won't happen again.
+mom (joy): It will.
+
+# --- Sick days --------------------------------------------------------------
+
+[sick]
+mom (surprised): Eco, you're burning up. You're staying in my bed, no arguing.
+eco: I'm fine. It's just the marsh air.
+mom: You're shivering under two quilts. That's not fine.
+eco: ...Okay. Maybe a little not fine.
+mom (smile): Soup first. Then sleep. Then you can argue with me.
+eco: Can I argue with you now?
+mom (smile, tilt): You can try. Open up.
+
+[sick]
+eco: Mom. My head's doing the thing. The pounding thing.
+mom (sad): Shh. Here. Cold cloth.
+eco: It's freezing. Your hands are freezing.
+mom (smile): That's why it works. Close your eyes.
+eco: ...Stay till I fall asleep?
+mom (smile, closed): I'm not going anywhere.
+
+[sick]
+eco: I hate being sick. I can't fix anything lying down.
+mom: You can fix one thing. You can rest.
+eco: That's not fixing, that's lying here.
+mom (smile): Then lie here. I'll read you the funny parts of the militia bulletin.
+eco: They have funny parts?
+mom (joy): They spelled "tactical" wrong twice.
+eco: ...Okay. That's actually funny.
+
+[sick]
+mom (sad): Look at you. All that fight, and a fever knocks you flat.
+eco: Don't tell the militia. They'll send a cold after me instead of grunts.
+mom (smile): I'll guard the door.
+eco: With what?
+mom: The soup ladle. I'm very dangerous with it.
+eco: ...Love you. Don't make it a thing.
+mom (joy): I'm making it a thing.
+
+# --- Everyday, once they're close (bond 50+) ----------------------------------
+
+[close]
+eco: I brought you something. Don't get excited. It's just a flower from the forest.
+mom (joy): You picked me a flower?
+eco: It was in the way. Of my foot. I rescued it.
+mom (smile): It's going right next to your father's photo.
+
+[close]
+mom (smile): You came straight to me first this time. Before the bench.
+eco: The bench can wait. You can't. You'd worry yourself bald.
+mom: I would not.
+eco: You have a grey hair. Right there. That's mine. I made that one.
+mom (smile, tilt): You've made all of them, sweetheart.
+
+[close]
+eco: Did you eat today?
+mom (surprised): Since when do you ask me that?
+eco: Since you started forgetting. Sit. I'm making the tea for once.
+mom (joy): Who are you and what have you done with my daughter?
+eco: Don't push it.
+
+[close]
+mom: Ophelia ate a whole bowl today. She said you sat with her.
+eco: Yeah. She looked like she needed somebody to not leave.
+mom (smile): That's my girl.
+eco: I learned it from the best. Annoyingly.
+
+[close]
+eco: Mom, if I don't come back one day...
+mom (sad): Don't.
+eco: No, listen. If I don't. You were the best part. Every single day.
+mom (sad, closed): You'll come back. And you'll tell me that again when you're old and I'm older.
+eco: ...Deal.

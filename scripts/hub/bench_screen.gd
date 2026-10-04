@@ -1,14 +1,16 @@
 extends CanvasLayer
 ## The hub's workbench screens, over a turntable preview. One screen, three
-## benches, each with its own tabs (armory.gd holds the rules and prices):
-##   gunsmith   UPGRADES      the gun in hand's own upgrade tracks
-##              ATTACHMENTS   muzzle, mag and grip (each a trade-off), and finish
+## benches, each with its own tabs (armory.gd holds the rules and prices; the
+## gunsmith has its own screen, gunsmith_screen.gd):
 ##   rack       SIDEARMS      buy guns and pick the one you head out with
 ##   workshop   LOADOUT       the titan parts a run starts with (Mk I) instead of scrap
 ##              REFITS        upgrade any part you own, salvaged copies included
+##   suit       SUIT          Eco's suit upgrades, bought in order (armour, a
+##                            passive and armour you can see on her, per tier),
+##                            and its weight: light, medium or heavy (free)
 ## The run manager opens it (pausing the hub) and closes it on F or Esc.
 ##   W/S or Up/Down    pick a row       A/D or Left/Right    browse a row's options
-##   Space or Enter    buy / fit / pick                Tab or Q/E    switch tab / gun
+##   Space or Enter    buy / fit / pick                Tab or Q/E    switch tab
 
 const Armory := preload("res://scripts/hub/armory.gd")
 const TitanParts := preload("res://scripts/run/titan_parts.gd")
@@ -18,13 +20,13 @@ const LootArt := preload("res://scripts/run/loot_art.gd")
 const SFX := preload("res://scripts/sfx.gd")
 const TitanStyle := preload("res://scripts/run/titan_style.gd")
 
-const TITLES := {"gunsmith": "ECO'S GUNSMITH BENCH", "rack": "WEAPON RACK", "workshop": "TITAN WORKSHOP"}
+const TITLES := {"rack": "WEAPON RACK", "workshop": "TITAN WORKSHOP", "suit": "SUIT LOCKER"}
 const SUBTITLES := {
-	"gunsmith": "Small steps. Dad's pistol was never about the numbers.",
 	"rack": "Pick what goes in your hand on the next run.",
 	"workshop": "Start runs with real parts, and make every copy of a part better.",
+	"suit": "Armour from the scrap pile. Every tier keeps the last.",
 }
-const TABS := {"gunsmith": ["UPGRADES", "ATTACHMENTS"], "rack": ["SIDEARMS"], "workshop": ["LOADOUT", "REFITS"]}
+const TABS := {"rack": ["SIDEARMS"], "workshop": ["LOADOUT", "REFITS"], "suit": ["SUIT"]}
 const INK := Color(0.98, 0.94, 0.86)
 const DIM := Color(0.98, 0.94, 0.86, 0.55)
 const ACCENT := Color(1.0, 0.72, 0.35)
@@ -33,23 +35,27 @@ const BAD := Color(1.0, 0.45, 0.4)
 const SPIN_SPEED := 0.4
 
 var armory: Armory
-var kind := "gunsmith"
+var kind := "rack"
 ## What a purchase sounds like at each bench (recordings in assets/audio/sfx).
-const CONFIRM_SOUND := {"gunsmith": "workbench_tools", "rack": "reload_in", "workshop": "workbench_ratchet"}
+const CONFIRM_SOUND := {"rack": "reload_in", "workshop": "workbench_ratchet", "suit": "workbench_ratchet"}
+const ECO := preload("res://assets/models/eco.tscn")
 var tab := 0
 var selected := 0
-## The gun the gunsmith works on (owned guns only).
+## The gun in hand (the rack's preview falls back to it).
 var weapon := ""
 ## Rows: {label, value, note, cost (Dictionary or null), confirm: Callable, step: Callable, preview: Callable}
 var rows: Array = []
-## Gunsmith attachments being browsed: slot -> attachment id (not yet fitted if not owned).
-var browse := {}
 ## Workshop loadout being browsed: slot -> part id.
 var browse_parts := {}
 
 var _title: Label
 var _tab_label: Label
 var _stash: HBoxContainer
+## "LEVEL 3   Next: Auto Handgun at level 6", gold for a moment on a level up.
+var _level: Label
+var _level_flash := 0.0
+## Guns unlocked by level ups while this screen was open (for the HUD after).
+var unlocked := []
 var _list: VBoxContainer
 var _detail: Label
 var _hint: Label
@@ -59,7 +65,7 @@ var _preview_key := ""
 var _spin_hold := 0.0
 
 
-func _init(p_armory: Armory, p_kind := "gunsmith") -> void:
+func _init(p_armory: Armory, p_kind := "rack") -> void:
 	armory = p_armory
 	kind = p_kind
 	weapon = armory.equipped
@@ -96,6 +102,8 @@ func _ready() -> void:
 	_title = _text(TITLES[kind], 30, ACCENT)
 	col.add_child(_title)
 	col.add_child(_text(SUBTITLES[kind], 15, DIM))
+	_level = _text("", 18, ACCENT)
+	col.add_child(_level)
 	_stash = HBoxContainer.new()
 	_stash.add_theme_constant_override("separation", 18)
 	col.add_child(_stash)
@@ -117,6 +125,9 @@ func _process(delta: float) -> void:
 	_spin_hold -= delta
 	if _spin_hold <= 0.0 and _turntable != null:
 		_turntable.rotate_y(delta * SPIN_SPEED)
+	if _level_flash > 0.0:
+		_level_flash -= delta
+		_level.modulate = Color(1, 1, 1).lerp(Color(1.4, 1.2, 0.5), clampf(_level_flash, 0.0, 1.0))
 
 
 func _input(event: InputEvent) -> void:
@@ -139,10 +150,10 @@ func _input(event: InputEvent) -> void:
 				switch_tab(1)
 		KEY_Q:
 			if not event.echo:
-				switch_weapon(-1) if kind == "gunsmith" else switch_tab(-1)
+				switch_tab(-1)
 		KEY_E:
 			if not event.echo:
-				switch_weapon(1) if kind == "gunsmith" else switch_tab(1)
+				switch_tab(1)
 		_:
 			return
 	get_viewport().set_input_as_handled()
@@ -170,8 +181,14 @@ func step(dir: int) -> void:
 func confirm() -> bool:
 	if rows.is_empty() or not rows[selected].has("confirm"):
 		return false
+	var before: int = armory.pilot_level()
 	var ok: bool = rows[selected]["confirm"].call()
 	SFX.play(self, CONFIRM_SOUND[kind] if ok else "ui_error", -4.0)
+	var after: int = armory.pilot_level()
+	if after > before:
+		_level_flash = 1.6
+		SFX.play(self, "ui_confirm", -2.0)
+		unlocked.append_array(Armory.unlocks_between(before, after))
 	refresh()
 	return ok
 
@@ -183,13 +200,6 @@ func switch_tab(dir: int) -> void:
 	refresh()
 
 
-func switch_weapon(dir: int) -> void:
-	var owned: Array = Armory.WEAPONS.keys().filter(func(id): return armory.owns_weapon(id))
-	weapon = owned[posmod(owned.find(weapon) + dir, owned.size())]
-	browse.clear()
-	refresh()
-
-
 # --- rows -------------------------------------------------------------------------
 
 func refresh() -> void:
@@ -197,102 +207,30 @@ func refresh() -> void:
 	selected = clampi(selected, 0, maxi(rows.size() - 1, 0))
 	var tabs: Array = TABS[kind]
 	var tab_text := "   ".join(tabs.map(func(t): return ("[ %s ]" % t) if t == tabs[tab] else t))
-	if kind == "gunsmith":
-		tab_text = "%s      Q/E  %s" % [tab_text, Armory.WEAPONS[weapon]["name"]]
 	_tab_label.text = tab_text
 	_draw_stash()
+	_draw_level()
 	for c in _list.get_children():
 		c.queue_free()
 	for i in rows.size():
 		_list.add_child(_row_view(i))
 	var row: Dictionary = rows[selected] if not rows.is_empty() else {}
 	_detail.text = row.get("note", "")
-	_hint.text = "W/S pick   A/D browse   Space buy/fit   %s   F or Esc done" % ("Tab section   Q/E gun" if kind == "gunsmith" else ("Q/E section" if TABS[kind].size() > 1 else ""))
+	_hint.text = "W/S pick   A/D browse   Space buy/fit   %s   F or Esc done" % ("Q/E section" if TABS[kind].size() > 1 else "")
 	_update_preview(row)
 
 
 func _rows() -> Array:
 	match [kind, TABS[kind][tab]]:
-		["gunsmith", "UPGRADES"]:
-			return _upgrade_rows()
-		["gunsmith", "ATTACHMENTS"]:
-			return _attachment_rows()
 		["rack", "SIDEARMS"]:
 			return _sidearm_rows()
 		["workshop", "LOADOUT"]:
 			return _loadout_rows()
 		["workshop", "REFITS"]:
 			return _refit_rows()
+		["suit", "SUIT"]:
+			return _suit_rows()
 	return []
-
-
-func _upgrade_rows() -> Array:
-	var out := []
-	var now := armory.weapon_profile(weapon)
-	for track in Armory.upgrade_tracks(weapon):
-		var level := armory.upgrade_level(weapon, track)
-		var most := Armory.max_level(track)
-		var maxed := level >= most
-		var cost: Dictionary = armory.upgrade_cost(weapon, track)
-		var info: Dictionary = Armory.UPGRADES[track]
-		out.append({
-			"label": info["name"],
-			"value": "■".repeat(level) + "□".repeat(most - level),
-			"cost": null if maxed else cost,
-			"note": "%s.\n%s\nLook: tier %d of %d." % [info["desc"], _stat_line(now), now["tier"], Armory.MODEL_TIERS],
-			"confirm": func(): return armory.buy_upgrade(weapon, track),
-		})
-	return out
-
-
-func _attachment_rows() -> Array:
-	var out := []
-	var now := armory.weapon_profile(weapon)
-	for slot in Armory.ATTACHMENT_SLOTS:
-		var id: String = browse.get(slot, armory.fitted_attachment(weapon, slot))
-		var a := Armory.attachment(slot, id)
-		var owned := armory.owns_attachment(id)
-		var fitted := armory.fitted_attachment(weapon, slot) == id
-		var after := _with_attachment(slot, id)
-		out.append({
-			"label": Armory.SLOT_NAMES[slot],
-			"value": a["name"] + ("" if owned else "  (locked)"),
-			"cost": null if owned else a["cost"],
-			"state": "FITTED" if fitted else ("OWNED" if owned else ""),
-			"note": "%s\n%s" % [a["desc"], _stat_diff(now, after)],
-			"step": func(dir): _browse_attachment(slot, dir),
-			"confirm": func(): return _fit(slot, id),
-			"profile": after,
-		})
-	var fin := armory.finish_of(weapon)
-	out.append({
-		"label": "Finish",
-		"value": Armory.finish(fin)["name"],
-		"note": "Paint. Free, and it doesn't change a thing about how it shoots.",
-		"step": func(dir): _step_finish(dir),
-	})
-	return out
-
-
-func _browse_attachment(slot: String, dir: int) -> void:
-	var options: Array = Armory.ATTACHMENTS[slot]
-	var at: int = options.map(func(a): return a["id"]).find(browse.get(slot, armory.fitted_attachment(weapon, slot)))
-	var id: String = options[posmod(at + dir, options.size())]["id"]
-	browse[slot] = id
-	# Owned pieces go straight on; locked ones wait for Space.
-	if armory.owns_attachment(id):
-		armory.fit(weapon, slot, id)
-
-
-func _fit(slot: String, id: String) -> bool:
-	if armory.fitted_attachment(weapon, slot) == id:
-		return true
-	return armory.fit(weapon, slot, id)
-
-
-func _step_finish(dir: int) -> void:
-	var ids: Array = Armory.FINISHES.map(func(f): return f["id"])
-	armory.set_finish(weapon, ids[posmod(ids.find(armory.finish_of(weapon)) + dir, ids.size())])
 
 
 func _sidearm_rows() -> Array:
@@ -300,16 +238,21 @@ func _sidearm_rows() -> Array:
 	for id in Armory.WEAPONS:
 		var w: Dictionary = Armory.WEAPONS[id]
 		var owned := armory.owns_weapon(id)
+		var locked: bool = armory.level_locked(id)
 		var p := armory.weapon_profile(id)
-		out.append({
+		var row := {
 			"label": w["name"],
 			"value": "",
-			"cost": null if owned else w["cost"],
-			"state": "IN HAND" if id == armory.equipped else ("OWNED" if owned else ""),
+			"cost": null if owned or locked else w["cost"],
+			"state": "IN HAND" if id == armory.equipped else ("OWNED" if owned else ("LEVEL %d" % Armory.unlock_level(id) if locked else "")),
 			"note": "%s\n%s" % [w["desc"], _stat_line(p)],
 			"confirm": func(): return armory.buy_weapon(id) and armory.equip(id),
 			"profile": p,
-		})
+		}
+		if locked:
+			row["note"] = "Unlocks at level %d (you're level %d). Every upgrade you buy raises your level.\n%s" % [
+				Armory.unlock_level(id), armory.pilot_level(), row["note"]]
+		out.append(row)
 	return out
 
 
@@ -361,14 +304,43 @@ func _refit_rows() -> Array:
 	return out
 
 
-func _with_attachment(slot: String, id: String) -> Dictionary:
-	var saved: Dictionary = armory.fitted.get(weapon, {}).duplicate()
-	if not armory.fitted.has(weapon):
-		armory.fitted[weapon] = {}
-	armory.fitted[weapon][slot] = id
-	var p := armory.weapon_profile(weapon)
-	armory.fitted[weapon] = saved
-	return p
+func _suit_rows() -> Array:
+	var out := []
+	var w: Dictionary = Armory.SUIT_WEIGHTS[armory.suit_weight]
+	var armour := "%d armour" % roundi(armory.suit_profile()["max_armor"]) if armory.suit_tier > 0 else "no suit tier yet"
+	out.append({
+		"label": "Weight",
+		"value": "◀ %s ▶" % w["name"],
+		"state": armour,
+		"note": "%s\nLooks: %s\nFree to switch. A/D to change.%s" % [w["bonus"], w["look"],
+				"" if armory.suit_tier > 0 else "\nBuy tier 1 first."],
+		"step": func(dir): _step_weight(dir),
+	})
+	for i in Armory.SUIT_TIERS.size():
+		var t: Dictionary = Armory.SUIT_TIERS[i]
+		var tier := i + 1
+		var owned := armory.suit_tier >= tier
+		var next := armory.suit_tier == tier - 1
+		var row := {
+			"label": "%d  %s" % [tier, t["name"]],
+			"value": "%d armour" % roundi(t["armor"] * Armory.SUIT_WEIGHTS[armory.suit_weight]["armor_mult"]),
+			"note": "%s: %s\nLooks: %s\n\"%s\"" % [t["passive"], t["passive_desc"], t["look"], t["line"]],
+			"suit_tier": tier,
+			"confirm": func(): return armory.buy_suit_tier() if next else owned,
+		}
+		if owned:
+			row["state"] = "WEARING" if tier == armory.suit_tier else "OWNED"
+		elif next:
+			row["cost"] = t["cost"]
+		else:
+			row["state"] = "NEEDS TIER %d" % (tier - 1)
+		out.append(row)
+	return out
+
+
+func _step_weight(dir: int) -> void:
+	var order: Array = Armory.SUIT_WEIGHT_ORDER
+	armory.set_suit_weight(order[posmod(order.find(armory.suit_weight) + dir, order.size())])
 
 
 static func _stat_line(p: Dictionary) -> String:
@@ -399,6 +371,16 @@ static func _stat_diff(a: Dictionary, b: Dictionary) -> String:
 
 
 # --- drawing ----------------------------------------------------------------------
+
+func _draw_level() -> void:
+	var text := "LEVEL %d" % armory.pilot_level()
+	for id in unlocked:
+		text += "   %s UNLOCKED AT THE RACK" % Armory.WEAPONS[id]["short"]
+	var next: String = armory.next_unlock()
+	if next != "" and unlocked.is_empty():
+		text += "   Next: %s at level %d. Every upgrade raises your level." % [Armory.WEAPONS[next]["name"], Armory.unlock_level(next)]
+	_level.text = text
+
 
 func _draw_stash() -> void:
 	for c in _stash.get_children():
@@ -484,15 +466,18 @@ func _build_stage() -> SubViewport:
 	stage.add_child(_turntable)
 	_camera = Camera3D.new()
 	stage.add_child(_camera)
-	_frame_camera(kind == "workshop")
+	_frame_camera(kind)
 	lamp.position = _camera.position * 0.6 + Vector3(0, 1, 0)
 	return sub
 
 
-func _frame_camera(titan: bool) -> void:
-	if titan:
+func _frame_camera(bench_kind: String) -> void:
+	if bench_kind == "workshop":
 		_camera.fov = 38.0
 		_camera.look_at_from_position(Vector3(-7.5, 5.8, -15.5), Vector3(0, 3.7, 0))
+	elif bench_kind == "suit":
+		_camera.fov = 30.0
+		_camera.look_at_from_position(Vector3(0.0, 1.0, 3.6), Vector3(0, 0.88, 0))
 	else:
 		_camera.fov = 30.0
 		_camera.look_at_from_position(Vector3(0.0, 0.08, 1.15), Vector3(0, -0.02, 0))
@@ -503,7 +488,19 @@ func _frame_camera(titan: bool) -> void:
 func _update_preview(row: Dictionary) -> void:
 	var key := ""
 	var make: Callable
-	if kind == "workshop":
+	if kind == "suit":
+		var tier: int = row.get("suit_tier", armory.suit_tier)
+		var weight: String = armory.suit_weight
+		key = "suit/%d/%s" % [tier, weight]
+		make = func():
+			var eco = ECO.instantiate()
+			eco.suit_weight = weight
+			eco.suit_tier = tier
+			eco.rotation.y = PI  # she faces -Z; turn her to the camera
+			var holder := Node3D.new()
+			holder.add_child(eco)
+			return holder
+	elif kind == "workshop":
 		var chassis: String = browse_parts.get("chassis", armory.titan_loadout["chassis"])
 		var gun: String = browse_parts.get("weapon", armory.titan_loadout["weapon"])
 		if row.has("slot"):

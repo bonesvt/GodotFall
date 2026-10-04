@@ -5,15 +5,23 @@ extends RefCounted
 ## behind cover, and every platform past the spawn has cover for the pilot too.
 ## Two side platforms hold salvage caches, one of them guarded by a squad that
 ## must be cleared to unlock it. The last platform has the extraction beacon.
-## Zone 1 is the exception: a laid-out forest level (forest_builder.gd). The
-## arena, where the titan fight happens, is the forest's edge (forest_builder.gd too).
+## Zones 1 to 3 are laid out by hand instead: the Pinewoods (forest_builder.gd),
+## Blackwater (marsh_builder.gd) and the Boneyard (boneyard_builder.gd). Any
+## zone past those (a long run's uncharted zones) is generated from the run's
+## seed: lanes, set pieces and patrols (procgen/zone_generator.gd). The old
+## platform chain (build_chain) is still here for the movement tests. The
+## arena, where the titan fight happens, is the forest's edge (forest_builder.gd).
 
 const Kit := preload("res://scripts/run/level_kit.gd")
 const SalvageCache := preload("res://scripts/run/salvage_cache.gd")
 const SquadObjective := preload("res://scripts/run/squad_objective.gd")
 const GruntScript := preload("res://scripts/grunt.gd")
+const ThreatSpawner := preload("res://scripts/threats/threat_spawner.gd")
 const ExtractBeacon := preload("res://scripts/run/extract_beacon.gd")
 const ForestBuilder := preload("res://scripts/run/forest_builder.gd")
+const MarshBuilder := preload("res://scripts/run/marsh_builder.gd")
+const BoneyardBuilder := preload("res://scripts/run/boneyard_builder.gd")
+const ZoneGenerator := preload("res://scripts/run/procgen/zone_generator.gd")
 
 ## Gap ranges in metres between platform edges, kept inside what the pilot can
 ## clear: a sprint jump covers about 6 m (9 m with the double jump), a wallrun
@@ -46,10 +54,21 @@ const ZONE_SKIES := [
 
 
 ## Returns {spawn, platforms, segments, caches, objectives, beacon, floor_y}.
-## platforms are {top: Vector3 (centre of the top face), size: Vector2 (x, z)}.
+## The laid-out zones add name, checkpoints, kill_y, routes and stealth_cover.
 static func build_zone(root: Node3D, rng: RandomNumberGenerator, zone_index: int) -> Dictionary:
-	if zone_index == 0:
-		return ForestBuilder.build_zone(root, rng)
+	match zone_index:
+		0:
+			return ForestBuilder.build_zone(root, rng)
+		1:
+			return MarshBuilder.build_zone(root, rng)
+		2:
+			return BoneyardBuilder.build_zone(root, rng)
+	return ZoneGenerator.build_zone(root, rng, zone_index)
+
+
+## A seeded chain of platforms. Same keys as build_zone;
+## platforms are {top: Vector3 (centre of the top face), size: Vector2 (x, z)}.
+static func build_chain(root: Node3D, rng: RandomNumberGenerator, zone_index: int) -> Dictionary:
 	var sky: Array = ZONE_SKIES[zone_index % ZONE_SKIES.size()]
 	Kit.environment(root, sky[0], sky[1])
 	var tint: Color = ZONE_TINTS[zone_index % ZONE_TINTS.size()]
@@ -127,6 +146,8 @@ static func build_zone(root: Node3D, rng: RandomNumberGenerator, zone_index: int
 	for p in info["platforms"]:
 		lowest = minf(lowest, p["top"].y)
 	info["floor_y"] = lowest
+	# Past the border: the Choir and the wildlife instead of the militia.
+	ThreatSpawner.populate(root, rng, info, zone_index)
 	return info
 
 

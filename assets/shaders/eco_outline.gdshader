@@ -18,13 +18,15 @@ uniform sampler2D albedo_tex : source_color, hint_default_white, filter_linear_m
 uniform float tint : hint_range(0.0, 1.0) = 0.35;
 uniform float alpha_cut : hint_range(0.0, 1.0) = 0.0;
 
-instance uniform vec4 paint : source_color = vec4(1.0);
+instance uniform vec4 paint : source_color, instance_index(2) = vec4(1.0);
 
 void vertex() {
 	vec4 view = MODELVIEW_MATRIX * vec4(VERTEX, 1.0);
 	vec3 n = normalize(mat3(MODELVIEW_MATRIX) * NORMAL);
-	// metres that make `width` pixels at this depth
-	float px_size = 2.0 * -view.z / (PROJECTION_MATRIX[1][1] * 1080.0);
+	// metres that make `width` pixels at this depth. abs(): on Vulkan the
+	// projection's Y scale is negative (flipped), which pushed the line inward
+	// and hid it behind the surface.
+	float px_size = 2.0 * -view.z / (abs(PROJECTION_MATRIX[1][1]) * 1080.0);
 	view.xyz += n * min(width * px_size, max_width);
 	vec4 clip = PROJECTION_MATRIX * view;
 	if (ps2_vertex_snap > 0.0) {

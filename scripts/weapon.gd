@@ -34,6 +34,7 @@ const Pilot := preload("res://scripts/player.gd")
 const FX := preload("res://scripts/fx.gd")
 const Art := preload("res://scripts/ps2/ps2_assets.gd")
 const SFX := preload("res://scripts/sfx.gd")
+const EcoArms := preload("res://scripts/eco_fp_arms.gd")
 
 ## Emitted on every shot that hits an enemy: "body", "head" or "kill".
 signal hit_confirmed(kind: String)
@@ -112,17 +113,17 @@ const INSPECT_LINES := [
 @export var reload_time := 1.5
 
 @export_group("Accuracy (degrees)")
-@export var base_spread := 0.25
-@export var bloom_per_shot := 1.1
+@export var base_spread := 0.17
+@export var bloom_per_shot := 0.75
 ## Bloom starts shrinking this long after the last shot...
 @export var bloom_recovery_delay := 0.25
 ## ...at this many degrees per second. Paced shots stay accurate, spam does not.
 @export var bloom_recovery := 6.0
-@export var max_bloom := 4.5
+@export var max_bloom := 3.0
 ## Added at full sprint speed on the ground.
-@export var move_spread := 0.9
+@export var move_spread := 0.6
 ## Added while airborne or grappling (not while wallrunning or sliding).
-@export var air_spread := 1.2
+@export var air_spread := 0.8
 @export var recoil_kick := 1.4
 ## Share of each kick the camera drifts back down on its own.
 @export var recoil_recovery := 0.75
@@ -220,6 +221,21 @@ var _charm_last_vel := Vector3.ZERO
 ## the top of this one.
 var smart_fraction := 0.0
 var smart_left := 0
+
+## Gun-specific upgrades (armory.gd UPGRADES), 0 on a stock gun.
+## Heavy revolver: bodies a round goes through after the first, and how long
+## a hit knocks a grunt off their aim (seconds).
+var pierce := 0.0
+var stagger := 0.0
+## Auto handgun: extra damage per hit in a row (up to STREAK_MAX), lost on a
+## miss or a pause in fire.
+var streak_bonus := 0.0
+var streak := 0
+const STREAK_MAX := 10
+const STREAK_DROP := 0.45
+## Damage kept by each body a punch-through round goes on into.
+const PIERCE_KEEP := 0.75
+const STREAK_TRACER := Color(1.0, 0.45, 0.15, 0.95)
 ## The working lock: cone half-angle (degrees), range (m), seconds to lock.
 const LOCK_CONE := 11.0
 const LOCK_RANGE := 40.0
@@ -277,6 +293,7 @@ func equip(profile: Dictionary) -> void:
 	if not smart:
 		lock_target = null
 		glitch = 0.0
+	streak = 0
 	if viewmodel != null:
 		viewmodel.free()
 		viewmodel = null
@@ -288,6 +305,8 @@ func _physics_process(delta: float) -> void:
 	cooldown -= delta
 	buffer_timer -= delta
 	since_shot += delta
+	if since_shot > STREAK_DROP:
+		streak = 0
 	if since_shot > bloom_recovery_delay:
 		bloom = maxf(bloom - bloom_recovery * delta, 0.0)
 	_recover_recoil(delta)
@@ -367,39 +386,77 @@ func fire() -> void:
 	if homing:
 		# A smart round with a lock flies to the target's chest, spread or not.
 		dir = (lock_point(lock_target) - from).normalized()
-	var query := PhysicsRayQueryParameters3D.create(from, from + dir * max_range, SHOT_MASK)
-	query.exclude = [player.get_rid()]
-	var hit := get_world_3d().direct_space_state.intersect_ray(query)
-	var end: Vector3 = from + dir * max_range
 	var fx_parent: Node = player.get_parent()
-
-	if not hit.is_empty():
-		end = hit.position
-		var target: Object = hit.collider
-		if target.has_method("take_damage"):
-			var head: bool = target.is_headshot(end)
-			var dmg := damage_at(from.distance_to(end)) * (headshot_multiplier if head else 1.0)
-			var killed: bool = target.take_damage(dmg, end, head)
-			var kind := "kill" if killed else ("head" if head else "body")
-			hit_confirmed.emit(kind)
-			_hit_fx(fx_parent, end, hit.normal, dir, kind)
-		else:
-			_impact_fx(fx_parent, end, hit.normal)
+	var end := _trace_shot(from, dir, fx_parent)
 	# Heard after the round lands, so the first shot still catches its target unaware.
 	get_tree().call_group("enemies", "hear_gunshot", player.global_position)
 
+	# In third person the view-model is hidden: tracers leave Eco's own gun.
+	var tracer_from: Vector3 = muzzle.global_position
+	if player.get("third_person") and player.has_node("ViewCam"):
+		tracer_from = player.get_node("ViewCam").muzzle_position()
 	if smart_shot:
-		FX.tracer(fx_parent, muzzle.global_position, end, SMART_TRACER, 0.016, 0.09)
+		FX.tracer(fx_parent, tracer_from, end, SMART_TRACER, 0.016, 0.09)
 		if homing:
 			FX.star(fx_parent, end, Color(1.0, 0.5, 0.8), 0.3, 0.08, 6)
 	else:
-		FX.tracer(fx_parent, muzzle.global_position, end, tracer_color, 0.012, 0.06)
+		# A hot streak runs the tracer from its own colour to orange.
+		var heat_t := float(streak) / STREAK_MAX if streak_bonus > 0.0 else 0.0
+		FX.tracer(fx_parent, tracer_from, end, tracer_color.lerp(STREAK_TRACER, heat_t), 0.012 + 0.008 * heat_t, 0.06)
 	bloom = minf(bloom + bloom_per_shot, max_bloom)
 	var k := deg_to_rad(recoil_kick)
 	player.head.rotation.x = clampf(player.head.rotation.x + k, -1.55, 1.55)
 	recoil_pending += k * recoil_recovery
 	flash_timer = 0.04
 	_shot_feel(fx_parent)
+
+
+## Casts one round along `dir` and deals its damage. A punch-through round
+## goes on through each body it hits, `pierce` times, losing a quarter of its
+## damage each time. Returns where it stopped (for the tracer).
+func _trace_shot(from: Vector3, dir: Vector3, fx_parent: Node) -> Vector3:
+	var exclude: Array[RID] = [player.get_rid()]
+	var start := from
+	var mult := 1.0 + streak_bonus * streak
+	var bodies := 0
+	var landed := false
+	while true:
+		var query := PhysicsRayQueryParameters3D.create(start, from + dir * max_range, SHOT_MASK)
+		query.exclude = exclude
+		var hit := get_world_3d().direct_space_state.intersect_ray(query)
+		if hit.is_empty():
+			break
+		var end: Vector3 = hit.position
+		var target: Object = hit.collider
+		if not target.has_method("take_damage"):
+			_impact_fx(fx_parent, end, hit.normal)
+			_end_streak(landed)
+			return end
+		var head: bool = target.is_headshot(end)
+		var dmg := damage_at(from.distance_to(end)) * (headshot_multiplier if head else 1.0) * mult
+		var killed: bool = target.take_damage(dmg, end, head)
+		if stagger > 0.0 and not killed and target.has_method("stagger"):
+			target.stagger(stagger)
+		var kind := "kill" if killed else ("head" if head else "body")
+		hit_confirmed.emit(kind)
+		_hit_fx(fx_parent, end, hit.normal, dir, kind)
+		landed = true
+		bodies += 1
+		if bodies > int(pierce):
+			_end_streak(landed)
+			return end
+		# On through: past this body, a bit weaker.
+		exclude.append(hit.rid)
+		start = end
+		mult *= PIERCE_KEEP
+		FX.puff(fx_parent, end + dir * 0.3, Color(1.0, 0.8, 0.5, 0.6), 0.25)
+	_end_streak(landed)
+	return from + dir * max_range
+
+
+## A hit carries the streak on; a miss ends it.
+func _end_streak(landed: bool) -> void:
+	streak = mini(streak + 1, STREAK_MAX) if landed else 0
 
 
 ## Everything a shot does that you see, hear and feel but that doesn't score.
@@ -421,7 +478,7 @@ func _shot_feel(fx_parent: Node) -> void:
 		FX.star(muzzle, muzzle.global_position, Color(1.0, 0.75, 0.35, 0.95), 0.09, 0.05, 8)
 		FX.light(fx_parent, muzzle.global_position, Color(1.0, 0.7, 0.35), 2.0, 5.0, 0.05)
 	if _drum != null:
-		_drum_turn += TAU / 5.0
+		_drum_turn += TAU / 6.0
 	if _hammer != null:
 		_hammer.rotation.x = deg_to_rad(-40.0)
 	FX.star(muzzle, muzzle.global_position, Color(0.85, 0.97, 1.0, 0.9), 0.045, 0.04, 6)
@@ -696,9 +753,15 @@ func _reload_choreography() -> void:
 	if _reload_events == 0 and p >= RELOAD_BEATS[0]:
 		_reload_events = 1
 		SFX.play(self, "reload_out", -3.0, SFX.vary())
-		var mag_at: Vector3 = _parts["MagBase"][0].global_position if _parts.has("MagBase") else viewmodel.global_transform * Vector3(0.0, -0.09, 0.06)
 		var down: Vector3 = -viewmodel.global_basis.y
-		FX.chunk(fx_parent, mag_at, Vector3(0.034, 0.1, 0.048), Color(0.82, 0.85, 0.9), player.velocity + down * 2.5 + player.head.global_basis.x * 0.6, 0.6)
+		if _drum != null:
+			# A revolver: the spent rivets tip out of the cylinder.
+			var at: Vector3 = _drum.global_position
+			for i in magazine_size - ammo:
+				FX.casing(fx_parent, at, player.velocity + down * 1.5 + player.head.global_basis.x * randf_range(-0.6, 0.6))
+		else:
+			var mag_at: Vector3 = _parts["MagBase"][0].global_position if _parts.has("MagBase") else viewmodel.global_transform * Vector3(0.0, -0.09, 0.06)
+			FX.chunk(fx_parent, mag_at, Vector3(0.034, 0.1, 0.048), Color(0.82, 0.85, 0.9), player.velocity + down * 2.5 + player.head.global_basis.x * 0.6, 0.6)
 		_set_part_visible("MagBase", false)
 		_kick_vel += Vector3(0.0, 0.8, 0.0)
 		_kick_rot_vel += Vector3(-10.0, 0.0, 0.0)
@@ -850,6 +913,7 @@ func _build_viewmodel() -> void:
 	add_child(viewmodel)
 	var pistol := Art.model(_model_name(model_id, tier))
 	viewmodel.add_child(pistol)
+	_fit_arm(pistol)
 	_fit_attachments(pistol, model_id, attachments, tier)
 	_apply_finish(pistol, finish)
 	for mi in pistol.find_children("*", "GeometryInstance3D", true, false):
@@ -891,6 +955,19 @@ func _build_viewmodel() -> void:
 	flash.mesh = sphere
 	flash.visible = false
 	muzzle.add_child(flash)
+
+
+## Swaps the gun scene's old sculpted arm for Eco's own (scripts/eco_fp_arms.gd),
+## dressed like the body she is wearing (the player's EcoBody).
+func _fit_arm(pistol: Node3D) -> void:
+	var old := pistol.get_node_or_null("Arm")
+	if old != null:
+		old.free()
+	var arm := EcoArms.new()
+	arm.name = "Arm"
+	pistol.add_child(arm)
+	if player != null:
+		arm.follow(player.get_node_or_null("EcoBody"))
 
 
 ## The gun model a profile describes, attachments on and painted, without

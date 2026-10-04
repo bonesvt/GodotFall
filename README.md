@@ -5,7 +5,38 @@ Pilot movement, first combat (a weak starter pistol and grunt enemies), and the 
 ## Run it
 1. Install Godot 4.3 or newer (standard build, not .NET): https://godotengine.org/download
 2. Open Godot, click **Import**, pick this folder's `project.godot`.
-3. Press **F5** (or the Play button). The mouse is captured; Esc frees it, click to recapture.
+3. Press **F5** (or the Play button). The title screen opens: **Continue**, **New game**,
+   **Load game**, **Settings**, **Quit**. In game the mouse is captured; **Esc** pauses.
+
+Or play the Windows build (no editor needed): `GodotFall.exe`, see **Windows build** below.
+
+## Menus, settings and saves
+- **Title screen** (`scenes/title.tscn`, the main scene; `scripts/ui/title_screen.gd`): Eco on
+  the temple steps behind the menu. Continue loads the last slot played straight into the
+  temple. New game asks before writing over a used slot.
+- **Pause menu** (Esc; `scripts/ui/pause_menu.gd`): Resume, Settings, Abandon run (during a
+  run: it ends like a loss, half the carried materials bank), Quit to title, Quit game. It
+  stays shut over the workbenches, paint shop and salvage choice, where Esc closes those.
+- **Settings** (`scripts/ui/settings_menu.gd`, saved by `scripts/game/prefs.gd` to
+  `user://settings.cfg`): mouse sensitivity, invert Y, field of view; every key rebindable
+  (primary and secondary); master / effects / ambience / voices volume (buses in
+  `default_bus_layout.tres`); windowed / borderless / fullscreen, vsync, frame cap, PS3 or
+  PS2 look (F9 remembers too); dialogue rating, tutorial hints, start in third person.
+- **Save slots** (`scripts/game/saves.gd`): three, in `user://saves/slot1..3/`. Each holds the
+  files the game already saved on its own (armory, hub conversations, titan paint, tutorial
+  hints seen) plus runs / wins / time played. A run in progress isn't saved; Continue puts you
+  back in the temple. A save from before slots moves into slot 1 on first launch.
+  `user://` is `%APPDATA%\Godot\app_userdata\Titanfall Roguelike - Movement Prototype\` on
+  Windows (the project keeps that name so old saves carry over; the window says GodotFall).
+
+## Windows build
+`export_presets.cfg` has a **Windows Desktop** preset that writes one self-contained
+`build/windows/GodotFall.exe` (the game data is embedded). In the editor: **Project > Export >
+Windows Desktop > Export Project** (install the export templates first if Godot asks:
+**Editor > Manage Export Templates > Download and Install**). From a terminal:
+`godot --headless --path . --export-release "Windows Desktop" build/windows/GodotFall.exe`.
+The preset keeps `dialogue/*` (plain text the hub people read at runtime) and leaves out
+`tests/` and `tools/`.
 
 ## Controls
 | Key | Action |
@@ -18,6 +49,7 @@ Pilot movement, first combat (a weak starter pistol and grunt enemies), and the 
 | R | Reload |
 | T | Respawn |
 | G | Reset the grunt arena |
+| Esc | Pause menu (settings, quit) |
 | H | Toggle help |
 | F9 | Switch between the PS3 look and the old PS2 look |
 
@@ -28,12 +60,29 @@ base since the militia turned her away. Walk around, warm up the movement kit, a
 press **F** at the map table ("HEAD OUT") to start a run. When a run ends, won or lost,
 **Enter** brings you back here.
 
-- **The hall**: two rows of pillars down a nave, the roof fallen in over the middle so a
-  shaft of sun lands on the idol. Carved eye glyphs run along the walls.
+Off duty (in the hub and the town, but not on the range, the movement course or the titan
+yard) Eco doesn't run: she struts at a stroll (`player.gd` `stroll_speed`, hold **Shift**
+for a brisker one), hips swaying over each step, one foot landing in front of the other,
+shoulders back, and stands with her weight on one hip. The strut is layered over her walk in
+`scripts/ps2/eco_model.gd` (`_strut`); the training grounds are `TRAINING_AREAS` in
+`hub_grounds.gd`. `xvfb-run -a godot --path . --fixed-fps 30 -s res://tools/eco/strut_shots.gd
+-- out_dir --view=front|side|back` renders it next to her plain walk.
+
+- **The hall**: an old hardwood temple, two rows of timber pillars down a nave and the
+  roof fallen in over the middle so a shaft of sun lands on the idol. Carved, painted eye
+  glyphs run along the walls. Eco has made it home: plank floors, rugs, string lights
+  zigzagging across the nave, paper lanterns in the aisles, potted ferns, a porch with
+  lanterns over the door and a tarp over half the roof hole. (`HubBuilder.home_style`
+  can build it in the precursors' pale alloy instead, `"alloy"`.)
+- **Kitchen** (under the gallery): a barrel stove, a counter and shelf of jars, herbs
+  drying, a little table with two stools.
+- **Couch** (by the bench): a pilot seat from a scrapped Ogre on a crate base, with a
+  crate table and a spotlight floor lamp.
 - **The idol**: the precursor god, seated on a stepped dais with its hands open on its
   knees and one great eye still glowing in its brow. Fire bowls either side.
-- **Eco's corner** (left of the door): her bedroll and lantern, and the militia's letter
-  turning down her pilot application, pinned to the wall.
+- **Eco's corner** (left of the door): the bed she built, a curtain round it, her
+  lantern, a photo of her and her dad, her drawings, and the militia's letter turning
+  down her pilot application, pinned to the wall.
 - **Workbench** (right of the door): her father's smart pistol stripped down, its burnt
   auto-lock board on the bench. An `EcoSpot` marker beside it is where her character
   model will stand.
@@ -70,22 +119,59 @@ Out on runs you collect four materials, and the hub's workbenches spend them:
 Pickups fly to you when you get close. Extracting banks everything you carried (plus the
 enemy titan's salvage when you win); a lost run banks half. The HUD shows what you have.
 
-- **Gunsmith bench** (the workbench right of the door): **upgrades** for the gun in hand,
-  each gun its own. Dad's smart pistol has **Smart rounds**, 8 levels paid in lock cores:
+- **Gunsmith bench** (the workbench right of the door): click a gun in the list on the left
+  and it appears in 3D in the middle. Drag to spin it, scroll to zoom, and click the **+**
+  markers on its parts (barrel, cylinder, mag, grip, frame...) to see that part's
+  upgrades and attachments on the right. A locked attachment shows on the gun on the first
+  click and is bought on the second. **Upgrades** are per gun. Dad's smart pistol has **Smart rounds**, 8 levels paid in lock cores:
   each makes another eighth of every mag smart. Smart rounds fire first (pink pips on the
   HUD); while one is chambered the lock works again, closing on the grunt nearest the
   crosshair, and the shot flies to its chest (never its head, so headshots stay yours).
-  The other guns have Calibre, Action and Magazine (three small steps each). Every step
+  The **Heavy Revolver** gets Rivet heads (damage and headshots), Punch-through (rounds
+  carry on into the body behind), Stagger coils (hits knock a grunt off their aim) and a
+  Speed loader. The **Auto Handgun** gets Drum feed (more rounds), Recoil buffer, Overclock
+  (faster fire) and Hot streak (every hit in a row hits harder; a miss or a pause resets
+  it, and the tracers run orange as it heats). Three levels each. Every step
   moves the gun's look tier from 0 to 5. The bench also fits **attachments** (muzzle, mag, grip, each a
   trade-off: long barrel, compensator, extended mag, speed base, paracord wrap, skeleton
-  grip) plus free paint **finishes**. Q/E switches guns.
-- **Weapon rack** (on the wall past the bench): buy and pick your sidearm. Dad's smart
-  pistol, the **Rivet Cannon** (five heavy shots off a titan's rivet driver) or the
-  **Militia Machine Pistol** (full auto, hold the trigger).
+  grip) plus free paint **finishes** (on the shell or frame). Q/E switches guns, Tab parts.
+- **Weapon rack** (on the wall past the bench): pick your starting sidearm. Dad's smart
+  pistol from the start; the **Heavy Revolver** (six titan rivets in a hand-turned
+  cylinder) at **level 3**; the **Auto Handgun** (a militia machine pistol, full auto,
+  fifteen rounds a second) at **level 6**.
+- **Eco's level** is 1 plus every upgrade she has bought: weapon upgrades, titan refits and
+  suit upgrades. It shows in the hub HUD and on every bench, which also says what unlocks
+  next.
 - **Titan workshop** (gantry at the west edge of the titan yard): buy titan parts to start
   runs with (Mk I, instead of scrap; salvage can still replace them) and **refit** parts
   (+6% per level to every copy you install, salvaged ones and scrap included). The titan
   in the gantry is the one you'd start with.
+- **Suit locker** (left wall, past the rubble): upgrade Eco's suit, five tiers bought in
+  order. Each tier adds **armour** (a second bar over her health: it takes hits first and
+  comes back after the same pause, once health is full), one **passive**, and armour you
+  can see on her:
+
+  | Tier | Armour | Passive | Looks |
+  | --- | --- | --- | --- |
+  | 1 Scav Rig | 20 | Magnet pouches: materials fly to you from twice as far | forearm bracers, belt with hip pouches |
+  | 2 Seal Weave | 40 | Auto-seal: health and armour come back after 2 s, not 3 | layered shoulder plates, seal injector on her thigh |
+  | 3 Dampers | 60 | Hush dampers: grunts notice you 30% slower (sight and footsteps) | shin guards, knee cops, hip plates |
+  | 4 Jump Kit | 80 | Wallruns last 40% longer, grapple recharges 30% faster | jump pack low on her back, armoured collar |
+  | 5 Dad's Colours | 100 | Second wind: once per zone a downing hit leaves you on 1 HP, untouchable 1.5 s | plates in Dad's colours, shoulder crests, every trim gold |
+
+  Once she has a tier, the locker's **Weight** row refits the suit (free, any time):
+
+  | Weight | Armour | Bonus | Looks |
+  | --- | --- | --- | --- |
+  | Light | half | 10% faster on the ground, grunts notice you 15% slower, wallruns 15% longer | cloth and leather: a wrap that supports her chest and covers her sides, choker with Dad's tag, a nose ring, wrapped arms and shins, a leather shoulder guard and knee pads, her stiletto on a thigh garter |
+  | Medium | as listed | armour refills twice as fast | a mechanic's jumpsuit (unzipped in a wide V down past her belly button, a heart window over the top of her glutes, left arm bare with Dad's cog tattoo, right sleeve rolled), a knotted scarf, a cheek plaster, a tool pouch, a canvas yoke, rubber knee caps, a cargo pocket, a wrist computer |
+  | Heavy | +60% | every hit lands 15% softer, but 10% slower on the ground | a quilted padded undersuit under titan-hull armour: a breastplate (Dad's titan's core light from tier 4), a comm earpiece, bracers, pauldrons, shin guards, knee cops, hip, elbow, upper-arm and thigh plates, a back plate, an armoured collar |
+
+  Tier 5 also costs a lock core. The armour pieces are part of `eco.glb` (`suit_t<tier>_*`
+  meshes, modelled by `suit_armor()`, `light_suit()` and `medium_suit()`, `heavy_extras()` in
+  `tools/eco/build_eco_vroid.py`; each weight also bakes its own bodysuit cut,
+  `v_body*_light.png`, `v_body*_medium.png` and `v_body*_heavy.png`); `eco_model.gd` `suit_tier` and
+  `suit_weight` show them.
 
 On the screens: W/S pick a row, A/D browse, Space buy or fit, Tab or Q/E switch section,
 F or Esc to leave. Progress saves to `user://armory.cfg` (`scripts/hub/armory.gd` has every
@@ -95,7 +181,8 @@ nodes and pickups by `tools/run/build_loot.py` (all `blender -b --python <script
 
 Press **F** near anything to have Eco say something about it; press again for more.
 Built in code by `scripts/hub/hub_builder.gd` and `hub_grounds.gd` (temple stone,
-carvings, moss, wood, grass, dirt, canvas and bark textures come from `tools/make_textures.py`).
+carvings, timber, alloy, moss, wood, grass, dirt, canvas and bark textures come from
+`tools/make_textures.py`).
 The trees, palms, bushes, ferns, grass, rocks, hills, tents and the idol are modelled in
 Blender by `tools/hub/build_props.py` (`blender -b --python tools/hub/build_props.py`, writes
 `assets/models/hub/*.glb`). Each mesh is named `<part>__<material>`, and
@@ -124,13 +211,46 @@ The movement and grunt test level is still at `scenes/test_level.tscn` (open it 
    group, and dense patches also have an invisible `sight_blocker` body on collision layer 16
    (mask 0) that blocks grunt line of sight but not the player, grunts or the grapple.
    The routes are listed in `zone_info["routes"]`, and the map shot draws them.
-   **Zones 2 and 3** are seeded chains of platforms over a void, linked by gaps you
-   clear with a sprint jump, a double-jump climb, a wallrun along a blue wall, or the grapple
-   on an orange anchor. Grunt squads hold some platforms from behind cover (more of them in
-   later zones), and every platform has low walls or blocks you can use as cover too.
-   Falling, or getting gunned down, costs 25 pilot integrity and puts you back on the last
-   platform you stood on. At 0 the run is over.
-2. **Salvage.** Each zone has two caches on side platforms. One is guarded by a grunt squad
+   **Zone 2: Blackwater.** A flooded fen at dusk in the rain, where the militia runs its
+   fuel line. You start on the bank where Eco left her skiff and wade north through
+   knee-deep water and swamp cypress: the roadblock on the old causeway, a stilt village the
+   militia took from the fishers (lookouts on the porches, a squad dug in on the road), the
+   channel where the causeway bridge was blown (wallrun the side of a grounded barge, grapple
+   the crane, hop the old piers, or walk the back of a titan that drowned there in the war),
+   the pump station (pump house, storage tanks, watchtower, a squad in the yard), and the
+   beacon on a hummock past it. Three ways through: the **causeway** (loud, up the middle),
+   the **reeds** on the left (quiet: cattail beds the whole way, crouch under the stilt huts,
+   the drowned titan, the reed beds by the tanks), and the **pipeline** on the right (high:
+   climb onto the fuel main and run along it, across the stilt huts' tin roofs, grapple the
+   crane, then up the junk and the station's pipe onto the pump house roof). One cache is
+   guarded by the village's or the station's squad; the other is on a hut roof or the pump
+   house roof. Falling into the channel costs integrity like the ravine does.
+   **Zone 3: the Boneyard.** The old front line where the titans died, a burnt valley of
+   craters and wrecks under a smoky sky, where the militia strip the dead titans for parts.
+   You start behind the war's front-line trench: no-man's land (wire, craters, a titan dead on
+   its knees, the picket), the salvage yard (wall and gate, a gantry crane over a titan they're
+   stripping, the strip shed, container stacks, a watchtower), the rift (wallrun a titan's
+   tower shield wedged in it, grapple the crane, hop the precursor columns standing in it, or
+   walk a fallen precursor obelisk), the ruins of the precursor's shrine where the militia set
+   up a radio post (the god's eye still glows on the standing stone), and the beacon at the
+   edge of the burn, where the living forest starts again. Three ways through: the **haul
+   road** (loud), the **old trenches** (quiet: down the communication trench, out through a
+   wall slab the crane knocked flat, round the back of the strip shed, over the obelisk, up
+   the dead grass beside the ruins), and the **titan's back** (high: climb a dead titan lying
+   face down by its hand and arm, run along its back, up the containers onto the yard wall
+   and the stacks inside, grapple the crane, then a hut roof onto a ruin column). One cache
+   is guarded by the yard's or the ruins' squad; the other is on a container stack or a column.
+   Every zone has hiding spots (reed beds, dead grass, the trenches, the shadow under the stilt
+   huts) on the same `stealth_cover` / `sight_blocker` hooks as the forest, checkpoints along
+   each route, supply crates and alloy nodes beside the routes, and its own sky, haze and
+   ambience. Getting gunned down costs 25 pilot integrity and puts you back at the last
+   checkpoint. At 0 the run is over.
+
+   **Uncharted zones (the long way).** On the far side of the hub's map table is a second
+   sheet, UNCHARTED: press F there and the run goes through the three zones above and then
+   two more that are generated from the run's seed, before the titan fight. See
+   *Generated zones* below.
+2. **Salvage.** Each zone has two caches. One is guarded by a grunt squad
    dug in facing you; kill them all to unlock it. Opening a cache
    pauses and offers three titan parts; press 1, 2 or 3 to keep one, or X to leave it.
 3. **Your titan is your build.** Four slots: chassis (armor, speed, dashes), weapon (damage),
@@ -154,8 +274,10 @@ The movement and grunt test level is still at `scenes/test_level.tscn` (open it 
 | Enter | Back to the temple (after a run ends) |
 
 Run code lives in `scripts/run/`: `run_manager.gd` (the loop), `run_state.gd` (what a run
-carries), `zone_builder.gd` (zone generation), `forest_builder.gd` (zone 1 and the forest's
-edge arena), `forest_kit.gd` (forest props and the enemy outpost kit with their colliders),
+carries), `zone_builder.gd` (picks each zone's builder), `forest_builder.gd` (zone 1 and the forest's
+edge arena), `marsh_builder.gd` (zone 2), `boneyard_builder.gd` (zone 3), `laid_out.gd` (the
+pieces those two share), `forest_kit.gd` (forest props and the enemy outpost kit with their colliders),
+`zone_kit.gd` (zones 2 and 3's props and their colliders), `procgen/` (generated zones),
 `terrain.gd` (height-grid ground with matching collision), `titan_parts.gd` (part catalog and
 stats), `titan.gd`, `boss.gd`, and the cache, guard squad and beacon scripts. The titan is its own
 node holding the run's parts, so it can later travel with you as a walking base.
@@ -169,6 +291,88 @@ pallets, generator, camo net, hunting blind and culvert) are made in Blender by
 uses the hub's broadleaf trees, bushes, ferns, grass, rocks and hills. To look at the level,
 `xvfb-run -a godot --path . -s res://tools/forest/shots.gd -- /some/dir` saves screenshots of
 each section, plus `0-map.png`, a top-down map with the three routes.
+
+Zones 2 and 3's models (swamp cypress, cattails, lily pads, stilt huts, boardwalks, docks,
+the pipeline, pump house, storage tanks, the grounded barge and Eco's skiff; the dead titans
+lying, kneeling and in pieces, trench revetments, wire, shipping containers, the salvage
+gantry and shed, scrap heaps, and the precursor's columns, fallen obelisk and eye shrine) are
+made by `tools/zones/build_props.py` (`blender -b --python tools/zones/build_props.py`, writes
+`assets/models/marsh/` and `assets/models/boneyard/`); it reuses the forest script's helpers,
+and both zones reuse the forest's outpost kit. `xvfb-run -a godot --path . -s
+res://tools/zones/shots.gd -- /some/dir [2|3]` saves screenshots and route maps of them.
+
+## Generated zones
+
+`scripts/run/procgen/` builds a zone from a seed. `level_plan.gd` plans it as plain data,
+`zone_generator.gd` builds it, `biome.gd` dresses it, and `nav.gd` bakes its navmesh.
+- **Lanes.** The valley has 3 to 5 lanes running up it side by side, about 22 m apart, with
+  woods (or reeds, or wreckage) between them. **Loud**: the road up the middle, through the
+  yards, gates and bridges, where the squads are dug in. **Quiet**: a sunken gully with tall
+  grass on its banks (crouch in the bed and you're hidden). It goes under walls through
+  culverts and over chasms on a fallen log, a dead titan or an obelisk. **High**: a rock
+  ridge 4 m up that turns into a row of rooftops through the yards, a catwalk over the
+  walls, and stepping-stone pillars over the chasms. Crate steps climb onto each ridge from
+  the road side. A fourth and fifth lane add another quiet or high lane on the far side.
+- **Sections** cross every lane in turn: start, field (open wilds with a grunt patrol), picket,
+  wall (a breach on the road, a gate, culverts, catwalks, a watchtower), outpost and camp
+  (yards with buildings, a dug-in squad, a watchtower, tents and grass on the quiet side, a
+  sentry walking the yard, and one salvage cache each: one guarded by the squad, one on the
+  rooftops), resource (a titan wreck between two lanes with alloy to mine and two grunts
+  picking it over), ruins (a bombed-out hamlet: house shells along the road with their tall
+  walls to it, a sniper upstairs in a shell, a sentry in the street, wrecks and tank traps,
+  a water tower or silo to one side), chasm (the Pinewoods' bridge crossing on the road, so it stays inside
+  the movement limits) and the extraction beacon. There's always an outpost, a camp, a
+  wall and a chasm. The rest, their order, the lane count, the biome (forest, marsh or
+  boneyard, using the handmade zones' props) and the zone's name come from the seed. Zones
+  further into the run are longer and more heavily guarded.
+- **Set pieces.** On top of the handmade zones' props, generated zones have their own kit
+  (`set_pieces.gd`, models in `assets/models/procgen/`), mixed in by the seed so no two
+  zones are built the same. Buildings: bunker, two-storey blockhouse (stairs to the roof),
+  garage, warehouse, silo, water tower, scaffold, two bombed-out house shells, tower crane.
+  Movement: billboards to wallrun (6, 10 and 16 m), blast-wall lines, a kick slot (two
+  walls 3.4 m apart to wall-jump up between, a deck at the top), a leaning slab, grapple
+  masts (13 and 9 m) and a hook bracket. Props: jersey barriers, tank traps, tyres, cable
+  reels, burnt-out jeeps, fire barrels, concrete pipes, supply pods, warning signs and a
+  sandbag MG nest. Blue trim means run or kick off it; an orange block is a grapple hook.
+  Round two adds a cabin, quonset hut, radio hut (hook up its mast) and low blockhouse;
+  plywood, container and titan-hull walls (12 m) to wallrun; a corner kick (wallrun into a
+  corner, kick and double jump over onto a deck), a pillar ledge (hop a pillar onto a
+  block), a scaffold roost (grapple up onto a deck 7 m up), a hook pole planted behind a
+  wall, and a chasm's blast shield hung between lattice towers; and props: ammo crates,
+  comms dish, lamp post, tarp shelter, field table, plus the biome's own (lumber and
+  woodpiles in the forest; rowboats, net racks and buoys in the marsh; titan ribs, hull
+  plates and engine blocks in the Boneyard). Each zone draws its own mix (`biome.gd`
+  `kit()`): 7-9 props, three kinds of building, two kinds of wall, two climbs, a pier or
+  towers over the chasm, a hook bracket or pole on the wall. A supply crate waits on top of
+  every climb, roost and water tower.
+  Yards pick their barracks (hut, bunker, blockhouse, garage), centrepiece (the biome's own
+  or the warehouse) and landmark (fuel tank, silo, water tower, crane); a rooftop run is
+  huts, scaffolds or bunkers; a chasm's grapple is the crane pylon or a tower crane; walls
+  get a hook to grapple straight over. Open stretches get a wall to run beside the road, a
+  kick slot or scaffold up beside each ridge, a mast between the road and the next lane,
+  and slabs fallen against the gullies' banks. Each piece's colliders, hooks and tops come
+  from `prop_shapes.gd`, which `tools/procgen/build_props.py` writes with the models
+  (`blender -b --python tools/procgen/build_props.py`, or `python3` with the `bpy` module).
+  `xvfb-run -a godot --path . --rendering-driver opengl3 -s res://tools/procgen/kit_shots.gd
+  -- /some/dir forest` saves a picture of each piece and a sheet of them all.
+- **Pathing.** Each zone bakes a navmesh from its own colliders on a thread once it's
+  loaded. Grunts with a `patrol` (grunt.gd) walk their loop on it, pausing at each point to
+  look round. A patrol that loses sight of the pilot hunts toward where they were last seen
+  along it. Anyone else who needs to walk the zone can use `Nav.path()`.
+- **Loot.** Supply crates go on the lanes' verges, banks and ridge tops (never over a chasm),
+  and alloy nodes go round the wrecks first (`info["loot_spots"]`, `info["loot_counts"]`).
+- **Maps.** `zone_map.gd` draws a top-down map of a plan, or of a built zone with its grunts,
+  patrols, caches, loot, walls to run (blue) and grapple hooks (orange). `xvfb-run -a godot --path . --rendering-driver opengl3 -s
+  res://tools/procgen/maps.gd -- /some/dir 101 202 303` saves one per seed (`--plan` skips
+  building, `--lanes=N`, `--biome=marsh`). `godot --path . -s res://tools/procgen/shots.gd --
+  /some/dir 101` saves screenshots of one generated zone.
+- **Tests.** `godot --headless --path . -s res://tests/procgen_test.gd` plans 60 seeds and
+  builds six zones. It checks the crossings and rooftop gaps against the movement limits,
+  that grunts and caches stand on something, that the patrols can walk their loops on the
+  navmesh, that loot settles, that every grapple hook can be reached from a lane, and that a
+  long run reaches the uncharted zones. `tests/set_pieces_test.gd` loads every set piece and
+  has the real player controller kick up a kick slot, run a billboard, grapple a mast, climb
+  a corner kick and a pillar ledge, and grapple up onto a scaffold roost.
 
 ## Art: PS3 look (with the old PS2 look on F9)
 Everything is stylized in the spirit of Jak and Daxter and Shadow of the Colossus,
@@ -280,7 +484,8 @@ boots with knee plates, teal glowing trims).
   ```
   The first-person arm (`eco_fp_arm.glb`) still comes from the older code-sculpted Eco
   (`tools/eco/build_eco.py ... --fp`).
-- **Reference sheet renders**: `godot res://scenes/eco_showcase.tscn -- --shots=<folder> [--clean]`.
+- **Reference sheet renders**: `godot res://scenes/eco_showcase.tscn -- --shots=<folder> [--clean] [--suit=<tier>] [--weight=light|medium|heavy] [--only=front,back]`.
+  In the showcase, S cycles her suit upgrade tiers and W the suit weight.
 
 ## Grunts
 - 60 HP, headshots count above the shoulders. Visor glows red during a 0.4 s wind-up before each shot.
@@ -290,11 +495,11 @@ boots with knee plates, teal glowing trims).
 
 ## Stealth
 Grunts start **unaware** and have to notice you first.
-- **Vision**: a 60° forward cone (each side) out to their sight range (40 m in the test level, 35-45 m in run zones). Unaware grunts slowly sweep their gaze around their post. Behind them or out of range they see nothing.
+- **Vision**: a 50° forward cone (each side). Unaware grunts only notice you within 70% of their sight range (about 28 m in the test level, 25-32 m in run zones); once alerted they track you out to the full range (40 m, 35-45 m). Unaware grunts slowly sweep their gaze around their post. Behind them or out of range they see nothing.
 - **Cover** blocks sight. A crouched pilot behind a low wall is hidden; standing up shows your head.
-- **Tall grass** (the forest's hiding spots): crouch in it and grunts can't see you past 4 m; standing in it halves how fast they notice you. Dense foliage blocks sight like a wall.
-- **Detection meter**: fills while they can see you, fast up close (about half a second at 5 m), slowly far away (about 3 s near max range). Moving fast doubles it, crouching halves it, showing only part of yourself past cover cuts it, and the edge of their vision is slower. It drains again a couple of seconds after you break sight.
-- **Hearing**: footsteps carry with speed (a sprint about 7 m, a crouch walk about 1 m; no footsteps in the air). The suppressed pistol is still heard out to 20 m, and within about 7 m it alerts outright. Bumping into a grunt always gets noticed.
+- **Tall grass** (the forest's hiding spots): crouch in it and grunts can't see you past 3 m; standing in it cuts how fast they notice you to 30%. Dense foliage blocks sight like a wall.
+- **Detection meter**: fills while they can see you, fast up close (under a second at 5 m), slowly far away (6 s or more near the edge of their notice range). Moving fast doubles it, crouching cuts it to about a third, showing only part of yourself past cover cuts it to 40%, and the edge of their vision is much slower. It starts draining 1.5 s after you break sight.
+- **Hearing**: footsteps carry with speed (a sprint about 5 m, a crouch walk well under 1 m; no footsteps in the air). The suppressed pistol is still heard out to 20 m, and within about 7 m it alerts outright. Bumping into a grunt always gets noticed.
 - **Over each grunt**: a **?** that grows from yellow to orange as it notices you (half full, it turns to look), then a red **!** once alerted. Visible through cover.
 - **Around the crosshair**: an arc points at every grunt noticing you, including ones behind you, and fills toward red.
 - **Sneak attacks**: anything that hits a grunt that hasn't noticed you does double damage, so a pistol headshot on an unaware grunt kills outright.
@@ -325,6 +530,14 @@ through static. She only listens; she never talks back.
 - Left: **slide ramp**, walk up, turn around, crouch and slide down.
 - Behind: **grapple towers** with floating platforms.
 - Far right (about 60 m): **grunt arena** with six grunts, cover, and wallrun walls on both sides.
+
+## Movement feel
+Running on foot is tight: full sprint in about a tenth of a second, and letting go or switching
+direction stops you almost dead. Speed above a sprint (from a slide, wallrun or grapple) is kept
+for a moment after landing, then bleeds back to a run unless you slide. Hold or tap crouch in the
+air just before touching down to land straight into a slide that keeps your speed; landing from a
+big drop into a slide also turns part of the fall into forward speed. A slide started by a tap
+keeps going on its own until you jump, slow down or tap crouch again.
 
 ## Tuning
 Every number lives in `scripts/player.gd`, `scripts/weapon.gd` and `scripts/grunt.gd` as an exported variable. Open `scenes/player.tscn`,
@@ -363,6 +576,9 @@ select the Player node and tweak values in the Inspector, or change the defaults
   `godot --headless --path . -s res://tests/radio_test.gd`
 - `tests/movement_test.gd` headless smoke test:
   `godot --headless --path . -s res://tests/movement_test.gd`
+- `tests/ground_feel_test.gd` running feel (quick starts, stops, reversals and turns; landing
+  speed bleeds unless you slide; slide pressed just before landing; drop-into-slide boost):
+  `godot --headless --path . -s res://tests/ground_feel_test.gd`
 - `tests/combat_test.gd` headless combat smoke test:
   `godot --headless --path . -s res://tests/combat_test.gd`
 - `tests/stealth_test.gd` headless stealth test (vision cone, sight range, cover, detection meter,
@@ -372,6 +588,9 @@ select the Player node and tweak values in the Inspector, or change the defaults
 - `tests/armory_test.gd` headless workbench test (prices, upgrades, attachments, titan parts and
   refits, saving, the bench screens changing your gun, crates, alloy nodes and grunt drops):
   `godot --headless --path . -s res://tests/armory_test.gd`
+- `tests/suit_test.gd` Eco's suit upgrades (tiers bought in order, armour soaking hits and
+  coming back, each passive, the second wind, armour pieces per tier, the suit locker):
+  `godot --headless --path . -s res://tests/suit_test.gd`
 - `tools/hub/bench_shots.gd` screenshots of the benches, their screens, the guns and the loot
   (needs a renderer): `xvfb-run -a godot --path . -s res://tools/hub/bench_shots.gd -- out_dir`
 - `tests/run_loop_test.gd` headless run loop test (generator limits, a bot pilot clearing the

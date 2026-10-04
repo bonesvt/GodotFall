@@ -42,11 +42,17 @@ uniform sampler2D glow_tex : source_color, hint_default_black, filter_linear_mip
 uniform float glow_tex_energy = 1.6;
 uniform vec4 emission : source_color = vec4(0.0, 0.0, 0.0, 1.0);
 uniform float emission_energy = 0.0;
+// Suit upgrade armour edges: how brightly they glow gold once her trims turn gold.
+uniform float gold_edge = 0.0;
 
 // Per-object knobs shared with ps2_surface.gdshader (see ps2_model.gd).
-instance uniform float flash = 0.0;
-instance uniform float glow = 1.0;
-instance uniform vec4 paint : source_color = vec4(1.0);
+instance uniform float flash : instance_index(0) = 0.0;
+instance uniform float glow : instance_index(1) = 1.0;
+instance uniform vec4 paint : source_color, instance_index(2) = vec4(1.0);
+// Top suit tier (eco_model.gd suit_tier 5, Dad's colours): every glowing trim
+// turns gold and the armour edges light up.
+instance uniform float trim_gold : instance_index(3) = 0.0;
+const vec3 GOLD = vec3(1.0, 0.68, 0.2);
 
 varying float v_sheen_mask;
 varying float v_rim;
@@ -76,6 +82,9 @@ void fragment() {
 	SPECULAR = 0.0;
 	float fres = 1.0 - clamp(dot(NORMAL, VIEW), 0.0, 1.0);
 	vec3 emit = texture(glow_tex, UV).rgb * glow_tex_energy + emission.rgb * emission_energy;
+	if (trim_gold > 0.0) {
+		emit = mix(emit, GOLD * max(emit.r, max(emit.g, emit.b)), trim_gold) + GOLD * gold_edge * trim_gold;
+	}
 	EMISSION = emit * glow * paint.rgb + vec3(flash);
 	v_rim = smoothstep(0.72, 0.9, fres) * rim;
 #ifdef OVERLAY

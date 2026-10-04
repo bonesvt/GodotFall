@@ -20,6 +20,10 @@ const MATERIALS := {
 	"lava": preload("res://assets/materials/lava.tres"),
 	"temple_stone": preload("res://assets/materials/temple_stone.tres"),
 	"temple_carving": preload("res://assets/materials/temple_carving.tres"),
+	"timber": preload("res://assets/materials/timber.tres"),
+	"timber_carving": preload("res://assets/materials/timber_carving.tres"),
+	"alloy": preload("res://assets/materials/alloy.tres"),
+	"alloy_inlay": preload("res://assets/materials/alloy_inlay.tres"),
 	"moss": preload("res://assets/materials/moss.tres"),
 	"wood": preload("res://assets/materials/wood.tres"),
 	"grass": preload("res://assets/materials/grass.tres"),
@@ -29,6 +33,18 @@ const MATERIALS := {
 	"gunmetal": preload("res://assets/materials/gunmetal.tres"),
 	"fabric": preload("res://assets/materials/grunt_fabric.tres"),
 	"light": preload("res://assets/materials/light.tres"),
+	# The high tech city's and the militia bases' surfaces (tools/make_textures.py).
+	"asphalt": preload("res://assets/materials/asphalt.tres"),
+	"pavers": preload("res://assets/materials/pavers.tres"),
+	"facade": preload("res://assets/materials/facade.tres"),
+	"curtain": preload("res://assets/materials/curtain.tres"),
+	"corrugated": preload("res://assets/materials/corrugated.tres"),
+	"olive": preload("res://assets/materials/olive.tres"),
+	"hesco": preload("res://assets/materials/hesco.tres"),
+	"camo": preload("res://assets/materials/camo.tres"),
+	"tarmac": preload("res://assets/materials/tarmac.tres"),
+	## Glowing signs and strips, lit in their own colour (set_pieces.gd NEON).
+	"neon": preload("res://assets/materials/neon.tres"),
 }
 
 const MODELS := {

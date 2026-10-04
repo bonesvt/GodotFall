@@ -80,8 +80,11 @@ func _run() -> void:
 	garage.free()
 
 	# The paint shop bench in the hub.
+	# No tutorial cards in the shots, and none marked seen on your save.
+	preload("res://scripts/run/tutorial.gd").settings_path = "user://shots_settings.cfg"
 	var run_node = load("res://scenes/run.tscn").instantiate()
 	root.add_child(run_node)
+	run_node.tutorial.set_enabled(false)
 	await _frames(40)
 	var shop := Vector3(10, 0, 45)
 	var player: Node3D = run_node.player

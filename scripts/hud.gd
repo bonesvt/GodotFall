@@ -42,7 +42,7 @@ Q, E or right mouse  grapple (hold)
 Left mouse  shoot    R  reload    I  inspect
 Z or mouse thumb  knife (kills unaware grunts)
 T  respawn    G  reset grunt arena
-H  hide help    O  dialogue rating    Esc  free mouse"""
+H  hide help    O  dialogue rating    F1  tutorial hints    Esc  free mouse"""
 
 
 func _ready() -> void:
@@ -83,7 +83,7 @@ func _ready() -> void:
 	health_label.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_LEFT)
 	health_label.offset_left = 30
 	health_label.offset_top = -80
-	health_label.offset_right = 400
+	health_label.offset_right = 640
 
 	enemy_label = _label(22)
 	enemy_label.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
@@ -109,6 +109,7 @@ func _ready() -> void:
 			weapon.hit_confirmed.connect(_on_hit)
 			weapon.inspected.connect(func(line: String): flash_message(line, 3.0))
 		player.damaged.connect(_on_damaged)
+		player.second_winded.connect(func(): flash_message("SECOND WIND", 1.5))
 		radio = RadioChatter.new()
 		radio.name = "Radio"
 		radio.player = player
@@ -180,6 +181,8 @@ func _process(delta: float) -> void:
 
 	var hp_frac: float = player.health / player.max_health
 	health_label.text = "HP %d" % ceili(player.health)
+	if player.max_armor > 0.0:
+		health_label.text += "   ARMOUR %d" % ceili(player.armor)
 	health_label.add_theme_color_override("font_color", Color.WHITE.lerp(Color(1, 0.25, 0.2), 1.0 - hp_frac))
 	hurt_rect.color.a = (1.0 - hp_frac) * 0.3 + hurt_flash * 0.5
 
@@ -187,6 +190,9 @@ func _process(delta: float) -> void:
 		ammo_label.text = "RELOADING" if weapon.is_reloading() else "%d / %d" % [weapon.ammo, weapon.magazine_size]
 	if level != null:
 		enemy_label.text = "Grunts left: %d" % level.grunts_alive()
+	# no crosshair under the hub/town orbit camera: it isn't aiming, it's looking at her
+	var view := player.get_node_or_null("ViewCam")
+	crosshair.visible = view == null or not view.orbiting
 	crosshair.queue_redraw()
 
 

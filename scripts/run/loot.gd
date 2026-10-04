@@ -7,18 +7,19 @@ extends RefCounted
 ## she gets close, and the run carries them until it ends (run_manager.gd banks
 ## them: all of it on an extraction, half on a lost run).
 ##
-## scatter() places crates and nodes in a zone after it's built, on the forest's
-## routes (zone 1) or on the platforms (later zones), so level builders need no
-## changes. They settle onto the ground themselves on their first physics frame.
+## scatter() places crates and nodes in a zone after it's built, beside a
+## laid-out zone's routes or on a platform chain's platforms, so level builders
+## need no changes. They settle onto the ground themselves on their first physics frame.
 
 const LootArt := preload("res://scripts/run/loot_art.gd")
 const LootCrate := preload("res://scripts/run/loot_crate.gd")
 const ResourceNode := preload("res://scripts/run/resource_node.gd")
 const Pickup := preload("res://scripts/run/material_pickup.gd")
 
-## How many of each a zone gets: forest, then the platform zones.
-const CRATES := [7, 4, 5]
-const NODES := [3, 2, 2]
+## How many of each a zone gets: the Pinewoods, Blackwater, the Boneyard
+## (where the alloy nodes are its dead titans' wreckage), then platform zones.
+const CRATES := [7, 7, 8, 5]
+const NODES := [3, 3, 4, 2]
 ## Loot keeps this far from the spawn and from other loot (m).
 const SPAWN_CLEAR := 14.0
 const SPACING := 16.0
@@ -70,29 +71,54 @@ static func drop(parent: Node, pos: Vector3, materials: Dictionary, rng: RandomN
 
 
 ## Places supply crates and alloy nodes in a built zone. Adds "loot" (crates
-## and nodes) to info.
+## and nodes) to info. A zone can set info["first_loot"] ({"node": pos,
+## "crate": pos}) to put one of each at a fixed spot first (the forest does,
+## by the spawn, for the tutorial); they count towards the zone's share.
+## Generated zones (procgen/zone_generator.gd) set info["loot_counts"]
+## ({"node": n, "crate": n}) and info["loot_spots"] (the same keys, lists of
+## places tried before the routes: alloy by a titan wreck, say) and
+## info["loot_keep_out"] (Rect2s in x, z where route-side spots are skipped).
 static func scatter(root: Node3D, info: Dictionary, rng: RandomNumberGenerator, zone_index: int) -> void:
 	var spots := _candidates(info, rng)
 	var spawn: Vector3 = info["spawn"]
 	var taken: Array = []
 	info["loot"] = []
-	var want := [["node", NODES[mini(zone_index, NODES.size() - 1)]], ["crate", CRATES[mini(zone_index, CRATES.size() - 1)]]]
+	var first: Dictionary = info.get("first_loot", {})
+	var counts: Dictionary = info.get("loot_counts", {})
+	var preferred: Dictionary = info.get("loot_spots", {})
+	# Ground the zone says loot can't go (x, z rects: a generated zone's
+	# chasms and buildings); its own preferred spots are trusted.
+	var keep_out: Array = info.get("loot_keep_out", [])
+	var want := [["node", counts.get("node", NODES[mini(zone_index, NODES.size() - 1)])],
+			["crate", counts.get("crate", CRATES[mini(zone_index, CRATES.size() - 1)])]]
 	for entry in want:
 		var placed := 0
-		for spot in spots:
+		if first.has(entry[0]):
+			_place(root, info, rng, zone_index, entry[0], first[entry[0]])
+			taken.append(first[entry[0]])
+			placed += 1
+		var own: Array = preferred.get(entry[0], [])
+		for k in own.size() + spots.size():
 			if placed >= entry[1]:
 				break
+			var spot: Vector3 = own[k] if k < own.size() else spots[k - own.size()]
 			if spot.distance_to(spawn) < SPAWN_CLEAR or taken.any(func(t): return t.distance_to(spot) < SPACING):
+				continue
+			if k >= own.size() and keep_out.any(func(r): return (r as Rect2).has_point(Vector2(spot.x, spot.z))):
 				continue
 			taken.append(spot)
 			placed += 1
-			var node: Node3D = ResourceNode.new() if entry[0] == "node" else LootCrate.new()
-			node.loot = roll_node(rng, zone_index) if entry[0] == "node" else roll_crate(rng, zone_index)
-			node.kill_y = float(info.get("kill_y", float(info["floor_y"]) - 15.0))
-			root.add_child(node)
-			node.position = spot
-			node.rotation.y = rng.randf() * TAU
-			info["loot"].append(node)
+			_place(root, info, rng, zone_index, entry[0], spot)
+
+
+static func _place(root: Node3D, info: Dictionary, rng: RandomNumberGenerator, zone_index: int, kind: String, spot: Vector3) -> void:
+	var node: Node3D = ResourceNode.new() if kind == "node" else LootCrate.new()
+	node.loot = roll_node(rng, zone_index) if kind == "node" else roll_crate(rng, zone_index)
+	node.kill_y = float(info.get("kill_y", float(info["floor_y"]) - 15.0))
+	root.add_child(node)
+	node.position = spot
+	node.rotation.y = rng.randf() * TAU
+	info["loot"].append(node)
 
 
 ## Places to try, shuffled: beside the forest's routes, or on platforms.

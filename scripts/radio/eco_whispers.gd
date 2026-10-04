@@ -16,6 +16,7 @@ extends Node
 signal line_started(text: String, category: String)
 
 const Lines := preload("res://scripts/radio/eco_whisper_lines.gd")
+const Soft := preload("res://scripts/radio/eco_soft_lines.gd")
 const Caption := preload("res://scripts/radio/whisper_caption.gd")
 const Rating := preload("res://scripts/radio/content_rating.gd")
 
@@ -75,6 +76,11 @@ var bags := {}
 var last_entry := {}
 var history: Array = []  # {"category", "text"} for tests and debugging
 var always := false  # tests: skip the CHANCE rolls
+## How close she's grown to Mom, 0..1 (scripts/hub/family.gd softness(), set
+## at the start of each run): the higher, the more of her gentler lines
+## (eco_soft_lines.gd) she mixes in.
+var softness := 0.0
+var _last_soft := ""
 var _last_ammo := -1
 var _takedown_at := -10.0
 var _radio_exchange := ""
@@ -95,6 +101,7 @@ func _ready() -> void:
 		add_child(layer)
 		layer.add_child(caption)
 	voice = AudioStreamPlayer.new()
+	voice.bus = "Voices"
 	voice.volume_db = -14.0
 	add_child(voice)
 	if player != null:
@@ -263,6 +270,10 @@ func _pick(category: String, context := "") -> Dictionary:
 			plain.append(i)
 		elif keys.any(func(k): return _mentions(context, k)):
 			keyed.append(i)
+	if keyed.is_empty():
+		var soft := _soft(category)
+		if soft != "":
+			return {"text": soft, "index": -1}
 	var fits := keyed if not keyed.is_empty() else plain
 	if fits.is_empty():
 		return {}
@@ -280,8 +291,20 @@ func _pick(category: String, context := "") -> Dictionary:
 	var i: int = choices[0]
 	bag.erase(i)
 	last_entry[key] = i
-	var index := i if rating in ["M", "AO"] else -1
+	var index := i if rating == "M" else -1
 	return {"text": _text(entries[i]), "index": index}
+
+
+## One of her gentler lines, now and then as she softens; "" otherwise.
+## Never the same one twice in a row.
+func _soft(category: String) -> String:
+	var lines := Soft.fitting(category, softness)
+	if lines.is_empty() or rng.randf() >= softness * Soft.MIX:
+		return ""
+	if lines.size() > 1:
+		lines.erase(_last_soft)
+	_last_soft = lines[rng.randi() % lines.size()]
+	return _last_soft
 
 
 ## "goggles|old man > Line" -> ["goggles", "old man"]; plain lines have none.

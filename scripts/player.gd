@@ -7,6 +7,7 @@ extends CharacterBody3D
 enum State { GROUND, AIR, SLIDE, WALLRUN, GRAPPLE }
 
 const SFX := preload("res://scripts/sfx.gd")
+const Prefs := preload("res://scripts/game/prefs.gd")
 ## Metres between footsteps on the ground and when running along a wall.
 const STRIDE := 2.4
 const WALL_STRIDE := 1.9
@@ -14,17 +15,28 @@ const WALL_STRIDE := 1.9
 signal died
 signal respawned
 signal damaged(amount: float, from: Vector3)
+## The suit's second wind kept her up.
+signal second_winded
 
 @export_group("Ground")
 @export var run_speed := 7.0
 @export var sprint_speed := 10.5
 @export var crouch_speed := 3.5
-@export var ground_accel := 70.0
-@export var ground_decel := 50.0
+## Off duty (the hub and the town, away from the training grounds) Eco doesn't
+## run: she struts. Ground speed then, and with sprint held.
+@export var stroll_speed := 1.9
+@export var stroll_brisk_speed := 3.0
+## Running is snappy: you hit full speed and stop dead in a few frames.
+## Momentum is carried by sliding, wallrunning and the grapple, not by running.
+@export var ground_accel := 110.0
+@export var ground_decel := 90.0
+## How fast sideways or backwards drift is killed when you change direction.
+@export var ground_turn_decel := 95.0
 ## How fast you bleed speed above sprint speed while on the ground.
-@export var overspeed_decel := 14.0
-## Seconds after landing before ground friction applies, so slide-hops keep speed.
-@export var bhop_grace := 0.12
+@export var overspeed_decel := 40.0
+## Seconds after landing before carried speed above sprint speed bleeds off,
+## so slide-hops and late slide presses keep momentum.
+@export var bhop_grace := 0.15
 ## Sprint automatically when moving forward (hold Shift to sprint when off).
 @export var auto_sprint := true
 
@@ -49,6 +61,14 @@ signal damaged(amount: float, from: Vector3)
 @export var slide_end_speed := 3.5
 @export var slide_steer := 2.5
 @export var slide_max_speed := 26.0
+## Landing into a slide turns part of a big fall into forward speed.
+## Falls slower than slide_land_min_fall (a normal hop) add nothing.
+@export var slide_land_min_fall := 10.5
+@export var slide_land_boost := 0.35
+@export var slide_land_max_boost := 5.0
+## Seconds a crouch tap in the air is remembered, so pressing slide just
+## before you touch down still lands you in a slide.
+@export var slide_land_buffer := 0.25
 
 @export_group("Wallrun")
 @export var wallrun_min_speed := 4.0
@@ -82,7 +102,13 @@ signal damaged(amount: float, from: Vector3)
 ## Seconds without taking damage before health starts coming back.
 @export var regen_delay := 3.0
 @export var regen_rate := 30.0
+## Armour from Eco's suit upgrades (armory.gd SUIT_TIERS, set by apply_suit):
+## takes hits before health and comes back, after the same pause, once health is full.
+@export var max_armor := 0.0
+@export var armor_regen_rate := 25.0
 
+## Seconds she can't be hurt after a second wind.
+const SECOND_WIND_TIME := 1.5
 const STAND_HEIGHT := 1.8
 const CROUCH_HEIGHT := 1.0
 const STAND_EYE := 1.6
@@ -99,6 +125,10 @@ var coyote_timer := 0.0
 var jump_buffer_timer := 0.0
 var ground_time := 0.0
 var slide_boost_timer := 0.0
+var slide_buffer_timer := 0.0
+## A buffered landing slide keeps going while crouch is released, until you
+## jump, slow down, or press crouch again.
+var slide_latched := false
 var wallrun_timer := 0.0
 var wall_normal := Vector3.ZERO
 var last_wall_normal := Vector3.ZERO
@@ -109,6 +139,10 @@ var grapple_cooldown_timer := 0.0
 var crouching := false
 ## Ground speed multiplier (Eco runs lighter with only the knife out).
 var speed_mult := 1.0
+## Off duty: she walks at stroll_speed with a strut (eco_model.gd) instead of
+## running. The run manager sets it each tick in the hub and town, and clears
+## it on the training grounds and on runs.
+var strolling := false
 var cam_roll := 0.0
 var input_dir := Vector2.ZERO
 var wish_dir := Vector3.ZERO
@@ -116,8 +150,38 @@ var rope: Node3D
 var land_dip := 0.0
 var fall_speed := 0.0
 var health := 100.0
+var armor := 0.0
 var regen_timer := 0.0
+## Suit passives (apply_suit): how far loot flies to her (x the pickup's own
+## range), how fast grunts notice her (x their rate), and the second wind.
+var suit_tier := 0
+var suit_weight := "medium"
+## Weight bonuses: ground speed, how fast armour refills, and how much of each hit lands.
+var suit_speed := 1.0
+var damage_mult := 1.0
+var loot_magnet := 1.0
+var notice_mult := 1.0
+var second_wind := false
+## The second wind is ready (the run manager re-arms it each zone).
+var second_wind_ready := false
+## Seconds she can't be hurt (after a second wind).
+var untouchable_timer := 0.0
+## Movement values before the suit's passives scaled them.
+var _armor_regen_mult := 1.0
+var _base_wallrun_time := -1.0
+var _base_grapple_cooldown := -1.0
 var step_dist := 0.0
+## Set by the ViewCam child (scripts/view_camera.gd) while in third person.
+var third_person := false
+## Set by the ViewCam's orbit camera (hub and town): the keys walk her relative
+## to this yaw (the camera's) instead of her facing, and she turns to face
+## where she walks. NAN when off.
+var move_yaw := NAN
+## How quickly she turns to face where she walks under the orbit camera.
+var move_turn_rate := 10.0
+## Eco is sitting or lying down somewhere (the run manager's rest spots): she
+## doesn't move, but you can still look around her.
+var resting := false
 
 
 static func ensure_input_actions() -> void:
@@ -127,7 +191,11 @@ static func ensure_input_actions() -> void:
 		"jump": [KEY_SPACE], "crouch": [KEY_C, KEY_CTRL],
 		"sprint": [KEY_SHIFT], "grapple": [KEY_Q, KEY_E], "reset": [KEY_T],
 		"reload": [KEY_R], "reset_arena": [KEY_G], "inspect": [KEY_I], "melee": [KEY_Z], "fire": [],
+		"toggle_view": [KEY_F5],
 	}
+	var buttons := {"grapple": [MOUSE_BUTTON_RIGHT], "fire": [MOUSE_BUTTON_LEFT], "melee": [MOUSE_BUTTON_XBUTTON1]}
+	# Only actions that don't exist yet get their defaults, so keys rebound in
+	# the settings (prefs.gd) stay rebound.
 	for action in keys:
 		if InputMap.has_action(action):
 			continue
@@ -136,15 +204,10 @@ static func ensure_input_actions() -> void:
 			var ev := InputEventKey.new()
 			ev.physical_keycode = key
 			InputMap.action_add_event(action, ev)
-	var rmb := InputEventMouseButton.new()
-	rmb.button_index = MOUSE_BUTTON_RIGHT
-	InputMap.action_add_event("grapple", rmb)
-	var lmb := InputEventMouseButton.new()
-	lmb.button_index = MOUSE_BUTTON_LEFT
-	InputMap.action_add_event("fire", lmb)
-	var thumb := InputEventMouseButton.new()
-	thumb.button_index = MOUSE_BUTTON_XBUTTON1
-	InputMap.action_add_event("melee", thumb)
+		for button in buttons.get(action, []):
+			var mb := InputEventMouseButton.new()
+			mb.button_index = button
+			InputMap.action_add_event(action, mb)
 
 
 func _ready() -> void:
@@ -160,8 +223,8 @@ func _ready() -> void:
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
-		rotate_y(-event.relative.x * mouse_sensitivity)
-		head.rotation.x = clampf(head.rotation.x - event.relative.y * mouse_sensitivity, -1.55, 1.55)
+		rotate_y(-Prefs.look_x(event.relative.x) * mouse_sensitivity)
+		head.rotation.x = clampf(head.rotation.x - Prefs.look_y(event.relative.y) * mouse_sensitivity, -1.55, 1.55)
 	elif event.is_action_pressed("ui_cancel"):
 		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	elif event is InputEventMouseButton and event.pressed and Input.mouse_mode != Input.MOUSE_MODE_CAPTURED:
@@ -174,14 +237,30 @@ func _physics_process(delta: float) -> void:
 	wall_coyote_timer -= delta
 	grapple_cooldown_timer -= delta
 	jump_buffer_timer -= delta
+	slide_buffer_timer -= delta
 	regen_timer -= delta
+	untouchable_timer -= delta
 	if regen_timer <= 0.0 and health < max_health:
 		health = minf(health + regen_rate * delta, max_health)
+	elif regen_timer <= 0.0 and armor < max_armor:
+		armor = minf(armor + armor_regen_rate * _armor_regen_mult * delta, max_armor)
+	if resting:
+		velocity = Vector3.ZERO
+		input_dir = Vector2.ZERO
+		wish_dir = Vector3.ZERO
+		_update_camera(delta)
+		return
 
 	input_dir = Input.get_vector("move_left", "move_right", "move_forward", "move_back")
 	wish_dir = (transform.basis * Vector3(input_dir.x, 0.0, input_dir.y)).normalized()
+	if not is_nan(move_yaw):
+		wish_dir = (Basis(Vector3.UP, move_yaw) * Vector3(input_dir.x, 0.0, input_dir.y)).normalized()
+		if wish_dir != Vector3.ZERO:
+			rotation.y = lerp_angle(rotation.y, atan2(-wish_dir.x, -wish_dir.z), 1.0 - exp(-move_turn_rate * delta))
 	if Input.is_action_just_pressed("jump"):
 		jump_buffer_timer = jump_buffer
+	if Input.is_action_just_pressed("crouch") and state != State.GROUND and state != State.SLIDE:
+		slide_buffer_timer = slide_land_buffer
 	if Input.is_action_just_pressed("grapple"):
 		_try_grapple()
 	if Input.is_action_just_pressed("reset") or global_position.y < -40.0:
@@ -219,17 +298,12 @@ func _ground_state(delta: float) -> void:
 	_set_crouch(want_crouch)
 
 	var sprinting := (auto_sprint or Input.is_action_pressed("sprint")) and input_dir.y < -0.3
-	var target := (crouch_speed if crouching else (sprint_speed if sprinting else run_speed)) * speed_mult
-	var speed := hvel.length()
-	if wish_dir != Vector3.ZERO:
-		if speed > target:
-			# Keep carried momentum briefly after landing, then bleed it off.
-			if ground_time > bhop_grace:
-				hvel = hvel.move_toward(wish_dir * target, overspeed_decel * delta)
-		else:
-			hvel = hvel.move_toward(wish_dir * target, ground_accel * delta)
-	elif ground_time > bhop_grace:
-		hvel = hvel.move_toward(Vector3.ZERO, ground_decel * delta)
+	var target := (crouch_speed if crouching else (sprint_speed if sprinting else run_speed)) * speed_mult * suit_speed
+	if strolling:
+		# auto sprint doesn't apply; under the orbit camera any direction counts
+		var brisk := Input.is_action_pressed("sprint") and (input_dir.y < -0.3 or (not is_nan(move_yaw) and input_dir != Vector2.ZERO))
+		target = minf(crouch_speed, stroll_speed) if crouching else (stroll_brisk_speed if brisk else stroll_speed)
+	hvel = _ground_move(hvel, target, delta)
 
 	velocity.x = hvel.x
 	velocity.z = hvel.z
@@ -240,6 +314,31 @@ func _ground_state(delta: float) -> void:
 	move_and_slide()
 	if not is_on_floor() and state == State.GROUND:
 		state = State.AIR
+
+
+## Responsive running: the part of your velocity along the keys you hold
+## ramps to target fast, and drift in any other direction is braked hard,
+## so turns and stops are crisp instead of skating. Speed above target
+## (from a slide, wallrun or grapple) is kept for bhop_grace after landing,
+## then bled off at overspeed_decel.
+func _ground_move(hvel: Vector3, target: float, delta: float) -> Vector3:
+	var speed := hvel.length()
+	if speed > target and ground_time <= bhop_grace:
+		return hvel
+	if wish_dir == Vector3.ZERO:
+		var brake := ground_decel if speed <= target else maxf(overspeed_decel, ground_decel)
+		return hvel.move_toward(Vector3.ZERO, brake * delta)
+	var along := hvel.dot(wish_dir)
+	var drift := hvel - wish_dir * along
+	if along > target:
+		along = move_toward(along, target, overspeed_decel * delta)
+	elif along < 0.0:
+		# Reversing: brake the old direction and push the new one together.
+		along = move_toward(along, target, (ground_accel + ground_decel) * delta)
+	else:
+		along = move_toward(along, target, ground_accel * delta)
+	drift = drift.move_toward(Vector3.ZERO, ground_turn_decel * delta)
+	return wish_dir * along + drift
 
 
 func _air_state(delta: float) -> void:
@@ -292,9 +391,11 @@ func _slide_state(delta: float) -> void:
 	if not is_on_floor():
 		state = State.AIR
 		coyote_timer = coyote_time
-	elif not Input.is_action_pressed("crouch"):
+	elif not (Input.is_action_pressed("crouch") or slide_latched):
 		state = State.GROUND
 		_set_crouch(false)
+	elif slide_latched and Input.is_action_just_pressed("crouch"):
+		state = State.GROUND  # tap again to cancel a buffered slide
 	elif Vector3(velocity.x, 0.0, velocity.z).length() < slide_end_speed:
 		state = State.GROUND
 
@@ -411,17 +512,29 @@ func _land() -> void:
 	step_dist = STRIDE * 0.5
 	# Camera dips on hard landings so falls have weight.
 	land_dip = minf(maxf(fall_speed - 4.0, 0.0) * land_dip_per_speed, land_dip_max)
-	fall_speed = 0.0
 	air_jumps_left = air_jumps
-	var hspeed := Vector3(velocity.x, 0.0, velocity.z).length()
-	if Input.is_action_pressed("crouch") and hspeed >= slide_min_speed:
-		_start_slide()
-	else:
-		state = State.GROUND
+	var held := Input.is_action_pressed("crouch")
+	var buffered := slide_buffer_timer > 0.0
+	slide_buffer_timer = 0.0
+	if held or buffered:
+		var hvel := Vector3(velocity.x, 0.0, velocity.z)
+		var bonus := clampf((fall_speed - slide_land_min_fall) * slide_land_boost, 0.0, slide_land_max_boost)
+		var dir := hvel.normalized() if hvel.length() > 0.5 else wish_dir
+		if hvel.length() + bonus >= slide_min_speed and dir != Vector3.ZERO:
+			hvel = dir * (hvel.length() + bonus)
+			velocity.x = hvel.x
+			velocity.z = hvel.z
+			fall_speed = 0.0
+			_start_slide()
+			slide_latched = not held
+			return
+	fall_speed = 0.0
+	state = State.GROUND
 
 
 func _start_slide() -> void:
 	state = State.SLIDE
+	slide_latched = false
 	_set_crouch(true)
 	var hvel := Vector3(velocity.x, 0.0, velocity.z)
 	if slide_boost_timer <= 0.0 and hvel.length() > 0.1:
@@ -492,20 +605,55 @@ func respawn() -> void:
 	state = State.AIR
 	grapple_cooldown_timer = 0.0
 	health = max_health
+	armor = max_armor
 	regen_timer = 0.0
+	untouchable_timer = 0.0
 	_set_crouch(false)
 	respawned.emit()
 
 
 func take_damage(amount: float, from := Vector3.ZERO) -> void:
-	if health <= 0.0:
+	if health <= 0.0 or untouchable_timer > 0.0:
 		return
-	health -= amount
+	amount *= damage_mult
+	var soaked := minf(armor, amount)
+	armor -= soaked
+	health -= amount - soaked
 	regen_timer = regen_delay
 	damaged.emit(amount, from)
-	if health <= 0.0:
+	if health <= 0.0 and second_wind_ready:
+		# Dad's Colours: once per zone she stays up on 1 HP and can't be touched for a moment
+		second_wind_ready = false
+		health = 1.0
+		untouchable_timer = SECOND_WIND_TIME
+		second_winded.emit()
+	elif health <= 0.0:
 		health = 0.0
 		died.emit()
+
+
+## Puts on Eco's suit upgrade (armory.gd suit_profile()): armour and passives.
+func apply_suit(profile: Dictionary) -> void:
+	if _base_wallrun_time < 0.0:
+		_base_wallrun_time = wallrun_max_time
+		_base_grapple_cooldown = grapple_cooldown
+	suit_tier = profile.get("tier", 0)
+	suit_weight = profile.get("weight", "medium")
+	suit_speed = profile.get("speed_mult", 1.0)
+	damage_mult = profile.get("damage_mult", 1.0)
+	_armor_regen_mult = profile.get("armor_regen_mult", 1.0)
+	max_armor = profile.get("max_armor", 0.0)
+	armor = max_armor
+	regen_delay = profile.get("regen_delay", 3.0)
+	loot_magnet = profile.get("loot_magnet", 1.0)
+	notice_mult = profile.get("notice_mult", 1.0)
+	wallrun_max_time = _base_wallrun_time * profile.get("wallrun_time_mult", 1.0)
+	grapple_cooldown = _base_grapple_cooldown * profile.get("grapple_cooldown_mult", 1.0)
+	second_wind = profile.get("second_wind", false)
+	second_wind_ready = second_wind
+	var body := get_node_or_null("EcoBody")
+	if body != null and body.has_method("set_suit"):
+		body.set_suit(suit_tier, suit_weight)
 
 
 # --- Crouch, camera, rope -----------------------------------------------------
@@ -533,7 +681,7 @@ func _update_camera(delta: float) -> void:
 	camera.rotation.z = cam_roll
 
 	var t := clampf((horizontal_speed() - run_speed) / (22.0 - run_speed), 0.0, 1.0)
-	camera.fov = lerpf(camera.fov, base_fov + speed_fov_bonus * t, 1.0 - exp(-6.0 * delta))
+	camera.fov = lerpf(camera.fov, base_fov + Prefs.fov_offset() + speed_fov_bonus * t, 1.0 - exp(-6.0 * delta))
 
 
 func _build_rope() -> void:
@@ -561,6 +709,8 @@ func _update_rope() -> void:
 	if not rope.visible:
 		return
 	var from := camera.global_position + camera.global_basis * Vector3(0.3, -0.3, -0.4)
+	if third_person and has_node("ViewCam"):
+		from = $ViewCam.muzzle_position()
 	var dir := grapple_point - from
 	var length := dir.length()
 	if length < 0.01:

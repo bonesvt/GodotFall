@@ -1,0 +1,514 @@
+# Ophelia. Twenties, emo. She grew up in Solace, same town as Eco, and nobody
+# ever noticed her: not the town, not her own family, not even when the
+# militia took her. Her mind always drifted somewhere dark, and her looks went
+# with it. She never let anyone in and brushed everyone off. Eco pulled her out
+# of a militia cage, and now, very slowly, she lets Eco see what she's into:
+# dressing up and doing her makeup emo, dark songs and dark films, smoking in
+# the dark, reading (more than gaming). When she does go out, it's the arcade
+# or the ice cream place. Flat, dry, quietly funny.
+#
+# Format: see mom.txt. Speakers are ophelia and eco. Words in brackets after a
+# speaker are Ophelia's mood from that line on (scripts/hub/hub_npc.gd): smile,
+# joy, sad, angry, surprised, closed, plain; blush, fluster; lookaway, down,
+# tilt, nod, shake; shy; kiss (the screen fades through black).
+
+[intro]
+ophelia (plain): Oh. It's you.
+eco: Wow. Lovely to see you too.
+ophelia: You pulled me out of the cage. I'm supposed to say thanks, I think.
+eco: That's usually how it goes, yeah.
+ophelia (tilt): You're from Solace. Lantern Row. Your dad fixed titans.
+eco: Wait. How do you know that?
+ophelia (lookaway): I lived three streets over my whole life. It's fine. Nobody remembers me.
+
+[won]
+ophelia: You came back. Huh.
+eco: You sound disappointed.
+ophelia (plain): I had a bet with myself. I lost.
+eco: What did you bet?
+ophelia (smile, lookaway): Doesn't matter. I never pay up to myself anyway.
+
+[lost]
+ophelia (sad): You look like I feel.
+eco: Thanks, I hate it.
+ophelia: Stop expecting things and nothing can let you down. That's the whole trick.
+eco: That's the most depressing pep talk I've ever heard.
+ophelia (smile): You're welcome. There's more where that came from.
+
+[any]
+eco: Do you ever turn a light on in here?
+ophelia (plain): Why would I. The dark doesn't look at you.
+eco: I'm looking at you right now.
+ophelia (lookaway): Yeah. I noticed. It's weird.
+
+[any]
+ophelia (down): The militia gave me a number in the cage. Forty-one.
+eco: You're not a number.
+ophelia: I know. Numbers get counted.
+eco: Ophelia.
+ophelia (plain): It's a joke. Laugh. That's how jokes work.
+
+[any]
+ophelia: Your mom keeps bringing me soup.
+eco: She does that. Eat it or she'll bring more.
+ophelia (lookaway): I ate it.
+eco: Yeah?
+ophelia: Don't make it a thing. It was good soup. Nobody's ever brought me soup.
+
+[any]
+eco: Your mom and dad still live in Solace, right? I could get word to them.
+ophelia (plain): They didn't notice I was gone. I don't need them to notice I'm back.
+eco: That's messed up.
+ophelia (down): That's Solace. You'd know.
+
+[any]
+ophelia: The old man talks in his sleep. Names. Lots of names.
+eco: Biggie? Whose names?
+ophelia: Soldiers, I think. He says sorry to all of them.
+eco: Does he say my dad's?
+ophelia (sad): I didn't listen that hard. I'm not a monster. Just awake.
+
+[any]
+eco: Mom says you're smoking in the temple again.
+ophelia (plain): I'm smoking in my room. My room happens to be in a temple.
+eco: The idol's going to get lung cancer.
+ophelia (smile): Good. Then it'll finally know how the rest of us feel.
+
+[any]
+eco: You could help, you know. I could teach you to strip a smart pistol.
+ophelia (shake): I don't touch guns.
+eco: So you never end up in a cage again.
+ophelia (down): Show me tomorrow. Maybe. If I'm up.
+
+# --- Romance (scripts/hub/romance.gd) ---------------------------------------
+# She's the first one Eco can fall for. Affection grows a little every hub
+# stay; the [heart N <spot>] scenes come at N affection, once each, with her
+# in that spot's pose (scripts/hub/npc_idles.gd), and in them she
+# lets Eco in a little at a time: her books, her makeup, her music and films
+# and the dark, the town that never saw her, and the only two places she goes.
+# In a choice, the number is how much she liked Eco's answer; "> " lines are
+# her answer to it. The [heart 85 shy] answer decides it: together, friends, or
+# ask again later.
+
+[romance]
+likes: book, eyeliner, black_lipstick, makeup, cigarettes, tape, records, horror_movie, ice_cream, arcade_tokens, candles
+dislikes: flowers, perfume, bright_clothes, gun_parts
+date_from: 70
+flirt_from: 60
+
+# From 60 affection (flirt_from) most everyday talks are these: they flirt,
+# constantly, and neither will admit it first. Together, they mix in with the
+# couple talks.
+[flirt]
+ophelia (smile, tilt): You've got grease on your cheek.
+eco: Where?
+ophelia (blush, smile): Come here. ...No. Closer. You're hopeless.
+eco: You could've just told me which cheek.
+ophelia (smile, lookaway): I could have.
+
+[flirt]
+eco: You're wearing the black lipstick again.
+ophelia (plain): I wear it every day.
+eco: Yeah, well. Today it's working.
+ophelia (fluster, lookaway): Shut up. Go fix a titan or something.
+eco: Made you blush. That's one point to me.
+
+[flirt]
+ophelia (smile): You came back without a scratch. I'm almost disappointed.
+eco: You wanted me hurt?
+ophelia (blush, down): I wanted an excuse to patch you up. I've been reading about stitches.
+eco: That is the creepiest flirting I've ever heard. Keep going.
+
+[flirt]
+eco: Can I borrow a book? Something with kissing in it.
+ophelia (surprised, blush): Why would you want kissing.
+eco: Research.
+ophelia (fluster, smile): Second shelf. The one with the bent spine. I've read that part a lot. Don't ask.
+
+[flirt]
+ophelia (closed): Lie here a minute. In the dark. You're too loud in the light.
+eco: I'm not loud.
+ophelia (smile, closed): You're loud all the time. It's the only noise I like.
+eco: Was that a compliment? From you?
+ophelia (blush, lookaway): Don't get used to it.
+
+[flirt]
+eco: Your hair's in your face again.
+ophelia (plain): It's always in my face. That's the point.
+eco: Hold still.
+ophelia (fluster, surprised): You just... okay. Okay. Your hands are warm.
+eco: Mechanic's hands. They're always warm. You're welcome.
+
+[flirt]
+ophelia (smile, tilt): You smell like engine oil and gunpowder.
+eco: Is that a complaint?
+ophelia (blush, smile): It's an observation. A good one. Stand closer so I can observe it.
+
+[flirt]
+eco: I'm stealing one of your smokes.
+ophelia (smile): Take it from my mouth, then. That's the only one I've got lit.
+eco: ...Ophelia.
+ophelia (fluster, lookaway): I was joking. Mostly. Partly.
+
+[flirt]
+ophelia (shy): I did my eyeliner for twenty-five minutes today.
+eco: For who?
+ophelia (blush, smile): Nobody. Somebody. You walked in, didn't you.
+choice +3: eco: Worth every minute. I'd let you take an hour.
+> ophelia (fluster, closed): You have to stop saying things like that. I mean it. Don't stop.
+choice +1: eco: Did you get it even? Turn your head. ...Nope, left one's wonky.
+> ophelia (angry, smile): It is not. Come back here and say that again.
+
+[flirt]
+eco: Glowbox has a new cabinet. Two players.
+ophelia (tilt): Is that an invitation?
+eco: It's a threat. I'm going to destroy you.
+ophelia (smile, nod): Loser buys the black sesame. And holds hands on the walk home.
+eco: That's not how bets work.
+ophelia (blush, smile): It's how mine work.
+
+[heart 10 read]
+ophelia (plain): Do you mind. I'm on the good part.
+eco: You're reading? In the pitch dark?
+ophelia: There's a candle. And a cigarette. That's two lights.
+eco: What's it about?
+ophelia (down, blush): A girl who lives in a lighthouse and nobody comes. It's a love story. Sort of. Everybody dies.
+choice +6: eco: Read me the good part, then. I'll be quiet. Probably.
+> ophelia (surprised): You actually want to hear it?
+> ophelia (smile, lookaway): Fine. Sit on the floor. The bed's mine.
+choice +2: eco: Wouldn't you rather game? I could find you a handheld.
+> ophelia (tilt): I game sometimes. Books don't run out of batteries in a cage.
+choice -4: eco: Everybody dies? Sounds like a real page-turner.
+> ophelia (angry, lookaway): Right. Forget I said anything. I always do.
+ophelia (plain): You're the first person who's asked what I'm reading. Don't let it go to your head.
+
+[heart 25 mirror]
+ophelia (plain): Stop hovering. You'll make me smudge.
+eco: How long does that eyeliner take you, anyway?
+ophelia: Twenty minutes. Thirty if my hands shake. I did it in the cage with soot and spit.
+eco: In the cage? Who were you doing it for?
+ophelia (down): Me. I dress like this so the outside matches the inside. At least then it's honest.
+ophelia (blush, lookaway): I could do yours. If you want. You'd look less like a wrench.
+choice +8: eco: Go on, then. Make me look dangerous.
+> ophelia (blush, smile): Close your eyes. And stop smiling, it's crooked.
+> ophelia (smile, tilt): There. Now you look like you'd bite.
+choice +3: eco: Fine, but if it runs, I'm telling everyone you did it.
+> ophelia (smile): Nobody would believe you. Nobody believes I exist.
+choice -4: eco: Hard pass. Makeup and engine grease don't mix.
+> ophelia (plain, shake): Sure. Whatever. It was a dumb idea.
+
+[heart 45 sit]
+ophelia (closed): Shh. Don't turn the lantern on. Just sit.
+eco: Why are we sitting on your floor in the dark?
+ophelia: Best spot in the temple. You can hear the rain on the roof and nobody can see you.
+ophelia (plain): Here. One ear. It's my favourite tape. Everyone in the song is already dead.
+eco: Cheery.
+ophelia (smile): And tomorrow there's a film. The one where the house eats the family. I've seen it eleven times.
+choice +7: eco: Pass me the other ear. And a smoke. I'm staying for the film.
+> ophelia (surprised, blush): You're staying?
+> ophelia (blush, lookaway): Okay. Okay. Don't hog the blanket.
+choice +3: eco: Eleven times? You know how it ends, gloom girl.
+> ophelia (smile): That's the point. It's the only thing in my life that ends the way I expect.
+choice -5: eco: Can we not do the death music tonight? I'm wiped.
+> ophelia (sad, down): Yeah. Sure. I'll turn it off.
+ophelia (plain): I've never let anyone sit here with me. Just so you know.
+
+[heart 55 sit]
+ophelia (down): Do you know how long I was in that cage before you came?
+eco: A few weeks?
+ophelia: Four months. They took me off the road outside the arcade. In daylight.
+ophelia (sad): Nobody looked for me. My mom told the neighbours I'd moved away. She didn't know. She guessed.
+ophelia (sad, lookaway): Nobody in Solace ever saw me. Not school. Not home. I was furniture.
+choice +9: eco: I see you. I'm looking right at you, and I'm not going anywhere.
+> ophelia (fluster, closed): You can't just say things like that.
+> eco: I just did. Get used to it.
+choice +4: eco: Solace is a dump full of people who don't look up. Their loss.
+> ophelia (smile, nod): Yeah. Their loss. I'll put that on a shirt.
+choice -6: eco: Honestly? I didn't notice you either, back then.
+> ophelia (sad, down): I know. I know you didn't. That's why it hurts that it's you.
+ophelia (plain): Anyway. That's the story. It's a bad story. Thanks for listening to it.
+
+[heart 70 shy]
+ophelia (blush, down): So. I don't go out. Ever. Except two places.
+eco: Let me guess. A graveyard and another graveyard.
+ophelia (angry): Glowbox. The arcade. And Scoops, the ice cream kiosk out front. Shut up.
+ophelia (blush, lookaway): I was going to ask if you'd come. With me. Sometime. It's fine if not.
+choice +8: eco: Only if you let me beat you at something. And you're buying the ice cream.
+> ophelia (smile, tilt): You won't beat me. I've had twenty-two years of nobody to play with.
+> ophelia (blush, smile): Black sesame. Two scoops. It's the only flavour that matches my soul. Remember it.
+choice +4: eco: Is this a date? Ophelia. Is this a date?
+> ophelia (fluster, lookaway): It's ice cream. Don't make it weird.
+choice -5: eco: Can't. I've got titan parts to sort out. Maybe some other time.
+> ophelia (sad, nod): Right. Some other time. Sure.
+ophelia (plain): We'd go at night. When it's dark. Obviously.
+
+[heart 85 shy]
+ophelia (blush, down): I need to say something, and you can't be a brat about it.
+eco: I make zero promises. Go.
+ophelia (blush, lookaway): When you're out there, I don't sleep. I sit by the map table with a book I'm not reading and count the hours.
+ophelia (fluster, down): For twenty-two years nobody saw me. Then you did. And now I think I like you. Like, like you. It's very inconvenient.
+choice +10 !together: eco (kiss): Shut up. Come here.
+> ophelia (fluster, surprised): Oh.
+> eco: Yeah. Oh. Took you long enough, gloom girl.
+> ophelia (fluster, joy, tilt): You got eyeliner on your face. Do that again.
+choice +2 !later: eco: Ask me again when you can say it without making that face.
+> ophelia (shy): Fine. I will. Brat.
+choice !friends: eco: Ophelia, you're my best friend. I don't want to wreck that.
+> ophelia (sad, nod): Right. No. That's good. That's fine. Friends.
+> ophelia (sad, lookaway): Forget I said anything. I'm going to go lie face down in the dark for a while.
+
+[together]
+ophelia (smile, tilt): You're staring.
+eco: I'm admiring. Totally different. Staring is creepy.
+ophelia (blush, smile): You were staring at my mouth.
+eco: It's the black lipstick. It's distracting.
+ophelia (fluster, joy): Then come here and get it all over you.
+
+[together]
+eco: Mom asked if we're being safe. With the titans. I think.
+ophelia (blush, lookaway): She was not asking about the titans.
+eco: I know she wasn't asking about the titans, Ophelia.
+
+[together]
+ophelia (plain): Biggie called me your lady friend.
+eco: Ugh. What did you say?
+ophelia (smile, nod): I said I'm her girlfriend, old man, keep up. He spilled his tea.
+eco: Oh my god, I love you.
+ophelia (fluster, closed): Say that again. Slower. Nobody's ever said that to me.
+
+[together]
+ophelia (sad): Come back in one piece. I mean it.
+eco: I always come back.
+ophelia (sad, down): Not always in one piece. I've counted the stitches.
+eco (blush, smile): You count my stitches? That's so creepy. Never stop.
+
+[together]
+ophelia (smile, closed): Lie down. I'm reading to you tonight. It's the lighthouse one.
+eco: Doesn't everybody die in that one?
+ophelia (smile, tilt): Not this time. I'm changing the ending. She gets a girlfriend with grease on her hands.
+
+[together]
+ophelia (shy): I don't have anything to say. I just wanted you in here, in the dark.
+choice +2: eco: Then shove over and share the blanket.
+> ophelia (smile, closed): Your feet are still freezing.
+choice +1: eco: Needy. I like it.
+> ophelia (blush, smile, lookaway): Don't get used to it. Actually, do.
+
+# Date spots in Solace (scripts/hub/town.gd shop kinds): Glowbox Arcade, Scoops.
+[date arcade]
+ophelia (smile): Third cabinet from the back. Nobody ever takes it. Nobody ever saw me play it.
+eco: Your name's on every high score. O-P-H.
+ophelia (blush, smile, lookaway): Somebody noticed. Took them twenty-two years. Insert a token, Eco.
+
+[date ice_cream]
+ophelia (blush, down): Black sesame. Two scoops. You remembered.
+eco: You told me to remember it. Very threateningly.
+ophelia (smile, tilt): This is a date. I'm on a date. In public. With the lights on.
+
+[date any]
+ophelia (blush, down): So this is a date.
+eco: This is a date. You're allowed to smile on dates, you know.
+ophelia (smile, tilt): I'm smiling on the inside. It's very loud in there.
+
+[gift book]
+ophelia (surprised, blush): A book? For me? Nobody's ever... Okay. I'm reading it tonight. Go away.
+
+[gift cigarettes]
+ophelia (smile, nod): The good ones. Your mom's going to kill you. Thank you.
+
+[gift like]
+ophelia (fluster, lookaway): You remembered. Okay. Okay, that's actually nice. Don't look at me.
+
+[gift dislike]
+ophelia (angry): Wow. I'll put it with all the other things I didn't ask for.
+
+[gift any]
+ophelia (smile, nod): Huh. Thanks. I'll find somewhere dark to put it.
+
+# What she's up to when Eco walks in (her idle spot, scripts/hub/npc_idles.gd).
+# The first talk of a hub stay is about it: [spot <name>] before she's
+# flirting, [spot <name> flirt] after.
+
+[spot yoga]
+eco: Are you... doing yoga?
+ophelia (plain): No. I'm summoning something. Slowly. With my hamstrings.
+eco: Since when do you stretch?
+ophelia (smile, lookaway): Since a cage that was too small to stand up in. My back still remembers it.
+eco: ...Want company sometime?
+ophelia (tilt): You'd have to be quiet. You can't be quiet.
+
+[spot yoga]
+eco: That looks like it hurts.
+ophelia (closed): It does. That's how you know it's working.
+eco: That's the most you thing anyone's ever said.
+ophelia (smile): Hold still and watch, then. Maybe you'll learn to bend.
+
+[spot yoga flirt]
+eco: Why are you doing yoga?
+ophelia (smile, tilt): Why are you watching me do yoga?
+eco: I asked first.
+ophelia (blush, smile): Flexibility, Eco. You never know when you'll need it.
+eco: Need it for what?
+ophelia (smile, lookaway): Mm. Keep wondering. It's cute when you think that hard.
+
+[spot yoga flirt]
+ophelia (smile): You've been in the doorway for a whole minute.
+eco: I was going to ask why you're doing yoga. Then I forgot the question.
+ophelia (blush, tilt): Tree pose does that to people. Warrior's worse. Want to see warrior?
+eco: I... yes. Obviously. For science.
+ophelia (smile, closed): For science. Sure.
+choice +4: eco: Okay, I'm staring. You win.
+> ophelia (blush, smile): I always win. Stay. You can count my breaths.
+choice +2: eco: Can you teach me?
+> ophelia (smile, tilt): I'd have to put my hands on you to fix your posture. A lot. ...Tomorrow.
+choice -2: eco: Looks boring, honestly.
+> ophelia (plain, lookaway): Then stop looking. ...You won't, though.
+
+[spot yoga flirt]
+eco: Yoga again?
+ophelia (smile, closed): It keeps me bendy. And you keep showing up right when I'm mid-stretch.
+eco: Coincidence.
+ophelia (blush, smile): Every time? You're not that lucky. Grab the other end of the rug and stretch with me. You can stare closer.
+
+[spot lounge]
+eco: Comfortable?
+ophelia (plain, closed): Don't. I've been horizontal for three hours. It's a record.
+eco: Want me to leave you to it?
+ophelia (tilt): ...You can sit on the end. Don't touch the pillows. They're arranged.
+
+[spot lounge]
+eco: You look like a painting. A sad one.
+ophelia (smile, lookaway): The best paintings are sad. Nobody hangs the happy ones anywhere good.
+
+[spot lounge flirt]
+ophelia (smile, tilt): You're staring at me like I'm a titan you want to take apart.
+eco: You're just... lying there. Looking like that.
+ophelia (blush, smile): Like what? Use your words, mechanic.
+eco: Like you know exactly what you're doing.
+ophelia (smile, closed): I always know what I'm doing. Sit. Right there. Closer.
+
+[spot lounge flirt]
+eco: Room for one more?
+ophelia (blush, lookaway): It's a very small mattress.
+eco: That's not a no.
+ophelia (smile, tilt): It's not a no. Boots off. You track oil everywhere.
+
+[spot smoke]
+eco: Mom's going to smell that, you know.
+ophelia (plain): Mom smells everything. She says nothing. That's why I like her.
+eco: Can I get one?
+ophelia (tilt): No. You'd cough and ruin the whole mood. Stand by the window, though. The moon's good tonight.
+
+[spot smoke]
+ophelia (closed): Shh. Watch the smoke. It goes up and just stops being anything.
+eco: That's grim.
+ophelia (smile, lookaway): It's peaceful. You'd get it if you ever stood still.
+
+[spot smoke flirt]
+ophelia (smile, tilt): You came to stand in my smoke again.
+eco: I came to stand next to you. The smoke's a downside.
+ophelia (blush, smile): Smooth. Hold this a sec. ...Now I can't have it back. It's got your lips on it.
+eco: That's how that works?
+ophelia (smile, lookaway): That's how I say it works.
+
+[spot smoke flirt]
+eco: Why always the window?
+ophelia (blush, closed): So I can see you come back up the hill. Don't make a thing of it.
+eco: Too late. It's a thing now.
+
+[spot read]
+eco: What's this one about?
+ophelia (plain, down): A woman who lives in a lighthouse and slowly forgets her own name.
+eco: Happy ending?
+ophelia (smile): She forgets everyone else's first. So, yes.
+
+[spot read]
+eco: You've read that one before. The spine's wrecked.
+ophelia (lookaway): Some books you go back to. Like a room you know in the dark.
+
+[spot read flirt]
+ophelia (blush, down): Don't read over my shoulder. It's a kissing part.
+eco: Oh, is it now?
+ophelia (fluster, smile): They're doing it wrong, anyway. Too much talking.
+eco: How would you do it?
+ophelia (smile, tilt): Less talking. ...Go away, I'm losing my place. No. Stay. I'll read it to you.
+
+[spot read flirt]
+eco: Read me something?
+ophelia (smile, tilt): Sit on the rug. Head here. ...Comfy?
+eco: Very.
+ophelia (blush, closed): Good. Chapter one. Try not to fall asleep on my legs. Or do. Whatever.
+
+[spot sway]
+eco: Ophelia?
+ophelia (closed): Shh. This is the bit where the song falls apart.
+eco: What's it called?
+ophelia (closed, smile): "Everyone I Love Is Underwater". Listen. Just listen.
+
+[spot sway]
+eco: Do you ever dance, like, properly?
+ophelia (closed): This is properly. Dancing is just sad with the volume up.
+
+[spot sway flirt]
+ophelia (closed, smile): I can hear your boots. You're doing the shy thing in the doorway.
+eco: I don't have a shy thing.
+ophelia (smile, blush): Come here and sway with me. Hands on my waist. Slow. ...See? You do have a shy thing.
+
+[spot sway flirt]
+eco: Is this song about me?
+ophelia (closed, blush): It was written forty years ago by a man who died in a bathtub.
+eco: So that's a yes.
+ophelia (smile, lookaway): It's a little bit yes. Don't ruin it.
+
+# Compliments, both ways (more [flirt] and [together] talks).
+
+[flirt]
+ophelia (smile, tilt): Turn around.
+eco: Why?
+ophelia (blush, smile): No reason. ...Those work pants are doing a lot for you today. Your butt looks good, is what I'm saying.
+eco: Ophelia!
+ophelia (smile, lookaway): What? I'm allowed to notice things. I notice everything.
+
+[flirt]
+eco: Your eyeliner's sharp enough to cut someone today.
+ophelia (smile, tilt): That's the goal. Who are we cutting?
+eco: Me, apparently. Every time you look at me like that.
+ophelia (blush, down): ...Good. Bleed quietly.
+
+[flirt]
+ophelia (smile): Your arms are getting ridiculous. Did the titan get heavier?
+eco: I've been hauling scrap all week.
+ophelia (blush, lookaway): Keep hauling. I'll be over here. Watching. Purely for safety reasons.
+
+[flirt]
+eco: Has anyone ever told you your legs go on forever?
+ophelia (surprised, blush): No. Nobody told me anything, ever. You know that.
+eco: Then I'm the first. Your legs go on forever.
+ophelia (fluster, smile): Shut up. ...Say it again later. When it's dark.
+
+[flirt]
+ophelia (smile, tilt): That suit fits you like it was painted on.
+eco: It basically was. Dad's pilots wore them.
+ophelia (blush, smile): Your dad's pilots didn't look like that from behind. I'd bet my whole record collection on it.
+
+[flirt]
+eco: You've got the prettiest eyes in the temple. And yeah, I counted.
+ophelia (blush, lookaway): There are like four people here.
+eco: Still counts.
+ophelia (smile, down): ...The one with the hair in front of it is my better side, for the record.
+
+[together]
+ophelia (smile, closed): Come here. I want to hold your waist while you talk about gear ratios.
+eco: You hate gear ratios.
+ophelia (blush, smile): I love your waist. It balances out.
+
+[together]
+eco: You look really, really good tonight.
+ophelia (smile, tilt): I look the same as every night.
+eco: Yeah. Really, really good.
+ophelia (blush, down): ...Stop. No. Keep going.
+
+[together]
+ophelia (smile, tilt): Bend over and grab that wrench for me.
+eco: It's right next to you.
+ophelia (blush, smile): I know where it is, Eco.

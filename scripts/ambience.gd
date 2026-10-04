@@ -21,6 +21,7 @@ static func start(parent: Node, beds: Dictionary) -> Node:
 		var stream := (load(path) as AudioStreamOggVorbis).duplicate() as AudioStreamOggVorbis
 		stream.loop = true
 		var player := AudioStreamPlayer.new()
+		player.bus = "Ambience"
 		player.name = id
 		player.stream = stream
 		player.volume_db = float(beds[id]) + BUS_DB

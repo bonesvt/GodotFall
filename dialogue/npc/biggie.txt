@@ -1,0 +1,87 @@
+# Biggie. Big, old, grey, a bad knee and a bigger gut. Won't give his real name.
+# Says he fought beside Eco's father, and knows things only someone who did would.
+# Sharp about the battlefield, foggy about everything else; should have retired
+# a long time ago. He rambles, he drinks, he means well.
+#
+# Format: see mom.txt. Speakers are biggie and eco.
+
+[intro]
+biggie: Well, look at that. You've got his jaw. Stubborn as a stuck hatch.
+eco: Who are you? And how did you find this place?
+biggie: Followed the smell of solder. Folks call me Biggie.
+eco: That's not a name.
+biggie: It's the one I'm using. I flew with your pop. Third Valley, the long winter.
+eco: Prove it.
+biggie: He hummed when he reloaded. Same four notes. Drove the whole squad crazy.
+eco: ...Fine. You can have the couch.
+
+[won]
+biggie: Ha! Heard that titan land from here! Shook the beer right off the crate.
+eco: Took down their big one at the forest's edge.
+biggie: Course you did. Just remember, kid. The fight you win is the one they learn from.
+eco: Meaning?
+biggie: Meaning next time, they'll be ready for that trick. Bring a new one.
+
+[lost]
+biggie: Sit down before you fall down.
+eco: I'm fine.
+biggie: Everybody's fine. Fine's what we said right before the medics showed up.
+eco: They had a cage of grunts waiting at the ridge. I walked right into it.
+biggie: High ground's never empty, kid. If it looks empty, it's because they want you up there.
+eco: ...Yeah. Okay. Noted.
+
+[any]
+biggie: You check your corners when you come through a door?
+eco: Obviously.
+biggie: Both of them? Even the one behind you?
+eco: There's no corner behind me.
+biggie: There's always a corner behind you. That's how they got Mendez. And Mendez was smarter than both of us.
+
+[any]
+eco: What's your actual name?
+biggie: Big. Then -ie.
+eco: Your mother did not name you Biggie.
+biggie: My mother named me something the militia has on a list. Biggie keeps you safe. Biggie keeps me breathing.
+
+[any]
+biggie: Your pop never fired first. Not once. Drove the sergeant mad.
+eco: That sounds like him.
+biggie: Said if you shoot first, you never find out if you had to.
+eco: And the militia shot him anyway.
+biggie: Yeah. They did. Doesn't make him wrong, kid. Just makes him dead.
+
+[any]
+biggie: Grunts move in threes. Point, the loud one, and the one who actually shoots.
+eco: The loud one's always the one doing the crotch-grab thing.
+biggie: That's him. Ignore him. Watch the quiet one. Quiet one's the killer.
+
+[any]
+eco: Should you be drinking that before noon?
+biggie: It's noon somewhere. Probably. Time zones were a pre-war thing.
+eco: Your knee's swollen again.
+biggie: My knee's been swollen since the Hollow Line. It's just how it lives now. Like me.
+
+[any]
+biggie: The girl in the dark room. She's got eyes like the ones who came back from the camps.
+eco: Ophelia. I got her out.
+biggie: Getting out's the easy part. Staying out, that's the war you fight every morning. Don't push her.
+eco: I wasn't going to.
+biggie: Sure. You're your pop's kid. You were going to.
+
+[any]
+biggie: Tell you a secret about smart pistols.
+eco: Mine's broken. No lock.
+biggie: Even better. A gun that thinks for you makes you lazy. Yours makes you good.
+eco: Was that... a compliment?
+biggie: Don't get used to it. Go on, get out of here. I'm napping.
+
+[any]
+biggie: Sit down a minute. Kettle's just boiled.
+eco: I don't have time for tea, old man.
+biggie: Nobody has time for tea. That's why you make it anyway.
+eco: Fine. One cup.
+biggie: Ginger, and something I found growing behind the temple. Probably not poison.
+eco: Probably?
+biggie: Your father said the same thing. Then he had three cups.
+eco: It's actually good.
+biggie: Good tea and a good fight. Both go wrong when you rush them.
