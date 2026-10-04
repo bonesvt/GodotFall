@@ -1,5 +1,5 @@
 extends RefCounted
-## Eco's whispers, by situation. She can't key the militia net without giving
+## Eco's whispers, by situation. She can't key the colony net without giving
 ## herself away, so everything she'd love to say back to them she says under
 ## her breath, to herself, to her dead father, to the old god in her temple.
 ##
@@ -16,11 +16,12 @@ extends RefCounted
 ## and is preferred over the plain lines when it does. Plain lines fit any
 ## exchange.
 ##
-## Voice (Bones, 2026-10-02): Eco is bratty and sassy. She mocks, teases,
-## rolls her eyes, gets the last word even when nobody can hear it, and is
-## far too pleased with herself when she's good, which is often. Underneath
-## it is grief for her father; it only slips out in the quiet lines, and she
-## covers it fast. Rated M: she swears. Nothing sexual, no slurs.
+## Voice (Bones, 2026-10-04): Eco is 21, bubbly and bratty, fierce when it
+## counts, and grabs every moment of relief. She mocks, teases, gets the last
+## word even when nobody can hear it, and is far too pleased with herself
+## when she's good, which is often. Underneath it is grief for her father; it
+## only slips out in the quiet lines, and she covers it fast. Teen and Mature
+## files; Mature swears. Nothing sexual, no slurs.
 
 const DialogueBank := preload("res://scripts/radio/dialogue_bank.gd")
 

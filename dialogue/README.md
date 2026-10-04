@@ -1,6 +1,6 @@
 # Dialogue
 
-Every line the militia say on the radio and every line Eco whispers lives in these text files.
+Every line the colony grunts say on the radio and every line Eco whispers lives in these text files.
 Change them, add to them or delete from them without touching any code.
 
 | File | What it is |
@@ -40,7 +40,7 @@ a: Caught another deserter by the river. | b: And? | a: And now he's digging lat
 ```
 
 - `a` is the grunt the event is about (or any grunt nearby), `b` and `c` are other grunts nearby,
-  `hq` is militia command. An exchange with `b` or `c` only plays when that many grunts are in earshot.
+  `hq` is colony command. An exchange with `b` or `c` only plays when that many grunts are in earshot.
 - `{a}` `{b}` `{c}` become those grunts' callsigns, `{dead}` the grunt who just died, `{part}` a
   random titan part name.
 

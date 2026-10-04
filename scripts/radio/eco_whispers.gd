@@ -1,5 +1,5 @@
 extends Node
-## Eco's whispers. She can't answer the militia on their own net without
+## Eco's whispers. She can't answer the colony grunts on their own net without
 ## giving herself away, so she talks back under her breath once an exchange
 ## goes off the air, and mutters to herself through the fight and the quiet
 ## stretches. Lines come from eco_whisper_lines.gd, picked by the dialogue

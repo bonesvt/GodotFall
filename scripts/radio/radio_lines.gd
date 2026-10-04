@@ -1,20 +1,18 @@
 extends RefCounted
-## Militia radio chatter, by situation. Eco listens; she never talks back.
-## The lines themselves live in dialogue/radio/<rating>.txt (see
-## dialogue_bank.gd and dialogue/README.md) so they can be edited as text.
+## Enemy radio chatter, by situation: the colony's grunts. Eco listens; she
+## never talks back. The lines themselves live in dialogue/radio/<rating>.txt
+## (see dialogue_bank.gd and dialogue/README.md) so they can be edited as text.
 ##
 ## Each entry is one exchange: lines split by " | ", each "role: text".
 ## Roles: a = the grunt the event is about (or any nearby grunt), b and c =
-## other nearby grunts, hq = militia command (always reachable).
+## other nearby grunts, hq = colony command (always reachable).
 ## Placeholders: {a} {b} {c} callsigns, {dead} the grunt who just died,
 ## {part} a random titan part name.
 ##
-## Tone: rated M. The militia are cruel, contemptuous bullies in a war that
-## made them worse. They laughed Eco out of the recruiting tent for being a
-## woman, mock her dead father, and want her dead. Profanity and violent
-## threats are fine, and so is crude leering and gendered insults (bitch,
-## skank, slut, sparingly). Never sexual violence or assault threats, nothing
-## explicit, no c-word, no real-world hate slurs.
+## Story (Bones, 2026-10-04): the grunts are colonists who can't build
+## anything, so the colony handed them rifles. Bored, bitter, homesick, and
+## scared of the local Pilot they call the Gremlin. Teen and Mature files;
+## Mature swears and gets meaner, never slurs or anything sexual.
 
 const DialogueBank := preload("res://scripts/radio/dialogue_bank.gd")
 
@@ -22,7 +20,7 @@ const CALLSIGNS := [
 	"BRASS", "HOUND", "MOOSE", "TANK", "DUKE", "BUTCH", "ROCCO", "SPUD",
 	"BULLDOG", "CHUCK", "MAC", "KNUCKLES", "BIG RED", "SLAB", "GRIZZ", "TOAD",
 ]
-const HQ_CALLSIGN := "MILITIA HQ"
+const HQ_CALLSIGN := "COMMAND"
 
 
 ## Parses one entry into [[role, text], ...].
