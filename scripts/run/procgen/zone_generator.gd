@@ -535,7 +535,7 @@ static func _depot(root: Node3D, plan, info: Dictionary, keep_out: Array, s: Dic
 	SP.place(root, "jeep", _on(plan, at.x + side * 3.2, at.y + 1.5), 90.0, info)
 	Kit.box(root, _on(plan, at.x, at.y, 0.45), Vector3(3.2, 0.9, 5.0), Color(0.32, 0.34, 0.3))
 	keep_out.append(Rect2(at.x - 3.0, at.y - 4.0, 6.0, 8.0))
-	var lbl := Kit.label(root, _on(plan, at.x, at.y, 4.2), "TITAN PART", 72)
+	var lbl := Kit.label(root, _on(plan, at.x, at.y, 5.4), "TITAN PART", 72)
 	lbl.modulate = Color(1.0, 0.75, 0.3)
 	# What it came off: a scrapped titan behind the flatbed, plates and an
 	# engine block stacked by it.
@@ -550,7 +550,7 @@ static func _depot(root: Node3D, plan, info: Dictionary, keep_out: Array, s: Dic
 		_put(root, plan, info, keep_out, spec[0], p, spec[2] + dress.randf_range(-8, 8), 1.6)
 	# Extra guards for the part: one more posted at the flatbed, and a second
 	# watchtower over the back of the yard.
-	squad.append(_grunt(root, info, _on(plan, at.x - side * 2.2, at.y + 3.0), zone_index, 1.2))
+	squad.append(_grunt(root, info, _on(plan, at.x - side * 2.6, at.y + 4.6), zone_index, 1.2))
 	var tw := Vector2(c - side * 9.5, z1 + 8.0)
 	if _free(keep_out, tw, Vector2(5, 5)) and _lane_dist(plan, tw.x, tw.y) > 4.0:
 		var deck := F.watchtower(root, _on(plan, tw.x, tw.y), 180.0)
@@ -744,24 +744,42 @@ static func _finale(root: Node3D, plan, info: Dictionary, keep_out: Array, s: Di
 	keep_out.append(Rect2(road_x - 8.0, enter_z - 6.0, 16.0, z0 - enter_z + 12.0))
 	var call_sign := Kit.label(root, Vector3(road_x, y + 4.0, enter_z - 4.0), "CALL IN YOUR TITAN", 96)
 	call_sign.modulate = Color(0.6, 1.0, 0.7)
-	# Titan cover: slabs and container walls in loose rows across the clearing,
-	# wrecks off to the sides.
-	var walls := ["blast_wall", "container_wall", "hull_wall", "blast_wall", "panel_wall"]
-	var placed := 0
-	for tries in 80:
-		if placed >= 9:
-			break
-		var p := Vector2(c + rng.randf_range(-hw + 4.0, hw - 4.0), rng.randf_range(z1 + 22.0, enter_z - 12.0))
-		var id: String = walls[rng.randi() % walls.size()]
-		if not _put(root, plan, info, keep_out, id, p, rng.randf_range(-25, 25) + (90.0 if rng.randf() < 0.3 else 0.0), 0.0).is_empty():
-			keep_out.append(Rect2(p - Vector2(5, 5), Vector2(10, 10)))
-			placed += 1
+	# Titan cover: three staggered rows of slab walls across the clearing
+	# between the treeline and their titan, with gaps to dash through; the
+	# middle row has a container wall or a titan hull plate in it.
+	var on := func(x: float, z: float) -> Vector3: return Vector3(x, y, z)
+	var span := enter_z - (z1 + 40.0)
+	for row in 3:
+		var rz: float = enter_z - span * (0.22 + row * 0.28)
+		var shift := 7.0 if row % 2 == 0 else -7.0
+		var x := c - hw + 10.0 + (shift if shift > 0.0 else 0.0)
+		while x < c + hw - 8.0:
+			var p := Vector2(x + rng.randf_range(-2.0, 2.0), rz + rng.randf_range(-3.0, 3.0))
+			if absf(p.x - c) > 4.0 or row == 1:
+				var yaw := rng.randf_range(-20, 20)
+				if row == 1 and absf(p.x - c) < 10.0:
+					SP.place(root, ["container_wall", "hull_wall"][rng.randi() % 2], on.call(p.x, p.y), yaw, info)
+				else:
+					for k in 2:
+						var b := Basis(Vector3.UP, deg_to_rad(yaw))
+						F.wall_slab(root, on.call(p.x, p.y) + b * Vector3((k - 0.5) * 4.0, -0.2, 0), yaw)
+				keep_out.append(Rect2(p - Vector2(5, 3), Vector2(10, 6)))
+			x += rng.randf_range(16.0, 22.0)
+	# Their forward base along the sides: wrecked trucks, a fuel tank, crates,
+	# a tent under netting, rocks, and a dead titan on each flank.
 	for side in [-1.0, 1.0]:
-		var w := Vector2(c + side * (hw - 8.0), dress.randf_range(z1 + 30.0, enter_z - 20.0))
-		if _free(keep_out, w, Vector2(12, 12)):
-			B.wreck(root, Vector3(w.x, y, w.y), dress)
-			_occupy(info, keep_out, w, Vector2(12, 12))
-	placed = 0
+		var w := Vector2(c + side * (hw - 9.0), rng.randf_range(z1 + 34.0, enter_z - 24.0))
+		B.wreck(root, on.call(w.x, w.y), dress)
+		_occupy(info, keep_out, w, Vector2(12, 12))
+		F.wreck_truck(root, on.call(c + side * (hw - 6.0), w.y + side * 18.0), dress.randf_range(0, 360))
+		F.crate_stack(root, on.call(c + side * (hw - 14.0), z1 + 22.0), dress.randf_range(-20, 20))
+		F.rock(root, "rock_b", on.call(c + side * dress.randf_range(8.0, hw - 16.0), dress.randf_range(z1 + 50.0, enter_z - 8.0)), dress.randf_range(0, 360), 3.0)
+	var camp_x := c - hw + 8.0 if rng.randf() < 0.5 else c + hw - 8.0
+	F.camo_net(root, on.call(camp_x, enter_z - 3.0), 90.0)
+	F.tent(root, on.call(camp_x, enter_z - 1.0), 90.0)
+	F.generator(root, on.call(camp_x + signf(c - camp_x) * 4.0, enter_z - 5.0), 40.0)
+	F.fuel_tank(root, on.call(camp_x, z1 + 30.0), 80.0)
+	var placed := 0
 	for tries in 60:
 		if placed >= 10:
 			break
