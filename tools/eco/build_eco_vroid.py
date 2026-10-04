@@ -67,6 +67,7 @@ BASE_RED = (0.24, 0.018, 0.026)   # crimson panels, the red of her hair
 BASE_NET = (0.02, 0.022, 0.03)    # the breathable mesh's net
 BASE_CORSET = (0.012, 0.011, 0.014)
 JACKET = (0.02, 0.09, 0.1)        # the cropped jacket: deep teal
+ZIP = (0.42, 0.44, 0.5)           # the back zip's silver teeth
 
 SIDE_CUT = 0.075   # how far the sides of the halter drop beside the bust (rest-space metres)
 CHEEKY = 1.6       # how steeply the back leg openings rise toward the hips
@@ -1422,11 +1423,11 @@ def base_details(g, x, y, z, skin, col, c_suit, c_gear, front, AA):
     # how she gets in: a zip down her spine from the collar to the small of her
     # back (the corset belt goes over it), its pull glowing at the top
     back = g.sstep(0.02, 0.04, y)
-    zip_ = g.mul(g.mul(g.band(x, -0.0012, 0.0012, 0.0002), g.band(z, 0.86, 1.2)), g.mul(back, on))
-    col = g.mixc(col, PLATE, zip_)
+    zip_ = g.mul(g.mul(g.band(x, -0.0019, 0.0019, 0.0002), g.band(z, 0.86, 1.2)), g.mul(back, on))
+    col = g.mixc(col, ZIP, zip_)   # silver, so it reads down her spine
     teeth = g.mul(g.sstep(0.4, 0.6, g.op("FRACT", g.div(z, 0.0022))), zip_)
     col = g.mixc(col, INK, g.mul(teeth, 0.6))
-    ink = g.mx(ink, g.mul(g.mul(g.band(ax, 0.0012, 0.0018, 0.0002), g.band(z, 0.86, 1.2)), g.mul(back, on)))
+    ink = g.mx(ink, g.mul(g.mul(g.band(ax, 0.0019, 0.0025, 0.0002), g.band(z, 0.86, 1.2)), g.mul(back, on)))
     pull = g.sqrt(g.add(g.sq(g.div(x, 0.0035)), g.sq(g.div(g.sub(z, 1.19), 0.007))))
     trim = g.mx(trim, g.mul(g.sub(1.0, g.sstep(0.85, 1.0, pull)), g.mul(back, on)))
     # a black corset belt, its top rising to a point at the front, laced in crimson
