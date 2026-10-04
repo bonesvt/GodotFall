@@ -36,7 +36,7 @@ const LOOKS := {
 		"ambient": Color(0.78, 0.76, 0.95), "ambient_energy": 0.75,
 		"sun": Color(1.0, 0.94, 0.82), "sun_energy": 1.5, "shadow_opacity": 0.9,
 		"fog": Color(0.75, 0.82, 0.95), "fog_density": 0.003,
-		"saturation_env": 1.05, "contrast_env": 1.0, "exposure": 1.05, "ssao": false,
+		"saturation_env": 1.05, "contrast_env": 1.0, "exposure": 1.15, "ssao": false,
 		"post": {
 			"paint_radius": 3, "ink": Color(0.25, 0.19, 0.23, 1.0), "ink_width": 1.4,
 			"depth_edge": 0.06, "normal_edge": 0.3, "ink_far": 40.0,

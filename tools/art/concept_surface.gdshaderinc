@@ -9,7 +9,8 @@
 //     from the characters (Eco's toon shaders write 1.0).
 // The style file defines CONCEPT_FLAT, CONCEPT_CEL_SOFT, CONCEPT_POSTERIZE,
 // CONCEPT_SATURATION, CONCEPT_SHADOW (vec4: rgb tint, a strength),
-// CONCEPT_LAMP_ENERGY and CONCEPT_LAMP_NEUTRAL first.
+// CONCEPT_LAMP_ENERGY, CONCEPT_LAMP_NEUTRAL and CONCEPT_DETAIL (0..1, how much
+// of the texture's own variation is kept) first.
 
 // Snap grid width in pixels for vertex positions (PS1/PS2 wobble). 0 is off.
 // Set project-wide in Project Settings > Shader Globals.
@@ -112,11 +113,13 @@ vec3 tangent_normal(vec4 n) {
 
 void fragment() {
 	vec4 tex;
+	vec3 avg = vec3(0.0);  // the texture's broad local colour (a much blurrier mip)
 	vec4 ntex;
 	vec3 surf_n;  // in the projection's space (world or object)
 	if (use_uv) {
 		vec2 uv = UV * tex_scale;
 		tex = texture(albedo_tex, uv, ps2_bias(albedo_tex));
+		avg = texture(albedo_tex, uv, ps2_bias(albedo_tex) + 3.0).rgb;
 		ntex = texture(normal_tex, uv);
 		vec3 tn = tangent_normal(ntex);
 		NORMAL = normalize(TANGENT * tn.x + BINORMAL * tn.y + NORMAL * tn.z);
@@ -136,6 +139,7 @@ void fragment() {
 		vec3 n = vec3(0.0);
 		if (w.x > 0.01) {
 			vec4 a = texture(albedo_tex, uv_x, ps2_bias(albedo_tex));
+			avg += w.x * texture(albedo_tex, uv_x, ps2_bias(albedo_tex) + 3.0).rgb;
 			vec4 b = texture(normal_tex, uv_x);
 			vec3 tn = tangent_normal(b);
 			// u runs along +Z, image up is +Y.
@@ -145,6 +149,7 @@ void fragment() {
 		}
 		if (w.y > 0.01) {
 			vec4 a = top ? texture(top_tex, uv_y, ps2_bias(top_tex)) : texture(albedo_tex, uv_y, ps2_bias(albedo_tex));
+			avg += w.y * (top ? texture(top_tex, uv_y, ps2_bias(top_tex) + 3.0).rgb : texture(albedo_tex, uv_y, ps2_bias(albedo_tex) + 3.0).rgb);
 			vec4 b = top ? texture(top_normal_tex, uv_y) : texture(normal_tex, uv_y);
 			vec3 tn = tangent_normal(b);
 			// u runs along +X, image up is -Z.
@@ -154,6 +159,7 @@ void fragment() {
 		}
 		if (w.z > 0.01) {
 			vec4 a = texture(albedo_tex, uv_z, ps2_bias(albedo_tex));
+			avg += w.z * texture(albedo_tex, uv_z, ps2_bias(albedo_tex) + 3.0).rgb;
 			vec4 b = texture(normal_tex, uv_z);
 			vec3 tn = tangent_normal(b);
 			// u runs along +X, image up is +Y.
@@ -167,7 +173,9 @@ void fragment() {
 			NORMAL = normalize(view_n);
 		}
 	}
-	vec3 col = tex.rgb * albedo.rgb * paint.rgb;
+	// Squash the texture's own light/dark variation toward its broad colour so
+	// only big shapes survive the posterise (no cow-spot blobs).
+	vec3 col = mix(avg, tex.rgb, CONCEPT_DETAIL) * albedo.rgb * paint.rgb;
 	if (CONCEPT_POSTERIZE > 0.0) {
 		// Quantise brightness only (in gamma space) and keep the hue, so a
 		// texture becomes a few flat tones of its own colour.
