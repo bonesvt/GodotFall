@@ -16,8 +16,13 @@ var failures := 0
 func _initialize() -> void:
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(PATH))
 	Wardrobe.save_path = PATH
+	_run.call_deferred()
+
+
+func _run() -> void:
 	var eco = ECO.instantiate()
 	root.add_child(eco)
+	await process_frame   # in the tree and ready, so wear() dresses her
 	_model(eco)
 	_wardrobe(eco)
 	eco.queue_free()

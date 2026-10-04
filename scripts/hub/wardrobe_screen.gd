@@ -174,7 +174,7 @@ func refresh() -> void:
 	elif options[selected] == Wardrobe.ROTATE:
 		_detail.text = "She picks for herself: something different after every run."
 	else:
-		_detail.text = "Eco wears it at home and in town, and the suit on a run." if who() == "eco" else ""
+		_detail.text = "Eco wears it everywhere, runs included (an upgraded suit goes over it)." if who() == "eco" else ""
 	_update_preview(options[selected])
 
 
