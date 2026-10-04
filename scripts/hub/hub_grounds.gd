@@ -214,10 +214,8 @@ static func _lamp_post(root: Node3D, p: Vector3) -> void:
 # --- Eco's camp -------------------------------------------------------------------
 
 static func _camp(root: Node3D, info: Dictionary) -> void:
-	_tent(root, Vector3(28, 0, 6), 20.0, Color(1, 1, 1), true)
-	_tent(root, Vector3(38, 0, 3), -12.0, Color(0.85, 0.95, 1.0), false)
-	_tent(root, Vector3(47, 0, 9), 35.0, Color(1.0, 0.85, 0.75), true)
-	_tent(root, Vector3(27, 0, 27), 165.0, Color(0.9, 1.0, 0.85), false)
+	# Mom's, Ophelia's and Biggie's tents stand round the fire (hub_rooms.gd);
+	# this little one is the one Eco camped in before she moved into the temple.
 	_tent(root, Vector3(39, 0, 31), 190.0, Color(1, 1, 1), true)
 	# Campfire with a ring of stones, logs to sit on, smoke.
 	var fire := Vector3(35, 0, 17)
@@ -243,7 +241,7 @@ static func _camp(root: Node3D, info: Dictionary) -> void:
 	info["interactables"].back()["rest"] = {"pose": "sit", "at": Transform3D(Basis(Vector3.UP, PI / 4.0), seat + Vector3(0.04, 0, 0.04)), "seat": 0.44}
 	# Laundry line between two poles, cloth swaying.
 	var a := Vector3(30, 0, 12.5)
-	var b := Vector3(41, 0, 11.5)
+	var b := Vector3(40, 0, 13.0)
 	for p in [a, b]:
 		K.wood(root, p + Vector3(0, 1.3, 0), Vector3(0.18, 2.6, 0.18))
 	var mid := (a + b) * 0.5
@@ -279,7 +277,7 @@ static func _camp(root: Node3D, info: Dictionary) -> void:
 		var pivot := _animated(root, p + Vector3(0, 4.8, 0), Ambient.Mode.SWAY, 6.0, 0.8)
 		K.mesh(pivot, Vector3(0.5, -0.8, 0), Vector3(0.9, 1.6, 0.04), Art.material("fabric", spec[1]))
 	# Crates and barrels around the tents.
-	for spec in [[Vector3(31, 0, 4), 0.9], [Vector3(32.1, 0, 4.3), 0.7], [Vector3(43, 0, 4), 1.0], [Vector3(24, 0, 24), 0.8], [Vector3(44, 0, 32), 0.9]]:
+	for spec in [[Vector3(35.2, 0, 3.0), 0.9], [Vector3(36.2, 0, 3.6), 0.7], [Vector3(35.8, 0, 1.2), 1.0], [Vector3(26.8, 0, 19.0), 0.8], [Vector3(44, 0, 32), 0.9]]:
 		var s: float = spec[1]
 		K.wood(root, spec[0] + Vector3(0, s * 0.5, 0), Vector3(s, s, s), Vector3(0, spec[0].x * 13.0, 0))
 	# Pond with reeds and stepping stones.

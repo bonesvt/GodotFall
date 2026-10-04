@@ -1,7 +1,9 @@
 extends SceneTree
 ## Headless test for the temple hub: the game opens there, you can stand and
-## walk in it, everything Eco can look at answers, the map table starts a run,
-## and a finished run comes back to the hub.
+## walk in it, everything Eco can look at answers, the stairs climb to her loft,
+## the people live in tents outside, the poster outside starts the Pinewoods
+## run with a marker over it until that run is won, and a finished run comes
+## back to the hub.
 ## Run: godot --headless --path . -s res://tests/hub_test.gd
 
 const HubBuilder := preload("res://scripts/hub/hub_builder.gd")
@@ -50,7 +52,7 @@ func _run() -> void:
 			continue   # people talk instead (tests/npc_test.gd)
 		if spot.has("family"):
 			continue   # Mom's bed: tests/family_test.gd
-		if spot["id"] in ["map_table", "uncharted_map", "garage"]:
+		if spot["id"] in ["tutorial_poster", "uncharted_map", "garage", "level_board"]:  # level board: tests/level1_test.gd
 			continue
 		await _stand_at(spot["pos"])
 		if spot.has("screen"):
@@ -75,8 +77,28 @@ func _run() -> void:
 			await _press("interact")
 			await _ticks(2)
 			_check("%s lines cycle" % spot["id"], run_node.hud.toast_label.text == spot["lines"][1], run_node.hud.toast_label.text)
-	for id in ["map_table", "idol", "titan", "gunsmith", "weapon_rack", "titan_workshop", "bedroll", "letter", "garage"]:
+	for id in ["tutorial_poster", "level_board", "uncharted_map", "idol", "lore_builders", "lore_eye", "lore_tablets", "titan", "gunsmith",
+			"weapon_rack", "suit_locker", "titan_workshop", "bedroll", "letter", "wardrobe", "garage"]:
 		_check("hub has %s" % id, id in ids, ids)
+	# Downstairs: the statue, lore, mission table, armour bench, gunsmith and rack;
+	# her bed, letter and wardrobe are up in the loft; the poster is outside.
+	var at := {}
+	for spot in info["interactables"]:
+		at[spot["id"]] = spot["pos"]
+	var loft_y := HubBuilder.F + HubBuilder.GALLERY_H
+	var upstairs := ["bedroll", "letter", "wardrobe"].filter(func(id): return absf(at[id].y - loft_y) < 0.3 and HubBuilder.LOFT.has_point(Vector2(at[id].x, at[id].z)))
+	_check("bed, letter and wardrobe are in the loft", upstairs.size() == 3, upstairs)
+	var hall := Rect2(-HubBuilder.HALF, HubBuilder.BACK_Z, HubBuilder.HALF * 2, HubBuilder.FRONT_Z - HubBuilder.BACK_Z)
+	var downstairs := ["idol", "lore_builders", "lore_eye", "lore_tablets", "level_board", "suit_locker", "gunsmith", "weapon_rack"].filter(
+			func(id): return absf(at[id].y - HubBuilder.F) < 1.2 and hall.has_point(Vector2(at[id].x, at[id].z)))
+	_check("statue, lore, mission table and benches downstairs", downstairs.size() == 8, downstairs)
+	var poster: Vector3 = at["tutorial_poster"]
+	_check("tutorial poster is outside the temple", not hall.grow(HubBuilder.WALL_T).has_point(Vector2(poster.x, poster.z)) and poster.y < 0.5, poster)
+	var marker: Node3D = info["tutorial_marker"]
+	_check("marker over the poster on a fresh save", marker.visible and marker.global_position.distance_to(poster) < 4.0, marker.global_position)
+	for who in ["mom", "ophelia", "biggie"]:
+		var talk: Vector3 = at["npc_" + who]
+		_check("%s lives in a tent outside" % who, not hall.grow(HubBuilder.WALL_T + 2.0).has_point(Vector2(talk.x, talk.z)), talk)
 	_check("spot left for Eco at her bench", info.get("eco_spot") is Marker3D, info.get("eco_spot"))
 
 	await _rest_checks(info)
@@ -100,18 +122,16 @@ func _run() -> void:
 		_check("F closes the garage", run_node.garage == null and not paused and run_node.phase == run_node.Phase.HUB, [run_node.garage, paused])
 	DirAccess.remove_absolute(TitanStyle.path)
 
-	# The gallery: run up the fallen pillar from the nave onto the ledge.
-	var ramp_to := HubBuilder.RAMP_TO
-	var ramp_from := HubBuilder.RAMP_FROM + Vector3(HubBuilder.RAMP_FROM.x - ramp_to.x, 0, HubBuilder.RAMP_FROM.z - ramp_to.z).normalized() * 1.5
-	await _stand_at(ramp_from)
-	player.rotation.y = atan2(-(ramp_to.x - ramp_from.x), -(ramp_to.z - ramp_from.z))
+	# The loft: walk up the stairs by the door into her bedroom.
+	await _stand_at(HubBuilder.STAIRS_FROM + Vector3(0, 0, 0.4))
+	player.rotation.y = 0.0  # face -Z, up the stairs
 	Input.action_press("move_forward")
 	for i in 1200:  # at strut speed
 		await physics_frame
 		if _on_gallery():
 			break
 	Input.action_release("move_forward")
-	_check("run up the fallen pillar onto the gallery", _on_gallery(), player.global_position)
+	_check("walk up the stairs into the loft", _on_gallery(), player.global_position)
 
 	# Grounds: walled in on every side.
 	for probe in [Vector3(-90, 3, 0), Vector3(90, 3, 0), Vector3(0, 3, -110), Vector3(0, 3, 115)]:
@@ -191,12 +211,12 @@ func _run() -> void:
 	await _ticks(3)
 	_check("falling out of the world returns you to the door", player.global_position.distance_to(info["spawn"]) < 1.0 and run_node.phase == run_node.Phase.HUB, player.global_position)
 
-	# Map table starts a run.
-	await _stand_at(info["map_table"] + Vector3(0, 0.1, 1.4))
-	_check("map table prompt", run_node.hud.prompt_label.text == "[F] Head out on a run", run_node.hud.prompt_label.text)
+	# The poster outside starts the Pinewoods run.
+	await _stand_at(info["tutorial_poster"])
+	_check("poster prompt", run_node.hud.prompt_label.text.begins_with("[F] Head out on the Pinewoods run"), run_node.hud.prompt_label.text)
 	await _press("interact")
 	await _ticks(3)
-	_check("map table starts a run", run_node.phase == run_node.Phase.ZONE and run_node.run.zone == 0 and run_node.run.run_seed == 99, run_node.phase)
+	_check("poster starts the Pinewoods run", run_node.phase == run_node.Phase.ZONE and run_node.run.zone == 0 and run_node.run.run_seed == 99 and run_node.run.level == "", run_node.phase)
 	await physics_frame
 	_check("no strut on a run", not player.strolling, player.strolling)
 	_check("hub cleared for the zone", run_node.zone_root.name == "Zone" and run_node.zone_info.has("caches"), run_node.zone_root.name)
@@ -229,6 +249,7 @@ func _run() -> void:
 	await _press("run_restart")
 	await _ticks(3)
 	_check("win returns to the hub on foot", run_node.phase == run_node.Phase.HUB and player.visible and player.get_node("Head/Camera3D").current, run_node.phase)
+	_check("marker over the poster gone once the Pinewoods run is won", not run_node.zone_info["tutorial_marker"].visible, run_node.zone_info["tutorial_marker"].visible)
 
 	print("RESULT: %s (%d failures)" % ["PASS" if failures == 0 else "FAIL", failures])
 	quit(1 if failures > 0 else 0)
@@ -308,7 +329,7 @@ func _get_up() -> void:
 
 func _on_gallery() -> bool:
 	var p: Vector3 = player.global_position
-	return player.is_on_floor() and p.x < -HubBuilder.HALF + 3.0 and absf(p.y - (HubBuilder.F + HubBuilder.GALLERY_H)) < 0.2
+	return player.is_on_floor() and HubBuilder.LOFT.has_point(Vector2(p.x, p.z)) and p.z < HubBuilder.STAIRS_TO.z - 0.3 and absf(p.y - (HubBuilder.F + HubBuilder.GALLERY_H)) < 0.2
 
 
 func _stand_at(pos: Vector3) -> void:

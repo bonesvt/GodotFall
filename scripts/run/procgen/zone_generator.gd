@@ -12,6 +12,10 @@ extends RefCounted
 ##   set_pieces: [{id, pos, yaw}] of the generated zones' own kit (set_pieces.gd)
 ##   grapple_spots: every orange hook block's position
 ##   wallruns: [{id, from, to, height}] walls put up to run along
+## A real level's finale (levels.gd) adds boss, evac, evac_node and arena
+## ({rect, enter_z, center}: run_manager starts the titan fight once you're
+## past enter_z), and has no beacon; its depot cache is the titan part
+## (depot_cache, with meta "part_bonus").
 ## How every lane gets through each kind of section is in level_plan.gd.
 
 const LevelPlan := preload("res://scripts/run/procgen/level_plan.gd")
@@ -22,6 +26,8 @@ const Art := preload("res://scripts/ps2/ps2_assets.gd")
 const F := preload("res://scripts/run/forest_kit.gd")
 const L := preload("res://scripts/run/laid_out.gd")
 const SP := preload("res://scripts/run/procgen/set_pieces.gd")
+const ForestBuilder := preload("res://scripts/run/forest_builder.gd")
+const Boss := preload("res://scripts/run/boss.gd")
 
 const CELL := 2.0
 const THREAT_SPAWNER := "res://scripts/threats/threat_spawner.gd"
@@ -103,7 +109,7 @@ static func build_from_plan(root: Node3D, plan, zone_index: int) -> Dictionary:
 				_picket(root, plan, info, keep_out, s, rng, dress, zone_index)
 			"wall":
 				_wall(root, plan, info, keep_out, s, rng, dress, zone_index)
-			"outpost", "camp":
+			"outpost", "camp", "depot":
 				_yard(root, plan, info, keep_out, s, rng, dress, zone_index)
 			"resource":
 				_resource(root, plan, info, keep_out, s, rng, dress, zone_index)
@@ -113,6 +119,8 @@ static func build_from_plan(root: Node3D, plan, zone_index: int) -> Dictionary:
 				_ruins(root, plan, info, keep_out, s, rng, dress, zone_index)
 			"end":
 				_end(root, plan, info, keep_out, s)
+			"finale":
+				_finale(root, plan, info, keep_out, s, rng, dress, zone_index)
 	_lanes(root, plan, info, keep_out, dress)
 	_traversal(root, plan, info, keep_out, rng)
 	_wilds(root, plan, info, keep_out, dress)
@@ -130,7 +138,7 @@ static func build_from_plan(root: Node3D, plan, zone_index: int) -> Dictionary:
 	B.far_scenery(root, dress, plan, ground)
 	_spawn_hooks(plan, info)
 	# The Choir and wildlife (scripts/threats/threat_spawner.gd), when that's in.
-	if ResourceLoader.exists(THREAT_SPAWNER):
+	if plan.level.get("threats", true) and ResourceLoader.exists(THREAT_SPAWNER):
 		load(THREAT_SPAWNER).populate(root, rng, info, zone_index)
 	Nav.setup(root, info)
 	root.remove_meta("zone_info")
@@ -410,6 +418,7 @@ static func _yard(root: Node3D, plan, info: Dictionary, keep_out: Array, s: Dict
 	var mid: float = s["mid"]
 	var c: float = plan.lane_x(loud, mid)
 	var camp: bool = s["kind"] == "camp"
+	var depot: bool = s["kind"] == "depot"
 	# The rooftop runs first: they set where the high lanes go.
 	var high_cache := Vector3.INF
 	for i in plan.lanes_of("high"):
@@ -456,7 +465,7 @@ static func _yard(root: Node3D, plan, info: Dictionary, keep_out: Array, s: Dict
 	# The squad's cover across the road, facing the way the pilot comes in.
 	var posts := [Vector2(c - 4.0, mid + 3.0), Vector2(c + 3.5, mid + 1.5), Vector2(c + 0.5, mid - 4.0), Vector2(c - 7.0, mid - 5.0)]
 	var squad := []
-	var size_n := rng.randi_range(2, 3) + mini(zone_index - 3, 1)
+	var size_n := rng.randi_range(2, 3) + mini(zone_index - 3, 1) + int(depot)
 	for k in posts.size():
 		var p: Vector2 = posts[k]
 		if k == 2:
@@ -466,7 +475,9 @@ static func _yard(root: Node3D, plan, info: Dictionary, keep_out: Array, s: Dict
 		keep_out.append(Rect2(p.x - 1.5, p.y - 1.5, 3, 3))
 		if k < size_n:
 			squad.append(_grunt(root, info, _on(plan, p.x, p.y - (1.3 if k == 2 else 1.1)), zone_index))
-	if s["cache"] == "guarded":
+	if depot:
+		_depot(root, plan, info, keep_out, s, rng, dress, zone_index, c, side, squad)
+	elif s["cache"] == "guarded":
 		L.guard(root, info, L.cache(root, info, _on(plan, c + 2.0, z1 + 6.0)), squad)
 	elif high_cache != Vector3.INF:
 		L.cache(root, info, high_cache)
@@ -506,6 +517,50 @@ static func _yard(root: Node3D, plan, info: Dictionary, keep_out: Array, s: Dict
 		B.yard_clutter(root, _on(plan, p.x, p.y), dress)
 		keep_out.append(Rect2(p - Vector2(1.7, 1.7), Vector2(3.4, 3.4)))
 		placed += 1
+
+
+## The salvage depot's own part of the yard: the titan part they crated up,
+## on a flatbed at the back by the road, walled in with containers and the
+## scrapped titan it came off; a second watchtower and a crane. The whole
+## squad has to go before the crate opens.
+static func _depot(root: Node3D, plan, info: Dictionary, keep_out: Array, s: Dictionary, rng: RandomNumberGenerator,
+		dress: RandomNumberGenerator, zone_index: int, c: float, side: float, squad: Array) -> void:
+	var z1: float = s["z1"]
+	var z0: float = s["z0"]
+	var at := Vector2(c + side * 2.5, z1 + 9.0)
+	var crate := L.cache(root, info, _on(plan, at.x, at.y, 0.9))
+	crate.set_meta("part_bonus", int(plan.level.get("part_bonus", 1)))
+	crate.set_meta("tag", "TITAN PART")
+	info["depot_cache"] = crate
+	SP.place(root, "jeep", _on(plan, at.x + side * 3.2, at.y + 1.5), 90.0, info)
+	Kit.box(root, _on(plan, at.x, at.y, 0.45), Vector3(3.2, 0.9, 5.0), Color(0.32, 0.34, 0.3))
+	keep_out.append(Rect2(at.x - 3.0, at.y - 4.0, 6.0, 8.0))
+	var lbl := Kit.label(root, _on(plan, at.x, at.y, 5.4), "TITAN PART", 72)
+	lbl.modulate = Color(1.0, 0.75, 0.3)
+	# What it came off: a scrapped titan behind the flatbed, plates and an
+	# engine block stacked by it.
+	var wz := z1 + 4.0
+	var wx := c + side * 13.0
+	if _free(keep_out, Vector2(wx, wz), Vector2(12, 8)):
+		B.wreck(root, _on(plan, wx, wz), rng)
+		_occupy(info, keep_out, Vector2(wx, wz), Vector2(12, 8))
+	for spec in [["hull_plate", Vector2(-side * 6.5, 1.0), 20.0], ["engine_block", Vector2(-side * 6.0, -3.5), -10.0],
+			["container_wall", Vector2(side * 7.5, 5.0), 90.0], ["ammo_crates", Vector2(-side * 3.5, 4.5), 0.0]]:
+		var p: Vector2 = at + spec[1]
+		_put(root, plan, info, keep_out, spec[0], p, spec[2] + dress.randf_range(-8, 8), 1.6)
+	# Extra guards for the part: one more posted at the flatbed, and a second
+	# watchtower over the back of the yard.
+	squad.append(_grunt(root, info, _on(plan, at.x - side * 2.6, at.y + 4.6), zone_index, 1.2))
+	var tw := Vector2(c - side * 9.5, z1 + 8.0)
+	if _free(keep_out, tw, Vector2(5, 5)) and _lane_dist(plan, tw.x, tw.y) > 4.0:
+		var deck := F.watchtower(root, _on(plan, tw.x, tw.y), 180.0)
+		_occupy(info, keep_out, tw, Vector2(5, 5))
+		squad.append(_grunt(root, info, deck + Vector3(0, 0, -0.6), zone_index, 0.6, Vector3(0, 0, 1)))
+	L.guard(root, info, crate, squad)
+	var sign_at := _on(plan, c + side * 3.4, z0 - 2.0)
+	SP.place(root, "warning_sign", sign_at, dress.randf_range(-10, 10), info)
+	var title := Kit.label(root, sign_at + Vector3(0, 3.4, 0), "SALVAGE DEPOT", 64)
+	title.modulate = Color(0.95, 0.4, 0.3)
 
 
 ## A row of rooftops along a high lane through a yard, from the ridge's end to
@@ -659,6 +714,89 @@ static func _end(root: Node3D, plan, info: Dictionary, keep_out: Array, s: Dicti
 	F.spawn(root, "rock_a", _on(plan, x + 7.0, plan.end_z + 2.0), 10.0, 1.5)
 
 
+## A real level's finale: the valley opens into a clearing where the enemy
+## titan waits on the road, the evac pad behind it. Slabs, containers and
+## wrecks scattered round for titan cover; a last pair of grunts dug in where
+## the road comes out of the trees. Past enter_z the titan fight is on.
+static func _finale(root: Node3D, plan, info: Dictionary, keep_out: Array, s: Dictionary, rng: RandomNumberGenerator,
+		dress: RandomNumberGenerator, zone_index: int) -> void:
+	var z0: float = s["z0"]
+	var z1: float = s["z1"]
+	var mid: float = s["mid"]
+	var c: float = plan.center_x(mid)
+	var hw: float = plan.half_width(mid) - 4.0
+	var y: float = s["level"]
+	var enter_z := z0 - 16.0
+	var road_x: float = plan.lane_x(plan.lane_of("loud"), plan.end_z)
+	info["arena"] = {
+		"rect": Rect2(c - hw, z1 + 4.0, hw * 2.0, enter_z - z1 - 4.0),
+		"enter_z": enter_z, "center": Vector3(c, y, (enter_z + z1) * 0.5),
+	}
+	# Their titan on the road, the evac behind it at the far end.
+	var boss := Boss.new()
+	root.add_child(boss)
+	boss.position = Vector3(c, y, z1 + 40.0)
+	info["boss"] = boss
+	var pad := Vector3(c + (8.0 if rng.randf() < 0.5 else -8.0), y, z1 + 14.0)
+	ForestBuilder.evac_pad(root, info, pad)
+	keep_out.append(Rect2(c - 9.0, z1 + 31.0, 18.0, 18.0))
+	keep_out.append(Rect2(pad.x - 9.0, pad.z - 9.0, 18.0, 18.0))
+	keep_out.append(Rect2(road_x - 8.0, enter_z - 6.0, 16.0, z0 - enter_z + 12.0))
+	var call_sign := Kit.label(root, Vector3(road_x, y + 4.0, enter_z - 4.0), "CALL IN YOUR TITAN", 96)
+	call_sign.modulate = Color(0.6, 1.0, 0.7)
+	# Titan cover: three staggered rows of slab walls across the clearing
+	# between the treeline and their titan, with gaps to dash through; the
+	# middle row has a container wall or a titan hull plate in it.
+	var on := func(x: float, z: float) -> Vector3: return Vector3(x, y, z)
+	var span := enter_z - (z1 + 40.0)
+	for row in 3:
+		var rz: float = enter_z - span * (0.22 + row * 0.28)
+		var shift := 7.0 if row % 2 == 0 else -7.0
+		var x := c - hw + 10.0 + (shift if shift > 0.0 else 0.0)
+		while x < c + hw - 8.0:
+			var p := Vector2(x + rng.randf_range(-2.0, 2.0), rz + rng.randf_range(-3.0, 3.0))
+			if absf(p.x - c) > 4.0 or row == 1:
+				var yaw := rng.randf_range(-20, 20)
+				if row == 1 and absf(p.x - c) < 10.0:
+					SP.place(root, ["container_wall", "hull_wall"][rng.randi() % 2], on.call(p.x, p.y), yaw, info)
+				else:
+					for k in 2:
+						var b := Basis(Vector3.UP, deg_to_rad(yaw))
+						F.wall_slab(root, on.call(p.x, p.y) + b * Vector3((k - 0.5) * 4.0, -0.2, 0), yaw)
+				keep_out.append(Rect2(p - Vector2(5, 3), Vector2(10, 6)))
+			x += rng.randf_range(16.0, 22.0)
+	# Their forward base along the sides: wrecked trucks, a fuel tank, crates,
+	# a tent under netting, rocks, and a dead titan on each flank.
+	for side in [-1.0, 1.0]:
+		var w := Vector2(c + side * (hw - 9.0), rng.randf_range(z1 + 34.0, enter_z - 24.0))
+		B.wreck(root, on.call(w.x, w.y), dress)
+		_occupy(info, keep_out, w, Vector2(12, 12))
+		F.wreck_truck(root, on.call(c + side * (hw - 6.0), w.y + side * 18.0), dress.randf_range(0, 360))
+		F.crate_stack(root, on.call(c + side * (hw - 14.0), z1 + 22.0), dress.randf_range(-20, 20))
+		F.rock(root, "rock_b", on.call(c + side * dress.randf_range(8.0, hw - 16.0), dress.randf_range(z1 + 50.0, enter_z - 8.0)), dress.randf_range(0, 360), 3.0)
+	var camp_x := c - hw + 8.0 if rng.randf() < 0.5 else c + hw - 8.0
+	F.camo_net(root, on.call(camp_x, enter_z - 3.0), 90.0)
+	F.tent(root, on.call(camp_x, enter_z - 1.0), 90.0)
+	F.generator(root, on.call(camp_x + signf(c - camp_x) * 4.0, enter_z - 5.0), 40.0)
+	F.fuel_tank(root, on.call(camp_x, z1 + 30.0), 80.0)
+	var placed := 0
+	for tries in 60:
+		if placed >= 10:
+			break
+		var id: String = ["tank_trap", "jersey_barrier", "supply_pod", "tire_stack", "pipe_stack"][dress.randi() % 5]
+		var p := Vector2(c + dress.randf_range(-hw + 2.0, hw - 2.0), dress.randf_range(z1 + 6.0, enter_z))
+		if not _put(root, plan, info, keep_out, id, p, dress.randf_range(0, 360), 0.0).is_empty():
+			placed += 1
+	F.floodlight(root, Vector3(c - hw + 3.0, y, z1 + 8.0), 150.0)
+	F.floodlight(root, Vector3(c + hw - 3.0, y, z1 + 8.0), 210.0)
+	# The last of the militia, dug in where the road comes out of the trees.
+	for k in 2:
+		var gx := road_x + (-5.0 if k == 0 else 5.5)
+		var gz := enter_z + 7.0 - k * 3.0
+		B.cover_low(root, Vector3(gx, plan.ground(gx, gz + 1.2), gz + 1.2), dress.randf_range(-12, 12), dress)
+		_grunt(root, info, _on(plan, gx, gz), zone_index, 1.5)
+
+
 ## A bombed-out hamlet across the valley: house shells along both sides of
 ## the road with their tall walls to it (wallrun them down the street), a
 ## sniper on a shell's upper floor, a sentry walking the street, wrecks and
@@ -775,7 +913,7 @@ static func _traversal(root: Node3D, plan, info: Dictionary, keep_out: Array, rn
 	var loud: int = plan.lane_of("loud")
 	for s in plan.sections:
 		var open: bool = s["kind"] in ["field", "picket", "resource", "ruins"]
-		if not open and not s["kind"] in ["outpost", "camp"]:
+		if not open and not s["kind"] in LevelPlan.YARDS:
 			continue
 		var z0: float = s["z0"] - 4.0
 		var z1: float = s["z1"] + 4.0
@@ -1052,9 +1190,11 @@ static func _crate_spots(plan, info: Dictionary, keep_out: Array, dress: RandomN
 
 ## Each lane as a route of points ({name, kind, points}), the way loot.gd,
 ## the map and the tests read the handmade zones' routes. High lanes run over
-## the rooftops and catwalks; every route ends at the beacon.
+## the rooftops and catwalks; every route ends at the beacon (in a level, where
+## the road comes out into the finale's clearing).
 static func _routes(plan, info: Dictionary) -> void:
-	var beacon: Vector3 = info["beacon"].position
+	var beacon: Vector3 = info["beacon"].position if info["beacon"] != null \
+			else _on(plan, plan.lane_x(plan.lane_of("loud"), plan.end_z), plan.end_z)
 	var routes := []
 	for i in plan.lanes.size():
 		var kind: String = plan.lanes[i]["kind"]

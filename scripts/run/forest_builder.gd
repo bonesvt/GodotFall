@@ -910,10 +910,23 @@ static func build_edge(root: Node3D) -> Dictionary:
 		grass.append(Transform3D(basis, on.call(px, pz) - Vector3(0, 0.05, 0)))
 	F.scatter(root, "grass_tuft", grass, {"grass_blade": Color(0.8, 0.85, 0.6)}, false)
 	# Evac pad, and the dropship that comes for your titan once theirs is down.
-	F.spawn(root, "evac_pad", EVAC - Vector3(0, 0.14, 0), 0.0, 1.0, {}, Color(0.4, 1.0, 0.6))
+	evac_pad(root, info, EVAC)
+	Kit.label(root, Vector3(0, 4, 22), "CALL IN YOUR TITAN", 96)
+	var boss := Boss.new()
+	root.add_child(boss)
+	boss.position = Vector3(0, 0, -25)
+	info["boss"] = boss
+	return info
+
+
+## The evac pad at `pos` and the dropship over it, hidden until the enemy
+## titan is down (info["evac_node"]; run_manager brings the ship in). The
+## generated levels' finales use it too.
+static func evac_pad(root: Node3D, info: Dictionary, pos: Vector3) -> void:
+	F.spawn(root, "evac_pad", pos - Vector3(0, 0.14, 0), 0.0, 1.0, {}, Color(0.4, 1.0, 0.6))
 	var evac := Node3D.new()
 	evac.name = "Evac"
-	evac.position = EVAC
+	evac.position = pos
 	evac.visible = false
 	root.add_child(evac)
 	var ship := F.spawn(evac, "dropship", Vector3(0, 16.0, 0), 200.0, 1.0, {"titan_armor": Color(0.7, 0.8, 0.95)}, Color(0.5, 0.9, 1.0))
@@ -929,9 +942,4 @@ static func build_edge(root: Node3D) -> Dictionary:
 	evac.add_child(beam_mi)
 	Kit.label(evac, Vector3(0, 6.0, 0), "EVAC", 128)
 	info["evac_node"] = evac
-	Kit.label(root, Vector3(0, 4, 22), "CALL IN YOUR TITAN", 96)
-	var boss := Boss.new()
-	root.add_child(boss)
-	boss.position = Vector3(0, 0, -25)
-	info["boss"] = boss
-	return info
+	info["evac"] = pos

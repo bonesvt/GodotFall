@@ -1,6 +1,6 @@
 extends SceneTree
 ## Headless test for the people in the hub (Mom, Ophelia, Biggie): each stands
-## in their room, Eco can walk in through the door, F starts a talk that opens
+## in their tent, Eco can walk in through the door, F starts a talk that opens
 ## with their intro, F moves it on, walking off ends it, a finished run gets a
 ## reaction, and every line babbles in its speaker's voice.
 ## Run: godot --headless --path . -s res://tests/npc_test.gd
@@ -10,12 +10,8 @@ const NpcTalk := preload("res://scripts/hub/npc_talk.gd")
 const Babble := preload("res://scripts/hub/babble.gd")
 
 const WHO := ["mom", "ophelia", "biggie"]
-## Where Eco stands in the hall to walk through each door, and which way is in.
-const DOORS := {
-	"mom": [Vector3(-10.5, Rooms.F, Rooms.MOM_DOOR_Z), Vector3(-1, 0, 0)],
-	"ophelia": [Vector3(Rooms.OPHELIA_DOOR_X, Rooms.F, -29.5), Vector3(0, 0, -1)],
-	"biggie": [Vector3(Rooms.BIGGIE_DOOR_X, Rooms.F, -29.5), Vector3(0, 0, -1)],
-}
+## Where Eco stands on each tent's porch to walk in, and which way is in.
+var DOORS := {"mom": Rooms.doorstep("mom"), "ophelia": Rooms.doorstep("ophelia"), "biggie": Rooms.doorstep("biggie")}
 
 var run_node
 var player
@@ -86,7 +82,7 @@ func _run() -> void:
 
 	for who in WHO:
 		var npc = run_node.hub_npcs[who]
-		# Walk in through the door from the hall until they're in talking range.
+		# Walk in through the door from the porch until they're in talking range.
 		var door: Array = DOORS[who]
 		_place(door[0] + Vector3(0, 0.3, 0))
 		await _ticks(20)

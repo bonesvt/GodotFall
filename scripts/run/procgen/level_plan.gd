@@ -36,6 +36,11 @@ extends RefCounted
 ##     (wallrun the hanging shield or grapple the crane), the gullies a fallen
 ##     log, the ridges rock pillars.
 ##   end: the extraction beacon on the road.
+## A real level (levels.gd, make_level) can also have:
+##   depot: the militia's salvage depot, a yard like the outpost with a
+##     bigger squad guarding a crated titan part (the level's objective).
+##   finale: in place of the end, a wide clearing across the whole valley
+##     where the enemy titan waits: call yours in, fight, walk it to the evac.
 ## Everything is seeded: the same seed always plans the same zone.
 
 const CELL := 2.0
@@ -62,7 +67,10 @@ const BRIDGE_REACH := 2.0
 const SECTION_LEN := {
 	"start": 36.0, "field": 44.0, "picket": 36.0, "wall": 28.0,
 	"outpost": 56.0, "camp": 56.0, "resource": 44.0, "chasm": 48.0, "end": 36.0, "ruins": 48.0,
+	"depot": 64.0, "finale": 112.0,
 }
+## Sections that are a flat yard with buildings, a squad and a cache.
+const YARDS := ["outpost", "camp", "depot"]
 ## Flat ground round the spawn and the beacon.
 const SPAWN_CLEAR := 10.0
 const BIOMES := ["forest", "marsh", "boneyard", "city", "military"]
@@ -99,8 +107,12 @@ var z_bottom := 0.0
 ## Below this you have fallen (into a chasm).
 var kill_y := -10.0
 var floor_y := -20.0
+## A real level's spec (levels.gd), or {} for an uncharted zone.
+var level := {}
 
 var _phase := []
+## Past this z the centre line stops meandering (a finale's clearing).
+var _straight_from := INF
 var _ridge_spans: Array = []
 
 
@@ -112,6 +124,15 @@ static func make(seed_value: int, zone_index := 3, lane_count := 0, biome := "")
 	return plan
 
 
+## Plans one of the real levels (levels.gd) from `seed_value`: its name, biome
+## and difficulty are the level's, its layout the seed's.
+static func make_level(seed_value: int, spec: Dictionary) -> RefCounted:
+	var plan = load("res://scripts/run/procgen/level_plan.gd").new()
+	plan.level = spec
+	plan._plan(seed_value, int(spec.get("difficulty", 3)), int(spec.get("lanes", 0)), String(spec.get("biome", "")))
+	return plan
+
+
 func _plan(s: int, zi: int, lane_count: int, b: String) -> void:
 	seed_value = s
 	zone_index = zi
@@ -120,6 +141,8 @@ func _plan(s: int, zi: int, lane_count: int, b: String) -> void:
 	biome = b if b != "" else BIOMES[rng.randi() % BIOMES.size()]
 	var names: Array = ZONE_NAMES[biome]
 	zone_name = names[rng.randi() % names.size()]
+	if level.has("name"):
+		zone_name = level["name"]
 	for i in 6:
 		_phase.append(rng.randf() * TAU)
 	var n := lane_count if lane_count > 0 else rng.randi_range(3, 5)
@@ -195,6 +218,7 @@ func _plan_sections(rng: RandomNumberGenerator) -> void:
 	# further into the run.
 	var extra := 2 + clampi(zone_index - 3, 0, 2)
 	var middle := ["outpost", "camp", "wall", "chasm"]
+	middle.append_array(level.get("must", []))
 	var fillers := ["field", "picket", "resource", "field", "ruins"]
 	for i in extra:
 		middle.append(fillers[rng.randi() % fillers.size()])
@@ -212,7 +236,7 @@ func _plan_sections(rng: RandomNumberGenerator) -> void:
 			break
 	var z := spawn_z + 28.0
 	z_top = z
-	var seq := ["start"] + order + ["end"]
+	var seq := ["start"] + order + ["finale" if level.get("finale", false) else "end"]
 	var caches := ["guarded", "high"] if rng.randf() < 0.5 else ["high", "guarded"]
 	for kind in seq:
 		var length: float = SECTION_LEN[kind]
@@ -227,20 +251,25 @@ func _plan_sections(rng: RandomNumberGenerator) -> void:
 				s["wall_z"] = snappedf(s["mid"], CELL)
 			"outpost", "camp":
 				s["cache"] = caches.pop_front()
+			"depot":
+				s["cache"] = "guarded"
 		sections.append(s)
 		z -= length
 	end_z = sections[-1]["mid"]
+	if sections[-1]["kind"] == "finale":
+		end_z = sections[-1]["z0"] - 10.0  # where the road comes out into the clearing
+		_straight_from = sections[-1]["z0"] - 12.0
 	z_bottom = z
 	# Flat stretches (chasm lips, yards) sit at one level each.
 	for s in sections:
-		if s["kind"] in ["chasm", "outpost", "camp", "start", "end"]:
+		if s["kind"] in ["chasm", "start", "end", "finale"] or s["kind"] in YARDS:
 			s["level"] = _noise_height(s["mid"])
 			if biome == "marsh":
 				s["level"] = maxf(s["level"], 0.5)  # yards and bridge decks stay above the water
 
 
 ## No chasm first or last, no chasm or wall next to another of either, and
-## the two cache sites apart.
+## the cache sites (the yards) apart.
 func _good_order(order: Array) -> bool:
 	if order[0] == "chasm" or order[-1] == "chasm":
 		return false
@@ -249,13 +278,18 @@ func _good_order(order: Array) -> bool:
 		var b: String = order[i + 1]
 		if a in ["chasm", "wall"] and b in ["chasm", "wall"]:
 			return false
-		if a in ["outpost", "camp"] and b in ["outpost", "camp"]:
+		if a in YARDS and b in YARDS:
 			return false
 	return true
 
 
 func sections_of(kind: String) -> Array:
 	return sections.filter(func(s): return s["kind"] == kind)
+
+
+## The finale's clearing (a real level's titan fight), or {}.
+func finale() -> Dictionary:
+	return sections[-1] if sections[-1]["kind"] == "finale" else {}
 
 
 func section_at(z: float) -> Dictionary:
@@ -267,8 +301,11 @@ func section_at(z: float) -> Dictionary:
 
 # --- shape ---------------------------------------------------------------------
 
-## The valley's centre line: a slow meander.
+## The valley's centre line: a slow meander. It runs straight through a
+## finale's clearing, so the clearing is square to the valley.
 func center_x(z: float) -> float:
+	if _straight_from != INF:
+		z = maxf(z, _straight_from)
 	return 7.0 * sin(z / 61.0 + _phase[0]) + 3.0 * sin(z / 23.0 + _phase[1])
 
 
@@ -284,7 +321,7 @@ func lane_x(i: int, z: float) -> float:
 func _calm(z: float) -> float:
 	var c := 1.0
 	for s in sections:
-		if s["kind"] in ["outpost", "camp"]:
+		if s["kind"] in YARDS:
 			c = minf(c, 1.0 - _plateau(z, s["z1"], s["z0"], 10.0))
 		if s["kind"] == "chasm":
 			c = minf(c, clampf((absf(z - (s["near_lip"] + s["far_lip"]) * 0.5) - 20.0) / 10.0, 0.0, 1.0))
@@ -319,13 +356,15 @@ func base_height(z: float) -> float:
 	return h
 
 
-## 1 in the yards and round the spawn and beacon, where the ground is flat and
-## the gullies and ridges stop.
+## 1 in the yards, the finale's clearing and round the spawn and beacon,
+## where the ground is flat and the gullies and ridges stop.
 func clearing(x: float, z: float) -> float:
 	var c := 0.0
 	for s in sections:
-		if s["kind"] in ["outpost", "camp"]:
+		if s["kind"] in YARDS:
 			c = maxf(c, _plateau(z, s["z1"] + 2.0, s["z0"] - 2.0, 6.0))
+		elif s["kind"] == "finale":
+			c = maxf(c, _plateau(z, s["z1"] - 40.0, s["z0"] - 6.0, 8.0))
 	var loud := lane_of("loud")
 	for z0 in [spawn_z, end_z]:
 		var d := Vector2(x, z).distance_to(Vector2(lane_x(loud, z0), z0))
@@ -397,12 +436,12 @@ func _plan_ridges() -> void:
 		match s["kind"]:
 			"start":
 				spans.append([spawn_z - 2.0, s["z1"], 16.0, 0.0])
-			"outpost", "camp":
+			"outpost", "camp", "depot":
 				pass
 			"wall":
 				spans.append([s["z0"], s["wall_z"] + 3.0, 0.0, 0.0])
 				spans.append([s["wall_z"] - 3.0, s["z1"], 0.0, 0.0])
-			"end":
+			"end", "finale":
 				spans.append([s["z0"], s["z0"] - 14.0, 0.0, 12.0])
 			_:
 				spans.append([s["z0"], s["z1"], 0.0, 0.0])

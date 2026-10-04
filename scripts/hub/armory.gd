@@ -272,6 +272,8 @@ var lifetime := {}
 var suit_tier := 0
 ## Light, medium or heavy (SUIT_WEIGHTS).
 var suit_weight := "medium"
+## Levels cleared ("tutorial" for the Pinewoods run, then levels.gd ids).
+var cleared := []
 
 
 func _init(p_path := DEFAULT_PATH) -> void:
@@ -309,6 +311,7 @@ func load_file() -> void:
 	refits = cfg.get_value("titan", "refits", {})
 	suit_tier = clampi(cfg.get_value("suit", "tier", 0), 0, SUIT_TIERS.size())
 	suit_weight = cfg.get_value("suit", "weight", "medium")
+	cleared = cfg.get_value("progress", "cleared", [])
 	if not SUIT_WEIGHTS.has(suit_weight):
 		suit_weight = "medium"
 	if not WEAPONS.has(equipped) or not owns_weapon(equipped):
@@ -330,7 +333,24 @@ func save() -> void:
 	cfg.set_value("titan", "refits", refits)
 	cfg.set_value("suit", "tier", suit_tier)
 	cfg.set_value("suit", "weight", suit_weight)
+	cfg.set_value("progress", "cleared", cleared)
 	cfg.save(path)
+
+
+## A run was won: `id` is the level ("tutorial" for the Pinewoods run).
+func mark_cleared(id: String) -> void:
+	if not id in cleared:
+		cleared.append(id)
+		save()
+
+
+## What has been cleared. Saves from before levels counted: a lock core
+## banked means a titan was beaten, so the tutorial run was done.
+func cleared_levels() -> Array:
+	var out := cleared.duplicate()
+	if not "tutorial" in out and int(lifetime.get("lock_cores", 0)) > 0:
+		out.append("tutorial")
+	return out
 
 
 func amount(material: String) -> int:
