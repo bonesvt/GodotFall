@@ -115,7 +115,7 @@ func _flash(text: String) -> void:
 
 # --- the run manager's side -----------------------------------------------------
 
-## "zone0".."zone2", "arena", "level1", "hub" or anything else (no beats).
+## "zone0".."zone2", "arena", "level1", "level2", "hub" or anything else (no beats).
 func start_level(which: String) -> void:
 	_finish()
 	level = which
@@ -133,6 +133,8 @@ func start_level(which: String) -> void:
 			beats = _arena()
 		"level1":
 			beats = _level1() + _anywhere()
+		"level2":
+			beats = _level2() + _anywhere()
 		"hub":
 			beats = _hub()
 	var radio = _radio()
@@ -696,6 +698,31 @@ func _level1() -> Array:
 			"body": "The road runs out into a clearing and their titan is parked on it. Step out of the trees and it's titanfall: call yours in, beat theirs, walk it to the evac.",
 			"when": func(): return _info().has("arena") and _pos().z < float(_info()["arena"]["enter_z"]) + 45.0 and run.phase == run.Phase.ZONE},
 	]
+
+
+func _level2() -> Array:
+	return [
+		{"id": "level2_intro", "title": "LEVEL 2: THE GLASS DISTRICT", "color": AMBER, "max": 15.0,
+			"body": "Night in the colony's streets. Their torches show where they're looking, and in the dark they don't see far. Stay quiet: Ophelia's in their holding block at the far end of the district.",
+			"targets": func(): return _route_tags(_info().get("routes", [])),
+			"when": func(): return level_time > 2.0},
+		{"id": "level2_cell", "title": "HOLDING BLOCK", "color": RED, "max": 16.0,
+			"body": "Her cell's behind an energy screen, a guard on it and more round the block. Take him quietly with the stiletto [Z], walk up to the screen and press [F] to short it and break her chains.",
+			"targets": func(): return _cell_tag(),
+			"when": func(): return _cell_tag().size() > 0 and _near(_info()["holding_cell"].global_position, 70.0),
+			"done": func(): return _info()["holding_cell"].opened},
+		{"id": "level2_out", "title": "GET HER OUT", "color": GREEN, "max": 16.0,
+			"body": "She follows you, and crouches when you crouch. Grunts can spot her too. [F] next to her tells her to wait or to come on. The exfil is back where you came in, and she has to be with you.",
+			"targets": func(): return [{"node": _info()["beacon"], "tag": "EXFIL", "color": GREEN}] if _info().get("beacon") != null else [],
+			"when": func(): return _events.has("rescued") and level_time > 0.0},
+	]
+
+
+func _cell_tag() -> Array:
+	var c = _info().get("holding_cell")
+	if c == null or not is_instance_valid(c) or c.opened:
+		return []
+	return [{"node": c, "tag": "OPHELIA", "color": ORANGE}]
 
 
 func _depot_tag() -> Array:

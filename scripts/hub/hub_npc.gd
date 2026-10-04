@@ -22,8 +22,11 @@ const MAX_TURN := 60.0
 ## Who has more than one outfit (body.png first, then body_<outfit>.png from
 ## tools/npc/build_npc.py). They change between runs.
 const OUTFITS := {"ophelia": ["tee", "hoodie", "night"], "mom": ["home", "night"]}
+## Outfits only worn on missions, never picked for the hub (Ophelia's
+## detainee rags in Level 2's holding cell): body_<outfit>.png too.
+const MISSION_OUTFITS := {"ophelia": ["prison"]}
 ## Outfits worn barefoot or in socks: the boots come off.
-const NO_BOOTS := ["night"]
+const NO_BOOTS := ["night", "prison"]
 
 const NpcSprings := preload("res://scripts/hub/npc_springs.gd")
 const Hair := preload("res://scripts/hub/hair.gd")
@@ -215,7 +218,7 @@ func wear_for_run(run: int) -> void:
 
 func wear(p_outfit: String) -> void:
 	var list: Array = OUTFITS.get(who, [])
-	if not list.has(p_outfit):
+	if not list.has(p_outfit) and not MISSION_OUTFITS.get(who, []).has(p_outfit):
 		return
 	var path := "res://assets/textures/npc/%s/%s.png" % [who, "body" if p_outfit == list[0] else "body_" + p_outfit]
 	if not ResourceLoader.exists(path):

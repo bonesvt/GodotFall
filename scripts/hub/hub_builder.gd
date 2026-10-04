@@ -64,7 +64,7 @@ static var home_style := "timber"
 const STRING_LIGHT := Color(1.0, 0.72, 0.38)
 
 
-## Returns {spawn, floor_y, interactables, tutorial_poster, level_board, eco_spot, half_size}.
+## Returns {spawn, floor_y, interactables, tutorial_poster, level_boards, eco_spot, half_size}.
 ## Each interactable is {id, pos, range, prompt, lines}; "tutorial_poster",
 ## "level_board" and "uncharted_map" start runs (no lines). eco_spot is a
 ## Marker3D by her workbench for her model.
@@ -722,8 +722,23 @@ static func _mission_table(root: Node3D, info: Dictionary) -> void:
 	title.modulate = Color(1.0, 0.85, 0.5)
 	var tag := Kit.label(root, lv + Vector3(-0.4, 1.25, 0), "LEVEL 1", 40)
 	tag.modulate = Color(1.0, 0.55, 0.4)
-	K.interactable(info, "level_board", t + Vector3(-0.7, 0.1, 1.3), "[F] Level 1", [], 1.8)
-	info["level_board"] = {"id": "level1", "label": tag}
+	K.interactable(info, "level_board", t + Vector3(-0.9, 0.1, 1.3), "[F] Level 1", [], 1.2)
+	info["interactables"][-1]["level"] = "level1"
+	# Level 2: the Glass District, blue city blocks, the holding block ringed
+	# in red with a photo of Ophelia pinned to it.
+	var lv2 := t + Vector3(0.35, 1.05, 0.35)
+	for i in 4:
+		var b := K.mesh(root, lv2 + Vector3(-0.2 + (i % 2) * 0.22, 0.04 + i * 0.012, -0.12 + int(i / 2.0) * 0.2), Vector3(0.14, 0.08 + i * 0.03, 0.14), Art.material("light"))
+		b.set_instance_shader_parameter("paint", Color(0.45, 0.55, 0.7))
+	K.glow(root, lv2 + Vector3(0.18, 0.0, 0.05), Vector3(0.2, 0.02, 0.2), Color(0.9, 0.2, 0.12))
+	K.glow(root, lv2 + Vector3(0.18, 0.012, 0.05), Vector3(0.12, 0.02, 0.12), Color(0.3, 0.8, 1.0))
+	var photo := K.mesh(root, lv2 + Vector3(0.45, 0.01, 0.4), Vector3(0.16, 0.01, 0.2), Art.material("light"), Vector3(0, 12, 0))
+	photo.set_instance_shader_parameter("paint", Color(0.85, 0.82, 0.8))
+	var tag2 := Kit.label(root, lv2 + Vector3(0.1, 1.25, 0), "LEVEL 2", 40)
+	tag2.modulate = Color(1.0, 0.55, 0.4)
+	K.interactable(info, "level2_board", t + Vector3(0.5, 0.1, 1.3), "[F] Level 2", [], 1.2)
+	info["interactables"][-1]["level"] = "level2"
+	info["level_boards"] = [{"id": "level1", "label": tag}, {"id": "level2", "label": tag2}]
 	# The far end: a second sheet with the uncharted country in blue.
 	var far := t + Vector3(0, 0, -0.6)
 	var chart := K.mesh(root, far + Vector3(0, 1.04, 0), Vector3(2.0, 0.02, 0.6), Art.material("light"))
