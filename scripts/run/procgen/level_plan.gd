@@ -73,16 +73,20 @@ const SECTION_LEN := {
 const YARDS := ["outpost", "camp", "depot"]
 ## Flat ground round the spawn and the beacon.
 const SPAWN_CLEAR := 10.0
-const BIOMES := ["forest", "marsh", "boneyard"]
+const BIOMES := ["forest", "marsh", "boneyard", "city", "military"]
 const LANE_NAMES := {
 	"forest": {"loud": "The logging road", "quiet": "The creek", "high": "The ridge"},
 	"marsh": {"loud": "The causeway", "quiet": "The reed channel", "high": "The pipeline bank"},
 	"boneyard": {"loud": "The haul road", "quiet": "The trench", "high": "The spine"},
+	"city": {"loud": "The boulevard", "quiet": "The storm drain", "high": "The skyway"},
+	"military": {"loud": "The supply route", "quiet": "The drainage ditch", "high": "The berm"},
 }
 const ZONE_NAMES := {
 	"forest": ["THE DEEPWOOD", "HOLLOW PINES", "WIDOW'S RIDGE", "THE STUMPS", "GREYBARK"],
 	"marsh": ["THE SINKS", "MIRE ROW", "DROWNED MILE", "THE STILLWATER", "FENWICK"],
 	"boneyard": ["THE OSSUARY", "RUSTFIELD", "COLD FOUNDRY", "THE GAUNTLET", "KNELL"],
+	"city": ["NEON MILE", "THE GLASSWORKS", "SPIRE ROW", "LOWLINE", "MERIDIAN"],
+	"military": ["FOB HALBERD", "CAMP GRIST", "OUTPOST NINE", "THE MOTOR POOL", "IRONGATE"],
 }
 
 var seed_value := 0

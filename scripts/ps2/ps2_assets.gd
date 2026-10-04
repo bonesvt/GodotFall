@@ -33,6 +33,18 @@ const MATERIALS := {
 	"gunmetal": preload("res://assets/materials/gunmetal.tres"),
 	"fabric": preload("res://assets/materials/grunt_fabric.tres"),
 	"light": preload("res://assets/materials/light.tres"),
+	# The high tech city's and the militia bases' surfaces (tools/make_textures.py).
+	"asphalt": preload("res://assets/materials/asphalt.tres"),
+	"pavers": preload("res://assets/materials/pavers.tres"),
+	"facade": preload("res://assets/materials/facade.tres"),
+	"curtain": preload("res://assets/materials/curtain.tres"),
+	"corrugated": preload("res://assets/materials/corrugated.tres"),
+	"olive": preload("res://assets/materials/olive.tres"),
+	"hesco": preload("res://assets/materials/hesco.tres"),
+	"camo": preload("res://assets/materials/camo.tres"),
+	"tarmac": preload("res://assets/materials/tarmac.tres"),
+	## Glowing signs and strips, lit in their own colour (set_pieces.gd NEON).
+	"neon": preload("res://assets/materials/neon.tres"),
 }
 
 const MODELS := {

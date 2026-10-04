@@ -1,0 +1,16 @@
+[gd_resource type="ShaderMaterial" load_steps=6 format=3]
+
+[ext_resource type="Shader" path="res://assets/shaders/ps2_surface.gdshader" id="1_shader"]
+[ext_resource type="Texture2D" path="res://assets/textures/hesco.png" id="2_tex"]
+[ext_resource type="Texture2D" path="res://assets/textures/hesco_n.png" id="3_n"]
+[ext_resource type="Texture2D" path="res://assets/textures/dirt.png" id="4_top"]
+[ext_resource type="Texture2D" path="res://assets/textures/dirt_n.png" id="5_n"]
+
+[resource]
+shader = ExtResource("1_shader")
+shader_parameter/albedo_tex = ExtResource("2_tex")
+shader_parameter/top_tex = ExtResource("4_top")
+shader_parameter/use_top_tex = true
+shader_parameter/tex_scale = 0.3
+shader_parameter/normal_tex = ExtResource("3_n")
+shader_parameter/top_normal_tex = ExtResource("5_n")
