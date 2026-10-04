@@ -745,6 +745,15 @@ def shell(name, keep, planes=(), gap=0.004, thick=0.004, plate="eco_v_armor", ed
         v.co += v.normal * gap
     if drape:
         _drape(bm)
+        for _ in range(6):   # even out the hem, whose verts each found different cloth above them
+            rim = [v for v in bm.verts if v.is_boundary and v.co.z < 1.1 and abs(v.co.x) < 0.15]
+            ys = {}
+            for v in rim:
+                nb = [e.other_vert(v) for e in v.link_edges if e.is_boundary]
+                if len(nb) == 2:
+                    ys[v] = v.co.y * 0.5 + (nb[0].co.y + nb[1].co.y) * 0.25
+            for v, ny in ys.items():
+                v.co.y = ny
         bm.normal_update()
     if smooth:   # a stiff plate: soften the small dips and peaks under it, borders stay put
         inner = [v for v in bm.verts if not v.is_boundary]
@@ -2342,24 +2351,6 @@ def hoodie(name, hem, mat):
     return ob
 
 
-def gusset(name, mat, z0=0.69, z1=0.8):
-    """A flat panel over the front of her crotch for painted shorts: her front
-    faces there bridged straight across row by row (paint alone follows the
-    notch where her thighs meet)."""
-    def keep(c, n):
-        return abs(c.x) < 0.055 and z0 < c.z < z1 and n.y < -0.25
-    ob = shell(name, keep, gap=0.002, thick=0.002, plate=mat, edge=mat, smooth_edge=3)
-    me = ob.data
-    P = np.array([v.co[:] for v in me.vertices])
-    front = P[:, 1] < 0
-    for v in me.vertices:
-        row = front & (np.abs(P[:, 2] - v.co.z) < 0.004) & (np.abs(P[:, 0]) < 0.05)
-        if v.co.y < 0 and row.any():
-            v.co.y = min(v.co.y, float(np.percentile(P[row, 1], 20)))   # the notch comes forward to the front of the row
-    me.update()
-    return ob
-
-
 def hood(name, mat):
     """The hoodie's hood, down, bunched on her upper back."""
     body = bpy.data.objects["Body"]
@@ -2514,7 +2505,6 @@ def outfit_pieces():
     out.append(hoodie("outfit_skater_t_hoodie", 0.955, "eco_v_hoodie_skater"))
     out.append(hoodie("outfit_skater_m_hoodie", 1.0, "eco_v_hoodie_skater"))
     out.append(hood("outfit_skater_any_hood", "eco_v_hoodie_skater_hood"))
-    out.append(gusset("outfit_skater_any_gusset", "eco_v_shorts_skater"))
     out.append(sneakers("outfit_skater_any_shoes", "eco_v_sneaker_skater", "eco_v_sneaker_skater_sole"))
     out.append(buns("outfit_skater_any_buns"))
     _cargo("cargo")

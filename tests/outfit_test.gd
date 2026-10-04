@@ -34,7 +34,7 @@ func _run() -> void:
 	var face: MeshInstance3D = eco.find_child("Face", true, false)
 	_check("model has goggles, boots and a face", goggles != null and boots != null and face != null, "")
 	for part in ["outfit_skater_t_hoodie", "outfit_skater_m_hoodie", "outfit_skater_any_hood", "outfit_skater_any_shoes",
-			"outfit_skater_any_buns", "outfit_skater_any_gusset", "outfit_y2k_t_skirt", "outfit_y2k_m_skirt", "outfit_y2k_t_warmers", "outfit_y2k_m_warmers",
+			"outfit_skater_any_buns", "outfit_y2k_t_skirt", "outfit_y2k_m_skirt", "outfit_y2k_t_warmers", "outfit_y2k_m_warmers",
 			"outfit_y2k_any_shoes", "outfit_y2k_any_clips", "outfit_date_t_jacket", "outfit_date_m_jacket",
 			"outfit_date_m_skirt", "outfit_date_any_hoops"]:
 		_check("%s is in the model" % part, eco.find_child(part, true, false) != null, "")
