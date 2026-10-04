@@ -9,3 +9,4 @@ shader = ExtResource("1_shader")
 shader_parameter/albedo_tex = ExtResource("2_tex")
 shader_parameter/tex_scale = 0.25
 shader_parameter/normal_tex = ExtResource("3_n")
+shader_parameter/anime_posterize = 0.0

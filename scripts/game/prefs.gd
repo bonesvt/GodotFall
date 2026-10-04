@@ -20,8 +20,8 @@ const ContentRating := preload("res://scripts/radio/content_rating.gd")
 const DEFAULTS := {
 	"controls": {"sensitivity": 1.0, "invert_y": false, "fov": 90.0},
 	"audio": {"Master": 0.9, "Effects": 1.0, "Ambience": 1.0, "Voices": 1.0},
-	"video": {"display": "windowed", "vsync": true, "max_fps": 0, "ps2_look": false},
-	"game": {"third_person": false},
+	"video": {"display": "windowed", "vsync": true, "max_fps": 0, "look": "anime", "film_grain": 0.4, "ps2_look": false},
+	"game": {"third_person": false, "jiggle_style": "classic"},
 }
 ## The FOV the cameras were tuned at; the FOV setting shifts every camera by
 ## its difference from this.
@@ -37,7 +37,7 @@ const BINDABLE := [
 	["grapple", "Grapple"], ["fire", "Shoot"], ["reload", "Reload"],
 	["melee", "Knife"], ["inspect", "Inspect weapon"], ["interact", "Interact / embark"],
 	["titan_core", "Call titan / core"], ["reset", "Respawn"],
-	["toggle_view", "First / third person"], ["ps2_toggle", "PS2 / PS3 look"],
+	["toggle_view", "First / third person"], ["ps2_toggle", "Change look (Anime / PS3 / PS2)"],
 ]
 
 static var _cfg: ConfigFile
@@ -141,16 +141,46 @@ static func apply_video() -> void:
 		DisplayServer.window_set_vsync_mode(DisplayServer.VSYNC_ENABLED if bool(get_value("video", "vsync")) else DisplayServer.VSYNC_DISABLED)
 	Engine.max_fps = int(get_value("video", "max_fps"))
 	var ps2 = Engine.get_main_loop().root.get_node_or_null("PS2") if Engine.get_main_loop() is SceneTree else null
-	if ps2 != null and bool(ps2.enabled) != bool(get_value("video", "ps2_look")):
-		ps2.set_enabled(bool(get_value("video", "ps2_look")))
+	if ps2 != null:
+		if ps2.look() != look():
+			ps2.set_look(look())
+		ps2.set_grain(float(get_value("video", "film_grain")))
 
 
-## F9 flips the look outside the menu; remember it.
-static func remember_look(ps2_on: bool) -> void:
-	if bool(get_value("video", "ps2_look")) == ps2_on:
+## "anime", "ps3" or "ps2". Settings from before the Anime look only saved
+## ps2_look; a PS2 player keeps PS2.
+static func look() -> String:
+	if not cfg().has_section_key("video", "look") and bool(get_value("video", "ps2_look")):
+		return "ps2"
+	return String(get_value("video", "look"))
+
+
+## F9 changes the look outside the menu; remember it.
+static func remember_look(name: String) -> void:
+	if look() == name:
 		return
-	set_value("video", "ps2_look", ps2_on)
+	set_value("video", "look", name)
+	set_value("video", "ps2_look", name == "ps2")
 	save()
+
+
+# --- jiggle style ---------------------------------------------------------------
+
+## Eco's jiggle style (eco_model.gd JIGGLE_STYLES): "classic", "anime" or "realistic".
+const JIGGLE_STYLES := ["classic", "anime", "realistic"]
+
+
+static func jiggle_style() -> String:
+	var style := String(get_value("game", "jiggle_style"))
+	return style if style in JIGGLE_STYLES else "classic"
+
+
+## Saves the style and puts it on every Eco that follows the setting.
+static func set_jiggle_style(style: String) -> void:
+	set_value("game", "jiggle_style", style if style in JIGGLE_STYLES else "classic")
+	save()
+	if Engine.get_main_loop() is SceneTree:
+		(Engine.get_main_loop() as SceneTree).call_group("eco_jiggle", "follow_jiggle_setting")
 
 
 # --- dialogue rating ------------------------------------------------------------

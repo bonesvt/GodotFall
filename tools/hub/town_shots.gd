@@ -19,7 +19,7 @@ const VIEWS := {
 	"scoops": [Vector3(-9, 0.1, 179.5), Vector3(-15.5, 3.5, 187.5)],
 	"gifts": [Vector3(10.5, 0.1, 180.0), Vector3(15.5, 2.2, 187.5)],
 	"gift_shelves": [Vector3(15.5, 0.1, 183.2), Vector3(15.5, 1.3, 189.0)],
-	"militia": [Vector3(-6, 0.1, 172), Vector3(-22, 4, 176)],
+	"recruitment": [Vector3(-6, 0.1, 172), Vector3(-22, 4, 176)],
 	"cafe": [Vector3(8, 0.1, 168), Vector3(24, 3, 176)],
 	"lowrow": [Vector3(2.5, 0.1, 195), Vector3(-1, 4.5, 214)],
 	"flat": [Vector3(3, 0.1, 205), Vector3(-7, 3, 209)],
@@ -63,7 +63,7 @@ func _go() -> void:
 	var cam: Camera3D = player.get_node("Head/Camera3D")
 	# No gun or its muzzle light in the way.
 	for child in cam.get_children():
-		if child is Node3D:
+		if child is Node3D and child.name != "AnimePost":  # keep the Anime look's screen pass
 			child.visible = false
 	for view in VIEWS:
 		if not only.is_empty() and not view in only:

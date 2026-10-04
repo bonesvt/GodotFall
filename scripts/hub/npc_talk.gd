@@ -8,7 +8,11 @@ extends CanvasLayer
 ## The words live in dialogue/npc/<who>.txt: [intro] the first time Eco talks
 ## to them, [won] / [lost] once after each run that ended that way, otherwise
 ## the [any] conversations in turn. Who has met whom and where each of them is
-## in their [any] list is saved to `save_path`.
+## in their [any] list is saved to `save_path`. Anyone with [excuse] talks
+## (Mom: what she told the town this time) tacks the next one, in order, onto
+## the first talk after each run. [about <who> <stage>] talks (Mom, as Eco
+## and Ophelia fall for each other) come up once each, one a hub stay, as
+## that romance reaches each stage (_about_talk).
 ##
 ## Romance (romance.gd) rides on the same talks: for anyone with a [romance]
 ## section a heart meter sits by their name, their [heart N] scenes come
@@ -111,7 +115,7 @@ func active() -> bool:
 ## flag, lines}, ...]} questions.
 static func parse(text: String) -> Dictionary:
 	var bank := {"any": [], "together": [], "flirt": [], "heart": [], "date": {}, "gift": {}, "spot": {},
-		"bond": [], "close": [], "soft": [], "cuddle": [], "sick": []}
+		"bond": [], "close": [], "soft": [], "cuddle": [], "sick": [], "excuse": [], "about": []}
 	var cur: Array = []
 	var choice_re := RegEx.create_from_string("^choice\\s*([+-]?\\d+)?\\s*(?:!(\\w+))?\\s*:\\s*(\\w+(?:\\s*\\([^)]*\\))?)\\s*:\\s*(.+)$")
 	for raw in text.split("\n"):
@@ -123,12 +127,16 @@ static func parse(text: String) -> Dictionary:
 			var tag := line.substr(1, line.length() - 2).strip_edges()
 			var parts := tag.split(" ", false)
 			match parts[0]:
-				"any", "together", "flirt", "close", "soft", "cuddle", "sick":
+				"any", "together", "flirt", "close", "soft", "cuddle", "sick", "excuse":
 					bank[parts[0]].append(cur)
 				"heart":
 					bank["heart"].append({"at": int(parts[1]) if parts.size() > 1 else 0, "lines": cur, "pose": parts[2] if parts.size() > 2 else ""})
 				"bond":
 					bank["bond"].append({"at": int(parts[1]) if parts.size() > 1 else 0, "lines": cur})
+				"about":
+					# [about ophelia crush]: what they have to say about someone
+					# else's romance with Eco once it gets that far
+					bank["about"].append({"who": parts[1] if parts.size() > 1 else "", "stage": parts[2] if parts.size() > 2 else "", "lines": cur})
 				"date", "gift":
 					bank[parts[0]][parts[1] if parts.size() > 1 else "any"] = cur
 				"spot":
@@ -224,8 +232,11 @@ func pick(who: String, run_id: int, won: bool, spot := "") -> Array:
 	if run_id > int(state.get_value(who, "run_seen", 0)):
 		state.set_value(who, "run_seen", run_id)
 		var tag := "won" if won else "lost"
+		var excuse := _next_excuse(who)
 		if b.has(tag):
-			return b[tag]
+			return b[tag] + excuse
+		if not excuse.is_empty():
+			return excuse
 	var scene := Romance.next_beat(state, b, who)
 	if not scene.is_empty():
 		beat = int(scene["at"])
@@ -237,6 +248,9 @@ func pick(who: String, run_id: int, won: bool, spot := "") -> Array:
 		bond_scene = int(fscene["at"])
 		Family.mark_scene(state, who, bond_scene)
 		return fscene["lines"]
+	var about := _about_talk(who, run_id)
+	if not about.is_empty():
+		return about
 	var at_spot := _spot_talk(who, run_id, spot)
 	if not at_spot.is_empty():
 		return at_spot
@@ -259,6 +273,60 @@ func pick(who: String, run_id: int, won: bool, spot := "") -> Array:
 	var n: int = state.get_value(who, key, 0)
 	state.set_value(who, key, (n + 1) % any.size())
 	return any[n % any.size()]
+
+
+## The next of their [excuse] talks, in file order, once per run home; when
+## they run out the last three take turns. [] if they have none.
+func _next_excuse(who: String) -> Array:
+	var list: Array = bank(who)["excuse"]
+	if list.is_empty():
+		return []
+	var n: int = state.get_value(who, "next_excuse", 0)
+	state.set_value(who, "next_excuse", n + 1)
+	if n < list.size():
+		return list[n]
+	var tail := mini(3, list.size())
+	return list[list.size() - tail + (n - list.size()) % tail]
+
+
+## Their next [about <other> <stage>] talk (Mom on Eco and Ophelia), once a
+## hub stay: the first in file order they haven't had whose stage the other's
+## romance has reached, else []. Stages are Romance.STAGES names (affection
+## reached, romance still undecided), "together" / "friends" (decided that
+## way), or "dated" (they've been out on a date, and aren't just friends).
+func _about_talk(who: String, run_id: int) -> Array:
+	var talks: Array = bank(who)["about"]
+	if talks.is_empty() or int(state.get_value(who, "about_run", -1)) == run_id:
+		return []
+	var had: Array = state.get_value(who, "about_seen", [])
+	var count := {}
+	for talk in talks:
+		# Keyed "<other> <stage> <n>" so new talks in the file don't shift old ones.
+		var base := "%s %s" % [talk["who"], talk["stage"]]
+		var key := "%s %d" % [base, count.get(base, 0)]
+		count[base] = count.get(base, 0) + 1
+		if had.has(key) or not about_reached(talk["who"], talk["stage"]):
+			continue
+		had.append(key)
+		state.set_value(who, "about_seen", had)
+		state.set_value(who, "about_run", run_id)
+		return talk["lines"]
+	return []
+
+
+## True once `other`'s romance with Eco has got to `stage` (see _about_talk).
+func about_reached(other: String, stage: String) -> bool:
+	var status := Romance.status(state, other)
+	if stage in Romance.STATUSES:
+		return status == stage
+	if stage == "dated":
+		return status != "friends" and state.has_section_key(other, "date_run")
+	if status != "":
+		return false
+	for st in Romance.STAGES:
+		if st[1] == stage:
+			return Romance.affection(state, other) >= int(st[0])
+	return false
 
 
 ## The first talk of a hub stay where they're up to something (their idle

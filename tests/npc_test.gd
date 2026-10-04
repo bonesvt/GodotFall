@@ -93,7 +93,7 @@ func _run() -> void:
 	for who in WHO:
 		var b: Dictionary = run_node.npc_talk.bank(who)
 		_check("%s has intro, won, lost and chat" % who, b.has("intro") and b.has("won") and b.has("lost") and b["any"].size() >= 3, b.keys())
-		var convs: Array = b["any"].duplicate()
+		var convs: Array = b["any"] + b["excuse"]
 		for tag in ["intro", "won", "lost"]:
 			convs.append(b.get(tag, []))
 		for conv in convs:
@@ -103,6 +103,26 @@ func _run() -> void:
 				if babble["stream"].data.size() < 2000 or babble["times"].size() != line[1].length() + 1:
 					missing.append(line)
 	_check("every line babbles (%d lines)" % count, missing.is_empty() and count > 60, missing.slice(0, 3))
+	# Mom's running gag: the first talk home after each run ends with the next
+	# excuse she gave the town, in order; once they run out the last three cycle.
+	var talk: NpcTalk = NpcTalk.new()
+	talk.save_path = "user://npc_test_excuses.cfg"
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(talk.save_path))
+	root.add_child(talk)
+	var excuses: Array = talk.bank("mom")["excuse"]
+	_check("Mom has her excuses", excuses.size() >= 6 and talk.bank("biggie")["excuse"].is_empty(), excuses.size())
+	talk.pick("mom", 0, false)
+	var homes := []
+	for run in range(1, excuses.size() + 5):
+		var conv: Array = talk.pick("mom", run, run % 2 == 0)
+		var won_lost: Array = talk.bank("mom")["won" if run % 2 == 0 else "lost"]
+		homes.append(conv.slice(won_lost.size()))
+	var in_order := range(excuses.size()).all(func(i): return homes[i] == excuses[i])
+	var tail: Array = homes.slice(excuses.size())
+	_check("an excuse after every run home, in order", in_order, homes.size())
+	_check("then the last three take turns", tail[0] == excuses[-3] and tail[1] == excuses[-2] and tail[2] == excuses[-1] and tail[3] == excuses[-3], tail.size())
+	_check("no excuse twice in one stay", not excuses.has(talk.pick("mom", excuses.size() + 4, true).slice(talk.bank("mom")["won"].size())), "")
+	talk.queue_free()
 	var low: float = Babble.VOICES["biggie"]["pitch"]
 	_check("each has their own voice", low < Babble.VOICES["mom"]["pitch"] and Babble.VOICES["mom"]["pitch"] < Babble.VOICES["eco"]["pitch"], low)
 

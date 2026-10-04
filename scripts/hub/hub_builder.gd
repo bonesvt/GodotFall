@@ -64,7 +64,7 @@ static var home_style := "timber"
 const STRING_LIGHT := Color(1.0, 0.72, 0.38)
 
 
-## Returns {spawn, floor_y, interactables, tutorial_poster, level_board, eco_spot, half_size}.
+## Returns {spawn, floor_y, interactables, tutorial_poster, level_boards, eco_spot, half_size}.
 ## Each interactable is {id, pos, range, prompt, lines}; "tutorial_poster",
 ## "level_board" and "uncharted_map" start runs (no lines). eco_spot is a
 ## Marker3D by her workbench for her model.
@@ -590,7 +590,10 @@ static func _solid(root: Node3D, center: Vector3, size: Vector3) -> void:
 
 ## Her father's titan, or what came back of it: slumped against the right wall
 ## of the aisle, left arm torn off and lying beside it, core dark. Cables run
-## from it to a bank of salvaged batteries: she's been trying.
+## from it to a bank of salvaged batteries: she's been trying. It's also the
+## first clue: the canopy hangs open (unlatched, not blown) and a huge shell
+## went in point-blank through the front of the cockpit. The casing she pulled
+## out of his seat sits on the batteries, bigger than any colony gun fires.
 static func _fathers_titan(root: Node3D, info: Dictionary) -> void:
 	var pos := Vector3(HALF - 2.6, F - 1.75, -12.0)
 	var titan := Art.titan("atlas", "xo16")
@@ -603,9 +606,40 @@ static func _fathers_titan(root: Node3D, info: Dictionary) -> void:
 	titan.find_child("LegR", true, false).rotation_degrees = Vector3(70, 0, 8)
 	titan.find_child("WeaponMount", true, false).visible = false
 	root.add_child(titan)
+	# The canopy, swung up on its back edge: he opened it himself.
+	var canopy := titan.find_child("Canopy", true, false) as Node3D
+	if canopy != null:
+		var hinge := Node3D.new()
+		hinge.name = "CanopyHinge"
+		hinge.position = Vector3(0, 5.95, 0.6)
+		canopy.get_parent().add_child(hinge)
+		canopy.get_parent().remove_child(canopy)
+		hinge.add_child(canopy)
+		canopy.position = -hinge.position
+		hinge.rotation_degrees.x = 62.0
 	titan.set_param("glow", 0.0)
 	titan.set_param("paint", Color(0.72, 0.7, 0.66))
 	titan.find_child("ArmL", true, false).visible = false
+	# The shell hole, point-blank through the front of the cockpit: a scorched
+	# ring, the black hole and a last ember deep inside.
+	# Soot streaks burst out from the hole, petals of torn plate curl round its
+	# lip, and the hole glows a dull orange where the shell went in.
+	var hit := Vector3(0, 6.0, -1.0)
+	var scorch := Node3D.new()
+	scorch.name = "ShellScorch"
+	titan.add_child(scorch)
+	for i in 9:
+		var a := i * 40.0 + 13.0
+		var reach := 0.55 + (i % 3) * 0.12
+		var dir := Vector3(cos(deg_to_rad(a)), sin(deg_to_rad(a)), 0)
+		K.mesh(scorch, hit + dir * reach * 0.5 + Vector3(0, 0, -0.01), Vector3(reach, 0.1 + (i % 2) * 0.05, 0.02), Art.material("gunmetal", Color(0.12, 0.1, 0.09)), Vector3(0, 0, a))
+	for i in 6:
+		var a := i * 60.0 + 30.0
+		var dir := Vector3(cos(deg_to_rad(a)), sin(deg_to_rad(a)), 0)
+		K.mesh(scorch, hit + dir * 0.24 + Vector3(0, 0, -0.06), Vector3(0.22, 0.12, 0.03), Art.material("titan_armor", Color(0.5, 0.48, 0.45)), Vector3(-30 * dir.y, 30 * dir.x, a))
+	var hole := K.mesh(titan, hit + Vector3(0, 0, -0.02), Vector3(0.4, 0.36, 0.04), Art.material("gunmetal", Color(0.02, 0.02, 0.02)), Vector3(0, 0, 20))
+	hole.name = "ShellHole"
+	K.glow(titan, hit + Vector3(0, -0.04, -0.035), Vector3(0.18, 0.12, 0.02), Color(1.0, 0.35, 0.08) * 0.6)
 	# The torn arm, taken off a second copy and laid on the floor.
 	var donor := Art.titan("atlas", "xo16")
 	var arm: Node3D = donor.find_child("ArmL", true, false)
@@ -634,11 +668,30 @@ static func _fathers_titan(root: Node3D, info: Dictionary) -> void:
 	K.glow(root, bank + Vector3(-0.51, 0.75, -0.4), Vector3(0.02, 0.1, 0.1), Color(1.0, 0.4, 0.1))
 	for i in 3:
 		K.mesh(root, Vector3(HALF - 1.6 - i * 0.25, F + 0.04, -8.9), Vector3(0.08, 0.08, 3.0), Art.material("gunmetal"), Vector3(0, 8 - i * 9, 0))
+	# The casing she pulled out of his seat, on top of the batteries.
+	var casing := MeshInstance3D.new()
+	casing.name = "ShellCasing"
+	var tube := CylinderMesh.new()
+	tube.top_radius = 0.085
+	tube.bottom_radius = 0.095
+	tube.height = 0.8
+	tube.radial_segments = 10
+	casing.mesh = tube
+	casing.material_override = Art.material("gunmetal", Color(1.35, 1.0, 0.5))
+	casing.position = bank + Vector3(-0.05, 1.5, 0.3)
+	casing.rotation_degrees = Vector3(0, 25, 90)
+	root.add_child(casing)
 	K.interactable(info, "titan", Vector3(HALF - 6.4, F + 0.1, -12.0), "[F] Look at Dad's titan", [
 		"Dad's titan. They sent back what was left of it. Not him.",
-		"Core's cracked and the left arm's gone. I've rebuilt worse.",
-		"Every part I find out there, I'm finding for both of us.",
+		"The canopy was up when it hit. Not blown off. Unlatched. Dad never opened up in a fight.",
+		"One shell, point-blank, straight into the cockpit. Whoever did it was standing right in front of him.",
+		"Core's cracked and the left arm's gone. I've rebuilt worse. Every part I find out there, I'm finding for both of us.",
 	], 3.2)
+	K.interactable(info, "casing", bank + Vector3(-1.5, 0.1, 0.3), "[F] Look at the shell casing", [
+		"I pulled this out of Dad's seat. It's as long as my arm.",
+		"I've stripped every colony frame I could reach. Not one of them fires a round this big.",
+		"Dad used to say the only thing that can kill a Pilot is an equal. So who did he open up for?",
+	], 1.6)
 
 
 ## In the nave: the mission table, a long crate table with a map of the
@@ -669,8 +722,23 @@ static func _mission_table(root: Node3D, info: Dictionary) -> void:
 	title.modulate = Color(1.0, 0.85, 0.5)
 	var tag := Kit.label(root, lv + Vector3(-0.4, 1.25, 0), "LEVEL 1", 40)
 	tag.modulate = Color(1.0, 0.55, 0.4)
-	K.interactable(info, "level_board", t + Vector3(-0.7, 0.1, 1.3), "[F] Level 1", [], 1.8)
-	info["level_board"] = {"id": "level1", "label": tag}
+	K.interactable(info, "level_board", t + Vector3(-0.9, 0.1, 1.3), "[F] Level 1", [], 1.2)
+	info["interactables"][-1]["level"] = "level1"
+	# Level 2: the Glass District, blue city blocks, the holding block ringed
+	# in red with a photo of Ophelia pinned to it.
+	var lv2 := t + Vector3(0.35, 1.05, 0.35)
+	for i in 4:
+		var b := K.mesh(root, lv2 + Vector3(-0.2 + (i % 2) * 0.22, 0.04 + i * 0.012, -0.12 + int(i / 2.0) * 0.2), Vector3(0.14, 0.08 + i * 0.03, 0.14), Art.material("light"))
+		b.set_instance_shader_parameter("paint", Color(0.45, 0.55, 0.7))
+	K.glow(root, lv2 + Vector3(0.18, 0.0, 0.05), Vector3(0.2, 0.02, 0.2), Color(0.9, 0.2, 0.12))
+	K.glow(root, lv2 + Vector3(0.18, 0.012, 0.05), Vector3(0.12, 0.02, 0.12), Color(0.3, 0.8, 1.0))
+	var photo := K.mesh(root, lv2 + Vector3(0.45, 0.01, 0.4), Vector3(0.16, 0.01, 0.2), Art.material("light"), Vector3(0, 12, 0))
+	photo.set_instance_shader_parameter("paint", Color(0.85, 0.82, 0.8))
+	var tag2 := Kit.label(root, lv2 + Vector3(0.1, 1.25, 0), "LEVEL 2", 40)
+	tag2.modulate = Color(1.0, 0.55, 0.4)
+	K.interactable(info, "level2_board", t + Vector3(0.5, 0.1, 1.3), "[F] Level 2", [], 1.2)
+	info["interactables"][-1]["level"] = "level2"
+	info["level_boards"] = [{"id": "level1", "label": tag}, {"id": "level2", "label": tag2}]
 	# The far end: a second sheet with the uncharted country in blue.
 	var far := t + Vector3(0, 0, -0.6)
 	var chart := K.mesh(root, far + Vector3(0, 1.04, 0), Vector3(2.0, 0.02, 0.6), Art.material("light"))

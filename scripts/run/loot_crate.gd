@@ -1,5 +1,5 @@
 extends Node3D
-## A small militia supply crate tucked beside a route. Press F to pry the lid
+## A small colony supply crate tucked beside a route. Press F to pry the lid
 ## off; what's inside (scrap, sometimes circuits) spills out as pickups.
 ## Placed by loot.gd; the run manager opens it and drops the loot.
 

@@ -13,7 +13,7 @@ clothes:
 - ophelia: twenties, emo. Choppy black hair with a fringe over her right eye
   and a violet streak, pale skin, heavy liner, dark lips, a lip ring; band tee,
   striped arm warmers, studded belt, ripped black jeans over fishnets, choker.
-- biggie: an old militia veteran gone soft. The preset rebuilt as a big man:
+- biggie: an old Pilot who flew beside Eco's father, retired by a bad hit. The preset rebuilt as a big man:
   flat chest, broad shoulders, a gut, thick limbs, a grey buzz cut and a big
   grey beard, a scar over his left eye; his faded field jacket (too tight now)
   over a grey tee, ribbons on his chest, cargo trousers and a knee brace.
@@ -1062,7 +1062,9 @@ def skin_tone(px):
 # bake to body_<outfit>.png and hub_npc.gd swaps them in.
 # (Mom's and Ophelia's bikini/sheer/tight/lingerie were shelved 2026-10-04;
 # backup: /mnt/project-files/hub-npcs/shelved/npc_outfits.bundle)
-OUTFITS = {"ophelia": ["tee", "hoodie", "night"], "mom": ["home", "night"]}
+OUTFITS = {"ophelia": ["tee", "hoodie", "night", "prison"], "mom": ["home", "night"]}
+# Outfits worn barefoot (the boots mesh hidden; hub_npc.gd NO_BOOTS).
+BAREFOOT = ["night", "prison"]
 OUTFIT = "tee"
 
 
@@ -1074,6 +1076,11 @@ def ophelia_outfit(g, skin, x, y, z, ax, front, cov, edge, sine, neck_r):
     the back; black skinny jeans and a wallet chain.
     night: a worn-out band crop top on spaghetti straps and baggy plaid
     pajama pants (meshes from nightwear()).
+    prison: what the colony put her in (Level 2's holding cell, not worn in
+    the hub): a faded orange detainee tunic and trousers worn to rags, the
+    sleeves torn off ragged above the elbows, the trousers frayed at the
+    shins, a rip over one knee and a smaller one on her back, ID patches
+    front and back, grime worked in, and barefoot with dirty feet.
     All of them: her choker with its o-ring."""
     BLACK, PURPLE, PINK, DENIM, STUD = (0.012, 0.011, 0.015), (0.12, 0.03, 0.22), (0.7, 0.08, 0.3), (0.02, 0.02, 0.026), (0.6, 0.6, 0.65)
     CHAR, BONE = (0.035, 0.033, 0.04), (0.62, 0.58, 0.6)
@@ -1155,6 +1162,41 @@ def ophelia_outfit(g, skin, x, y, z, ax, front, cov, edge, sine, neck_r):
         col = g.mixc(col, BLACK, choker)
         ink = g.mx(g.mx(edge(d_hood), g.mul(edge(open_), hood)), g.mx(edge(d_jeans), g.mul(edge(g.sub(0.075, g.add(ax, g.mul(g.sub(z, 0.78), 0.4)))), g.mul(pocket, 1.0))))
         return pierce(g.mixc(col, INK, ink))
+    if OUTFIT == "prison":
+        ORANGE, ORANGE_D, PATCH, GRIME = (0.26, 0.1, 0.04), (0.14, 0.055, 0.025), (0.5, 0.48, 0.44), (0.075, 0.06, 0.045)
+        neck_z = g.lerp(g.sub(1.168, g.mul(0.016, front)), 1.4, g.sstep(0.065, 0.09, ax))
+        # torn edges: the cut wanders round the limb
+        cuff = g.add(0.27, g.add(g.mul(0.012, sine(g.add(y, z), 0.031)), g.mul(0.005, sine(g.sub(z, g.mul(y, 1.3)), 0.0113))))
+        hem_z = g.add(0.16, g.add(g.mul(0.013, sine(g.add(x, y), 0.034)), g.mul(0.005, sine(g.sub(x, g.mul(y, 1.7)), 0.0117))))
+        d_suit = g.mn(g.mn(g.sub(neck_z, z), g.sub(z, hem_z)), g.sub(cuff, ax))
+        suit = cov(d_suit)
+        # a ragged rip over her left knee, a smaller one high on her back
+        r_knee = g.add(g.sqrt(g.add(g.sq(g.div(g.sub(x, 0.072), 0.032)), g.sq(g.div(g.sub(z, 0.475), 0.027)))), g.mul(0.16, sine(g.add(x, g.mul(z, 1.3)), 0.006)))
+        r_back = g.add(g.sqrt(g.add(g.sq(g.div(g.add(x, 0.07), 0.022)), g.sq(g.div(g.sub(z, 0.93), 0.016)))), g.mul(0.18, sine(g.sub(z, x), 0.005)))
+        rip = g.mx(g.mul(g.sub(1.0, g.sstep(0.9, 1.0, r_knee)), front), g.mul(g.sub(1.0, g.sstep(0.9, 1.0, r_back)), g.sub(1.0, front)))
+        frays = g.mx(g.mul(g.band(r_knee, 1.0, 1.12), front), g.mul(g.band(r_back, 1.0, 1.15), g.sub(1.0, front)))
+        # ID patches: a small one on the chest, a big one across the back with a bar code
+        chest = g.mul(g.mul(g.band(x, 0.025, 0.085), g.band(z, 1.0, 1.04)), front)
+        back = g.mul(g.mul(g.band(x, -0.075, 0.075), g.band(z, 0.99, 1.075)), g.sub(1.0, front))
+        bars = g.mul(g.mul(back, g.band(z, 0.995, 1.025)), g.sstep(0.2, 0.4, sine(g.add(x, g.mul(g.op("FRACT", g.div(x, 0.031)), 0.004)), 0.0065)))
+        waist = g.mul(g.band(z, 0.79, 0.806), suit)
+        # grime: blotches all over, heavier toward the hems; dirty bare feet
+        blot = g.sstep(0.35, 0.8, g.mul(sine(g.add(g.mul(x, 1.3), z), 0.23), sine(g.sub(z, g.mul(y, 1.7)), 0.17)))
+        low = g.sstep(0.36, 0.17, z)
+        dirt = g.sstep(0.15, 0.04, z)
+        col = g.mixc(skin, ORANGE, suit)
+        col = g.mixc(col, ORANGE_D, g.mul(g.mul(blot, suit), 0.3))
+        col = g.mixc(col, GRIME, g.mul(g.mul(low, suit), 0.5))
+        col = g.mixc(col, ORANGE_D, waist)
+        col = g.mixc(col, PATCH, g.mul(g.mx(chest, back), suit))
+        col = g.mixc(col, INK, g.mul(bars, suit))
+        col = g.mixc(col, skin, g.mul(rip, suit))
+        col = g.mixc(col, ORANGE_D, g.mul(g.mul(frays, suit), g.sub(1.0, rip)))
+        col = g.mixc(col, GRIME, g.mul(dirt, 0.8))
+        col = g.mixc(col, STUD, o_ring)
+        col = g.mixc(col, BLACK, choker)
+        ink = g.mx(edge(d_suit), g.mul(g.mx(g.band(r_knee, 0.98, 1.02), g.band(r_back, 0.98, 1.02)), 0.7))
+        return g.mixc(col, INK, ink)
     # night: a worn-out band crop on spaghetti straps (a faded bolt-in-a-ring
     # logo, cracked print) over plaid pajama pants (meshes: nightwear()); the
     # paint under the pants matches them so no gap shows, black ankle socks
@@ -1729,7 +1771,7 @@ def concept(arm, objs):
             if o.name.startswith("Outfit_"):
                 o.hide_render = not o.name.startswith("Outfit_%s_" % outfit)
             elif o.name == "Boots":
-                o.hide_render = outfit == "night"
+                o.hide_render = outfit in BAREFOOT
     dress(OUTFITS.get(WHO, ["default"])[0])
     for shot in shots:
         shoot(*shot, CONCEPT)

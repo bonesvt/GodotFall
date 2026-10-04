@@ -20,8 +20,9 @@ Or play the Windows build (no editor needed): `GodotFall.exe`, see **Windows bui
 - **Settings** (`scripts/ui/settings_menu.gd`, saved by `scripts/game/prefs.gd` to
   `user://settings.cfg`): mouse sensitivity, invert Y, field of view; every key rebindable
   (primary and secondary); master / effects / ambience / voices volume (buses in
-  `default_bus_layout.tres`); windowed / borderless / fullscreen, vsync, frame cap, PS3 or
-  PS2 look (F9 remembers too); dialogue rating, tutorial hints, start in third person.
+  `default_bus_layout.tres`); windowed / borderless / fullscreen, vsync, frame cap, look
+  (Anime, PS3 or PS2; F9 remembers too) and film grain; dialogue rating, tutorial hints, start in third person,
+  Eco's jiggle style (Classic, Smooth anime, Realistic).
 - **Save slots** (`scripts/game/saves.gd`): three, in `user://saves/slot1..3/`. Each holds the
   files the game already saved on its own (armory, hub conversations, titan paint, tutorial
   hints seen) plus runs / wins / time played. A run in progress isn't saved; Continue puts you
@@ -51,7 +52,7 @@ The preset keeps `dialogue/*` (plain text the hub people read at runtime) and le
 | G | Reset the grunt arena |
 | Esc | Pause menu (settings, quit) |
 | H | Toggle help |
-| F9 | Switch between the PS3 look and the old PS2 look |
+| F9 | Change look: Anime (default), PS3, old PS2 |
 
 ## The temple (hub)
 Pressing Play (`scenes/run.tscn`) opens in the hub: the small abandoned temple Eco hides
@@ -150,7 +151,7 @@ enemy titan's salvage when you win); a lost run banks half. The HUD shows what y
   grip) plus free paint **finishes** (on the shell or frame). Q/E switches guns, Tab parts.
 - **Weapon rack** (on the wall past the bench): pick your starting sidearm. Dad's smart
   pistol from the start; the **Heavy Revolver** (six titan rivets in a hand-turned
-  cylinder) at **level 3**; the **Auto Handgun** (a militia machine pistol, full auto,
+  cylinder) at **level 3**; the **Auto Handgun** (a colony machine pistol, full auto,
   fifteen rounds a second) at **level 6**.
 - **Eco's level** is 1 plus every upgrade she has bought: weapon upgrades, titan refits and
   suit upgrades. It shows in the hub HUD and on every bench, which also says what unlocks
@@ -224,10 +225,10 @@ The movement and grunt test level is still at `scenes/test_level.tscn` (open it 
    group, and dense patches also have an invisible `sight_blocker` body on collision layer 16
    (mask 0) that blocks grunt line of sight but not the player, grunts or the grapple.
    The routes are listed in `zone_info["routes"]`, and the map shot draws them.
-   **Zone 2: Blackwater.** A flooded fen at dusk in the rain, where the militia runs its
+   **Zone 2: Blackwater.** A flooded fen at dusk in the rain, where the colony runs its
    fuel line. You start on the bank where Eco left her skiff and wade north through
    knee-deep water and swamp cypress: the roadblock on the old causeway, a stilt village the
-   militia took from the fishers (lookouts on the porches, a squad dug in on the road), the
+   colony took from the fishers (lookouts on the porches, a squad dug in on the road), the
    channel where the causeway bridge was blown (wallrun the side of a grounded barge, grapple
    the crane, hop the old piers, or walk the back of a titan that drowned there in the war),
    the pump station (pump house, storage tanks, watchtower, a squad in the yard), and the
@@ -239,12 +240,12 @@ The movement and grunt test level is still at `scenes/test_level.tscn` (open it 
    guarded by the village's or the station's squad; the other is on a hut roof or the pump
    house roof. Falling into the channel costs integrity like the ravine does.
    **Zone 3: the Boneyard.** The old front line where the titans died, a burnt valley of
-   craters and wrecks under a smoky sky, where the militia strip the dead titans for parts.
+   craters and wrecks under a smoky sky, where the colony strips the dead titans for parts.
    You start behind the war's front-line trench: no-man's land (wire, craters, a titan dead on
    its knees, the picket), the salvage yard (wall and gate, a gantry crane over a titan they're
    stripping, the strip shed, container stacks, a watchtower), the rift (wallrun a titan's
    tower shield wedged in it, grapple the crane, hop the precursor columns standing in it, or
-   walk a fallen precursor obelisk), the ruins of the precursor's shrine where the militia set
+   walk a fallen precursor obelisk), the ruins of the precursor's shrine where the colony set
    up a radio post (the god's eye still glows on the standing stone), and the beacon at the
    edge of the burn, where the living forest starts again. Three ways through: the **haul
    road** (loud), the **old trenches** (quiet: down the communication trench, out through a
@@ -399,7 +400,7 @@ own spec:
   second chasm, bigger squads, grunts that hit harder and see further. Grunts only: the Choir
   and wildlife stay past the border.
 - **The salvage depot** (section `depot`): a yard like the outpost with the titan part the
-  militia crated up on a flatbed, the scrapped titan it came off, containers and a second
+  colony crated up on a flatbed, the scrapped titan it came off, containers and a second
   watchtower. Its squad is bigger and the crate stays locked until every guard is down. Its
   offer is always top grade (tier 3). The outpost's and camp's caches are there too.
 - **The clearing** (section `finale`, in place of the extraction beacon): the valley opens
@@ -415,10 +416,20 @@ own spec:
   its squad with a top grade offer, the clearing starting the fight, the titan dropping inside
   it, and the evac completing and saving the level.
 
-## Art: PS3 look (with the old PS2 look on F9)
-Everything is stylized in the spirit of Jak and Daxter and Shadow of the Colossus,
-rendered at roughly PS3-era quality. **F9** flips back to the original PS2 look to compare.
+## Art: Anime look (with the PS3 and old PS2 looks on F9)
+Everything is stylized in the spirit of Jak and Daxter and Shadow of the Colossus. The
+default **Anime look** paints the world to match the toon-shaded characters, with a
+late-90s anime finish. **F9** cycles Anime, PS3 and PS2 to compare.
 
+- **Anime look** (default): the PS3 look's lighting and haze, but `ps2_surface` (the
+  `anime_look` shader global) reads textures from a blurrier mip, squashes their grain
+  toward their broad colour and posterises brightness into a few flat tones; no normal
+  maps or highlights; cel lighting with lavender shadows and hard-edged lamp pools.
+  `assets/shaders/anime_post.gdshader` (a full-screen quad the PS2 autoload keeps on the
+  current camera) paints the set with a Kuwahara filter (characters stay crisp: the set
+  writes roughness 0.5, the toon characters 1.0), draws ink lines from depth and normal
+  breaks, and grades it: warm highlights, cool shadows, halation, vignette, film grain
+  (Settings > Video > Film grain). Concepts: `tools/art/style_shots.gd`.
 - **PS3 look** (default): full resolution with 4x MSAA and 16x anisotropic filtering;
   normal-mapped textures with roughness and bare-metal masks; GGX highlights and sky
   reflections; sky-tinted ambient light with SSAO; soft 4-split sun shadows (4096 px);
@@ -487,7 +498,7 @@ Weak on purpose, so skill decides fights.
   reload and inspect (I). All feel; none of it changes the numbers above.
 
 ## Eco, the heroine
-A young mechanic who went rogue after the militia turned her down as a Pilot. She fights with
+A 21-year-old mechanic and weaponsmith from Solace. When her father, the village's only Pilot, was killed in the war against the off-world colony, the recruiters turned her away for crying, so she fights the colony on her own from a Precursor temple outside town. She fights with
 her late father's broken smart pistol and builds titans from scrap. Anime toon look: a short,
 daring dark-red bob with a fringe swept over her right eye, a fierce face with mature makeup,
 pilot goggles pushed up on her head, full hips and thighs, and a skin-tight pilot suit (halter
@@ -503,6 +514,10 @@ boots with knee plates, teal glowing trims).
   behind when she runs). `SPRINGS` in `scripts/ps2/eco_model.gd` tunes stiffness, drag,
   gravity, swing limits and how much of her movement each spring feels; `jiggle` scales the
   chest and glute bounce (0 turns it off) and `springs_enabled` turns them all off.
+  `jiggle_style` picks a tuning from `JIGGLE_STYLES`: classic, anime (slower, floatier, eases
+  into its limit) or realistic (firm, quick, mostly vertical). Left unset she follows
+  Settings > Game > Jiggle style, live. `tools/eco/jiggle_clips.gd` renders the three side by
+  side through a run, jump, landing and turn.
 - **First person**: the player's `EcoBody` node (`scripts/eco_fp_body.gd`) shows her body when
   you look down (head and arms hidden, kept under the camera in every pose) and casts her full
   shadow. `camera_above_neck` and `camera_ahead` place it; `show_body` and `cast_shadow` toggle it.

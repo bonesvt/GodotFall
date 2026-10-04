@@ -41,6 +41,7 @@ const Wardrobe := preload("res://scripts/hub/wardrobe.gd")
 const Loot := preload("res://scripts/run/loot.gd")
 const Gifts := preload("res://scripts/run/gifts.gd")
 const NpcIdles := preload("res://scripts/hub/npc_idles.gd")
+const Escort := preload("res://scripts/run/escort.gd")
 const Weapon := preload("res://scripts/weapon.gd")
 const Art := preload("res://scripts/ps2/ps2_assets.gd")
 const Garage := preload("res://scripts/hub/garage.gd")
@@ -49,6 +50,7 @@ const HubNpc := preload("res://scripts/hub/hub_npc.gd")
 const NpcTalk := preload("res://scripts/hub/npc_talk.gd")
 const Family := preload("res://scripts/hub/family.gd")
 const FamilyScene := preload("res://scripts/hub/family_scene.gd")
+const Townsfolk := preload("res://scripts/hub/townsfolk.gd")
 const Tutorial := preload("res://scripts/run/tutorial.gd")
 const ViewCamera := preload("res://scripts/view_camera.gd")
 const Prefs := preload("res://scripts/game/prefs.gd")
@@ -100,6 +102,16 @@ var checkpoint := Vector3.ZERO
 var result := ""
 ## The enemy titan is down and the evac dropship is waiting at the pad.
 var evac_open := false
+## A rescue level (levels.gd "rescue"): whether they're out of the cell yet,
+## and how long until Eco next says she's not leaving without them.
+var rescued := false
+var _rescue_nag := 0.0
+## Them following Eco out (escort.gd), once they're free.
+var escort: Escort
+## Whether any grunt went loud on this level.
+var _alarm_raised := false
+## How close they have to be when Eco steps into the exfil (m).
+const EXFIL_TOGETHER := 9.0
 ## How many times each hub interactable has been looked at, so its lines cycle.
 var hub_reads := {}
 var runs_started := 0
@@ -303,6 +315,7 @@ func enter_hub() -> void:
 		npc.wear_for_run(runs_ended)
 		NpcIdles.settle(npc, zone_info, runs_ended)
 		hub_npcs[spec["who"]] = npc
+	Townsfolk.populate(zone_root, player, runs_ended)
 	family_scene = FamilyScene.new()
 	zone_root.add_child(family_scene)
 	family_scene.setup(self, zone_info)
@@ -339,9 +352,14 @@ func load_zone(index: int) -> void:
 		for grunt in zone_info["grunts"]:
 			grunt.target = player
 			grunt.died.connect(_on_grunt_died)
+			grunt.called_out.connect(func(_g, _squad): _alarm_raised = true)
 		phase = Phase.ZONE
 		var zone_name: String = zone_info.get("name", "")
 		var uncharted := "UNCHARTED: " if index >= RunState.ZONE_COUNT else ""
+		rescued = false
+		escort = null
+		_alarm_raised = false
+		_set_prisoner_chatter(zone_info.has("holding_cell"))
 		if run.level != "":
 			hud.toast(Levels.title(run.level), 4.0)
 		else:
@@ -444,12 +462,14 @@ func _hub_tick(delta: float) -> void:
 	if spot["id"] == "uncharted_map":
 		start_run(run_seed, RunState.UNCHARTED_ZONES)
 		return
-	if spot["id"] == "level_board":
-		var id: String = zone_info["level_board"]["id"]
+	if spot.has("level"):
+		var id: String = spot["level"]
 		if Levels.unlocked(id, armory.cleared_levels()):
 			start_run(run_seed, 0, id)
-		else:
+		elif Levels.spec(id)["needs"] == "tutorial":
 			hud.toast("Not yet. Get through the Pinewoods run and bring a titan home first.", HUB_LINE_SECONDS)
+		else:
+			hud.toast("Not yet. Clear %s first." % Levels.title(Levels.spec(id)["needs"]), HUB_LINE_SECONDS)
 		return
 	if spot.has("screen"):
 		open_bench(spot["screen"])
@@ -644,15 +664,17 @@ func dress_hub() -> void:
 	var marker: Node3D = zone_info.get("tutorial_marker")
 	if marker != null:
 		marker.visible = not "tutorial" in armory.cleared_levels()
-	var board: Dictionary = zone_info.get("level_board", {})
-	if not board.is_empty():
-		var open := Levels.unlocked(board["id"], armory.cleared_levels())
+	for board in zone_info.get("level_boards", []):
+		var id: String = board["id"]
+		var open := Levels.unlocked(id, armory.cleared_levels())
 		var label: Label3D = board["label"]
-		label.text = Levels.title(board["id"]) + ("" if open else "\n(locked)")
+		label.text = Levels.title(id) + ("" if open else "\n(locked)")
 		label.modulate = Color(1.0, 0.55, 0.4) if open else Color(0.6, 0.58, 0.55)
+		var need: String = Levels.spec(id)["needs"]
+		var first := "win the Pinewoods run first" if need == "tutorial" else "clear %s first" % Levels.title(need)
 		for spot in zone_info["interactables"]:
-			if spot["id"] == "level_board":
-				spot["prompt"] = "[F] Head out: %s" % Levels.title(board["id"]) if open else "%s: win the Pinewoods run first" % Levels.title(board["id"])
+			if spot.get("level", "") == id:
+				spot["prompt"] = "[F] Head out: %s" % Levels.title(id) if open else "%s: %s" % [Levels.title(id), first]
 	var mat: Node3D = zone_info.get("gun_marker")
 	if mat != null:
 		for c in mat.get_children():
@@ -861,6 +883,14 @@ func _zone_tick(delta: float) -> void:
 	if _check_fall():
 		return
 	_track_checkpoint()
+	_rescue_nag -= delta
+	var cell := holding_cell_in_reach()
+	if cell != null and Input.is_action_just_pressed("interact"):
+		rescue(cell)
+		return
+	if escort != null and escort.in_reach(player.global_position) and Input.is_action_just_pressed("interact"):
+		_escort_order()
+		return
 	var cache := nearest_cache()
 	if cache != null and Input.is_action_just_pressed("interact"):
 		open_salvage(cache)
@@ -868,10 +898,17 @@ func _zone_tick(delta: float) -> void:
 	if cache == null:
 		_loot_tick(delta)
 	if zone_info.has("arena") and player.global_position.z < zone_info["arena"]["enter_z"]:
-		_enter_finale()
-		return
+		if not rescue_pending():
+			_enter_finale()
+			return
+		if _rescue_nag <= 0.0:
+			_rescue_nag = 8.0
+			hud.toast("Not leaving without %s. The holding block's back up the street." % _rescue_name(), 4.0)
 	if zone_info["beacon"] != null and zone_info["beacon"].contains(player.global_position):
-		load_zone(run.zone + 1)
+		if zone_info.has("holding_cell"):
+			_exfil()
+		else:
+			load_zone(run.zone + 1)
 
 
 ## A level's clearing: their titan is waiting, so it's the arena from here,
@@ -884,6 +921,80 @@ func _enter_finale() -> void:
 	hud.toast("ENEMY TITAN ON THE ROAD: TITANFALL STANDING BY", 4.0)
 	_whisper("titanfall", 0.5)
 	tutorial.start_level("arena")
+
+
+## Whether this level's prisoner (levels.gd "rescue") is still in the cell.
+func rescue_pending() -> bool:
+	return zone_info.has("holding_cell") and not rescued
+
+
+func _rescue_name() -> String:
+	return String(Levels.spec(run.level).get("rescue", "them")).capitalize()
+
+
+## The holding cell, when Eco's at its screen and the prisoner's still inside.
+func holding_cell_in_reach() -> Node3D:
+	var cell: Node3D = zone_info.get("holding_cell")
+	if cell == null or cell.opened or not cell.in_range(player.global_position):
+		return null
+	return cell
+
+
+## Drops the cell's screen and breaks the prisoner's chains. They have a
+## word, then follow Eco out (escort.gd) to the exfil.
+func rescue(cell: Node3D) -> void:
+	if not cell.release():
+		return
+	rescued = true
+	_set_prisoner_chatter(false)
+	tutorial.event("rescued")
+	var who: Node3D = cell.ophelia
+	if who != null:
+		escort = Escort.new()
+		escort.name = "Escort"
+		escort.npc = who
+		escort.pilot = player
+		zone_root.add_child(escort)
+		zone_info["escort"] = escort
+	var lines: Array = Levels.spec(run.level).get("rescue_lines", [])
+	var t := 0.0
+	for line in lines:
+		if t == 0.0:
+			hud.toast(line, 3.6)
+		else:
+			get_tree().create_timer(t, false, true).timeout.connect(_rescue_line.bind(line))
+		t += 3.4
+	get_tree().create_timer(t, false, true).timeout.connect(_rescue_line.bind(
+			"GET %s OUT: BACK TO THE EXFIL WHERE YOU CAME IN.  [F] BY HER: WAIT / FOLLOW" % _rescue_name().to_upper()))
+
+
+func _rescue_line(line: String) -> void:
+	if phase == Phase.ZONE and rescued:
+		hud.toast(line, 3.6)
+
+
+## [F] next to them: wait here, or come on.
+func _escort_order() -> void:
+	escort.toggle_wait()
+	var n := _rescue_name()
+	hud.toast(("%s: Okay. Here. Don't forget me." % n.to_upper()) if escort.waiting else ("%s: Right behind you." % n.to_upper()), 2.5)
+
+
+## The way out on a rescue level: only with them out and close behind.
+func _exfil() -> void:
+	if not rescued:
+		return
+	if escort != null and escort.npc.global_position.distance_to(player.global_position) < EXFIL_TOGETHER:
+		end_run("RUN COMPLETE", "%s's out. The district never woke up." % _rescue_name() if not _alarm_raised else "%s's out. Loud, but out." % _rescue_name())
+	elif _rescue_nag <= 0.0:
+		_rescue_nag = 6.0
+		hud.toast("Not without %s. Go back for her." % _rescue_name(), 3.5)
+
+
+func _set_prisoner_chatter(on: bool) -> void:
+	var radio = pilot_hud.get("radio") if pilot_hud != null else null
+	if radio != null and "extra_rumor" in radio:
+		radio.extra_rumor = "prisoner" if on else ""
 
 
 ## Below this height the pilot has fallen out of the level.
@@ -1198,6 +1309,11 @@ func _prompt() -> String:
 			if in_titan_yard():
 				return "[V] Call in your titan" if hub_titan == null else "[V] Call your titan here"
 		Phase.ZONE:
+			var cell := holding_cell_in_reach()
+			if cell != null:
+				return "[F] Short the screen and break her chains"
+			if escort != null and escort.in_reach(player.global_position):
+				return "[F] %s: come on" % _rescue_name() if escort.waiting else "[F] %s: wait here" % _rescue_name()
 			var cache := nearest_cache()
 			if cache != null:
 				return "[F] Open salvage" if cache.can_open() else "Locked: clear the guards"

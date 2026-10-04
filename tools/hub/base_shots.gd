@@ -3,7 +3,7 @@ extends SceneTree
 ## lore, mission table, benches, rack), the stairs and Eco's loft bedroom,
 ## the tutorial poster outside with its marker, and the people's tents round
 ## the campfire, inside and out (hub_builder.gd, hub_rooms.gd).
-##   xvfb-run -a godot --path . -s res://tools/hub/base_shots.gd -- [out_dir] [--only=hall,loft,...] [--small]
+##   xvfb-run -a godot --path . -s res://tools/hub/base_shots.gd -- [out_dir] [--only=hall,loft,...] [--small] [--grain=0..1]
 ## Needs a renderer (not --headless). Writes <out_dir>/base_<view>.png.
 ## A software renderer (llvmpipe) runs out of instance shader parameter slots
 ## on the whole hub, grounds and town, so each shot only keeps what is within
@@ -14,6 +14,8 @@ var out := "user://base_shots"
 var only: Array[String] = []
 ## --small renders at 960x540 (much quicker on a software renderer).
 var small := false
+## --grain=0..1: the Anime look's film grain (Settings > Video), -1 leaves it.
+var grain := -1.0
 
 const CULL := 50.0
 var _parked: Array = []
@@ -47,6 +49,8 @@ func _initialize() -> void:
 			only.assign(a.trim_prefix("--only=").split(","))
 		elif a == "--small":
 			small = true
+		elif a.begins_with("--grain="):
+			grain = float(a.trim_prefix("--grain="))
 		elif not a.begins_with("--"):
 			out = a
 	DirAccess.make_dir_recursive_absolute(out)
@@ -67,6 +71,8 @@ func _go() -> void:
 	await _frames(2)
 	# The run manager makes its tutorial in _ready, after _initialize.
 	run_node.tutorial.set_enabled(false)
+	if grain >= 0.0 and root.has_node("PS2"):
+		root.get_node("PS2").set_grain(grain)
 	await _frames(18)
 	for n in ["hud", "pilot_hud"]:
 		if n in run_node and run_node.get(n) != null:
@@ -76,7 +82,7 @@ func _go() -> void:
 	var cam: Camera3D = player.get_node("Head/Camera3D")
 	# No gun or its muzzle light in the way.
 	for child in cam.get_children():
-		if child is Node3D:
+		if child is Node3D and child.name != "AnimePost":  # keep the Anime look's screen pass
 			child.visible = false
 	for view in VIEWS:
 		if not only.is_empty() and not view in only:

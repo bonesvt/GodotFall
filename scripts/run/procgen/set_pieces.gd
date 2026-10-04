@@ -36,7 +36,7 @@ const Shapes := preload("res://scripts/run/procgen/prop_shapes.gd")
 ## assets/models/city and assets/models/military, same form as Shapes.
 const KitShapes := preload("res://scripts/run/procgen/kit_shapes.gd")
 
-## Material tints per biome: the same kit reads as the militia's in the
+## Material tints per biome: the same kit reads as the colony's in the
 ## Pinewoods, swamp-stained in the marsh, rusted and sun-bleached in the Boneyard.
 const TINTS := {
 	"forest": {"gunmetal": Color(0.86, 0.95, 0.82), "canvas": Color(0.92, 0.95, 0.82)},

@@ -3,7 +3,7 @@ extends CharacterBody3D
 ## quillcat.gd, bonepicker.gd, veil_ray.gd). It answers the same calls as a
 ## grunt so Eco's guns, smart lock and knife treat it like any other target
 ## (take_damage, is_headshot, stagger, is_unaware, hear_gunshot, died), but it
-## has no stealth meter and never shows up on the militia radio. Models are
+## has no stealth meter and never shows up on the colony radio. Models are
 ## assets/models/threats/<name>.glb on a threat_model.gd puppet.
 ## The pilot is found on its own (the run only hands targets to grunts).
 

@@ -14,6 +14,17 @@ const VOICES := {
 	"ophelia": {"pitch": 235.0, "spread": 2.0, "rate": 12.0, "bright": 0.2, "breath": 0.12, "gain": 0.42},
 	"biggie": {"pitch": 125.0, "spread": 4.0, "rate": 12.5, "bright": 0.55, "breath": 0.08, "gain": 0.55},
 	"eco": {"pitch": 370.0, "spread": 7.0, "rate": 17.0, "bright": 0.3, "breath": 0.04, "gain": 0.45},
+	# the people of Solace (townsfolk.gd)
+	"town_pell": {"pitch": 270.0, "spread": 6.0, "rate": 15.5, "bright": 0.4, "breath": 0.05, "gain": 0.5},
+	"town_kit": {"pitch": 330.0, "spread": 7.0, "rate": 18.5, "bright": 0.3, "breath": 0.03, "gain": 0.45},
+	"town_wren": {"pitch": 290.0, "spread": 4.0, "rate": 14.0, "bright": 0.25, "breath": 0.08, "gain": 0.45},
+	"town_mira": {"pitch": 250.0, "spread": 3.5, "rate": 13.5, "bright": 0.3, "breath": 0.06, "gain": 0.48},
+	"town_rosa": {"pitch": 320.0, "spread": 5.0, "rate": 13.0, "bright": 0.3, "breath": 0.1, "gain": 0.45},
+	"town_tobin": {"pitch": 115.0, "spread": 4.0, "rate": 11.0, "bright": 0.45, "breath": 0.14, "gain": 0.55},
+	"town_dez": {"pitch": 140.0, "spread": 5.0, "rate": 15.0, "bright": 0.5, "breath": 0.06, "gain": 0.52},
+	"town_harl": {"pitch": 105.0, "spread": 3.0, "rate": 12.5, "bright": 0.6, "breath": 0.07, "gain": 0.58},
+	"town_jun": {"pitch": 160.0, "spread": 6.0, "rate": 17.0, "bright": 0.4, "breath": 0.05, "gain": 0.5},
+	"town_bram": {"pitch": 98.0, "spread": 4.0, "rate": 13.5, "bright": 0.55, "breath": 0.05, "gain": 0.58},
 }
 ## A pentatonic scale (semitones), so runs of syllables sound sung, not random.
 const SCALE := [0, 2, 4, 7, 9, 12, -3, -5]

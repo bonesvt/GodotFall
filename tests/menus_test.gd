@@ -28,6 +28,7 @@ func _initialize() -> void:
 
 func _run() -> void:
 	_prefs()
+	_looks()
 	_keys()
 	_slots()
 	await _title_and_pause()
@@ -54,12 +55,45 @@ func _prefs() -> void:
 	_check("effects bus exists and mutes at 0", fx > 0 and AudioServer.is_bus_mute(fx), fx)
 	for bus in ["Ambience", "Voices"]:
 		_check("%s bus exists" % bus, AudioServer.get_bus_index(bus) > 0, bus)
+	_check("jiggle style defaults to classic", Prefs.jiggle_style() == "classic", Prefs.jiggle_style())
+	Prefs.set_jiggle_style("anime")
+	Prefs._cfg = null
+	_check("jiggle style saved", Prefs.jiggle_style() == "anime", Prefs.jiggle_style())
+	Prefs.set_value("game", "jiggle_style", "bogus")
+	_check("unknown jiggle style reads as classic", Prefs.jiggle_style() == "classic", Prefs.jiggle_style())
+	Prefs.set_jiggle_style("classic")
 	Prefs.set_value("audio", "Effects", 1.0)
 	Prefs.set_value("controls", "sensitivity", 1.0)
 	Prefs.set_value("controls", "invert_y", false)
 	Prefs.set_value("controls", "fov", 90.0)
 	Prefs.save()
 	Prefs.apply_audio()
+
+
+func _looks() -> void:
+	var ps2 = root.get_node_or_null("PS2")
+	Prefs._cfg = null
+	_check("the Anime look is the default", Prefs.look() == "anime", Prefs.look())
+	if ps2 != null:
+		Prefs.apply_video()
+		_check("the autoload starts in the Anime look", ps2.look() == "anime", ps2.look())
+	# A settings file from before the Anime look that only saved ps2_look.
+	Prefs.set_value("video", "ps2_look", true)
+	_check("old PS2 setting keeps PS2", Prefs.look() == "ps2", Prefs.look())
+	Prefs.remember_look("ps3")
+	Prefs._cfg = null
+	_check("F9's look is remembered", Prefs.look() == "ps3" and not bool(Prefs.get_value("video", "ps2_look")), Prefs.look())
+	if ps2 != null:
+		Prefs.apply_video()
+		_check("F9's look is applied", ps2.look() == "ps3" and not ps2.anime, ps2.look())
+	Prefs.set_value("video", "film_grain", 0.5)
+	Prefs.remember_look("anime")
+	Prefs.apply_video()
+	if ps2 != null:
+		var grain: float = ps2._post.material_override.get_shader_parameter("grain")
+		_check("film grain slider sets the screen pass", is_equal_approx(grain, 0.5 * ps2.MAX_GRAIN), grain)
+	Prefs.set_value("video", "film_grain", 0.4)
+	Prefs.save()
 
 
 func _keys() -> void:

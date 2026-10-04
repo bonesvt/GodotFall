@@ -1,8 +1,8 @@
-# Ophelia. Twenties, emo. She grew up in Solace, same town as Eco, and nobody
-# ever noticed her: not the town, not her own family, not even when the
-# militia took her. Her mind always drifted somewhere dark, and her looks went
-# with it. She never let anyone in and brushed everyone off. Eco pulled her out
-# of a militia cage, and now, very slowly, she lets Eco see what she's into:
+# Ophelia. 23, emo, acts and looks younger than Eco. An orphan who grew up in
+# Solace, same town as Eco, and nobody ever noticed her: not the town, not the
+# orphan house, not even when the colony took her. Her mind always drifted
+# somewhere dark, and her looks went with it. She never let anyone in and
+# brushed everyone off. Eco pulled her out of a colony cage, and now, very slowly, she lets Eco see what she's into:
 # dressing up and doing her makeup emo, dark songs and dark films, smoking in
 # the dark, reading (more than gaming). When she does go out, it's the arcade
 # or the ice cream place. Flat, dry, quietly funny.
@@ -42,7 +42,7 @@ eco: I'm looking at you right now.
 ophelia (lookaway): Yeah. I noticed. It's weird.
 
 [any]
-ophelia (down): The militia gave me a number in the cage. Forty-one.
+ophelia (down): The colony gave me a number in the cage. Forty-one.
 eco: You're not a number.
 ophelia: I know. Numbers get counted.
 eco: Ophelia.
@@ -56,10 +56,10 @@ eco: Yeah?
 ophelia: Don't make it a thing. It was good soup. Nobody's ever brought me soup.
 
 [any]
-eco: Your mom and dad still live in Solace, right? I could get word to them.
-ophelia (plain): They didn't notice I was gone. I don't need them to notice I'm back.
+eco: Is there anyone in Solace I should tell you're back? I could get word to them.
+ophelia (plain): The orphan house on Low Row didn't notice I was gone. I don't need them to notice I'm back.
 eco: That's messed up.
-ophelia (down): That's Solace. You'd know.
+ophelia (down): That's Solace. Nobody notices anything.
 
 [any]
 ophelia: The old man talks in his sleep. Names. Lots of names.

@@ -35,6 +35,8 @@ const FX := preload("res://scripts/fx.gd")
 const Art := preload("res://scripts/ps2/ps2_assets.gd")
 const SFX := preload("res://scripts/sfx.gd")
 const EcoArms := preload("res://scripts/eco_fp_arms.gd")
+## Where the gun rests in front of the camera (its own space: right, up, back).
+const VIEW_POS := Vector3(0.17, -0.105, -0.45)
 
 ## Emitted on every shot that hits an enemy: "body", "head" or "kill".
 signal hit_confirmed(kind: String)
@@ -965,6 +967,7 @@ func _fit_arm(pistol: Node3D) -> void:
 		old.free()
 	var arm := EcoArms.new()
 	arm.name = "Arm"
+	arm.gun_at = VIEW_POS
 	pistol.add_child(arm)
 	if player != null:
 		arm.follow(player.get_node_or_null("EcoBody"))
@@ -1130,7 +1133,7 @@ func _animate_viewmodel(delta: float) -> void:
 	_holster = move_toward(_holster, 1.0 if holstered else 0.0, delta * 7.0)
 	var h := smoothstep(0.0, 1.0, _holster)
 
-	var pos := Vector3(0.22, -0.2, -0.42)
+	var pos := VIEW_POS
 	pos += Vector3(0.05, -0.2, 0.08) * h
 	pos += Vector3(-_sway.x * 0.006, _sway.y * 0.006, 0.0)
 	pos += bob + Vector3(0.0, -_move_pose.y + _move_pose.z, 0.0)

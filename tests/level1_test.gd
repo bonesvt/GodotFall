@@ -80,9 +80,9 @@ func _play_checks() -> void:
 	run_node.tutorial.set_enabled(false)
 
 	# The hub's level board: locked on a fresh save, open once the tutorial run is won.
-	_check("game opens in the hub with a level board", run_node.phase == run_node.Phase.HUB and run_node.zone_info.has("level_board"), run_node.phase)
+	_check("game opens in the hub with a level board", run_node.phase == run_node.Phase.HUB and run_node.zone_info.has("level_boards"), run_node.phase)
 	var spot: Dictionary = run_node.zone_info["interactables"].filter(func(i): return i["id"] == "level_board")[0]
-	_check("board locked on a fresh save", spot["prompt"].contains("first") and run_node.zone_info["level_board"]["label"].text.contains("locked"), spot["prompt"])
+	_check("board locked on a fresh save", spot["prompt"].contains("first") and run_node.zone_info["level_boards"][0]["label"].text.contains("locked"), spot["prompt"])
 	await _use_spot(spot)
 	_check("locked board doesn't start a run", run_node.phase == run_node.Phase.HUB, run_node.phase)
 	run_node.armory.mark_cleared("tutorial")

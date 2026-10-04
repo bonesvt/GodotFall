@@ -146,7 +146,7 @@ static func build_chain(root: Node3D, rng: RandomNumberGenerator, zone_index: in
 	for p in info["platforms"]:
 		lowest = minf(lowest, p["top"].y)
 	info["floor_y"] = lowest
-	# Past the border: the Choir and the wildlife instead of the militia.
+	# Past the border: the Choir and the wildlife instead of the colony.
 	ThreatSpawner.populate(root, rng, info, zone_index)
 	return info
 

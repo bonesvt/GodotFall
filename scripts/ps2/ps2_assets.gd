@@ -33,7 +33,7 @@ const MATERIALS := {
 	"gunmetal": preload("res://assets/materials/gunmetal.tres"),
 	"fabric": preload("res://assets/materials/grunt_fabric.tres"),
 	"light": preload("res://assets/materials/light.tres"),
-	# The high tech city's and the militia bases' surfaces (tools/make_textures.py).
+	# The high tech city's and the colony bases' surfaces (tools/make_textures.py).
 	"asphalt": preload("res://assets/materials/asphalt.tres"),
 	"pavers": preload("res://assets/materials/pavers.tres"),
 	"facade": preload("res://assets/materials/facade.tres"),
@@ -200,6 +200,6 @@ static func environment(parent: Node, top: Color, horizon: Color) -> void:
 	sun.shadow_opacity = 0.75
 	sun.directional_shadow_mode = DirectionalLight3D.SHADOW_ORTHOGONAL
 	sun.directional_shadow_max_distance = 60.0
-	Look.apply_env(env, Look.is_ps3())
+	Look.apply_env(env, Look.is_ps3(), Look.is_anime())
 	Look.apply_sun(sun, Look.is_ps3())
 	parent.add_child(sun)

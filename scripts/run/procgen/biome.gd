@@ -19,7 +19,7 @@ extends RefCounted
 ##     towers and shopfronts, holo-ad walls and security walls to wallrun,
 ##     drone pylons and monorail pillars to grapple, planters and streetlights
 ##     for trees, neon everywhere, rain and machine hum.
-##   military: the militia's bases and outposts. Packed earth, tarmac roads,
+##   military: the colony's bases and outposts. Packed earth, tarmac roads,
 ##     hangars, barracks and command posts, HESCO and T-wall rows to wallrun,
 ##     comms and guard towers to grapple, APCs and AA guns, scrub pines.
 
@@ -56,6 +56,85 @@ static func environment(root: Node3D, biome: String) -> void:
 		_:
 			Kit.environment(root, Color(0.3, 0.46, 0.6), Color(0.78, 0.82, 0.7))
 			Ambience.start(root, {"forest_day": -10.0, "forest_wind": -17.0, "forest_birds": -19.0})
+
+
+## Night over a built zone (levels.gd "night"): a dark navy sky and a thin
+## moon, low cold ambient, thicker haze, the neon and lamps doing the
+## lighting; sodium street lamps down the road; every grunt sees less far
+## (NIGHT_SIGHT) and carries a torch that shows where he's looking.
+const NIGHT_SIGHT := 0.65
+const LAMP_GAP := 26.0
+
+
+static func night(root: Node3D, info: Dictionary) -> void:
+	var top := Color(0.025, 0.03, 0.07)
+	var horizon := Color(0.09, 0.08, 0.16)
+	for node in root.get_children():
+		if node is WorldEnvironment:
+			var env: Environment = node.environment
+			var sky := env.sky.sky_material as ShaderMaterial
+			if sky != null:
+				sky.set_shader_parameter("top_color", top)
+				sky.set_shader_parameter("horizon_color", horizon)
+				sky.set_shader_parameter("sun_color", Color(0.75, 0.82, 1.0))
+			env.ambient_light_color = Color(0.16, 0.18, 0.3)
+			env.ambient_light_energy = 0.32
+			env.fog_light_color = Color(0.1, 0.1, 0.18)
+			env.volumetric_fog_albedo = env.fog_light_color
+			env.fog_density = 0.014
+			env.glow_intensity = 0.8
+			env.tonemap_exposure = 1.05
+		elif node is DirectionalLight3D:
+			node.light_color = Color(0.6, 0.7, 1.0)
+			node.light_energy = 0.22
+			node.rotation_degrees.x = -52.0
+	var plan = info.get("plan")
+	if plan != null:
+		var loud: int = plan.lane_of("loud")
+		var z: float = plan.spawn_z - 8.0
+		var k := 0
+		while z > plan.end_z:
+			var x: float = plan.lane_x(loud, z) + (4.5 if k % 2 == 0 else -4.5)
+			if plan.in_chasm(z).is_empty():
+				_street_lamp(root, Vector3(x, plan.ground(x, z), z))
+			z -= LAMP_GAP
+			k += 1
+	for g in info.get("grunts", []):
+		g.sight_range *= NIGHT_SIGHT
+		var torch := SpotLight3D.new()
+		torch.name = "Torch"
+		torch.light_color = Color(1.0, 0.95, 0.82)
+		torch.light_energy = 2.2
+		torch.spot_range = 16.0
+		torch.spot_angle = 20.0
+		torch.shadow_enabled = false
+		torch.position = Vector3(0.25, 1.35, -0.3)
+		torch.rotation_degrees.x = -8.0
+		g.add_child(torch)
+
+
+## A sodium lamp on a pole, a warm pool under it.
+static func _street_lamp(root: Node3D, at: Vector3) -> void:
+	var pole := MeshInstance3D.new()
+	var bar := BoxMesh.new()
+	bar.size = Vector3(0.16, 5.2, 0.16)
+	pole.mesh = bar
+	pole.material_override = Art.material("gunmetal")
+	pole.position = at + Vector3(0, 2.6, 0)
+	root.add_child(pole)
+	var head := MeshInstance3D.new()
+	var box := BoxMesh.new()
+	box.size = Vector3(0.5, 0.12, 0.3)
+	head.mesh = box
+	head.material_override = Kit.glow(Color(1.0, 0.62, 0.25))
+	head.position = at + Vector3(0, 5.2, 0)
+	root.add_child(head)
+	var l := OmniLight3D.new()
+	l.light_color = Color(1.0, 0.6, 0.28)
+	l.light_energy = 1.6
+	l.omni_range = 11.0
+	l.position = at + Vector3(0, 4.9, 0)
+	root.add_child(l)
 
 
 ## [top tint, rock tint, top material, footstep surface] for the terrain.
