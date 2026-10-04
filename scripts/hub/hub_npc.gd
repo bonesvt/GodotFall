@@ -21,7 +21,9 @@ const TURN_SPEED := 2.5
 const MAX_TURN := 60.0
 ## Who has more than one outfit (body.png first, then body_<outfit>.png from
 ## tools/npc/build_npc.py). They change between runs.
-const OUTFITS := {"ophelia": ["tee", "hoodie", "night"]}
+const OUTFITS := {"ophelia": ["tee", "hoodie", "night"], "mom": ["home", "night"]}
+## Outfits worn barefoot or in socks: the boots come off.
+const NO_BOOTS := ["night"]
 
 const NpcSprings := preload("res://scripts/hub/npc_springs.gd")
 const Hair := preload("res://scripts/hub/hair.gd")
@@ -100,6 +102,7 @@ func _ready() -> void:
 			_head.npc = self
 			skel.add_child(_head)
 		Hair.apply(model, who)  # their haircut from the salon in Solace (if they get one)
+		_dress_meshes(OUTFITS.get(who, [""])[0])   # in what they're built in until wear()
 	if _anim != null and _anim.has_animation("idle"):
 		_anim.play("idle")
 		_anim.seek(randf() * 3.0, true)   # so they don't breathe in step
@@ -215,6 +218,7 @@ func wear(p_outfit: String) -> void:
 	if not ResourceLoader.exists(path):
 		return
 	outfit = p_outfit
+	_dress_meshes(p_outfit)
 	var tex: Texture2D = load(path)
 	for mi in find_children("*", "MeshInstance3D", true, false):
 		for i in mi.mesh.get_surface_count():
@@ -226,6 +230,18 @@ func wear(p_outfit: String) -> void:
 				mine = mat.duplicate()
 				mi.set_surface_override_material(i, mine)
 			mine.set_shader_parameter("albedo_tex", tex)
+
+
+## Shows an outfit's own meshes (Outfit_<outfit>_*: Mom's nightgown,
+## Ophelia's pajama legs) and hides every other outfit's, and the boots when
+## the outfit has none.
+func _dress_meshes(p_outfit: String) -> void:
+	for mi in find_children("*", "MeshInstance3D", true, false):
+		var n := String(mi.name)
+		if n.begins_with("Outfit_"):
+			mi.visible = n.begins_with("Outfit_%s_" % p_outfit)
+		elif n.begins_with("Boots"):
+			mi.visible = not p_outfit in NO_BOOTS
 
 
 func say(stream: AudioStream) -> void:

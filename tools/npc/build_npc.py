@@ -697,6 +697,173 @@ def new_mat(name, col=(0.5, 0.5, 0.5)):
     return m
 
 
+# --- loose nightwear ---------------------------------------------------------------------
+# Painted clothes wrap each leg like leggings, so anything that hangs (Mom's
+# nightgown, Ophelia's pajama legs) is a mesh: rings round the convex hull of
+# her hips and legs (from the Eco outfits build's skirt(), 2026-10-03). The
+# game shows Outfit_<outfit>_* meshes only in that outfit (hub_npc.gd wear()).
+
+def _hull(pts):
+    """Convex hull (counter-clockwise) of 2D points, monotone chain."""
+    pts = sorted(set(pts))
+
+    def half(seq):
+        h = []
+        for p in seq:
+            while len(h) >= 2 and (h[-1][0] - h[-2][0]) * (p[1] - h[-2][1]) - (h[-1][1] - h[-2][1]) * (p[0] - h[-2][0]) <= 0:
+                h.pop()
+            h.append(p)
+        return h
+    lo, hi = half(pts), half(reversed(pts))
+    return lo[:-1] + hi[:-1]
+
+
+def _ray_hull(hull, c, d):
+    """How far from c along direction d the hull's edge is."""
+    best = 0.0
+    for i in range(len(hull)):
+        a, b = Vector(hull[i]), Vector(hull[i - 1])
+        e = b - a
+        den = d.x * e.y - d.y * e.x
+        if abs(den) < 1e-9:
+            continue
+        w = a - c
+        t = (w.x * e.y - w.y * e.x) / den
+        u = (w.x * d.y - w.y * d.x) / den
+        if t > 0 and -1e-6 <= u <= 1 + 1e-6:
+            best = max(best, t)
+    return best
+
+
+def garment(name, part, top, hem, gap=0.008, flare=0.0, side=0, follow=(0.25, 0.65), rows=16, hang=True):
+    """A loose hanging tube from `top` down to `hem` round her hips and legs
+    (side 1 or -1: round her left or right leg only), skinned half to her hips
+    and half to the nearest body vertex's bones further down. Material
+    npc_<who>_<part>; its UVs run round (u) and down (v) the tube, so the
+    texture's bottom rows (v 0) are the hem."""
+    from mathutils.kdtree import KDTree
+    body = bpy.data.objects["Body"]
+    co = np.array([v.co[:] for v in body.data.vertices])
+    cols = 56
+    bm = bmesh.new()
+    uv = bm.loops.layers.uv.new("UVMap")
+    grid = []
+    widest = [0.0] * cols
+    for r in range(rows + 1):
+        t = r / rows
+        z = top + (hem - top) * t
+        keep = (co[:, 2] > z - 0.012) & (co[:, 2] < z + 0.012) & (np.abs(co[:, 0]) < 0.25)
+        if side:
+            keep &= co[:, 0] * side > 0.004
+        hull = _hull([(round(p[0], 5), round(p[1], 5)) for p in co[keep]])
+        c = Vector((float(np.mean([h[0] for h in hull])), float(np.mean([h[1] for h in hull]))))
+        ring = []
+        for k in range(cols):
+            a = 2 * math.pi * k / cols
+            d = Vector((math.cos(a), math.sin(a)))
+            raw = _ray_hull(hull, c, d) + gap
+            widest[k] = max(widest[k], raw) if hang else max(raw, 0.8 * widest[k])
+            rad = widest[k] + flare * t * t
+            ring.append(bm.verts.new((c.x + d.x * rad, c.y + d.y * rad, z)))
+        grid.append(ring)
+    for r in range(rows):
+        for k in range(cols):
+            k1 = (k + 1) % cols
+            f = bm.faces.new((grid[r][k], grid[r][k1], grid[r + 1][k1], grid[r + 1][k]))
+            f.smooth = True
+            for loop, (uu, vv) in zip(f.loops, ((k, r), (k + 1, r), (k + 1, r + 1), (k, r + 1))):
+                loop[uv].uv = (uu / cols, 1.0 - vv / rows)
+    bm.normal_update()
+    f0 = next(iter(bm.faces))
+    cm = f0.calc_center_median()
+    if f0.normal.dot(Vector((cm.x, cm.y, 0))) < 0:   # face outwards
+        bmesh.ops.reverse_faces(bm, faces=bm.faces[:])
+    bmesh.ops.solidify(bm, geom=bm.faces[:], thickness=0.004)
+    bm.normal_update()
+    me = bpy.data.meshes.new(name)
+    bm.to_mesh(me)
+    bm.free()
+    me.materials.append(new_mat("npc_%s_%s" % (WHO, part)))
+    ob = bpy.data.objects.new(name, me)
+    bpy.context.scene.collection.objects.link(ob)
+    arm = [o for o in bpy.data.objects if o.type == "ARMATURE"][0]
+    kd = KDTree(len(co))
+    for i, p in enumerate(co):
+        if abs(p[0]) < 0.25 and p[2] < top + 0.03 and (not side or p[0] * side > 0.004):
+            kd.insert(Vector(p), i)
+    kd.balance()
+    names = {gr.index: gr.name for gr in body.vertex_groups}
+    groups = {}
+    for v in me.vertices:
+        t = min(1.0, max(0.0, (top - v.co.z) / (top - hem)))
+        f = follow[0] + (follow[1] - follow[0]) * t
+        _, i, _ = kd.find(v.co)
+        w = {"J_Bip_C_Hips": 1.0 - f}
+        for ge in body.data.vertices[i].groups:
+            w[names[ge.group]] = w.get(names[ge.group], 0.0) + f * ge.weight
+        for gname, wt in w.items():
+            if wt > 0.001:
+                if gname not in groups:
+                    groups[gname] = ob.vertex_groups.new(name=gname)
+                groups[gname].add([v.index], wt, "REPLACE")
+    ob.parent = arm
+    ob.modifiers.new("Armature", "ARMATURE").object = arm
+    return ob
+
+
+def nightwear(arm):
+    """Mom: a long cotton nightgown, rose-pink with little sprigs, a lace hem.
+    Ophelia: baggy plaid pajama pants (hips plus a leg each, ankle cuffs).
+    Their textures go to assets/textures/npc/<who>/<part>.png."""
+    out = []
+    n = 256
+    vv, uu = np.mgrid[0:n, 0:n] / n
+    px = np.ones((n, n, 4), np.float32)
+    if WHO == "mom":
+        out.append(garment("Outfit_night_Gown", "gown", 0.9, 0.2, gap=0.012, flare=0.05, follow=(0.55, 0.8), rows=18))
+        base = np.array((0.86, 0.66, 0.68))
+        sprig = (np.sin(uu * 2 * math.pi * 14) * np.sin(vv * 2 * math.pi * 10) > 0.93)[..., None]
+        col = base * (1 - sprig) + np.array((0.55, 0.36, 0.45)) * sprig
+        lace = (vv < 0.07)[..., None]   # the hem rows (texture v 0 = hem)
+        holes = (lace[..., 0] & (np.sin(uu * 2 * math.pi * 56) * np.sin(vv * 2 * math.pi * 40) > 0.5))[..., None]
+        col = col * (1 - lace) + np.array((0.95, 0.92, 0.88)) * lace
+        col = col * (1 - holes) + base * 0.9 * holes
+        px[..., :3] = col
+        write_png(px, "gown")
+        _textured("gown")
+    elif WHO == "ophelia":
+        out.append(garment("Outfit_night_PantsHips", "pajama", 0.84, 0.66, gap=0.012, flare=0.004, rows=8))
+        for sd, nm in ((1, "L"), (-1, "R")):
+            out.append(garment("Outfit_night_Pants" + nm, "pajama", 0.7, 0.1, gap=0.016, flare=0.012, side=sd,
+                               follow=(0.8, 0.98), rows=22, hang=False))
+        # black and violet tartan, a black cuff at the hem rows
+        a = (np.sin(uu * 2 * math.pi * 12) > 0.3).astype(np.float32)
+        b = (np.sin(vv * 2 * math.pi * 10) > 0.3).astype(np.float32)
+        line = ((np.abs(np.sin(uu * 2 * math.pi * 24)) < 0.08) | (np.abs(np.sin(vv * 2 * math.pi * 20)) < 0.08)).astype(np.float32)
+        col = np.array((0.05, 0.04, 0.07)) + (a + b)[..., None] * np.array((0.11, 0.03, 0.17))
+        col = col * (1 - line[..., None]) + np.array((0.5, 0.45, 0.55)) * line[..., None]
+        cuff = (vv < 0.08)[..., None]
+        col = col * (1 - cuff) + np.array((0.03, 0.03, 0.04)) * cuff
+        px[..., :3] = np.clip(col, 0, 1)
+        write_png(px, "pajama")
+        _textured("pajama")
+    return out
+
+
+def _textured(part):
+    """Points the garment material at its texture (assets/textures/npc/<who>/<part>.png),
+    for the concept renders; the game's importer finds it by name."""
+    m = bpy.data.materials["npc_%s_%s" % (WHO, part)]
+    m.use_nodes = True
+    nt = m.node_tree
+    bsdf = next(n for n in nt.nodes if n.type == "BSDF_PRINCIPLED")
+    t = nt.nodes.new("ShaderNodeTexImage")
+    path = os.path.join(TEX_OUT, part + ".png")
+    t.image = bpy.data.images.get(part) or bpy.data.images.new(part, 4, 4)
+    t.image.filepath = path
+    nt.links.new(t.outputs["Color"], bsdf.inputs["Base Color"])
+
+
 # --- face paint -------------------------------------------------------------------------
 
 def face_paint(face, img):
@@ -794,7 +961,7 @@ def skin_tone(px):
 # bake to body_<outfit>.png and hub_npc.gd swaps them in.
 # (Mom's and Ophelia's bikini/sheer/tight/lingerie were shelved 2026-10-04;
 # backup: /mnt/project-files/hub-npcs/shelved/npc_outfits.bundle)
-OUTFITS = {"ophelia": ["tee", "hoodie", "night"]}
+OUTFITS = {"ophelia": ["tee", "hoodie", "night"], "mom": ["home", "night"]}
 OUTFIT = "tee"
 
 
@@ -804,8 +971,8 @@ def ophelia_outfit(g, skin, x, y, z, ax, front, cov, edge, sine, neck_r):
     hoodie: a big charcoal zip hoodie, half open, sleeves down over her
     hands (thumb holes), violet-lined hood band and drawstrings, a pale moth on
     the back; black skinny jeans and a wallet chain.
-    night: a black cami under a sheer fishnet long-sleeve, high-waisted black
-    shorts with the studded belt, black and violet striped thigh-highs.
+    night: a worn-out band crop top on spaghetti straps and baggy plaid
+    pajama pants (meshes from nightwear()).
     All of them: her choker with its o-ring."""
     BLACK, PURPLE, PINK, DENIM, STUD = (0.012, 0.011, 0.015), (0.12, 0.03, 0.22), (0.7, 0.08, 0.3), (0.02, 0.02, 0.026), (0.6, 0.6, 0.65)
     CHAR, BONE = (0.035, 0.033, 0.04), (0.62, 0.58, 0.6)
@@ -887,37 +1054,30 @@ def ophelia_outfit(g, skin, x, y, z, ax, front, cov, edge, sine, neck_r):
         col = g.mixc(col, BLACK, choker)
         ink = g.mx(g.mx(edge(d_hood), g.mul(edge(open_), hood)), g.mx(edge(d_jeans), g.mul(edge(g.sub(0.075, g.add(ax, g.mul(g.sub(z, 0.78), 0.4)))), g.mul(pocket, 1.0))))
         return pierce(g.mixc(col, INK, ink))
-    # night
-    neck_z = g.lerp(1.172, 1.4, g.sstep(0.065, 0.09, ax))
-    d_mesh = g.mn(g.mn(g.sub(neck_z, z), g.sub(z, 0.84)), g.sub(0.47, ax))
-    mesh = cov(d_mesh)
-    # the cami: a straight top edge across the bust, thin straps
-    top_z = g.add(1.085, g.mul(g.sub(1.0, front), 0.03))
-    d_cami = g.mn(g.sub(top_z, z), g.sub(z, 0.9))
-    cami = g.mul(cov(d_cami), g.sstep(0.2, 0.18, ax))
-    straps = g.mul(g.mul(g.band(ax, 0.06, 0.068), g.sstep(1.08, 1.09, z)), g.sstep(0.2, 0.18, ax))
-    # tiny low-rise shorts: the leg openings cut up high over the hips and
-    # cheeky at the back, still covering where they need to
-    waist_z = g.add(0.8, g.mul(g.sub(1.0, front), 0.012))
-    open_z = g.add(0.702, g.mul(g.sstep(0.02, 0.11, ax), g.add(0.07, g.mul(g.sub(1.0, front), 0.012))))
-    d_shorts = g.mn(g.sub(waist_z, z), g.sub(z, open_z))
-    shorts = cov(d_shorts)
-    belt = g.mul(g.band(g.sub(z, waist_z), -0.014, 0.0), shorts)
-    studs = g.mul(g.mul(belt, g.sstep(0.75, 0.85, sine(g.add(x, y), 0.012))), g.band(g.sub(z, waist_z), -0.009, -0.005))
-    lace = g.mul(g.mul(g.band(g.abs(g.sub(ax, g.mul(g.abs(g.sub(g.op("FRACT", g.div(z, 0.02)), 0.5)), 0.012))), 0.0, 0.0012), front), g.mul(g.band(ax, 0.0, 0.012), g.band(z, 0.7, 0.82)))
-    d_socks = g.mn(g.sub(0.565, z), g.sub(z, 0.12))
-    socks = cov(d_socks)
-    stripes = g.mul(socks, g.sstep(-0.15, 0.15, sine(z, 0.03)))
-    col = g.mixc(skin, BLACK, g.mul(g.mul(mesh, net), 0.85))
-    col = g.mixc(col, BLACK, g.mx(cami, straps))
+    # night: a worn-out band crop on spaghetti straps (a faded bolt-in-a-ring
+    # logo, cracked print) over plaid pajama pants (meshes: nightwear()); the
+    # paint under the pants matches them so no gap shows, black ankle socks
+    top_z = g.add(1.088, g.mul(g.sub(1.0, front), 0.03))
+    d_crop = g.mn(g.sub(top_z, z), g.sub(z, 0.93))
+    crop = g.mul(cov(d_crop), g.sstep(0.2, 0.18, ax))
+    straps = g.mul(g.mul(g.band(ax, 0.058, 0.064), g.sstep(1.08, 1.09, z)), g.sstep(0.2, 0.18, ax))
+    ring_r = g.sqrt(g.add(g.sq(x), g.sq(g.sub(z, 1.0))))
+    ring = g.band(ring_r, 0.024, 0.029)
+    bolt = g.mul(g.band(g.add(x, g.mul(g.abs(g.sub(g.op("FRACT", g.div(g.sub(z, 0.976), 0.024)), 0.5)), 0.03)), -0.004, 0.004),
+                 g.sstep(0.025, 0.02, ring_r))
+    crack = g.sstep(0.55, 0.75, g.mul(sine(g.add(g.mul(x, 3.1), z), 0.007), sine(g.sub(z, g.mul(x, 1.7)), 0.009)))
+    logo = g.mul(g.mul(g.mx(ring, bolt), front), g.sub(1.0, g.mul(crack, 0.7)))
+    d_pj = g.mn(g.sub(0.84, z), g.sub(z, 0.1))
+    pj = cov(d_pj)
+    socks = cov(g.sub(0.1, z))
+    col = g.mixc(skin, (0.03, 0.028, 0.034), g.mx(crop, straps))
+    col = g.mixc(col, (0.42, 0.4, 0.44), g.mul(logo, crop))
+    col = g.mixc(col, (0.1, 0.03, 0.15), pj)
     col = g.mixc(col, BLACK, socks)
-    col = g.mixc(col, PURPLE, stripes)
-    col = g.mixc(col, BLACK, shorts)
-    col = g.mixc(col, (0.06, 0.06, 0.07), belt)
-    col = g.mixc(col, STUD, g.mx(g.mx(studs, o_ring), g.mul(lace, shorts)))
+    col = g.mixc(col, STUD, o_ring)
     col = g.mixc(col, BLACK, choker)
-    ink = g.mx(g.mx(edge(d_cami), edge(d_shorts)), g.mx(g.mul(edge(d_socks), 1.0), g.mul(edge(d_mesh), 0.6)))
-    return pierce(g.mixc(col, INK, ink), strong=True)
+    ink = g.mx(edge(d_crop), g.mul(edge(d_pj), 0.5))
+    return g.mixc(col, INK, ink)
 
 
 def clothes_graph(nt, skin):
@@ -947,6 +1107,27 @@ def clothes_graph(nt, skin):
         return g.op("EXPONENT", g.mul(g.add(g.sq(g.sub(xx, cx)), g.sq(g.sub(z, cz))), -1.0 / (2 * r * r)))
     neck_r = g.sqrt(g.add(g.sq(x), g.sq(g.sub(y, 0.022))))
     # sleeves end at d_cuff = cuff - ax; the upper body starts at d_hem = z - hem
+    if WHO == "mom" and OUTFIT == "night":
+        # a classic long nightgown (its skirt is a mesh: nightwear()): rose
+        # cotton, a scoop neck edged in cream lace, little cap sleeves, a
+        # buttoned placket; under the skirt the paint matches it, and cream bed socks
+        ROSE, CREAM = (0.62, 0.38, 0.4), (0.9, 0.86, 0.8)
+        scoop = g.mul(g.mul(0.05, front), g.op("EXPONENT", g.mul(g.sq(g.div(ax, 0.05)), -1.0)))
+        neck_z = g.lerp(g.sub(1.17, scoop), 1.4, g.sstep(0.07, 0.095, ax))
+        d_gown = g.mn(g.mn(g.sub(neck_z, z), g.sub(z, 0.2)), g.sub(0.215, ax))
+        gown = cov(d_gown)
+        lace = g.mul(g.band(g.sub(neck_z, z), 0.0, 0.012), gown)
+        lace_cut = g.sstep(0.4, 0.8, sine(g.add(x, g.mul(y, 0.5)), 0.008))
+        cuff = g.mul(g.band(ax, 0.2, 0.215), gown)
+        placket = g.mul(g.mul(g.band(x, -0.006, 0.006), front), g.mul(gown, g.sstep(0.95, 0.955, z)))
+        buttons = g.mul(g.mul(g.sub(1.0, g.sstep(0.0025, 0.0035, g.sqrt(g.add(g.sq(x), g.sq(g.sub(g.op("FRACT", g.div(z, 0.035)), 0.5)))))), placket), 1.0)
+        socks = cov(g.sub(0.2, z))
+        col = g.mixc(skin, ROSE, gown)
+        col = g.mixc(col, CREAM, g.mx(g.mul(lace, lace_cut), cuff))
+        col = g.mixc(col, CREAM, g.mul(buttons, g.sstep(1.12, 1.11, z)))
+        col = g.mixc(col, CREAM, socks)
+        ink = g.mx(edge(d_gown), g.mul(edge(g.sub(0.2, z)), 0.5))
+        return g.mixc(col, INK, ink)
     if WHO == "mom":
         SAGE, SAGE_D, SHIRT, SHEER, SHORTS, BELT, TAG = (0.16, 0.22, 0.14), (0.1, 0.14, 0.09), (0.12, 0.16, 0.24), (0.035, 0.025, 0.02), (0.018, 0.016, 0.018), (0.06, 0.03, 0.015), (0.55, 0.56, 0.58)
         LEG = (0.62, 0.42, 0.35)
@@ -1438,11 +1619,19 @@ def concept(arm, objs):
         sc.render.resolution_x, sc.render.resolution_y = res
         sc.render.filepath = "%s_%s.png" % (prefix, name)
         bpy.ops.render.render(write_still=True)
+    def dress(outfit):   # as hub_npc.gd wear(): an outfit's meshes, no boots at night
+        for o in bpy.data.objects:
+            if o.name.startswith("Outfit_"):
+                o.hide_render = not o.name.startswith("Outfit_%s_" % outfit)
+            elif o.name == "Boots":
+                o.hide_render = outfit == "night"
+    dress(OUTFITS.get(WHO, ["default"])[0])
     for shot in shots:
         shoot(*shot, CONCEPT)
     # the other outfits: the body texture swapped, full-length shots only
     tex = next((n for n in bpy.data.materials["npc_%s_body" % WHO].node_tree.nodes if n.type == "TEX_IMAGE"), None)
     for outfit in OUTFITS.get(WHO, [])[1:]:
+        dress(outfit)
         tex.image = bpy.data.images.load(os.path.join(TEX_OUT, "body_%s.png" % outfit))
         for shot in shots[:3]:
             shoot(*shot, "%s_%s" % (CONCEPT, outfit))
@@ -1462,6 +1651,8 @@ def main():
         {"mom": body_mom, "ophelia": body_ophelia}[WHO]()
         E["glute_bones"](arm)   # jiggle springs, as Eco's
     extras = []
+    if WHO in ("mom", "ophelia"):
+        extras += nightwear(arm)
     if WHO == "biggie":
         extras.append(beard(arm))
         extras.append(topknot(arm))

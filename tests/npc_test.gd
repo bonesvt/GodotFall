@@ -59,13 +59,23 @@ func _run() -> void:
 		_check("%s is fully textured" % who, bare.is_empty(), bare)
 
 	_check("Ophelia starts in her tee", run_node.hub_npcs["ophelia"].outfit == "tee", run_node.hub_npcs["ophelia"].outfit)
-	for who in ["ophelia"]:
+	for who in ["mom", "ophelia"]:
 		var list: Array = run_node.hub_npcs[who].OUTFITS[who]
 		var gone := []
 		for i in range(1, list.size()):
 			if not ResourceLoader.exists("res://assets/textures/npc/%s/body_%s.png" % [who, list[i]]):
 				gone.append(list[i])
-		_check("%s has all %d outfits" % [who, list.size()], gone.is_empty() and list.size() == 3, gone)
+		_check("%s has all %d outfits" % [who, list.size()], gone.is_empty() and list.has("night"), gone)
+		# nightwear meshes show only at night, and the boots come off
+		var npc: Node = run_node.hub_npcs[who]
+		var before: String = npc.outfit
+		var meshes: Array = npc.find_children("Outfit_night_*", "MeshInstance3D", true, false)
+		var boots: Array = npc.find_children("Boots*", "MeshInstance3D", true, false)
+		npc.wear("night")
+		_check("%s's nightwear meshes show at night" % who, not meshes.is_empty() and meshes.all(func(m): return m.visible) and boots.all(func(b): return not b.visible), [meshes.size(), boots.size()])
+		npc.wear(list[0])
+		_check("%s's nightwear meshes hide by day" % who, meshes.all(func(m): return not m.visible) and boots.all(func(b): return b.visible))
+		npc.wear(before)
 
 	# Every line in every conversation babbles, one beat per character.
 	var missing := []
