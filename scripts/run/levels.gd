@@ -18,11 +18,15 @@ extends RefCounted
 ##   needs: the level (or "tutorial") that has to be cleared first.
 ##   rescue: who is held in the level's holding block (its "holding"
 ##     section, holding_cell.gd). The clearing at the end stays shut until
-##     they're out, and they leave on the evac with you. rescue_lines is
-##     what's said when the cell opens.
+##     they're out. rescue_lines is what's said when the cell opens.
+##   holding_last: the holding block is the last stop, at the far end.
+##   exfil: "spawn" puts the way out (the extraction beacon) back where you
+##     came in, instead of past the far end.
+##   night: dark streets, grunts with torches who see less far (biome.night).
 
 const ZoneGenerator := preload("res://scripts/run/procgen/zone_generator.gd")
 const LevelPlan := preload("res://scripts/run/procgen/level_plan.gd")
+const Biome := preload("res://scripts/run/procgen/biome.gd")
 
 const ORDER := ["level1", "level2"]
 const LEVELS := {
@@ -47,22 +51,25 @@ const LEVELS := {
 		"difficulty": 5,
 		"lanes": 0,
 		"must": ["holding"],
-		"finale": true,
+		"holding_last": true,
+		"finale": false,
+		"exfil": "spawn",
+		"night": true,
 		"threats": false,
 		"part_bonus": 2,
 		"needs": "level1",
 		"rescue": "ophelia",
 		# What they say when the screen drops (rated T both ways).
 		"rescue_lines": [
-			"OPHELIA: ...You're not one of them.",
-			"ECO: Nope! Eco. Hi. I'm the rescue. Surprise.",
+			"OPHELIA: ...Who's there?",
+			"ECO: Shh. Eco. Rescue. Hold still.",
 			"OPHELIA: Nobody was supposed to come. Nobody even knows I'm gone.",
-			"ECO: I knew. Their radio wouldn't shut up about you. Can you run?",
-			"OPHELIA: Watch me.",
-			"ECO: Evac's past the plaza. Stay low, I'll clear the road. And don't die, it'd ruin my whole night.",
+			"ECO: I knew. Their radio wouldn't shut up about you. Can you walk?",
+			"OPHELIA: Barefoot, through their city, in the dark? Sure. Love that for me.",
+			"ECO: Stay close. I crouch, you crouch. We go out the way I came in.",
 		],
 		"blurb": "The colony's radio keeps joking about a girl from town in their holding block downtown. "
-			+ "Nobody in town has even noticed she's gone. Ophelia. Get her out, then get her past the titan they park in the plaza.",
+			+ "Nobody in town has even noticed she's gone. Ophelia. Go in at night, get her out of her chains, and get her back out the way you came without waking the district.",
 	},
 }
 
@@ -82,6 +89,8 @@ static func build(root: Node3D, rng: RandomNumberGenerator, id: String) -> Dicti
 	var plan = LevelPlan.make_level(rng.randi_range(1, 2147483646), s)
 	var info := ZoneGenerator.build_from_plan(root, plan, int(s["difficulty"]))
 	info["level"] = id
+	if s.get("night", false):
+		Biome.night(root, info)
 	return info
 
 

@@ -60,6 +60,8 @@ func _go() -> void:
 		run_node.remove_child(run_node.zone_root)
 	run_node.zone_info = ZoneGenerator.build_from_plan(run_node.zone_root, plan, plan.zone_index)
 	var info: Dictionary = run_node.zone_info
+	if level != "" and Levels.spec(level).get("night", false):
+		preload("res://scripts/run/procgen/biome.gd").night(run_node.zone_root, info)
 	if level != "":
 		for n in run_node.zone_root.get_children():
 			run_node.zone_root.remove_child(n)
@@ -149,6 +151,12 @@ func _level_shots(plan, info: Dictionary, at: Callable) -> void:
 		var side := signf(crate.x - c) if absf(crate.x - c) > 0.5 else 1.0
 		await _shot("3-depot-titan-part", crate + Vector3(-side * 7.0, 3.0, 9.0), crate + Vector3(0, 1.0, 0))
 		await _shot("4-depot-from-above", Vector3(c - side * 30.0, plan.ground(c, depot["mid"]) + 26.0, depot["z0"] + 20.0), Vector3(c, plan.ground(c, depot["mid"]), depot["mid"]))
+	if not info.has("arena"):
+		# No titan clearing (a rescue): the way out, back at the spawn.
+		var exfil: Vector3 = info["beacon"].position
+		await _shot("5-exfil-back-at-the-start", exfil + Vector3(6.0, 3.0, -14.0), exfil + Vector3(0, 2.0, 0))
+		await _shot("7-valley-overview", Vector3(plan.center_x(plan.spawn_z), 80.0, plan.spawn_z + 50.0), Vector3(plan.center_x(plan.spawn_z - 150.0), 0.0, plan.spawn_z - 150.0))
+		return
 	var arena: Dictionary = info["arena"]
 	var boss: Vector3 = info["boss"].position
 	await _shot("5-clearing-out-of-the-trees", at.call(loud, arena["enter_z"] + 10.0, 1.7), boss + Vector3(0, 5.0, 0))
@@ -168,7 +176,8 @@ func _holding_shots(plan, info: Dictionary, at: Callable) -> void:
 	await _shot("2-holding-from-the-road", at.call(loud, block["z0"] + 12.0, 2.2), at.call(loud, block["mid"], 1.0))
 	var cell: Node3D = info["holding_cell"]
 	var xf: Transform3D = cell.transform
-	await _shot("3-ophelia-in-her-cell", xf * Vector3(1.2, 1.7, 4.2), xf * Vector3(0.3, 0.7, -2.0))
+	await _shot("3-ophelia-in-her-cell", xf * Vector3(1.0, 1.5, 2.6), xf * Vector3(0.4, 0.6, -2.2))
+	await _shot("3b-ophelia-close", xf * Vector3(-0.6, 1.1, -0.6), xf * Vector3(0.4, 0.55, -2.3))
 	await _shot("4-holding-cell-wide", xf * Vector3(-5.0, 3.0, 11.0), xf * Vector3(0, 1.5, -1.0))
 	var c: float = plan.lane_x(loud, block["mid"])
 	var side := signf(cell.position.x - c)

@@ -574,9 +574,9 @@ static func _depot(root: Node3D, plan, info: Dictionary, keep_out: Array, s: Dic
 
 
 ## The colony's holding block: a concrete cell at the back of the yard,
-## facing the road across a strip of security wall, its energy screen held up
-## until the whole squad is down; a checkpoint on the way in, a guard tower
-## over the back. The prisoner (levels.gd "rescue") sits inside.
+## facing the road across a strip of security wall, a guard posted at its
+## screen and more round the block; a checkpoint on the way in, a guard tower
+## over the back. The prisoner (levels.gd "rescue") sits inside, chained.
 static func _holding(root: Node3D, plan, info: Dictionary, keep_out: Array, s: Dictionary, rng: RandomNumberGenerator,
 		dress: RandomNumberGenerator, zone_index: int, c: float, side: float, squad: Array) -> void:
 	var z1: float = s["z1"]
@@ -611,7 +611,6 @@ static func _holding(root: Node3D, plan, info: Dictionary, keep_out: Array, s: D
 		var deck := F.watchtower(root, _on(plan, tw.x, tw.y), 180.0)
 		_occupy(info, keep_out, tw, Vector2(5, 5))
 		squad.append(_grunt(root, info, deck + Vector3(0, 0, -0.6), zone_index, 0.6, Vector3(0, 0, 1)))
-	L.guard(root, info, cell, squad)
 	# The checkpoint on the road in.
 	if _put(root, plan, info, keep_out, "city_checkpoint", Vector2(c + side * 1.5, z0 - 1.5), 0.0 if side > 0.0 else 180.0, 0.0).is_empty():
 		SP.place(root, "warning_sign", _on(plan, c + side * 3.4, z0 - 2.0), dress.randf_range(-10, 10), info)
@@ -762,6 +761,15 @@ static func _bridge(root: Node3D, plan, info: Dictionary, keep_out: Array, x: fl
 
 static func _end(root: Node3D, plan, info: Dictionary, keep_out: Array, s: Dictionary) -> void:
 	var x: float = plan.lane_x(plan.lane_of("loud"), plan.end_z)
+	if plan.level.get("exfil", "") == "spawn":
+		# The way out is back where you came in, just behind the spawn; the
+		# far end is a dead end, the road barricaded.
+		var sx: float = plan.lane_x(plan.lane_of("loud"), plan.spawn_z + 6.0)
+		L.beacon(root, info, _on(plan, sx, plan.spawn_z + 6.0), "EXFIL")
+		for k in 3:
+			SP.place(root, "city_barricade" if SP.has("city_barricade") else "jersey_barrier", _on(plan, x + (k - 1) * 2.6, plan.end_z), 0.0, info)
+		keep_out.append(Rect2(x - 8, plan.end_z - 4, 16, 8))
+		return
 	L.beacon(root, info, _on(plan, x, plan.end_z), "EXTRACT")
 	keep_out.append(Rect2(x - 12, plan.end_z - 12, 24, 24))
 	F.spawn(root, "rock_b", _on(plan, x - 6.0, plan.end_z - 4.0), 40.0, 1.8)

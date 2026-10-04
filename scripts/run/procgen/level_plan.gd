@@ -40,7 +40,8 @@ extends RefCounted
 ##   depot: the militia's salvage depot, a yard like the outpost with a
 ##     bigger squad guarding a crated titan part (the level's objective).
 ##   holding: the colony's holding block, a yard like the depot where the
-##     bigger squad guards a prisoner's cell instead (levels.gd "rescue").
+##     bigger squad guards a prisoner's cell instead (levels.gd "rescue");
+##     with holding_last it's the last stop before the end.
 ##   finale: in place of the end, a wide clearing across the whole valley
 ##     where the enemy titan waits: call yours in, fight, walk it to the evac.
 ## Everything is seeded: the same seed always plans the same zone.
@@ -221,6 +222,11 @@ func _plan_sections(rng: RandomNumberGenerator) -> void:
 	var extra := 2 + clampi(zone_index - 3, 0, 2)
 	var middle := ["outpost", "camp", "wall", "chasm"]
 	middle.append_array(level.get("must", []))
+	# A holding block kept for last goes in after the shuffle.
+	var last := []
+	if level.get("holding_last", false) and "holding" in middle:
+		middle.erase("holding")
+		last = ["holding"]
 	var fillers := ["field", "picket", "resource", "field", "ruins"]
 	for i in extra:
 		middle.append(fillers[rng.randi() % fillers.size()])
@@ -234,11 +240,11 @@ func _plan_sections(rng: RandomNumberGenerator) -> void:
 			var t = order[i]
 			order[i] = order[j]
 			order[j] = t
-		if _good_order(order):
+		if _good_order(order + last):
 			break
 	var z := spawn_z + 28.0
 	z_top = z
-	var seq := ["start"] + order + ["finale" if level.get("finale", false) else "end"]
+	var seq := ["start"] + order + last + ["finale" if level.get("finale", false) else "end"]
 	var caches := ["guarded", "high"] if rng.randf() < 0.5 else ["high", "guarded"]
 	for kind in seq:
 		var length: float = SECTION_LEN[kind]

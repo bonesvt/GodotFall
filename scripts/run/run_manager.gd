@@ -41,6 +41,7 @@ const Wardrobe := preload("res://scripts/hub/wardrobe.gd")
 const Loot := preload("res://scripts/run/loot.gd")
 const Gifts := preload("res://scripts/run/gifts.gd")
 const NpcIdles := preload("res://scripts/hub/npc_idles.gd")
+const Escort := preload("res://scripts/run/escort.gd")
 const Weapon := preload("res://scripts/weapon.gd")
 const Art := preload("res://scripts/ps2/ps2_assets.gd")
 const Garage := preload("res://scripts/hub/garage.gd")
@@ -104,6 +105,12 @@ var evac_open := false
 ## and how long until Eco next says she's not leaving without them.
 var rescued := false
 var _rescue_nag := 0.0
+## Them following Eco out (escort.gd), once they're free.
+var escort: Escort
+## Whether any grunt went loud on this level.
+var _alarm_raised := false
+## How close they have to be when Eco steps into the exfil (m).
+const EXFIL_TOGETHER := 9.0
 ## How many times each hub interactable has been looked at, so its lines cycle.
 var hub_reads := {}
 var runs_started := 0
@@ -343,10 +350,13 @@ func load_zone(index: int) -> void:
 		for grunt in zone_info["grunts"]:
 			grunt.target = player
 			grunt.died.connect(_on_grunt_died)
+			grunt.called_out.connect(func(_g, _squad): _alarm_raised = true)
 		phase = Phase.ZONE
 		var zone_name: String = zone_info.get("name", "")
 		var uncharted := "UNCHARTED: " if index >= RunState.ZONE_COUNT else ""
 		rescued = false
+		escort = null
+		_alarm_raised = false
 		_set_prisoner_chatter(zone_info.has("holding_cell"))
 		if run.level != "":
 			hud.toast(Levels.title(run.level), 4.0)
@@ -876,6 +886,9 @@ func _zone_tick(delta: float) -> void:
 	if cell != null and Input.is_action_just_pressed("interact"):
 		rescue(cell)
 		return
+	if escort != null and escort.in_reach(player.global_position) and Input.is_action_just_pressed("interact"):
+		_escort_order()
+		return
 	var cache := nearest_cache()
 	if cache != null and Input.is_action_just_pressed("interact"):
 		open_salvage(cache)
@@ -890,7 +903,10 @@ func _zone_tick(delta: float) -> void:
 			_rescue_nag = 8.0
 			hud.toast("Not leaving without %s. The holding block's back up the street." % _rescue_name(), 4.0)
 	if zone_info["beacon"] != null and zone_info["beacon"].contains(player.global_position):
-		load_zone(run.zone + 1)
+		if zone_info.has("holding_cell"):
+			_exfil()
+		else:
+			load_zone(run.zone + 1)
 
 
 ## A level's clearing: their titan is waiting, so it's the arena from here,
@@ -922,21 +938,23 @@ func holding_cell_in_reach() -> Node3D:
 	return cell
 
 
-## Drops the cell's screen (once its squad is down). They have a word, then
-## run for the evac on their own and wait there, out of sight, until the
-## enemy titan is down and the dropship comes in.
+## Drops the cell's screen and breaks the prisoner's chains. They have a
+## word, then follow Eco out (escort.gd) to the exfil.
 func rescue(cell: Node3D) -> void:
 	if not cell.release():
-		hud.toast("LOCKED: CLEAR THE GUARDS")
-		tutorial.event("locked")
 		return
 	rescued = true
 	_set_prisoner_chatter(false)
 	tutorial.event("rescued")
-	var lines: Array = Levels.spec(run.level).get("rescue_lines", [])
 	var who: Node3D = cell.ophelia
 	if who != null:
-		who.look_target = player
+		escort = Escort.new()
+		escort.name = "Escort"
+		escort.npc = who
+		escort.pilot = player
+		zone_root.add_child(escort)
+		zone_info["escort"] = escort
+	var lines: Array = Levels.spec(run.level).get("rescue_lines", [])
 	var t := 0.0
 	for line in lines:
 		if t == 0.0:
@@ -944,7 +962,8 @@ func rescue(cell: Node3D) -> void:
 		else:
 			get_tree().create_timer(t, false, true).timeout.connect(_rescue_line.bind(line))
 		t += 3.4
-	get_tree().create_timer(t, false, true).timeout.connect(_rescued_runs.bind(cell))
+	get_tree().create_timer(t, false, true).timeout.connect(_rescue_line.bind(
+			"GET %s OUT: BACK TO THE EXFIL WHERE YOU CAME IN.  [F] BY HER: WAIT / FOLLOW" % _rescue_name().to_upper()))
 
 
 func _rescue_line(line: String) -> void:
@@ -952,30 +971,22 @@ func _rescue_line(line: String) -> void:
 		hud.toast(line, 3.6)
 
 
-## Off she goes, toward the road and out of sight, to wait at the evac.
-func _rescued_runs(cell: Node3D) -> void:
-	if not is_instance_valid(cell) or cell.ophelia == null or phase == Phase.OVER:
-		return
-	hud.toast("%s IS OUT. SHE'S MAKING FOR THE EVAC: CLEAR HER A ROAD" % _rescue_name().to_upper(), 4.5)
-	var who: Node3D = cell.ophelia
-	var out := cell.global_transform * Vector3(0, 0, 6.0)
-	var tw := who.create_tween()
-	tw.set_process_mode(Tween.TWEEN_PROCESS_PHYSICS)
-	tw.tween_property(who, "global_position", out, 1.6)
-	tw.tween_callback(func(): who.visible = false)
+## [F] next to them: wait here, or come on.
+func _escort_order() -> void:
+	escort.toggle_wait()
+	var n := _rescue_name()
+	hud.toast(("%s: Okay. Here. Don't forget me." % n.to_upper()) if escort.waiting else ("%s: Right behind you." % n.to_upper()), 2.5)
 
 
-## When the dropship comes in, they're waiting by the pad.
-func _rescued_at_evac() -> void:
-	var cell: Node3D = zone_info.get("holding_cell")
-	if cell == null or cell.ophelia == null or not zone_info.has("evac"):
+## The way out on a rescue level: only with them out and close behind.
+func _exfil() -> void:
+	if not rescued:
 		return
-	var who: Node3D = cell.ophelia
-	var pad: Vector3 = zone_info["evac"]
-	who.global_position = pad + Vector3(3.5, 0.0, 3.5)
-	who.rotation.y = 0.0
-	who.home_yaw = who.rotation.y
-	who.visible = true
+	if escort != null and escort.npc.global_position.distance_to(player.global_position) < EXFIL_TOGETHER:
+		end_run("RUN COMPLETE", "%s's out. The district never woke up." % _rescue_name() if not _alarm_raised else "%s's out. Loud, but out." % _rescue_name())
+	elif _rescue_nag <= 0.0:
+		_rescue_nag = 6.0
+		hud.toast("Not without %s. Go back for her." % _rescue_name(), 3.5)
 
 
 func _set_prisoner_chatter(on: bool) -> void:
@@ -1169,11 +1180,7 @@ func _on_boss_defeated() -> void:
 	var hover := ship.position
 	ship.position = hover + Vector3(0, 60, 40)
 	evac.create_tween().tween_property(ship, "position", hover, 4.0).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
-	if zone_info.has("holding_cell"):
-		_rescued_at_evac()
-		hud.toast("ENEMY TITAN DOWN. %s'S AT THE EVAC PAD. GET HER HOME" % _rescue_name().to_upper(), 5.0)
-	else:
-		hud.toast("ENEMY TITAN DOWN. LOCK CORE SALVAGED. GET TO THE EVAC PAD", 5.0)
+	hud.toast("ENEMY TITAN DOWN. LOCK CORE SALVAGED. GET TO THE EVAC PAD", 5.0)
 	_whisper("boss_down", 1.5)
 
 
@@ -1183,7 +1190,7 @@ func _evac_tick() -> void:
 	var pad: Vector3 = zone_info["evac"]
 	var d := titan.global_position - pad
 	if Vector2(d.x, d.z).length() < EVAC_RADIUS:
-		end_run("RUN COMPLETE", "%s's out, and the titan's coming home." % _rescue_name() if zone_info.has("holding_cell") else "Titan extracted back to base.")
+		end_run("RUN COMPLETE", "Titan extracted back to base.")
 
 
 func _on_titan_destroyed() -> void:
@@ -1302,7 +1309,9 @@ func _prompt() -> String:
 		Phase.ZONE:
 			var cell := holding_cell_in_reach()
 			if cell != null:
-				return "[F] Drop the screen" if cell.can_open() else "Locked: clear the guards"
+				return "[F] Short the screen and break her chains"
+			if escort != null and escort.in_reach(player.global_position):
+				return "[F] %s: come on" % _rescue_name() if escort.waiting else "[F] %s: wait here" % _rescue_name()
 			var cache := nearest_cache()
 			if cache != null:
 				return "[F] Open salvage" if cache.can_open() else "Locked: clear the guards"

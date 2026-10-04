@@ -1,14 +1,15 @@
 extends SceneTree
-## Headless test for Level 2 (levels.gd "level2", The Glass District), where
-## Eco gets Ophelia out of the colony's holding block.
+## Headless test for Level 2 (levels.gd "level2", The Glass District): a
+## night stealth run where Eco gets Ophelia out of the colony's holding block.
 ## Run: godot --headless --path . -s res://tests/level2_test.gd
-## Plans many seeds and checks each is a city level with one holding block
-## and the clearing last; builds one and checks the cell, Ophelia in it, the
-## city kit round it and no salvage depot; then plays it: the board stays
-## locked until Level 1 is cleared, the screen holds while its guards are up,
-## the clearing won't start the titan fight until she's out, the screen drops
-## once they're down, she runs for the evac and is waiting there when their
-## titan falls, and the evac clears the level.
+## Plans many seeds and checks each is a city level with the holding block
+## last and no titan clearing; builds one and checks the night (grunts with
+## torches and shorter sight), the exfil back at the spawn, the cell with
+## Ophelia chained inside in her prison rags; then plays it: the board stays
+## locked until Level 1 is cleared, the exfil does nothing without her, F at
+## the screen breaks her chains and she follows Eco, crouches with her, waits
+## when told, grunts can spot her, and walking into the exfil with her close
+## clears the level.
 
 const Levels := preload("res://scripts/run/levels.gd")
 const LevelPlan := preload("res://scripts/run/procgen/level_plan.gd")
@@ -32,19 +33,18 @@ func _run() -> void:
 
 func _plan_checks() -> void:
 	var spec := Levels.spec("level2")
-	_check("level 2 needs level 1, rescues Ophelia", spec["needs"] == "level1" and spec["rescue"] == "ophelia" and Levels.ORDER == ["level1", "level2"], spec.get("needs", ""))
+	_check("level 2 needs level 1, rescues Ophelia at night", spec["needs"] == "level1" and spec["rescue"] == "ophelia" and spec["night"] and Levels.ORDER == ["level1", "level2"], spec.get("needs", ""))
 	var bad := []
 	for s in range(1, 41):
 		var plan = LevelPlan.make_level(s, spec)
 		var kinds: Array = plan.sections.map(func(x): return x["kind"])
 		if plan.zone_name != "THE GLASS DISTRICT" or plan.biome != "city":
 			bad.append([s, "name/biome", plan.zone_name, plan.biome])
-		if kinds.count("holding") != 1 or "depot" in kinds or kinds[-1] != "finale" or "end" in kinds:
+		if kinds.count("holding") != 1 or kinds[-2] != "holding" or kinds[-1] != "end" or "finale" in kinds or "depot" in kinds:
 			bad.append([s, "sections", kinds])
-		var i: int = kinds.find("holding")
-		if i >= 0 and (kinds[i - 1] in LevelPlan.YARDS or kinds[i + 1] in LevelPlan.YARDS):
+		if kinds[-3] in LevelPlan.YARDS:
 			bad.append([s, "yards side by side", kinds])
-	_check("40 level plans: The Glass District, city, one holding block, the clearing last", bad.is_empty(), bad.slice(0, 6))
+	_check("40 level plans: The Glass District, city, the holding block last, no clearing", bad.is_empty(), bad.slice(0, 6))
 
 
 func _play_checks() -> void:
@@ -75,76 +75,100 @@ func _play_checks() -> void:
 
 	var info: Dictionary = run_node.zone_info
 	_check("it's The Glass District, in the city", info.get("name", "") == "THE GLASS DISTRICT" and info["plan"].biome == "city" and run_node.hud.toast_label.text.contains("LEVEL 2"), info.get("name", ""))
-	_check("a holding cell, no depot, a clearing with their titan and an evac", info.has("holding_cell") and not info.has("depot_cache") and info.has("boss") and info.has("evac_node"), info.keys())
+	_check("a holding cell, no depot, no titan clearing", info.has("holding_cell") and not info.has("depot_cache") and not info.has("boss") and not info.has("arena"), info.keys())
+	var beacon: Node3D = info["beacon"]
+	_check("the exfil is back by the spawn", beacon != null and beacon.global_position.distance_to(info["spawn"]) < 10.0, beacon.global_position if beacon else null)
 	var city: Array = info["set_pieces"].filter(func(p): return String(p["id"]).begins_with("city_"))
 	_check("built from the city kit (%d pieces)" % city.size(), city.size() >= 10, city.size())
-	var cell: Node3D = info["holding_cell"]
-	var oph: Node3D = cell.ophelia
-	_check("Ophelia's in the cell, sat on the floor", oph != null and oph.visible and oph.who == "ophelia" and oph.posed, oph)
+	var g0: Node = info["grunts"][0]
+	_check("night: grunts carry torches and see less far", g0.get_node_or_null("Torch") != null and g0.sight_range < 40.0, g0.sight_range)
 	var floating := []
 	for g in info["grunts"]:
 		if not _ground_below(g.post, g.get_rid()):
 			floating.append(g.post)
 	_check("%d grunts, all standing on something" % info["grunts"].size(), info["grunts"].size() >= 14 and floating.is_empty(), floating)
+	var cell: Node3D = info["holding_cell"]
+	var oph: Node3D = cell.ophelia
+	await _ticks(3)
+	_check("Ophelia's in the cell in her prison rags, chained", oph != null and oph.who == "ophelia" and oph.outfit == "prison" and oph.posed and cell._chains.size() == 2, [oph.outfit, cell._chains.size()])
 	_check("calm radio gossips about the prisoner", run_node.pilot_hud.radio.extra_rumor == "prisoner", run_node.pilot_hud.radio.extra_rumor)
+	_check("the screen is solid", _screen_blocks(cell), true)
 
-	# The screen holds while the squad is up.
-	var objective = info["objectives"].filter(func(o): return o.cache == cell)[0]
-	_check("holding squad of at least 5 guards her", cell.locked and objective.alive() >= 5, objective.alive())
-	await _use_cell(cell)
-	_check("screen holds with guards up", not cell.opened and run_node.rescue_pending() and run_node.hud.toast_label.text.contains("LOCKED"), run_node.hud.toast_label.text)
-	var screen := _screen_blocks(cell)
-	_check("the screen is solid", screen, screen)
-
-	# The clearing won't start without her.
-	var arena: Dictionary = info["arena"]
-	var into: Vector3 = arena["center"] + Vector3(0, 1.0, 0)
-	_place(Vector3(into.x, into.y, arena["enter_z"] - 4.0))
+	# The exfil does nothing without her.
+	_place(beacon.global_position + Vector3(0, 0.5, 0))
 	await _ticks(3)
-	_check("no titan fight while she's still inside", run_node.phase == run_node.Phase.ZONE and run_node.hud.toast_label.text.contains("Not leaving without Ophelia"), [run_node.phase, run_node.hud.toast_label.text])
+	_check("exfil without her doesn't end the run", run_node.phase == run_node.Phase.ZONE, run_node.phase)
 
-	for g in objective.grunts:
-		if is_instance_valid(g) and not g.dead:
-			g.take_damage(9999.0, g.global_position)
-	await _ticks(3)
+	# Into the cell: chains off, she follows.
 	await _use_cell(cell)
-	_check("screen drops once the squad's down", cell.opened and run_node.rescued and not run_node.rescue_pending(), cell.opened)
-	_check("the way in is open", not _screen_blocks(cell), cell.opened)
-	_check("she stands up and they talk", not oph.posed and run_node.hud.toast_label.text.begins_with("OPHELIA"), run_node.hud.toast_label.text)
+	_check("F breaks her out", cell.opened and run_node.rescued and cell._chains.is_empty() and not _screen_blocks(cell), cell.opened)
+	_check("they talk", run_node.hud.toast_label.text.begins_with("OPHELIA"), run_node.hud.toast_label.text)
 	_check("radio stops gossiping about her", run_node.pilot_hud.radio.extra_rumor == "", run_node.pilot_hud.radio.extra_rumor)
-	var talk: float = Levels.spec("level2")["rescue_lines"].size() * 3.4 + 2.0
-	await _ticks(int(talk * Engine.physics_ticks_per_second) + 10)
-	_check("then she runs for the evac, out of sight", not oph.visible and run_node.hud.toast_label.text.contains("MAKING FOR THE EVAC"), [oph.visible, run_node.hud.toast_label.text])
-
-	# Now the clearing: titanfall, their titan down, she's at the pad.
-	_place(Vector3(into.x, into.y, arena["enter_z"] - 4.0))
-	await _ticks(3)
-	_check("walking into the clearing starts the titan fight now", run_node.phase == run_node.Phase.ARENA, run_node.phase)
-	await _press("titan_core")
-	await _ticks(2)
-	var titan = run_node.titan
-	_check("titan called", titan != null, titan)
-	if titan == null:
+	var escort = run_node.escort
+	_check("she's following", escort != null and escort.npc == oph and not escort.waiting, escort)
+	if escort == null:
 		return
-	for i in 300:
-		await _ticks(1)
-		if not titan.dropping:
-			break
-	_place(titan.global_position + Vector3(3, 0.5, 0))
+	# Walk off up the street: she comes after. (Grunts held passive for this,
+	# so nobody shoots Eco back to a checkpoint mid-check.)
+	for g in info["grunts"]:
+		g.passive = true
+		g.alerted = false
+	var away: Vector3 = cell.global_transform * Vector3(0, 0.5, 12.0)
+	_place(away)
+	var start := oph.global_position.distance_to(player.global_position)
+	await _ticks(int(6.0 * Engine.physics_ticks_per_second))
+	var now := oph.global_position.distance_to(player.global_position)
+	_check("she catches up (%.1f m -> %.1f m)" % [start, now], now < 5.0 and now < start, [start, now])
+	Input.action_press("crouch")
+	await _ticks(4)
+	_check("she crouches when Eco does", escort.crouched, escort.crouched)
+	Input.action_release("crouch")
+	await _ticks(4)
+	# Told to wait, she stays put.
+	_place(oph.global_position + Vector3(0, 0.3, 1.5))
 	await _ticks(2)
 	await _press("interact")
 	await _ticks(2)
-	_check("embark", run_node.phase == run_node.Phase.FIGHT, run_node.phase)
-	var boss: Node3D = info["boss"]
-	boss.active = true
-	boss.take_damage(boss.hp + 1.0)
+	_check("[F] by her: she waits", escort.waiting and run_node.hud.toast_label.text.begins_with("OPHELIA"), run_node.hud.toast_label.text)
+	var held := oph.global_position
+	_place(held + Vector3(12, 0.5, 0))
+	await _ticks(int(2.0 * Engine.physics_ticks_per_second))
+	_check("waiting, she stays put", oph.global_position.distance_to(held) < 0.5, oph.global_position.distance_to(held))
+	# A grunt looking right at her notices her.
+	var watcher: Node = null
+	var spot_at := Vector3.ZERO
+	var space: PhysicsDirectSpaceState3D = run_node.get_world_3d().direct_space_state
+	for g in info["grunts"]:
+		if g.dead or g.patrol.size() >= 2:
+			continue
+		var ahead: Vector3 = -g.global_basis.z
+		ahead.y = 0.0
+		var at: Vector3 = g.global_position + ahead.normalized() * 5.0
+		var q := PhysicsRayQueryParameters3D.create(g.global_position + g.EYE, at + Vector3.UP * 0.6, 1 | g.SIGHT_LAYER)
+		q.exclude = [g.get_rid(), player.get_rid()]
+		if space.intersect_ray(q).is_empty():
+			watcher = g
+			spot_at = at
+			break
+	watcher.passive = false
+	var fwd: Vector3 = -watcher.global_basis.z
+	fwd.y = 0.0
+	oph.global_position = spot_at
+	_place(watcher.global_position - fwd.normalized() * 30.0 + Vector3(0, 40, 0))
+	watcher.detection = 0.0
+	await _ticks(int(1.5 * Engine.physics_ticks_per_second))
+	_check("a grunt facing her picks her up (%.2f)" % watcher.detection, watcher.detection > 0.15 or watcher.alerted, watcher.detection)
+
+	# Out through the exfil together.
+	escort.waiting = false
+	_place(beacon.global_position + Vector3(0, 0.5, 0))
+	oph.global_position = beacon.global_position + Vector3(30, 0, 0)
+	escort.set_physics_process(false)
 	await _ticks(3)
-	var pad: Vector3 = info["evac"]
-	_check("their titan down: evac open, Ophelia waiting at the pad", run_node.evac_open and oph.visible and oph.global_position.distance_to(pad) < 8.0
-			and run_node.hud.toast_label.text.contains("OPHELIA'S AT THE EVAC PAD"), [oph.global_position, pad])
-	titan.global_position = pad + Vector3(0, 0.5, 0)
+	_check("exfil with her far behind doesn't end it", run_node.phase == run_node.Phase.ZONE and run_node.hud.toast_label.text.contains("Not without Ophelia"), run_node.hud.toast_label.text)
+	oph.global_position = beacon.global_position + Vector3(2, 0, 2)
 	await _ticks(3)
-	_check("evac completes the level with her", run_node.phase == run_node.Phase.OVER and run_node.result == "RUN COMPLETE", run_node.result)
+	_check("exfil with her close clears the level", run_node.phase == run_node.Phase.OVER and run_node.result == "RUN COMPLETE", run_node.result)
 	_check("level 2 marked cleared and saved", "level2" in load("res://scripts/hub/armory.gd").open(run_node.armory_path).cleared, run_node.armory.cleared)
 	await _press("run_restart")
 	await _ticks(3)

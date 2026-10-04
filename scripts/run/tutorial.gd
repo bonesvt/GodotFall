@@ -702,17 +702,18 @@ func _level1() -> Array:
 
 func _level2() -> Array:
 	return [
-		{"id": "level2_intro", "title": "LEVEL 2: THE GLASS DISTRICT", "color": AMBER, "max": 14.0,
-			"body": "The colony's own streets: walls to run, rooftops for the high road, drones and checkpoints on the main drag. Somewhere down here is their holding block, and Ophelia's in it.",
+		{"id": "level2_intro", "title": "LEVEL 2: THE GLASS DISTRICT", "color": AMBER, "max": 15.0,
+			"body": "Night in the colony's streets. Their torches show where they're looking, and in the dark they don't see far. Stay quiet: Ophelia's in their holding block at the far end of the district.",
 			"targets": func(): return _route_tags(_info().get("routes", [])),
 			"when": func(): return level_time > 2.0},
 		{"id": "level2_cell", "title": "HOLDING BLOCK", "color": RED, "max": 16.0,
-			"body": "Her cell's behind an energy screen the guards hold up. Drop every one of them in the yard, the tower too, then walk up to the screen and press [F].",
+			"body": "Her cell's behind an energy screen, a guard on it and more round the block. Take him quietly with the stiletto [Z], walk up to the screen and press [F] to short it and break her chains.",
 			"targets": func(): return _cell_tag(),
 			"when": func(): return _cell_tag().size() > 0 and _near(_info()["holding_cell"].global_position, 70.0),
 			"done": func(): return _info()["holding_cell"].opened},
-		{"id": "level2_finale", "title": "THE PLAZA", "color": GREEN, "max": 14.0,
-			"body": "She's making for the evac. Their titan's parked in the plaza at the end of the street: call yours in, beat theirs, walk it to the pad where she's waiting.",
+		{"id": "level2_out", "title": "GET HER OUT", "color": GREEN, "max": 16.0,
+			"body": "She follows you, and crouches when you crouch. Grunts can spot her too. [F] next to her tells her to wait or to come on. The exfil is back where you came in, and she has to be with you.",
+			"targets": func(): return [{"node": _info()["beacon"], "tag": "EXFIL", "color": GREEN}] if _info().get("beacon") != null else [],
 			"when": func(): return _events.has("rescued") and level_time > 0.0},
 	]
 
