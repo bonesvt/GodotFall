@@ -690,7 +690,7 @@ def _drape(bm):
                 y[i] = min(py, max(left.min(), right.min()))
     out = y.copy()
     for i, (px, py, pz) in enumerate(P):
-        above = (np.abs(P[:, 0] - px) < 0.006) & (P[:, 2] > pz) & (np.sign(P[:, 1]) == np.sign(py))
+        above = (np.abs(P[:, 0] - px) < 0.014) & (P[:, 2] > pz) & (np.sign(P[:, 1]) == np.sign(py))
         if above.any():
             out[i] = min(y[i], y[above].min()) if py < 0 else max(y[i], y[above].max())
     for v, ny in zip(vs, out):
@@ -2329,9 +2329,9 @@ def hoodie(name, hem, mat):
         if c.z > 1.18 or (c.z > 1.14 and math.hypot(c.x, c.y - 0.022) < 0.07):
             return False   # her neck
         if ax > 0.15:
-            return c.z > 1.0 and ax < 0.41   # the sleeves
+            return c.z > 1.0 and ax < 0.395   # the sleeves (cuffs on whole faces: a cut leaves slivers)
         return c.z > hem - 0.02
-    planes = [((0, 0, hem), (0, 0, -1)), ((0.395, 0, 0), (1, 0, 0)), ((-0.395, 0, 0), (-1, 0, 0))]
+    planes = [((0, 0, hem), (0, 0, -1))]
     ob = shell(name, keep, planes=planes, gap=0.012, thick=0.006, plate=mat, edge=mat + "_edge",
                smooth=2, smooth_edge=5, border=2, drape=True)
     bvh = _body_bvh()
@@ -2339,6 +2339,24 @@ def hoodie(name, hem, mat):
     top = max(v.co.z for v in ob.data.vertices)
     print("%s: furthest point %.3f m off her, top at z %.3f" % (name, far, top))
     assert top < 1.23 and far < 0.09, "hoodie has a spike"
+    return ob
+
+
+def gusset(name, mat, z0=0.69, z1=0.8):
+    """A flat panel over the front of her crotch for painted shorts: her front
+    faces there bridged straight across row by row (paint alone follows the
+    notch where her thighs meet)."""
+    def keep(c, n):
+        return abs(c.x) < 0.055 and z0 < c.z < z1 and n.y < -0.25
+    ob = shell(name, keep, gap=0.002, thick=0.002, plate=mat, edge=mat, smooth_edge=3)
+    me = ob.data
+    P = np.array([v.co[:] for v in me.vertices])
+    front = P[:, 1] < 0
+    for v in me.vertices:
+        row = front & (np.abs(P[:, 2] - v.co.z) < 0.004) & (np.abs(P[:, 0]) < 0.05)
+        if v.co.y < 0 and row.any():
+            v.co.y = min(v.co.y, float(np.percentile(P[row, 1], 20)))   # the notch comes forward to the front of the row
+    me.update()
     return ob
 
 
@@ -2367,7 +2385,12 @@ def sneakers(name, upper, sole, top=0.078, sole_h=0.024, flare=1.08):
     bm.from_mesh(ob.data)
     bmesh.ops.delete(bm, geom=[f for f in bm.faces if f.calc_center_median().z > top], context="FACES")
     bmesh.ops.delete(bm, geom=[v for v in bm.verts if not v.link_faces], context="VERTS")
+    z0 = min(v.co.z for v in bm.verts)
+    for zc in (z0 + sole_h, top - 0.008):   # split the faces on the sole and collar lines, so they run straight
+        bmesh.ops.bisect_plane(bm, geom=bm.verts[:] + bm.edges[:] + bm.faces[:], dist=1e-6,
+                               plane_co=Vector((0, 0, zc)), plane_no=Vector((0, 0, 1)))
     bm.normal_update()
+    lines = {f: f.calc_center_median().z for f in bm.faces}
     normals = {v: v.normal.copy() for v in bm.verts}
     for v, n in normals.items():
         v.co += n * 0.004
@@ -2381,9 +2404,7 @@ def sneakers(name, upper, sole, top=0.078, sole_h=0.024, flare=1.08):
             v.co.x = cx + (v.co.x - cx) * k
             v.co.y = cy + (v.co.y - cy) * k
     bm.normal_update()
-    z0 = min(v.co.z for v in bm.verts)
-    for f in bm.faces:
-        cz = f.calc_center_median().z
+    for f, cz in lines.items():
         f.material_index = 1 if cz < z0 + sole_h or cz > top - 0.008 else 0
     ob.data.materials.clear()
     _armor_mats(ob.data, [upper, sole])
@@ -2396,10 +2417,9 @@ def sneakers(name, upper, sole, top=0.078, sole_h=0.024, flare=1.08):
 def warmers(name, top, mat):
     """Slouchy leg warmers from her ankles (over her sneakers' collars) up to
     `top`, bunched in soft rolls."""
-    def keep(c, n):
-        return 0.07 < c.z < top + 0.02 and abs(c.x) > 0.01
-    ob = shell(name, keep, planes=[((0, 0, top), (0, 0, 1)), ((0, 0, 0.086), (0, 0, -1))], gap=0.013, thick=0.007,
-               plate=mat, edge=mat + "_edge", smooth=2, border=1)
+    def keep(c, n):   # whole faces, rounded (a cut leaves slivers along the edge)
+        return 0.086 < c.z < top and abs(c.x) > 0.01
+    ob = shell(name, keep, gap=0.013, thick=0.007, plate=mat, edge=mat + "_edge", smooth=2, smooth_edge=3, border=1)
     normals = [v.normal.copy() for v in ob.data.vertices]
     for v, n in zip(ob.data.vertices, normals):
         v.co += n * 0.0028 * (0.5 + 0.5 * math.sin(v.co.z * 2 * math.pi / 0.028))
@@ -2494,10 +2514,11 @@ def outfit_pieces():
     out.append(hoodie("outfit_skater_t_hoodie", 0.955, "eco_v_hoodie_skater"))
     out.append(hoodie("outfit_skater_m_hoodie", 1.0, "eco_v_hoodie_skater"))
     out.append(hood("outfit_skater_any_hood", "eco_v_hoodie_skater_hood"))
+    out.append(gusset("outfit_skater_any_gusset", "eco_v_shorts_skater"))
     out.append(sneakers("outfit_skater_any_shoes", "eco_v_sneaker_skater", "eco_v_sneaker_skater_sole"))
     out.append(buns("outfit_skater_any_buns"))
     _cargo("cargo")
-    out.append(skirt("outfit_y2k_t_skirt", 0.875, 0.645, ["eco_v_cargo"], gap=0.006, flare=0.02, follow=(0.6, 0.9), rows=10))
+    out.append(skirt("outfit_y2k_t_skirt", 0.875, 0.645, ["eco_v_cargo"], gap=0.006, flare=0.02, follow=(0.8, 0.97), rows=10))
     out.append(skirt("outfit_y2k_m_skirt", 0.86, 0.69, ["eco_v_cargo"], gap=0.005, flare=0.008, follow=(0.85, 0.97), rows=10))
     out.append(warmers("outfit_y2k_t_warmers", 0.42, "eco_v_warmers"))
     out.append(warmers("outfit_y2k_m_warmers", 0.6, "eco_v_warmers"))
@@ -2601,18 +2622,33 @@ def outfit_graph(nt, skin, kind):
         # on the back a titan she drew in marker, chibi, one big teal eye
         paint(1.0, HOODIE)
         back = g.sstep(0.0, 0.03, y)
-        d_t = g.mx(g.mx(rect(x, 0.0, 1.122, 0.024, 0.017), rect(x, 0.0, 1.07, 0.036, 0.03)),
-                   g.mx(g.mx(rect(ax, 0.05, 1.068, 0.011, 0.027), ell(ax, 0.051, 1.034, 0.013, 0.012)),
-                        g.mx(rect(ax, 0.018, 1.026, 0.009, 0.016), rect(ax, 0.022, 1.008, 0.014, 0.006))))
-        paint(g.mul(g.sstep(-AA, AA, d_t), back), CREAM)
-        paint(g.mul(g.sstep(-AA, AA, ell(x, 0.0, 1.123, 0.016, 0.0065)), back), TRIM)            # its eye
-        paint(g.mul(g.sstep(-AA, AA, ell(x, 0.0, 1.075, 0.008, 0.008)), back), SOCK_RED)          # its core
-        lines = g.mx(g.band(d_t, -0.0016, 0.0), g.mul(g.band(ell(x, 0.0, 1.123, 0.016, 0.0065), -0.0012, 0.0), 1.0))
-        lines = g.mx(lines, g.mul(g.band(g.sub(z, g.add(0.997, g.mul(0.003, g.op("SINE", g.mul(x, 300.0))))), -0.0008, 0.0008),
-                                  g.sub(1.0, g.sstep(0.06, 0.07, ax))))                         # the ground, a scribble
-        d_h = heart(0.064, 1.13, 0.012)
+        # a titan in marker: a small head with one big eye, huge shoulder pads, a
+        # chest core, long arms to big fists, thick legs planted wide, an antenna
+        parts = [rect(x, 0.0, 1.128, 0.018, 0.014),                       # head
+                 rect(x, 0.0, 1.075, 0.034, 0.036),                       # torso
+                 rect(ax, 0.05, 1.108, 0.024, 0.014),                     # shoulder pads
+                 rect(ax, 0.06, 1.06, 0.01, 0.034),                       # arms
+                 ell(ax, 0.062, 1.018, 0.015, 0.013),                     # fists
+                 rect(ax, 0.02, 1.022, 0.011, 0.018),                     # legs
+                 rect(ax, 0.026, 1.0, 0.017, 0.006),                      # feet
+                 rect(x, 0.012, 1.152, 0.0012, 0.012)]                    # antenna
+        d_t = parts[0]
+        for d_ in parts[1:]:
+            d_t = g.mx(d_t, d_)
+        paint(g.mul(g.sstep(-AA, AA, d_t), back), HOODIE_DARK)
+        eye = ell(x, 0.0, 1.128, 0.012, 0.006)
+        paint(g.mul(g.sstep(-AA, AA, eye), back), TRIM)                                       # its eye
+        core = ell(x, 0.0, 1.078, 0.009, 0.009)
+        paint(g.mul(g.sstep(-AA, AA, core), back), SOCK_RED)                                  # its core
+        lines = g.band(d_t, -0.0022, 0.0)
+        for d_ in parts[1:4]:   # the seams where its parts meet, drawn over
+            lines = g.mx(lines, g.band(d_, -0.0011, 0.0011))
+        lines = g.mx(lines, g.mx(g.band(eye, -0.0014, 0.0), g.band(core, -0.0014, 0.0)))
+        lines = g.mx(lines, g.mul(g.band(g.sub(z, g.add(0.99, g.mul(0.003, g.op("SINE", g.mul(x, 300.0))))), -0.001, 0.001),
+                                  g.sub(1.0, g.sstep(0.07, 0.08, ax))))                     # the ground, a scribble
+        d_h = heart(0.082, 1.14, 0.011)
         paint(g.mul(g.sstep(-AA, AA, d_h), back), SOCK_RED)
-        lines = g.mx(lines, g.band(d_h, -0.0014, 0.0))
+        lines = g.mx(lines, g.band(d_h, -0.0016, 0.0))
         state["ink"] = g.mx(state["ink"], g.mul(lines, back))
         # the kangaroo pocket (above the cropped hoodie's hem) and its drawstrings
         d_p = g.mn(g.mn(g.sub(z, 0.962), g.sub(0.995, z)), g.sub(g.sub(0.075, g.mul(0.5, g.sub(z, 0.962))), ax))
@@ -2654,7 +2690,8 @@ def outfit_graph(nt, skin, kind):
             d_top = g.mn(g.mn(g.sub(g.lerp(1.095, 1.075, tb), z), g.sub(z, g.lerp(0.99, 1.0, tb))), g.sub(0.16, ax))
         else:        # a fitted baby tee, cap sleeves, cropped just above her navel
             zn = g.lerp(g.sub(1.165, g.mul(1.5, g.sq(ax))), 1.178, tb)
-            d_top = g.mn(g.mn(g.sub(zn, z), g.sub(z, 0.94)), g.sub(0.21, ax))
+            d_neck = g.mx(g.sub(zn, z), g.sub(ax, 0.072))   # the scoop round her neck, her shoulders covered
+            d_top = g.mn(g.mn(d_neck, g.sub(z, 0.94)), g.sub(0.21, ax))
         c = wear(d_top, PINK)
         rim = g.mul(g.band(d_top, 0.0008, 0.0045), c)
         paint(rim, CREAM if not mature else STEEL)
@@ -2672,7 +2709,7 @@ def outfit_graph(nt, skin, kind):
         state["glow"] = g.mx(state["glow"], g.mul(sparkle, 0.8))
         # under her skirt: the same khaki (never skin below its hem)
         top_k = 0.86 if mature else 0.875
-        wear(g.mn(g.sub(z, 0.7 if mature else 0.655), g.sub(top_k - 0.003, z)), KHAKI, ink=False)
+        wear(g.mn(g.sub(z, 0.7 if mature else 0.62), g.sub(top_k - 0.003, z)), KHAKI, ink=False)
         # her belly-button ring, a teal gem
         ring = ell(x, 0.0, 0.896, 0.0032, 0.0032)
         paint(g.mul(g.band(ring, -0.001, 0.0), front), STEEL)
