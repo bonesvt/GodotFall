@@ -94,10 +94,35 @@ func set_suit(tier: int, weight := "medium") -> void:
 		if eco != null:
 			eco.suit_weight = weight
 			eco.suit_tier = tier
-	if body != null:
-		for pattern in FP_HIDDEN:
-			for mesh in body.find_children(pattern, "MeshInstance3D", true, false):
-				(mesh as MeshInstance3D).visible = false
+	_hide_fp_pieces()
+
+
+## What her first-person body copies from her full model each frame, so it
+## (and her arm on the gun, eco_fp_arms.gd) wears whatever she has on: the
+## wardrobe (scripts/hub/wardrobe.gd) and her suit upgrades dress "Shadow".
+const DRESS := ["outfit", "suit_weight", "suit_tier"]
+
+
+## Puts the first-person body in the same outfit and suit as her full model.
+func _match_dress() -> void:
+	if body == null or shadow == null:
+		return
+	var changed := false
+	for prop: String in DRESS:
+		var v = shadow.get(prop)
+		if v != null and body.get(prop) != v:
+			body.set(prop, v)
+			changed = true
+	if changed:
+		_hide_fp_pieces()
+
+
+func _hide_fp_pieces() -> void:
+	if body == null:
+		return
+	for pattern in FP_HIDDEN:
+		for mesh in body.find_children(pattern, "MeshInstance3D", true, false):
+			(mesh as MeshInstance3D).visible = false
 
 
 func _spawn(node_name: String, shadows: GeometryInstance3D.ShadowCastingSetting) -> EcoModel:
@@ -178,6 +203,7 @@ func _rest_follow() -> void:
 
 func _process(delta: float) -> void:
 	_rest_follow()
+	_match_dress()
 	# her reactions and gun stance fade out while she sits or lies down
 	if shadow != null:
 		var rest_in: float = shadow.rest_weight() if shadow.resting() else 0.0
