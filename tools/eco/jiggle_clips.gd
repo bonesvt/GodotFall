@@ -1,14 +1,14 @@
 extends SceneTree
 ## Side-by-side clip of Eco's jiggle styles (eco_model.gd jiggle_style): the
-## same run, jump, landing and quick turn played by three copies of her
-## (classic, anime, realistic; labelled on screen). She really moves through the world, so
+## same run, jump, landing and quick turn played by three copies of her, left
+## to right classic, anime, realistic (labelled on screen). She really moves through the world, so
 ## her speed and landings drive the springs as in game.
 ##   godot --path . --fixed-fps 60 --write-movie <dir>/frame.png -s res://tools/eco/jiggle_clips.gd -- [--view=front|back] [--styles=anime,realistic]
 ## --write-movie writes numbered PNGs (or an .avi); join them with ffmpeg at 60
 ## fps for real time, 30 for half speed. Needs a renderer (not --headless).
 
 const ECO := preload("res://assets/models/eco.tscn")
-const SPACING := 1.25
+const SPACING := 1.9  # wide enough that each copy sits under her label column
 const LABEL := {"classic": "Classic (now)", "anime": "Smooth anime", "realistic": "Realistic"}
 
 var view := "front"
@@ -22,10 +22,7 @@ class Walker extends CharacterBody3D:
 	var state := 0  # player.gd State: 0 GROUND, 1 AIR
 	var crouching := false
 	var strolling := false
-	var airborne := false
-
-	func is_on_floor() -> bool:
-		return not airborne
+	var airborne := false  # eco_model reads state, so is_on_floor() is never asked
 
 
 func _initialize() -> void:
@@ -48,7 +45,9 @@ func _go() -> void:
 	_stage()
 	for i in styles.size():
 		var w := Walker.new()
-		w.position = Vector3((i - (styles.size() - 1) * 0.5) * SPACING, 0, 0)
+		# from the front +x is on screen left, so mirror there to keep the first style on the left
+		var side := 1.0 if view == "back" else -1.0
+		w.position = Vector3(side * (i - (styles.size() - 1) * 0.5) * SPACING, 0, 0)
 		root.add_child(w)
 		var eco = ECO.instantiate()
 		eco.jiggle_style = styles[i]
@@ -115,9 +114,10 @@ func _move(velocity: Vector3, dt: float) -> void:
 func _follow() -> void:
 	if cam == null or walkers.is_empty():
 		return
-	var centre := Vector3(0, 0.95, walkers[0].position.z)
+	# high enough that her head stays in frame at the top of the jump
+	var centre := Vector3(0, 1.2, walkers[0].position.z)
 	var width := SPACING * styles.size()
-	var dist := 2.4 + width * 1.05
+	var dist := 2.4 + width * 0.5
 	var offset: Vector3
 	match view:
 		"back":
@@ -165,10 +165,7 @@ func _labels() -> void:
 	row.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
 	row.offset_top = 16
 	layer.add_child(row)
-	var order := styles.duplicate()
-	if view != "back":
-		order.reverse()  # seen from the front, the first copy (furthest -x) is on screen right
-	for s in order:
+	for s in styles:
 		var l := Label.new()
 		l.text = LABEL.get(s, s)
 		l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
