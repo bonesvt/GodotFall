@@ -173,9 +173,8 @@ func _run() -> void:
 
 
 func _rating_checks() -> void:
-	var m_cats := Lines.LINES.keys()
+	var m_cats := Lines.bank("M").keys()
 	var banned := {
-		"E": ["kill", "dead", "die", "damn", "hell", "bitch", "skank", "slut", "shit", "head"],
 		"T": ["bitch", "skank", "slut", "shit", "gorgeous", "pretty face"],
 	}
 	for r in Lines.RATINGS:
@@ -196,21 +195,22 @@ func _rating_checks() -> void:
 					if RegEx.create_from_string("\\b%s\\b" % word).search(plain) != null:
 						problems.append("%s: '%s' in %s" % [r, word, entry])
 		_check("%s bank is well formed and clean for its rating" % r, problems.is_empty(), problems)
-	Rating.set_rating("E", false)
-	var e_line: Array = radio._pick("combat", 3)
-	var e_texts := []
-	for entry in Lines.LINES_E["combat"]:
-		e_texts.append(str(Lines.parse(entry)))
-	_check("E rating picks from the E bank", str(e_line) in e_texts, e_line)
+	Rating.set_rating("T", false)
+	var t_line: Array = radio._pick("combat", 3)
+	var t_texts := []
+	for entry in Lines.bank("T")["combat"]:
+		t_texts.append(str(Lines.parse(entry)))
+	_check("T rating picks from the T bank", str(t_line) in t_texts, t_line)
 	Rating.set_rating("M", false)
-	_check("rating cycles E, T, M, AO", Lines.RATINGS == ["E", "T", "M", "AO"], Lines.RATINGS)
+	_check("rating switches between T and M only", Lines.RATINGS == ["T", "M"] and Rating.RATINGS == ["T", "M"], Lines.RATINGS)
+	_check("old E and AO settings map to T and M", Rating.OLD == {"E": "T", "AO": "M"}, Rating.OLD)
 
 
 func _bank_checks() -> void:
 	var bad := []
-	for cat in Lines.LINES:
+	for cat in Lines.bank("M"):
 		_check("priority set for %s" % cat, radio.PRIORITY.has(cat), cat)
-		for entry in Lines.LINES[cat]:
+		for entry in Lines.bank("M")[cat]:
 			for line in Lines.parse(entry):
 				if not line[0] in ["a", "b", "c", "hq"] or line[1].strip_edges() == "":
 					bad.append(entry)

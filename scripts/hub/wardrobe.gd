@@ -3,7 +3,7 @@ extends RefCounted
 ## Mom, Ophelia). The picks are saved; an NPC left on "changes every run"
 ## rotates through her outfits as before (hub_npc.gd wear_for_run). Eco wears
 ## her pick at home and in town and her pilot suit on a run. The screen is
-## wardrobe_screen.gd; build() puts the wardrobe itself by her bed.
+## wardrobe_screen.gd; build() puts the wardrobe itself in her loft bedroom.
 
 const K := preload("res://scripts/hub/hub_kit.gd")
 const Art := preload("res://scripts/ps2/ps2_assets.gd")
@@ -84,11 +84,11 @@ static func dress_eco(player: Node, at_home: bool) -> void:
 	shadow.wear(eco_now)
 
 
-## The wardrobe against the front wall by her bed (hub_builder.gd), outside
-## the bed curtain: a tall cupboard with one door hanging open on clothes, a
-## cracked mirror on the other door.
-static func build(root: Node3D, info: Dictionary, floor_y: float, front_z: float) -> void:
-	var w := Vector3(-5.5, floor_y, front_z - 0.38)
+## The wardrobe in her loft bedroom (hub_builder.gd), its back to `front_z`
+## at `x`, opening toward -Z: a tall cupboard with one door hanging open on
+## clothes, a cracked mirror on the other door.
+static func build(root: Node3D, info: Dictionary, floor_y: float, front_z: float, x := -5.5) -> void:
+	var w := Vector3(x, floor_y, front_z - 0.38)
 	var wood := Color(0.55, 0.38, 0.26)
 	K.mesh(root, w + Vector3(0, 1.1, 0), Vector3(1.3, 2.2, 0.62), Art.material("wood", wood))
 	K.mesh(root, w + Vector3(0, 2.25, 0), Vector3(1.42, 0.1, 0.7), Art.material("wood", wood.darkened(0.2)))

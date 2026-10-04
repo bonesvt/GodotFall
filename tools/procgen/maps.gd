@@ -1,6 +1,6 @@
 extends SceneTree
 ## Top-down maps of generated zones (scripts/run/procgen/), one PNG per seed.
-##   xvfb-run -a godot --path . --rendering-driver opengl3 -s res://tools/procgen/maps.gd -- <out_dir> [seed ...] [--plan] [--lanes=N] [--biome=forest|marsh|boneyard]
+##   xvfb-run -a godot --path . --rendering-driver opengl3 -s res://tools/procgen/maps.gd -- <out_dir> [seed ...] [--plan] [--lanes=N] [--biome=forest|marsh|boneyard] [--level=level1]
 ## By default each zone is built (headless parts of it: grunts, caches, loot)
 ## and drawn with everything on it; --plan draws the plan alone, which is
 ## much faster. Writes <out_dir>/zone_<seed>.png.
@@ -9,12 +9,15 @@ const LevelPlan := preload("res://scripts/run/procgen/level_plan.gd")
 const ZoneGenerator := preload("res://scripts/run/procgen/zone_generator.gd")
 const ZoneMap := preload("res://scripts/run/procgen/zone_map.gd")
 const Loot := preload("res://scripts/run/loot.gd")
+const Levels := preload("res://scripts/run/levels.gd")
 
 var out := "user://procgen_maps"
 var seeds := [101, 202, 303, 404]
 var plan_only := false
 var lanes := 0
 var biome := ""
+## A real level (levels.gd id) to plan instead of an uncharted zone.
+var level := ""
 
 
 func _initialize() -> void:
@@ -26,6 +29,8 @@ func _initialize() -> void:
 			lanes = int(a.substr(8))
 		elif a.begins_with("--biome="):
 			biome = a.substr(8)
+		elif a.begins_with("--level="):
+			level = a.substr(8)
 		elif a.is_valid_int():
 			given.append(int(a))
 		else:
@@ -38,17 +43,18 @@ func _initialize() -> void:
 
 func _go() -> void:
 	for s in seeds:
-		var plan = LevelPlan.make(s, 3, lanes, biome)
+		var plan = LevelPlan.make(s, 3, lanes, biome) if level == "" else LevelPlan.make_level(s, Levels.spec(level))
+		var zi: int = plan.zone_index
 		var info := {}
 		var world: Node3D
 		if not plan_only:
 			world = Node3D.new()
 			root.add_child(world)
 			var t := Time.get_ticks_msec()
-			info = ZoneGenerator.build_from_plan(world, plan, 3)
+			info = ZoneGenerator.build_from_plan(world, plan, zi)
 			var loot_rng := RandomNumberGenerator.new()
 			loot_rng.seed = s
-			Loot.scatter(world, info, loot_rng, 3)
+			Loot.scatter(world, info, loot_rng, zi)
 			for i in 3:
 				await physics_frame  # loot settles onto the ground
 			print("built %d in %d ms" % [s, Time.get_ticks_msec() - t])
@@ -63,7 +69,7 @@ func _go() -> void:
 		await process_frame
 		await process_frame
 		await RenderingServer.frame_post_draw
-		var path := out.path_join("zone_%d.png" % s)
+		var path := out.path_join(("%s_%d.png" % [level, s]) if level != "" else ("zone_%d.png" % s))
 		vp.get_texture().get_image().save_png(path)
 		print(plan.describe())
 		print("map ", path)

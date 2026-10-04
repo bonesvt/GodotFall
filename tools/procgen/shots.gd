@@ -1,19 +1,27 @@
 extends SceneTree
 ## Screenshots of a generated zone, for checking the look.
-##   godot --path . -s res://tools/procgen/shots.gd -- <out_dir> [seed] [--lanes=N] [--biome=forest|marsh|boneyard]
+##   godot --path . -s res://tools/procgen/shots.gd -- <out_dir> [seed] [--lanes=N] [--biome=forest|marsh|boneyard] [--level=level1]
 ## Needs a renderer (not --headless). Writes <out_dir>/<seed>-<n>-<name>.png:
 ## the view from the spawn, each lane as you come up to the first yard, the
 ## road, gullies and ridges at the first chasm, the wall, and one from above
-## looking down the valley.
+## looking down the valley. With --level, a real level (levels.gd) instead:
+## the spawn, the salvage depot and its titan part, and the finale's clearing.
 
 const LevelPlan := preload("res://scripts/run/procgen/level_plan.gd")
 const ZoneGenerator := preload("res://scripts/run/procgen/zone_generator.gd")
 const Loot := preload("res://scripts/run/loot.gd")
+const Levels := preload("res://scripts/run/levels.gd")
 
 var out := "user://procgen_shots"
 var seed_value := 101
 var lanes := 0
 var biome := ""
+var level := ""
+## In a big zone (a level), software renderers run out of per-instance shader
+## slots (4096), so each shot only keeps what is within CULL m of the camera
+## or what it looks at, plus the ground, sky and multimeshes.
+const CULL := 140.0
+var _parked: Array = []
 var run_node
 var cam: Camera3D
 
@@ -24,6 +32,8 @@ func _initialize() -> void:
 			lanes = int(a.substr(8))
 		elif a.begins_with("--biome="):
 			biome = a.substr(8)
+		elif a.begins_with("--level="):
+			level = a.substr(8)
 		elif a.is_valid_int():
 			seed_value = int(a)
 		else:
@@ -41,15 +51,27 @@ func _initialize() -> void:
 func _go() -> void:
 	await process_frame
 	run_node.tutorial.set_enabled(false)
-	var plan = LevelPlan.make(seed_value, 3, lanes, biome)
+	var plan = LevelPlan.make(seed_value, 3, lanes, biome) if level == "" else LevelPlan.make_level(seed_value, Levels.spec(level))
 	run_node._fresh_level("Zone")
-	run_node.zone_info = ZoneGenerator.build_from_plan(run_node.zone_root, plan, 3)
+	if level != "":
+		# Built out of the tree, so no piece takes a shader slot until a shot
+		# brings it in (see _cull).
+		run_node.remove_child(run_node.zone_root)
+	run_node.zone_info = ZoneGenerator.build_from_plan(run_node.zone_root, plan, plan.zone_index)
 	var info: Dictionary = run_node.zone_info
-	var loot_rng := RandomNumberGenerator.new()
-	loot_rng.seed = seed_value
-	Loot.scatter(run_node.zone_root, info, loot_rng, 3)
+	if level != "":
+		for n in run_node.zone_root.get_children():
+			run_node.zone_root.remove_child(n)
+			_parked.append(n)
+		run_node.add_child(run_node.zone_root)
+	else:
+		var loot_rng := RandomNumberGenerator.new()
+		loot_rng.seed = seed_value
+		Loot.scatter(run_node.zone_root, info, loot_rng, 3)
 	run_node.hud.visible = false
 	run_node.pilot_hud.visible = false
+	for layer in run_node.find_children("*", "CanvasLayer", true, false):
+		layer.visible = false  # Eco's whispers and the rest
 	run_node.player.process_mode = Node.PROCESS_MODE_DISABLED
 	run_node.player.global_position = Vector3(0, -500, 0)
 	run_node.set_physics_process(false)
@@ -66,6 +88,10 @@ func _go() -> void:
 	var at := func(lane: int, z: float, up := 1.7) -> Vector3:
 		return Vector3(plan.lane_x(lane, z), plan.ground(plan.lane_x(lane, z), z) + up, z)
 	var n := 1
+	if level != "":
+		await _level_shots(plan, info, at)
+		quit()
+		return
 	await _shot("%d-spawn" % n, at.call(loud, plan.spawn_z + 4.0), at.call(loud, plan.spawn_z - 40.0, 0.0))
 	n += 1
 	# Each lane as you come into the first yard.
@@ -108,7 +134,31 @@ func _go() -> void:
 	quit()
 
 
+## A real level's beats: the way in, the depot and its crate, the clearing.
+func _level_shots(plan, info: Dictionary, at: Callable) -> void:
+	var loud: int = plan.lane_of("loud")
+	await _shot("1-spawn", at.call(loud, plan.spawn_z + 4.0), at.call(loud, plan.spawn_z - 40.0, 0.0))
+	var depot: Dictionary = plan.sections_of("depot")[0]
+	await _shot("2-depot-from-the-road", at.call(loud, depot["z0"] + 12.0, 2.2), at.call(loud, depot["mid"], 1.0))
+	var crate: Vector3 = info["depot_cache"].position
+	var c: float = plan.lane_x(loud, depot["mid"])
+	var side := signf(crate.x - c) if absf(crate.x - c) > 0.5 else 1.0
+	await _shot("3-depot-titan-part", crate + Vector3(-side * 7.0, 3.0, 9.0), crate + Vector3(0, 1.0, 0))
+	await _shot("4-depot-from-above", Vector3(c - side * 30.0, plan.ground(c, depot["mid"]) + 26.0, depot["z0"] + 20.0), Vector3(c, plan.ground(c, depot["mid"]), depot["mid"]))
+	var arena: Dictionary = info["arena"]
+	var boss: Vector3 = info["boss"].position
+	await _shot("5-clearing-out-of-the-trees", at.call(loud, arena["enter_z"] + 10.0, 1.7), boss + Vector3(0, 5.0, 0))
+	for env in run_node.zone_root.find_children("*", "WorldEnvironment", true, false):
+		env.environment.fog_enabled = false
+		env.environment.volumetric_fog_enabled = false
+	var mid: Vector3 = arena["center"]
+	await _shot("6-clearing-from-above", mid + Vector3(-40.0, 55.0, 60.0), mid)
+	await _shot("7-valley-overview", Vector3(plan.center_x(plan.spawn_z), 80.0, plan.spawn_z + 50.0), Vector3(plan.center_x(plan.spawn_z - 150.0), 0.0, plan.spawn_z - 150.0))
+
+
 func _shot(shot_name: String, eye: Vector3, look: Vector3) -> void:
+	if level != "":
+		await _cull(eye, look)
 	cam.global_position = eye
 	cam.look_at(look, Vector3.UP)
 	for i in 10:
@@ -117,3 +167,40 @@ func _shot(shot_name: String, eye: Vector3, look: Vector3) -> void:
 	var path := out.path_join("%d-%s.png" % [seed_value, shot_name])
 	root.get_viewport().get_texture().get_image().save_png(path)
 	print("shot ", path)
+
+
+## Takes everything out of the zone, then puts back only what's near this shot.
+func _cull(eye: Vector3, look: Vector3) -> void:
+	var zr: Node3D = run_node.zone_root
+	for n in zr.get_children():
+		if n == cam:
+			continue
+		zr.remove_child(n)
+		_parked.append(n)
+	await process_frame
+	var keep := []
+	for n in _parked:
+		if not n is Node3D or n is WorldEnvironment or n is Light3D or n is MultiMeshInstance3D or String(n.name) == "Ground":
+			keep.append(n)
+			continue
+		var p: Vector3 = (n as Node3D).position
+		var flat := Vector2(p.x, p.z)
+		if flat.distance_to(Vector2(eye.x, eye.z)) < CULL or flat.distance_to(Vector2(look.x, look.z)) < CULL * 0.6:
+			keep.append(n)
+	for n in keep:
+		_parked.erase(n)
+		zr.add_child(n)
+	await process_frame
+	# Slots are free now: hand each piece its paint again (the first time round
+	# many sets were refused).
+	for n in keep:
+		var stack: Array = [n]
+		while not stack.is_empty():
+			var g: Node = stack.pop_back()
+			stack.append_array(g.get_children())
+			if g is GeometryInstance3D:
+				for prop in g.get_property_list():
+					var pn: String = prop["name"]
+					if pn.begins_with("instance_shader_parameters/"):
+						var key := pn.substr(27)
+						g.set_instance_shader_parameter(key, g.get_instance_shader_parameter(key))
