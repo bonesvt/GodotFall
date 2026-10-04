@@ -1201,12 +1201,20 @@ static func _wilds(root: Node3D, plan, info: Dictionary, keep_out: Array, dress:
 		B.hide(root, plan.ground, dress, info, px, pz, Vector2(dress.randf_range(3.0, 5.0), dress.randf_range(3.0, 6.0)), dress.randf() < 0.3, dress.randf_range(0, 180))
 		placed += 1
 	var grass := []
+	# Nothing growing up through the holding cell's floor.
+	var cell_rect := Rect2()
+	var cell: Node3D = info.get("holding_cell")
+	if cell != null:
+		var mid: Vector3 = cell.transform * Vector3(0, 0, -2.1)
+		cell_rect = Rect2(mid.x - 4.0, mid.z - 4.0, 8.0, 8.0)
 	for tries in 40000:
 		if grass.size() >= 7000:
 			break
 		var pz := dress.randf_range(plan.z_bottom + 2.0, plan.z_top - 2.0)
 		var px: float = plan.center_x(pz) + dress.randf_range(-plan.half_width(pz) - 4.0, plan.half_width(pz) + 4.0)
 		if not plan.in_chasm(pz).is_empty() or absf(px - plan.lane_x(plan.lane_of("loud"), pz)) < 2.2:
+			continue
+		if cell != null and cell_rect.has_point(Vector2(px, pz)):
 			continue
 		var y: float = plan.ground(px, pz)
 		if plan.biome == "marsh" and y < B.WATER_Y - 0.1:
