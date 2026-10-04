@@ -21,13 +21,19 @@ const FINGERS := ["Index", "Middle", "Ring", "Little"]
 ## Where things sit on the gun (the gun scene's own space: barrel down -Z, +Y up,
 ## the grip under the slide round (0, -0.07, 0.07)).
 ## Her wrist, just behind and to the right of the grip.
-@export var wrist := Vector3(0.024, -0.072, 0.112)
+@export var wrist := Vector3(0.026, -0.094, 0.124)
 ## Wrist to knuckles: forward along the slide, a little up and in.
-@export var hand_dir := Vector3(-0.12, 0.06, -1.0)
+@export var hand_dir := Vector3(-0.1, 0.2, -1.0)
 ## The back of her hand faces out to the right, tipped up a little.
 @export var hand_back := Vector3(1.0, 0.25, 0.0)
-## Her shoulder joint, out of view down and behind the gun.
-@export var shoulder := Vector3(0.17, -0.22, 0.5)
+## Her shoulder joint in the camera's space, where it really is on her (her
+## model's right shoulder joint, with her neck placed under the camera as
+## scripts/eco_fp_body.gd places it): a little right of and below the eye,
+## just behind it.
+@export var shoulder_from_eye := Vector3(0.1, -0.21, 0.09)
+## Where the gun rests in the camera's space (weapon.gd VIEW_POS): the arm
+## reaches from her shoulder to it.
+var gun_at := Vector3(0.17, -0.105, -0.45)
 ## Which way her elbow points: out to the right and down.
 @export var elbow_pole := Vector3(0.8, -1.0, 0.1)
 ## Finger curl, degrees per joint (knuckle, middle, tip): the trigger finger
@@ -79,8 +85,13 @@ func _process(delta: float) -> void:
 func _sync() -> void:
 	if model == null or _source == null or not is_instance_valid(_source):
 		return
-	# the player's EcoBody holds her first-person model as `body`
-	var eco: Object = _source.get("body") if _source.get("body") is Node else _source
+	# the player's EcoBody holds her full model (what the wardrobe dresses) as
+	# `shadow`, her first-person one as `body`
+	var eco: Object = _source
+	for held in ["shadow", "body"]:
+		if _source.get(held) is Node:
+			eco = _source.get(held)
+			break
 	for prop in ["suit_weight", "suit_tier", "outfit"]:
 		var v = eco.get(prop)
 		if v != null and model.get(prop) != null and model.get(prop) != v:
@@ -182,7 +193,7 @@ func pose() -> void:
 	model.transform = Transform3D(rel.basis.inverse(), Vector3.ZERO) * model.transform
 	rel = global_transform.affine_inverse() * sk.global_transform
 	var s_here := rel * _rest_global(upper).origin
-	model.position += shoulder - s_here
+	model.position += shoulder_from_eye - gun_at - s_here
 	var to_sk := (global_transform.affine_inverse() * sk.global_transform).affine_inverse()
 
 	var s := _rest_global(upper).origin

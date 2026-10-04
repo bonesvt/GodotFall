@@ -53,6 +53,16 @@ func _run() -> void:
 	_check("the left bracer is cut away", left_bracer == null or left_bracer.mesh == null, left_bracer)
 	eco.set_suit(0, "medium")
 	await _frames(20)
+	# her wardrobe pick (which dresses her full model) shows in first person too
+	eco.shadow.wear("suit_racer")
+	await _frames(20)
+	_check("the first-person body wears her wardrobe pick", eco.body.outfit == "suit_racer", eco.body.outfit)
+	_check("so does her arm on the gun", arm.model.outfit == "suit_racer", arm.model.outfit)
+	eco.shadow.wear("suit")
+	await _frames(20)
+	# her arm reaches from her own shoulder, under and right of the eye
+	var shoulder: Vector3 = cam.to_local(sk.global_transform * sk.get_bone_global_pose(sk.find_bone("J_Bip_R_UpperArm")).origin)
+	_check("her arm comes from her shoulder", shoulder.distance_to(arm.shoulder_from_eye) < 0.06, shoulder)
 
 	# her chest springs run on the first-person body
 	var body = eco.body

@@ -28,6 +28,10 @@ const HIDDEN_BONES := ["J_Bip_C_Neck", "J_Bip_C_Head", "J_Bip_R_UpperArm", "J_Bi
 ## forward under the camera by the time she looks 60 degrees down, so her chest
 ## comes into view from about 35 degrees.
 @export var look_down_lean := 0.08
+## Looking further down than that, her body draws back under the camera (this
+## far by the time she looks straight down), so the view drops past her chest
+## instead of into the opening at her neck (her head and neck are collapsed).
+@export var look_down_back := 0.16
 ## How far her chest may bounce in first person (eco_model.gd jiggle).
 @export_range(0.0, 2.0) var fp_jiggle := 1.4
 ## How hard a change in her speed shoves the springs (metres of swing per m/s):
@@ -94,10 +98,35 @@ func set_suit(tier: int, weight := "medium") -> void:
 		if eco != null:
 			eco.suit_weight = weight
 			eco.suit_tier = tier
-	if body != null:
-		for pattern in FP_HIDDEN:
-			for mesh in body.find_children(pattern, "MeshInstance3D", true, false):
-				(mesh as MeshInstance3D).visible = false
+	_hide_fp_pieces()
+
+
+## What her first-person body copies from her full model each frame, so it
+## (and her arm on the gun, eco_fp_arms.gd) wears whatever she has on: the
+## wardrobe (scripts/hub/wardrobe.gd) and her suit upgrades dress "Shadow".
+const DRESS := ["outfit", "suit_weight", "suit_tier"]
+
+
+## Puts the first-person body in the same outfit and suit as her full model.
+func _match_dress() -> void:
+	if body == null or shadow == null:
+		return
+	var changed := false
+	for prop: String in DRESS:
+		var v = shadow.get(prop)
+		if v != null and body.get(prop) != v:
+			body.set(prop, v)
+			changed = true
+	if changed:
+		_hide_fp_pieces()
+
+
+func _hide_fp_pieces() -> void:
+	if body == null:
+		return
+	for pattern in FP_HIDDEN:
+		for mesh in body.find_children(pattern, "MeshInstance3D", true, false):
+			(mesh as MeshInstance3D).visible = false
 
 
 func _spawn(node_name: String, shadows: GeometryInstance3D.ShadowCastingSetting) -> EcoModel:
@@ -178,6 +207,7 @@ func _rest_follow() -> void:
 
 func _process(delta: float) -> void:
 	_rest_follow()
+	_match_dress()
 	# her reactions and gun stance fade out while she sits or lies down
 	if shadow != null:
 		var rest_in: float = shadow.rest_weight() if shadow.resting() else 0.0
@@ -197,8 +227,11 @@ func _process(delta: float) -> void:
 	var to_local := global_transform.affine_inverse()
 	var neck_local := to_local * (sk.global_transform * sk.get_bone_global_pose(_neck_bone).origin)
 	var cam_local := to_local * _camera.global_position
-	var down := clampf(-_camera.global_rotation.x / deg_to_rad(60.0), 0.0, 1.0)
-	var want := cam_local + Vector3(0, -camera_above_neck, camera_ahead - look_down_lean * down)
+	var pitch := -_camera.global_rotation.x
+	var down := clampf(pitch / deg_to_rad(35.0), 0.0, 1.0)
+	var steep := smoothstep(deg_to_rad(35.0), deg_to_rad(75.0), pitch)
+	var want := cam_local + Vector3(0, -camera_above_neck,
+		camera_ahead - look_down_lean * down + (look_down_lean + look_down_back) * steep)
 	body.position += want - neck_local
 	_jolt(delta)
 

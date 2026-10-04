@@ -62,6 +62,9 @@ func _go() -> void:
 		head.rotation.x = deg_to_rad(-60)
 		await _frames(30)
 		_save("4_look_down_more")
+		head.rotation.x = deg_to_rad(-85)
+		await _frames(30)
+		_save("4b_look_straight_down")
 	if only == "" or only == "jump":
 		head.rotation.x = deg_to_rad(-50)
 		await _frames(20)
