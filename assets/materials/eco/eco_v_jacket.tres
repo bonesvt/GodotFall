@@ -13,7 +13,7 @@ resource_name = "eco_v_jacket"
 render_priority = 0
 next_pass = SubResource("ShaderMaterial_ink")
 shader = ExtResource("1_shader")
-shader_parameter/albedo = Color(0.82, 0.8, 0.76, 1)
+shader_parameter/albedo = Color(0.08, 0.3, 0.32, 1)
 shader_parameter/shade_tint = Vector3(0.6, 0.6, 0.72)
 shader_parameter/sheen = 0.0
 

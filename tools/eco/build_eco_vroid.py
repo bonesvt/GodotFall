@@ -66,7 +66,7 @@ CREASE_SKIN = (0.74, 0.52, 0.52)  # multiplies her skin along the fold under her
 BASE_RED = (0.24, 0.018, 0.026)   # crimson panels, the red of her hair
 BASE_NET = (0.02, 0.022, 0.03)    # the breathable mesh's net
 BASE_CORSET = (0.012, 0.011, 0.014)
-JACKET = (0.6, 0.58, 0.54)        # the cropped jacket: off-white
+JACKET = (0.02, 0.09, 0.1)        # the cropped jacket: deep teal
 
 SIDE_CUT = 0.075   # how far the sides of the halter drop beside the bust (rest-space metres)
 CHEEKY = 1.6       # how steeply the back leg openings rise toward the hips
@@ -595,7 +595,8 @@ def _armor_mats(me, names):
         me.materials.append(new_mat(n, cols[n]))
 
 
-def shell(name, keep, planes=(), gap=0.004, thick=0.004, plate="eco_v_armor", edge="eco_v_armor_edge", smooth=0):
+def shell(name, keep, planes=(), gap=0.004, thick=0.004, plate="eco_v_armor", edge="eco_v_armor_edge", smooth=0,
+          smooth_edge=0):
     """A plate that follows her body: the Body faces `keep(centre, normal)` picks,
     welded, trimmed straight by `planes` ((point, normal): the normal side is cut
     away), lifted `gap` off her skin and given `thick`ness. It keeps the body's
@@ -623,6 +624,16 @@ def shell(name, keep, planes=(), gap=0.004, thick=0.004, plate="eco_v_armor", ed
         if len(comp) < 6:
             bmesh.ops.delete(bm, geom=comp, context="FACES")
     bmesh.ops.delete(bm, geom=[v for v in bm.verts if not v.link_faces], context="VERTS")
+    bm.normal_update()
+    for _ in range(smooth_edge):   # round off the stair steps picking whole faces leaves along its edges
+        rim = [v for v in bm.verts if v.is_boundary]
+        new = {}
+        for v in rim:
+            nb = [e.other_vert(v) for e in v.link_edges if e.is_boundary]
+            if len(nb) == 2:
+                new[v] = v.co * 0.5 + (nb[0].co + nb[1].co) * 0.25
+        for v, co in new.items():
+            v.co = co
     bm.normal_update()
     for v in bm.verts:
         v.co += v.normal * gap
@@ -723,8 +734,9 @@ def torus(bm, centre, axis, major, minor, mat, segs=(16, 6)):
 
 def base_jacket():
     """The base suit's fashion piece (base_*, shown by eco_model.gd only with no
-    suit upgrade): a cropped off-white jacket, short sleeves, open at the front so
-    the suit's sweetheart line shows, its hem above her ribs at the back."""
+    suit upgrade): a cropped deep teal jacket, short sleeves, open at the front so
+    the suit's sweetheart line shows, its hem above her ribs at the back, a thick
+    crimson edge all round."""
     def keep(c, n):
         ax = abs(c.x)
         if c.z > 1.165 and math.hypot(c.x, c.y - 0.022) < 0.075:
@@ -736,7 +748,7 @@ def base_jacket():
         return not (c.y < 0 and ax < 0.095 + 0.3 * max(0.0, 1.12 - c.z))   # open front, curving away
     return shell("base_jacket", keep,
                  planes=[((0, 0, 1.035), (0, 0, -1)), ((0.25, 0, 0), (1, 0, 0)), ((-0.25, 0, 0), (-1, 0, 0))],
-                 gap=0.006, thick=0.005, plate="eco_v_jacket", edge="eco_v_jacket_edge", smooth=2)
+                 gap=0.006, thick=0.009, plate="eco_v_jacket", edge="eco_v_jacket_edge", smooth=2, smooth_edge=12)
 
 
 def light_suit(bvh):
@@ -1351,7 +1363,7 @@ def base_details(g, x, y, z, skin, col, c_suit, c_gear, front, AA):
     def frac(v, step):
         return g.sub(g.op("FRACT", g.div(v, step)), 0.5)
     hole = g.sqrt(g.add(g.sq(frac(y, 0.0085)), g.sq(frac(z, 0.0085))))
-    vent = g.mul(g.mul(g.sub(1.0, g.sstep(0.22, 0.3, hole)), g.band(z, 0.88, 0.975, 0.004)), g.mul(panel, g.sstep(0.004, 0.008, d_panel)))
+    vent = g.mul(g.mul(g.sub(1.0, g.sstep(0.22, 0.3, hole)), g.band(z, 0.952, 0.982, 0.004)), g.mul(panel, g.sstep(0.004, 0.008, d_panel)))
     col = g.mixc(col, g.mixc(skin, INK, 0.45), vent)
     edge = g.mx(g.mul(g.band(d_panel, 0.0006, 0.0018), below_arm), g.band(d_sleeve, 0.0006, 0.0018))
     trim = g.mx(trim, g.mul(edge, on))
