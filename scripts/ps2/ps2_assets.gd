@@ -200,6 +200,6 @@ static func environment(parent: Node, top: Color, horizon: Color) -> void:
 	sun.shadow_opacity = 0.75
 	sun.directional_shadow_mode = DirectionalLight3D.SHADOW_ORTHOGONAL
 	sun.directional_shadow_max_distance = 60.0
-	Look.apply_env(env, Look.is_ps3())
+	Look.apply_env(env, Look.is_ps3(), Look.is_anime())
 	Look.apply_sun(sun, Look.is_ps3())
 	parent.add_child(sun)

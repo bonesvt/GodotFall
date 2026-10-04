@@ -5,6 +5,23 @@
 global uniform float ps2_vertex_snap;
 // 1 = PS3 look, 0 = PS2 look.
 global uniform float ps3_look;
+// 1 = Anime look (on top of the PS3 look): the set is painted to sit with the
+// characters' toon shading. Textures are read from a blurrier mip, their own
+// light/dark variation is squashed toward their broad colour and their
+// brightness posterised into a few flat tones (hue kept); no normal maps or
+// highlights; cel light with lavender shadows and hard-edged lamp pools.
+// ROUGHNESS is written as 0.5 so the screen pass (anime_post.gdshader) can
+// tell the painted set from the characters (their toon shaders write 1.0).
+// Looked out from tools/art/style_shots.gd concepts ("blend", 2026-10-04).
+global uniform float anime_look;
+const float ANIME_FLAT = 3.6;        // extra mip levels of blur
+const float ANIME_DETAIL = 0.3;      // share of the texture's own variation kept
+const float ANIME_POSTERIZE = 4.0;   // brightness steps
+const float ANIME_SATURATION = 0.95;
+const float ANIME_CEL_SOFT = 0.06;
+const vec4 ANIME_SHADOW = vec4(0.62, 0.55, 0.85, 0.55);  // shadow tint, strength
+const float ANIME_LAMP_ENERGY = 0.7;
+const float ANIME_LAMP_NEUTRAL = 0.5;  // lamps lean toward white
 
 // RGB albedo, A roughness.
 uniform sampler2D albedo_tex : source_color, filter_linear_mipmap_anisotropic, repeat_enable;
@@ -91,21 +108,26 @@ void vertex() {
 // PS2 look: blur the high-res textures back down to about 128 px.
 float ps2_bias(sampler2D tex) {
 	float size = float(textureSize(tex, 0).x);
-	return (1.0 - ps3_look) * max(log2(size / 128.0), 0.0);
+	return (1.0 - ps3_look) * max(log2(size / 128.0), 0.0) + anime_look * ANIME_FLAT;
 }
 
 vec3 tangent_normal(vec4 n) {
-	vec2 xy = (n.rg * 2.0 - 1.0) * normal_strength * ps3_look;
+	vec2 xy = (n.rg * 2.0 - 1.0) * normal_strength * ps3_look * (1.0 - anime_look);
 	return vec3(xy, sqrt(max(1.0 - dot(xy, xy), 0.0)));
 }
 
 void fragment() {
 	vec4 tex;
+	vec3 avg = vec3(0.0);  // the texture's broad colour, for the Anime look
+	float avg_bias = 3.0;
 	vec4 ntex;
 	vec3 surf_n;  // in the projection's space (world or object)
 	if (use_uv) {
 		vec2 uv = UV * tex_scale;
 		tex = texture(albedo_tex, uv, ps2_bias(albedo_tex));
+		if (anime_look > 0.0) {
+			avg = texture(albedo_tex, uv, ps2_bias(albedo_tex) + avg_bias).rgb;
+		}
 		ntex = texture(normal_tex, uv);
 		vec3 tn = tangent_normal(ntex);
 		NORMAL = normalize(TANGENT * tn.x + BINORMAL * tn.y + NORMAL * tn.z);
@@ -125,6 +147,9 @@ void fragment() {
 		vec3 n = vec3(0.0);
 		if (w.x > 0.01) {
 			vec4 a = texture(albedo_tex, uv_x, ps2_bias(albedo_tex));
+			if (anime_look > 0.0) {
+				avg += w.x * texture(albedo_tex, uv_x, ps2_bias(albedo_tex) + avg_bias).rgb;
+			}
 			vec4 b = texture(normal_tex, uv_x);
 			vec3 tn = tangent_normal(b);
 			// u runs along +Z, image up is +Y.
@@ -134,6 +159,9 @@ void fragment() {
 		}
 		if (w.y > 0.01) {
 			vec4 a = top ? texture(top_tex, uv_y, ps2_bias(top_tex)) : texture(albedo_tex, uv_y, ps2_bias(albedo_tex));
+			if (anime_look > 0.0) {
+				avg += w.y * (top ? texture(top_tex, uv_y, ps2_bias(top_tex) + avg_bias).rgb : texture(albedo_tex, uv_y, ps2_bias(albedo_tex) + avg_bias).rgb);
+			}
 			vec4 b = top ? texture(top_normal_tex, uv_y) : texture(normal_tex, uv_y);
 			vec3 tn = tangent_normal(b);
 			// u runs along +X, image up is -Z.
@@ -143,6 +171,9 @@ void fragment() {
 		}
 		if (w.z > 0.01) {
 			vec4 a = texture(albedo_tex, uv_z, ps2_bias(albedo_tex));
+			if (anime_look > 0.0) {
+				avg += w.z * texture(albedo_tex, uv_z, ps2_bias(albedo_tex) + avg_bias).rgb;
+			}
 			vec4 b = texture(normal_tex, uv_z);
 			vec3 tn = tangent_normal(b);
 			// u runs along +X, image up is +Y.
@@ -156,7 +187,18 @@ void fragment() {
 			NORMAL = normalize(view_n);
 		}
 	}
-	vec3 col = tex.rgb * albedo.rgb * paint.rgb;
+	vec3 base = tex.rgb;
+	if (anime_look > 0.0) {
+		base = mix(avg, base, ANIME_DETAIL);
+		// Quantise brightness only (in gamma space) so the hue survives.
+		float l = max(dot(base, vec3(0.2126, 0.7152, 0.0722)), 1e-4);
+		float lq = pow(floor(pow(l, 1.0 / 2.2) * ANIME_POSTERIZE + 0.5) / ANIME_POSTERIZE, 2.2);
+		base *= max(lq, 0.02) / l;
+		float grey = dot(base, vec3(0.299, 0.587, 0.114));
+		base = max(mix(vec3(grey), base, ANIME_SATURATION), vec3(0.0));
+		base = mix(tex.rgb, base, anime_look);
+	}
+	vec3 col = base * albedo.rgb * paint.rgb;
 	col *= mix(1.0, COLOR.r, vertex_ao);
 	if (ao_height > 0.0) {
 		col *= mix(1.0 - ao_strength, 1.0, smoothstep(0.0, ao_height, v_height));
@@ -177,9 +219,10 @@ void fragment() {
 		if (gloss > 0.0) {
 			r = min(r, mix(0.65, 0.12, gloss * gloss_sharpness));
 		}
-		ROUGHNESS = r;
-		METALLIC = clamp(metallic + metal_mask * (1.0 - ntex.b), 0.0, 1.0) * ps3_look;
-		SPECULAR = specular * ps3_look;
+		ROUGHNESS = mix(r, 0.5, anime_look);
+		METALLIC = clamp(metallic + metal_mask * (1.0 - ntex.b), 0.0, 1.0) * ps3_look * (1.0 - anime_look);
+		SPECULAR = specular * ps3_look * (1.0 - anime_look);
+		RIM *= 1.0 - anime_look;
 		v_specular = specular;
 	}
 #endif
@@ -187,38 +230,54 @@ void fragment() {
 
 void light() {
 	float ndl = dot(NORMAL, LIGHT);
-	// PS2: banded two-tone. PS3: wrapped lambert, a touch of the paint left in.
-	float wrapped = (ndl + light_wrap) / (1.0 + light_wrap);
-	float toon = smoothstep(0.0, light_softness, wrapped);
-	float w = light_wrap * 0.4;
-	float soft = clamp((ndl + w) / (1.0 + w), 0.0, 1.0);
-	float lit = mix(toon, soft, ps3_look);
-	vec3 radiance = ATTENUATION * LIGHT_COLOR;
-	DIFFUSE_LIGHT += lit * radiance / PI;
-	DIFFUSE_LIGHT += translucency * ps3_look * clamp(-ndl, 0.0, 1.0) * 0.5 * radiance / PI;
-	if (ps3_look > 0.0) {
-		// GGX highlight (Schlick fresnel, Smith visibility).
-		vec3 h = normalize(LIGHT + VIEW);
-		float nl = max(ndl, 0.0);
-		float nv = max(dot(NORMAL, VIEW), 1e-3);
-		float nh = max(dot(NORMAL, h), 0.0);
-		float lh = max(dot(LIGHT, h), 0.0);
-		float a = ROUGHNESS * ROUGHNESS;
-		float a2 = a * a;
-		float d = nh * nh * (a2 - 1.0) + 1.0;
-		float D = a2 / (PI * d * d);
-		float k = a * 0.5;
-		float V = 0.25 / ((nl * (1.0 - k) + k) * (nv * (1.0 - k) + k));
-		vec3 f0 = mix(vec3(0.08 * v_specular), ALBEDO, METALLIC);
-		vec3 F = f0 + (1.0 - f0) * pow(1.0 - lh, 5.0);
-		SPECULAR_LIGHT += ps3_look * D * V * F * nl * radiance;
-	} else if (gloss > 0.0) {
-		// Highlights go through DIFFUSE_LIGHT, so undo most of the albedo tint
-		// to keep them bright.
-		vec3 h = normalize(LIGHT + VIEW);
-		float sp = pow(max(dot(NORMAL, h), 0.0), mix(6.0, 90.0, gloss_sharpness));
-		sp = smoothstep(0.05, 0.6, sp) * step(0.0, ndl);
-		vec3 untint = mix(vec3(1.0), 1.0 / max(ALBEDO, vec3(0.08)), 0.75);
-		DIFFUSE_LIGHT += gloss * sp * untint * radiance / PI;
+	if (anime_look > 0.5) {
+		vec3 radiance = LIGHT_COLOR;
+		vec3 lit;
+		if (LIGHT_IS_DIRECTIONAL) {
+			float shade = min(ndl, ATTENUATION * 2.0 - 0.5);
+			float cel = smoothstep(-ANIME_CEL_SOFT, ANIME_CEL_SOFT, shade);
+			// The shadow side keeps a tinted share of the sun: coloured shadows.
+			lit = mix(ANIME_SHADOW.rgb * ANIME_SHADOW.a, vec3(1.0), cel);
+		} else {
+			// Lamps: a pool with a clean painted edge.
+			lit = vec3(smoothstep(0.0, 0.1, ndl) * smoothstep(0.12, 0.17, ATTENUATION) * ANIME_LAMP_ENERGY);
+			radiance = mix(radiance, vec3(dot(radiance, vec3(0.333))), ANIME_LAMP_NEUTRAL);
+		}
+		DIFFUSE_LIGHT += lit * radiance / PI;
+	} else {
+		// PS2: banded two-tone. PS3: wrapped lambert, a touch of the paint left in.
+		float wrapped = (ndl + light_wrap) / (1.0 + light_wrap);
+		float toon = smoothstep(0.0, light_softness, wrapped);
+		float w = light_wrap * 0.4;
+		float soft = clamp((ndl + w) / (1.0 + w), 0.0, 1.0);
+		float lit = mix(toon, soft, ps3_look);
+		vec3 radiance = ATTENUATION * LIGHT_COLOR;
+		DIFFUSE_LIGHT += lit * radiance / PI;
+		DIFFUSE_LIGHT += translucency * ps3_look * clamp(-ndl, 0.0, 1.0) * 0.5 * radiance / PI;
+		if (ps3_look > 0.0) {
+			// GGX highlight (Schlick fresnel, Smith visibility).
+			vec3 h = normalize(LIGHT + VIEW);
+			float nl = max(ndl, 0.0);
+			float nv = max(dot(NORMAL, VIEW), 1e-3);
+			float nh = max(dot(NORMAL, h), 0.0);
+			float lh = max(dot(LIGHT, h), 0.0);
+			float a = ROUGHNESS * ROUGHNESS;
+			float a2 = a * a;
+			float d = nh * nh * (a2 - 1.0) + 1.0;
+			float D = a2 / (PI * d * d);
+			float k = a * 0.5;
+			float V = 0.25 / ((nl * (1.0 - k) + k) * (nv * (1.0 - k) + k));
+			vec3 f0 = mix(vec3(0.08 * v_specular), ALBEDO, METALLIC);
+			vec3 F = f0 + (1.0 - f0) * pow(1.0 - lh, 5.0);
+			SPECULAR_LIGHT += ps3_look * D * V * F * nl * radiance;
+		} else if (gloss > 0.0) {
+			// Highlights go through DIFFUSE_LIGHT, so undo most of the albedo tint
+			// to keep them bright.
+			vec3 h = normalize(LIGHT + VIEW);
+			float sp = pow(max(dot(NORMAL, h), 0.0), mix(6.0, 90.0, gloss_sharpness));
+			sp = smoothstep(0.05, 0.6, sp) * step(0.0, ndl);
+			vec3 untint = mix(vec3(1.0), 1.0 / max(ALBEDO, vec3(0.08)), 0.75);
+			DIFFUSE_LIGHT += gloss * sp * untint * radiance / PI;
+		}
 	}
 }
