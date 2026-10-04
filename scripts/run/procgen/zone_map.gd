@@ -160,6 +160,19 @@ func _draw_built(font: Font) -> void:
 	if info.get("beacon") != null:
 		var b: Vector3 = info["beacon"].position
 		_marker(font, to_map(b.x, b.z), "EXTRACT", Color(0.4, 1.0, 0.6))
+	# A level's finale: where the fight starts, their titan and the evac.
+	if info.has("arena"):
+		var r: Rect2 = info["arena"]["rect"]
+		var a := to_map(r.position.x, r.position.y)
+		var e := to_map(r.end.x, r.end.y)
+		draw_rect(Rect2(Vector2(minf(a.x, e.x), minf(a.y, e.y)), (e - a).abs()), Color(1.0, 0.3, 0.2, 0.9), false, 2.0)
+		var boss: Vector3 = info["boss"].position
+		_marker(font, to_map(boss.x, boss.z), "ENEMY TITAN", Color(1.0, 0.3, 0.2))
+		var ev: Vector3 = info["evac"]
+		_marker(font, to_map(ev.x, ev.z), "EVAC", Color(0.4, 1.0, 0.6))
+	if info.get("depot_cache") != null:
+		var d: Vector3 = info["depot_cache"].position
+		_marker(font, to_map(d.x, d.z) + Vector2(0, 14), "TITAN PART", Color(1.0, 0.65, 0.2))
 
 
 func _marker(font: Font, at: Vector2, text: String, col: Color) -> void:

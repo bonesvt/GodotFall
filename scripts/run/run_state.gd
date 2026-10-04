@@ -14,6 +14,9 @@ var rng := RandomNumberGenerator.new()
 var zone := 0
 ## Zones before the titan fight: ZONE_COUNT, plus any uncharted ones.
 var zone_count := ZONE_COUNT
+## A real level (levels.gd id) instead of the tutorial zones: one generated
+## zone that ends in its own titan fight.
+var level := ""
 ## slot -> part dictionary, see titan_parts.gd
 var parts := {}
 var pilot_hp := PILOT_MAX
@@ -29,10 +32,13 @@ var kills := 0
 var materials := {"scrap": 0, "alloy": 0, "circuits": 0}
 
 
-func _init(seed_value: int, uncharted := 0) -> void:
+func _init(seed_value: int, uncharted := 0, level_id := "") -> void:
 	run_seed = seed_value
 	rng.seed = seed_value
 	zone_count = ZONE_COUNT + uncharted
+	level = level_id
+	if level != "":
+		zone_count = 1
 
 
 func install(part: Dictionary) -> void:

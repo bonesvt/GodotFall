@@ -115,7 +115,7 @@ func _flash(text: String) -> void:
 
 # --- the run manager's side -----------------------------------------------------
 
-## "zone0".."zone2", "arena", "hub" or anything else (no beats).
+## "zone0".."zone2", "arena", "level1", "hub" or anything else (no beats).
 func start_level(which: String) -> void:
 	_finish()
 	level = which
@@ -131,6 +131,8 @@ func start_level(which: String) -> void:
 			beats = _boneyard() + _anywhere()
 		"arena":
 			beats = _arena()
+		"level1":
+			beats = _level1() + _anywhere()
 		"hub":
 			beats = _hub()
 	var radio = _radio()
@@ -676,6 +678,31 @@ func _arena() -> Array:
 			"targets": func(): return [{"node": _info().get("evac_node"), "tag": "EVAC", "color": GREEN}],
 			"when": func(): return run.evac_open},
 	]
+
+
+## The first real level (levels.gd): what's different from the tutorial run.
+func _level1() -> Array:
+	return [
+		{"id": "level1_intro", "title": "LEVEL 1: THE DEEPWOOD", "color": AMBER, "max": 14.0,
+			"body": "No more training wheels. The woods are laid out fresh every run, the militia hit harder and see further. Pick a lane: the road, the quiet gully or the high ridge.",
+			"targets": func(): return _route_tags(_info().get("routes", [])),
+			"when": func(): return level_time > 2.0},
+		{"id": "level1_depot", "title": "SALVAGE DEPOT", "color": RED, "max": 16.0,
+			"body": "Their depot has a titan part crated up on a flatbed, and it's top grade. The crate stays locked until every guard in the yard is down. Watch the towers.",
+			"targets": func(): return _depot_tag(),
+			"when": func(): return _depot_tag().size() > 0 and _near(_info()["depot_cache"].global_position, 70.0),
+			"done": func(): return _info()["depot_cache"].opened},
+		{"id": "level1_finale", "title": "THE CLEARING", "color": GREEN, "max": 14.0,
+			"body": "The road runs out into a clearing and their titan is parked on it. Step out of the trees and it's titanfall: call yours in, beat theirs, walk it to the evac.",
+			"when": func(): return _info().has("arena") and _pos().z < float(_info()["arena"]["enter_z"]) + 45.0 and run.phase == run.Phase.ZONE},
+	]
+
+
+func _depot_tag() -> Array:
+	var c = _info().get("depot_cache")
+	if c == null or not is_instance_valid(c) or c.opened:
+		return []
+	return [{"node": c, "tag": "TITAN PART", "color": ORANGE}]
 
 
 func _hub() -> Array:
