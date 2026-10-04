@@ -5,10 +5,13 @@ extends Node3D
 ##   1              full body        2       face close-up
 ##   3              first-person pistol and glove
 ##   S              next suit upgrade tier (0-5)    W   next suit weight (light, medium, heavy)
+##   C              next suit or outfit (eco_model.gd OUTFITS)    O   content rating (Teen, Mature)
 ## Also renders the character sheet shots when run with
-##   godot res://scenes/eco_showcase.tscn -- --shots=<folder> [--clean] [--suit=<tier>] [--weight=light|medium|heavy] [--only=front,back]
+##   godot res://scenes/eco_showcase.tscn -- --shots=<folder> [--clean] [--suit=<tier>] [--weight=light|medium|heavy]
+##       [--outfit=<name>] [--rating=T|M] [--only=front,back]
 
 const Art := preload("res://scripts/ps2/ps2_assets.gd")
+const ContentRating := preload("res://scripts/radio/content_rating.gd")
 
 ## [name, eco yaw (deg), camera position, look-at point, fov]
 const SHOTS := [
@@ -56,6 +59,9 @@ func _ready() -> void:
 	_set_view(0)
 
 	for arg in OS.get_cmdline_user_args():
+		if arg.begins_with("--rating="):  # for this run only, before she dresses
+			ContentRating.set_rating(arg.trim_prefix("--rating="), false)
+	for arg in OS.get_cmdline_user_args():
 		if arg == "--clean":  # full resolution, no PS2 filter or haze: a clear reference
 			get_node("/root/PS2").set_enabled(false)
 			for env_node in find_children("*", "WorldEnvironment", true, false):
@@ -67,6 +73,8 @@ func _ready() -> void:
 			eco.suit_tier = int(arg.trim_prefix("--suit="))
 		if arg.begins_with("--weight="):
 			eco.suit_weight = arg.trim_prefix("--weight=")
+		if arg.begins_with("--outfit="):
+			eco.wear(arg.trim_prefix("--outfit="))
 		if arg.begins_with("--only="):
 			_only = arg.trim_prefix("--only=").split(",")
 	for arg in OS.get_cmdline_user_args():
@@ -108,6 +116,10 @@ func _unhandled_input(event: InputEvent) -> void:
 		KEY_W:
 			var weights := ["light", "medium", "heavy"]
 			eco.suit_weight = weights[(weights.find(eco.suit_weight) + 1) % weights.size()]
+		KEY_C:
+			eco.wear(eco.OUTFITS[(eco.OUTFITS.find(eco.outfit) + 1) % eco.OUTFITS.size()])
+		KEY_O:
+			ContentRating.cycle()
 		KEY_1, KEY_2, KEY_3:
 			_set_view(event.keycode - KEY_1)
 

@@ -1,6 +1,6 @@
 extends SceneTree
 ## Headless test for Eco's pilot suits in her wardrobe: each one (eco_model.gd
-## OUTFITS) swaps her bodysuit and shows only its own jacket while she has no
+## OUTFITS suit*) swaps her bodysuit and shows only its own pieces while she has no
 ## suit upgrade, the upgrades' cuts go over any of them, the wardrobe lists
 ## them all by name (the Vesper looks only under the Mature rating), and she
 ## keeps her pick on a run.
@@ -51,15 +51,26 @@ func _body(eco) -> Material:
 	return null
 
 
+## Her own pieces: a jacket, cowl or vest (base_<style>_jacket), Ophelia's skirt, or none.
+func _pieces(style: String) -> Array:
+	match style:
+		"harness", "vesper", "vesper_open":
+			return []
+		"ophelia":
+			return ["base_ophelia_skirt"]
+	return ["base_%s_jacket" % style]
+
+
 func _model(eco) -> void:
-	_check("seven pilot suits", eco.OUTFITS.size() == 7 and eco.OUTFITS[0] == "suit", eco.OUTFITS)
+	var suits: Array = eco.OUTFITS.filter(func(o): return o.begins_with("suit"))
+	_check("ten pilot suits", suits.size() == 10 and eco.OUTFITS[0] == "suit", suits)
 	_check("starts in her own suit", eco.outfit == "suit" and eco.style() == "gwen" and _body(eco) == null, eco.outfit)
-	for outfit in eco.OUTFITS:
+	for outfit in suits:
 		_check("wears " + outfit, eco.wear(outfit) and eco.outfit == outfit, eco.outfit)
 		var style: String = eco.style()
 		_check(outfit + " has its own bodysuit", _body(eco) == eco.STYLE_BODY.get(outfit), _body(eco))
 		var shown := _jackets(eco)
-		var want := [] if style in ["harness", "vesper", "vesper_open"] else ["base_%s_jacket" % style]
+		var want := _pieces(style)
 		_check(outfit + " shows only its own jacket", shown == want, shown)
 		if style != "gwen":
 			var tex: Texture2D = eco.STYLE_BODY[outfit].get_shader_parameter("albedo_tex")
@@ -69,7 +80,7 @@ func _model(eco) -> void:
 	_check("an upgrade's cut goes over any suit", _body(eco) == eco.MEDIUM_BODY and _jackets(eco).is_empty(), _jackets(eco))
 	eco.suit_tier = 0
 	_check("and the suit comes back without it", _body(eco) == eco.STYLE_BODY["suit_racer"] and _jackets(eco) == ["base_racer_jacket"], _jackets(eco))
-	_check("clothes she hasn't got change nothing", not eco.wear("sleep") and eco.outfit == "suit_racer", eco.outfit)
+	_check("clothes she hasn't got change nothing", not eco.wear("lingerie") and eco.outfit == "suit_racer", eco.outfit)
 	eco.wear("suit")
 
 

@@ -171,8 +171,12 @@ func refresh() -> void:
 		_list.add_child(_text(line, 18, colour))
 	if options[selected] == Wardrobe.ROTATE:
 		_detail.text = "She picks for herself: something different after every run."
+	elif who() != "eco":
+		_detail.text = ""
+	elif String(options[selected]).begins_with("suit"):
+		_detail.text = "Eco wears it everywhere, runs included (an upgraded suit goes over it)."
 	else:
-		_detail.text = "Eco wears it everywhere, runs included (an upgraded suit goes over it)." if who() == "eco" else ""
+		_detail.text = "Eco wears it at home and in town; on a run she's in her pilot suit. The content rating (O) picks its Teen or Mature version."
 	_update_preview(options[selected])
 
 

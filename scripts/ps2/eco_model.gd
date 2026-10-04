@@ -54,11 +54,15 @@ extends "res://scripts/ps2/ps2_model.gd"
 		suit_weight = value
 		if is_inside_tree():
 			apply_suit()
-## Which pilot suit she has on (wear() by name; picked in her wardrobe,
-## scripts/hub/wardrobe.gd): "suit" is her own (gwen), the others are the
-## other looks baked by tools/eco/build_eco_vroid.py BASE_STYLES. It shows
-## with no suit upgrade; the upgrades' cuts go over any of them.
-@export_enum("suit", "suit_ghost", "suit_racer", "suit_harness", "suit_techwear", "suit_vesper", "suit_vesper_open") var outfit := "suit":
+## What she has on (wear() by name; picked in her wardrobe,
+## scripts/hub/wardrobe.gd). "suit" is her own pilot suit (gwen), the other
+## suit_* are the other looks baked by tools/eco/build_eco_vroid.py
+## BASE_STYLES: each shows with no suit upgrade, and the upgrades' cuts go over
+## any of them. "skater", "y2k" and "date" are her clothes off duty (outfit_graph),
+## every suit piece hidden; each comes in a Teen and a Mature version, picked
+## by the content rating (scripts/radio/content_rating.gd, O key) as it changes.
+@export_enum("suit", "suit_ghost", "suit_racer", "suit_harness", "suit_techwear", "suit_shade", "suit_homemade",
+		"suit_ophelia", "suit_vesper", "suit_vesper_open", "skater", "y2k", "date") var outfit := "suit":
 	set(value):
 		outfit = value if value in OUTFITS else "suit"
 		if is_inside_tree():
@@ -127,11 +131,13 @@ const LEGACY_PLATE := preload("res://assets/materials/eco/eco_v_armor_legacy.tre
 const LIGHT_BODY := preload("res://assets/materials/eco/eco_v_body_light.tres")
 const MEDIUM_BODY := preload("res://assets/materials/eco/eco_v_body_medium.tres")
 const HEAVY_BODY := preload("res://assets/materials/eco/eco_v_body_heavy.tres")
-## Her pilot suits (outfit): each but her own has its bodysuit material, and
-## each its jacket in the glb as base_<style>_jacket (harness and the vesper
-## looks have none). The vesper looks are Vesper Kane's clothes (a concept
-## character, Eco wears them for now): Mature rating only (MATURE_OUTFITS).
-const OUTFITS := ["suit", "suit_ghost", "suit_racer", "suit_harness", "suit_techwear", "suit_vesper", "suit_vesper_open"]
+## Everything she can wear (outfit): her pilot suits, then her clothes. Each
+## suit but her own has its bodysuit material, and its own pieces in the glb as
+## base_<style>_* (a jacket, cowl, vest or skirt; harness and the vesper looks
+## have none). The vesper looks are Vesper Kane's clothes (a concept character,
+## Eco wears them for now): Mature rating only (MATURE_OUTFITS).
+const OUTFITS := ["suit", "suit_ghost", "suit_racer", "suit_harness", "suit_techwear", "suit_shade", "suit_homemade",
+		"suit_ophelia", "suit_vesper", "suit_vesper_open", "skater", "y2k", "date"]
 ## Outfits only offered under the Mature content rating (wardrobe.gd).
 const MATURE_OUTFITS := ["suit_vesper", "suit_vesper_open"]
 const STYLE_BODY := {
@@ -139,9 +145,29 @@ const STYLE_BODY := {
 	"suit_racer": preload("res://assets/materials/eco/eco_v_body_racer.tres"),
 	"suit_harness": preload("res://assets/materials/eco/eco_v_body_harness.tres"),
 	"suit_techwear": preload("res://assets/materials/eco/eco_v_body_techwear.tres"),
+	"suit_shade": preload("res://assets/materials/eco/eco_v_body_shade.tres"),
+	"suit_homemade": preload("res://assets/materials/eco/eco_v_body_homemade.tres"),
+	"suit_ophelia": preload("res://assets/materials/eco/eco_v_body_ophelia.tres"),
 	"suit_vesper": preload("res://assets/materials/eco/eco_v_body_vesper.tres"),
 	"suit_vesper_open": preload("res://assets/materials/eco/eco_v_body_vesper_open.tres"),
 }
+## Her clothes' body textures, by look() (<outfit>_t Teen, <outfit>_m Mature);
+## their loose parts are the glb's outfit_<outfit>_<t|m|any>_* meshes.
+const OUTFIT_BODY := {
+	"skater_t": preload("res://assets/materials/eco/eco_v_body_skater_t.tres"),
+	"skater_m": preload("res://assets/materials/eco/eco_v_body_skater_m.tres"),
+	"y2k_t": preload("res://assets/materials/eco/eco_v_body_y2k_t.tres"),
+	"y2k_m": preload("res://assets/materials/eco/eco_v_body_y2k_m.tres"),
+	"date_t": preload("res://assets/materials/eco/eco_v_body_date_t.tres"),
+	"date_m": preload("res://assets/materials/eco/eco_v_body_date_m.tres"),
+}
+## Clothes she leaves her goggles off for, and her boots for (her sneakers
+## are outfit_<outfit>_any_shoes; she laces her boots up for a date).
+const NO_GOGGLES := ["date", "skater", "y2k"]
+const NO_BOOTS := ["skater", "y2k"]
+## Her date-night makeup (deeper smoky eyes, a sharper wing, red lips).
+const DATE_FACE := preload("res://assets/materials/eco/eco_v_face_date.tres")
+const ContentRating := preload("res://scripts/radio/content_rating.gd")
 const EcoRest := preload("res://scripts/ps2/eco_rest.gd")
 const Prefs := preload("res://scripts/game/prefs.gd")
 const Hair := preload("res://scripts/hub/hair.gd")
@@ -170,6 +196,8 @@ var _rest: EcoRest
 var _face: MeshInstance3D
 ## The face's weights from before she fell asleep (blend shape index -> weight).
 var _awake_face := {}
+## The content rating her clothes were last put on for.
+var _dressed_rating := ""
 
 
 func _ready() -> void:
@@ -229,7 +257,7 @@ static func piece_worn(mesh_name: String, weight: String) -> bool:
 	return true
 
 
-## Puts her in one of her pilot suits (OUTFITS) by name; false (and nothing
+## Puts her in one of her suits or clothes (OUTFITS) by name; false (and nothing
 ## changes) for anything else, such as clothes she doesn't have.
 func wear(outfit_name: String) -> bool:
 	if not outfit_name in OUTFITS:
@@ -238,21 +266,47 @@ func wear(outfit_name: String) -> bool:
 	return true
 
 
-## Her suit's style: "gwen" for her own, else the name after "suit_".
+## Her suit's style: "gwen" for her own, else the name after "suit_" ("" in clothes).
 func style() -> String:
+	if not suited():
+		return ""
 	return "gwen" if outfit == "suit" else outfit.trim_prefix("suit_")
 
 
-## Shows the armour of every tier up to suit_tier, in Dad's colours at the top tier.
+## Whether she has a pilot suit on (not her clothes).
+func suited() -> bool:
+	return outfit.begins_with("suit")
+
+
+## Which version of her clothes she has on: "<outfit>_t" or "<outfit>_m" for
+## the content rating ("" in a suit).
+func look() -> String:
+	if suited():
+		return ""
+	return outfit + ("_m" if ContentRating.current() == "M" else "_t")
+
+
+## Shows the armour of every tier up to suit_tier, in Dad's colours at the top
+## tier, or her clothes and their loose parts.
 func apply_suit() -> void:
-	var legacy := suit_tier >= SUIT_TIERS
+	var suited_ := suited()
+	var legacy := suited_ and suit_tier >= SUIT_TIERS
+	var rating := look().right(1)
+	_dressed_rating = ContentRating.current()
 	for node in find_children("*", "MeshInstance3D", true, false):
 		var mi := node as MeshInstance3D
 		var tier := piece_tier(String(mi.name))
-		if String(mi.name).begins_with("base_"):  # the bare suit's own pieces (its jacket)
-			mi.visible = suit_tier == 0 and String(mi.name).begins_with("base_%s_" % style())
+		var mesh_name := String(mi.name)
+		if mesh_name.begins_with("Goggles"):
+			mi.visible = not outfit in NO_GOGGLES
+		elif mesh_name.begins_with("Boots"):
+			mi.visible = not outfit in NO_BOOTS
+		if mesh_name.begins_with("outfit_"):  # her clothes' loose parts, for her rating or any
+			mi.visible = mesh_name.begins_with("outfit_%s_" % outfit) and mesh_name.get_slice("_", 2) in [rating, "any"]
+		elif mesh_name.begins_with("base_"):  # the bare suit's own pieces (its jacket)
+			mi.visible = suited_ and suit_tier == 0 and mesh_name.begins_with("base_%s_" % style())
 		elif tier > 0 and mi.mesh != null:
-			mi.visible = tier <= suit_tier and piece_worn(String(mi.name), suit_weight)
+			mi.visible = suited_ and tier <= suit_tier and piece_worn(mesh_name, suit_weight)
 			for i in mi.mesh.get_surface_count():
 				var m := mi.mesh.surface_get_material(i)
 				if m != null and m.resource_name == "eco_v_armor":
@@ -262,12 +316,17 @@ func apply_suit() -> void:
 				var m := mi.mesh.surface_get_material(i)
 				if m != null and m.resource_name == "eco_v_body":
 					mi.set_surface_override_material(i, body_material())
+				elif m != null and m.resource_name == "eco_v_face":
+					mi.set_surface_override_material(i, DATE_FACE if outfit == "date" else null)
 		mi.set_instance_shader_parameter("trim_gold", 1.0 if legacy else 0.0)
 
 
-## The bodysuit for her weight: each weight has its own cut (tools/eco/build_eco_vroid.py
-## suit_graph); the bare suit uses the base one.
+## Her clothes' body texture, or the bodysuit for her weight: each weight has
+## its own cut (tools/eco/build_eco_vroid.py suit_graph); the bare suit uses
+## the base one (her style's).
 func body_material() -> Material:
+	if not suited():
+		return OUTFIT_BODY[look()]
 	if suit_tier <= 0:
 		return STYLE_BODY.get(outfit)
 	match suit_weight:
@@ -314,6 +373,8 @@ func strolling() -> bool:
 
 
 func _process(delta: float) -> void:
+	if not suited() and ContentRating.current() != _dressed_rating:
+		apply_suit()  # the rating changed (O): the other version of her clothes
 	if _anim != null:
 		_animate()
 		_strut(delta)

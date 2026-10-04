@@ -2,8 +2,8 @@ extends RefCounted
 ## Eco's wardrobe in the hub: one place to pick what everyone wears (Eco,
 ## Mom, Ophelia). The picks are saved; an NPC left on "changes every run"
 ## rotates through her outfits as before (hub_npc.gd wear_for_run). Eco's
-## outfits are her pilot suits (eco_model.gd OUTFITS); she wears her pick
-## everywhere, and anything that isn't a pilot suit only at home. The screen is
+## outfits are her pilot suits and her clothes (eco_model.gd OUTFITS); she
+## wears her pick everywhere, and anything that isn't a pilot suit only at home. The screen is
 ## wardrobe_screen.gd; build() puts the wardrobe itself in her loft bedroom.
 
 const K := preload("res://scripts/hub/hub_kit.gd")
@@ -18,9 +18,10 @@ const PEOPLE := [["eco", "ECO"], ["mom", "MOM"], ["ophelia", "OPHELIA"]]
 ## What each outfit is called on the screen (anything missing is capitalised).
 const NAMES := {
 	"suit": "Pilot suit", "suit_ghost": "Ghost suit", "suit_racer": "Racer suit",
-	"suit_harness": "Harness suit", "suit_techwear": "Techwear suit",
+	"suit_harness": "Harness suit", "suit_techwear": "Techwear suit", "suit_shade": "Shade catsuit",
+	"suit_homemade": "Mom's handmade suit", "suit_ophelia": "Ophelia's suit",
 	"suit_vesper": "Gunslinger (Vesper)", "suit_vesper_open": "Gunslinger, unzipped (Vesper)", "sleep": "Sleepwear", "work": "Work clothes", "date": "Date night",
-	"casual": "Casual", "swim": "Bikini", "bikini": "Bikini", "sheer": "Sheer layers",
+	"skater": "Skater brat", "y2k": "Y2K pop", "casual": "Casual", "swim": "Bikini", "bikini": "Bikini", "sheer": "Sheer layers",
 	"tight": "Tight and daring", "lingerie": "Lingerie", "home": "Home clothes",
 	"tee": "Band tee", "hoodie": "Hoodie", "night": "Nightwear",
 }
@@ -35,8 +36,9 @@ static var save_path := "user://wardrobe.cfg"
 static var eco_now := "suit"
 
 
-## The outfits someone has. Eco's come from her model (eco_model.gd OUTFITS);
-## (her pilot suits), less its MATURE_OUTFITS under the Teen content rating.
+## The outfits someone has. Eco's come from her model (eco_model.gd OUTFITS:
+## her pilot suits and her clothes), less its MATURE_OUTFITS under the Teen
+## content rating.
 static func outfits(who: String) -> Array:
 	if who == "eco":
 		var consts: Dictionary = (load(ECO_MODEL) as Script).get_script_constant_map()
