@@ -7,6 +7,7 @@ Change them, add to them or delete from them without touching any code.
 | --- | --- |
 | `radio/T.txt`, `radio/M.txt` | enemy radio chatter, Teen and Mature |
 | `eco/T.txt`, `eco/M.txt` | Eco's whispers, Teen and Mature |
+| `town/T.txt`, `town/M.txt` | the people of Solace, Teen and Mature |
 
 In game, **O** switches the dialogue rating between Teen and Mature and re-reads these files, so you can
 edit a file while the game is running and press O to hear the new lines.
@@ -67,6 +68,21 @@ Eco situations:
 
 Recorded voice lines go in `assets/audio/voice/eco/<situation>_<n>.ogg`, where `n` counts the
 situation's lines in `eco/M.txt` from 0, so re-record if you reorder them.
+
+### Town lines
+
+The people of Solace (scripts/hub/townsfolk.gd) talk among themselves and to Eco as she walks
+through town. Lines are written like radio lines (`a: ... | b: ...`), and the number on each
+situation is how suspicious the town has got:
+
+- `1`: her first two runs. They believe her mom's excuses (mostly).
+- `2`: runs three to five. They've noticed the grease, the rivets, the lights at the temple.
+- `3`: after that. They're sure, and they're covering for her.
+
+Situations: `chat_1` `chat_2` `chat_3` (two people, `a` and `b`, where Eco can overhear),
+`mutter_1` `mutter_2` `mutter_3` (someone passing, `a` only), `greet_1` `greet_2` `greet_3`
+(a word for Eco as she walks by, `a` only). A stage with no lines falls back to the one before.
+`tests/townsfolk_test.gd` checks every situation has lines at both ratings.
 
 ## Exporting the game
 
