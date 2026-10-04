@@ -4,10 +4,12 @@ extends SceneTree
 ##   godot --path . -s res://tools/procgen/kit_shots.gd -- <out_dir> [biome] [id ...]
 ## Needs a renderer (not --headless). Writes <out_dir>/<biome>-<id>.png, the
 ## piece on a patch of ground seen from its front-left, and a sheet of all of
-## them, <out_dir>/<biome>-sheet.png.
+## them, <out_dir>/<biome>-sheet.png. For "city" or "military" the pieces are
+## that kit's own (tools/procgen/build_kits.py), on paving or tarmac.
 
 const SetPieces := preload("res://scripts/run/procgen/set_pieces.gd")
 const Shapes := preload("res://scripts/run/procgen/prop_shapes.gd")
+const KitShapes := preload("res://scripts/run/procgen/kit_shapes.gd")
 const B := preload("res://scripts/run/procgen/biome.gd")
 const Kit := preload("res://scripts/run/level_kit.gd")
 const Art := preload("res://scripts/ps2/ps2_assets.gd")
@@ -19,9 +21,9 @@ var only := []
 
 func _initialize() -> void:
 	for a in OS.get_cmdline_user_args():
-		if a in ["forest", "marsh", "boneyard"]:
+		if a in ["forest", "marsh", "boneyard", "city", "military"]:
 			biome = a
-		elif Shapes.SHAPES.has(a):
+		elif SetPieces.has(a):
 			only.append(a)
 		else:
 			out = a
@@ -39,6 +41,8 @@ func _go() -> void:
 		env.environment.fog_enabled = false
 		env.environment.volumetric_fog_enabled = false
 	var ids: Array = only if not only.is_empty() else Shapes.SHAPES.keys()
+	if only.is_empty() and biome in ["city", "military"]:
+		ids = KitShapes.SHAPES.keys().filter(func(id): return KitShapes.SHAPES[id]["kit"] == biome)
 	var cam := Camera3D.new()
 	cam.fov = 50.0
 	cam.far = 600.0
@@ -53,7 +57,7 @@ func _go() -> void:
 		var pm := PlaneMesh.new()
 		pm.size = Vector2(40, 40)
 		ground.mesh = pm
-		ground.material_override = Art.material("dirt")
+		ground.material_override = Art.material({"city": "pavers", "military": "tarmac"}.get(biome, "dirt"))
 		ground.position = at
 		world.add_child(ground)
 		var placed := SetPieces.place(world, id, at, 0.0)

@@ -33,11 +33,11 @@ func _initialize() -> void:
 
 func _run() -> void:
 	_plan_checks()
-	for spec in [[11, 3, "forest"], [12, 4, "marsh"], [13, 5, "boneyard"], [14, 5, "forest"], [15, 3, "marsh"], [16, 4, "boneyard"]]:
+	for spec in [[11, 3, "forest"], [12, 4, "marsh"], [13, 5, "boneyard"], [14, 5, "forest"], [15, 3, "marsh"], [16, 4, "boneyard"], [17, 4, "city"], [18, 5, "military"]]:
 		await _zone_checks(spec[0], spec[1], spec[2])
 	_check("the built zones use %d of the %d set pieces" % [kinds_seen.size(), SetPieces.Shapes.SHAPES.size()],
 			kinds_seen.size() >= 36, kinds_seen.keys())
-	_check("each zone draws its own mix of pieces (%d different kits in %d zones)" % [kits_seen.size(), 6], kits_seen.size() >= 5, kits_seen.keys())
+	_check("each zone draws its own mix of pieces (%d different kits in %d zones)" % [kits_seen.size(), 8], kits_seen.size() >= 7, kits_seen.keys())
 	await _run_checks()
 	print("procgen test: %s (%d failures)" % ["PASS" if failures == 0 else "FAIL", failures])
 	quit(1 if failures > 0 else 0)
@@ -90,7 +90,7 @@ func _plan_checks() -> void:
 			z -= 8.0
 	_check("60 plans: 3-5 lanes with a loud, quiet and high one, every set piece, one guarded and one high cache, safe kill height",
 			bad.is_empty(), bad.slice(0, 6))
-	_check("plans use 3, 4 and 5 lanes and every biome", lane_counts.size() == 3 and biomes.size() == 3, [lane_counts.keys(), biomes.keys()])
+	_check("plans use 3, 4 and 5 lanes and every biome", lane_counts.size() == 3 and biomes.size() == LevelPlan.BIOMES.size(), [lane_counts.keys(), biomes.keys()])
 	_check("plans use every kind of section, ruins included", fillers.size() == LevelPlan.SECTION_LEN.size(), fillers.keys())
 	_check("same seed, same plan", LevelPlan.make(77, 4).describe() == LevelPlan.make(77, 4).describe() and LevelPlan.make(77, 4).describe() != LevelPlan.make(78, 4).describe(),
 			LevelPlan.make(77, 4).describe())
