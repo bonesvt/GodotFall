@@ -2509,7 +2509,8 @@ def outfit_pieces():
     out.append(buns("outfit_skater_any_buns"))
     _cargo("cargo")
     out.append(skirt("outfit_y2k_t_skirt", 0.875, 0.645, ["eco_v_cargo"], gap=0.006, flare=0.02, follow=(0.8, 0.97), rows=10))
-    out.append(skirt("outfit_y2k_m_skirt", 0.86, 0.69, ["eco_v_cargo"], gap=0.005, flare=0.008, follow=(0.85, 0.97), rows=10))
+    # Mature: as short as it goes, low on her hips, its hem just under her glute fold (z 0.733)
+    out.append(skirt("outfit_y2k_m_skirt", 0.835, 0.72, ["eco_v_cargo"], gap=0.005, flare=0.006, follow=(0.88, 0.98), rows=8))
     out.append(warmers("outfit_y2k_t_warmers", 0.42, "eco_v_warmers"))
     out.append(warmers("outfit_y2k_m_warmers", 0.6, "eco_v_warmers"))
     out.append(sneakers("outfit_y2k_any_shoes", "eco_v_sneaker_y2k", "eco_v_sneaker_y2k_sole", sole_h=0.04, flare=1.14))
@@ -2548,7 +2549,10 @@ def outfit_graph(nt, skin, kind):
                 glittering silver star, cropped above her navel; a belly-button
                 ring; khaki under her cargo mini (outfit_y2k_t_skirt)
       y2k_m     a glittering pink tube top (always well over where she is
-                fullest), the micro cargo skirt (outfit_y2k_m_skirt)
+                fullest), the shortest micro cargo skirt (outfit_y2k_m_skirt)
+                low on her hips; under it tiny low-rise pink briefs, cheeky at
+                the back, flat and opaque at the crotch, and fishnet tights
+                over them down into her leg warmers
       date_t    Eco dressed up her way: a black leather corset with a sweetheart
                 top, teal glowing lacing up the front and teal piping; rust-red
                 leather trousers to her waist, laced up the outer leg over
@@ -2698,8 +2702,21 @@ def outfit_graph(nt, skin, kind):
             sparkle = g.mx(g.mul(sparkle, 0.4), g.mul(g.mul(glitter(), rim), 2.0))
         state["glow"] = g.mx(state["glow"], g.mul(sparkle, 0.8))
         # under her skirt: the same khaki (never skin below its hem)
-        top_k = 0.86 if mature else 0.875
-        wear(g.mn(g.sub(z, 0.7 if mature else 0.62), g.sub(top_k - 0.003, z)), KHAKI, ink=False)
+        if mature:
+            # tiny low-rise briefs: a narrow strip over her hips, cut high over
+            # her legs, cheeky at the back; always full and opaque between her
+            # legs (flat colour, nothing drawn there), then fishnet tights over all
+            zt = g.sub(0.826, g.mul(0.3, g.sq(ax)))
+            zl = g.lerp(g.add(0.688, g.mul(1.5, g.mx(g.sub(ax, 0.022), 0.0))), g.add(0.705, g.mul(0.95, ax)), tb)
+            wear(g.mn(g.sub(zt, z), g.sub(z, zl)), PINK)
+            d_ft = g.mn(g.sub(z, 0.585), g.sub(0.834, z))
+            net = g.mx(g.band(g.op("FRACT", g.div(g.add(x, z), 0.0062)), 0.0, 0.18), g.band(g.op("FRACT", g.div(g.sub(x, z), 0.0062)), 0.0, 0.18))
+            c_ft = g.sstep(-AA, AA, d_ft)
+            paint(g.mul(c_ft, 0.3), SHORTS)
+            paint(g.mul(c_ft, net), SHORTS)
+            wear(g.mn(g.sub(z, 0.826), g.sub(0.834, z)), SHORTS)   # the tights' waistband, just under the skirt
+        else:   # khaki shorts under her skirt (never skin below its hem)
+            wear(g.mn(g.sub(z, 0.62), g.sub(0.872, z)), KHAKI, ink=False)
         # her belly-button ring, a teal gem
         ring = ell(x, 0.0, 0.896, 0.0032, 0.0032)
         paint(g.mul(g.band(ring, -0.001, 0.0), front), STEEL)
