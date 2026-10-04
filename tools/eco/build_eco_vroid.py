@@ -2746,7 +2746,7 @@ def outfit_graph(nt, skin, kind):
             # her legs, cheeky at the back; always full and opaque between her
             # legs (flat colour, nothing drawn there), then fishnet tights over all
             zt = g.sub(0.826, g.mul(0.3, g.sq(ax)))
-            zl = g.lerp(g.add(0.688, g.mul(1.5, g.mx(g.sub(ax, 0.022), 0.0))), g.add(0.705, g.mul(0.95, ax)), tb)
+            zl = g.lerp(g.add(0.688, g.mul(1.5, g.mx(g.sub(ax, 0.022), 0.0))), g.add(0.70, g.mul(0.95, ax)), tb)   # (covers the agreed limit zones)
             wear(g.mn(g.sub(zt, z), g.sub(z, zl)), PINK)
             d_ft = g.mn(g.sub(z, 0.585), g.sub(0.834, z))
             net = g.mx(g.band(g.op("FRACT", g.div(g.add(x, z), 0.0062)), 0.0, 0.18), g.band(g.op("FRACT", g.div(g.sub(x, z), 0.0062)), 0.0, 0.18))
