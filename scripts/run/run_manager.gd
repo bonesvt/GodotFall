@@ -296,9 +296,11 @@ func enter_hub() -> void:
 		npc.wear_for_run(runs_ended)
 		NpcIdles.settle(npc, zone_info, runs_ended)
 		hub_npcs[spec["who"]] = npc
-	family_scene = FamilyScene.new()
-	zone_root.add_child(family_scene)
-	family_scene.setup(self, zone_info)
+	family_scene = null
+	if Family.enabled:
+		family_scene = FamilyScene.new()
+		zone_root.add_child(family_scene)
+		family_scene.setup(self, zone_info)
 	var sick := Family.roll_sick(npc_talk.state, runs_ended, last_result == "RUN COMPLETE", npc_talk.state.get_value("mom", "met", false), randf())
 	npc_talk.state.save(npc_talk.save_path)
 	if hub_npcs.has("ophelia"):
