@@ -647,23 +647,43 @@ def shell(name, keep, planes=(), gap=0.004, thick=0.004, plate="eco_v_armor", ed
         for f in bm.faces:
             f.smooth = True
         bm.normal_update()
-    orig = set(bm.verts)
-    bmesh.ops.solidify(bm, geom=bm.faces[:], thickness=thick)
-    bm.normal_update()
-    for f in bm.faces:
-        vs = set(f.verts)
-        f.material_index = 1 if (vs & orig) and (vs - orig) else 0
-    if border:   # a band of the edge material `border` faces wide all round its edge, on both sides
-        edge_v = {v for f in bm.faces if f.material_index == 1 for v in f.verts}
+    if border:
+        # cloth: a plain shell `thick` out along the normals (bmesh's solidify spikes
+        # where a soft edge turns sharply), the edge material `border` faces wide
+        # round its edge on both sides and on its rim
+        edge_v = {v for v in bm.verts if v.is_boundary}
+        band = set()
         for _ in range(border):
             faces = {f for v in edge_v for f in v.link_faces}
-            for f in faces:
-                f.material_index = 1
+            band |= faces
             edge_v = {v for f in faces for v in f.verts}
+        for f in bm.faces:
+            f.material_index = 1 if f in band else 0
+        rim = [e for e in bm.edges if e.is_boundary]
+        normals = {v: v.normal.copy() for v in bm.verts}
+        inner = bm.faces[:]
+        dup = bmesh.ops.duplicate(bm, geom=bm.verts[:] + bm.edges[:] + bm.faces[:])
+        vmap = dup["vert_map"]
+        for v, n in normals.items():
+            vmap[v].co += n * thick
+        bmesh.ops.reverse_faces(bm, faces=inner)
+        for e in rim:
+            a, b = e.verts
+            f = bm.faces.new((b, a, vmap[a], vmap[b]))
+            f.material_index = 1
+            f.smooth = True
+        bm.normal_update()
+    else:
+        orig = set(bm.verts)
+        bmesh.ops.solidify(bm, geom=bm.faces[:], thickness=thick)
+        bm.normal_update()
+        for f in bm.faces:
+            vs = set(f.verts)
+            f.material_index = 1 if (vs & orig) and (vs - orig) else 0
+    ob.data.materials.clear()   # before the faces go in: clearing the slots resets their indices
+    _armor_mats(ob.data, [plate, edge])
     bm.to_mesh(ob.data)
     bm.free()
-    ob.data.materials.clear()
-    _armor_mats(ob.data, [plate, edge])
     ob.data.update()
     return ob
 
@@ -753,12 +773,12 @@ def base_jacket():
             return False   # her neck, under the collar, and anything of the body up inside her head
         if ax > 0.15:
             return c.z > 1.0   # the sleeves
-        if c.z < 1.04:
-            return False
+        if c.z < 1.04 or (c.y < -0.04 and (c.z < 1.065 or n.z < -0.3)):
+            return False   # the fronts stop above the underside of her bust
         return not (c.y < 0 and ax < 0.07 + 0.2 * max(0.0, 1.12 - c.z))   # open front, curving away
     ob = shell("base_jacket", keep,
                  planes=[((0, 0, 1.035), (0, 0, -1)), ((0.25, 0, 0), (1, 0, 0)), ((-0.25, 0, 0), (-1, 0, 0))],
-                 gap=0.006, thick=0.006, plate="eco_v_jacket", edge="eco_v_jacket_edge", smooth=2, smooth_edge=5, border=2)
+                 gap=0.006, thick=0.006, plate="eco_v_jacket", edge="eco_v_jacket_edge", smooth=2, smooth_edge=5, border=1)
     # nothing may stand off her: a stray vertex here once made spikes behind her head
     bvh = _body_bvh()
     far = max((bvh.find_nearest(ob.matrix_world @ v.co)[3] or 0.0) for v in ob.data.vertices)
