@@ -21,7 +21,8 @@ Or play the Windows build (no editor needed): `GodotFall.exe`, see **Windows bui
   `user://settings.cfg`): mouse sensitivity, invert Y, field of view; every key rebindable
   (primary and secondary); master / effects / ambience / voices volume (buses in
   `default_bus_layout.tres`); windowed / borderless / fullscreen, vsync, frame cap, look
-  (Anime, PS3 or PS2; F9 remembers too) and film grain; dialogue rating, tutorial hints, start in third person.
+  (Anime, PS3 or PS2; F9 remembers too) and film grain; dialogue rating, tutorial hints, start in third person,
+  Eco's jiggle style (Classic, Smooth anime, Realistic).
 - **Save slots** (`scripts/game/saves.gd`): three, in `user://saves/slot1..3/`. Each holds the
   files the game already saved on its own (armory, hub conversations, titan paint, tutorial
   hints seen) plus runs / wins / time played. A run in progress isn't saved; Continue puts you
@@ -513,6 +514,10 @@ boots with knee plates, teal glowing trims).
   behind when she runs). `SPRINGS` in `scripts/ps2/eco_model.gd` tunes stiffness, drag,
   gravity, swing limits and how much of her movement each spring feels; `jiggle` scales the
   chest and glute bounce (0 turns it off) and `springs_enabled` turns them all off.
+  `jiggle_style` picks a tuning from `JIGGLE_STYLES`: classic, anime (slower, floatier, eases
+  into its limit) or realistic (firm, quick, mostly vertical). Left unset she follows
+  Settings > Game > Jiggle style, live. `tools/eco/jiggle_clips.gd` renders the three side by
+  side through a run, jump, landing and turn.
 - **First person**: the player's `EcoBody` node (`scripts/eco_fp_body.gd`) shows her body when
   you look down (head and arms hidden, kept under the camera in every pose) and casts her full
   shadow. `camera_above_neck` and `camera_ahead` place it; `show_body` and `cast_shadow` toggle it.

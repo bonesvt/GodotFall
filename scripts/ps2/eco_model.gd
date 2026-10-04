@@ -21,6 +21,18 @@ extends "res://scripts/ps2/ps2_model.gd"
 @export_range(0.0, 2.0) var strut := 1.0
 ## Simulate the spring bones (hair, chest and glute jiggle).
 @export var springs_enabled := true
+## How her chest, glutes and hair move (JIGGLE_STYLES): "classic" (the tuning
+## she has had since PR #27), "anime" (slower, floatier bounces that ease out
+## at the edge of their swing) or "realistic" (firm, quick, mostly up and
+## down, settling after one small rebound). Left unset, she follows the
+## Jiggle style setting (Game tab, prefs.gd) and changes when it does.
+@export_enum("classic", "anime", "realistic") var jiggle_style := "classic":
+	set(value):
+		jiggle_style = value if JIGGLE_STYLES.has(value) else "classic"
+		_style_chosen = true
+		if is_in_group("eco_jiggle"):
+			remove_from_group("eco_jiggle")
+		_apply_jiggle_style()
 ## How far her chest and glutes may bounce (1 = as tuned, 0 = not at all).
 @export_range(0.0, 2.0) var jiggle := 1.0
 ## Her suit upgrade (scripts/hub/armory.gd SUIT_TIERS): 0 is the bare pilot
@@ -66,15 +78,15 @@ extends "res://scripts/ps2/ps2_model.gd"
 ## through the world it feels (1 = all of it: hair streams back when she runs;
 ## low = only her own motion: the jiggle bounces with her steps and landings
 ## without being dragged back by her speed).
-const HAIR := {"stiffness": 0.14, "drag": 0.2, "gravity": 0.7, "limit": 30.0, "inertia": 0.6}
-const HAIR_TIP := {"stiffness": 0.12, "drag": 0.2, "gravity": 0.6, "limit": 20.0, "inertia": 0.6}
+const HAIR := {"group": "hair", "stiffness": 0.14, "drag": 0.2, "gravity": 0.7, "limit": 30.0, "inertia": 0.6}
+const HAIR_TIP := {"group": "hair", "stiffness": 0.12, "drag": 0.2, "gravity": 0.6, "limit": 20.0, "inertia": 0.6}
 # the fringe hangs over her face: it may lift off it, but swinging far back would go into her head
-const FRINGE := {"stiffness": 0.16, "drag": 0.22, "gravity": 0.5, "limit": 12.0, "inertia": 0.35}
-const FRINGE_TIP := {"stiffness": 0.14, "drag": 0.22, "gravity": 0.5, "limit": 10.0, "inertia": 0.35}
-const BUST := {"stiffness": 0.14, "drag": 0.08, "gravity": 0.15, "limit": 24.0, "inertia": 0.2, "jiggle": true}
+const FRINGE := {"group": "hair", "stiffness": 0.16, "drag": 0.22, "gravity": 0.5, "limit": 12.0, "inertia": 0.35}
+const FRINGE_TIP := {"group": "hair", "stiffness": 0.14, "drag": 0.22, "gravity": 0.5, "limit": 10.0, "inertia": 0.35}
+const BUST := {"group": "bust", "stiffness": 0.14, "drag": 0.08, "gravity": 0.15, "limit": 24.0, "inertia": 0.2, "jiggle": true}
 # the back hair chains below the nape: only the salon's long cuts (braids, ponytail; scripts/hub/hair.gd) hang from them
-const BRAID := {"stiffness": 0.1, "drag": 0.16, "gravity": 0.9, "limit": 28.0, "inertia": 0.5}
-const GLUTE := {"stiffness": 0.18, "drag": 0.09, "gravity": 0.15, "limit": 18.0, "inertia": 0.2, "jiggle": true}
+const BRAID := {"group": "hair", "stiffness": 0.1, "drag": 0.16, "gravity": 0.9, "limit": 28.0, "inertia": 0.5}
+const GLUTE := {"group": "glute", "stiffness": 0.18, "drag": 0.09, "gravity": 0.15, "limit": 18.0, "inertia": 0.2, "jiggle": true}
 const SPRINGS := {
 	# locks 01-02 hang at the back, 03-04 at the sides, 05-09 are the fringe;
 	# the side and fringe locks bend once more at their second joint
@@ -88,6 +100,26 @@ const SPRINGS := {
 	"J_Sec_Hair4_01": BRAID, "J_Sec_Hair4_02": BRAID,
 	"J_Sec_L_Bust1": BUST, "J_Sec_R_Bust1": BUST,
 	"J_Sec_L_Glute1": GLUTE, "J_Sec_R_Glute1": GLUTE,
+}
+
+## Jiggle styles: per spring group, values that replace the group's own
+## (bust, glute) or scale them (hair: "<key>_scale"). Extra keys:
+## "soft" eases the swing into its limit instead of stopping it dead;
+## "lateral" is how much side-to-side swing is kept (1 = all).
+const JIGGLE_STYLES := {
+	"classic": {},
+	# about 2.5 bounces a second that take a second to die away, big rounded swings
+	"anime": {
+		"bust": {"stiffness": 0.07, "drag": 0.065, "gravity": 0.08, "limit": 30.0, "inertia": 0.25, "soft": true},
+		"glute": {"stiffness": 0.08, "drag": 0.07, "gravity": 0.08, "limit": 22.0, "inertia": 0.25, "soft": true},
+		"hair": {"stiffness_scale": 0.8, "drag_scale": 0.7, "gravity_scale": 0.6},
+	},
+	# about 5 bounces a second, one small rebound and still within a quarter second
+	"realistic": {
+		"bust": {"stiffness": 0.28, "drag": 0.22, "gravity": 0.3, "limit": 12.0, "inertia": 0.2, "lateral": 0.45},
+		"glute": {"stiffness": 0.32, "drag": 0.25, "gravity": 0.3, "limit": 9.0, "inertia": 0.2, "lateral": 0.45},
+		"hair": {"stiffness_scale": 1.15, "drag_scale": 1.4, "gravity_scale": 1.3},
+	},
 }
 
 const SUIT_TIERS := 5
@@ -105,6 +137,7 @@ const STYLE_BODY := {
 	"suit_techwear": preload("res://assets/materials/eco/eco_v_body_techwear.tres"),
 }
 const EcoRest := preload("res://scripts/ps2/eco_rest.gd")
+const Prefs := preload("res://scripts/game/prefs.gd")
 const Hair := preload("res://scripts/hub/hair.gd")
 ## Her face while she sleeps (blend shape -> weight); the import's fierce look
 ## comes back when she wakes.
@@ -115,6 +148,9 @@ enum PlayerState { GROUND, AIR, SLIDE, WALLRUN, GRAPPLE }
 
 var skeleton: Skeleton3D
 var _anim: AnimationPlayer
+## Whether jiggle_style was set on this copy (a tool or test) rather than taken
+## from the setting.
+var _style_chosen := false
 var _springs: Array[Dictionary] = []
 var _last_origin := Vector3.ZERO
 ## Strut and off-duty stance blend in and out over a moment (0..1).
@@ -147,9 +183,11 @@ func _ready() -> void:
 				var children := skeleton.get_bone_children(i)
 				s["aim"] = skeleton.get_bone_rest(children[0]).origin if children.size() > 0 else Vector3.UP * 0.1
 				s["ready"] = false
+				s["base"] = SPRINGS[bone_name]
 				_springs.append(s)
 		# parents before children, so a lock's second joint follows its root
 		_springs.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return a["bone"] < b["bone"])
+		_apply_jiggle_style()
 		_last_origin = skeleton.global_position
 		for bone_name: String in STRUT_BONES:
 			_bones[bone_name] = skeleton.find_bone(STRUT_BONES[bone_name])
@@ -157,6 +195,8 @@ func _ready() -> void:
 		_rest = EcoRest.new(skeleton)
 		if not _rest.usable():
 			_rest = null
+	if not _style_chosen:
+		follow_jiggle_setting()
 	_face = find_child("Face", true, false) as MeshInstance3D
 	Hair.apply(self, "eco")  # her haircut from the salon in Solace
 	set_process(_anim != null or not _springs.is_empty())
@@ -430,6 +470,32 @@ func _offset_hips(offset: Vector3) -> void:
 	_strut_undo["hips_at"] = [before, moved]
 
 
+## Takes the Jiggle style setting (Prefs.set_jiggle_style calls this on every
+## Eco in the "eco_jiggle" group).
+func follow_jiggle_setting() -> void:
+	jiggle_style = Prefs.jiggle_style()
+	_style_chosen = false
+	add_to_group("eco_jiggle")
+
+
+## Sets every spring's settings from its group's own and jiggle_style's.
+func _apply_jiggle_style() -> void:
+	var style: Dictionary = JIGGLE_STYLES.get(jiggle_style, {})
+	for s in _springs:
+		var base: Dictionary = s["base"]
+		for key: String in ["stiffness", "drag", "gravity", "limit", "inertia"]:
+			s[key] = base[key]
+		s.erase("soft")
+		s.erase("lateral")
+		var tune: Dictionary = style.get(base.get("group", ""), {})
+		for key: String in tune:
+			if key.ends_with("_scale"):
+				var k := key.trim_suffix("_scale")
+				s[k] = base[k] * float(tune[key])
+			else:
+				s[key] = tune[key]
+
+
 ## Shoves her chest and glute springs by a world-space offset (metres at the
 ## spring's tip), as if her body had jolted the other way: they swing out and
 ## bounce back. The first-person body (scripts/eco_fp_body.gd) uses it so jumps,
@@ -476,9 +542,18 @@ func _step_springs(delta: float) -> void:
 		var next: Vector3 = tip + (tip - prev) * (1.0 - s["drag"])
 		next += (target - tip) * minf(s["stiffness"] * steps, 1.0)
 		next += Vector3.DOWN * s["gravity"] * 0.01 * steps * length
+		if s.has("lateral"):
+			# keep only part of the swing across her body
+			var side := to_world.basis.x.normalized()
+			next -= side * (next - target).dot(side) * (1.0 - float(s["lateral"]))
 		var dir: Vector3 = (next - origin).normalized()
 		var angle: float = dir.angle_to(rest_dir)
-		if angle > limit:
+		var knee := limit * 0.6
+		if s.get("soft", false) and angle > knee:
+			# ease into the limit: swings up to 60% of it stay as they are, bigger ones round off
+			var eased := knee + (limit - knee) * tanh((angle - knee) / (limit - knee))
+			dir = rest_dir.slerp(dir, eased / angle).normalized()
+		elif angle > limit:
 			dir = rest_dir.slerp(dir, limit / angle).normalized()
 		s["prev"] = tip
 		s["tip"] = origin + dir * length
