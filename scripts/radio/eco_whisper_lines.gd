@@ -26,6 +26,6 @@ const DialogueBank := preload("res://scripts/radio/dialogue_bank.gd")
 
 
 ## The whisper bank for a content rating: {category: [lines]}, read from
-## dialogue/eco/<rating>.txt. AO uses M unless an AO file is written.
+## dialogue/eco/<rating>.txt.
 static func bank(rating: String) -> Dictionary:
 	return DialogueBank.bank("eco", rating)

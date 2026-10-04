@@ -518,8 +518,8 @@ through static. She only listens; she never talks back.
   a terrified last man, and HQ calling into silence once the squad is gone.
 - Bigger events cut off small talk; lines never repeat back to back, and every exchange plays before any repeats.
 - Speakers near the edge of range break up: fewer signal bars and garbled characters.
-- **Dialogue rating**: press **O** to cycle E, T, M and AO (saved between sessions; default M). Not F8: that stops the game when it runs from the Godot editor.
-  E and T have their own clean line banks; AO currently uses the M bank. `scripts/radio/content_rating.gd`
+- **Dialogue rating**: press **O** to switch between Teen and Mature (saved between sessions; default M). Not F8: that stops the game when it runs from the Godot editor.
+  Each rating has its own line files in `dialogue/`. `scripts/radio/content_rating.gd`
   holds the setting.
 - Lines live in `scripts/radio/radio_lines.gd`, one exchange per string (`"a: ... | b: ... | hq: ..."`).
   `radio_chatter.gd` emits `line_started(callsign, text, category)` for voice-over later.

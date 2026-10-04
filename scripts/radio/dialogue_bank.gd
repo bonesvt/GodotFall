@@ -7,8 +7,7 @@ extends RefCounted
 ##   [category]
 ##   one line (or radio exchange) per row
 ##
-## AO has no files of its own unless someone writes them: a missing AO file
-## falls back to M. Banks are cached; reload() re-reads every file (the HUD
+## Ratings are T and M (content_rating.gd). Banks are cached; reload() re-reads every file (the HUD
 ## calls it when the rating key is pressed, so edits show up in game).
 
 const DIR := "res://dialogue/"
@@ -21,10 +20,7 @@ static func bank(speaker: String, rating: String) -> Dictionary:
 	var key := speaker + "/" + rating
 	if not _cache.has(key):
 		var path := "%s%s/%s.txt" % [DIR, speaker, rating]
-		if not FileAccess.file_exists(path) and rating == "AO":
-			_cache[key] = bank(speaker, "M")
-		else:
-			_cache[key] = parse(FileAccess.get_file_as_string(path))
+		_cache[key] = parse(FileAccess.get_file_as_string(path))
 	return _cache[key]
 
 

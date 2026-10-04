@@ -5,11 +5,10 @@ Change them, add to them or delete from them without touching any code.
 
 | File | What it is |
 | --- | --- |
-| `radio/E.txt`, `radio/T.txt`, `radio/M.txt` | militia radio chatter for each rating |
-| `eco/E.txt`, `eco/T.txt`, `eco/M.txt` | Eco's whispers for each rating |
-| `radio/AO.txt`, `eco/AO.txt` | optional; if there is no AO file, AO uses the M lines |
+| `radio/T.txt`, `radio/M.txt` | enemy radio chatter, Teen and Mature |
+| `eco/T.txt`, `eco/M.txt` | Eco's whispers, Teen and Mature |
 
-In game, **O** switches the dialogue rating (E, T, M, AO) and re-reads these files, so you can
+In game, **O** switches the dialogue rating between Teen and Mature and re-reads these files, so you can
 edit a file while the game is running and press O to hear the new lines.
 
 ## How a file is laid out
@@ -30,7 +29,7 @@ goggles > My goggles? Ew. Get your own.
   and every line plays once before any repeats.
 - Blank lines don't matter. A situation with no lines left stays silent at that rating.
 - The situation names are fixed (the game looks them up by name); the lists below have them all.
-  A misspelled name never plays, and `tests/whisper_test.gd` catches that for E and T.
+  A misspelled name never plays, and `tests/whisper_test.gd` catches that for T.
 
 ### Radio lines
 

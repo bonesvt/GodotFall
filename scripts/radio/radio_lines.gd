@@ -48,16 +48,14 @@ static func roles(entry: String) -> Array:
 
 
 # --- Rating banks --------------------------------------------------------
-# M is the base bank. Lower ratings get their own clean files rather than a
-# censored M bank, so every category still has full exchanges.
+# Teen and Mature each get their own file rather than a censored M bank, so
+# every category still has full exchanges.
 
-const RATINGS := ["E", "T", "M", "AO"]
-const RATING_NAMES := {
-	"E": "E (Everyone 10+)", "T": "T (Teen)", "M": "M (Mature 17+)", "AO": "AO (Adults Only)",
-}
+const RATINGS := ["T", "M"]
+const RATING_NAMES := {"T": "T (Teen)", "M": "M (Mature 17+)"}
 
 
 ## The line bank for a content rating: {category: [entries]}, read from
-## dialogue/radio/<rating>.txt. AO uses M unless an AO file is written.
+## dialogue/radio/<rating>.txt.
 static func bank(rating: String) -> Dictionary:
 	return DialogueBank.bank("radio", rating)

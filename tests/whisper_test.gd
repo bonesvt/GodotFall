@@ -122,13 +122,13 @@ func _run() -> void:
 	_check("quiet thought", _last() == "quiet", _last())
 	await _hush()
 
-	# Ratings: the E bank, and categories a bank leaves out stay silent.
-	Rating.set_rating("E", false)
+	# Ratings: the T bank, and categories a bank leaves out stay silent.
+	Rating.set_rating("T", false)
 	whispers.say("titanfall")
 	await _secs(0.08)
-	_check("E line from the E bank", Lines.bank("E")["titanfall"].has(whispers.history[-1]["text"]), whispers.history[-1]["text"])
+	_check("T line from the T bank", Lines.bank("T")["titanfall"].has(whispers.history[-1]["text"]), whispers.history[-1]["text"])
 	await _hush()
-	_check("E has no idle banter reaction", not whispers.say("idle"), "")
+	_check("a category with no lines stays silent", not whispers.say("no_such_moment"), "")
 	Rating.set_rating("M", false)
 
 	# Keyed answers: she answers what was actually said.
@@ -161,14 +161,12 @@ func _run() -> void:
 
 
 func _bank_checks() -> void:
-	# The dialogue files: every speaker and rating has one, AO falls back to
-	# M, and no file uses a category name the game doesn't know (a typo
+	# The dialogue files: every speaker has a T and an M file, and no file uses a category name the game doesn't know (a typo
 	# would silently never play).
 	for speaker in ["radio", "eco"]:
 		var known: Array = Bank.bank(speaker, "M").keys()
 		_check("%s M file has lines" % speaker, known.size() > 5, known.size())
-		_check("%s AO falls back to M" % speaker, Bank.bank(speaker, "AO") == Bank.bank(speaker, "M"), "")
-		for rating in ["E", "T"]:
+		for rating in ["T"]:
 			var cats: Array = Bank.bank(speaker, rating).keys()
 			_check("%s %s file has lines" % [speaker, rating], cats.size() > 5, cats.size())
 			var unknown := cats.filter(func(c): return not known.has(c))
@@ -178,14 +176,14 @@ func _bank_checks() -> void:
 	_check("keys trim and lowercase", whispers._keys("Goggles | old man > Hi") == ["goggles", "old man"] and whispers._text("Goggles | old man > Hi") == "Hi", "")
 	_check("keywords match whole words", whispers._mentions("whole tent was staring", "tent") and not whispers._mentions("pay attention", "tent"), "")
 	var swears := ["fuck", "shit", "bitch", "ass", "damn", "hell", "christ"]
-	for rating in ["E", "T", "M"]:
+	for rating in ["T", "M"]:
 		var bank: Dictionary = Lines.bank(rating)
 		_check("%s bank has the run beats" % rating, ["zone_start", "part_installed", "titanfall", "boss_down", "home", "quiet"].all(func(c): return bank.has(c) and not bank[c].is_empty()), "")
 		for cat in bank:
 			for line in bank[cat]:
 				var low := " " + String(line).to_lower() + " "
 				for w in swears:
-					var banned: bool = rating == "E" or (rating == "T" and w in ["fuck", "shit", "bitch", "christ"])
+					var banned: bool = rating == "T" and w in ["fuck", "shit", "bitch", "christ"]
 					if banned and (" %s" % w in low) and not (w == "hell" and "hello" in low):
 						_check("%s line clean: %s" % [rating, line], false, w)
 	for cat in Lines.bank("M"):
