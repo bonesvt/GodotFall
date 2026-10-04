@@ -11,7 +11,7 @@ extends RefCounted
 ##
 ## Story (Bones, 2026-10-04): the grunts are colonists who can't build
 ## anything, so the colony handed them rifles. Bored, bitter, homesick, and
-## scared of the local Pilot they call the Dancer. Teen and Mature files;
+## scared of the local Pilot they call the Starling. Teen and Mature files;
 ## Mature swears and gets meaner, never slurs or anything sexual.
 
 const DialogueBank := preload("res://scripts/radio/dialogue_bank.gd")
