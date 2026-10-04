@@ -32,7 +32,7 @@ func _run() -> void:
 	var boots: Node3D = eco.find_child("Boots*", true, false)
 	var face: MeshInstance3D = eco.find_child("Face", true, false)
 	_check("model has goggles, boots and a face", goggles != null and boots != null and face != null, "")
-	for part in ["outfit_casual_any_flannel", "outfit_casual_any_knot", "outfit_date_t_skirt", "outfit_date_m_skirt",
+	for part in ["outfit_casual_t_flannel", "outfit_casual_t_knot", "outfit_date_t_skirt", "outfit_date_m_skirt",
 			"outfit_date_any_hoops", "outfit_date_any_bangles_l"]:
 		_check("%s is in the model" % part, eco.find_child(part, true, false) != null, "")
 	_check("starts in her suit", eco.outfit == "suit" and pieces.any(func(p): return p.visible), "")
