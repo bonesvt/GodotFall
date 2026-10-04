@@ -1,8 +1,8 @@
 extends SceneTree
 ## Pictures of the people of Solace (scripts/hub/townsfolk.gd).
 ##   godot --path . -s res://tools/town/townsfolk_shots.gd -- [out_dir] [--lineup] [--only=bench,...] [--small]
-## --lineup: everyone side by side on a plain stage (front, back, sitting,
-## walking). Otherwise views around town with them going about their day.
+## --lineup: everyone side by side on a plain stage (front, back, side on,
+## sitting, walking). Otherwise views around town with them going about their day.
 ## Needs a renderer (not --headless). Writes <out_dir>/folk_<view>.png.
 
 const Townsfolk := preload("res://scripts/hub/townsfolk.gd")
@@ -93,6 +93,20 @@ func _lineup() -> void:
 		# the models face -Z: the front view looks from -Z
 		await _frames(30)
 		_save("lineup_" + view[0])
+	# side on, for their builds
+	for p in folk:
+		p.home_yaw = PI / 2.0
+		p.rotation.y = PI / 2.0
+	cam.position = Vector3(0, 1.0, -(width * 1.25))
+	cam.look_at(Vector3(0, 0.95, 0))
+	await _frames(30)
+	_save("lineup_side")
+	await _halves(cam, x0, gap, "side", 1.0, 0.95, 4.2)
+	for p in folk:
+		p.home_yaw = 0.0
+		p.rotation.y = 0.0
+	await _frames(10)
+	await _halves(cam, x0, gap, "body", 1.0, 0.95, 4.2)
 	# faces, half at a time
 	for half in 2:
 		var mid: float = x0 + (half * 5 + 2) * gap
@@ -121,7 +135,19 @@ func _lineup() -> void:
 	cam.look_at(Vector3(0, 0.6, 0))
 	await _frames(20)
 	_save("lineup_sit")
+	await _halves(cam, x0, gap, "sit", 1.1, 0.6, 3.6, 0.8)
 	quit()
+
+
+## Five at a time, closer: <name>_0 and <name>_1, from the front (and a little
+## to the left by `side` metres).
+func _halves(cam: Camera3D, x0: float, gap: float, name: String, eye: float, look: float, dist: float, side := 0.0) -> void:
+	for half in 2:
+		var mid: float = x0 + (half * 5 + 2) * gap
+		cam.position = Vector3(mid - side, eye, -dist)
+		cam.look_at(Vector3(mid, look, 0))
+		await _frames(20)
+		_save("%s_%d" % [name, half])
 
 
 func _town() -> void:

@@ -56,17 +56,17 @@ PEOPLE = {
     "pell": {
         "sex": "f", "height": 1.62, "head": 0.95, "legs": 0.99, "skin": (0.82, 0.63, 0.5),
         "hair": GREY_BROWN, "cut": "bob", "iris": (0.18, 0.1, 0.05), "lips": (0.7, 0.4, 0.38), "age": 0.7,
-        "body": {"hips": 0.02, "bust": 0.018, "belly": 0.022, "waist": 0.014, "arms": 0.01},
+        "body": {"hips": 0.018, "bust": 0.008, "belly": 0.036, "waist": 0.03, "arms": 0.018},
         "boots": ((0.02, 0.012, 0.008), (0.16, 0.1, 0.06)),
         "outfit": {"top": (0.45, 0.3, 0.04), "sleeve": 0.3, "hem": 0.7, "neck": 0.03,
                    "bottom": (0.05, 0.045, 0.04), "cuff_z": 0.14,
-                   "apron": (0.42, 0.04, 0.03), "apron_lo": 0.42},
+                   "apron": (0.42, 0.04, 0.03), "apron_lo": 0.64},
         "stance": "easy", "voice": {"pitch": 270.0, "spread": 6.0, "rate": 15.5, "bright": 0.4, "breath": 0.05, "gain": 0.5},
     },
     "kit": {
         "sex": "f", "height": 1.68, "head": 0.96, "legs": 1.04, "skin": (0.56, 0.4, 0.31),
         "hair": TEAL, "cut": "crop", "iris": (0.12, 0.07, 0.035), "lips": (0.55, 0.32, 0.3), "age": 0.0,
-        "body": {"slim": 0.006},
+        "body": {"slim": 0.02},
         "boots": ((0.01, 0.01, 0.012), (0.08, 0.08, 0.09)),
         "outfit": {"top": (0.75, 0.16, 0.01), "sleeve": 0.468, "hem": 0.76, "neck": 0.0, "collar": (0.04, 0.04, 0.045),
                    "bands": (0.62, 0.64, 0.66), "zip": (0.05, 0.05, 0.05),
@@ -76,7 +76,7 @@ PEOPLE = {
     "wren": {
         "sex": "f", "height": 1.65, "head": 0.95, "legs": 1.02, "skin": (1.0, 0.96, 0.94),
         "hair": HONEY, "cut": "long", "iris": (0.16, 0.3, 0.14), "lips": (0.8, 0.45, 0.45), "age": 0.15,
-        "body": {"hips": 0.006},
+        "body": {"slim": 0.008, "muscle": 0.009},
         "boots": ((0.03, 0.02, 0.01), (0.22, 0.15, 0.08)),
         "outfit": {"top": (0.62, 0.58, 0.48), "sleeve": 0.24, "hem": 0.7, "neck": 0.03,
                    "bottom": (0.08, 0.2, 0.07), "cuff_z": 0.16, "overalls": (0.08, 0.2, 0.07),
@@ -86,11 +86,8 @@ PEOPLE = {
     "tobin": {
         "sex": "m", "height": 1.7, "head": 0.93, "legs": 0.97, "skin": (0.9, 0.76, 0.64),
         "hair": WHITE, "cut": "horseshoe", "iris": (0.18, 0.22, 0.26), "lips": None, "age": 1.0, "stubble": 0.15,
-        "torso": [(0.70, 0.142, 0.074, 0.078), (0.76, 0.150, 0.092, 0.080), (0.82, 0.160, 0.118, 0.082),
-                  (0.88, 0.164, 0.13, 0.084), (0.94, 0.162, 0.125, 0.086), (1.00, 0.158, 0.11, 0.088),
-                  (1.06, 0.152, 0.098, 0.088), (1.11, 0.136, 0.084, 0.078)],
-        "legs_r": [(0.14, 0.042), (0.24, 0.055), (0.34, 0.06), (0.46, 0.055), (0.56, 0.066), (0.64, 0.074), (0.72, 0.082)],
-        "widen": 0.035, "hand": 1.15, "arms": 0.016, "neck": 0.016,
+        "build": {"hip": 0.146, "waist": 0.152, "chest": 0.15, "hip_front": 0.088, "belly": 0.155, "pecs": 0.118, "back": 0.072,
+                  "thigh": 0.06, "knee": 0.047, "calf": 0.05, "ankle": 0.037, "widen": 0.03, "hand": 1.12, "arms": 0.016, "neck": 0.018},
         "boots": ((0.02, 0.014, 0.01), (0.14, 0.1, 0.07)),
         "outfit": {"top": (0.6, 0.56, 0.48), "sleeve": 0.468, "hem": 0.72, "neck": 0.0, "cardigan": (0.17, 0.09, 0.045),
                    "bottom": (0.16, 0.16, 0.17), "cuff_z": 0.12, "belt": (0.04, 0.025, 0.015)},
@@ -99,11 +96,8 @@ PEOPLE = {
     "dez": {
         "sex": "m", "height": 1.76, "head": 0.93, "legs": 1.02, "skin": (0.86, 0.7, 0.56),
         "hair": BLACK, "cut": "crop", "iris": (0.1, 0.06, 0.03), "lips": None, "age": 0.1, "stubble": 0.3,
-        "torso": [(0.70, 0.128, 0.060, 0.078), (0.76, 0.124, 0.064, 0.080), (0.82, 0.12, 0.07, 0.07),
-                  (0.88, 0.12, 0.076, 0.062), (0.94, 0.126, 0.08, 0.064), (1.00, 0.138, 0.085, 0.072),
-                  (1.06, 0.146, 0.086, 0.076), (1.11, 0.132, 0.075, 0.072)],
-        "legs_r": [(0.14, 0.04), (0.24, 0.052), (0.34, 0.056), (0.46, 0.05), (0.56, 0.06), (0.64, 0.066), (0.72, 0.072)],
-        "widen": 0.045, "hand": 1.18, "arms": 0.012, "neck": 0.018,
+        "build": {"hip": 0.12, "waist": 0.106, "chest": 0.124, "hip_front": 0.064, "belly": 0.082, "pecs": 0.094, "back": 0.058,
+                  "thigh": 0.05, "knee": 0.041, "calf": 0.045, "ankle": 0.034, "widen": 0.035, "hand": 1.14, "arms": 0.004, "neck": 0.01},
         "boots": ((0.012, 0.01, 0.008), (0.1, 0.08, 0.06)),
         "outfit": {"top": (0.03, 0.05, 0.13), "sleeve": 0.3, "hem": 0.0, "neck": 0.0, "zip": (0.35, 0.35, 0.36),
                    "bottom": (0.03, 0.05, 0.13), "cuff_z": 0.12, "belt": (0.02, 0.02, 0.02),
@@ -113,11 +107,8 @@ PEOPLE = {
     "harl": {
         "sex": "m", "height": 1.8, "head": 0.92, "legs": 1.0, "skin": (0.5, 0.35, 0.27),
         "hair": BROWN, "cut": "crop", "iris": (0.08, 0.05, 0.03), "lips": None, "age": 0.35, "stubble": 0.6,
-        "torso": [(0.70, 0.136, 0.066, 0.08), (0.76, 0.136, 0.074, 0.082), (0.82, 0.134, 0.088, 0.076),
-                  (0.88, 0.136, 0.096, 0.07), (0.94, 0.14, 0.096, 0.07), (1.00, 0.148, 0.094, 0.076),
-                  (1.06, 0.154, 0.092, 0.08), (1.11, 0.138, 0.08, 0.076)],
-        "legs_r": [(0.14, 0.042), (0.24, 0.055), (0.34, 0.06), (0.46, 0.054), (0.56, 0.065), (0.64, 0.072), (0.72, 0.078)],
-        "widen": 0.055, "hand": 1.2, "arms": 0.018, "neck": 0.022,
+        "build": {"hip": 0.134, "waist": 0.134, "chest": 0.144, "hip_front": 0.074, "belly": 0.118, "pecs": 0.11, "back": 0.068,
+                  "thigh": 0.058, "knee": 0.046, "calf": 0.051, "ankle": 0.037, "widen": 0.05, "hand": 1.2, "arms": 0.016, "neck": 0.02},
         "boots": ((0.02, 0.012, 0.006), (0.18, 0.1, 0.05)),
         "outfit": {"top": (0.3, 0.09, 0.04), "sleeve": 0.468, "hem": 0.72, "neck": 0.02,
                    "coat": (0.13, 0.15, 0.07), "coat_lo": 0.34, "bottom": (0.09, 0.075, 0.06), "cuff_z": 0.12,
@@ -127,7 +118,7 @@ PEOPLE = {
     "mira": {
         "sex": "f", "height": 1.7, "head": 0.95, "legs": 1.04, "skin": (0.46, 0.32, 0.25),
         "hair": BLACK, "cut": "long", "iris": (0.1, 0.06, 0.03), "lips": (0.45, 0.2, 0.25), "age": 0.4,
-        "body": {"hips": 0.01, "bust": 0.006},
+        "body": {"slim": 0.013, "waist": -0.004},
         "boots": ((0.01, 0.008, 0.01), (0.09, 0.06, 0.08)),
         "outfit": {"top": (0.5, 0.42, 0.3), "sleeve": 0.468, "hem": 0.74, "neck": 0.03,
                    "coat": (0.2, 0.06, 0.3), "coat_lo": 0.4, "bottom": (0.03, 0.025, 0.035), "cuff_z": 0.12},
@@ -137,11 +128,8 @@ PEOPLE = {
         "sex": "m", "height": 1.74, "head": 0.94, "legs": 1.04, "skin": (0.95, 0.82, 0.68),
         "hair": [(0.30, (0.06, 0.0, 0.03)), (0.62, (0.25, 0.01, 0.12)), (0.86, (0.6, 0.06, 0.32)), (1.0, (0.95, 0.4, 0.7))],
         "cut": "crop", "iris": (0.12, 0.08, 0.04), "lips": None, "age": 0.0, "stubble": 0.0,
-        "torso": [(0.70, 0.124, 0.058, 0.074), (0.76, 0.12, 0.06, 0.076), (0.82, 0.116, 0.066, 0.066),
-                  (0.88, 0.116, 0.07, 0.06), (0.94, 0.12, 0.075, 0.062), (1.00, 0.13, 0.08, 0.068),
-                  (1.06, 0.138, 0.08, 0.072), (1.11, 0.126, 0.07, 0.068)],
-        "legs_r": [(0.14, 0.038), (0.24, 0.05), (0.34, 0.054), (0.46, 0.048), (0.56, 0.057), (0.64, 0.063), (0.72, 0.069)],
-        "widen": 0.035, "hand": 1.15, "arms": 0.008, "neck": 0.012,
+        "build": {"hip": 0.114, "waist": 0.098, "chest": 0.114, "hip_front": 0.06, "belly": 0.078, "pecs": 0.088, "back": 0.054,
+                  "thigh": 0.046, "knee": 0.039, "calf": 0.042, "ankle": 0.033, "widen": 0.022, "hand": 1.1, "arms": 0.0, "neck": 0.006},
         "boots": ((0.06, 0.06, 0.07), (0.6, 0.6, 0.62)),
         "outfit": {"top": (0.02, 0.3, 0.32), "sleeve": 0.468, "hem": 0.72, "neck": 0.0, "bands": (0.85, 0.2, 0.55),
                    "bottom": (0.04, 0.04, 0.05), "cuff_z": 0.14, "stripe": (0.85, 0.2, 0.55)},
@@ -150,7 +138,7 @@ PEOPLE = {
     "rosa": {
         "sex": "f", "height": 1.58, "head": 0.95, "legs": 0.98, "skin": (0.92, 0.8, 0.7),
         "hair": WHITE, "cut": "bob", "iris": (0.2, 0.25, 0.3), "lips": (0.7, 0.42, 0.45), "age": 1.0,
-        "body": {"hips": 0.014, "bust": 0.012, "belly": 0.018, "waist": 0.012, "arms": 0.008},
+        "body": {"hips": 0.008, "bust": 0.004, "belly": 0.036, "waist": 0.034, "arms": 0.014},
         "boots": ((0.02, 0.015, 0.012), (0.2, 0.15, 0.12)),
         "outfit": {"top": (0.55, 0.22, 0.25), "sleeve": 0.468, "hem": 0.72, "neck": 0.02, "cardigan": (0.15, 0.25, 0.32),
                    "bottom": (0.12, 0.1, 0.16), "cuff_z": 0.18},
@@ -160,11 +148,9 @@ PEOPLE = {
         "sex": "m", "height": 1.84, "head": 0.92, "legs": 1.0, "skin": (0.7, 0.52, 0.4),
         "hair": [(0.30, (0.05, 0.02, 0.005)), (0.62, (0.14, 0.06, 0.015)), (0.86, (0.3, 0.14, 0.04)), (1.0, (0.6, 0.35, 0.15))],
         "cut": "crop", "iris": (0.15, 0.2, 0.12), "lips": None, "age": 0.0, "stubble": 0.35,
-        "torso": [(0.70, 0.14, 0.066, 0.082), (0.76, 0.138, 0.07, 0.084), (0.82, 0.136, 0.08, 0.076),
-                  (0.88, 0.14, 0.088, 0.07), (0.94, 0.15, 0.094, 0.074), (1.00, 0.164, 0.1, 0.082),
-                  (1.06, 0.172, 0.1, 0.086), (1.11, 0.152, 0.086, 0.08)],
-        "legs_r": [(0.14, 0.044), (0.24, 0.058), (0.34, 0.064), (0.46, 0.056), (0.56, 0.068), (0.64, 0.075), (0.72, 0.082)],
-        "widen": 0.065, "hand": 1.25, "arms": 0.026, "neck": 0.026,
+        "build": {"hip": 0.128, "waist": 0.118, "chest": 0.164, "hip_front": 0.07, "belly": 0.09, "pecs": 0.12, "back": 0.074,
+                  "thigh": 0.062, "knee": 0.048, "calf": 0.056, "ankle": 0.039, "widen": 0.07, "hand": 1.25, "arms": 0.028, "neck": 0.03,
+                  "delts": 0.016},
         "boots": ((0.02, 0.015, 0.008), (0.2, 0.14, 0.07)),
         "outfit": {"top": (0.55, 0.53, 0.48), "sleeve": 0.17, "hem": 0.74, "neck": 0.015,
                    "bottom": (0.2, 0.2, 0.13), "cuff_z": 0.14, "belt": (0.05, 0.03, 0.015)},
@@ -258,22 +244,54 @@ def body_female():
         waist = b.get("waist", 0.0) * np.exp(-((z - 0.92) / 0.07) ** 2) * (0.3 + 0.7 * np.clip(out, 0, 1)) * (ax < 0.2)
         belly = b.get("belly", 0.0) * gauss(P, 0.0, -0.08, 0.86, 0.08, 0.06, 0.06) * ss(-0.02, -0.06, y)
         arms = b.get("arms", 0.0) * ss(0.11, 0.15, ax) * ss(0.33, 0.27, ax) * (np.abs(z - 1.145) < 0.07)
-        slim = -b.get("slim", 0.0) * (np.exp(-((z - 0.74) / 0.08) ** 2) * np.clip(out, 0, 1) + 0.7 * ss(0.5, 0.6, z) * ss(0.75, 0.68, z))
-        return hip + glute + thigh + bust + waist + belly + arms + slim
+        # slim: less hip, seat, thigh and bust all over
+        slim = -b.get("slim", 0.0) * (np.exp(-((z - 0.74) / 0.08) ** 2) * (0.4 + 0.6 * np.clip(out, 0, 1))
+                                      + 0.8 * ss(0.4, 0.55, z) * ss(0.75, 0.68, z)
+                                      + 0.5 * np.exp(-((ax - 0.064) / 0.06) ** 2 - ((z - 0.755) / 0.08) ** 2) * ss(-0.02, 0.04, y)
+                                      + 0.5 * ss(0.18, 0.4, z) * ss(0.48, 0.4, z)
+                                      + 0.6 * gauss(P, 0.062, -0.105, 1.035, 0.052, 0.055, 0.055) * ss(-0.03, -0.07, y)
+                                      + 0.4 * ss(0.11, 0.15, ax) * ss(0.5, 0.44, ax) * (np.abs(z - 1.145) < 0.07))
+        # muscle: shoulders, upper arms, calves and the front of the thighs
+        mus = b.get("muscle", 0.0)
+        muscle = mus * (np.exp(-((ax - 0.14) / 0.03) ** 2 - ((z - 1.135) / 0.035) ** 2)
+                        + 0.7 * np.exp(-((ax - 0.22) / 0.04) ** 2) * (np.abs(z - 1.145) < 0.06)
+                        + 0.8 * np.exp(-((z - 0.33) / 0.05) ** 2) * ss(0.0, 0.03, y) * (z < 0.5)
+                        + 0.6 * np.exp(-((z - 0.56) / 0.06) ** 2) * ss(0.0, -0.03, y) * (z < 0.68))
+        return hip + glute + thigh + bust + waist + belly + arms + slim + muscle
     print("%s body: up to %.1f mm" % (WHO, push(bpy.data.objects["Body"], amount, passes=7) * 1000))
+
+
+def male_sections(b):
+    """A man's torso and leg cross-sections from his build: half widths at the
+    hip, waist and chest, how far the front stands out at the hip, belly and
+    pecs, and the back; leg radii at the thigh, knee, calf and ankle. Torso
+    rows are (z, half width, front, back) about y = -0.02, as Biggie's TORSO."""
+    h, w, c = b["hip"], b["waist"], b["chest"]
+    hf, bf, pf, bk = b["hip_front"] - 0.02, b["belly"] - 0.02, b["pecs"] - 0.02, b["back"] + 0.02
+    torso = [(0.68, h * 0.97, hf * 0.9, bk + 0.004), (0.74, h, hf, bk + 0.012),
+             (0.80, (h + w) / 2, (hf + bf) / 2, bk + 0.004), (0.86, w, bf, bk - 0.006),
+             (0.92, w * 0.6 + c * 0.4, bf * 0.6 + pf * 0.4, bk - 0.008), (0.98, c * 0.96, max(pf, bf * 0.9), bk - 0.002),
+             (1.04, c, pf * 0.97, bk + 0.006), (1.10, c * 0.9, pf * 0.84, bk + 0.004)]
+    cx = 0.0686
+    top = max(h - cx, b["thigh"])
+    legs = [(0.14, b["ankle"]), (0.24, b["calf"] * 0.9), (0.34, b["calf"]), (0.46, b["knee"]),
+            (0.56, b["thigh"]), (0.64, (b["thigh"] + top) / 2), (0.70, top)]
+    return torso, legs
 
 
 def body_male(arm):
     """Biggie's way (build_npc.py body_biggie): the torso and legs moved out or
-    in to cross-sections, so the preset's waist, hips and bust are gone, not
-    padded over; a thicker neck and arms, broader shoulders, bigger hands."""
-    N["TORSO"], N["LEGS"] = P_["torso"], P_["legs_r"]
+    in to cross-sections (male_sections()), so the preset's waist, hips and
+    bust are gone, not padded over; then the neck, arms and shoulders for
+    his build, broader shoulders and bigger hands."""
+    b = P_["build"]
+    TORSO, LEGS = male_sections(b)
     profile, reshape = N["profile"], N["reshape"]
     body = bpy.data.objects["Body"]
 
     def torso(P):
         x, y, z = P[:, 0], P[:, 1], P[:, 2]
-        A, F, B = profile(P_["torso"], z)
+        A, F, B = profile(TORSO, z)
         cy = -0.02
         dx, dy = x, y - cy
         D = np.where(dy < 0, F, B)
@@ -282,15 +300,18 @@ def body_male(arm):
         Q = P.copy()
         Q[:, 0] = dx * k
         Q[:, 1] = cy + dy * k
-        w = ss(0.70, 0.78, z) * ss(1.13, 1.09, z)
+        w = ss(0.66, 0.72, z) * ss(1.13, 1.09, z)
         w *= 1 - ss(1.06, 1.1, z) * ss(0.1, 0.14, np.abs(x))
+        # down by the crotch, leave what's deep inside the section alone (the
+        # inner thighs, the crotch itself) or it's dragged out into a shelf
+        w *= 1 - ss(0.82, 0.76, z) * (1 - ss(0.45, 0.7, 1 / k))
         return Q, w
 
     def legs(P):
         x, y, z = P[:, 0], P[:, 1], P[:, 2]
-        (R,) = profile(P_["legs_r"], z)
+        (R,) = profile(LEGS, z)
         s = np.sign(x)
-        cx = s * (0.0686 + 0.008 * ss(0.45, 0.72, z))
+        cx = s * 0.0686
         cy = 0.012
         dx, dy = x - cx, y - cy
         r = np.maximum(np.hypot(dx, dy), 1e-6)
@@ -301,20 +322,35 @@ def body_male(arm):
         Q = P.copy()
         Q[:, 0] = cx + dx * (Rt / r)
         Q[:, 1] = cy + dy * (Rt / r)
-        return Q, ss(0.12, 0.18, z) * ss(0.78, 0.7, z)
-    print("%s torso: up to %.1f mm" % (WHO, reshape(body, torso) * 1000))
-    print("%s legs: up to %.1f mm" % (WHO, reshape(body, legs, passes=6) * 1000))
+        return Q, ss(0.12, 0.18, z) * ss(0.73, 0.67, z)
+    # A few short passes rather than one long one: the smoothing spreads each
+    # move, so one pass only half flattens something as local as the bust.
+    for _ in range(4):
+        moved = reshape(body, torso, passes=4)
+    print("%s torso: last %.1f mm" % (WHO, moved * 1000))
+    for _ in range(2):
+        moved = reshape(body, legs, passes=4)
+    print("%s legs: last %.1f mm" % (WHO, moved * 1000))
+    # Paint his clothes on this shape, not the preset's: a coat's edge drawn
+    # straight on her would curve round a bust he no longer has.
+    rest = body.data.attributes["rest"].data
+    for v in body.data.vertices:
+        rest[v.index].vector = v.co
 
     def amount(P, N_):
         x, y, z = P[:, 0], P[:, 1], P[:, 2]
         ax = np.abs(x)
-        neck = P_["neck"] * ss(1.11, 1.15, z) * ss(1.26, 1.21, z) * (ax < 0.07)
-        traps = P_["neck"] * gauss(P, 0.08, 0.01, 1.15, 0.06, 0.05, 0.035)
-        arms = P_["arms"] * ss(0.1, 0.14, ax) * ss(0.5, 0.44, ax) * (np.abs(z - 1.145) < 0.08)
-        return neck + traps + arms
+        neck = b["neck"] * ss(1.11, 1.15, z) * ss(1.26, 1.21, z) * (ax < 0.07)
+        traps = b["neck"] * gauss(P, 0.08, 0.01, 1.15, 0.06, 0.05, 0.035)
+        # thicker upper arms, tapering to the wrist
+        arms = b["arms"] * ss(0.1, 0.14, ax) * ss(0.5, 0.44, ax) * (1 - 0.6 * ss(0.28, 0.44, ax)) * (np.abs(z - 1.145) < 0.08)
+        delts = b.get("delts", 0.0) * (np.exp(-((ax - 0.15) / 0.035) ** 2 - ((z - 1.14) / 0.04) ** 2)
+                                      + 0.6 * np.exp(-((ax - 0.25) / 0.04) ** 2 - ((z - 1.15) / 0.035) ** 2) * ss(0.0, 0.02, -y + 0.01))
+        calves = b.get("delts", 0.0) * 0.5 * np.exp(-((z - 0.33) / 0.05) ** 2) * ss(0.0, 0.03, y - 0.0)
+        return neck + traps + arms + delts + calves
     print("%s arms, neck: up to %.1f mm" % (WHO, push(body, amount, passes=8) * 1000))
 
-    widen_by, hand = P_["widen"], P_["hand"]
+    widen_by, hand = b["widen"], b["hand"]
     wrist = arm.data.bones["J_Bip_L_Hand"].head_local.x
 
     def widen(p):
@@ -469,7 +505,7 @@ def clothes_graph(nt, skin):
     # an apron: front only, chest to knee, a neck loop and waist ties
     if "apron" in o:
         a_lo = o.get("apron_lo", 0.45)
-        half = g.lerp(0.075, 0.16, g.sstep(1.0, 0.86, z))
+        half = g.lerp(0.075, 0.125, g.sstep(1.0, 0.86, z))
         d_ap = g.mn(g.mn(g.sub(half, ax), g.sub(1.06, z)), g.sub(z, a_lo))
         apron = g.mul(cov(d_ap), front)
         loop = g.mul(g.band(g.sub(ax, g.add(0.06, g.mul(g.sub(z, 1.06), 0.3))), -0.006, 0.006), g.mul(g.sstep(1.05, 1.06, z), g.sstep(1.17, 1.16, z)))
@@ -726,10 +762,12 @@ def sit_pose():
         add(p, "thigh." + side, X, 86)
         add(p, "thigh." + side, Y, -5 * sg)
         add(p, "shin." + side, X, -82)
-        add(p, "upperarm." + side, X, 10)
-        add(p, "upperarm." + side, Y, -8 * sg)
-        add(p, "forearm." + side, X, 58)
-    add(p, "spine", X, 4)
+        # elbows a little forward, forearms down along the thighs, hands in on the knees
+        add(p, "upperarm." + side, X, 22)
+        add(p, "upperarm." + side, Y, -6 * sg)
+        add(p, "forearm." + side, X, 42)
+        add(p, "forearm." + side, Z, 12 * sg)
+    add(p, "spine", X, 8)
     add(p, "head", X, 3)
     return p
 
