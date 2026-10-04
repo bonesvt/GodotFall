@@ -28,6 +28,10 @@ const HIDDEN_BONES := ["J_Bip_C_Neck", "J_Bip_C_Head", "J_Bip_R_UpperArm", "J_Bi
 ## forward under the camera by the time she looks 60 degrees down, so her chest
 ## comes into view from about 35 degrees.
 @export var look_down_lean := 0.08
+## Looking further down than that, her body draws back under the camera (this
+## far by the time she looks straight down), so the view drops past her chest
+## instead of into the opening at her neck (her head and neck are collapsed).
+@export var look_down_back := 0.16
 ## How far her chest may bounce in first person (eco_model.gd jiggle).
 @export_range(0.0, 2.0) var fp_jiggle := 1.4
 ## How hard a change in her speed shoves the springs (metres of swing per m/s):
@@ -223,8 +227,11 @@ func _process(delta: float) -> void:
 	var to_local := global_transform.affine_inverse()
 	var neck_local := to_local * (sk.global_transform * sk.get_bone_global_pose(_neck_bone).origin)
 	var cam_local := to_local * _camera.global_position
-	var down := clampf(-_camera.global_rotation.x / deg_to_rad(60.0), 0.0, 1.0)
-	var want := cam_local + Vector3(0, -camera_above_neck, camera_ahead - look_down_lean * down)
+	var pitch := -_camera.global_rotation.x
+	var down := clampf(pitch / deg_to_rad(35.0), 0.0, 1.0)
+	var steep := smoothstep(deg_to_rad(35.0), deg_to_rad(75.0), pitch)
+	var want := cam_local + Vector3(0, -camera_above_neck,
+		camera_ahead - look_down_lean * down + (look_down_lean + look_down_back) * steep)
 	body.position += want - neck_local
 	_jolt(delta)
 
