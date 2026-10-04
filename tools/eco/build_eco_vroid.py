@@ -2178,13 +2178,16 @@ def _ray_hull(hull, c, d):
     return best
 
 
-def skirt(name, top, hem, mats, gap=0.006, flare=0.0, slit=None, trim=False, follow=(0.25, 0.65), rows=16, pleats=0):
+def skirt(name, top, hem, mats, gap=0.006, flare=0.0, slit=None, trim=False, follow=(0.25, 0.65), rows=16, pleats=0,
+          back_hem=None):
     """A loose hanging skirt: rings round the convex hull of her hips and thighs
     from `top` down to `hem`, so it bridges between her legs instead of wrapping
     each one like paint would. `flare` pushes the hem out, `slit` (angle deg,
     half width deg at the hem, top z) opens it from that height down (the angle
     runs from her left, +x, toward her back; with no top z it is open its full
-    width from top to hem), `trim` makes the bottom row the
+    width from top to hem), `back_hem` raises the hem toward her back (each
+    ring stays as wide as the widest above it, so lifting it never tucks it
+    into her), `trim` makes the bottom row the
     second material, `pleats` folds it into that many knife pleats. Its UVs run
     round it (u) and down it (v 0 at the hem), for a printed fabric. Skinned
     half to her hips, half to the nearest body vertex's bones further down
@@ -2225,7 +2228,11 @@ def skirt(name, top, hem, mats, gap=0.006, flare=0.0, slit=None, trim=False, fol
             rad = widest[kk] + flare * t * t
             if pleats:
                 rad += 0.005 * abs((frac_k * pleats) % 1.0 * 2 - 1) * min(1.0, t * 3)
-            ring.append(bm.verts.new((c.x + d.x * rad, c.y + d.y * rad, z)))
+            zv = z
+            if back_hem is not None:
+                w = smooth(-0.2, 0.8, d.y)   # 0 at her front, 1 at her back
+                zv = top + (hem + (back_hem - hem) * w - top) * t
+            ring.append(bm.verts.new((c.x + d.x * rad, c.y + d.y * rad, zv)))
             ring_u.append(frac_k)
         grid.append(ring)
         zs.append(z)
@@ -2509,8 +2516,11 @@ def outfit_pieces():
     out.append(buns("outfit_skater_any_buns"))
     _cargo("cargo")
     out.append(skirt("outfit_y2k_t_skirt", 0.875, 0.645, ["eco_v_cargo"], gap=0.006, flare=0.02, follow=(0.8, 0.97), rows=10))
-    # Mature: as short as it goes, low on her hips, its hem just under her glute fold (z 0.733)
-    out.append(skirt("outfit_y2k_m_skirt", 0.835, 0.72, ["eco_v_cargo"], gap=0.005, flare=0.006, follow=(0.88, 0.98), rows=8))
+    # Mature: as short as it goes, low on her hips: its front hem right at her
+    # crotch line (any higher and the briefs under it show their shape), the
+    # back riding up to just under her glute fold (z 0.733)
+    out.append(skirt("outfit_y2k_m_skirt", 0.835, 0.69, ["eco_v_cargo"], gap=0.005, flare=0.006, follow=(0.85, 0.97), rows=10,
+                     back_hem=0.725))
     out.append(warmers("outfit_y2k_t_warmers", 0.42, "eco_v_warmers"))
     out.append(warmers("outfit_y2k_m_warmers", 0.6, "eco_v_warmers"))
     out.append(sneakers("outfit_y2k_any_shoes", "eco_v_sneaker_y2k", "eco_v_sneaker_y2k_sole", sole_h=0.04, flare=1.14))
@@ -2550,7 +2560,7 @@ def outfit_graph(nt, skin, kind):
                 ring; khaki under her cargo mini (outfit_y2k_t_skirt)
       y2k_m     a glittering pink tube top (always well over where she is
                 fullest), the shortest micro cargo skirt (outfit_y2k_m_skirt)
-                low on her hips; under it tiny low-rise pink briefs, cheeky at
+                low on her hips, riding up at the back; under it tiny low-rise pink briefs, cheeky at
                 the back, flat and opaque at the crotch, and fishnet tights
                 over them down into her leg warmers
       date_t    Eco dressed up her way: a black leather corset with a sweetheart
