@@ -2248,6 +2248,8 @@ def skirt(name, top, hem, mats, gap=0.006, flare=0.0, slit=None, trim=False, fol
                 loop[uv].uv = (uu, (zs[vv] - hem) / (top - hem))
     if slit is not None:   # close the seam where the slit hasn't opened yet
         bmesh.ops.remove_doubles(bm, verts=bm.verts[:], dist=1e-5)
+    # the grid before it gets thickness: both its layers take their weights from it
+    cloth = [(r, k, Vector(v.co)) for r, ring in enumerate(grid) for k, v in enumerate(ring) if v.is_valid]
     bm.normal_update()
     f0 = next(iter(bm.faces))
     cm = f0.calc_center_median()
@@ -2268,15 +2270,42 @@ def skirt(name, top, hem, mats, gap=0.006, flare=0.0, slit=None, trim=False, fol
             kd.insert(Vector(p), i)
     kd.balance()
     names = {gr.index: gr.name for gr in body.vertex_groups}
-    groups = {}
-    for v in me.vertices:
-        t = min(1.0, max(0.0, (top - v.co.z) / (top - hem)))
-        f = follow[0] + (follow[1] - follow[0]) * t   # how much it follows the nearest bit of her
-        _, i, _ = kd.find(v.co)
+    # weights per grid point: half her hips, half the nearest bit of her
+    # (`follow`), less at her back so it doesn't split over her glutes when she
+    # crouches, then smoothed round each ring so the hem bends evenly
+    wts = {}
+    mid_y = sum(q.y for _, _, q in cloth) / len(cloth)
+    for r, k, p in cloth:
+        t = min(1.0, max(0.0, (top - p.z) / (top - hem)))
+        f = follow[0] + (follow[1] - follow[0]) * t
+        f *= 1.0 - 0.45 * smooth(0.0, 0.06, p.y - mid_y)
+        _, i, _ = kd.find(p)
         w = {"J_Bip_C_Hips": 1.0 - f}
         for ge in body.data.vertices[i].groups:
             w[names[ge.group]] = w.get(names[ge.group], 0.0) + f * ge.weight
-        for gname, wt in w.items():
+        wts[(r, k)] = w
+    for _ in range(2):
+        new = {}
+        for (r, k), w in wts.items():
+            nb = [wts.get((r, k - 1)), w, w, wts.get((r, k + 1))]
+            if slit is None:
+                nb[0], nb[3] = wts.get((r, (k - 1) % cols)), wts.get((r, (k + 1) % cols))
+            nb = [n for n in nb if n]
+            acc = {}
+            for n in nb:
+                for gname, wt in n.items():
+                    acc[gname] = acc.get(gname, 0.0) + wt / len(nb)
+            new[(r, k)] = acc
+        wts = new
+    gkd = KDTree(len(cloth))
+    for j, (_, _, p) in enumerate(cloth):
+        gkd.insert(p, j)
+    gkd.balance()
+    groups = {}
+    for v in me.vertices:
+        _, j, _ = gkd.find(v.co)
+        r, k, _ = cloth[j]
+        for gname, wt in wts[(r, k)].items():
             if wt > 0.001:
                 if gname not in groups:
                     groups[gname] = ob.vertex_groups.new(name=gname)
