@@ -888,7 +888,7 @@ def base_skirt():
                  follow=(0.6, 0.92), rows=10, pleats=28)
 
 
-def base_jacket(shape=None, name=None, mat=None, cuff=None):
+def base_jacket(shape=None, name=None, mat=None, cuff=None, pick_cuff=False):
     """The base suit's fashion piece (base_*, shown by eco_model.gd only with no
     suit upgrade), by STYLE["jacket"]:
       cropped  a cropped jacket, short sleeves, open at the front so the suit's
@@ -901,7 +901,9 @@ def base_jacket(shape=None, name=None, mat=None, cuff=None):
       vest     a knitted sleeveless vest down to her waist, open at the front (Mom knitted it)
     None of them for a style without one. Its materials are eco_v_jacket[_<style>]
     and ..._edge. Her clothes use it too: `shape`, `name`, `mat` (and its _edge)
-    and `cuff` (how far down her arms the sleeves reach) override the style's."""
+    and `cuff` (how far down her arms the sleeves reach) override the style's;
+    `pick_cuff` ends the sleeves on whole faces, rounded, instead of cutting them
+    straight (a cut through her forearm's long faces leaves jagged slivers)."""
     shape = shape or STYLE["jacket"]
     if not shape:
         return None
@@ -922,16 +924,16 @@ def base_jacket(shape=None, name=None, mat=None, cuff=None):
             return False   # her neck, under the collar, and anything of the body up inside her head
         if shape == "vest" and ax > 0.15:
             return False   # no sleeves
-        if shape == "half" and c.x < -0.03:
-            return False   # (no cutting plane: a bisected edge leaves a ragged border)
+        if shape == "half" and c.x < 0.0:
+            return False   # down the seam at her middle (no cutting plane: a bisected edge leaves a ragged border)
         if ax > 0.15:
-            return c.z > 1.0   # the sleeves
+            return c.z > 1.0 and (ax < cuff or not pick_cuff)   # the sleeves
         if shape == "vest":   # down to her waist all round, open at the front
             return c.z > hem and not (c.y < 0 and ax < 0.075)
         if c.z < hem or (c.y < -0.04 and (c.z < 1.065 or n.z < -0.3)):
             return False   # the fronts stop above the underside of her bust
         return not (c.y < 0 and ax < 0.07 + 0.2 * max(0.0, 1.12 - c.z))   # open front, curving away
-    planes = [((0, 0, hem), (0, 0, -1)), ((cuff, 0, 0), (1, 0, 0)), ((-cuff, 0, 0), (-1, 0, 0))]
+    planes = [((0, 0, hem), (0, 0, -1))] + ([] if pick_cuff else [((cuff, 0, 0), (1, 0, 0)), ((-cuff, 0, 0), (-1, 0, 0))])
     if shape in ("cowl", "vest"):
         planes = []   # their hems are picked by face (a bisected edge leaves a ragged border)
     mat = mat or "eco_v_jacket" + ("" if STYLE_NAME == "gwen" else "_" + STYLE_NAME)
@@ -2503,8 +2505,8 @@ def outfit_pieces():
     out.append(clips("outfit_y2k_any_clips"))
     # date: her black leather moto jacket (Mature: slipped off her right
     # shoulder, only its left half on), her red leather micro skirt
-    out.append(base_jacket("cropped", "outfit_date_t_jacket", "eco_v_jacket_date", cuff=0.37))
-    out.append(base_jacket("half", "outfit_date_m_jacket", "eco_v_jacket_date", cuff=0.37))
+    out.append(base_jacket("cropped", "outfit_date_t_jacket", "eco_v_jacket_date", cuff=0.37, pick_cuff=True))
+    out.append(base_jacket("half", "outfit_date_m_jacket", "eco_v_jacket_date", cuff=0.37, pick_cuff=True))
     out.append(skirt("outfit_date_m_skirt", 0.876, 0.69, ["eco_v_leather_red", "eco_v_jacket_date"], gap=0.005, flare=0.005,
                      trim=True, follow=(0.85, 0.97), rows=10))
     face = bpy.data.objects["Face"]
@@ -2736,22 +2738,26 @@ def outfit_graph(nt, skin, kind):
             laces = g.mx(g.band(g.op("FRACT", g.div(g.add(z, g.mul(2.0, g.add(y, 0.005))), 0.016)), 0.0, 0.12),
                          g.band(g.op("FRACT", g.div(g.sub(z, g.mul(2.0, g.add(y, 0.005))), 0.016)), 0.0, 0.12))
             paint(g.mul(laces, c_w), CORSET)
-            paint(g.mul(g.mul(g.band(ax, 0.0, 0.0008), c_t), front), INK)                    # front seam
             zb = 0.926
-        # the chain and bolt belt
-        d_belt = g.mn(g.sub(z, zb - 0.007), g.sub(zb + 0.007, z))
-        c_b = wear(d_belt, STEEL)
-        links = g.band(g.op("FRACT", g.div(g.add(x, g.mul(y, 0.8)), 0.011)), 0.42, 0.58)
-        paint(g.mul(g.mul(links, c_b), 0.8), CORSET)
-        bolt = g.sub(1.0, g.sstep(0.35, 0.5, g.sqrt(g.add(g.sq(g.sub(g.op("FRACT", g.div(g.add(x, g.mul(y, 0.8)), 0.044)), 0.5)),
-                                                          g.sq(g.div(g.sub(z, zb), 0.044))))))
-        paint(g.mul(bolt, c_b), (0.2, 0.2, 0.22))
+        # her belt: a black strap studded with steel hex bolts, steel-edged
+        d_belt = g.mn(g.sub(z, zb - 0.008), g.sub(zb + 0.008, z))
+        c_b = wear(d_belt, CORSET)
+        paint(g.mul(g.band(d_belt, 0.0006, 0.0018), c_b), STEEL)
+        u = g.op("FRACT", g.div(g.add(x, g.mul(y, 0.8)), 0.022))
+        hexd = g.mx(g.abs(g.mul(g.sub(u, 0.5), 0.022)), g.mul(g.abs(g.sub(z, zb)), 1.15))
+        bolt = g.mul(g.sub(1.0, g.sstep(0.0036, 0.0042, hexd)), c_b)
+        paint(bolt, STEEL)
+        paint(g.mul(g.mul(bolt, g.sub(1.0, g.sstep(0.0012, 0.0016, hexd))), 0.8), (0.08, 0.08, 0.09))   # its socket
         # Dad's dog tag on a choker, fingerless gloves
         wear(g.mn(g.sub(z, 1.183), g.sub(1.195, z)), CORSET)
-        tag = g.mn(g.sub(0.0055, ax), g.mn(g.sub(z, 1.158), g.sub(1.178, z)))
-        c_tag = wear(g.mn(tag, g.mul(g.sub(front, 0.5), 0.02)), STEEL)
-        state["glow"] = g.mx(state["glow"], g.mul(g.band(tag, 0.0004, 0.0012), front))
-        wear(g.mn(g.sub(ax, 0.395), g.sub(0.445, ax)), CORSET)
+        chain = g.mn(g.sub(0.0008, g.abs(g.sub(ax, g.mul(0.35, g.sub(1.184, z))))), g.mn(g.sub(z, 1.168), g.sub(1.184, z)))
+        wear(g.mn(chain, g.mul(g.sub(front, 0.5), 0.02)), STEEL, ink=False)
+        tag = g.mn(g.sub(0.0085, ax), g.mn(g.sub(z, 1.142), g.sub(1.17, z)))
+        c_tag = wear(g.mn(tag, g.mul(g.sub(front, 0.5), 0.02)), (0.1, 0.1, 0.115))       # dark gunmetal, so it reads on her skin
+        paint(g.mul(g.band(tag, 0.0004, 0.0014), c_tag), STEEL)
+        state["glow"] = g.mx(state["glow"], g.mul(g.mul(g.band(z, 1.152, 1.156), g.band(ax, 0.0, 0.005)), c_tag))   # its stamped line, glowing
+        wear(g.mn(g.sub(ax, 0.39), g.sub(0.475, ax)), CORSET)   # fingerless gloves to her knuckles
+        paint(g.band(ax, 0.39, 0.397), TRIM)   # their teal cuffs
     col = g.mixc(state["col"], INK, state["ink"])
     col = g.mixc(col, OUTFIT_GLOW, state["glow"])
     return col, state["glow"], state["cover"], state["ink"], 0.0, state["gloss"]
