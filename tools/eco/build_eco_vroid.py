@@ -412,6 +412,16 @@ def strip_clothes():
     bpy.context.scene.collection.objects.link(boots)
     delete_faces(boots, lambda f: f.material_index in boot_idx)
     delete_faces(body, lambda f: f.material_index not in boot_idx)
+    # slimmer: pull each boot in round its own middle (the sole stays put)
+    vs = boots.data.vertices
+    for side in (1, -1):
+        mine = [v for v in vs if v.co.x * side > 0]
+        cx = sum(v.co.x for v in mine) / len(mine)
+        cy = sum(v.co.y for v in mine) / len(mine)
+        for v in mine:
+            k = 1.0 - 0.13 * smooth(0.0, 0.04, v.co.z)
+            v.co.x = cx + (v.co.x - cx) * k
+            v.co.y = cy + (v.co.y - cy) * (1.0 - (1.0 - k) * 0.6)
     return boots
 
 
@@ -1373,6 +1383,8 @@ def base_details(g, x, y, z, skin, col, c_suit, c_gear, front, AA):
       - crimson panels down her sides and the outside of her legs (perforated
         over her ribs to breathe), and crimson sleeves down to her gloves
       - a black corset belt cinched round her waist, laced up the front in crimson
+      - a zip down the front, collar to below her belly button, so she can get in
+      - no knee plates, and her ankle boots with no painted shafts above them
     Returns (colour, ink line, glowing trim)."""
     ax = g.abs(x)
     on = g.mul(c_suit, g.sub(1.0, c_gear))
@@ -1406,6 +1418,15 @@ def base_details(g, x, y, z, skin, col, c_suit, c_gear, front, AA):
     edge = g.mx(g.mul(g.band(d_panel, 0.0006, 0.0018), below_arm), g.band(d_sleeve, 0.0006, 0.0018))
     trim = g.mx(trim, g.mul(edge, on))
     ink = g.mx(ink, g.mul(g.mx(g.mul(g.band(d_panel, -0.0004, 0.0006), below_arm), g.band(d_sleeve, -0.0004, 0.0006)), on))
+    # how she gets in: a zip down the front from the collar to below her belly
+    # button (the corset belt goes over it), its pull glowing at the top
+    zip_ = g.mul(g.mul(g.band(x, -0.0012, 0.0012, 0.0002), g.band(z, 0.85, 1.2)), g.mul(front, on))
+    col = g.mixc(col, PLATE, zip_)
+    teeth = g.mul(g.sstep(0.4, 0.6, g.op("FRACT", g.div(z, 0.0022))), zip_)
+    col = g.mixc(col, INK, g.mul(teeth, 0.6))
+    ink = g.mx(ink, g.mul(g.mul(g.band(ax, 0.0012, 0.0018, 0.0002), g.band(z, 0.85, 1.2)), g.mul(front, on)))
+    pull = g.sqrt(g.add(g.sq(g.div(x, 0.0035)), g.sq(g.div(g.sub(z, 1.152), 0.007))))
+    trim = g.mx(trim, g.mul(g.sub(1.0, g.sstep(0.85, 1.0, pull)), g.mul(front, on)))
     # a black corset belt, its top rising to a point at the front, laced in crimson
     top = g.sub(0.978, g.mul(0.3, ax))
     bot = g.add(0.872, g.mul(0.18, ax))
@@ -1506,9 +1527,12 @@ def suit_graph(nt, skin, cut="base"):
             r = g.sqrt(g.add(g.sq(x), g.sq(g.sub(y, 0.022))))
             d_collar = g.mn(g.mn(g.sub(z, 1.166), g.sub(1.205, z)), g.sub(0.062, r))
             d_suit = g.mx(d_suit, d_collar)
-    d_gear = g.mx(g.sub(ax, 0.40), g.sub(0.575, z))   # gloves and boots
+    # gloves and boots: knee-high, or just her ankle boots on the sleek base suit
+    d_gear = g.mx(g.sub(ax, 0.40), g.sub(0.2 if base else 0.575, z))
     kq = g.sqrt(g.add(g.sq(g.div(g.sub(ax, 0.069), 0.036)), g.sq(g.div(g.sub(z, 0.478), 0.05))))
     d_knee = g.sub(g.mul(g.sub(1.0, kq), 0.036), g.sstep(-0.012, 0.004, y))
+    if base:   # no knee plates on the base suit
+        d_knee = g.sub(g.mul(kq, 0.0), 1.0)
     c_suit = g.sstep(-AA, AA, d_suit)
     c_gear = g.sstep(-AA, AA, d_gear)
     c_knee = g.mul(g.sstep(-AA, AA, d_knee), c_gear)
