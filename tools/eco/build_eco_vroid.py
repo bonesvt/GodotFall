@@ -1666,7 +1666,7 @@ V_STOCKING = (0.42, 0.28, 0.72)
 V_HEM = 1.022          # the halter's hem: at the bottom of her bust (its apex is ~1.047)
 V_FRONT_TOP = 0.83     # the shorts' waistband at the front, low on her hips (navel ~0.93)
 V_BACK_TOP = 0.80      # the tube shorts' band at the centre back: the top of her cheeks shows
-V_LEG = 0.725          # the leg line where it passes between her legs
+V_LEG = 0.71           # the leg line where it passes between her legs (low enough to cover the crotch)
 
 
 def vesper_graph(nt, skin):
