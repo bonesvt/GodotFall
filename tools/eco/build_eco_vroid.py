@@ -80,7 +80,7 @@ ZIP = (0.42, 0.44, 0.5)           # the back zip's silver teeth
 #   jacket   cropped, bomber, half or None (base_jacket)
 BASE_STYLES = {
     "gwen": dict(suit=SUIT, panel=BASE_RED, belt=BASE_CORSET, accent=BASE_RED, net=BASE_NET, stretch=STRETCH,
-                 glow=TRIM, neck="sweetheart", panels="sides", sleeve=0.165, belt_kind="corset", vents="ribs",
+                 glow=TRIM, neck="sweetheart", panels="sides", sleeve=0.165, lower=True, belt_kind="corset", vents="ribs",
                  jacket="cropped"),
     "ghost": dict(suit=(0.6, 0.62, 0.68), panel=(0.012, 0.012, 0.016), belt=(0.012, 0.012, 0.016), accent=BASE_RED,
                   net=(0.008, 0.008, 0.012), stretch=(0.75, 0.77, 0.84), glow=(0.85, 0.02, 0.04), neck="vee",
@@ -820,16 +820,14 @@ def base_jacket():
         ax = abs(c.x)
         if c.z > 1.215 or (c.z > 1.165 and math.hypot(c.x, c.y - 0.022) < 0.075):
             return False   # her neck, under the collar, and anything of the body up inside her head
-        if shape == "half" and c.x < -0.04:
-            return False
+        if shape == "half" and c.x < -0.03:
+            return False   # (no cutting plane: a bisected edge leaves a ragged border)
         if ax > 0.15:
             return c.z > 1.0   # the sleeves
         if c.z < hem or (c.y < -0.04 and (c.z < 1.065 or n.z < -0.3)):
             return False   # the fronts stop above the underside of her bust
         return not (c.y < 0 and ax < 0.07 + 0.2 * max(0.0, 1.12 - c.z))   # open front, curving away
     planes = [((0, 0, hem), (0, 0, -1)), ((cuff, 0, 0), (1, 0, 0)), ((-cuff, 0, 0), (-1, 0, 0))]
-    if shape == "half":
-        planes.append(((-0.03, 0, 0), (-1, 0, 0)))
     mat = "eco_v_jacket" + ("" if STYLE_NAME == "gwen" else "_" + STYLE_NAME)
     ob = shell("base_jacket", keep, planes=planes, gap=0.006, thick=0.006, plate=mat, edge=mat + "_edge",
                smooth=2, smooth_edge=5, border=1)
@@ -1492,7 +1490,9 @@ def base_details(g, x, y, z, skin, col, c_suit, c_gear, front, AA):
         if S.get("legs") == "shins":   # her thighs stay the suit's colour: the sides of her body, and her legs below the knee
             d_panel = g.mx(g.mn(d_panel, g.sub(z, 0.8)), g.sub(0.47, z))
         panel = g.mul(fill(d_panel), below_arm)
-        d_sleeve = g.mx(g.sub(ax, S["sleeve"]), g.sub(1.0, z))   # her arms only (out sideways at rest), never her hips
+        d_sleeve = g.mn(g.sub(ax, S["sleeve"]), g.sub(z, 1.0))   # her arms only (out sideways at rest), never her hips
+        if S.get("lower"):   # and everything below her bust in the panel colour too (gwen's crimson leggings)
+            d_sleeve = g.mx(d_sleeve, g.sub(1.0, z))
         col = g.mixc(col, S["panel"], g.mx(panel, fill(d_sleeve)))
         if S["vents"] == "ribs":   # perforated over her ribs so it breathes
             hole = g.sqrt(g.add(g.sq(frac(y, 0.0085)), g.sq(frac(z, 0.0085))))
