@@ -19,7 +19,7 @@ const float ANIME_DETAIL = 0.2;      // share of the texture's own variation kep
 const float ANIME_POSTERIZE = 4.0;   // brightness steps
 const float ANIME_SATURATION = 0.95;
 const float ANIME_CEL_SOFT = 0.06;
-const vec4 ANIME_SHADOW = vec4(0.62, 0.55, 0.85, 0.55);  // shadow tint, strength
+const vec4 ANIME_SHADOW = vec4(0.62, 0.55, 0.85, 0.68);  // shadow tint, strength
 const float ANIME_LAMP_ENERGY = 0.7;
 const float ANIME_LAMP_NEUTRAL = 0.5;  // lamps lean toward white
 
@@ -73,6 +73,10 @@ uniform float specular : hint_range(0.0, 1.0) = 0.5;
 uniform float translucency : hint_range(0.0, 1.0) = 0.0;
 // How sharply the three box projections cross-fade on curved models.
 uniform float blend_sharpness = 6.0;
+
+// Anime look: how much the brightness is posterised (0 for high-contrast
+// patterns that would break into blotches, like the wallrun panels).
+uniform float anime_posterize : hint_range(0.0, 1.0) = 1.0;
 
 // Per-object knobs, set with set_instance_shader_parameter (see ps2_model.gd).
 instance uniform float flash : instance_index(0) = 0.0;          // white hit flash, 0..1
@@ -192,8 +196,9 @@ void fragment() {
 		base = mix(avg, base, ANIME_DETAIL);
 		// Quantise brightness only (in gamma space) so the hue survives.
 		float l = max(dot(base, vec3(0.2126, 0.7152, 0.0722)), 1e-4);
-		float lq = pow(floor(pow(l, 1.0 / 2.2) * ANIME_POSTERIZE + 0.5) / ANIME_POSTERIZE, 2.2);
-		base *= max(lq, 0.02) / l;
+		// Never round down to black: dark textures keep their first step.
+		float lq = pow(max(floor(pow(l, 1.0 / 2.2) * ANIME_POSTERIZE + 0.5), 1.0) / ANIME_POSTERIZE, 2.2);
+		base = mix(base, base * lq / l, anime_posterize);
 		float grey = dot(base, vec3(0.299, 0.587, 0.114));
 		base = max(mix(vec3(grey), base, ANIME_SATURATION), vec3(0.0));
 		base = mix(tex.rgb, base, anime_look);
