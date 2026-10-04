@@ -66,6 +66,21 @@ func _run() -> void:
 			most = maxf(most, _angle(sk, "J_Sec_L_Bust1"))
 	_check("running bounces without slamming the limit", most > 6.0 and most < 22.0, most)
 
+	# jiggle styles: anime swings wide but eases into its limit and rings on; realistic is firm and settles fast
+	eco.position = Vector3.ZERO
+	anim.play("idle")
+	var hops := {}
+	for style in ["classic", "anime", "realistic"]:
+		eco.jiggle_style = style
+		await _frames(60)
+		hops[style] = await _hop(eco, sk)
+	_check("unknown style falls back to classic", _style_name(eco, "nope") == "classic", eco.jiggle_style)
+	eco.jiggle_style = "classic"
+	_check("anime stays inside its 30 degree limit", hops["anime"][0] <= 30.5, hops["anime"])
+	_check("realistic swings less than classic", hops["realistic"][0] < hops["classic"][0], hops)
+	_check("anime is still moving after realistic has settled",
+			hops["anime"][1] > hops["realistic"][1] and hops["realistic"][1] < 2.0, hops)
+
 	# jiggle 0 holds them still
 	eco.jiggle = 0.0
 	eco.position = Vector3.ZERO
@@ -74,6 +89,29 @@ func _run() -> void:
 
 	print("RESULT: %s (%d failures)" % ["PASS" if failures == 0 else "FAIL", failures])
 	quit(failures)
+
+
+## Drops her 25 cm and back up; returns the chest's biggest swing and how far
+## it is still out 20 frames after she's back up (degrees).
+func _hop(eco: Node3D, sk: Skeleton3D) -> Array:
+	var peak := 0.0
+	for f in 9:
+		eco.position.y = -0.25 * f / 6.0 if f < 6 else -0.25 + 0.25 * (f - 6) / 3.0
+		await process_frame
+		peak = maxf(peak, _angle(sk, "J_Sec_L_Bust1"))
+	eco.position.y = 0.0
+	var late := 0.0
+	for f in 30:
+		await process_frame
+		peak = maxf(peak, _angle(sk, "J_Sec_L_Bust1"))
+		if f >= 20:
+			late = maxf(late, _angle(sk, "J_Sec_L_Bust1"))
+	return [peak, late]
+
+
+func _style_name(eco: Node3D, style: String) -> String:
+	eco.jiggle_style = style
+	return eco.jiggle_style
 
 
 func _frames(n: int) -> void:
