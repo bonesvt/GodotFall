@@ -735,20 +735,23 @@ def _ray_hull(hull, c, d):
     return best
 
 
-def garment(name, part, top, hem, gap=0.008, gap_top=None, tilt=0.0, flare=0.0, side=0, follow=(0.25, 0.65), rows=16, hang=True):
+def garment(name, part, top, hem, gap=0.008, gap_top=None, tilt=0.0, v_span=None, flare=0.0, side=0, follow=(0.25, 0.65), rows=16, hang=True):
     """A loose hanging tube from `top` down to `hem` round her hips and legs
     (side 1 or -1: round her left or right leg only), skinned half to her hips
     and half to the nearest body vertex's bones further down. Material
     npc_<who>_<part>; gap_top lets the top ring sit snug on her (no rim)
     and opens to gap over the first quarter; its UVs run round (u) and down (v) the tube, so the
-    texture's bottom rows (v 0) are the hem."""
+    texture's bottom rows (v 0) are the hem
+    (v_span: the heights v 0 and 1 map to, so pieces of one garment line up)."""
     from mathutils.kdtree import KDTree
     body = bpy.data.objects["Body"]
     co = np.array([v.co[:] for v in body.data.vertices])
     cols = 56
+    v0, v1 = v_span or (hem, top)   # the heights texture v 0 and 1 map to
     bm = bmesh.new()
     uv = bm.loops.layers.uv.new("UVMap")
     grid = []
+    zs = []
     widest = [0.0] * cols
     for r in range(rows + 1):
         t = r / rows
@@ -768,13 +771,14 @@ def garment(name, part, top, hem, gap=0.008, gap_top=None, tilt=0.0, flare=0.0, 
             lift = tilt * max(0.0, d.y) * (1.0 - t)   # tilt: the top rides higher at the back (+y)
             ring.append(bm.verts.new((c.x + d.x * rad, c.y + d.y * rad, z + lift)))
         grid.append(ring)
+        zs.append(z)
     for r in range(rows):
         for k in range(cols):
             k1 = (k + 1) % cols
             f = bm.faces.new((grid[r][k], grid[r][k1], grid[r + 1][k1], grid[r + 1][k]))
             f.smooth = True
             for loop, (uu, vv) in zip(f.loops, ((k, r), (k + 1, r), (k + 1, r + 1), (k, r + 1))):
-                loop[uv].uv = (uu / cols, 1.0 - vv / rows)
+                loop[uv].uv = (uu / cols, (zs[vv] - v0) / (v1 - v0))
     bm.normal_update()
     f0 = next(iter(bm.faces))
     cm = f0.calc_center_median()
@@ -901,7 +905,6 @@ def nipple_bars(arm, bars=True, r=0.0052, h=0.005):
 
 # Ophelia's pajama pants ride low: their waist sits well under her navel
 PJ_WAIST = 0.768
-PJ_BACK = 0.04   # but higher at the back, over the top of her seat
 GOWN_ROSE, GOWN_SPRIG = (0.62, 0.38, 0.4), (0.3, 0.13, 0.2)
 
 
@@ -927,20 +930,21 @@ def nightwear(arm):
         write_png(px, "gown")
         _textured("gown")
     elif WHO == "ophelia":
-        # snug over her hips (following her in, no box at the back); the legs start
-        # above its bottom edge and sit outside it, so it reads as one pair
-        out.append(garment("Outfit_night_PantsHips", "pajama", PJ_WAIST, 0.7, gap=0.005, gap_top=0.002, tilt=PJ_BACK, rows=8, hang=False))
+        # snug over her hips; each leg starts just above the hip piece's bottom
+        # edge, tucked inside it, and the plaid runs on across the join (v_span)
+        out.append(garment("Outfit_night_PantsHips", "pajama", PJ_WAIST, 0.7, gap=0.006, gap_top=0.002,
+                           v_span=(0.1, 0.8), rows=8))
         for sd, nm in ((1, "L"), (-1, "R")):
-            out.append(garment("Outfit_night_Pants" + nm, "pajama", PJ_WAIST - 0.035, 0.1, gap=0.014, flare=0.012, side=sd,
+            out.append(garment("Outfit_night_Pants" + nm, "pajama", 0.712, 0.1, gap=0.014, gap_top=0.004, flare=0.012, side=sd, v_span=(0.1, 0.8),
                                follow=(0.8, 0.98), rows=22, hang=False))
-        # black and violet tartan, a black cuff at the hem rows
+        # black and violet tartan, a darker cuff at the hem rows
         a = (np.sin(uu * 2 * math.pi * 12) > 0.3).astype(np.float32)
         b = (np.sin(vv * 2 * math.pi * 10) > 0.3).astype(np.float32)
         line = ((np.abs(np.sin(uu * 2 * math.pi * 24)) < 0.08) | (np.abs(np.sin(vv * 2 * math.pi * 20)) < 0.08)).astype(np.float32)
         col = np.array((0.05, 0.04, 0.07)) + (a + b)[..., None] * np.array((0.11, 0.03, 0.17))
         col = col * (1 - line[..., None]) + np.array((0.5, 0.45, 0.55)) * line[..., None]
         cuff = (vv < 0.08)[..., None]
-        col = col * (1 - cuff) + np.array((0.03, 0.03, 0.04)) * cuff
+        col = col * (1 - cuff) + col * 0.45 * cuff   # a darker band of the same plaid
         px[..., :3] = np.clip(col, 0, 1)
         write_png(px, "pajama")
         _textured("pajama")
@@ -1166,7 +1170,7 @@ def ophelia_outfit(g, skin, x, y, z, ax, front, cov, edge, sine, neck_r):
                  g.sstep(0.025, 0.02, ring_r))
     crack = g.sstep(0.55, 0.75, g.mul(sine(g.add(g.mul(x, 3.1), z), 0.007), sine(g.sub(z, g.mul(x, 1.7)), 0.009)))
     logo = g.mul(g.mul(g.mx(ring, bolt), front), g.sub(1.0, g.mul(crack, 0.7)))
-    d_pj = g.mn(g.sub(g.add(PJ_WAIST, g.mul(g.sub(1.0, front), PJ_BACK)), z), g.sub(z, 0.1))   # low on her hips
+    d_pj = g.mn(g.sub(PJ_WAIST - 0.015, z), g.sub(z, 0.1))   # kept under the pants' meshes   # low on her hips
     pj = cov(d_pj)
     socks = cov(g.sub(0.1, z))
     col = g.mixc(skin, (0.03, 0.028, 0.034), g.mx(crop, straps))
