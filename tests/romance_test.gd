@@ -10,6 +10,7 @@ extends SceneTree
 const NpcTalk := preload("res://scripts/hub/npc_talk.gd")
 const Romance := preload("res://scripts/hub/romance.gd")
 const NpcIdles := preload("res://scripts/hub/npc_idles.gd")
+const Family := preload("res://scripts/hub/family.gd")
 const PATH := "user://test_romance.cfg"
 
 var failures := 0
@@ -253,6 +254,55 @@ func _run() -> void:
 	_check("friends: no more scenes, no dates", Romance.status(t3.state, "ophelia") == "friends" and not t3.beat_waiting("ophelia", 5) and not Romance.can_date(t3.state, t3.bank("ophelia"), "ophelia"), Romance.status(t3.state, "ophelia"))
 	t3.queue_free()
 
+	# Mom has her say as it goes: one [about ophelia <stage>] talk a stay, in
+	# order, once each, only once the romance has got that far.
+	var t6 := _fresh()
+	var abouts: Array = t6.bank("mom")["about"]
+	var stages: Array = abouts.map(func(a): return a["stage"])
+	_check("Mom's talks about Eco and Ophelia parse", abouts.size() >= 8 and abouts.all(func(a): return a["who"] == "ophelia") and stages.has("crush") and stages.has("together") and stages.has("friends") and stages.has("dated"), stages)
+	var mom_lines := []
+	for a in abouts:
+		mom_lines.append_array(_flat(a["lines"]))
+	_check("every one of them is Mom and Eco", mom_lines.all(func(l): return l[0] in ["mom", "eco"] and l[1] != ""), mom_lines.filter(func(l): return not l[0] in ["mom", "eco"]).slice(0, 3))
+	_check("Mom asks if it's only girls", mom_lines.any(func(l): return l[0] == "mom" and l[1].contains("Only girls")), "")
+	_mom_ready(t6)
+	var everyday: Array = t6.bank("mom")["any"] + t6.bank("mom")["close"] + t6.bank("mom")["soft"]
+	_check("nothing to say about them at first", everyday.has(t6.pick("mom", 1, false)), "")
+	Romance.add(t6.state, "ophelia", 30)
+	var said_about: Array = t6.pick("mom", 2, false)
+	_check("at 30 Mom brings up the wary one first", said_about == _about(abouts, "wary", 0), said_about.slice(0, 1))
+	_check("one a hub stay", everyday.has(t6.pick("mom", 2, false)), "")
+	_check("then the friend one next stay", t6.pick("mom", 3, false) == _about(abouts, "friend", 0), "")
+	_check("not the close one before 45", everyday.has(t6.pick("mom", 4, false)), "")
+	Romance.add(t6.state, "ophelia", 40)
+	_check("close", t6.pick("mom", 5, false) == _about(abouts, "close", 0), "")
+	t6.start(mom, 6, false)
+	_check("crush: she sits Eco down", t6.current_line() == "mom: Sit down a minute. Not there. Here, where I can see your face.", t6.current_line())
+	var bond0 := t6.bond("mom")
+	said = _play_out(t6, 0)
+	_check("and asks, and Eco answers", said.has("eco: Girls. I think it's always been girls. I just never had time to say it out loud.") and said.back().begins_with("mom: Whatever it is, I love you"), said.slice(-4))
+	_check("an honest answer warms Mom's bond", t6.bond("mom") > bond0, [bond0, t6.bond("mom")])
+	_check("the second crush talk next", t6.pick("mom", 7, false) == _about(abouts, "crush", 1), "")
+	t6.state.set_value("ophelia", "date_run", 7)
+	_check("a date gets noticed", t6.pick("mom", 8, false) == _about(abouts, "dated", 0), "")
+	Romance.apply_flag(t6.state, "ophelia", "together", 85)
+	_check("smitten skipped once they're together", t6.pick("mom", 9, false) == _about(abouts, "together", 0), "")
+	var seen_together := 1
+	for run in range(10, 20):
+		var l: Array = t6.pick("mom", run, false)
+		for i in 4:
+			if l == _about(abouts, "together", i):
+				seen_together += 1
+	_check("every together talk plays once", seen_together == stages.count("together"), seen_together)
+	var t7 := _fresh()
+	_mom_ready(t7)
+	Romance.add(t7.state, "ophelia", 90)
+	Romance.apply_flag(t7.state, "ophelia", "friends", 85)
+	t7.state.set_value("ophelia", "date_run", 1)
+	_check("just friends: only the friends talk", t7.pick("mom", 1, false) == _about(abouts, "friends", 0) and everyday.has(t7.pick("mom", 2, false)), "")
+	t6.queue_free()
+	t7.queue_free()
+
 	# Every romance line parses into speaker + text (voices come from the
 	# talk system itself, so nothing else to check here).
 	var bad := []
@@ -390,6 +440,21 @@ func _adv(t: NpcTalk) -> void:
 	if t.active() and t.options.is_empty():
 		t._text.visible_characters = -1
 	t.advance()
+
+
+## Mom met, no run talks waiting and her own bond scenes had, so only her
+## everyday and [about] talks are left.
+func _mom_ready(t: NpcTalk) -> void:
+	t.state.set_value("mom", "met", true)
+	t.state.set_value("mom", "run_seen", 1000)
+	for s in t.bank("mom")["bond"]:
+		Family.mark_scene(t.state, "mom", int(s["at"]))
+
+
+## The lines of Mom's `n`th [about ophelia <stage>] talk.
+func _about(abouts: Array, stage: String, n: int) -> Array:
+	var of := abouts.filter(func(a): return a["stage"] == stage)
+	return of[n]["lines"] if n < of.size() else []
 
 
 func _flat(conv: Array) -> Array:
