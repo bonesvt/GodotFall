@@ -38,6 +38,8 @@ argv = sys.argv[sys.argv.index("--") + 1:]
 SRC = argv[0]
 ROOT = os.path.abspath(argv[1])   # Blender on Windows resolves "." against its own folder
 PREVIEW = argv[argv.index("--preview") + 1] if "--preview" in argv else None
+# --only-styles a,b: bake just those base styles' bodysuit textures (no glb)
+ONLY_STYLES = argv[argv.index("--only-styles") + 1].split(",") if "--only-styles" in argv else None
 TEX_OUT = os.path.join(ROOT, "assets", "textures", "eco")
 GLB_OUT = os.path.join(ROOT, "assets", "models", "eco", "eco.glb")
 
@@ -106,6 +108,12 @@ BASE_STYLES = {
     "ophelia": dict(suit=(0.008, 0.008, 0.011), panel=(0.13, 0.02, 0.3), belt=(0.012, 0.011, 0.014),
                     accent=(0.72, 0.71, 0.76), net=(0.004, 0.004, 0.006), stretch=(0.035, 0.032, 0.045),
                     glow=(0.55, 0.15, 1.0), neck=None, panels="punk", belt_kind="none", vents=None, jacket="skirt"),
+    # Vesper Kane's look (a concept character, worn by Eco for now): not a bodysuit
+    # but clothes painted on her skin (vesper_graph): yellow halter crop top, tube
+    # booty shorts, suspenders, red sleeves, lavender thigh-highs. "vesper_open"
+    # has the halter unzipped down the middle.
+    "vesper": dict(panels="vesper", unzip=False, glow=(0.0, 0.0, 0.0), jacket=None),
+    "vesper_open": dict(panels="vesper", unzip=True, glow=(0.0, 0.0, 0.0), jacket=None),
 }
 # Mom's fabric scraps on the homemade suit (linear)
 DENIM = (0.03, 0.06, 0.13)
@@ -1940,6 +1948,116 @@ def base_details(g, x, y, z, skin, col, c_suit, c_gear, front, AA):
     return col, ink, trim, gloss
 
 
+# Vesper's colours (linear)
+V_YELLOW = (0.88, 0.52, 0.02)
+V_YELLOW_DK = (0.55, 0.26, 0.0)
+V_RED = (0.50, 0.012, 0.014)
+V_STRAP = (0.035, 0.004, 0.008)
+V_STOCKING = (0.42, 0.28, 0.72)
+V_HEM = 1.022          # the halter's hem: at the bottom of her bust (its apex is ~1.047)
+V_FRONT_TOP = 0.83     # the shorts' waistband at the front, low on her hips (navel ~0.93)
+V_BACK_TOP = 0.80      # the tube shorts' band at the centre back: the top of her cheeks shows
+V_LEG = 0.71           # the leg line where it passes between her legs (low enough to cover the crotch)
+
+
+def vesper_graph(nt, skin):
+    """Vesper Kane's look (BASE_STYLES "vesper"/"vesper_open"), worked out per pixel
+    from the rest position like the suits, but as clothes over bare skin:
+      - a skin-tight yellow halter crop top: high collar, a narrow V at the front
+        (unzipped: open down the middle to the hem, showing the inner curve of her
+        bust, the cups still over the front of each), its hem at the bottom of her
+        bust, a low band round her back
+      - yellow tube booty shorts: low-rise and high-cut at the front, the back band
+        dipping low over her cheeks and cut cheeky below; dark suspenders hanging
+        loose from the waistband down her thighs
+      - red sleeves from mid upper arm to the wrist (her jacket slung down her
+        arms), black cuffs; lavender thigh-highs down into her ankle boots
+    Returns the same sockets as suit_graph."""
+    unzip = STYLE["unzip"]
+    g = NG(nt)
+    at = nt.nodes.new("ShaderNodeAttribute")
+    at.attribute_name = "rest"
+    sep = nt.nodes.new("ShaderNodeSeparateXYZ")
+    nt.links.new(at.outputs["Vector"], sep.inputs[0])
+    x, y, z = sep.outputs[0], sep.outputs[1], sep.outputs[2]
+    ax = g.abs(x)
+    tb = g.sstep(-0.025, 0.045, y)                    # 0 at the front, 1 at the back
+    front = g.sub(1.0, tb)
+    AA = 0.00045
+    # the top: up to the collar at the front, cut away over the shoulders, a low band behind
+    zf = g.sub(1.175, g.mul(1.7, g.mx(g.sub(ax, 0.04), 0.0)))
+    hem = g.add(V_HEM, g.mul(0.0 if unzip else 0.01, g.op("EXPONENT", g.mul(g.sq(g.div(x, 0.022)), -1.0))))
+    d_top = g.mn(g.sub(g.lerp(zf, 1.05, tb), z), g.sub(z, g.add(hem, g.mul(0.012, tb))))
+    r = g.sqrt(g.add(g.sq(x), g.sq(g.sub(y, 0.022))))
+    d_collar = g.mn(g.mn(g.sub(z, 1.15), g.sub(1.2, z)), g.sub(0.064, r))
+    d_top = g.mx(d_top, d_collar)
+    # the V: a narrow one below the collar, or unzipped to the hem and straight up
+    # past her bust, leaving halter straps to the collar. Unzipped, it also never
+    # comes nearer than 1 cm to the covered zone round each tip (vesper-limits: a
+    # 2.2 cm disc): a line tangent to that zone plus 1 cm bounds it
+    v0, slope = (V_HEM + 0.004, 2.0) if unzip else (1.075, 0.32)
+    w_v = g.mul(g.mx(g.sub(z, v0), 0.0), slope)
+    if unzip:
+        w_v = g.mn(g.mn(w_v, 0.043), g.add(0.014, g.mul(0.9, g.sub(z, APEX_POS[2]))))
+    d_v = g.sub(w_v, ax)
+    d_v = g.mn(d_v, g.mul(g.sub(front, 0.5), 0.1))   # (front only)
+    d_top = g.mn(d_top, g.neg(d_v))
+    # the shorts: low-rise front, the back band dipping over her cheeks, cheeky legs
+    lx = g.mx(g.sub(ax, 0.028), 0.0)
+    zt = g.lerp(g.add(V_FRONT_TOP, g.mul(1.5, g.sq(ax))), g.add(V_BACK_TOP, g.mul(3.2, g.sq(ax))), tb)
+    zl = g.lerp(g.add(V_LEG, g.mul(2.0, lx)), g.add(V_LEG, lx), tb)
+    zl = g.mn(zl, g.sub(zt, 0.025))                  # a band over her hips
+    d_shorts = g.mn(g.sub(zt, z), g.sub(z, zl))
+    d_sleeve = g.mn(g.mn(g.sub(ax, 0.27), g.sub(0.528, ax)), g.sub(1.30, z))
+    cuff = g.sstep(0.507 - AA, 0.507 + AA, ax)
+    d_stock = g.mn(g.sub(0.62, z), g.sub(z, 0.15))
+    d_gear = g.sub(0.2, z)                            # her ankle boots
+    c_top = g.sstep(-AA, AA, d_top)
+    c_sh = g.sstep(-AA, AA, d_shorts)
+    c_sl = g.sstep(-AA, AA, d_sleeve)
+    c_st = g.sstep(-AA, AA, d_stock)
+    c_gear = g.sstep(-AA, AA, d_gear)
+    # suspenders from the front of the waistband, hanging loose down her thighs
+    fr = g.sub(1.0, g.sstep(-0.03, 0.0, y))
+    zs = V_FRONT_TOP + 1.5 * 0.079 ** 2
+    hang = g.mul(g.band(z, 0.60, zs + 0.015, 0.0006), fr)
+    loop = g.mul(g.mul(g.band(ax, 0.072, 0.086, 0.0006), g.band(z, zs + 0.01, zs + 0.025, 0.0006)), fr)
+    c_strap = g.mx(g.mul(g.band(ax, 0.072, 0.086, 0.0006), hang), loop)
+    col = g.mixc(skin, V_YELLOW, c_top)
+    col = g.mixc(col, V_YELLOW, c_sh)
+    col = g.mixc(col, V_STOCKING, c_st)
+    col = g.mixc(col, V_RED, c_sl)
+    col = g.mixc(col, INK, g.mul(c_sl, cuff))
+    col = g.mixc(col, V_STRAP, c_strap)
+    # the waistband, and a stitched seam down the front of the top
+    col = g.mixc(col, V_YELLOW_DK, g.mul(g.mul(g.band(g.sub(zt, z), -0.015, 0.003, 0.0004), c_sh), 0.6))
+    col = g.mixc(col, V_YELLOW_DK, g.mul(g.mul(g.mul(g.band(x, -0.0012, 0.0012, 0.0003), c_top), front), 0.7))
+    # where the top clings: a soft shadow under each curve and a gleam across the
+    # top of it (painted; nothing drawn at the apex)
+    under, gleam = 0.0, 0.0
+    for sx in (APEX_POS[0], -APEX_POS[0]):
+        du = g.add(g.sq(g.div(g.sub(x, sx), 0.03)), g.sq(g.div(g.sub(z, V_HEM + 0.008), 0.010)))
+        under = g.mx(under, g.sub(1.0, g.sstep(0.4, 1.0, du)))
+        dg = g.add(g.sq(g.div(g.sub(x, sx * 1.12), 0.012)), g.sq(g.div(g.sub(z, 1.066), 0.007)))
+        gleam = g.mx(gleam, g.sub(1.0, g.sstep(0.55, 1.0, dg)))
+    col = g.mixc(col, V_YELLOW_DK, g.mul(g.mul(g.mul(under, c_top), front), 0.45))
+    col = g.mixc(col, (1.0, 0.86, 0.45), g.mul(g.mul(g.mul(gleam, c_top), front), 0.55))
+    if unzip:   # zipper teeth down each edge of the opening, the pull at the bottom
+        col = g.mixc(col, (0.45, 0.42, 0.38), g.mul(g.mul(g.band(d_v, -0.0026, -0.0010, 0.0003), c_top), front))
+        pull = g.mul(g.band(ax, -0.001, 0.0035, 0.0004), g.band(z, V_HEM, V_HEM + 0.006, 0.0004))
+        col = g.mixc(col, (0.7, 0.66, 0.6), g.mul(pull, c_top))
+    col = g.mixc(col, GEAR, c_gear)
+    cover = g.mx(g.mx(g.mx(c_top, c_sh), c_st), g.mx(c_sl, c_gear))
+    crease = crease_lines(g, x, y, z, 0.0015)
+    col = g.mixc(col, CREASE_SKIN, g.mul(g.mul(crease, 0.85), g.sub(1.0, cover)), "MULTIPLY")
+    col = g.mixc(col, INK, g.mul(g.mul(crease, 0.85), c_sh))
+    ink = g.mx(g.mx(g.band(d_top, 0.0, 0.0008), g.band(d_shorts, 0.0, 0.0008)), g.band(d_stock, 0.0, 0.0008))
+    ink = g.mx(ink, g.mx(g.band(d_sleeve, 0.0, 0.0008), g.band(d_gear, 0.0, 0.0008)))
+    ink = g.mx(ink, g.mul(g.mx(g.band(ax, 0.071, 0.0725, 0.0004), g.band(ax, 0.0855, 0.087, 0.0004)), hang))
+    col = g.mixc(col, INK, ink)
+    return col, g.mul(cover, 0.0), cover, ink, c_gear, 0.0
+
+
 def suit_graph(nt, skin, cut="base"):
     """The pilot suit, worked out per pixel from each point's rest position (the
     'rest' attribute) so its edges are smooth curves whatever the mesh does.
@@ -1957,6 +2075,8 @@ def suit_graph(nt, skin, cut="base"):
     The light and medium cuts have no stretch shading over the bust.
     Returns (albedo colour, glow amount, cover amount, ink line, gloves and
     boots, gloss) sockets."""
+    if cut == "base" and STYLE["panels"] == "vesper":
+        return vesper_graph(nt, skin)
     light, medium, heavy, base = cut == "light", cut == "medium", cut == "heavy", cut == "base"
     g = NG(nt)
     at = nt.nodes.new("ShaderNodeAttribute")
@@ -3286,6 +3406,22 @@ def preview(arm):
     sc.frame_set(0)
 
 
+def bake_styles(names):
+    """Bake just these base styles' bodysuit textures (--only-styles), from the
+    same cleaned skin as a full build."""
+    body = bpy.data.objects["Body"]
+    skin_m = body.data.materials[next(iter(mat_index(body, "Body_00_SKIN")))]
+    px = read_px(tex_of(skin_m)).copy()
+    hole = dilate(px[..., :3].mean(-1) < 150 / 255, 5)
+    px[..., :3] = fill_holes(px[..., :3], hole)
+    clean = write_png(px, "v_body_skin_src")
+    for name in names:
+        use_style(name)
+        bake_body(body, clean)
+    use_style("gwen")
+    os.remove(os.path.join(TEX_OUT, "v_body_skin_src.png"))
+
+
 def main():
     os.makedirs(TEX_OUT, exist_ok=True)
     arm = setup_scene()
@@ -3294,6 +3430,9 @@ def main():
     fierce_face()
     boots = strip_clothes()
     curves()
+    if ONLY_STYLES:
+        bake_styles(ONLY_STYLES)
+        return
     gog = goggles(arm)
     objs = [bpy.data.objects[n] for n in ("Body", "Face", "Hair")] + [boots, gog]
     textures_and_materials(objs, boots)

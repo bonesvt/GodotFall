@@ -2,10 +2,12 @@ extends SceneTree
 ## Headless test for Eco's pilot suits in her wardrobe: each one (eco_model.gd
 ## OUTFITS suit*) swaps her bodysuit and shows only its own pieces while she has no
 ## suit upgrade, the upgrades' cuts go over any of them, the wardrobe lists
-## them all by name, and she keeps her pick on a run.
+## them all by name (the Vesper looks only under the Mature rating), and she
+## keeps her pick on a run.
 ## Run: godot --headless --path . -s res://tests/suit_style_test.gd
 
 const Wardrobe := preload("res://scripts/hub/wardrobe.gd")
+const ContentRating := preload("res://scripts/radio/content_rating.gd")
 const ECO := preload("res://assets/models/eco.tscn")
 
 const PATH := "user://test_suit_style.cfg"
@@ -52,7 +54,7 @@ func _body(eco) -> Material:
 ## Her own pieces: a jacket, cowl or vest (base_<style>_jacket), Ophelia's skirt, or none.
 func _pieces(style: String) -> Array:
 	match style:
-		"harness":
+		"harness", "vesper", "vesper_open":
 			return []
 		"ophelia":
 			return ["base_ophelia_skirt"]
@@ -61,7 +63,7 @@ func _pieces(style: String) -> Array:
 
 func _model(eco) -> void:
 	var suits: Array = eco.OUTFITS.filter(func(o): return o.begins_with("suit"))
-	_check("eight pilot suits", suits.size() == 8 and eco.OUTFITS[0] == "suit", suits)
+	_check("ten pilot suits", suits.size() == 10 and eco.OUTFITS[0] == "suit", suits)
 	_check("starts in her own suit", eco.outfit == "suit" and eco.style() == "gwen" and _body(eco) == null, eco.outfit)
 	for outfit in suits:
 		_check("wears " + outfit, eco.wear(outfit) and eco.outfit == outfit, eco.outfit)
@@ -83,8 +85,19 @@ func _model(eco) -> void:
 
 
 func _wardrobe(eco) -> void:
+	ContentRating.set_rating("T", false)
+	var teen := Wardrobe.options("eco")
+	_check("Teen: no Vesper looks", teen == eco.OUTFITS.filter(func(o): return not o in eco.MATURE_OUTFITS), teen)
+	Wardrobe.choose("eco", "suit_vesper")
+	_check("Teen: a Vesper pick isn't saved", Wardrobe.choice("eco") == "suit", Wardrobe.choice("eco"))
+	ContentRating.set_rating("M", false)
 	var options := Wardrobe.options("eco")
 	_check("the wardrobe has all her suits", options == eco.OUTFITS, options)
+	Wardrobe.choose("eco", "suit_vesper_open")
+	ContentRating.set_rating("T", false)
+	_check("a Mature pick falls back to her suit under Teen", Wardrobe.choice("eco") == "suit", Wardrobe.choice("eco"))
+	ContentRating.set_rating("M", false)
+	_check("and comes back under Mature", Wardrobe.choice("eco") == "suit_vesper_open", Wardrobe.choice("eco"))
 	for outfit in options:
 		_check(outfit + " has a name", Wardrobe.NAMES.has(outfit), outfit)
 	Wardrobe.choose("eco", "suit_techwear")

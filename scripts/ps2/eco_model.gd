@@ -62,7 +62,7 @@ extends "res://scripts/ps2/ps2_model.gd"
 ## every suit piece hidden; each comes in a Teen and a Mature version, picked
 ## by the content rating (scripts/radio/content_rating.gd, O key) as it changes.
 @export_enum("suit", "suit_ghost", "suit_racer", "suit_harness", "suit_techwear", "suit_shade", "suit_homemade",
-		"suit_ophelia", "skater", "y2k", "date") var outfit := "suit":
+		"suit_ophelia", "suit_vesper", "suit_vesper_open", "skater", "y2k", "date") var outfit := "suit":
 	set(value):
 		outfit = value if value in OUTFITS else "suit"
 		if is_inside_tree():
@@ -133,9 +133,13 @@ const MEDIUM_BODY := preload("res://assets/materials/eco/eco_v_body_medium.tres"
 const HEAVY_BODY := preload("res://assets/materials/eco/eco_v_body_heavy.tres")
 ## Everything she can wear (outfit): her pilot suits, then her clothes. Each
 ## suit but her own has its bodysuit material, and its own pieces in the glb as
-## base_<style>_* (a jacket, cowl, vest or skirt; harness has none).
+## base_<style>_* (a jacket, cowl, vest or skirt; harness and the vesper looks
+## have none). The vesper looks are Vesper Kane's clothes (a concept character,
+## Eco wears them for now): Mature rating only (MATURE_OUTFITS).
 const OUTFITS := ["suit", "suit_ghost", "suit_racer", "suit_harness", "suit_techwear", "suit_shade", "suit_homemade",
-		"suit_ophelia", "skater", "y2k", "date"]
+		"suit_ophelia", "suit_vesper", "suit_vesper_open", "skater", "y2k", "date"]
+## Outfits only offered under the Mature content rating (wardrobe.gd).
+const MATURE_OUTFITS := ["suit_vesper", "suit_vesper_open"]
 const STYLE_BODY := {
 	"suit_ghost": preload("res://assets/materials/eco/eco_v_body_ghost.tres"),
 	"suit_racer": preload("res://assets/materials/eco/eco_v_body_racer.tres"),
@@ -144,6 +148,8 @@ const STYLE_BODY := {
 	"suit_shade": preload("res://assets/materials/eco/eco_v_body_shade.tres"),
 	"suit_homemade": preload("res://assets/materials/eco/eco_v_body_homemade.tres"),
 	"suit_ophelia": preload("res://assets/materials/eco/eco_v_body_ophelia.tres"),
+	"suit_vesper": preload("res://assets/materials/eco/eco_v_body_vesper.tres"),
+	"suit_vesper_open": preload("res://assets/materials/eco/eco_v_body_vesper_open.tres"),
 }
 ## Her clothes' body textures, by look() (<outfit>_t Teen, <outfit>_m Mature);
 ## their loose parts are the glb's outfit_<outfit>_<t|m|any>_* meshes.
