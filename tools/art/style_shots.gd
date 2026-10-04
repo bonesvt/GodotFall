@@ -27,7 +27,7 @@ const VIEWS := {
 	"hall": [Vector3(1.5, F, 7.0), Vector3(-1.0, F + 2.2, -26), Vector3(0.2, F, 2.4), 165.0],
 	"loft": [Vector3(-7.4, UP, -5.5), Vector3(-10.0, UP + 0.4, -14), Vector3(-8.0, UP, -8.6), 150.0],
 	"camp": [Vector3(37.0, 0.05, 25.0), Vector3(33.0, 2.0, 3.0), Vector3(35.2, 0.0, 20.0), 170.0],
-	"temple": [Vector3(2.0, 0.05, 31.0), Vector3(-9.0, 3.0, 13.0), Vector3(-0.5, 0.0, 26.8), 125.0],
+	"temple": [Vector3(2.0, 0.05, 31.0), Vector3(-9.0, 3.0, 13.0), Vector3(0.6, 0.0, 27.6), 130.0],
 }
 
 ## Per style: environment, sun and screen-pass settings.

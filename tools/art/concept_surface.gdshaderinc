@@ -202,12 +202,12 @@ void fragment() {
 
 void light() {
 	float ndl = dot(NORMAL, LIGHT);
-	float shade = min(ndl, dot(ATTENUATION, vec3(0.333)) * 2.0 - 0.5);
+	float shade = min(ndl, ATTENUATION * 2.0 - 0.5);
 	float cel = smoothstep(-CONCEPT_CEL_SOFT, CONCEPT_CEL_SOFT, shade);
 	vec3 radiance = LIGHT_COLOR;
 	if (!IS_DIRECTIONAL) {
 		// Lamps: a soft painted glow pool that still ends in a clean edge.
-		float pool = dot(ATTENUATION, vec3(0.333));
+		float pool = ATTENUATION;
 		cel = smoothstep(0.0, 0.25, ndl) * smoothstep(0.0, 0.08, pool) * min(pool * 2.5, 1.0);
 	}
 	// Shadow side keeps a tinted share of the light: coloured shadows, not grey.
