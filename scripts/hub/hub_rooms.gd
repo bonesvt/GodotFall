@@ -1,34 +1,42 @@
 extends RefCounted
-## The rooms of the three people who live in the temple with Eco, built onto
-## the outside of the hall (hub_builder.gd cuts their doors):
-## - Mom: a narrow, warm room through the left wall by the kitchen. Quilted
-##   bed, rocking chair, sewing table, dried flowers, Dad's photo on the wall.
-## - Ophelia: behind the back wall, left of the idol. Black drapes, a
-##   mattress on the floor, purple fairy lights, candles, posters, records.
-## - Biggie: behind the back wall, right of the idol. An old soldier's den:
-##   cot, footlocker, sandbags, a battle map pinned to the wall, a radio, his
-##   tea things on the table, a beer cooler and a dartboard.
-## Each room has its NPC's stand spot (info["npcs"]) and a "[F] Talk" spot.
+## The tents of the three people who live with Eco at the temple, pitched on
+## raised timber decks round the campfire in the grounds (hub_grounds.gd):
+## big canvas wall tents with a pitched roof, a porch under a fly, lanterns
+## and guy ropes. Inside:
+## - Mom: a narrow, warm tent west of the fire. Quilted bed, rocking chair,
+##   sewing table, dried flowers, Dad's photo on the wall.
+## - Ophelia: north of the fire, in black canvas. Black drapes, a mattress on
+##   the floor, purple fairy lights, candles, posters, records.
+## - Biggie: north of the fire, in army olive. An old soldier's den: cot,
+##   footlocker, sandbags, a battle map pinned to the wall, a radio, his tea
+##   things on the table, a beer cooler and a dartboard.
+## Each tent has its NPC's stand spot (info["npcs"]) and a "[F] Talk" spot.
 
 const Art := preload("res://scripts/ps2/ps2_assets.gd")
 const FamilyBed := preload("res://scripts/hub/family_bed.gd")
 const K := preload("res://scripts/hub/hub_kit.gd")
+const Kit := preload("res://scripts/run/level_kit.gd")
 const Props := preload("res://scripts/hub/hub_props.gd")
 
-## Room doors: half width and height. The hall's floor is at F.
+## Tent doors: half width and height. The tents' deck floors are at F (the
+## same height as the temple's floor).
 const DOOR_HALF := 1.0
 const DOOR_H := 3.0
 const F := 1.2
-const MOM_DOOR_Z := -12.0
-const OPHELIA_DOOR_X := -9.5
-const BIGGIE_DOOR_X := 9.5
-## Room footprints (x, z, width, depth) on the outside of the hall walls
-## (left wall's outer face x = -12.2, back wall's z = -31.2).
-const MOM_ROOM := Rect2(-16.0, -16.2, 3.8, 8.4)
-const OPHELIA_ROOM := Rect2(-14.6, -38.4, 10.2, 7.2)
-const BIGGIE_ROOM := Rect2(4.4, -38.4, 10.2, 7.2)
+## Mom's door is in her tent's east wall, Ophelia's and Biggie's in the south.
+const MOM_DOOR_Z := 24.2
+const OPHELIA_DOOR_X := 28.1
+const BIGGIE_DOOR_X := 43.1
+## Tent footprints (x, z, width, depth) in the grounds, round the campfire at (35, 17).
+const MOM_ROOM := Rect2(20.0, 20.0, 5.0, 8.4)
+const OPHELIA_ROOM := Rect2(23.0, -1.0, 10.2, 7.2)
+const BIGGIE_ROOM := Rect2(38.0, -1.0, 10.2, 7.2)
 const ROOM_H := 3.7
 const T := 0.3
+## How far the deck runs past the walls, the porch's depth, the roof's rise.
+const DECK := 0.5
+const PORCH := 1.8
+const RISE := 1.5
 
 const WARM := Color(1.0, 0.72, 0.45)
 const CANDLE := Color(1.0, 0.62, 0.3)
@@ -46,39 +54,162 @@ static func build(root: Node3D, info: Dictionary) -> void:
 	K.style = prev
 
 
-## Floor, foundation, walls (skipping the side against the hall, `open`:
-## "east" is the +x side, "south" the +z side) and a roof, in the given tints.
-static func _shell(root: Node3D, r: Rect2, open: String, wall_tint: Color, floor_tint: Color, roof_tint := Color(0.7, 0.62, 0.55)) -> void:
+## Where to stand on each porch to walk in, and which way is in.
+static func doorstep(who: String) -> Array:
+	match who:
+		"mom":
+			return [Vector3(MOM_ROOM.end.x + DECK + 0.9, F, MOM_DOOR_Z), Vector3(-1, 0, 0)]
+		"ophelia":
+			return [Vector3(OPHELIA_DOOR_X, F, OPHELIA_ROOM.end.y + DECK + 0.9), Vector3(0, 0, -1)]
+	return [Vector3(BIGGIE_DOOR_X, F, BIGGIE_ROOM.end.y + DECK + 0.9), Vector3(0, 0, -1)]
+
+
+## A tent over r: a timber deck on a solid footing, canvas walls (the door
+## in the `door` side, "east" or "south", centred at `at` along it), a
+## pitched roof with gable ends, a porch under a fly with steps down to the
+## grass, lanterns and guy ropes.
+static func _shell(root: Node3D, r: Rect2, door: String, at: float, wall_tint: Color, floor_tint: Color, roof_tint: Color, accent: Color) -> void:
 	var x0 := r.position.x
 	var z0 := r.position.y
 	var x1 := r.end.x
 	var z1 := r.end.y
 	var c := Vector3((x0 + x1) * 0.5, 0, (z0 + z1) * 0.5)
-	# Stone footing up to the hall's floor, boards on top.
-	K.style = "stone"
-	K.stone(root, Vector3(c.x, F * 0.5 - 0.4, c.z), Vector3(r.size.x + 0.4, F + 0.8, r.size.y + 0.4))
-	K.style = "timber"
-	K.stone(root, Vector3(c.x, F - 0.095, c.z), Vector3(r.size.x, 0.2, r.size.y), Vector3.ZERO, floor_tint)
-	var y := F + ROOM_H * 0.5
-	if open != "west":
-		K.stone(root, Vector3(x0 + T * 0.5, y, c.z), Vector3(T, ROOM_H, r.size.y), Vector3.ZERO, wall_tint)
-	if open != "east":
-		K.stone(root, Vector3(x1 - T * 0.5, y, c.z), Vector3(T, ROOM_H, r.size.y), Vector3.ZERO, wall_tint)
-	if open != "south":
-		K.stone(root, Vector3(c.x, y, z1 - T * 0.5), Vector3(r.size.x, ROOM_H, T), Vector3.ZERO, wall_tint)
-	else:   # where the room runs past the corner of the hall, close it off
-		var hall := 12.2
-		if x0 < -hall:
-			K.stone(root, Vector3((x0 - hall) * 0.5, y, z1 - T * 0.5), Vector3(-hall - x0, ROOM_H, T), Vector3.ZERO, wall_tint)
-		if x1 > hall:
-			K.stone(root, Vector3((x1 + hall) * 0.5, y, z1 - T * 0.5), Vector3(x1 - hall, ROOM_H, T), Vector3.ZERO, wall_tint)
-	if open != "north":
-		K.stone(root, Vector3(c.x, y, z0 + T * 0.5), Vector3(r.size.x, ROOM_H, T), Vector3.ZERO, wall_tint)
-	# A plank roof with a lip, and dark posts at the corners outside.
-	K.stone(root, Vector3(c.x, F + ROOM_H + 0.15, c.z), Vector3(r.size.x + 0.6, 0.3, r.size.y + 0.6), Vector3.ZERO, roof_tint)
+	var canvas := Art.material("canvas", wall_tint)
 	var dark := Art.material("timber_carving", Color(0.55, 0.48, 0.42))
-	for p in [Vector2(x0, z0), Vector2(x1, z0), Vector2(x0, z1), Vector2(x1, z1)]:
-		K.mesh(root, Vector3(p.x, F + ROOM_H * 0.5 - 0.3, p.y), Vector3(0.36, ROOM_H + 1.2, 0.36), dark)
+	var east := door == "east"
+	var out := Vector3(1, 0, 0) if east else Vector3(0, 0, 1)
+	var along := Vector3(0, 0, 1) if east else Vector3(1, 0, 0)
+	var door_pt := Vector3(x1, 0, at) if east else Vector3(at, 0, z1)
+	# a size in the door's frame: so across the wall, sa along it
+	var sz := func(so: float, sy: float, sa: float) -> Vector3:
+		return Vector3(so, sy, sa) if east else Vector3(sa, sy, so)
+	# Deck: a solid timber footing up to F, boards on top, and the porch.
+	K.style = "timber"
+	K.wood(root, Vector3(c.x, (F - 0.2) * 0.5, c.z), Vector3(r.size.x + DECK * 2, F - 0.2, r.size.y + DECK * 2))
+	K.stone(root, Vector3(c.x, F - 0.1, c.z), Vector3(r.size.x + DECK * 2, 0.2, r.size.y + DECK * 2), Vector3.ZERO, floor_tint)
+	var porch := door_pt + out * (DECK + PORCH * 0.5)
+	K.wood(root, porch + Vector3(0, (F - 0.2) * 0.5, 0), sz.call(PORCH, F - 0.2, DOOR_HALF * 2 + 2.4))
+	K.stone(root, porch + Vector3(0, F - 0.1, 0), sz.call(PORCH, 0.2, DOOR_HALF * 2 + 2.4), Vector3.ZERO, floor_tint)
+	# Posts and a dark skirt board round the footing.
+	for p: Vector2 in [Vector2(x0 - DECK, z0 - DECK), Vector2(x1 + DECK, z0 - DECK), Vector2(x0 - DECK, z1 + DECK), Vector2(x1 + DECK, z1 + DECK)]:
+		K.mesh(root, Vector3(p.x, F * 0.5 - 0.1, p.y), Vector3(0.3, F, 0.3), dark)
+	# Steps off the porch: four treads you see, on a hidden ramp you walk.
+	var edge := door_pt + out * (DECK + PORCH)
+	var run := 2.4
+	for i in 4:
+		var top := F * (4 - i) / 5.0
+		K.mesh(root, edge + out * (0.3 + i * 0.6) + Vector3(0, top - 0.15, 0), sz.call(0.6, 0.3, DOOR_HALF * 2 + 0.6), Art.material("wood"))
+	var ramp := StaticBody3D.new()
+	var ramp_shape := CollisionShape3D.new()
+	ramp_shape.shape = BoxShape3D.new()
+	var slope := sqrt(run * run + F * F)
+	var tilt := atan2(F, run)
+	ramp_shape.shape.size = sz.call(slope, 0.4, DOOR_HALF * 2 + 0.6)
+	ramp.add_child(ramp_shape)
+	var normal := Vector3(0, cos(tilt), 0) + out * sin(tilt)
+	ramp.position = edge + out * (run * 0.5) + Vector3(0, F * 0.5, 0) - normal * 0.2
+	ramp.rotation = Vector3(0, 0, -tilt) if east else Vector3(tilt, 0, 0)
+	ramp.set_meta("surface", "wood")
+	root.add_child(ramp)
+	# Canvas walls, thin, on the outer edge; the door side has its opening.
+	var y := F + ROOM_H * 0.5
+	var th := 0.14
+	var wall := func(pos: Vector3, size: Vector3) -> void:
+		var body := Kit.box(root, pos, size, K.STONE, Vector3.ZERO, canvas)
+		body.set_meta("surface", "wood")
+	if east:
+		wall.call(Vector3(x0 + th * 0.5, y, c.z), Vector3(th, ROOM_H, r.size.y))
+		wall.call(Vector3(c.x, y, z0 + th * 0.5), Vector3(r.size.x, ROOM_H, th))
+		wall.call(Vector3(c.x, y, z1 - th * 0.5), Vector3(r.size.x, ROOM_H, th))
+		var a := at - DOOR_HALF
+		var b := at + DOOR_HALF
+		wall.call(Vector3(x1 - th * 0.5, y, (z0 + a) * 0.5), Vector3(th, ROOM_H, a - z0))
+		wall.call(Vector3(x1 - th * 0.5, y, (b + z1) * 0.5), Vector3(th, ROOM_H, z1 - b))
+		wall.call(Vector3(x1 - th * 0.5, F + DOOR_H + (ROOM_H - DOOR_H) * 0.5, at), Vector3(th, ROOM_H - DOOR_H, DOOR_HALF * 2))
+	else:
+		wall.call(Vector3(x0 + th * 0.5, y, c.z), Vector3(th, ROOM_H, r.size.y))
+		wall.call(Vector3(x1 - th * 0.5, y, c.z), Vector3(th, ROOM_H, r.size.y))
+		wall.call(Vector3(c.x, y, z0 + th * 0.5), Vector3(r.size.x, ROOM_H, th))
+		var a := at - DOOR_HALF
+		var b := at + DOOR_HALF
+		wall.call(Vector3((x0 + a) * 0.5, y, z1 - th * 0.5), Vector3(a - x0, ROOM_H, th))
+		wall.call(Vector3((b + x1) * 0.5, y, z1 - th * 0.5), Vector3(x1 - b, ROOM_H, th))
+		wall.call(Vector3(at, F + DOOR_H + (ROOM_H - DOOR_H) * 0.5, z1 - th * 0.5), Vector3(DOOR_HALF * 2, ROOM_H - DOOR_H, th))
+	# Timber frame: corner posts, a post either side of the door, a plate along the top.
+	for p: Vector2 in [Vector2(x0, z0), Vector2(x1, z0), Vector2(x0, z1), Vector2(x1, z1)]:
+		K.mesh(root, Vector3(p.x, F + ROOM_H * 0.5, p.y), Vector3(0.22, ROOM_H, 0.22), dark)
+	for s: float in [-1.0, 1.0]:
+		K.mesh(root, door_pt + along * (s * (DOOR_HALF + 0.08)) + out * 0.04 + Vector3(0, F + DOOR_H * 0.5, 0), Vector3(0.16, DOOR_H, 0.16), dark)
+	K.mesh(root, door_pt + out * 0.04 + Vector3(0, F + DOOR_H + 0.06, 0), sz.call(0.16, 0.14, DOOR_HALF * 2 + 0.4), dark)
+	# The door flaps, rolled and tied back either side.
+	for s: float in [-1.0, 1.0]:
+		K.mesh(root, door_pt + along * (s * (DOOR_HALF + 0.35)) + out * 0.12 + Vector3(0, F + DOOR_H * 0.55, 0), sz.call(0.12, DOOR_H * 0.9, 0.36), canvas)
+		K.mesh(root, door_pt + along * (s * (DOOR_HALF + 0.35)) + out * 0.2 + Vector3(0, F + DOOR_H * 0.5, 0), sz.call(0.04, 0.08, 0.4), Art.material("canvas", accent))
+	# Pitched roof: two canvas slopes over the long axis, gable ends, a ridge pole.
+	var long_z := r.size.y >= r.size.x
+	var short := r.size.x if long_z else r.size.y
+	var length := r.size.y if long_z else r.size.x
+	var hs := short * 0.5 + 0.35
+	var lean := atan2(RISE, hs)
+	var span := sqrt(hs * hs + RISE * RISE)
+	var roof := Art.material("canvas", roof_tint)
+	var top := F + ROOM_H
+	for s: float in [-1.0, 1.0]:
+		if long_z:
+			var body := Kit.box(root, Vector3(c.x + s * hs * 0.5, top + RISE * 0.5 - 0.1, c.z), Vector3(span, 0.08, length + 0.7), K.STONE, Vector3(0, 0, rad_to_deg(-s * lean)), roof)
+			body.set_meta("surface", "wood")
+		else:
+			var body := Kit.box(root, Vector3(c.x, top + RISE * 0.5 - 0.1, c.z + s * hs * 0.5), Vector3(length + 0.7, 0.08, span), K.STONE, Vector3(rad_to_deg(s * lean), 0, 0), roof)
+			body.set_meta("surface", "wood")
+		# A scalloped valance along each eave, in the accent colour.
+		var eave := Vector3(c.x + s * (hs - 0.05), top - 0.25, c.z) if long_z else Vector3(c.x, top - 0.25, c.z + s * (hs - 0.05))
+		K.mesh(root, eave, Vector3(0.04, 0.3, length + 0.6) if long_z else Vector3(length + 0.6, 0.3, 0.04), Art.material("canvas", accent))
+	for e: float in [-1.0, 1.0]:
+		var prism := PrismMesh.new()
+		prism.size = Vector3(short, RISE, 0.06)
+		prism.material = canvas
+		var gable := MeshInstance3D.new()
+		gable.mesh = prism
+		if long_z:
+			gable.position = Vector3(c.x, top + RISE * 0.5, c.z + e * (length * 0.5 - 0.07))
+		else:
+			gable.position = Vector3(c.x + e * (length * 0.5 - 0.07), top + RISE * 0.5, c.z)
+			gable.rotation_degrees.y = 90.0
+		root.add_child(gable)
+	var ridge := Vector3(c.x, top + RISE - 0.05, c.z)
+	K.mesh(root, ridge, Vector3(0.14, 0.14, length + 1.0) if long_z else Vector3(length + 1.0, 0.14, 0.14), dark)
+	for e: float in [-1.0, 1.0]:
+		var tip := ridge + (Vector3(0, 0, e * (length * 0.5 + 0.5)) if long_z else Vector3(e * (length * 0.5 + 0.5), 0, 0))
+		K.mesh(root, tip + Vector3(0, 0.25, 0), Vector3(0.12, 0.5, 0.12), dark)
+		K.glow(root, tip + Vector3(0, 0.55, 0), Vector3(0.14, 0.14, 0.14), accent.lightened(0.3), Vector3(0, 45, 0))
+	# The fly over the porch: canvas from over the door out to two poles, a
+	# lantern hanging from each.
+	var fly_h := F + DOOR_H + 0.2
+	var pole_at := DECK + PORCH - 0.15
+	for s: float in [-1.0, 1.0]:
+		var pole := door_pt + out * pole_at + along * (s * (DOOR_HALF + 1.0))
+		K.wood(root, pole + Vector3(0, fly_h * 0.5 + 0.4, 0), Vector3(0.14, fly_h - 0.8, 0.14))
+		K.mesh(root, pole + Vector3(0, fly_h - 0.55, 0) - out * 0.25, Vector3(0.02, 0.4, 0.02), Art.material("gunmetal"))
+		K.glow(root, pole + Vector3(0, fly_h - 0.85, 0) - out * 0.25, Vector3(0.22, 0.3, 0.22), WARM, Vector3(0, 45, 0))
+		K.light(root, pole + Vector3(0, fly_h - 1.2, 0) - out * 0.4, WARM, 0.7, 5.5)
+	var fly_lean := atan2(0.6, pole_at)
+	var fly_len := sqrt(pole_at * pole_at + 0.36)
+	var fly_pos := door_pt + out * (pole_at * 0.5) + Vector3(0, fly_h + 0.3, 0)
+	K.mesh(root, fly_pos, sz.call(fly_len, 0.06, DOOR_HALF * 2 + 2.4), roof, Vector3(0, 0, rad_to_deg(-fly_lean)) if east else Vector3(rad_to_deg(fly_lean), 0, 0))
+	# Guy ropes from the eaves' corners out to stakes in the grass.
+	for p: Vector2 in [Vector2(x0, z0), Vector2(x1, z0), Vector2(x0, z1), Vector2(x1, z1)]:
+		var corner := Vector3(p.x, top - 0.1, p.y)
+		var away := Vector3(p.x - c.x, 0, p.y - c.z).normalized()
+		var stake := Vector3(p.x, 0, p.y) + away * 2.4
+		if east and p.x > c.x or not east and p.y > c.z:
+			continue  # not across the porch
+		_rope(root, corner, stake + Vector3(0, 0.25, 0))
+		K.mesh(root, stake + Vector3(0, 0.15, 0), Vector3(0.08, 0.3, 0.08), Art.material("wood"))
+
+
+static func _rope(root: Node3D, a: Vector3, b: Vector3) -> void:
+	var seg := K.mesh(root, (a + b) * 0.5, Vector3(0.025, 0.025, a.distance_to(b)), Art.material("canvas", Color(0.85, 0.8, 0.65)))
+	seg.look_at_from_position((a + b) * 0.5, b, Vector3.UP)
 
 
 static func _npc(info: Dictionary, who: String, name: String, pos: Vector3, yaw: float) -> void:
@@ -94,12 +225,12 @@ static func _rug(root: Node3D, pos: Vector3, size: Vector2, tint: Color, yaw := 
 
 # --- Mom ------------------------------------------------------------------------
 
-## Narrow and warm: through the left wall by the kitchen. Her bed under a
+## Narrow and warm: her tent west of the campfire, door to the east. Her bed under a
 ## quilt at the far end, a rocking chair and sewing table, shelves of jars and
 ## dried flowers, a window, and Dad's photo with a candle under it.
 static func _mom(root: Node3D, info: Dictionary) -> void:
 	var r := MOM_ROOM
-	_shell(root, r, "east", Color(1.05, 0.92, 0.8), Color(0.95, 0.85, 0.75))
+	_shell(root, r, "east", MOM_DOOR_Z, Color(0.98, 0.92, 0.8), Color(0.95, 0.85, 0.75), Color(0.9, 0.82, 0.7), Color(0.85, 0.45, 0.35))
 	var xw := r.position.x + T          # inside face of her far wall
 	var cz := MOM_DOOR_Z
 	# Bed against the back (south) end: frame, mattress, a patchwork quilt, pillows.
@@ -157,12 +288,12 @@ static func _mom(root: Node3D, info: Dictionary) -> void:
 
 # --- Ophelia ------------------------------------------------------------------------
 
-## Dark: behind the back wall, left of the idol. Walls hung with black cloth,
+## Dark: her tent north of the fire, in black canvas. Walls hung with black cloth,
 ## a mattress on the floor in purple sheets, fairy lights, a cluster of
 ## candles, posters, a record player with a crate of records, notebooks.
 static func _ophelia(root: Node3D, info: Dictionary) -> void:
 	var r := OPHELIA_ROOM
-	_shell(root, r, "south", Color(0.6, 0.55, 0.62), Color(0.62, 0.56, 0.62), Color(0.5, 0.45, 0.5))
+	_shell(root, r, "south", OPHELIA_DOOR_X, Color(0.3, 0.26, 0.34), Color(0.62, 0.56, 0.62), Color(0.24, 0.2, 0.28), Color(0.6, 0.3, 0.85))
 	var zb := r.position.y + T       # inside face of the back wall
 	var x0 := r.position.x + T
 	var x1 := r.end.x - T
@@ -228,13 +359,13 @@ static func _ophelia(root: Node3D, info: Dictionary) -> void:
 
 # --- Biggie -------------------------------------------------------------------------
 
-## An old soldier's den behind the back wall, right of the idol: a cot,
+## An old soldier's den in army olive canvas, north of the fire: a cot,
 ## footlocker, sandbags under the walls, a campaign map pinned up with string
 ## between the pins, a field radio glowing on an ammo crate, a cooler of beer
 ## with empties round it, a dartboard and a hanging bare bulb.
 static func _biggie(root: Node3D, info: Dictionary) -> void:
 	var r := BIGGIE_ROOM
-	_shell(root, r, "south", Color(0.82, 0.8, 0.72), Color(0.8, 0.74, 0.66), Color(0.6, 0.6, 0.55))
+	_shell(root, r, "south", BIGGIE_DOOR_X, Color(0.6, 0.64, 0.45), Color(0.8, 0.74, 0.66), Color(0.5, 0.55, 0.38), Color(0.8, 0.7, 0.35))
 	var zb := r.position.y + T
 	var x0 := r.position.x + T
 	var x1 := r.end.x - T

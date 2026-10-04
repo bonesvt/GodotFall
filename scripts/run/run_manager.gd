@@ -9,12 +9,12 @@ extends Node3D
 ## destroyed. Beat the enemy titan and the evac dropship comes for yours: walk
 ## it onto the pad to finish the run.
 ## Between runs you are in the hub, the temple Eco hides out in (hub_builder.gd):
-## the game opens there, the map table starts a run, and a finished run, won or
-## lost, goes back there.
+## the game opens there, the poster outside starts the Pinewoods run (the
+## tutorial), and a finished run, won or lost, goes back there.
 ## Out in the zones you pick up materials (loot.gd: grunt drops, supply crates,
 ## alloy nodes); a run banks them in Eco's armory (armory.gd) when it ends, and
 ## the hub's workbenches (bench_screen.gd) spend them on guns and titan parts.
-## Once the tutorial run is won, the level board across the nave opens the
+## Once the tutorial run is won, the mission table in the nave opens the
 ## real levels (levels.gd): one long generated zone each, with a salvage depot
 ## holding a titan part, that ends in a clearing where the enemy titan waits.
 ## There the fight starts as soon as you walk out into the clearing.
@@ -281,7 +281,7 @@ func _fresh_level(level_name: String) -> void:
 	add_child(zone_root)
 
 
-## Back to the temple: no run in progress, walk around, start one at the map table.
+## Back to the temple: no run in progress, walk around, start one at the poster or the mission table.
 func enter_hub() -> void:
 	titan = null
 	boss = null
@@ -438,7 +438,7 @@ func _hub_tick(delta: float) -> void:
 		return
 	if spot.is_empty() or not Input.is_action_just_pressed("interact"):
 		return
-	if spot["id"] == "map_table":
+	if spot["id"] == "tutorial_poster":
 		start_run(run_seed)
 		return
 	if spot["id"] == "uncharted_map":
@@ -635,10 +635,15 @@ func equip_loadout() -> void:
 	player.apply_suit(armory.suit_profile())
 
 
-## Shows the armory on the benches: the equipped gun on the gunsmith's mat,
+## Shows whether each level on the mission table is open, turns the marker
+## over the tutorial poster off once that run is won, and shows the armory on
+## the benches: the equipped gun on the gunsmith's mat,
 ## the guns you own on the rack (locked slots stay empty under a tag), and the
 ## titan you'd start a run with standing in the workshop's gantry.
 func dress_hub() -> void:
+	var marker: Node3D = zone_info.get("tutorial_marker")
+	if marker != null:
+		marker.visible = not "tutorial" in armory.cleared_levels()
 	var board: Dictionary = zone_info.get("level_board", {})
 	if not board.is_empty():
 		var open := Levels.unlocked(board["id"], armory.cleared_levels())
@@ -1134,7 +1139,7 @@ func _update_hud() -> void:
 			status += "    COURSE %.1f s" % course_time
 		elif course_best > 0.0:
 			status += "    Course best %.2f s" % course_best
-		hud.status_label.text = status + "\nWalk up to the map table and press F to head out. F looks at things and works the benches."
+		hud.status_label.text = status + "\nHead out from the poster outside or the mission table in the hall. F looks at things and works the benches."
 		hud.prompt_label.text = _prompt()
 		hud.crosshair.visible = hub_piloting
 		hud.fight_label.visible = hub_piloting

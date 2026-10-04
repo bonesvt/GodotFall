@@ -55,10 +55,12 @@ The preset keeps `dialogue/*` (plain text the hub people read at runtime) and le
 
 ## The temple (hub)
 Pressing Play (`scenes/run.tscn`) opens in the hub: the small abandoned temple Eco hides
-out in. A lost civilization built it for their precursor god; she has made it her secret
-base since the militia turned her away. Walk around, warm up the movement kit, and
-press **F** at the map table ("HEAD OUT") to start a run. When a run ends, won or lost,
-**Enter** brings you back here.
+out in. The Precursors, a lost civilization, built it for their god; she has made it her
+secret base since the recruiters turned her away. Walk around, warm up the movement kit,
+and press **F** at the poster outside (the Pinewoods run, the tutorial; a gold marker turns
+over it until you've won it once) or at the mission table in the hall (the real levels and
+the uncharted long way) to start a run. When a run ends, won or lost, **Enter** brings you
+back here.
 
 Off duty (in the hub and the town, but not on the range, the movement course or the titan
 yard) Eco doesn't run: she struts at a stroll (`player.gd` `stroll_speed`, hold **Shift**
@@ -74,27 +76,38 @@ shoulders back, and stands with her weight on one hip. The strut is layered over
   zigzagging across the nave, paper lanterns in the aisles, potted ferns, a porch with
   lanterns over the door and a tarp over half the roof hole. (`HubBuilder.home_style`
   can build it in the precursors' pale alloy instead, `"alloy"`.)
-- **Kitchen** (under the gallery): a barrel stove, a counter and shelf of jars, herbs
+- **Kitchen** (under the loft): a barrel stove, a counter and shelf of jars, herbs
   drying, a little table with two stools.
 - **Couch** (by the bench): a pilot seat from a scrapped Ogre on a crate base, with a
   crate table and a spotlight floor lamp.
-- **The idol**: the precursor god, seated on a stepped dais with its hands open on its
+- **The idol**: the Precursors' god, seated on a stepped dais with its hands open on its
   knees and one great eye still glowing in its brow. Fire bowls either side.
-- **Eco's corner** (left of the door): the bed she built, a curtain round it, her
-  lantern, a photo of her and her dad, her drawings, and the militia's letter turning
-  down her pilot application, pinned to the wall.
-- **Workbench** (right of the door): her father's smart pistol stripped down, its burnt
-  auto-lock board on the bench. An `EcoSpot` marker beside it is where her character
-  model will stand.
+- **Precursor lore**: two carved reliefs on the back wall either side of the idol (the
+  builders holding up their eyes; the great eye over the world), grooves still glowing,
+  and a stand of tablets Eco dug out of the rubble. F on each for what she's worked out.
+- **Mission table** (in the nave): the map of the real levels (Level 1 opens once the
+  Pinewoods run is won) with the uncharted long way at its far end.
+- **Armour bench** (left wall, under the loft): the scavenged locker and her spare suit on
+  a pipe stand; F opens the suit screen (upgrades and changes).
+- **Workbench and weapon rack** (right of the door): the gunsmith's bench with the gun in
+  her hand on the mat, and the rack of the sidearms she owns. An `EcoSpot` marker beside
+  the bench is where her character model stands.
 - **Her father's titan** (right aisle): the wreck sitting slumped against the wall, left
   arm torn off and lying beside it, core dark, wired to a bank of salvaged batteries.
-- **The gallery**: a ledge 4.5 m up the left wall. Run up the fallen pillar from the nave,
-  or double-jump up the rubble by the door. Her stash of scrap is up there.
+- **Eco's loft** (up the stairs left of the door): a timber floor 4.5 m up over the left
+  aisle with a rail between the pillars, made into her bedroom: the bed she built (F to lie
+  down), a lantern and the photo of her and her dad, a desk under her drawings with the
+  recruiters' refusal pinned up, the wardrobe at the top of the stairs, a rug, a beanbag,
+  fairy lights along the rail and her stash of scrap at the back.
 - **The grounds** (`scripts/hub/hub_grounds.gd`): a big grassy clearing round the temple,
   closed in by a ruined boundary wall, thick jungle and green hills, so there is no void.
   - **Plaza** in front of the door, with the god's eye on a plinth and lamp posts.
-  - **Eco's camp** (east, also out through the breach): tents, a campfire with smoke,
+  - **The camp** (east, also out through the breach): Mom's, Ophelia's and Biggie's tents
+    (`scripts/hub/hub_rooms.gd`), big canvas wall tents on raised timber decks with
+    porches, lanterns and guy ropes, round a campfire with smoke; Eco's old little tent,
     laundry and banners in the breeze, a salvage tarp over titan scrap, a pond.
+  - **Tutorial poster** (left edge of the plaza): a notice board with Eco's poster for the
+    Pinewoods run.
   - **Shooting range** (west): a covered firing line and nine pop-up targets from 8 to
     40 m. Shoot one and it drops, then springs back up; the board counts hits and headshots.
   - **Movement course** (behind the temple): three jumps, a wallrun, a climb, a grapple to
@@ -246,7 +259,7 @@ The movement and grunt test level is still at `scenes/test_level.tscn` (open it 
    ambience. Getting gunned down costs 25 pilot integrity and puts you back at the last
    checkpoint. At 0 the run is over.
 
-   **Uncharted zones (the long way).** On the far side of the hub's map table is a second
+   **Uncharted zones (the long way).** At the far end of the hub's mission table is a second
    sheet, UNCHARTED: press F there and the run goes through the three zones above and then
    two more that are generated from the run's seed, before the titan fight. See
    *Generated zones* below.
@@ -377,7 +390,7 @@ res://tools/zones/shots.gd -- /some/dir [2|3]` saves screenshots and route maps 
 ## Level 1: The Deepwood
 
 The first real level after the tutorial run (`scripts/run/levels.gd`). It opens from the
-**level board** across the nave from the map table once you've won the Pinewoods run (bring
+**mission table** in the temple's nave once you've won the Pinewoods run (bring
 a titan home once; older saves that have banked a lock core count). A level run is one long
 generated forest valley, laid out fresh from the run's seed every time, built to the level's
 own spec:
@@ -619,6 +632,9 @@ select the Player node and tweak values in the Inspector, or change the defaults
   `godot --headless --path . -s res://tests/suit_test.gd`
 - `tools/hub/bench_shots.gd` screenshots of the benches, their screens, the guns and the loot
   (needs a renderer): `xvfb-run -a godot --path . -s res://tools/hub/bench_shots.gd -- out_dir`
+- `tools/hub/base_shots.gd` screenshots of the temple base: the hall, the stairs and loft
+  bedroom, the lore, mission table and armour bench, the poster and its marker, and the tents
+  inside and out: `xvfb-run -a godot --path . -s res://tools/hub/base_shots.gd -- out_dir [--only=hall,loft]`
 - `tests/run_loop_test.gd` headless run loop test (generator limits, a bot pilot clearing the
   hardest gap of each kind and all three real ravine crossings and the culvert, log-bridge and ridge
   flanks in the forest, salvage,
@@ -630,6 +646,7 @@ select the Player node and tweak values in the Inspector, or change the defaults
   `hub_kit.gd` shared shape helpers, `hub_props.gd` the Blender props; `practice_target.gd`, `titan_dummy.gd` and
   `ambient.gd` (fire flicker, swaying cloth, birds) are the hub's moving parts
 - `tests/hub_test.gd` headless hub test (opens in the hub, walking the nave, every look-at
-  spot, the climb to the gallery, the grounds are closed in, range targets, the course
-  clock, the practice titan and dummies, map table starts a run, runs return to the hub):
+  spot, the stairs up to the loft, the bed, letter and wardrobe upstairs, the tents outside,
+  the poster and its marker, the grounds are closed in, range targets, the course
+  clock, the practice titan and dummies, the poster starts a run, runs return to the hub):
   `godot --headless --path . -s res://tests/hub_test.gd`
