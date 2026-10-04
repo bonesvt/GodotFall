@@ -6,6 +6,8 @@ extends SceneTree
 ##            shadows, ink lines in Eco's ink colour);
 ##   bebop    "90s Session": a late-90s cel anime look (hard shadows, gouache
 ##            backgrounds, muted palette with warm accents, film grain).
+##   blend    Bones's pick (2026-10-04): Anime Match's set and light with the
+##            90s Session's heavier ink, warm/cool grade, halation and grain.
 ## Nothing here changes the game: the styles are swapped in at render time
 ## (concept_*.gdshader on every set surface, concept_post.gdshader on screen).
 ##   xvfb-run -a godot --path . -s res://tools/art/style_shots.gd -- [out_dir] [--only=hall,camp] [--styles=anime,bebop] [--small]
@@ -16,6 +18,7 @@ const SURFACE := preload("res://assets/shaders/ps2_surface.gdshader")
 const STYLE_SHADERS := {
 	"anime": preload("res://tools/art/concept_anime.gdshader"),
 	"bebop": preload("res://tools/art/concept_bebop.gdshader"),
+	"blend": preload("res://tools/art/concept_anime.gdshader"),
 }
 const POST := preload("res://tools/art/concept_post.gdshader")
 
@@ -43,6 +46,20 @@ const LOOKS := {
 			"saturation": 0.95, "contrast": 1.04, "split": 0.25,
 			"shadow_tone": Color(0.47, 0.45, 0.62), "highlight_tone": Color(0.56, 0.52, 0.47),
 			"black_lift": 0.03, "halation": 0.0, "vignette": 0.12, "grain": 0.0, "paper": 0.0,
+		},
+	},
+	"blend": {
+		"ambient": Color(0.66, 0.68, 0.92), "ambient_energy": 0.75,
+		"sun": Color(1.0, 0.87, 0.68), "sun_energy": 1.65, "shadow_opacity": 0.95,
+		"fog": Color(0.72, 0.7, 0.8), "fog_density": 0.0035,
+		"saturation_env": 1.0, "contrast_env": 1.03, "exposure": 1.15, "ssao": false,
+		"post": {
+			"paint_radius": 4, "ink": Color(0.14, 0.1, 0.13, 1.0), "ink_width": 1.7,
+			"depth_edge": 0.065, "normal_edge": 0.35, "ink_far": 38.0,
+			"saturation": 0.92, "contrast": 1.08, "split": 0.32,
+			"shadow_tone": Color(0.42, 0.46, 0.62), "highlight_tone": Color(0.62, 0.52, 0.40),
+			"black_lift": 0.06, "halation": 0.35, "halation_color": Color(1.0, 0.45, 0.25),
+			"vignette": 0.25, "grain": 0.025, "grain_size": 1.4, "paper": 0.06,
 		},
 	},
 	"bebop": {
