@@ -622,11 +622,24 @@ static func _fathers_titan(root: Node3D, info: Dictionary) -> void:
 	titan.find_child("ArmL", true, false).visible = false
 	# The shell hole, point-blank through the front of the cockpit: a scorched
 	# ring, the black hole and a last ember deep inside.
-	var scorch := K.mesh(titan, Vector3(0, 6.05, -1.02), Vector3(1.25, 1.0, 0.04), Art.material("gunmetal", Color(0.16, 0.13, 0.12)))
+	# Soot streaks burst out from the hole, petals of torn plate curl round its
+	# lip, and the hole glows a dull orange where the shell went in.
+	var hit := Vector3(0, 6.0, -1.0)
+	var scorch := Node3D.new()
 	scorch.name = "ShellScorch"
-	var hole := K.mesh(titan, Vector3(0, 6.05, -1.05), Vector3(0.72, 0.62, 0.05), Art.material("gunmetal", Color(0.02, 0.02, 0.02)))
+	titan.add_child(scorch)
+	for i in 9:
+		var a := i * 40.0 + 13.0
+		var reach := 0.55 + (i % 3) * 0.12
+		var dir := Vector3(cos(deg_to_rad(a)), sin(deg_to_rad(a)), 0)
+		K.mesh(scorch, hit + dir * reach * 0.5 + Vector3(0, 0, -0.01), Vector3(reach, 0.1 + (i % 2) * 0.05, 0.02), Art.material("gunmetal", Color(0.12, 0.1, 0.09)), Vector3(0, 0, a))
+	for i in 6:
+		var a := i * 60.0 + 30.0
+		var dir := Vector3(cos(deg_to_rad(a)), sin(deg_to_rad(a)), 0)
+		K.mesh(scorch, hit + dir * 0.24 + Vector3(0, 0, -0.06), Vector3(0.22, 0.12, 0.03), Art.material("titan_armor", Color(0.5, 0.48, 0.45)), Vector3(-30 * dir.y, 30 * dir.x, a))
+	var hole := K.mesh(titan, hit + Vector3(0, 0, -0.02), Vector3(0.4, 0.36, 0.04), Art.material("gunmetal", Color(0.02, 0.02, 0.02)), Vector3(0, 0, 20))
 	hole.name = "ShellHole"
-	K.glow(titan, Vector3(0, 5.95, -0.9), Vector3(0.3, 0.2, 0.04), Color(1.0, 0.35, 0.08) * 0.5)
+	K.glow(titan, hit + Vector3(0, -0.04, -0.035), Vector3(0.18, 0.12, 0.02), Color(1.0, 0.35, 0.08) * 0.6)
 	# The torn arm, taken off a second copy and laid on the floor.
 	var donor := Art.titan("atlas", "xo16")
 	var arm: Node3D = donor.find_child("ArmL", true, false)
