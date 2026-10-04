@@ -735,7 +735,7 @@ def _ray_hull(hull, c, d):
     return best
 
 
-def garment(name, part, top, hem, gap=0.008, gap_top=None, flare=0.0, side=0, follow=(0.25, 0.65), rows=16, hang=True):
+def garment(name, part, top, hem, gap=0.008, gap_top=None, tilt=0.0, flare=0.0, side=0, follow=(0.25, 0.65), rows=16, hang=True):
     """A loose hanging tube from `top` down to `hem` round her hips and legs
     (side 1 or -1: round her left or right leg only), skinned half to her hips
     and half to the nearest body vertex's bones further down. Material
@@ -765,7 +765,8 @@ def garment(name, part, top, hem, gap=0.008, gap_top=None, flare=0.0, side=0, fo
             raw = _ray_hull(hull, c, d) + (gap if gap_top is None else gap_top + (gap - gap_top) * min(1.0, t * 4))
             widest[k] = max(widest[k], raw) if hang else max(raw, 0.8 * widest[k])
             rad = widest[k] + flare * t * t
-            ring.append(bm.verts.new((c.x + d.x * rad, c.y + d.y * rad, z)))
+            lift = tilt * max(0.0, d.y) * (1.0 - t)   # tilt: the top rides higher at the back (+y)
+            ring.append(bm.verts.new((c.x + d.x * rad, c.y + d.y * rad, z + lift)))
         grid.append(ring)
     for r in range(rows):
         for k in range(cols):
@@ -900,6 +901,7 @@ def nipple_bars(arm, bars=True, r=0.0052, h=0.005):
 
 # Ophelia's pajama pants ride low: their waist sits well under her navel
 PJ_WAIST = 0.768
+PJ_BACK = 0.04   # but higher at the back, over the top of her seat
 GOWN_ROSE, GOWN_SPRIG = (0.62, 0.38, 0.4), (0.3, 0.13, 0.2)
 
 
@@ -927,7 +929,7 @@ def nightwear(arm):
     elif WHO == "ophelia":
         # snug over her hips (following her in, no box at the back); the legs start
         # above its bottom edge and sit outside it, so it reads as one pair
-        out.append(garment("Outfit_night_PantsHips", "pajama", PJ_WAIST, 0.7, gap=0.005, gap_top=0.002, rows=8, hang=False))
+        out.append(garment("Outfit_night_PantsHips", "pajama", PJ_WAIST, 0.7, gap=0.005, gap_top=0.002, tilt=PJ_BACK, rows=8, hang=False))
         for sd, nm in ((1, "L"), (-1, "R")):
             out.append(garment("Outfit_night_Pants" + nm, "pajama", PJ_WAIST - 0.035, 0.1, gap=0.014, flare=0.012, side=sd,
                                follow=(0.8, 0.98), rows=22, hang=False))
@@ -1164,7 +1166,7 @@ def ophelia_outfit(g, skin, x, y, z, ax, front, cov, edge, sine, neck_r):
                  g.sstep(0.025, 0.02, ring_r))
     crack = g.sstep(0.55, 0.75, g.mul(sine(g.add(g.mul(x, 3.1), z), 0.007), sine(g.sub(z, g.mul(x, 1.7)), 0.009)))
     logo = g.mul(g.mul(g.mx(ring, bolt), front), g.sub(1.0, g.mul(crack, 0.7)))
-    d_pj = g.mn(g.sub(PJ_WAIST, z), g.sub(z, 0.1))   # low on her hips
+    d_pj = g.mn(g.sub(g.add(PJ_WAIST, g.mul(g.sub(1.0, front), PJ_BACK)), z), g.sub(z, 0.1))   # low on her hips
     pj = cov(d_pj)
     socks = cov(g.sub(0.1, z))
     col = g.mixc(skin, (0.03, 0.028, 0.034), g.mx(crop, straps))
