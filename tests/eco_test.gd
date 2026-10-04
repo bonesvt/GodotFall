@@ -5,12 +5,17 @@ extends SceneTree
 ## Run: godot --headless --path . -s res://tests/eco_test.gd
 
 const ECO := preload("res://assets/models/eco.tscn")
+const Prefs := preload("res://scripts/game/prefs.gd")
+const TEST_SETTINGS := "user://test_eco_settings.cfg"
 
 var failures := 0
 
 
 func _initialize() -> void:
 	Engine.max_fps = 60  # the springs step per frame, so run them at game speed
+	# a settings file of our own, so your Jiggle style setting doesn't change the numbers
+	Prefs.path = TEST_SETTINGS
+	DirAccess.remove_absolute(TEST_SETTINGS)
 	_run.call_deferred()
 
 
@@ -77,6 +82,17 @@ func _run() -> void:
 		hops[style] = await _hop(eco, sk)
 	_check("unknown style falls back to classic", _style_name(eco, "nope") == "classic", eco.jiggle_style)
 	eco.jiggle_style = "classic"
+	# a copy left to the setting follows it, live; one given its own style keeps it
+	var follower = ECO.instantiate()
+	root.add_child(follower)
+	await process_frame
+	_check("an Eco starts on the Jiggle style setting (classic)", follower.jiggle_style == "classic", follower.jiggle_style)
+	Prefs.set_jiggle_style("realistic")
+	_check("changing the setting changes her at once", follower.jiggle_style == "realistic", follower.jiggle_style)
+	_check("a copy with its own style keeps it", eco.jiggle_style == "classic", eco.jiggle_style)
+	Prefs.set_jiggle_style("classic")
+	follower.queue_free()
+	DirAccess.remove_absolute(TEST_SETTINGS)
 	_check("anime stays inside its 30 degree limit", hops["anime"][0] <= 30.5, hops["anime"])
 	_check("realistic swings less than classic", hops["realistic"][0] < hops["classic"][0], hops)
 	_check("anime is still moving after realistic has settled",

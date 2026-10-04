@@ -6,7 +6,8 @@ extends Control
 ##   Sound     master, effects, ambience, voices
 ##   Video     window / borderless / fullscreen, vsync, frame cap, look
 ##             (Anime, PS3 or PS2) and film grain
-##   Game      dialogue rating, tutorial hints, start in third person
+##   Game      dialogue rating, tutorial hints, start in third person, Eco's
+##             jiggle style
 ## Esc or Back closes it (emits `closed`).
 
 signal closed
@@ -297,6 +298,11 @@ func _game_tab() -> void:
 		func(v):
 			_save_pref("game", "third_person", v)
 			load("res://scripts/view_camera.gd").prefer_third_person = v)
+	var styles: Array = Prefs.JIGGLE_STYLES
+	_options(box, "Jiggle style", ["Classic", "Smooth anime", "Realistic"],
+		styles.find(Prefs.jiggle_style()),
+		func(i): Prefs.set_jiggle_style(styles[i]))
+	box.add_child(UI.label("How Eco's hair and body bounce as she moves.", 18, UI.MUTED))
 
 
 func _hints_on() -> bool:

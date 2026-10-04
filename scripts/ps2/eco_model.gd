@@ -24,10 +24,14 @@ extends "res://scripts/ps2/ps2_model.gd"
 ## How her chest, glutes and hair move (JIGGLE_STYLES): "classic" (the tuning
 ## she has had since PR #27), "anime" (slower, floatier bounces that ease out
 ## at the edge of their swing) or "realistic" (firm, quick, mostly up and
-## down, settling after one small rebound).
+## down, settling after one small rebound). Left unset, she follows the
+## Jiggle style setting (Game tab, prefs.gd) and changes when it does.
 @export_enum("classic", "anime", "realistic") var jiggle_style := "classic":
 	set(value):
 		jiggle_style = value if JIGGLE_STYLES.has(value) else "classic"
+		_style_chosen = true
+		if is_in_group("eco_jiggle"):
+			remove_from_group("eco_jiggle")
 		_apply_jiggle_style()
 ## How far her chest and glutes may bounce (1 = as tuned, 0 = not at all).
 @export_range(0.0, 2.0) var jiggle := 1.0
@@ -133,6 +137,7 @@ const STYLE_BODY := {
 	"suit_techwear": preload("res://assets/materials/eco/eco_v_body_techwear.tres"),
 }
 const EcoRest := preload("res://scripts/ps2/eco_rest.gd")
+const Prefs := preload("res://scripts/game/prefs.gd")
 const Hair := preload("res://scripts/hub/hair.gd")
 ## Her face while she sleeps (blend shape -> weight); the import's fierce look
 ## comes back when she wakes.
@@ -143,6 +148,9 @@ enum PlayerState { GROUND, AIR, SLIDE, WALLRUN, GRAPPLE }
 
 var skeleton: Skeleton3D
 var _anim: AnimationPlayer
+## Whether jiggle_style was set on this copy (a tool or test) rather than taken
+## from the setting.
+var _style_chosen := false
 var _springs: Array[Dictionary] = []
 var _last_origin := Vector3.ZERO
 ## Strut and off-duty stance blend in and out over a moment (0..1).
@@ -187,6 +195,8 @@ func _ready() -> void:
 		_rest = EcoRest.new(skeleton)
 		if not _rest.usable():
 			_rest = null
+	if not _style_chosen:
+		follow_jiggle_setting()
 	_face = find_child("Face", true, false) as MeshInstance3D
 	Hair.apply(self, "eco")  # her haircut from the salon in Solace
 	set_process(_anim != null or not _springs.is_empty())
@@ -458,6 +468,14 @@ func _offset_hips(offset: Vector3) -> void:
 	var moved := before + parent_basis.inverse() * offset
 	skeleton.set_bone_pose_position(i, moved)
 	_strut_undo["hips_at"] = [before, moved]
+
+
+## Takes the Jiggle style setting (Prefs.set_jiggle_style calls this on every
+## Eco in the "eco_jiggle" group).
+func follow_jiggle_setting() -> void:
+	jiggle_style = Prefs.jiggle_style()
+	_style_chosen = false
+	add_to_group("eco_jiggle")
 
 
 ## Sets every spring's settings from its group's own and jiggle_style's.

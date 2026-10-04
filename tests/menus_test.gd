@@ -55,6 +55,13 @@ func _prefs() -> void:
 	_check("effects bus exists and mutes at 0", fx > 0 and AudioServer.is_bus_mute(fx), fx)
 	for bus in ["Ambience", "Voices"]:
 		_check("%s bus exists" % bus, AudioServer.get_bus_index(bus) > 0, bus)
+	_check("jiggle style defaults to classic", Prefs.jiggle_style() == "classic", Prefs.jiggle_style())
+	Prefs.set_jiggle_style("anime")
+	Prefs._cfg = null
+	_check("jiggle style saved", Prefs.jiggle_style() == "anime", Prefs.jiggle_style())
+	Prefs.set_value("game", "jiggle_style", "bogus")
+	_check("unknown jiggle style reads as classic", Prefs.jiggle_style() == "classic", Prefs.jiggle_style())
+	Prefs.set_jiggle_style("classic")
 	Prefs.set_value("audio", "Effects", 1.0)
 	Prefs.set_value("controls", "sensitivity", 1.0)
 	Prefs.set_value("controls", "invert_y", false)
