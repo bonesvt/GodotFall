@@ -3,12 +3,17 @@ extends RefCounted
 
 const TitanParts := preload("res://scripts/run/titan_parts.gd")
 
+## The handmade zones every run goes through (zone_builder.gd).
 const ZONE_COUNT := 3
+## Generated zones a long run adds after them (procgen/zone_generator.gd).
+const UNCHARTED_ZONES := 2
 const PILOT_MAX := 100
 
 var run_seed := 0
 var rng := RandomNumberGenerator.new()
 var zone := 0
+## Zones before the titan fight: ZONE_COUNT, plus any uncharted ones.
+var zone_count := ZONE_COUNT
 ## slot -> part dictionary, see titan_parts.gd
 var parts := {}
 var pilot_hp := PILOT_MAX
@@ -24,9 +29,10 @@ var kills := 0
 var materials := {"scrap": 0, "alloy": 0, "circuits": 0}
 
 
-func _init(seed_value: int) -> void:
+func _init(seed_value: int, uncharted := 0) -> void:
 	run_seed = seed_value
 	rng.seed = seed_value
+	zone_count = ZONE_COUNT + uncharted
 
 
 func install(part: Dictionary) -> void:

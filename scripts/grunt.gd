@@ -13,6 +13,7 @@ const Pilot := preload("res://scripts/player.gd")
 const FX := preload("res://scripts/fx.gd")
 const Art := preload("res://scripts/ps2/ps2_assets.gd")
 const SFX := preload("res://scripts/sfx.gd")
+const Nav := preload("res://scripts/run/procgen/nav.gd")
 
 signal died(grunt: Node)
 ## UNAWARE, SUSPICIOUS or ALERTED (see Awareness), every time it changes.
@@ -86,6 +87,16 @@ enum Awareness { UNAWARE, SUSPICIOUS, ALERTED }
 ## Alerted grunts that lose sight of the pilot this long go back to searching.
 @export var lose_track_time := 10.0
 
+@export_group("Patrol")
+## Points this grunt walks round in a loop while it's unaware, along the
+## zone's navmesh when it has one (generated zones do: procgen/nav.gd).
+## Empty, it holds its post. A patrolling grunt that loses sight of the pilot
+## hunts toward where they were last seen the same way.
+@export var patrol := PackedVector3Array()
+@export var patrol_speed := 1.7
+## Seconds it stops at each point to look around.
+@export var patrol_pause := 2.5
+
 const HEAD_Y := 1.5  # hits higher than this above the feet are headshots
 const EYE := Vector3(0, 1.6, 0)
 const MUZZLE := Vector3(0.3, 1.2, -0.6)
@@ -110,6 +121,12 @@ var windup_timer := -1.0
 var strafe_dir := 1.0
 var strafe_timer := 0.0
 var dead := false
+## The patrol point it's walking to, the path there, and how long it has left to wait.
+var patrol_index := 0
+var _path := PackedVector3Array()
+var _path_i := 0
+var _path_age := 0.0
+var _pause := 0.0
 var voice_at := -1000
 var post := Vector3.ZERO
 var rng := RandomNumberGenerator.new()
@@ -149,11 +166,16 @@ func _physics_process(delta: float) -> void:
 			if dist > sight_range * 1.5 or since_seen > lose_track_time:
 				lose_track()
 		else:
-			_unaware_look(delta)
+			if awareness == Awareness.UNAWARE and patrol.size() >= 2:
+				want = _patrol_step(delta)
+			if want == Vector3.ZERO:
+				_unaware_look(delta)
 		if alerted and dist > 0.1:
 			var dir := to / dist
 			rotation.y = lerp_angle(rotation.y, atan2(-dir.x, -dir.z), 1.0 - exp(-8.0 * delta))
 			want = _movement(dir, dist, delta)
+			if not has_sight and not patrol.is_empty():
+				want = _walk_to(last_known, delta, 1.0)
 			_combat(delta)
 
 	if leash > 0.0:
@@ -326,6 +348,49 @@ func _pilot_in_grass() -> bool:
 	return false
 
 
+## Walks the patrol loop: on to the next point, a pause there to look round,
+## then the next. Returns the direction to move (scaled to patrol speed).
+func _patrol_step(delta: float) -> Vector3:
+	if _pause > 0.0:
+		_pause -= delta
+		return Vector3.ZERO
+	var goal := patrol[patrol_index % patrol.size()]
+	var d := goal - global_position
+	d.y = 0.0
+	if d.length() < 1.0:
+		patrol_index = (patrol_index + 1) % patrol.size()
+		_path = PackedVector3Array()
+		_pause = patrol_pause
+		return Vector3.ZERO
+	var dir := _walk_to(goal, delta, patrol_speed / move_speed)
+	if dir != Vector3.ZERO:
+		home_yaw = rotation.y  # pauses look round the way it was heading
+	return dir
+
+
+## Heads for `goal` along the navmesh (straight at it without one), turning
+## to face the way it walks. Returns the move direction times `speed`.
+func _walk_to(goal: Vector3, delta: float, speed: float) -> Vector3:
+	_path_age += delta
+	if _path.is_empty() or _path_i >= _path.size() or _path_age > 2.0:
+		_path = Nav.path(get_world_3d(), global_position, goal)
+		if _path.is_empty():
+			_path = PackedVector3Array([goal])
+		_path_i = 0
+		_path_age = 0.0
+	var d := _path[_path_i] - global_position
+	d.y = 0.0
+	while d.length() < 0.6 and _path_i < _path.size() - 1:
+		_path_i += 1
+		d = _path[_path_i] - global_position
+		d.y = 0.0
+	if d.length() < 0.3:
+		return Vector3.ZERO
+	var dir := d.normalized()
+	rotation.y = lerp_angle(rotation.y, atan2(-dir.x, -dir.z), 1.0 - exp(-6.0 * delta))
+	return dir * speed
+
+
 ## Unaware grunts sweep their gaze around their post; suspicious ones turn to
 ## face whatever they noticed.
 func _unaware_look(delta: float) -> void:
@@ -393,6 +458,7 @@ func hear_gunshot(pos: Vector3) -> void:
 func _set_awareness(a: Awareness) -> void:
 	if a == awareness:
 		return
+	_path = PackedVector3Array()
 	if a > awareness:
 		indicator_pop = 1.0
 	awareness = a

@@ -50,7 +50,7 @@ func _run() -> void:
 			continue   # people talk instead (tests/npc_test.gd)
 		if spot.has("family"):
 			continue   # Mom's bed: tests/family_test.gd
-		if spot["id"] == "map_table" or spot["id"] == "garage":
+		if spot["id"] in ["map_table", "uncharted_map", "garage"]:
 			continue
 		await _stand_at(spot["pos"])
 		if spot.has("screen"):
