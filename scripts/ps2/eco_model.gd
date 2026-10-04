@@ -46,7 +46,7 @@ extends "res://scripts/ps2/ps2_model.gd"
 ## scripts/hub/wardrobe.gd): "suit" is her own (gwen), the others are the
 ## other looks baked by tools/eco/build_eco_vroid.py BASE_STYLES. It shows
 ## with no suit upgrade; the upgrades' cuts go over any of them.
-@export_enum("suit", "suit_ghost", "suit_racer", "suit_harness", "suit_techwear") var outfit := "suit":
+@export_enum("suit", "suit_ghost", "suit_racer", "suit_harness", "suit_techwear", "suit_vesper", "suit_vesper_open") var outfit := "suit":
 	set(value):
 		outfit = value if value in OUTFITS else "suit"
 		if is_inside_tree():
@@ -96,13 +96,19 @@ const LIGHT_BODY := preload("res://assets/materials/eco/eco_v_body_light.tres")
 const MEDIUM_BODY := preload("res://assets/materials/eco/eco_v_body_medium.tres")
 const HEAVY_BODY := preload("res://assets/materials/eco/eco_v_body_heavy.tres")
 ## Her pilot suits (outfit): each but her own has its bodysuit material, and
-## each its jacket in the glb as base_<style>_jacket (harness has none).
-const OUTFITS := ["suit", "suit_ghost", "suit_racer", "suit_harness", "suit_techwear"]
+## each its jacket in the glb as base_<style>_jacket (harness and the vesper
+## looks have none). The vesper looks are Vesper Kane's clothes (a concept
+## character, Eco wears them for now): Mature rating only (MATURE_OUTFITS).
+const OUTFITS := ["suit", "suit_ghost", "suit_racer", "suit_harness", "suit_techwear", "suit_vesper", "suit_vesper_open"]
+## Outfits only offered under the Mature content rating (wardrobe.gd).
+const MATURE_OUTFITS := ["suit_vesper", "suit_vesper_open"]
 const STYLE_BODY := {
 	"suit_ghost": preload("res://assets/materials/eco/eco_v_body_ghost.tres"),
 	"suit_racer": preload("res://assets/materials/eco/eco_v_body_racer.tres"),
 	"suit_harness": preload("res://assets/materials/eco/eco_v_body_harness.tres"),
 	"suit_techwear": preload("res://assets/materials/eco/eco_v_body_techwear.tres"),
+	"suit_vesper": preload("res://assets/materials/eco/eco_v_body_vesper.tres"),
+	"suit_vesper_open": preload("res://assets/materials/eco/eco_v_body_vesper_open.tres"),
 }
 const EcoRest := preload("res://scripts/ps2/eco_rest.gd")
 const Hair := preload("res://scripts/hub/hair.gd")

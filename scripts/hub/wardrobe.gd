@@ -10,6 +10,7 @@ const K := preload("res://scripts/hub/hub_kit.gd")
 const Art := preload("res://scripts/ps2/ps2_assets.gd")
 const ECO_MODEL := "res://scripts/ps2/eco_model.gd"
 const HUB_NPC := "res://scripts/hub/hub_npc.gd"
+const ContentRating := preload("res://scripts/radio/content_rating.gd")
 
 ## Whose clothes can be in it, in tab order, with their tab names (people()
 ## leaves out anyone with only the one outfit for now).
@@ -17,7 +18,8 @@ const PEOPLE := [["eco", "ECO"], ["mom", "MOM"], ["ophelia", "OPHELIA"]]
 ## What each outfit is called on the screen (anything missing is capitalised).
 const NAMES := {
 	"suit": "Pilot suit", "suit_ghost": "Ghost suit", "suit_racer": "Racer suit",
-	"suit_harness": "Harness suit", "suit_techwear": "Techwear suit", "sleep": "Sleepwear", "work": "Work clothes", "date": "Date night",
+	"suit_harness": "Harness suit", "suit_techwear": "Techwear suit",
+	"suit_vesper": "Gunslinger (Vesper)", "suit_vesper_open": "Gunslinger, unzipped (Vesper)", "sleep": "Sleepwear", "work": "Work clothes", "date": "Date night",
 	"casual": "Casual", "swim": "Bikini", "bikini": "Bikini", "sheer": "Sheer layers",
 	"tight": "Tight and daring", "lingerie": "Lingerie", "home": "Home clothes",
 	"tee": "Band tee", "hoodie": "Hoodie", "night": "Nightwear",
@@ -34,11 +36,15 @@ static var eco_now := "suit"
 
 
 ## The outfits someone has. Eco's come from her model (eco_model.gd OUTFITS);
-## (her pilot suits).
+## (her pilot suits), less its MATURE_OUTFITS under the Teen content rating.
 static func outfits(who: String) -> Array:
 	if who == "eco":
-		var eco: Script = load(ECO_MODEL)
-		return eco.get_script_constant_map().get("OUTFITS", ["suit"]).duplicate()
+		var consts: Dictionary = (load(ECO_MODEL) as Script).get_script_constant_map()
+		var list: Array = consts.get("OUTFITS", ["suit"]).duplicate()
+		if ContentRating.current() != "M":
+			var mature: Array = consts.get("MATURE_OUTFITS", [])
+			list = list.filter(func(o): return not o in mature)
+		return list
 	var npc: Script = load(HUB_NPC)
 	return npc.get_script_constant_map().get("OUTFITS", {}).get(who, []).duplicate()
 
