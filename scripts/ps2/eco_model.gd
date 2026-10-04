@@ -171,7 +171,9 @@ func apply_suit() -> void:
 	for node in find_children("*", "MeshInstance3D", true, false):
 		var mi := node as MeshInstance3D
 		var tier := piece_tier(String(mi.name))
-		if tier > 0 and mi.mesh != null:
+		if String(mi.name).begins_with("base_"):  # the bare suit's own pieces (its jacket)
+			mi.visible = suit_tier == 0
+		elif tier > 0 and mi.mesh != null:
 			mi.visible = tier <= suit_tier and piece_worn(String(mi.name), suit_weight)
 			for i in mi.mesh.get_surface_count():
 				var m := mi.mesh.surface_get_material(i)

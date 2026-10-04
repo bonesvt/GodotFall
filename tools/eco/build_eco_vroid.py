@@ -62,6 +62,11 @@ HVY_SUIT = (0.03, 0.034, 0.045)   # the heavy suit's padded undersuit
 CREASE = (0.42, 0.24, 0.22)       # shadowed skin
 GLEAM = (0.15, 0.155, 0.195)      # where it stretches thinnest, on the peaks of her bust
 CREASE_SKIN = (0.74, 0.52, 0.52)  # multiplies her skin along the fold under her glutes, where the cut bares it
+# the base pilot suit: a full stretch bodysuit, charcoal with crimson panels
+BASE_RED = (0.24, 0.018, 0.026)   # crimson panels, the red of her hair
+BASE_NET = (0.02, 0.022, 0.03)    # the breathable mesh's net
+BASE_CORSET = (0.012, 0.011, 0.014)
+JACKET = (0.6, 0.58, 0.54)        # the cropped jacket: off-white
 
 SIDE_CUT = 0.075   # how far the sides of the halter drop beside the bust (rest-space metres)
 CHEEKY = 1.6       # how steeply the back leg openings rise toward the hips
@@ -584,7 +589,8 @@ def _body_bvh():
 def _armor_mats(me, names):
     cols = {"eco_v_armor": ARMOR, "eco_v_armor_edge": ARMOR_EDGE, "eco_v_armor_strap": STRAP,
             "eco_v_armor_pouch": POUCH, "eco_v_armor_glow": TRIM, "eco_v_cloth": CLOTH,
-            "eco_v_leather": LEATHER, "eco_v_canvas": CANVAS, "eco_v_rust": RUST, "eco_v_tape": TAPE}
+            "eco_v_leather": LEATHER, "eco_v_canvas": CANVAS, "eco_v_rust": RUST, "eco_v_tape": TAPE,
+            "eco_v_jacket": JACKET, "eco_v_jacket_edge": BASE_RED}
     for n in names:
         me.materials.append(new_mat(n, cols[n]))
 
@@ -713,6 +719,24 @@ def torus(bm, centre, axis, major, minor, mat, segs=(16, 6)):
         for j in range(segs[1]):
             f = bm.faces.new((grid[i][j], grid[(i + 1) % segs[0]][j], grid[(i + 1) % segs[0]][(j + 1) % segs[1]], grid[i][(j + 1) % segs[1]]))
             f.material_index = mat
+
+
+def base_jacket():
+    """The base suit's fashion piece (base_*, shown by eco_model.gd only with no
+    suit upgrade): a cropped off-white jacket, short sleeves, open at the front so
+    the suit's sweetheart line shows, its hem above her ribs at the back."""
+    def keep(c, n):
+        ax = abs(c.x)
+        if c.z > 1.165 and math.hypot(c.x, c.y - 0.022) < 0.075:
+            return False   # her neck, under the collar
+        if ax > 0.15:
+            return c.z > 1.0   # the sleeves
+        if c.z < 1.04:
+            return False
+        return not (c.y < 0 and ax < 0.095 + 0.3 * max(0.0, 1.12 - c.z))   # open front, curving away
+    return shell("base_jacket", keep,
+                 planes=[((0, 0, 1.035), (0, 0, -1)), ((0.25, 0, 0), (1, 0, 0)), ((-0.25, 0, 0), (-1, 0, 0))],
+                 gap=0.006, thick=0.005, plate="eco_v_jacket", edge="eco_v_jacket_edge", smooth=2)
 
 
 def light_suit(bvh):
@@ -1291,6 +1315,63 @@ def crease_lines(g, x, y, z, width):
     return g.mul(g.mx(cleft, fold), back)
 
 
+def base_details(g, x, y, z, skin, col, c_suit, c_gear, front, AA):
+    """The base pilot suit's look, over the plain bodysuit: a full stretch suit
+    built to move and breathe, with some fashion on it.
+      - a sweetheart line over her bust, solid below it and breathable black mesh
+        above it up to the collar, piped in teal
+      - crimson panels down her sides and the outside of her legs (perforated
+        over her ribs to breathe), and crimson sleeves down to her gloves
+      - a black corset belt cinched round her waist, laced up the front in crimson
+    Returns (colour, ink line, glowing trim)."""
+    ax = g.abs(x)
+    on = g.mul(c_suit, g.sub(1.0, c_gear))
+    # sweetheart: two arcs over her bust dipping between them
+    dip = g.op("EXPONENT", g.neg(g.sq(g.div(ax, 0.013))))
+    zs = g.sub(g.sub(1.088, g.mul(2.2, g.sq(g.sub(ax, 0.06)))), g.mul(0.024, dip))
+    d_yoke = g.mn(g.mn(g.sub(z, zs), g.sub(1.163, z)), g.sub(0.15, ax))
+    yoke = g.mul(g.mul(g.sstep(-AA, AA, d_yoke), front), on)
+    def lines(v, step):
+        f = g.op("FRACT", g.div(v, step))
+        return g.mx(g.sub(1.0, g.sstep(0.0, 0.2, f)), g.sstep(0.8, 1.0, f))
+    net = g.mx(lines(g.add(x, z), 0.0065), lines(g.sub(x, z), 0.0065))
+    mesh = g.mixc(g.mixc(skin, SUIT, 0.55), BASE_NET, net)
+    col = g.mixc(col, mesh, yoke)
+    ink = g.mul(g.mul(g.band(d_yoke, -0.0008, 0.0), front), on)
+    trim = g.mul(g.mul(g.band(d_yoke, -0.0024, -0.0012), front), on)
+    # crimson side panels, the outsides of her legs, and her sleeves
+    th = g.lerp(0.108, 0.084, g.sstep(0.76, 0.8, z))
+    below_arm = g.sub(1.0, g.sstep(0.985, 0.995, z))
+    d_panel = g.sub(ax, th)
+    panel = g.mul(g.mul(g.sstep(-AA, AA, d_panel), below_arm), on)
+    d_sleeve = g.mx(g.sub(ax, 0.165), g.sub(1.0, z))   # her arms only (out sideways at rest), never her hips
+    sleeve = g.mul(g.sstep(-AA, AA, d_sleeve), on)
+    col = g.mixc(col, BASE_RED, g.mx(panel, sleeve))
+    # perforated over her ribs so it breathes
+    def frac(v, step):
+        return g.sub(g.op("FRACT", g.div(v, step)), 0.5)
+    hole = g.sqrt(g.add(g.sq(frac(y, 0.0085)), g.sq(frac(z, 0.0085))))
+    vent = g.mul(g.mul(g.sub(1.0, g.sstep(0.22, 0.3, hole)), g.band(z, 0.88, 0.975, 0.004)), g.mul(panel, g.sstep(0.004, 0.008, d_panel)))
+    col = g.mixc(col, g.mixc(skin, INK, 0.45), vent)
+    edge = g.mx(g.mul(g.band(d_panel, 0.0006, 0.0018), below_arm), g.band(d_sleeve, 0.0006, 0.0018))
+    trim = g.mx(trim, g.mul(edge, on))
+    ink = g.mx(ink, g.mul(g.mx(g.mul(g.band(d_panel, -0.0004, 0.0006), below_arm), g.band(d_sleeve, -0.0004, 0.0006)), on))
+    # a black corset belt, its top rising to a point at the front, laced in crimson
+    top = g.sub(0.978, g.mul(0.3, ax))
+    bot = g.add(0.872, g.mul(0.18, ax))
+    d_cor = g.mn(g.sub(top, z), g.sub(z, bot))
+    cor = g.mul(g.sstep(-AA, AA, d_cor), on)
+    col = g.mixc(col, BASE_CORSET, cor)
+    gap = g.mul(g.mul(g.sstep(-AA, AA, g.sub(0.007, ax)), front), cor)
+    col = g.mixc(col, SUIT, gap)
+    lace = g.mx(lines(g.add(z, ax), 0.011), lines(g.sub(z, ax), 0.011))
+    lace = g.mul(g.mul(lace, g.sstep(-AA, AA, g.sub(0.011, ax))), g.mul(front, cor))
+    col = g.mixc(col, BASE_RED, lace)
+    ink = g.mx(ink, g.mul(g.band(d_cor, -0.0006, 0.0003), on))
+    trim = g.mx(trim, g.mul(g.band(d_cor, 0.0012, 0.0022), on))
+    return col, ink, trim
+
+
 def suit_graph(nt, skin, cut="base"):
     """The pilot suit, worked out per pixel from each point's rest position (the
     'rest' attribute) so its edges are smooth curves whatever the mesh does.
@@ -1308,7 +1389,7 @@ def suit_graph(nt, skin, cut="base"):
     The light and medium cuts have no stretch shading over the bust.
     Returns (albedo colour, glow amount, cover amount, ink line, gloves and
     boots) sockets."""
-    light, medium, heavy = cut == "light", cut == "medium", cut == "heavy"
+    light, medium, heavy, base = cut == "light", cut == "medium", cut == "heavy", cut == "base"
     g = NG(nt)
     at = nt.nodes.new("ShaderNodeAttribute")
     at.attribute_name = "rest"
@@ -1320,8 +1401,9 @@ def suit_graph(nt, skin, cut="base"):
     front = g.sub(1.0, g.sstep(-0.045, -0.025, y))
     AA = 0.00045
     suit_col = MED_SUIT if medium else HVY_SUIT if heavy else SUIT
-    if heavy:
-        # a padded undersuit, neck to gloves to boots, under a high collar
+    if heavy or base:
+        # neck to gloves to boots, under a high collar (heavy: a padded undersuit;
+        # base: the stretch bodysuit)
         d_suit = g.sub(1.205, z)
         r = g.sqrt(g.add(g.sq(x), g.sq(g.sub(y, 0.022))))
         d_collar = g.mn(g.mn(g.sub(z, 1.166), g.sub(1.205, z)), g.sub(0.062, r))
@@ -1398,6 +1480,8 @@ def suit_graph(nt, skin, cut="base"):
         dimple = g.sqrt(g.add(g.sq(g.div(x, 0.0026)), g.sq(g.div(g.sub(z, MED_NAVEL), 0.0042))))
         col = g.mixc(col, CREASE, g.mul(g.mul(g.sub(1.0, g.sstep(0.4, 1.0, dimple)), front), 0.7))
     col = g.mixc(col, suit_col, c_suit)
+    if base:
+        col, ink_b, trim_b = base_details(g, x, y, z, skin, col, c_suit, c_gear, front, AA)
     if medium:
         # rust panels down her sides and the outside of her legs, a stitched seam beside each
         th = g.lerp(0.113, 0.084, g.sstep(0.76, 0.8, z))
@@ -1431,9 +1515,13 @@ def suit_graph(nt, skin, cut="base"):
         ink = g.mx(ink, g.mul(g.mul(g.band(g.abs(x), 0.0011, 0.0017, 0.0002), g.band(z, 0.79, MED_ZIP)), g.mul(front, c_suit)))
         pull = g.sqrt(g.add(g.sq(g.div(x, 0.0035)), g.sq(g.div(g.sub(z, MED_ZIP - 0.004), 0.006))))
         trim = g.mx(trim, g.mul(g.sub(1.0, g.sstep(0.85, 1.0, pull)), g.mul(front, c_suit)))
-    band_ = g.mul(g.band(z, 0.905, 0.955, 0.0004), c_suit)
-    col = g.mixc(col, PLATE, g.mul(band_, 0.55))
-    trim = g.mx(trim, g.mul(g.mx(g.band(z, 0.9045, 0.9058), g.band(z, 0.9542, 0.9555)), c_suit))
+    if base:
+        ink, trim = g.mx(ink, ink_b), g.mx(trim, trim_b)
+    if not base:
+        band_ = g.mul(g.band(z, 0.905, 0.955, 0.0004), c_suit)
+        col = g.mixc(col, PLATE, g.mul(band_, 0.55))
+    if not base:
+        trim = g.mx(trim, g.mul(g.mx(g.band(z, 0.9045, 0.9058), g.band(z, 0.9542, 0.9555)), c_suit))
     seam = g.mul(g.mul(g.band(y, 0.012, 0.0135), g.sstep(0.05, 0.06, ax)), c_suit)
     if medium:   # the back seam would cut across the panels; one down her spine instead
         seam = g.mul(g.mul(g.band(x, -0.0007, 0.0007, 0.0002), tb), c_suit)
@@ -1447,8 +1535,8 @@ def suit_graph(nt, skin, cut="base"):
         stretch = bell(0.062, 0.06, 0.775, 0.042)
         if not light:
             stretch = g.mx(bell(0.057, -0.105, 1.045, 0.03), stretch)
-        col = g.mixc(col, STRETCH, g.mul(g.mul(stretch, 0.55), suit_only))
-        if not light:   # the light wrap holds her bust: no peaks drawn through it
+        col = g.mixc(col, STRETCH, g.mul(g.mul(stretch, 0.35 if base else 0.55), suit_only))
+        if not (light or base):   # the base suit's fabric is thicker: no peaks drawn through it   # the light wrap holds her bust: no peaks drawn through it
             # drawn the anime way: a soft gleam on each peak of her bust with a small shadow under it
             col = g.mixc(col, INK, g.mul(g.mul(bell(APEX_POS[0], APEX_POS[1] + 0.0015, APEX_POS[2] - 0.0048, 0.0032), 0.8), suit_only))
             col = g.mixc(col, GLEAM, g.mul(g.mul(bell(APEX_POS[0], APEX_POS[1], APEX_POS[2] + 0.0016, 0.0024), 0.75), suit_only))
@@ -1899,6 +1987,7 @@ def main():
     objs = [bpy.data.objects[n] for n in ("Body", "Face", "Hair")] + [boots, gog]
     textures_and_materials(objs, boots)
     objs += suit_armor()
+    objs.append(base_jacket())
     glute_bones(arm)
     prune_bones(arm)
     proportions(arm, objs)
