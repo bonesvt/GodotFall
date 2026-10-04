@@ -1403,6 +1403,7 @@ def base_details(g, x, y, z, skin, col, c_suit, c_gear, front, AA):
     trim = g.mul(g.mul(g.band(d_yoke, -0.0024, -0.0012), front), on)
     # crimson side panels, the outsides of her legs, and her sleeves
     th = g.lerp(0.108, 0.084, g.sstep(0.76, 0.8, z))
+    th = g.mul(th, g.sstep(0.42, 0.52, z))   # below her knees the crimson wraps all the way round (no seam ringing her calf)
     below_arm = g.sub(1.0, g.sstep(0.985, 0.995, z))
     d_panel = g.sub(ax, th)
     panel = g.mul(g.mul(g.sstep(-AA, AA, d_panel), below_arm), on)
