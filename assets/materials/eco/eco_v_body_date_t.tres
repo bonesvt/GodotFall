@@ -24,5 +24,5 @@ shader_parameter/use_normal = false
 shader_parameter/normal_tex = ExtResource("4_v_body_n")
 shader_parameter/use_mask = true
 shader_parameter/mask_tex = ExtResource("5_v_body_mask")
-shader_parameter/sheen = 0.45
+shader_parameter/sheen = 0.3
 shader_parameter/glow_tex = ExtResource("6_v_body_glow")

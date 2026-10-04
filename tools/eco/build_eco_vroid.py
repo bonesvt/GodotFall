@@ -99,7 +99,7 @@ BASE_STYLES = {
                      neck=None, panels="wrap", belt_kind="sash", vents="spine", jacket="half"),
     "shade": dict(suit=(0.006, 0.006, 0.008), panel=(0.022, 0.021, 0.025), belt=(0.012, 0.011, 0.013),
                   accent=(0.35, 0.01, 0.03), net=BASE_NET, stretch=(0.03, 0.03, 0.04), glow=(0.9, 0.02, 0.08),
-                  neck=None, panels="shade", belt_kind="none", vents=None, jacket="cowl", gloss=0.85),
+                  neck=None, panels="shade", belt_kind="none", vents=None, jacket="cowl"),
     "homemade": dict(suit=(0.3, 0.16, 0.022), panel=(0.07, 0.11, 0.05), belt=(0.4, 0.31, 0.18),
                      accent=(0.42, 0.05, 0.07), net=BASE_NET, stretch=(0.38, 0.22, 0.045), glow=(1.0, 0.55, 0.15),
                      neck=None, panels="patchwork", belt_kind="none", vents=None, jacket="vest"),
@@ -856,7 +856,7 @@ def base_skirt():
     """Ophelia's pick for Eco's suit: a pleated violet and black plaid mini skirt
     over it, riding just under her belts (texture tartan.png, from tartan())."""
     tartan()
-    return skirt("base_%s_skirt" % STYLE_NAME, 0.892, 0.72, ["eco_v_tartan"], gap=0.012, flare=0.035,
+    return skirt("base_%s_skirt" % STYLE_NAME, 0.892, 0.725, ["eco_v_tartan"], gap=0.01, flare=0.018,
                  follow=(0.6, 0.92), rows=10, pleats=28)
 
 
@@ -870,8 +870,7 @@ def base_jacket():
       half     the cropped jacket's left half only: one sleeve, its edge down her back
       cowl     a hooded shroud's cowl over her shoulders, up round her neck, its
                hem tattered, short at the front and down her shoulder blades at the back
-      vest     a knitted sleeveless vest: no sleeves, the fronts stopping above her
-               bust, down to her waist at the back (Mom knitted it)
+      vest     a knitted sleeveless vest down to her waist, open at the front (Mom knitted it)
     None of them for a style without one. Its materials are eco_v_jacket[_<style>]
     and ..._edge."""
     shape = STYLE["jacket"]
@@ -896,12 +895,14 @@ def base_jacket():
             return False   # (no cutting plane: a bisected edge leaves a ragged border)
         if ax > 0.15:
             return c.z > 1.0   # the sleeves
+        if shape == "vest":   # down to her waist all round, open at the front
+            return c.z > hem and not (c.y < 0 and ax < 0.075)
         if c.z < hem or (c.y < -0.04 and (c.z < 1.065 or n.z < -0.3)):
             return False   # the fronts stop above the underside of her bust
         return not (c.y < 0 and ax < 0.07 + 0.2 * max(0.0, 1.12 - c.z))   # open front, curving away
     planes = [((0, 0, hem), (0, 0, -1)), ((cuff, 0, 0), (1, 0, 0)), ((-cuff, 0, 0), (-1, 0, 0))]
-    if shape == "cowl":
-        planes = []   # its ragged hem is its own
+    if shape in ("cowl", "vest"):
+        planes = []   # their hems are picked by face (a bisected edge leaves a ragged border)
     mat = "eco_v_jacket" + ("" if STYLE_NAME == "gwen" else "_" + STYLE_NAME)
     thick = 0.009 if shape == "vest" else 0.006   # chunky knit
     ob = shell("base_%s_jacket" % STYLE_NAME, keep, planes=planes, gap=0.006, thick=thick, plate=mat, edge=mat + "_edge",
@@ -1669,7 +1670,15 @@ def base_details(g, x, y, z, skin, col, c_suit, c_gear, front, AA):
         col = g.mixc(col, S["belt"], fill(gear_))
         matte = g.mx(matte, fill(gear_))
         ink = g.mx(ink, g.mul(g.band(gear_, -0.0004, 0.0006), on))
-        col = g.mixc(col, ZIP, g.mul(g.mul(g.mul(g.band(x, 0.048, 0.067), g.band(z, 0.872, 0.886)), front), on))   # buckle
+        col = g.mixc(col, (0.06, 0.06, 0.07), g.mul(g.mul(g.mul(g.band(x, 0.048, 0.067), g.band(z, 0.872, 0.886)), front), on))   # buckle
+        # its shine painted on (a real sheen blotches): soft streaks down the
+        # fronts of her thighs and shins, along the tops of her arms, down her sides
+        def streak(v, c, w):
+            return g.op("EXPONENT", g.neg(g.sq(g.div(g.sub(v, c), w))))
+        shine = g.mul(g.mul(streak(ax, 0.095, 0.009), g.band(z, 0.53, 0.8, 0.03)), front)
+        shine = g.mx(shine, g.mul(g.mul(streak(z, 1.172, 0.006), g.band(ax, 0.19, 0.29, 0.01)), g.sub(1.0, back)))
+        shine = g.mx(shine, g.mul(g.mul(streak(ax, 0.118, 0.006), g.band(z, 0.88, 0.98, 0.02)), front))
+        col = g.mixc(col, (0.1, 0.1, 0.125), g.mul(g.mul(shine, 0.7), on))
         hilt = g.mul(g.mul(g.sstep(0.104, 0.112, g.neg(x)), g.band(y, -0.012, 0.002)), g.band(z, 0.75, 0.785))
         col = g.mixc(col, (0.05, 0.05, 0.06), g.mul(hilt, on))
         pommel = g.sqrt(g.add(g.sq(g.div(g.add(y, 0.005), 0.007)), g.sq(g.div(g.sub(z, 0.789), 0.005))))
@@ -2227,16 +2236,21 @@ def skirt(name, top, hem, mats, gap=0.006, flare=0.0, slit=None, trim=False, fol
     return ob
 
 
-def _plaid(name, base, bands, line, reps, size=256):
-    """A woven plaid texture (assets/textures/eco/<name>.png), sRGB colours:
-    `bands` darkens or tints where the warp and weft stripes cross, `line`
-    the thin overcheck; `reps` (round, down) repeats."""
+def _plaid(name, sett, reps, size=512):
+    """A woven tartan texture (assets/textures/eco/<name>.png): `sett` is its
+    stripes ((sRGB colour, width), ...), repeated `reps` (round, down) times;
+    the warp and weft cross in a twill, so where two stripes meet the colour
+    alternates along diagonals like real cloth."""
+    widths = np.array([w for _, w in sett], np.float32)
+    edges = np.cumsum(widths) / widths.sum()
+    cols = np.array([c for c, _ in sett], np.float32)
+
+    def stripe(t):
+        return cols[np.searchsorted(edges, t % 1.0, side="right").clip(0, len(sett) - 1)]
     vv, uu = np.mgrid[0:size, 0:size] / size
-    a = (np.sin(uu * 2 * math.pi * reps[0]) > 0.3).astype(np.float32)
-    b = (np.sin(vv * 2 * math.pi * reps[1]) > 0.3).astype(np.float32)
-    thin = ((np.abs(np.sin(uu * 2 * math.pi * reps[0] * 2)) < 0.07) | (np.abs(np.sin(vv * 2 * math.pi * reps[1] * 2)) < 0.07))
-    col = np.array(base) + (a + b)[..., None] * np.array(bands)
-    col = col * (1 - thin[..., None]) + np.array(line) * thin[..., None]
+    warp, weft = stripe(uu * reps[0]), stripe(vv * reps[1])
+    twill = (((np.arange(size)[:, None] + np.arange(size)[None, :]) // 2) % 2).astype(np.float32)[..., None]
+    col = warp * (0.35 + 0.3 * twill) + weft * (0.65 - 0.3 * twill)
     px = np.ones((size, size, 4), np.float32)
     px[..., :3] = np.clip(col, 0, 1)
     write_png(px, name)
@@ -2244,7 +2258,9 @@ def _plaid(name, base, bands, line, reps, size=256):
 
 def tartan():
     """Ophelia's violet and black tartan (base_ophelia_skirt)."""
-    _plaid("tartan", (0.05, 0.04, 0.07), (0.11, 0.03, 0.17), (0.5, 0.45, 0.55), (12, 2.5))
+    black, violet, plum, lilac = (0.04, 0.035, 0.05), (0.34, 0.12, 0.5), (0.16, 0.06, 0.22), (0.72, 0.62, 0.82)
+    _plaid("tartan", [(black, 6), (violet, 4), (black, 1), (lilac, 0.6), (black, 1), (violet, 4), (black, 6),
+                      (plum, 2.5), (black, 1.5), (plum, 2.5)], (9, 2))
 
 
 def outfit_pieces():
@@ -2255,9 +2271,10 @@ def outfit_pieces():
               slit above her left knee; Mature: a mini, slit up her left
               thigh), its gold hem; gold hoops and bangles"""
     out = []
-    _plaid("flannel", (0.42, 0.04, 0.04), (-0.17, -0.02, -0.02), (0.05, 0.03, 0.03), (14, 2.5))
-    out.append(skirt("outfit_casual_any_flannel", 0.905, 0.74, ["eco_v_flannel"], gap=0.012, flare=0.02,
-                     slit=(-90.0, 70.0, 0.905), follow=(0.5, 0.85), rows=10))
+    red, black, dark = (0.62, 0.08, 0.08), (0.06, 0.04, 0.04), (0.3, 0.04, 0.04)
+    _plaid("flannel", [(red, 5), (black, 4), (dark, 0.6), (black, 4), (red, 5), (black, 0.6)], (10, 1.5))
+    out.append(skirt("outfit_casual_any_flannel", 0.905, 0.775, ["eco_v_flannel"], gap=0.012, flare=0.012,
+                     slit=(-90.0, 70.0, 0.905), follow=(0.5, 0.85), rows=32))
     body = bpy.data.objects["Body"]
     co = np.array([v.co[:] for v in body.data.vertices])
     yf = float(co[(np.abs(co[:, 0]) < 0.02) & (np.abs(co[:, 2] - 0.9) < 0.01), 1].min())
@@ -2344,8 +2361,9 @@ def outfit_graph(nt, skin, kind):
         state["col"] = g.mixc(state["col"], colour, amount)
 
     if kind.startswith("casual"):
+        wear(g.sub(0.17, z), GEAR, ink=False)   # under her boots: her toes can show through them
         if mature:   # a wide scoop neck rising to her shoulders, cap sleeves, cropped under her bust
-            zn = g.add(g.lerp(1.088, 1.172, tb), g.mul(1.3, g.sq(ax)))
+            zn = g.lerp(g.add(1.088, g.mul(9.0, g.sq(ax))), g.add(1.172, g.mul(1.3, g.sq(ax))), tb)
             d_tee = g.mn(g.mn(g.sub(zn, z), g.sub(0.172, ax)), g.sub(z, 0.985))
         else:        # crew neck, short sleeves, tucked into her jeans
             d_tee = g.mn(g.mn(g.sub(g.lerp(1.165, 1.178, tb), z), g.sub(0.225, ax)), g.sub(z, 0.9))
@@ -2387,7 +2405,7 @@ def outfit_graph(nt, skin, kind):
             # bare to it; straps up round her neck
             w_v = g.mul(0.32, g.mx(g.sub(z, 0.99), 0.0))
             d_front = g.mn(g.mn(g.sub(g.sub(1.125, g.mul(0.3, ax)), z), g.sub(ax, w_v)), g.sub(0.122, ax))
-            d_front = g.mn(d_front, g.mul(g.sub(0.5, tb), 0.02))
+            d_front = g.mn(g.mn(d_front, g.mul(g.sub(0.5, tb), 0.02)), g.sub(z, 0.95))
             d_lower = g.mn(g.sub(z, 0.65), g.sub(g.lerp(1.0, 0.93, tb), z))
             u = g.div(g.sub(z, 1.1), 0.09)
             d_strap = g.mn(g.mn(g.sub(0.0075, g.abs(g.sub(ax, g.lerp(0.05, 0.026, u)))), g.mn(g.sub(z, 1.1), g.sub(1.19, z))),
@@ -2401,7 +2419,7 @@ def outfit_graph(nt, skin, kind):
             d_slv = g.mn(g.mn(g.sub(ax, 0.165), g.sub(0.225, ax)), g.sub(z, 1.0))
             d_dress = g.mx(d_bod, d_slv)
             d_neck = None
-        c = wear(d_dress, SATIN, gloss=0.6)
+        c = wear(d_dress, SATIN)
         paint(g.mul(g.band(d_dress, 0.001, 0.0028), c), GOLD_PAINT)                         # gold piping
         wear(g.mn(g.sub(z, 0.912), g.sub(0.922, z)), GOLD_PAINT)                            # a thin gold belt
         if mature:
