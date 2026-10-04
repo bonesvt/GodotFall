@@ -4,7 +4,8 @@ extends Control
 ##   Controls  mouse sensitivity, invert Y, field of view
 ##   Keys      rebind every action (primary and secondary), reset to defaults
 ##   Sound     master, effects, ambience, voices
-##   Video     window / borderless / fullscreen, vsync, frame cap, PS3 or PS2 look
+##   Video     window / borderless / fullscreen, vsync, frame cap, look
+##             (Anime, PS3 or PS2) and film grain
 ##   Game      dialogue rating, tutorial hints, start in third person
 ## Esc or Back closes it (emits `closed`).
 
@@ -16,6 +17,7 @@ const RadioLines := preload("res://scripts/radio/radio_lines.gd")
 const Tutorial := preload("res://scripts/run/tutorial.gd")
 
 const FPS_CAPS := [0, 30, 60, 120, 144, 165, 240]
+const LOOKS := ["anime", "ps3", "ps2"]
 
 ## The live tutorial (run_manager.gd's), so toggling hints here works mid-game.
 var tutorial: Node
@@ -265,9 +267,14 @@ func _video_tab() -> void:
 	_options(box, "Frame rate cap", FPS_CAPS.map(func(f): return "Unlimited" if f == 0 else "%d fps" % f),
 		FPS_CAPS.find(int(Prefs.get_value("video", "max_fps"))),
 		func(i): _set_video("max_fps", FPS_CAPS[i]))
-	_options(box, "Look", ["PS3 (sharp, detailed)", "PS2 (retro, F9)"],
-		1 if bool(Prefs.get_value("video", "ps2_look")) else 0,
-		func(i): _set_video("ps2_look", i == 1))
+	_options(box, "Look (F9)", ["Anime (painted, inked)", "PS3 (sharp, detailed)", "PS2 (retro)"],
+		maxi(LOOKS.find(Prefs.look()), 0),
+		func(i):
+			Prefs.set_value("video", "ps2_look", LOOKS[i] == "ps2")
+			_set_video("look", LOOKS[i]))
+	_slider(box, "Film grain (Anime look)", 0.0, 1.0, 0.05, float(Prefs.get_value("video", "film_grain")),
+		func(v): return "Off" if v <= 0.001 else "%d%%" % roundi(v * 100.0),
+		func(v): _set_video("film_grain", v))
 
 
 func _set_video(key: String, value: Variant) -> void:

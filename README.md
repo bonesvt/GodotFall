@@ -20,8 +20,8 @@ Or play the Windows build (no editor needed): `GodotFall.exe`, see **Windows bui
 - **Settings** (`scripts/ui/settings_menu.gd`, saved by `scripts/game/prefs.gd` to
   `user://settings.cfg`): mouse sensitivity, invert Y, field of view; every key rebindable
   (primary and secondary); master / effects / ambience / voices volume (buses in
-  `default_bus_layout.tres`); windowed / borderless / fullscreen, vsync, frame cap, PS3 or
-  PS2 look (F9 remembers too); dialogue rating, tutorial hints, start in third person.
+  `default_bus_layout.tres`); windowed / borderless / fullscreen, vsync, frame cap, look
+  (Anime, PS3 or PS2; F9 remembers too) and film grain; dialogue rating, tutorial hints, start in third person.
 - **Save slots** (`scripts/game/saves.gd`): three, in `user://saves/slot1..3/`. Each holds the
   files the game already saved on its own (armory, hub conversations, titan paint, tutorial
   hints seen) plus runs / wins / time played. A run in progress isn't saved; Continue puts you
@@ -51,7 +51,7 @@ The preset keeps `dialogue/*` (plain text the hub people read at runtime) and le
 | G | Reset the grunt arena |
 | Esc | Pause menu (settings, quit) |
 | H | Toggle help |
-| F9 | Switch between the PS3 look and the old PS2 look |
+| F9 | Change look: Anime (default), PS3, old PS2 |
 
 ## The temple (hub)
 Pressing Play (`scenes/run.tscn`) opens in the hub: the small abandoned temple Eco hides
@@ -415,10 +415,20 @@ own spec:
   its squad with a top grade offer, the clearing starting the fight, the titan dropping inside
   it, and the evac completing and saving the level.
 
-## Art: PS3 look (with the old PS2 look on F9)
-Everything is stylized in the spirit of Jak and Daxter and Shadow of the Colossus,
-rendered at roughly PS3-era quality. **F9** flips back to the original PS2 look to compare.
+## Art: Anime look (with the PS3 and old PS2 looks on F9)
+Everything is stylized in the spirit of Jak and Daxter and Shadow of the Colossus. The
+default **Anime look** paints the world to match the toon-shaded characters, with a
+late-90s anime finish. **F9** cycles Anime, PS3 and PS2 to compare.
 
+- **Anime look** (default): the PS3 look's lighting and haze, but `ps2_surface` (the
+  `anime_look` shader global) reads textures from a blurrier mip, squashes their grain
+  toward their broad colour and posterises brightness into a few flat tones; no normal
+  maps or highlights; cel lighting with lavender shadows and hard-edged lamp pools.
+  `assets/shaders/anime_post.gdshader` (a full-screen quad the PS2 autoload keeps on the
+  current camera) paints the set with a Kuwahara filter (characters stay crisp: the set
+  writes roughness 0.5, the toon characters 1.0), draws ink lines from depth and normal
+  breaks, and grades it: warm highlights, cool shadows, halation, vignette, film grain
+  (Settings > Video > Film grain). Concepts: `tools/art/style_shots.gd`.
 - **PS3 look** (default): full resolution with 4x MSAA and 16x anisotropic filtering;
   normal-mapped textures with roughness and bare-metal masks; GGX highlights and sky
   reflections; sky-tinted ambient light with SSAO; soft 4-split sun shadows (4096 px);
