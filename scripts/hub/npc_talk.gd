@@ -194,7 +194,7 @@ func bank(who: String) -> Dictionary:
 	if not _banks.has(who):
 		var f := FileAccess.open(DIALOGUE_DIR + who + ".txt", FileAccess.READ)
 		var b := parse(f.get_as_text()) if f != null else parse("")
-		var fam := FileAccess.open(FAMILY_DIR + who + ".txt", FileAccess.READ)
+		var fam := FileAccess.open(FAMILY_DIR + who + ".txt", FileAccess.READ) if Family.enabled else null
 		if fam != null:
 			var extra := parse(fam.get_as_text())
 			for key in extra:

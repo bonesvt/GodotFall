@@ -21,7 +21,8 @@ const DEFAULTS := {
 	"controls": {"sensitivity": 1.0, "invert_y": false, "fov": 90.0},
 	"audio": {"Master": 0.9, "Effects": 1.0, "Ambience": 1.0, "Voices": 1.0},
 	"video": {"display": "windowed", "vsync": true, "max_fps": 0, "look": "anime", "film_grain": 0.4, "ps2_look": false},
-	"game": {"third_person": false, "jiggle_style": "classic"},
+	"game": {"third_person": false, "jiggle_style": "classic",
+		"tp_distance": 1.7, "shoulder_swap": true, "hub_nudge": true, "hub_nudge_x": 0.0, "hub_nudge_y": 0.0},
 }
 ## The FOV the cameras were tuned at; the FOV setting shifts every camera by
 ## its difference from this.
@@ -37,7 +38,10 @@ const BINDABLE := [
 	["grapple", "Grapple"], ["fire", "Shoot"], ["reload", "Reload"],
 	["melee", "Knife (tap: strike, hold: draw it)"], ["swap_weapon", "Switch knife / gun"], ["inspect", "Inspect weapon"], ["interact", "Interact / embark"],
 	["titan_core", "Call titan / core"], ["reset", "Respawn"],
-	["toggle_view", "First / third person"], ["ps2_toggle", "Change look (Anime / PS3 / PS2)"],
+	["toggle_view", "First / third person"], ["swap_shoulder", "Swap shoulder (third person)"],
+	["cam_nudge_up", "Hub camera up"], ["cam_nudge_down", "Hub camera down"],
+	["cam_nudge_left", "Hub camera left"], ["cam_nudge_right", "Hub camera right"],
+	["ps2_toggle", "Change look (Anime / PS3 / PS2)"],
 ]
 
 static var _cfg: ConfigFile
@@ -90,8 +94,20 @@ static func apply_all(force := false) -> void:
 	apply_audio()
 	apply_video()
 	apply_keys()
+	load("res://scripts/view_camera.gd").prefer_third_person = bool(get_value("game", "third_person"))
+	apply_camera()
+
+
+# --- third person camera ----------------------------------------------------------
+
+## Hands the third person settings to the camera (view_camera.gd keeps them as
+## statics, so every player camera picks them up, now and after a respawn).
+static func apply_camera() -> void:
 	var view = load("res://scripts/view_camera.gd")
-	view.prefer_third_person = bool(get_value("game", "third_person"))
+	view.distance_setting = float(get_value("game", "tp_distance"))
+	view.shoulder_swap_key = bool(get_value("game", "shoulder_swap"))
+	view.hub_nudge_keys = bool(get_value("game", "hub_nudge"))
+	view.hub_nudge = Vector2(float(get_value("game", "hub_nudge_x")), float(get_value("game", "hub_nudge_y")))
 
 
 # --- look ---------------------------------------------------------------------
@@ -191,6 +207,7 @@ static func rating() -> String:
 
 static func set_rating(r: String) -> void:
 	ContentRating.set_rating(r)
+	load("res://scripts/radio/dialogue_bank.gd").reload()  # picks up edits to dialogue/*.txt
 	_cfg = null  # content_rating.gd wrote the file itself
 
 

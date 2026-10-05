@@ -192,24 +192,34 @@ static func ensure_input_actions() -> void:
 		"sprint": [KEY_SHIFT], "grapple": [KEY_Q, KEY_E], "reset": [KEY_T],
 		"reload": [KEY_R], "reset_arena": [KEY_G], "inspect": [KEY_I], "melee": [KEY_Z], "fire": [],
 		"swap_weapon": [],
-		"toggle_view": [KEY_F5],
+		"toggle_view": [KEY_F5], "swap_shoulder": [KEY_X],
+		"cam_nudge_up": [KEY_UP], "cam_nudge_down": [KEY_DOWN],
+		"cam_nudge_left": [KEY_LEFT], "cam_nudge_right": [KEY_RIGHT],
 	}
 	var buttons := {"grapple": [MOUSE_BUTTON_RIGHT], "fire": [MOUSE_BUTTON_LEFT], "melee": [MOUSE_BUTTON_XBUTTON1],
-			"swap_weapon": [MOUSE_BUTTON_WHEEL_UP, MOUSE_BUTTON_WHEEL_DOWN]}
+		"swap_weapon": [MOUSE_BUTTON_WHEEL_UP, MOUSE_BUTTON_WHEEL_DOWN],
+		"toggle_view": [MOUSE_BUTTON_MIDDLE]}
 	# Only actions that don't exist yet get their defaults, so keys rebound in
 	# the settings (prefs.gd) stay rebound.
 	for action in keys:
 		if InputMap.has_action(action):
 			continue
 		InputMap.add_action(action)
+		var events := []
 		for key in keys[action]:
 			var ev := InputEventKey.new()
 			ev.physical_keycode = key
-			InputMap.action_add_event(action, ev)
+			events.append(ev)
 		for button in buttons.get(action, []):
 			var mb := InputEventMouseButton.new()
 			mb.button_index = button
-			InputMap.action_add_event(action, mb)
+			# the view swap's mouse button comes first: it's the easy one to reach
+			if action == "toggle_view":
+				events.insert(0, mb)
+			else:
+				events.append(mb)
+		for ev in events:
+			InputMap.action_add_event(action, ev)
 
 
 func _ready() -> void:

@@ -19,6 +19,11 @@ extends "res://scripts/ps2/ps2_model.gd"
 @export var strut_speed := 1.55
 ## How much strut to layer on the walk (1 = as tuned, 0 = a plain walk).
 @export_range(0.0, 2.0) var strut := 1.0
+## Seconds to blend from one animation into the next (slides and falls take half).
+@export var anim_blend := 0.25
+## Play the walk and run strides backwards (she's backpedalling; set by
+## scripts/ps2/eco_combat_moves.gd while her legs face away from where she goes).
+var stride_reverse := false
 ## Simulate the spring bones (hair, chest and glute jiggle).
 @export var springs_enabled := true
 ## How her chest, glutes and hair move (JIGGLE_STYLES): "classic" (the tuning
@@ -391,9 +396,9 @@ func _animate() -> void:
 			_anim.pause()
 		return
 	if _anim.current_animation != anim_name:
-		var blend := 0.12 if anim_name in ["slide", "fall"] else 0.25
+		var blend := anim_blend * 0.5 if anim_name in ["slide", "fall"] else anim_blend
 		_anim.play(anim_name, blend)
-	_anim.speed_scale = pick[1]
+	_anim.speed_scale = -pick[1] if stride_reverse and anim_name in ["walk", "run"] else pick[1]
 
 
 ## Whether she is in (or settling into) a rest pose.

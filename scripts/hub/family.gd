@@ -20,6 +20,11 @@ extends RefCounted
 ##   cuddle_from: 10      bond before "curl up with her" opens
 ##   close_from: 50       bond before their [close] talks start
 
+## Shelved (Bones, 2026-10-04): off, the game plays as if it didn't exist (no
+## bond, no family dialogue, no bed scenes, no sick days, Eco's whispers as
+## before). Set true to bring it back; tests/family_test.gd turns it on.
+static var enabled := false
+
 const MAX := 100
 ## Bond for the first talk in each hub stay.
 const TALK_GAIN := 3
@@ -82,6 +87,8 @@ static func hearts(state: ConfigFile, who: String) -> float:
 
 ## How soft Eco has got, 0..1: her strongest family bond.
 static func softness(state: ConfigFile) -> float:
+	if not enabled:
+		return 0.0
 	var best := 0
 	for who in state.get_sections():
 		best = maxi(best, int(state.get_value(who, "bond", 0)))
@@ -129,6 +136,8 @@ static func close(state: ConfigFile, bank: Dictionary, who: String) -> bool:
 ## Eco comes home sick after run `run_id`? Rolls once per run; `met_mom` is
 ## whether there's anyone home to look after her yet.
 static func roll_sick(state: ConfigFile, run_id: int, won: bool, met_mom: bool, roll: float) -> bool:
+	if not enabled:
+		return false
 	if not met_mom or run_id <= 0 or int(state.get_value(ECO, "sick_rolled", -1)) == run_id:
 		return sick(state, run_id)
 	state.set_value(ECO, "sick_rolled", run_id)
@@ -143,6 +152,8 @@ static func roll_sick(state: ConfigFile, run_id: int, won: bool, met_mom: bool, 
 
 ## Sick this hub stay, and not looked after yet.
 static func sick(state: ConfigFile, run_id: int) -> bool:
+	if not enabled:
+		return false
 	return int(state.get_value(ECO, "sick_run", -99)) == run_id and int(state.get_value(ECO, "cared_run", -1)) != run_id
 
 
