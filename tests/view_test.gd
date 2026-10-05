@@ -58,6 +58,7 @@ func _run() -> void:
 	_check("tracers start from her gun, not the camera", muzzle.distance_to(player.global_position + Vector3.UP * 1.2) < 1.3 and muzzle.distance_to(cam.global_position) > 1.0, muzzle)
 
 	# Tight: when she moves, the camera keeps up
+	player.get_node("TpFeel").apply_preset("current")  # the shoulder camera as tuned (tp_feel.gd floats it)
 	var before: Vector3 = cam.global_position
 	player.global_position += Vector3(0, 0, -0.5)
 	await _ticks(10)

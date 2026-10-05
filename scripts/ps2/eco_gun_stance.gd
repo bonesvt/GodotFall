@@ -41,6 +41,12 @@ const CURL := {
 @export var settle := 14.0
 ## Seconds standing still before she twirls the gun to pass the time.
 @export var idle_twirl_after := 7.0
+## Keep the gun up along the aim on the move too, instead of dropping to low
+## ready (the third person feel preset sets these, scripts/tp_feel.gd).
+@export var aim_while_moving := false
+## How quickly the gun comes up to the aim, and drops back to low ready.
+@export var raise_rate := 14.0
+@export var lower_rate := 6.0
 
 var body: CharacterBody3D
 ## The pistol node in her hand (a child of a BoneAttachment3D on her right hand).
@@ -188,10 +194,11 @@ func _sense(delta: float) -> void:
 	var firing := _since_shot() < 1.4
 	var reloading: bool = _weapon != null and _weapon.has_method("is_reloading") and _weapon.is_reloading()
 	var want_aim: bool = firing or reloading or (grounded and speed < 4.0) \
-		or (state == PlayerState.AIR and speed < 6.0)
+		or (state == PlayerState.AIR and speed < 6.0) \
+		or (aim_while_moving and (grounded or state == PlayerState.AIR))
 	var standing: bool = grounded and speed < 1.0 and not body.get("crouching")
 	combat = move_toward(combat, 1.0 if on else 0.0, delta * 4.0)
-	aim = lerpf(aim, 1.0 if want_aim else 0.0, 1.0 - exp(-(14.0 if want_aim else 6.0) * delta))
+	aim = lerpf(aim, 1.0 if want_aim else 0.0, 1.0 - exp(-(raise_rate if want_aim else lower_rate) * delta))
 	stance = lerpf(stance, 1.0 if standing else 0.0, 1.0 - exp(-5.0 * delta))
 	# show off: a twirl after a reload, after a kill (on_kill), or idling
 	if _was_reloading and not reloading:
