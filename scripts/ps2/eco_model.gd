@@ -314,11 +314,15 @@ func look() -> String:
 func apply_suit() -> void:
 	var suited_ := suited()
 	var legacy := suited_ and suit_tier >= SUIT_TIERS
+	var squeeze := 1.0 if suited_ and suit_tier > 0 and suit_weight == "light" else 0.0
 	var rating := look().right(1)
 	_dressed_rating = ContentRating.current()
 	for node in find_children("*", "MeshInstance3D", true, false):
 		var mi := node as MeshInstance3D
 		var tier := piece_tier(String(mi.name))
+		var squeeze_shape := mi.find_blend_shape_by_name(&"kit_squeeze") if mi.mesh != null else -1
+		if squeeze_shape >= 0:   # the light kit's compression bands pull her thighs in
+			mi.set_blend_shape_value(squeeze_shape, squeeze)
 		var mesh_name := String(mi.name)
 		if mesh_name.begins_with("Goggles"):
 			mi.visible = not outfit in NO_GOGGLES

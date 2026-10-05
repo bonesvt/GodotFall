@@ -2959,6 +2959,9 @@ def bake_body(body, skin_img, cut="base"):
 # --- suit kits: what each weight changes on the suit itself ----------------------------
 
 KITS = ("light", "medium", "heavy")
+SQUEEZE = (0.55, 0.655)             # the light kit's compression bands round her thighs (rest-space z)
+SQUEEZE_IN = 0.0035                 # how far they pull her thighs in
+SQUEEZE_BULGE = 0.0012              # and how far the flesh swells just above and below them
 KIT_GLOSS = (0.006, 0.006, 0.008)   # light: glossy black compression bands and boots
 KIT_BROWN = (0.1, 0.045, 0.018)     # medium: work boots
 KIT_SOCK = (0.45, 0.4, 0.3)
@@ -2973,8 +2976,9 @@ def kit_graph(nt, skin, weight):
     over her style's bodysuit once she has a suit tier):
       light   the collar cut away to bare her neck; a window over her stomach,
               between her ribs and her belly button and well clear of her chest,
-              piped in teal; glossy black compression bands round her thighs and
-              upper arms; tight, glossy knee-high boots with a crimson top
+              piped in teal; glossy, slightly sheer black compression bands round
+              her thighs (which squeeze in under them) and upper arms; tight,
+              glossy knee-high boots with a crimson top
       medium  the right sleeve torn off at the shoulder, a grease smear on that
               forearm; brown work boots laced up the front over a rolled sock; a
               mustard canvas patch on her left thigh, a teal one on her left arm
@@ -3025,11 +3029,15 @@ def kit_graph(nt, skin, weight):
         put(win, skin, shade=0.0)
         put(g.mul(g.band(d_win, -0.0028, -0.0012), front), TRIM, glow=TRIM)
         put(g.mul(g.band(d_win, -0.0012, 0.0), front), INK)
-        # glossy compression bands round her thighs and upper arms
-        d_thigh = g.mn(g.sub(z, 0.55), g.sub(0.655, z))
-        put(inside(d_thigh), KIT_GLOSS, sheen=1.0)
+        # glossy compression bands round her thighs and upper arms, sheer enough
+        # that her skin shows through a little (well clear of the covered zones:
+        # the thigh bands stop 5 cm below her crotch); the thighs' squeeze in
+        # under them is a shape key (thigh_squeeze)
+        sheer = g.mixc(KIT_GLOSS, skin, 0.3)
+        d_thigh = g.mn(g.sub(z, SQUEEZE[0]), g.sub(SQUEEZE[1], z))
+        put(inside(d_thigh), sheer, sheen=1.0, shade=0.6)
         d_arm = g.mn(g.mn(g.sub(ax, 0.19), g.sub(0.262, ax)), g.sub(z, 1.0))
-        put(inside(d_arm), KIT_GLOSS, sheen=1.0)
+        put(inside(d_arm), sheer, sheen=1.0, shade=0.6)
         for d in (d_thigh, d_arm):
             ink(d)
         # knee-high boots, peaked a little over the front of each knee, a crimson band round the top
@@ -3091,6 +3099,59 @@ def kit_graph(nt, skin, weight):
         put(g.mul(lines(z, 0.022, 0.08), inside(g.sub(0.29, z))), INK)
         ink(d_boot)
     return out["col"], out["sheen"], out["shade"], out["cover"], out["glow"]
+
+
+def thigh_squeeze(objs):
+    """The light kit's compression bands squeeze her thighs: a "kit_squeeze"
+    shape key on her body pulls each thigh in under the band (SQUEEZE), the
+    flesh swelling a little just above and below it. Every suit piece that sits
+    on her thighs (garter, straps, sheath, injector) gets the same key so it
+    follows the thigh in. eco_model.gd turns it on with the light kit."""
+    body = bpy.data.objects["Body"]
+    P = np.array([v.co[:] for v in body.data.vertices])
+    lo, hi = SQUEEZE
+    zs = np.arange(lo - 0.04, hi + 0.04, 0.004)
+    axis = {}
+    for s in (1, -1):   # each thigh's centre, slice by slice
+        pts = []
+        for zc in zs:
+            sel = (P[:, 0] * s > 0.01) & (np.abs(P[:, 2] - zc) < 0.004)
+            pts.append(P[sel, :2].mean(0) if sel.any() else (s * 0.08, 0.0))
+        axis[s] = np.array(pts)
+
+    def amount(z):
+        band = ss(lo - 0.003, lo + 0.003, z) * (1 - ss(hi - 0.003, hi + 0.003, z))
+        swell = np.exp(-((z - (lo - 0.008)) / 0.005) ** 2) + np.exp(-((z - (hi + 0.008)) / 0.005) ** 2)
+        return -SQUEEZE_IN * band + SQUEEZE_BULGE * swell
+
+    def squeezed(co):
+        x, y, z = co
+        if not (lo - 0.03 < z < hi + 0.03) or abs(x) < 0.004:
+            return None
+        s = 1 if x > 0 else -1
+        c = np.array((np.interp(z, zs, axis[s][:, 0]), np.interp(z, zs, axis[s][:, 1])))
+        d = np.array((x, y)) - c
+        r = np.linalg.norm(d)
+        if r < 1e-4 or r > 0.14:
+            return None
+        k = float(amount(z))
+        return Vector((x + d[0] / r * k, y + d[1] / r * k, z))
+
+    n = 0
+    for ob in objs:
+        if ob is not body and not ob.name.startswith("suit_"):
+            continue
+        moved = {i: squeezed(v.co) for i, v in enumerate(ob.data.vertices)}
+        moved = {i: c for i, c in moved.items() if c is not None and (c - ob.data.vertices[i].co).length > 1e-6}
+        if not moved:
+            continue
+        if ob.data.shape_keys is None:
+            ob.shape_key_add(name="Basis", from_mix=False)
+        key = ob.shape_key_add(name="kit_squeeze", from_mix=False)
+        for i, c in moved.items():
+            key.data[i].co = c
+        n += 1
+    print("thigh squeeze on %d meshes" % n)
 
 
 def bake_kit(body, skin_img, weight):
@@ -3519,6 +3580,7 @@ def main():
     objs += suit_armor()
     objs += base_jackets()
     objs += outfit_pieces()
+    thigh_squeeze(objs)
     glute_bones(arm)
     prune_bones(arm)
     proportions(arm, objs)

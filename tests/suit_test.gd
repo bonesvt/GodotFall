@@ -113,6 +113,9 @@ func _model() -> void:
 				and kit.get_shader_parameter("kit_tex") == eco.KIT_TEX[w][0] \
 				and kit.get_shader_parameter("albedo_tex") == eco.GWEN_BODY.get_shader_parameter("albedo_tex"), body_surface)
 		_check("%s has its own makeup" % w, makeup.call() == eco.KIT_FACE[w], makeup.call())
+		var squeeze := body_mesh.find_blend_shape_by_name(&"kit_squeeze")
+		_check("%s %s her thighs" % [w, "squeezes" if w == "light" else "leaves"], squeeze >= 0 \
+				and body_mesh.get_blend_shape_value(squeeze) == (1.0 if w == "light" else 0.0), squeeze)
 	_check("heavy has its breastplate and core", eco.find_child("suit_t1h_breastplate", true, false).visible \
 			and eco.find_child("suit_t5h_core", true, false).visible, "")
 	eco.suit_tier = 0
