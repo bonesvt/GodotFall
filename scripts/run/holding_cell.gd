@@ -52,7 +52,7 @@ var _field: MeshInstance3D
 var _field_light: OmniLight3D
 var _rings: Array = []    # MeshInstance3D drifting up the field
 var _pylons: Array = []   # the glowing strip on each pylon
-var _glows: Array = []    # the cuffs' and collar's light bands
+var _glows: Array = []    # the lit rings on the pad, cap, cuffs and collar
 var _restraints: Array = []   # Node3D per cuff and the collar, on her bones
 var _rating := ""
 var _t := 0.0
@@ -157,7 +157,7 @@ func _process(delta: float) -> void:
 		ring.position.y = PAD_TOP + 0.05 + f * h
 		ring.transparency = 0.3 + 0.7 * absf(f * 2.0 - 1.0)
 	if _field_light != null:
-		_field_light.light_energy = 1.1 + 0.15 * sin(_t * 2.3)
+		_field_light.light_energy = 0.6 + 0.08 * sin(_t * 2.3)
 
 
 func _build() -> void:
@@ -195,10 +195,12 @@ func _build() -> void:
 		_cyl(self, at + Vector3.UP * 0.07, 0.45, 0.14, iron)
 		_cyl(self, at + Vector3.UP * (h - 0.1), 0.4, 0.2, iron)
 		_cyl(self, at + Vector3.UP * 0.15, 0.3, 0.02, Art.material("gunmetal", Color(0.4, 0.42, 0.45)))
-	# The manifest plate over her pad.
-	_manifest = Kit.label(self, Vector3(COLUMN.x, 2.45, -d + 0.03), "", 22)
+	# The manifest plate on the wall beside her pad.
+	_manifest = Kit.label(self, Vector3(COLUMN.x - 1.75, 2.1, -d + 0.03), "", 22)
 	_manifest.modulate = FIELD
 	_manifest.outline_size = 0
+	_manifest.billboard = BaseMaterial3D.BILLBOARD_DISABLED   # flat on the wall
+	_manifest.position.z += 0.02
 	# Emitter rails top and bottom, and the screen between them.
 	var rail := Art.material("gunmetal")
 	K.mesh(self, Vector3(0, 0.12, 0.05), Vector3(w, 0.24, 0.3), rail)
@@ -250,15 +252,16 @@ func _build_column(h: float) -> void:
 	var iron := Art.material("gunmetal")
 	var lit := Kit.glow(FIELD)
 	_cyl(self, COLUMN + Vector3.UP * PAD_TOP * 0.5, 0.78, PAD_TOP, iron)
-	_cyl(self, COLUMN + Vector3.UP * (PAD_TOP + 0.01), FIELD_R + 0.05, 0.02, lit)
+	_glows.append(_cyl(self, COLUMN + Vector3.UP * (PAD_TOP + 0.01), FIELD_R + 0.05, 0.02, lit))
 	_cyl(self, COLUMN + Vector3.UP * (h - 0.14), 0.72, 0.28, iron)
-	_cyl(self, COLUMN + Vector3.UP * (h - 0.29), FIELD_R + 0.05, 0.02, lit)
+	_glows.append(_cyl(self, COLUMN + Vector3.UP * (h - 0.29), FIELD_R + 0.05, 0.02, lit))
 	var mat := StandardMaterial3D.new()
 	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
 	mat.depth_draw_mode = BaseMaterial3D.DEPTH_DRAW_DISABLED
-	mat.albedo_color = Color(FIELD, 0.13)
+	mat.albedo_color = Color(FIELD, 0.07)
+	mat.render_priority = -1
 	var top := h - 0.3
 	_field = _cyl(self, COLUMN + Vector3.UP * (PAD_TOP + top) * 0.5, FIELD_R, top - PAD_TOP, mat)
 	(_field.mesh as CylinderMesh).cap_top = false
@@ -288,9 +291,9 @@ func _build_column(h: float) -> void:
 		_pylons.append(strip)
 	_field_light = OmniLight3D.new()
 	_field_light.light_color = FIELD
-	_field_light.light_energy = 1.1
+	_field_light.light_energy = 0.6
 	_field_light.omni_range = 4.0
-	_field_light.position = COLUMN + Vector3.UP * 1.3
+	_field_light.position = COLUMN + Vector3(0, 2.2, 0.3)
 	add_child(_field_light)
 
 
@@ -336,7 +339,6 @@ func release() -> bool:
 	opened = true
 	_screen.queue_free()
 	_screen = null
-	_light.light_energy = 0.0
 	var dead := Art.material("gunmetal", Color(0.35, 0.36, 0.38))
 	for strip: MeshInstance3D in _pylons:
 		strip.material_override = Kit.glow(Color(1.0, 0.55, 0.3))
@@ -347,6 +349,7 @@ func release() -> bool:
 	for ring in _rings:
 		ring.visible = false
 	_field_light.light_energy = 0.0
+	_light.light_energy = 0.3   # the street's spill, now the screen's gone
 	if ophelia != null:
 		var drop := create_tween()
 		drop.tween_property(ophelia, "position:y", COLUMN.y + PAD_TOP, 0.22).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
@@ -375,4 +378,4 @@ func _refresh() -> void:
 		_label.modulate = SCREEN
 	# Mature: Eco can read the manifest, and the forty before her are gone.
 	if _manifest != null:
-		_manifest.text = "" if opened else ("MANIFEST 7-ORB  ITEM 41 OF 60\nAWAITING LIFT" if HubNpc.mature() else "TRANSIT HOLD\nAWAITING LIFT")
+		_manifest.text = "" if opened else ("MANIFEST 7-ORB\nITEM 41 OF 60\nAWAITING LIFT" if HubNpc.mature() else "TRANSIT HOLD\nAWAITING LIFT")

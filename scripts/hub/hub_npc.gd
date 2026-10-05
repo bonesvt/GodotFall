@@ -272,13 +272,14 @@ func _dress_face(p_outfit: String) -> void:
 ## Shows an outfit's own meshes (Outfit_<outfit>_*: Mom's nightgown,
 ## Ophelia's pajama legs) and hides every other outfit's, and the boots when
 ## the outfit has none. Ophelia's piercings ("Piercings") show only with the
-## content rating on Mature (or above).
+## content rating on Mature (or above), and never in a mission outfit.
 func _dress_meshes(p_outfit: String) -> void:
 	_rating_seen = ContentRating.current()
 	for mi in find_children("*", "MeshInstance3D", true, false):
 		var n := String(mi.name)
 		if n.begins_with("Piercings"):
-			mi.visible = mature()
+			# never on a captive (mission outfits): nothing on her chest shows through
+			mi.visible = mature() and not MISSION_OUTFITS.get(who, []).has(p_outfit)
 		elif n.begins_with("Outfit_"):
 			mi.visible = n.begins_with("Outfit_%s_" % p_outfit)
 		elif n.begins_with("Boots"):

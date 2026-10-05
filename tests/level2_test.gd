@@ -97,6 +97,7 @@ func _play_checks() -> void:
 	_check("Ophelia's in the stasis column in the Mature intake suit, cuffed and collared", oph != null and oph.who == "ophelia" and oph.outfit == "colony_m" and oph.posed and cell._restraints.size() == 3 and cell._field.visible, [oph.outfit, cell._restraints.size()])
 	_check("she floats off the pad in the stasis pose", oph.position.y > cell.PAD_TOP + 0.1 and oph._anim.current_animation.ends_with("stasis"), [oph.position.y, oph._anim.current_animation])
 	_check("Mature face and messed-up hair", _face_tex(oph).ends_with("face_colony_m.png") and _blend(oph, "mess_colony") > 0.99, [_face_tex(oph), _blend(oph, "mess_colony")])
+	_check("nothing shows through her suit (no chest nubs on a captive)", _hidden(oph, "Piercings"), _hidden(oph, "Piercings"))
 	_check("Mature manifest: item 41 of 60", cell._manifest.text.contains("ITEM 41 OF 60"), cell._manifest.text)
 	ContentRating.set_rating("T", false)
 	await _frames(3)
@@ -252,6 +253,13 @@ func _face_tex(npc: Node) -> String:
 				var tex: Texture2D = (mine if mine != null else mat).get_shader_parameter("albedo_tex")
 				return tex.resource_path if tex != null else ""
 	return ""
+
+
+func _hidden(npc: Node, prefix: String) -> bool:
+	for mi in npc.find_children("*", "MeshInstance3D", true, false):
+		if String(mi.name).begins_with(prefix) and mi.visible:
+			return false
+	return true
 
 
 func _blend(npc: Node, shape: String) -> float:
