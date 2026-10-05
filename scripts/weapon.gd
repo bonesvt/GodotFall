@@ -252,6 +252,11 @@ const SHOT_MASK := 0xFFFFFFFF & ~16
 ## can't fire.
 var holstered := false
 var _holster := 0.0
+## Seconds left of the draw when she brings the gun back after the knife.
+var _drawing := 0.0
+## True while the knife is her weapon (knife.gd): the gun is put away entirely.
+var stowed := false
+const DRAW_TIME := 0.4
 
 var lock_target: Node3D
 ## Seconds spent trying to lock the current target.
@@ -330,7 +335,7 @@ func _physics_process(delta: float) -> void:
 	if Input.is_action_just_pressed("fire") or (automatic and Input.is_action_pressed("fire") and ammo > 0):
 		buffer_timer = fire_buffer
 		stop_inspect()  # shooting always wins over showing off
-	if buffer_timer > 0.0 and cooldown <= 0.0 and reload_timer <= 0.0 and not holstered:
+	if buffer_timer > 0.0 and cooldown <= 0.0 and reload_timer <= 0.0 and not holstered and _drawing < DRAW_TIME * 0.5:
 		buffer_timer = 0.0
 		if ammo > 0:
 			fire()
@@ -700,6 +705,20 @@ func inspect() -> void:
 	_inspect_line = pick
 	inspect_time = -0.001  # so the opening twirl fires on the first update
 	inspected.emit(inspect_lines[pick])
+
+
+## Brings the gun back up after the knife was her weapon: it comes up from
+## below with a roll, and can fire once it's halfway up.
+func draw() -> void:
+	holstered = false
+	stowed = false
+	_holster = 1.0
+	_drawing = DRAW_TIME
+	SFX.play(self, "reload_in", -14.0, 1.15)
+
+
+func is_drawing() -> bool:
+	return _drawing > 0.0
 
 
 func stop_inspect() -> void:
@@ -1130,8 +1149,12 @@ func _animate_viewmodel(delta: float) -> void:
 	var p := reload_progress()
 	var r := smoothstep(0.0, 0.14, p) * (1.0 - smoothstep(0.86, 1.0, p))
 
-	_holster = move_toward(_holster, 1.0 if holstered else 0.0, delta * 7.0)
+	_drawing = maxf(_drawing - delta, 0.0)
+	_holster = move_toward(_holster, 1.0 if holstered else 0.0, delta * (1.0 / DRAW_TIME if _drawing > 0.0 else 7.0))
 	var h := smoothstep(0.0, 1.0, _holster)
+	# All the way down (the knife is her weapon): out of sight.
+	viewmodel.visible = not (stowed and _holster > 0.98)
+	var draw_roll := 0.9 * h if _drawing > 0.0 else 0.0
 
 	var pos := VIEW_POS
 	pos += Vector3(0.05, -0.2, 0.08) * h
@@ -1146,7 +1169,7 @@ func _animate_viewmodel(delta: float) -> void:
 	viewmodel.rotation = Vector3(
 		deg_to_rad(_kick_rot.x + ir.x) + _sway.y * 0.02 + 0.35 * r - 0.5 * h,
 		deg_to_rad(_kick_rot.y + ir.y) + _sway.x * 0.025 - 0.25 * r,
-		deg_to_rad(_kick_rot.z + ir.z) + _move_pose.x + _sway.x * 0.02 + 0.7 * r)
+		deg_to_rad(_kick_rot.z + ir.z) + _move_pose.x + _sway.x * 0.02 + 0.7 * r + draw_roll)
 
 	# Slide cycles back on each shot and locks open on an empty mag.
 	_slide_back = maxf(_slide_back - delta * 14.0, 0.0)

@@ -191,9 +191,11 @@ static func ensure_input_actions() -> void:
 		"jump": [KEY_SPACE], "crouch": [KEY_C, KEY_CTRL],
 		"sprint": [KEY_SHIFT], "grapple": [KEY_Q, KEY_E], "reset": [KEY_T],
 		"reload": [KEY_R], "reset_arena": [KEY_G], "inspect": [KEY_I], "melee": [KEY_Z], "fire": [],
+		"swap_weapon": [],
 		"toggle_view": [KEY_F5],
 	}
-	var buttons := {"grapple": [MOUSE_BUTTON_RIGHT], "fire": [MOUSE_BUTTON_LEFT], "melee": [MOUSE_BUTTON_XBUTTON1]}
+	var buttons := {"grapple": [MOUSE_BUTTON_RIGHT], "fire": [MOUSE_BUTTON_LEFT], "melee": [MOUSE_BUTTON_XBUTTON1],
+			"swap_weapon": [MOUSE_BUTTON_WHEEL_UP, MOUSE_BUTTON_WHEEL_DOWN]}
 	# Only actions that don't exist yet get their defaults, so keys rebound in
 	# the settings (prefs.gd) stay rebound.
 	for action in keys:

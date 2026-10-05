@@ -1,7 +1,8 @@
 extends SceneTree
 ## Headless test for grunt stealth: vision cone, sight range, cover, the
 ## detection meter, gunshot hearing, squad callouts, sneak-attack damage and
-## the knife (takedowns on unaware grunts).
+## the knife (takedowns on unaware grunts; tap to strike, hold a second to
+## draw it as her weapon, each knife's own moves).
 ## Run: godot --headless --path . -s res://tests/stealth_test.gd
 
 const Grunt := preload("res://scripts/grunt.gd")
@@ -271,14 +272,23 @@ func _run() -> void:
 	await _seconds(1.0)
 	_check("pistol back after the stab", not weapon.holstered, weapon.holstered)
 
-	# Holding the key keeps the knife out: no stab, pistol down, faster running;
-	# left mouse stabs while it's out, and letting go puts it away.
+	# Holding the key for about a second draws the knife as her weapon: no
+	# stab, the gun put away (hidden, can't fire), faster running; left mouse
+	# attacks, I inspects, and letting go keeps it out. Real key and mouse
+	# events throughout: a synthetic InputEventAction for one action also
+	# releases a held one.
 	var run_before: float = player.run_speed * player.speed_mult
-	Input.parse_input_event(ev)
-	await _seconds(0.4)
-	_check("holding keeps the knife out", knife.readied and not knife.is_stabbing(), [knife.readied, knife.stab_timer])
-	_check("drawing it plays the flip-spin draw", knife.anim == "draw", knife.anim)
-	_check("knife out: pistol lowered, Eco runs faster", weapon.holstered and player.run_speed * player.speed_mult > run_before * 1.1, player.speed_mult)
+	await _seconds(1.0)
+	_key(KEY_Z, true)
+	await _seconds(0.5)
+	_check("half a second's hold does nothing yet", not knife.out and not knife.is_stabbing() and not weapon.holstered, [knife.out, knife.stab_timer])
+	await _seconds(0.65)
+	_check("a one-second hold draws the knife", knife.out and not knife.is_stabbing() and knife.anim == "draw", [knife.out, knife.anim])
+	_key(KEY_Z, false)
+	await _seconds(0.5)
+	_check("letting go keeps it out, no stab", knife.out and not knife.is_stabbing(), [knife.out, knife.stab_timer])
+	_check("knife out: the gun is put away and hidden, Eco runs faster", weapon.holstered and weapon.stowed and not weapon.viewmodel.visible \
+			and player.run_speed * player.speed_mult > run_before * 1.1, [weapon.holstered, weapon.viewmodel.visible, player.speed_mult])
 	Input.action_press("move_forward")
 	await _seconds(1.5)
 	var hs: float = player.horizontal_speed()
@@ -287,44 +297,82 @@ func _run() -> void:
 	await _seconds(0.5)
 	var lines := []
 	weapon.inspected.connect(func(line): lines.append(line))
-	# Real key and mouse events: a synthetic InputEventAction for one action
-	# also releases the held melee action.
-	var insp := InputEventKey.new()
-	insp.physical_keycode = KEY_I
-	insp.pressed = true
-	Input.parse_input_event(insp)
+	_key(KEY_I, true)
 	await _ticks(3)
-	insp = insp.duplicate()
-	insp.pressed = false
-	Input.parse_input_event(insp)
-	_check("I with the knife out plays the knife inspect", knife.is_inspecting() and not weapon.is_inspecting() and lines.size() == 1, [knife.anim, lines])
-	await _seconds(knife.INSPECT_TIME + 0.1)
-	_check("knife inspect ends back in the guard", knife.anim == "" and knife.readied, knife.anim)
-	var click := InputEventMouseButton.new()
-	click.button_index = MOUSE_BUTTON_LEFT
-	click.pressed = true
-	Input.parse_input_event(click)
+	_key(KEY_I, false)
+	_check("I with the knife out plays the knife inspect", knife.is_inspecting() and not weapon.is_inspecting() and lines.size() == 1 \
+			and lines[0] in knife.moves["lines"], [knife.anim, lines])
+	await _seconds(knife.anim_length("inspect") + 0.1)
+	_check("knife inspect ends back in the guard", knife.anim == "" and knife.out, knife.anim)
+	var ammo_before: int = weapon.ammo
+	_click()
 	await _ticks(2)
-	click = click.duplicate()
-	click.pressed = false
-	Input.parse_input_event(click)
-	_check("left mouse stabs with the knife out", knife.is_stabbing(), knife.stab_timer)
+	_check("left mouse attacks with the knife out", knife.is_stabbing() and knife.anim.begins_with("attack"), [knife.stab_timer, knife.anim])
 	var first: String = knife.anim
 	await _seconds(0.6)
-	click = click.duplicate()
-	click.pressed = true
-	Input.parse_input_event(click)
+	_click()
 	await _ticks(2)
-	click = click.duplicate()
-	click.pressed = false
-	Input.parse_input_event(click)
-	_check("swings alternate slashes", first.begins_with("slash") and knife.anim.begins_with("slash") and knife.anim != first, [first, knife.anim])
+	_check("attacks alternate", knife.anim.begins_with("attack") and knife.anim != first, [first, knife.anim])
 	await _seconds(0.6)
-	Input.parse_input_event(up)
+	_check("the gun never fired while the knife was out", weapon.ammo == ammo_before, [ammo_before, weapon.ammo])
+
+	# A tap of the key puts it away and the gun comes back with its draw.
+	_key(KEY_Z, true)
 	await _ticks(3)
-	_check("letting go puts the knife away without a stab", not knife.readied and not knife.is_stabbing() and player.speed_mult == 1.0, [knife.readied, knife.stab_timer])
+	_key(KEY_Z, false)
+	await _ticks(2)
+	_check("tapping the key puts the knife away, no stab", not knife.out and not knife.is_stabbing() and player.speed_mult == 1.0, [knife.out, knife.stab_timer])
+	_check("the gun comes back with its draw", not weapon.holstered and not weapon.stowed and weapon.is_drawing() and weapon.viewmodel.visible, [weapon.holstered, weapon.is_drawing()])
 	await _seconds(0.5)
-	_check("pistol back up", not weapon.holstered, weapon.holstered)
+	_check("pistol back up", not weapon.holstered and not weapon.is_drawing(), weapon.holstered)
+	_click()
+	await _ticks(3)
+	_check("the gun fires again", weapon.ammo == ammo_before - 1, [ammo_before, weapon.ammo])
+
+	# The mouse wheel and R swap back too.
+	for swap in ["wheel", "reload"]:
+		await _seconds(0.5)
+		_key(KEY_Z, true)
+		await _seconds(1.15)
+		_key(KEY_Z, false)
+		_check("held again: knife out (%s)" % swap, knife.out, knife.out)
+		await _seconds(0.3)
+		if swap == "wheel":
+			var wheel := InputEventMouseButton.new()
+			wheel.button_index = MOUSE_BUTTON_WHEEL_DOWN
+			wheel.pressed = true
+			Input.parse_input_event(wheel)
+			wheel = wheel.duplicate()
+			wheel.pressed = false
+			Input.parse_input_event(wheel)
+		else:
+			_key(KEY_R, true)
+			await _ticks(2)
+			_key(KEY_R, false)
+		await _ticks(3)
+		_check("%s puts the knife away and the gun back" % swap, not knife.out and not weapon.holstered, [knife.out, weapon.holstered])
+
+	# Every knife's own moves play through without trouble.
+	for id in ["needle", "kunai", "butterfly"]:
+		knife.set_model(id)
+		knife.draw_knife()
+		var seen := []
+		for move in ["draw", "attack_a", "attack_b", "thrust", "inspect"]:
+			knife._play(move)
+			await _ticks(2)
+			seen.append(knife.anim)
+			await _seconds(knife.anim_length(move) + 0.1)
+		var tip_ok: bool = knife._tip.global_position.distance_to(knife._blade_root.global_position) > 0.15
+		_check("%s: draw, attacks, takedown and inspect all play and end" % id, seen == ["draw", "attack_a", "attack_b", "thrust", "inspect"] \
+				and knife.anim == "" and knife.out and tip_ok, [seen, knife.anim])
+		knife.put_away()
+		await _seconds(0.5)
+	var swing := func(id: String) -> Array:
+		var m: Dictionary = knife.Moves.moves(id)
+		return m["anims"]["attack_a"]["hand"].map(func(k): return k[2])
+	_check("each knife moves its own way", swing.call("needle") != swing.call("kunai") and swing.call("kunai") != swing.call("butterfly") \
+			and knife.Moves.moves("kunai")["grip"] != Vector3.ZERO, "")
+	knife.set_model("needle")
 
 	print("RESULT: %s (%d failures)" % ["PASS" if failures == 0 else "FAIL", failures])
 	quit(failures)
@@ -363,6 +411,23 @@ func _stab(knife) -> void:
 	knife.stab()
 	stab_anims.append(knife.anim)
 	await _seconds(knife.stab_time + 0.05)
+
+
+func _key(key: Key, down: bool) -> void:
+	var k := InputEventKey.new()
+	k.physical_keycode = key
+	k.pressed = down
+	Input.parse_input_event(k)
+
+
+func _click() -> void:
+	var click := InputEventMouseButton.new()
+	click.button_index = MOUSE_BUTTON_LEFT
+	click.pressed = true
+	Input.parse_input_event(click)
+	click = click.duplicate()
+	click.pressed = false
+	Input.parse_input_event(click)
 
 
 func _press(action: String) -> void:

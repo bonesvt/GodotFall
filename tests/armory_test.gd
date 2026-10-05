@@ -171,8 +171,17 @@ func _run() -> void:
 	_check("the trail comes off the Butterfly's shorter point", knife._tip.position.z < -0.2 and knife._tip.position.z > -0.3, knife._tip.position)
 	_check("the case tags the Butterfly as carried", (slots[2].get_child(1) as Label3D).text == "CARRIED" and (slots[1].get_child(1) as Label3D).text != "CARRIED", "")
 	_check("the pick is saved", Armory.open(PATH).knife == "butterfly", "")
-	# The Butterfly's bite handle flips open on the draw and is shut again after.
-	_check("the bite handle swings open mid-flip and shuts", knife.handle_swing("draw", 0.18) > 2.0 and knife.handle_swing("draw", 0.45) == 0.0 and knife.handle_swing("", 0.0) == 0.0, "")
+	# The Butterfly comes out closed and flips open: its handles move on the
+	# draw and are shut round the tang (the grip) again after.
+	var bite: Node3D = knife.model.find_child("BiteHandle", true, false)
+	var rest: Basis = bite.basis
+	knife._play("draw")
+	knife.anim_time = 0.2
+	knife._process(0.0)
+	var mid: Basis = bite.basis
+	knife.anim_time = 10.0
+	knife._process(0.0)
+	_check("the Butterfly's handle swings on the draw and shuts after", not mid.is_equal_approx(rest) and bite.basis.is_equal_approx(rest) and knife.anim == "", "")
 
 	# Gunsmith: the gun in 3D with clickable parts. Grip, then paint.
 	run_node.open_bench("gunsmith")
