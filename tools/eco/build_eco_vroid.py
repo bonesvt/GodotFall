@@ -1111,19 +1111,121 @@ def light_suit(bvh):
     return out
 
 
+
+BP_Z = (0.976, 1.118)   # the breastplate's bottom and top edges
+BP_W = 0.108            # its half width
+BP_TAPER = 0.018        # how much narrower its bottom edge is than its top
+BP_ROUND = 0.022        # the radius its corners are rounded to
+BP_GAP = 0.012          # the least gap between it and her suit
+BP_THICK = 0.007
+BP_CURVE = 1.6          # how far its sides curve back round her (metres per metre squared)
+
+
+def breastplate():
+    """The heavy kit's breastplate, cut from Dad's titan's hull: a stiff sheet
+    standing clear of her, not a shell moulded to her. Each row across is one
+    gentle curve (the same for every row) set just in front of her, so it
+    bridges between her breasts, and it hangs straight down from her bust, so
+    it never reads as cups. A grid with rounded corners, so its edges are
+    clean. Skinned to her spine only, smoothed over the plate, so it bends a
+    little as she does but stays one stiff piece (her chest's springs are held
+    still under it: eco_model.gd)."""
+    bvh = _body_bvh()
+    nx, nz = 29, 19
+    zs = np.linspace(BP_Z[0], BP_Z[1], nz)
+    ts = np.linspace(-1.0, 1.0, nx)
+
+    def half_width(z):   # tapered to the bottom, the corners rounded
+        d = max(BP_Z[0] + BP_ROUND - z, z - (BP_Z[1] - BP_ROUND), 0.0)
+        taper = BP_TAPER * (BP_Z[1] - z) / (BP_Z[1] - BP_Z[0])
+        return BP_W - taper - BP_ROUND + math.sqrt(max(BP_ROUND ** 2 - d ** 2, 0.0))
+
+    X = np.array([[t * half_width(z) for t in ts] for z in zs])
+    Y = np.zeros_like(X)
+    hits = {}
+    for j, z in enumerate(zs):
+        for i in range(nx):
+            loc, _n, _f, _d = bvh.ray_cast(Vector((X[j, i], -0.5, z)), Vector((0, 1, 0)))
+            Y[j, i] = (loc.y if loc is not None else -0.06) - BP_GAP
+            hits[j, i] = loc if loc is not None else Vector((X[j, i], -0.06, z))
+    # stiff across: each row one curve, as far back as it can sit in front of her
+    for j in range(nz):
+        bend = BP_CURVE * X[j] ** 2
+        Y[j] = (Y[j] - bend).min() + bend
+    # hanging straight down from her bust, never tucking in under it
+    apex = int(np.argmin(np.abs(zs - APEX_POS[2])))
+    for j in range(apex - 1, -1, -1):
+        Y[j] = np.minimum(Y[j], Y[j + 1])
+    # a gentle curve over the edge where it starts hanging (only ever further out)
+    for _ in range(6):
+        S = Y.copy()
+        S[1:-1] = (Y[:-2] + 2 * Y[1:-1] + Y[2:]) / 4
+        Y = np.minimum(Y, S)
+    bm = bmesh.new()
+    front = [[bm.verts.new((X[j, i], Y[j, i] - BP_THICK, zs[j])) for i in range(nx)] for j in range(nz)]
+    back = [[bm.verts.new((X[j, i], Y[j, i], zs[j])) for i in range(nx)] for j in range(nz)]
+    for j in range(nz - 1):
+        for i in range(nx - 1):
+            rim = i in (0, nx - 2) or j in (0, nz - 2)
+            f = bm.faces.new((front[j][i], front[j][i + 1], front[j + 1][i + 1], front[j + 1][i]))
+            f.material_index = 1 if rim else 0
+            bm.faces.new((back[j][i], back[j + 1][i], back[j + 1][i + 1], back[j][i + 1])).material_index = 0
+    ring = [(0, i) for i in range(nx)] + [(j, nx - 1) for j in range(1, nz)] \
+        + [(nz - 1, i) for i in range(nx - 2, -1, -1)] + [(j, 0) for j in range(nz - 2, 0, -1)]
+    for k in range(len(ring)):
+        (j0, i0), (j1, i1) = ring[k], ring[(k + 1) % len(ring)]
+        bm.faces.new((front[j0][i0], back[j0][i0], back[j1][i1], front[j1][i1])).material_index = 1
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces[:])
+    for f in bm.faces:
+        f.smooth = True
+    name = "suit_t1h_breastplate"
+    me = bpy.data.meshes.new(name)
+    bm.to_mesh(me)
+    bm.free()
+    _armor_mats(me, ["eco_v_armor", "eco_v_armor_edge"])
+    arm = [o for o in bpy.data.objects if o.type == "ARMATURE"][0]
+    ob = bpy.data.objects.new(name, me)
+    bpy.context.scene.collection.objects.link(ob)
+    ob.parent = arm
+    ob.modifiers.new("Armature", "ARMATURE").object = arm
+    # weights: her spine's bones (J_Bip_C_*) at the point of her behind each
+    # grid point, smoothed over the plate so it never creases
+    from mathutils.kdtree import KDTree
+    body = bpy.data.objects["Body"]
+    kd = KDTree(len(body.data.vertices))
+    for v in body.data.vertices:
+        kd.insert(v.co, v.index)
+    kd.balance()
+    names = {gr.index: gr.name for gr in body.vertex_groups}
+    bones = sorted({n for n in names.values() if n.startswith("J_Bip_C_") and n in arm.data.bones})
+    W = np.zeros((nz, nx, len(bones)))
+    for j in range(nz):
+        for i in range(nx):
+            _, bi, _ = kd.find(hits[j, i])
+            for ge in body.data.vertices[bi].groups:
+                if names[ge.group] in bones:
+                    W[j, i, bones.index(names[ge.group])] += ge.weight
+    W[W.sum(2) == 0, bones.index("J_Bip_C_Chest")] = 1.0
+    for _ in range(12):
+        P = np.pad(W, ((1, 1), (1, 1), (0, 0)), mode="edge")
+        W = (2 * W + P[:-2, 1:-1] + P[2:, 1:-1] + P[1:-1, :-2] + P[1:-1, 2:]) / 6
+    W /= W.sum(2, keepdims=True)
+    W = W.reshape(nz * nx, len(bones))
+    for b, name_ in enumerate(bones):
+        idx = [k for k in range(nz * nx) if W[k, b] > 0.002]
+        if idx:
+            vg = ob.vertex_groups.new(name=name_)
+            for k in idx:   # the front and the back sheet alike
+                vg.add([k, k + nz * nx], float(W[k, b]), "REPLACE")
+    return ob
+
+
 def heavy_extras(bvh):
     """The heavy kit's own pieces beyond the gunmetal plates in suit_armor:
       1  a breastplate cut from Dad's titan's hull, a comm earpiece with a mic
       5  the titan's old core light set in the breastplate"""
     out = []
-    # a plate shaped to her chest, lifted clear of the suit and smoothed so it reads as one stiff piece
-    # (only the faces turned to the front: wrapped round her sides its edge tore into
-    # shards; a plain shell, as bmesh solidify spikes along its smoothed edge)
-    plate = shell("suit_t1h_breastplate",
-                  lambda c, n: c.y < 0.0 and 0.94 < c.z < 1.14 and abs(c.x) < 0.14 and n.y < -0.3,
-                  planes=[((0, 0, 0.978), (0, 0, -1)), ((0, 0, 1.118), (0, 0, 1)), ((0.112, 0, 0), (1, 0, 0)),
-                          ((-0.112, 0, 0), (-1, 0, 0))],
-                  gap=0.012, thick=0.007, smooth=12, smooth_edge=4, clear=0.016, border=1)
+    plate = breastplate()
     out.append(plate)
     # comm earpiece over her left ear, a mic boom to the corner of her mouth
     bm = bmesh.new()

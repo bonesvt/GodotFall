@@ -116,6 +116,7 @@ func _model() -> void:
 		var squeeze := body_mesh.find_blend_shape_by_name(&"kit_squeeze")
 		_check("%s %s her thighs" % [w, "squeezes" if w == "light" else "leaves"], squeeze >= 0 \
 				and body_mesh.get_blend_shape_value(squeeze) == (1.0 if w == "light" else 0.0), squeeze)
+		_check("%s %s her chest" % [w, "holds still" if w == "heavy" else "leaves"], eco._plated == (w == "heavy"), eco._plated)
 	_check("heavy has its breastplate and core", eco.find_child("suit_t1h_breastplate", true, false).visible \
 			and eco.find_child("suit_t5h_core", true, false).visible, "")
 	eco.suit_tier = 0

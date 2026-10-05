@@ -221,6 +221,8 @@ var _awake_face := {}
 var _dressed_rating := ""
 ## Her bodysuit with her suit weight's changes laid over it, by "<outfit>/<weight>" (body_material).
 var _kit_bodies := {}
+# the heavy breastplate is on (apply_suit): her chest's springs stay at rest under it
+var _plated := false
 
 
 func _ready() -> void:
@@ -315,6 +317,8 @@ func apply_suit() -> void:
 	var suited_ := suited()
 	var legacy := suited_ and suit_tier >= SUIT_TIERS
 	var squeeze := 1.0 if suited_ and suit_tier > 0 and suit_weight == "light" else 0.0
+	# the heavy kit's breastplate is one stiff plate strapped over her chest: it holds her still
+	_plated = suited_ and suit_tier > 0 and suit_weight == "heavy"
 	var rating := look().right(1)
 	_dressed_rating = ContentRating.current()
 	for node in find_children("*", "MeshInstance3D", true, false):
@@ -628,6 +632,8 @@ func _step_springs(delta: float) -> void:
 		var origin := to_world * rest_xf.origin
 		var rest_dir := aim_world / length
 		var limit: float = deg_to_rad(s["limit"]) * (jiggle if s.get("jiggle", false) else 1.0)
+		if _plated and s["base"].get("group", "") == "bust":
+			limit = 0.0
 		var target := origin + rest_dir * length
 		if limit <= 0.0 or not s["ready"] or (s["tip"] as Vector3).distance_to(target) > 1.0:
 			s["tip"] = target
