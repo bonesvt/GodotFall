@@ -11,6 +11,7 @@ const NpcTalk := preload("res://scripts/hub/npc_talk.gd")
 const Romance := preload("res://scripts/hub/romance.gd")
 const NpcIdles := preload("res://scripts/hub/npc_idles.gd")
 const Family := preload("res://scripts/hub/family.gd")
+const ContentRating := preload("res://scripts/radio/content_rating.gd")
 const PATH := "user://test_romance.cfg"
 
 var failures := 0
@@ -62,6 +63,9 @@ func _play_out(t: NpcTalk, pick := 0) -> Array:
 
 
 func _run() -> void:
+	# Most of this checks the Teen lines (dialogue/npc/ophelia.txt); the
+	# Mature cut (ophelia_M.txt) has its own checks in _mature().
+	ContentRating.set_rating("T", false)
 	# The file parses: settings, scenes in order, choices with their answers.
 	var t := _fresh()
 	var oph := _npc("ophelia")
@@ -323,10 +327,61 @@ func _run() -> void:
 				bad.append(line)
 	_check("every romance line has a speaker (%d lines)" % count, bad.is_empty() and count > 60, bad.slice(0, 3))
 
+	_mature()
+	ContentRating.set_rating("T", false)
+
 	await _hub_keys()
 
 	print("RESULT: %s (%d failures)" % ["PASS" if failures == 0 else "FAIL", failures])
 	quit(1 if failures > 0 else 0)
+
+
+## The Mature cut: dialogue/npc/ophelia_M.txt read on top of ophelia.txt.
+func _mature() -> void:
+	var t := _fresh()
+	var teen: Dictionary = t.bank("ophelia")
+	ContentRating.set_rating("M", false)
+	var m: Dictionary = t.bank("ophelia")
+	_check("Mature: a different bank", m != teen and m["flirt"] != teen["flirt"] and m["intro"] != teen["intro"], "")
+	_check("Mature: her likes still come from ophelia.txt", Romance.settings(m) == Romance.settings(teen), Romance.settings(m))
+	var ats: Array = m["heart"].map(func(h): return h["at"])
+	_check("Mature: seven heart scenes, the jealous one at 35", ats == [10, 25, 35, 45, 55, 70, 85], ats)
+	var last: Array = m["heart"].back()["lines"]
+	var flags: Array = last.filter(func(l): return l is Dictionary)[0]["choice"].map(func(c): return c["flag"])
+	_check("Mature: the confession still decides it", flags == ["together", "later", "friends"], flags)
+	_check("Mature: every date place has its cut", ["arcade", "ice_cream", "any"].all(func(p): return m["date"].has(p) or m.get("date_m", {}).has(p)), m["date"].keys())
+	_check("Mature: gift answers for the things she likes", ["eyeliner", "records", "flowers"].all(func(g): return m["gift"].has(g)), m["gift"].keys())
+	_check("Mature: every spot has both tiers", ["yoga", "lounge", "smoke", "read", "sway"].all(func(p): return m["spot"][p].has("") and m["spot"][p].has("flirt")), m["spot"].keys())
+	var convs: Array = m["any"] + m["flirt"] + m["together"] + [m["intro"], m["won"], m["lost"]]
+	for h in m["heart"]:
+		convs.append(h["lines"])
+	for g in [m["date"], m.get("date_m", {}), m["gift"]]:
+		convs.append_array(g.values())
+	for tiers in m["spot"].values():
+		for l in tiers.values():
+			convs.append_array(l)
+	var bad := []
+	var count := 0
+	for conv in convs:
+		for line in _flat(conv):
+			count += 1
+			if not (line[0] in ["eco", "ophelia", "narrator"]) or line[1] == "":
+				bad.append(line)
+	_check("Mature: every line has a speaker (%d lines)" % count, bad.is_empty() and count > 300, bad.slice(0, 3))
+	# The confession plays and makes them a couple under Mature too.
+	var oph := _npc("ophelia")
+	Romance.add(t.state, "ophelia", 90)
+	t.state.set_value("ophelia", "met", true)
+	for at in [10, 25, 35, 45, 55, 70]:
+		Romance.mark_beat(t.state, "ophelia", at)
+	t.start(oph, 0, false)
+	_check("Mature: confession at 85", t.beat == 85 and t.current_line().begins_with("ophelia: I need to say something"), t.current_line())
+	_play_out(t, 0)
+	_check("Mature: kiss, together", Romance.status(t.state, "ophelia") == "together", Romance.status(t.state, "ophelia"))
+	ContentRating.set_rating("T", false)
+	_check("back to Teen: the Teen lines", t.bank("ophelia") == teen, "")
+	t.queue_free()
+	oph.queue_free()
 
 
 ## In the real hub: the prompt hints at a waiting scene and 1-3 answer.

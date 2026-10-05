@@ -43,6 +43,7 @@ const Family := preload("res://scripts/hub/family.gd")
 const FAMILY_DIR := "res://dialogue/family/"
 const Gifts := preload("res://scripts/run/gifts.gd")
 const NpcIdles := preload("res://scripts/hub/npc_idles.gd")
+const ContentRating := preload("res://scripts/radio/content_rating.gd")
 ## Where the gift bag lives in the save file.
 const BAG := "_bag"
 ## How long a line stays up after it's all been said.
@@ -190,23 +191,57 @@ static func _line(speaker: String, text: String) -> Array:
 	return [speaker.substr(0, open).strip_edges(), text, moods]
 
 
+## Their parsed lines at the current dialogue rating. Under Mature,
+## dialogue/npc/<who>_M.txt (and dialogue/family/<who>_M.txt) is read on top:
+## see overlay(). Cached per rating, so switching it in Settings just works.
 func bank(who: String) -> Dictionary:
-	if not _banks.has(who):
-		var f := FileAccess.open(DIALOGUE_DIR + who + ".txt", FileAccess.READ)
-		var b := parse(f.get_as_text()) if f != null else parse("")
-		var fam := FileAccess.open(FAMILY_DIR + who + ".txt", FileAccess.READ) if Family.enabled else null
-		if fam != null:
-			var extra := parse(fam.get_as_text())
-			for key in extra:
-				if not b.has(key):
-					b[key] = extra[key]
-				elif b[key] is Array:
-					b[key] += extra[key]
-				elif b[key] is Dictionary:
-					b[key].merge(extra[key])
+	var rating := ContentRating.current()
+	var key := who + ":" + rating
+	if not _banks.has(key):
+		var b := _read(DIALOGUE_DIR + who + ".txt")
+		if Family.enabled:
+			var extra := _read(FAMILY_DIR + who + ".txt")
+			for k in extra:
+				if not b.has(k):
+					b[k] = extra[k]
+				elif b[k] is Array:
+					b[k] += extra[k]
+				elif b[k] is Dictionary:
+					b[k].merge(extra[k])
 			b["bond"].sort_custom(func(x, y): return x["at"] < y["at"])
-		_banks[who] = b
-	return _banks[who]
+		if rating == "M":
+			overlay(b, _read(DIALOGUE_DIR + who + "_M.txt"))
+			if Family.enabled:
+				overlay(b, _read(FAMILY_DIR + who + "_M.txt"))
+		_banks[key] = b
+	return _banks[key]
+
+
+static func _read(path: String) -> Dictionary:
+	var f := FileAccess.open(path, FileAccess.READ)
+	return parse(f.get_as_text()) if f != null else parse("")
+
+
+## Lays a Mature cut over a bank: every kind of talk the cut has replaces that
+## kind wholesale (all of [any], all of [flirt], all the [heart N] scenes...),
+## and [date <place>], [gift <item>] and [spot <name> <tier>] replace one by
+## one. Kinds the cut leaves out (like [romance]) stay as they were.
+static func overlay(b: Dictionary, cut: Dictionary) -> void:
+	for k in cut:
+		var v = cut[k]
+		if v is Array:
+			if not v.is_empty():
+				b[k] = v
+		elif v is Dictionary:
+			if not b.get(k) is Dictionary:
+				b[k] = {}
+			for sub in v:
+				if v[sub] is Dictionary and b[k].get(sub) is Dictionary:
+					b[k][sub] = (b[k][sub] as Dictionary).merged(v[sub], true)
+				else:
+					b[k][sub] = v[sub]
+		else:
+			b[k] = v
 
 
 ## Which conversation they'd have now. `run_id` counts finished runs and
