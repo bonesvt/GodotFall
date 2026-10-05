@@ -1,8 +1,9 @@
 extends SceneTree
 ## Headless test for Eco's armory and the hub workbenches, and the materials
 ## that pay for them: the rules (prices, upgrades, attachments, titan parts,
-## refits, what a run banks), the bench screens changing what you carry, and
-## collecting scrap, alloy and circuits out in a run.
+## refits, what a run banks), the bench screens changing what you carry (the
+## knife case included: the picked knife is saved and is the one in her hand),
+## and collecting scrap, alloy and circuits out in a run.
 ## Run: godot --headless --path . -s res://tests/armory_test.gd
 
 const Armory := preload("res://scripts/hub/armory.gd")
@@ -51,16 +52,16 @@ func _rules() -> void:
 
 	# Upgrades: each gun its own, capped, paid for.
 	_check("starts at level 1", a.pilot_level() == 1 and a.next_unlock() == "rivet_cannon", a.pilot_level())
-	_check("heavy revolver is locked below level 3", not a.buy_weapon("rivet_cannon") and not a.owns_weapon("rivet_cannon") and not a.equip("rivet_cannon"), a.stash)
+	_check("hand cannon is locked below level 3", not a.buy_weapon("rivet_cannon") and not a.owns_weapon("rivet_cannon") and not a.equip("rivet_cannon"), a.stash)
 	a.stash = {"scrap": 2000, "alloy": 2000, "circuits": 200, "lock_cores": 0}
 	_check("smart pistol's only upgrade is smart rounds", Armory.upgrade_tracks("smart_pistol") == ["smart_rounds"] and Armory.max_level("smart_rounds") == 8, Armory.upgrade_tracks("smart_pistol"))
-	_check("no revolver upgrades on the smart pistol", not a.buy_upgrade("smart_pistol", "rivet_heads"), a.upgrades)
+	_check("no hand cannon upgrades on the smart pistol", not a.buy_upgrade("smart_pistol", "rivet_heads"), a.upgrades)
 	_check("smart rounds need lock cores", not a.buy_upgrade("smart_pistol", "smart_rounds"), a.stash)
 	a.stash["lock_cores"] = 20
 	for i in 4:
 		a.buy_upgrade("smart_pistol", "smart_rounds")
 	var up: Dictionary = a.weapon_profile("smart_pistol")
-	_check("level 5: revolver unlocked, auto handgun not yet", a.pilot_level() == 5 and a.owns_weapon("rivet_cannon") and not a.owns_weapon("machine_pistol"), a.pilot_level())
+	_check("level 5: hand cannon unlocked, auto handgun not yet", a.pilot_level() == 5 and a.owns_weapon("rivet_cannon") and not a.owns_weapon("machine_pistol"), a.pilot_level())
 	_check("4 levels: half the mag is smart", is_equal_approx(up["stats"]["smart_fraction"], 0.5), up["stats"]["smart_fraction"])
 	_check("smart rounds move the look tier", up["tier"] == 3, up["tier"])
 	_check("lock cores spent", a.amount("lock_cores") == 16, a.stash)
@@ -68,7 +69,7 @@ func _rules() -> void:
 		a.buy_upgrade("smart_pistol", "smart_rounds")
 	up = a.weapon_profile("smart_pistol")
 	_check("every upgrade raises Eco's level", a.pilot_level() == 1 + 8, a.pilot_level())
-	_check("level 6+ unlocks the heavy revolver and auto handgun", a.owns_weapon("rivet_cannon") and a.owns_weapon("machine_pistol") and a.next_unlock() == "", [a.owns_weapon("rivet_cannon"), a.owns_weapon("machine_pistol")])
+	_check("level 6+ unlocks the hand cannon and auto handgun", a.owns_weapon("rivet_cannon") and a.owns_weapon("machine_pistol") and a.next_unlock() == "", [a.owns_weapon("rivet_cannon"), a.owns_weapon("machine_pistol")])
 	_check("unlocks between levels", Armory.unlocks_between(2, 6) == ["rivet_cannon", "machine_pistol"] and Armory.unlocks_between(1, 2).is_empty(), Armory.unlocks_between(2, 6))
 	_check("smart rounds cap at 8", a.upgrade_level("smart_pistol", "smart_rounds") == 8 and is_equal_approx(up["stats"]["smart_fraction"], 1.0), a.upgrade_level("smart_pistol", "smart_rounds"))
 	_check("a maxed gun is the top model tier", up["tier"] == Armory.MODEL_TIERS, up["tier"])
@@ -78,11 +79,11 @@ func _rules() -> void:
 	# Each gun's own set.
 	_check("every gun has its own upgrades", Armory.upgrade_tracks("rivet_cannon") == ["rivet_heads", "punch_through", "stagger_coils", "speed_loader"] \
 			and Armory.upgrade_tracks("machine_pistol") == ["drum_feed", "recoil_buffer", "overclock", "hot_streak"], "")
-	_check("no auto handgun upgrades on the revolver", not a.buy_upgrade("rivet_cannon", "drum_feed"), a.upgrades)
+	_check("no auto handgun upgrades on the hand cannon", not a.buy_upgrade("rivet_cannon", "drum_feed"), a.upgrades)
 	for track in ["rivet_heads", "punch_through", "punch_through", "stagger_coils"]:
 		a.buy_upgrade("rivet_cannon", track)
 	var rv: Dictionary = a.weapon_profile("rivet_cannon")["stats"]
-	_check("revolver: heavier rivets, two through, stagger", is_equal_approx(rv["damage"], 42.0 * 1.1) and is_equal_approx(rv["headshot_multiplier"], 2.2) \
+	_check("hand cannon: heavier rounds, two through, stagger", is_equal_approx(rv["damage"], 42.0 * 1.1) and is_equal_approx(rv["headshot_multiplier"], 2.2) \
 			and is_equal_approx(rv["pierce"], 2.0) and is_equal_approx(rv["stagger"], 0.35) and rv["smart_fraction"] == 0.0, rv)
 	for track in ["drum_feed", "overclock", "recoil_buffer", "hot_streak"]:
 		a.buy_upgrade("machine_pistol", track)
@@ -113,11 +114,21 @@ func _rules() -> void:
 	_check("lost run banks half, but keeps lock cores", Armory.run_haul({"scrap": 11, "alloy": 4, "circuits": 1, "lock_cores": 1}, false) == {"scrap": 5, "alloy": 2, "circuits": 0, "lock_cores": 1}, "")
 	_check("won run banks it all plus titan salvage", Armory.run_haul({"scrap": 10}, true)["scrap"] == 10 + Armory.WIN_BONUS["scrap"], "")
 
+	# Knives: all three hers, the Needle by default; the pick is free and saved.
+	_check("carries the Needle by default", a.knife == "needle" and Armory.DEFAULT_KNIFE == "needle" and Armory.KNIVES.keys() == ["needle", "kunai", "butterfly"], a.knife)
+	_check("picks the Plate Kunai", a.set_knife("kunai") and a.knife == "kunai" and a.stash == Armory.open(PATH).stash, a.knife)
+	_check("no knife that doesn't exist", not a.set_knife("spork") and a.knife == "kunai", a.knife)
+	var odd := ConfigFile.new()
+	odd.set_value("weapons", "knife", "spork")
+	odd.save("user://test_armory_knife.cfg")
+	_check("an unknown saved knife falls back to the Needle", Armory.open("user://test_armory_knife.cfg").knife == "needle", "")
+	DirAccess.remove_absolute(ProjectSettings.globalize_path("user://test_armory_knife.cfg"))
+
 	# It all survives a save and load.
 	a.equip("machine_pistol")
 	var b = Armory.open(PATH)
 	_check("armory saves and loads", b.equipped == "machine_pistol" and b.upgrade_level("smart_pistol", "smart_rounds") == 8 \
-			and b.fitted_attachment("smart_pistol", "muzzle") == "long_barrel" and b.titan_loadout["chassis"] == "ogre" and b.stash == a.stash, b.stash)
+			and b.fitted_attachment("smart_pistol", "muzzle") == "long_barrel" and b.titan_loadout["chassis"] == "ogre" and b.stash == a.stash and b.knife == "kunai", b.stash)
 
 
 func _run() -> void:
@@ -137,6 +148,40 @@ func _run() -> void:
 	_check("closing the rack puts it in hand", weapon.weapon_id == "smart_pistol" and weapon.smart and not weapon.automatic, weapon.weapon_id)
 	_check("upgrades and attachments carried into the hand", weapon.magazine_size == 11 and weapon.smart_left == 11 and is_equal_approx(weapon.damage, 20.0), [weapon.magazine_size, weapon.smart_left, weapon.damage])
 	_check("the long barrel is on the gun", weapon.viewmodel.find_child("Attachment_muzzle", true, false) != null, "")
+
+	# Knife case: the saved knife is in her hand and on show; picking another
+	# puts it in her hand and moves the tag.
+	var knife = player.get_node("Head/Camera3D/Knife")
+	_check("the saved knife is in her other hand", knife.model_id == "kunai" and knife.model != null and knife.model.name == "Knife_kunai" \
+			and knife.model.find_child("Kunai", true, false) != null, knife.model_id)
+	var slots: Array = run_node.zone_info.get("knife_slots", [])
+	_check("the case shows all three knives", slots.size() == 3 and slots.all(func(s): return s != null and s.get_child_count() == 2), slots)
+	run_node.open_bench("knives")
+	await _ticks(2)
+	bench = run_node.bench
+	_check("knife case: lists the three, the carried one marked", bench.kind == "knives" and bench.rows.size() == 3 \
+			and bench.rows[1]["state"] == "CARRIED" and bench.rows[0]["state"] == "" and bench.rows[2]["note"] != "", bench.rows.map(func(r): return r["state"]))
+	bench.select(2)
+	_check("knife case: shows the knife you're on", bench._preview_key == "knife/butterfly" and bench._turntable.get_child_count() == 1, bench._preview_key)
+	_check("knife case: pick the Butterfly", bench.confirm() and run_node.armory.knife == "butterfly" and bench.rows[2]["state"] == "CARRIED", run_node.armory.knife)
+	run_node.close_bench()
+	await _ticks(2)
+	_check("closing the case puts the Butterfly in her hand", knife.model_id == "butterfly" and knife.model.find_child("BiteHandle", true, false) != null \
+			and knife.find_children("Knife_*", "", true, false).size() == 1, knife.model_id)
+	_check("the trail comes off the Butterfly's shorter point", knife._tip.position.z < -0.2 and knife._tip.position.z > -0.3, knife._tip.position)
+	_check("the case tags the Butterfly as carried", (slots[2].get_child(1) as Label3D).text == "CARRIED" and (slots[1].get_child(1) as Label3D).text != "CARRIED", "")
+	_check("the pick is saved", Armory.open(PATH).knife == "butterfly", "")
+	# The Butterfly comes out closed and flips open: its handles move on the
+	# draw and are shut round the tang (the grip) again after.
+	var bite: Node3D = knife.model.find_child("BiteHandle", true, false)
+	var rest: Basis = bite.basis
+	knife._play("draw")
+	knife.anim_time = 0.2
+	knife._process(0.0)
+	var mid: Basis = bite.basis
+	knife.anim_time = 10.0
+	knife._process(0.0)
+	_check("the Butterfly's handle swings on the draw and shuts after", not mid.is_equal_approx(rest) and bite.basis.is_equal_approx(rest) and knife.anim == "", "")
 
 	# Gunsmith: the gun in 3D with clickable parts. Grip, then paint.
 	run_node.open_bench("gunsmith")
@@ -214,7 +259,7 @@ func _run() -> void:
 	run_node.hud.crosshair.queue_redraw()
 	await process_frame
 
-	# Heavy revolver: punch-through goes on into the grunt behind, and a hit
+	# Hand cannon: punch-through goes on into the grunt behind, and a hit
 	# knocks a grunt's wound-up shot away.
 	var back = run_node.zone_info["grunts"][2]
 	back.passive = true

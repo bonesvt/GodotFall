@@ -765,7 +765,7 @@ func _grass_beat() -> Dictionary:
 
 func _knife_beat() -> Dictionary:
 	return {"id": "knife", "title": "STILETTO", "color": RED, "max": 12.0,
-		"body": "Close in from behind and tap [Z]. The stiletto kills an unaware grunt instantly, and quietly. Hold [Z] to keep the blade out and stab with [Left mouse].",
+		"body": "Close in from behind and tap [Z]. The stiletto kills an unaware grunt instantly, and quietly. Hold [Z] for a second to draw the knife as your weapon: the gun goes away and [Left mouse] attacks. Tap [Z] again, press [R] or roll the mouse wheel for the gun.",
 		"targets": func(): return _target_for(_stab_target(14.0), "STAB  Z", RED, false),
 		"when": func(): return _stab_target(12.0) != null,
 		"done": func(): return _stab_target(25.0) == null}

@@ -5,7 +5,7 @@ extends RefCounted
 ## figure with one great eye at the back of the hall; carvings either side of
 ## it and tablets from the rubble tell what's known of them. The roof has
 ## fallen in over the nave, so a shaft of sun lands on the idol. Eco has moved
-## in: her gunsmith bench and weapon rack by the door, an armour bench for her
+## in: her gunsmith bench, weapon rack and knife case by the door, an armour bench for her
 ## suit, the wreck of her father's titan slumped in the right aisle, and a
 ## mission table in the nave where the real levels start. Stairs by the door
 ## climb to a loft over the left aisle that she made her bedroom. Outside, a
@@ -540,10 +540,28 @@ static func _workbench(root: Node3D, info: Dictionary) -> void:
 	K.light(root, r + Vector3(-1.2, 2.6, 0), LAMP, 0.9, 4.5)
 	K.interactable(info, "weapon_rack", r + Vector3(-1.5, 0.1, 0), "[F] Pick a sidearm", [], 2.3)
 	info["interactables"].back()["screen"] = "rack"
+	_knife_case(root, info)
+
+
+## Between the gunsmith bench and the door, against the right wall: a
+## glass-topped case (tools/hub/build_benches.py) with her three knives on
+## velvet (the run manager lays them at knife_slots, the one she carries
+## tagged). F opens the case's screen (bench_screen.gd "knives") to pick one.
+static func _knife_case(root: Node3D, info: Dictionary) -> void:
+	var c := Vector3(HALF - 0.42, F, 4.8)
+	var cabinet := Props.spawn(root, "knife_case", c, -90.0, 1.0, {"wood": BENCH_WOOD, "fabric": Color(0.32, 0.36, 0.62)})
+	_solid(root, c + Vector3(0, 0.52, 0), Vector3(0.8, 1.04, 1.48))
+	info["knife_slots"] = []
+	for i in 3:
+		info["knife_slots"].append(cabinet.find_child("Knife%dMarker" % i, true, false))
+	K.light(root, c + Vector3(-0.9, 2.2, 0), LAMP, 0.7, 3.5)
+	K.light(root, c + Vector3(0, 1.2, 0), Color(0.5, 0.95, 1.0), 0.35, 1.6)
+	K.interactable(info, "knife_case", c + Vector3(-1.25, 0.1, 0), "[F] Pick a knife", [], 2.0)
+	info["interactables"].back()["screen"] = "knives"
 
 
 ## On the left wall under the loft: Eco's armour bench, where she upgrades
-## and changes her suit (bench_screen.gd "suit"): the scavenged locker, her
+## and changes her suit (suit_screen.gd): the scavenged locker, her
 ## spare suit on a stand made of pipe, plates and tools on a pegboard.
 static func _armor_bench(root: Node3D, info: Dictionary) -> void:
 	var l := Vector3(-HALF + 0.42, F, -3.0)

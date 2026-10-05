@@ -33,6 +33,7 @@ const HubBuilder := preload("res://scripts/hub/hub_builder.gd")
 const Armory := preload("res://scripts/hub/armory.gd")
 const BenchScreen := preload("res://scripts/hub/bench_screen.gd")
 const GunsmithScreen := preload("res://scripts/hub/gunsmith_screen.gd")
+const SuitScreen := preload("res://scripts/hub/suit_screen.gd")
 const GiftScreen := preload("res://scripts/hub/gift_screen.gd")
 const GiftShop := preload("res://scripts/hub/gift_shop.gd")
 const SalonScreen := preload("res://scripts/hub/salon_screen.gd")
@@ -43,6 +44,7 @@ const Gifts := preload("res://scripts/run/gifts.gd")
 const NpcIdles := preload("res://scripts/hub/npc_idles.gd")
 const Escort := preload("res://scripts/run/escort.gd")
 const Weapon := preload("res://scripts/weapon.gd")
+const Knife := preload("res://scripts/knife.gd")
 const Art := preload("res://scripts/ps2/ps2_assets.gd")
 const Garage := preload("res://scripts/hub/garage.gd")
 const TitanStyle := preload("res://scripts/run/titan_style.gd")
@@ -147,7 +149,8 @@ var course_time := -1.0
 var course_best := 0.0
 var armory: Armory
 ## The workbench screen while one is open (the hub is paused under it).
-## A BenchScreen, the GunsmithScreen at the gunsmith bench, or the SalonScreen.
+## A BenchScreen, the GunsmithScreen at the gunsmith bench, the SuitScreen at
+## the suit locker, or the SalonScreen.
 var bench = null
 ## Lays out loot and rolls drops, seeded per zone from the run seed so loot
 ## never shifts the run's own rolls.
@@ -618,7 +621,7 @@ func close_garage() -> void:
 		hud.toast("Call your titan again (V) to see the new paint.", HUB_LINE_SECONDS)
 
 
-## Opens a workbench screen ("gunsmith", "rack", "workshop" or "suit"), or a
+## Opens a workbench screen ("gunsmith", "rack", "workshop", "knives" or "suit"), or a
 ## town shop's ("salon", "gifts"), pausing the hub.
 func open_bench(kind: String) -> void:
 	if kind == "gifts":
@@ -627,6 +630,8 @@ func open_bench(kind: String) -> void:
 		bench = SalonScreen.new()
 	elif kind == "wardrobe":
 		bench = WardrobeScreen.new(runs_ended)
+	elif kind == "suit":
+		bench = SuitScreen.new(armory)
 	else:
 		bench = GunsmithScreen.new(armory) if kind == "gunsmith" else BenchScreen.new(armory, kind)
 	add_child(bench)
@@ -658,17 +663,20 @@ func close_bench() -> void:
 
 
 ## Puts the gun picked at the weapon rack, upgraded and fitted, in Eco's hand,
-## and her suit upgrade (suit locker) on her.
+## the knife picked at the knife case in the other, and her suit upgrade
+## (suit locker) on her.
 func equip_loadout() -> void:
 	player.get_node("Head/Camera3D/Weapon").equip(armory.weapon_profile())
+	player.get_node("Head/Camera3D/Knife").set_model(armory.knife)
 	player.apply_suit(armory.suit_profile())
 
 
 ## Shows whether each level on the mission table is open, turns the marker
 ## over the tutorial poster off once that run is won, and shows the armory on
 ## the benches: the equipped gun on the gunsmith's mat,
-## the guns you own on the rack (locked slots stay empty under a tag), and the
-## titan you'd start a run with standing in the workshop's gantry.
+## the guns you own on the rack (locked slots stay empty under a tag), her
+## three knives under the knife case's glass (the one she carries tagged), and
+## the titan you'd start a run with standing in the workshop's gantry.
 func dress_hub() -> void:
 	var marker: Node3D = zone_info.get("tutorial_marker")
 	if marker != null:
@@ -716,6 +724,28 @@ func dress_hub() -> void:
 		else:
 			tag.text = "LEVEL %d" % Armory.unlock_level(id) if armory.level_locked(id) else "LOCKED"
 			tag.modulate = Color(0.6, 0.6, 0.62)
+	var knife_slots: Array = zone_info.get("knife_slots", [])
+	var knife_ids: Array = Armory.KNIVES.keys()
+	for i in mini(knife_slots.size(), knife_ids.size()):
+		var slot: Node3D = knife_slots[i]
+		if slot == null:
+			continue
+		for c in slot.get_children():
+			c.free()
+		var id: String = knife_ids[i]
+		var blade := Knife.knife_model(id)
+		blade.scale = Vector3.ONE * 1.35  # lies flat, point to the back of the case
+		slot.add_child(blade)
+		var tag := Label3D.new()
+		tag.font_size = 40
+		tag.pixel_size = 0.0016
+		tag.shaded = false
+		tag.outline_size = 8
+		tag.rotation_degrees = Vector3(-90, 0, 0)
+		tag.position = Vector3(0, 0.003, 0.2)
+		tag.text = "CARRIED" if id == armory.knife else Armory.KNIVES[id]["short"]
+		tag.modulate = Color(1.0, 0.8, 0.35) if id == armory.knife else Color(0.9, 0.88, 0.82)
+		slot.add_child(tag)
 	var stand: Node3D = zone_info.get("workshop_titan")
 	if stand != null:
 		for c in stand.get_children():

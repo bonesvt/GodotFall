@@ -27,6 +27,7 @@ const SCENES := {
 	"gunsmith_bench": preload("res://assets/models/hub/gunsmith_bench.glb"),
 	"weapon_rack": preload("res://assets/models/hub/weapon_rack.glb"),
 	"titan_workshop": preload("res://assets/models/hub/titan_workshop.glb"),
+	"knife_case": preload("res://assets/models/hub/knife_case.glb"),
 }
 
 const MATERIALS := {
@@ -40,6 +41,7 @@ const MATERIALS := {
 	"shadow": preload("res://assets/materials/shadow.tres"),
 	"canvas": preload("res://assets/materials/canvas.tres"),
 	"gunmetal": preload("res://assets/materials/gunmetal.tres"),
+	"glass": preload("res://assets/materials/glass.tres"),
 }
 
 const TREES := ["tree_a", "tree_b", "tree_c", "palm_a", "palm_b"]
@@ -73,7 +75,7 @@ static func spawn(parent: Node, id: String, pos: Vector3, yaw_deg := 0.0, scale 
 		var parts := String(mi.name).split("__")
 		var kind := parts[1] if parts.size() > 1 else "rock"
 		mi.material_override = material(kind, tints.get(kind, Color.WHITE))
-		if kind == "grass_blade" or kind == "rope":
+		if kind == "grass_blade" or kind == "rope" or kind == "glass":
 			mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	parent.add_child(node)
 	if solid:

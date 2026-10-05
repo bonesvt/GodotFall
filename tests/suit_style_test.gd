@@ -77,7 +77,13 @@ func _model(eco) -> void:
 			_check(outfit + " has its own texture", tex != null and tex.resource_path.ends_with("v_body_%s.png" % style), tex)
 	eco.wear("suit_racer")
 	eco.suit_tier = 2
-	_check("an upgrade's cut goes over any suit", _body(eco) == eco.MEDIUM_BODY and _jackets(eco).is_empty(), _jackets(eco))
+	var kit: Material = _body(eco)
+	_check("an upgrade's kit goes over any suit", kit != null and kit.get_shader_parameter("use_kit") \
+			and kit.get_shader_parameter("albedo_tex") == eco.STYLE_BODY["suit_racer"].get_shader_parameter("albedo_tex") \
+			and kit.get_shader_parameter("kit_tex") == eco.KIT_TEX[eco.suit_weight][0] and _jackets(eco).is_empty(), _jackets(eco))
+	eco.wear("suit")
+	_check("and over her own", _body(eco).get_shader_parameter("albedo_tex") == eco.GWEN_BODY.get_shader_parameter("albedo_tex"), "")
+	eco.wear("suit_racer")
 	eco.suit_tier = 0
 	_check("and the suit comes back without it", _body(eco) == eco.STYLE_BODY["suit_racer"] and _jackets(eco) == ["base_racer_jacket"], _jackets(eco))
 	_check("clothes she hasn't got change nothing", not eco.wear("lingerie") and eco.outfit == "suit_racer", eco.outfit)

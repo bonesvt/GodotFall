@@ -37,7 +37,7 @@ const CATALOG := {
 ## What an empty slot falls back to. A titan of pure scrap should lose the final fight.
 const SCRAP := {
 	"chassis": {"id": "scrap", "name": "Scrap Frame", "hp": 1500.0, "speed": 7.0, "dashes": 1},
-	"weapon": {"id": "scrap", "name": "Scrap Rifle", "dps": 110.0},
+	"weapon": {"id": "scrap", "name": "Obelisk Rail", "dps": 110.0},
 	"core": {"id": "scrap", "name": "No Core", "core": "none", "power": 0.0},
 	"kit": {"id": "scrap", "name": "No Kit", "kit": "none", "power": 0.0},
 }

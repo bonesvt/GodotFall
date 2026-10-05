@@ -37,7 +37,8 @@ Space  jump / double jump / wall jump
 C or Ctrl  crouch, slide when running
 Q, E or right mouse  grapple (hold)
 Left mouse  shoot    R  reload    I  inspect
-Z or mouse thumb  knife (kills unaware grunts)
+Z or mouse thumb  tap: knife strike (kills unaware grunts)   hold 1 s: draw the knife
+Wheel, R or Z again  back to the gun
 T  respawn    G  reset grunt arena
 H  hide help    Middle mouse  1st / 3rd person    F1  tutorial hints    Esc  free mouse"""
 
