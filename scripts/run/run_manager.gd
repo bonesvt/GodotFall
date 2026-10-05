@@ -43,6 +43,7 @@ const Wardrobe := preload("res://scripts/hub/wardrobe.gd")
 const Loot := preload("res://scripts/run/loot.gd")
 const Gifts := preload("res://scripts/run/gifts.gd")
 const NpcIdles := preload("res://scripts/hub/npc_idles.gd")
+const SmokeDate := preload("res://scripts/hub/smoke_date.gd")
 const Escort := preload("res://scripts/run/escort.gd")
 const Weapon := preload("res://scripts/weapon.gd")
 const Art := preload("res://scripts/ps2/ps2_assets.gd")
@@ -629,12 +630,29 @@ func date_at(spot: Dictionary) -> bool:
 	if npc._anim != null and npc._anim.has_animation("idle"):
 		npc._anim.play("idle", 0.3)
 	npc.calm()
+	var staged: Node3D = null
 	if place == "smoke":
-		NpcIdles.pose_here(npc, "smoke")   # her lit cigarette, to share
+		staged = _stage_smoke(npc)   # the whole thing acted out (smoke_date.gd)
 	for s in zone_info["interactables"]:
 		if s.get("npc", "") == who:
 			s["pos"] = npc.global_position
-	return npc_talk.date(npc, place, runs_ended)
+	if not npc_talk.date(npc, place, runs_ended):
+		if staged != null:
+			staged.finish()
+		return false
+	return true
+
+
+## Stages the back step smoke: Eco's stand-in and Ophelia face to face where
+## Eco stands, cued by the date's "@" beats, put away when the talk ends.
+func _stage_smoke(npc: Node3D) -> Node3D:
+	var staged: Node3D = SmokeDate.new()
+	zone_root.add_child(staged)
+	staged.setup(npc, player.global_position, npc.global_position, player.get_node_or_null("EcoBody"))
+	npc_talk.cue.connect(staged.play)
+	npc_talk.finished.connect(func(_who): staged.finish(), CONNECT_ONE_SHOT)
+	staged.done.connect(func(): npc_talk.cue.disconnect(staged.play), CONNECT_ONE_SHOT)
+	return staged
 
 
 ## Who Eco can ask out now: the first of the people she's romancing who's

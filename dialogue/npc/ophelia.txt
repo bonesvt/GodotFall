@@ -10,8 +10,9 @@
 # Format: see mom.txt. Speakers are ophelia and eco. Words in brackets after a
 # speaker are Ophelia's mood from that line on (scripts/hub/hub_npc.gd): smile,
 # joy, sad, angry, surprised, closed, plain; blush, fluster; lookaway, down,
-# tilt, nod, shake; shy; kiss (the screen fades through black); exhale (her
-# cigarette's done and smoke leaves her lips). "narrator:" lines are silent stage directions.
+# tilt, nod, shake; shy; kiss (the screen fades through black). "narrator:"
+# lines are silent stage directions; "@name" cues a beat of a staged scene
+# (the back step date: scripts/hub/smoke_date.gd BEATS).
 
 [intro]
 ophelia (plain): Oh. It's you.
@@ -446,30 +447,30 @@ choice -5: eco: Maybe you should stick to soda.
 ophelia (blush, lookaway): Last orders. Your place or the temple? ...Don't answer. Just walk.
 
 [date smoke m]
-ophelia (plain, lookaway): The back step of the Halo. Bins, one bad light, nobody. Best spot in Solace.
+ophelia (plain, lookaway, @arrive): The back step of the Halo. Bins, one bad light, nobody. Best spot in Solace.
 eco: It smells like old beer.
-ophelia (smile, tilt): It smells like peace and quiet. Last Night Owl in the pack. We're sharing it.
-narrator: She lights it, takes a slow drag, and holds it out between two fingers.
+ophelia (smile, tilt, @pack): It smells like peace and quiet. Last Night Owl in the pack. We're sharing it.
+narrator (@light): She lights it, takes a slow drag, and holds it out between two fingers.
 choice +5: eco: You're a terrible influence, gloom girl.
 > ophelia (smile): You stole a titan. You were influenced already. Small drags.
 choice +3: eco: Mom's going to smell it on me.
 > ophelia (smile, lookaway): Tell her you were standing next to me. It's true.
 choice -3: eco: Those things will kill you, you know.
 > ophelia (sad, down): So will the colony. At least this one I picked. ...Just one drag. For me.
-narrator: Eco coughs. Ophelia laughs, really laughs, and fixes her grip. They pass it back and forth while the light flickers.
+narrator (@first): Eco coughs. Ophelia laughs, really laughs, and fixes her grip. They pass it back and forth while the light flickers.
 ophelia (blush, lookaway): You hold it like a spanner. It's cute. Don't fix it.
-narrator: The ember's nearly at the filter.
-ophelia (plain, tilt): Last drag's yours. Make it count.
+narrator (@short): The ember's nearly at the filter.
+ophelia (plain, tilt, @hand_last): Last drag's yours. Make it count.
 eco: Watch and learn.
-narrator: Eco draws the last of it in and grinds the stub out on the step. Before she can breathe out...
-ophelia (kiss, blush): Mine.
-narrator: Ophelia leans in and kisses her, and steals the smoke right out of her mouth.
-ophelia (exhale, smile, lookaway): That was the best part of the whole cigarette.
+narrator (@last_drag): Eco draws the last of it in and grinds the stub out on the step. Before she can breathe out...
+ophelia (blush, @kiss): Mine.
+narrator (@kiss_hold): Ophelia leans in and kisses her, and steals the smoke right out of her mouth.
+ophelia (smile, lookaway, @exhale): That was the best part of the whole cigarette.
 choice +7: eco: Thief.
 > ophelia (blush, smile): You'll get it back. Next pack's on you.
 choice +4: eco: I'm buying a carton. Fifty of those. Minimum.
 > ophelia (fluster, closed): Slow down, mechanic. ...Fine. Forty.
-ophelia (blush, plain): Don't tell your mom. About any of it.
+ophelia (blush, plain, @after): Don't tell your mom. About any of it.
 
 [date any]
 ophelia (blush, down): So this is a date.

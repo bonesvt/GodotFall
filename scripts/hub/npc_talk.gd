@@ -32,6 +32,8 @@ extends CanvasLayer
 ## once Eco has softened enough.
 
 signal finished(who: String)
+## A line carried a "@name" mood: a cue for a staged scene (smoke_date.gd).
+signal cue(name: String)
 signal affection_changed(who: String, value: int, delta: int)
 signal bond_changed(who: String, value: int, delta: int)
 
@@ -629,8 +631,9 @@ func _next() -> void:
 		npc.mood(lines[index][2])
 		if "kiss" in lines[index][2]:
 			fade_through_black(1.8)
-		if "exhale" in lines[index][2]:
-			NpcIdles.exhale(npc)
+		for w in lines[index][2]:
+			if String(w).begins_with("@"):
+				cue.emit(String(w).substr(1))
 	# "narrator: ..." lines are stage directions: silent, no name
 	var babble := _quiet(text) if speaker == "narrator" else Babble.make(speaker, text)
 	var stream: AudioStream = babble["stream"]
