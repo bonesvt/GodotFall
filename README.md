@@ -162,32 +162,36 @@ enemy titan's salvage when you win); a lost run banks half. The HUD shows what y
   runs with (Mk I, instead of scrap; salvage can still replace them) and **refit** parts
   (+6% per level to every copy you install, salvaged ones and scrap included). The titan
   in the gantry is the one you'd start with.
-- **Suit locker** (left wall, past the rubble): upgrade Eco's suit, five tiers bought in
-  order. Each tier adds **armour** (a second bar over her health: it takes hits first and
-  comes back after the same pause, once health is full), one **passive**, and armour you
-  can see on her:
+- **Suit locker** (left wall, past the rubble): upgrade Eco's suit, five tiers ("sessions")
+  bought in order. Each tier adds **armour** (a second bar over her health: it takes hits
+  first and comes back after the same pause, once health is full) and one **passive**:
 
-  | Tier | Armour | Passive | Looks |
+  | Tier | Armour | Passive |
+  | --- | --- | --- |
+  | 1 Scav Rig | 20 | Magnet pouches: materials fly to you from twice as far |
+  | 2 Seal Weave | 40 | Auto-seal: health and armour come back after 2 s, not 3 |
+  | 3 Dampers | 60 | Hush dampers: grunts notice you 30% slower (sight and footsteps) |
+  | 4 Jump Kit | 80 | Wallruns last 40% longer, grapple recharges 30% faster |
+  | 5 Dad's Colours | 100 | Second wind: once per zone a downing hit leaves you on 1 HP, untouchable 1.5 s |
+
+  Her suit comes in three **kits**, one per weight, free to switch once she has a tier. A kit
+  changes the suit itself, over whichever suit she picked in her wardrobe, and puts its own
+  gear on her tier by tier (`armory.gd` `SUIT_KIT_LOOKS`):
+
+  | Kit | Armour | Bonus | The suit |
   | --- | --- | --- | --- |
-  | 1 Scav Rig | 20 | Magnet pouches: materials fly to you from twice as far | forearm bracers, belt with hip pouches |
-  | 2 Seal Weave | 40 | Auto-seal: health and armour come back after 2 s, not 3 | layered shoulder plates, seal injector on her thigh |
-  | 3 Dampers | 60 | Hush dampers: grunts notice you 30% slower (sight and footsteps) | shin guards, knee cops, hip plates |
-  | 4 Jump Kit | 80 | Wallruns last 40% longer, grapple recharges 30% faster | jump pack low on her back, armoured collar |
-  | 5 Dad's Colours | 100 | Second wind: once per zone a downing hit leaves you on 1 HP, untouchable 1.5 s | plates in Dad's colours, shoulder crests, every trim gold |
+  | Light (Runner) | half | 10% faster on the ground, grunts notice you 15% slower, wallruns 15% longer | collar cut away, a window over her stomach, glossy compression bands, tight knee-high boots, a brow bar, a sharp wing and dark red lip; black leather and steel gear |
+  | Medium (Mechanic) | as listed | armour refills twice as fast | right sleeve torn off, grease smears, laced work boots, sewn-on patches; mustard canvas, rubber and teal gear |
+  | Heavy (Titan) | +60% | every hit lands 15% softer, but 10% slower on the ground | quilted padding, a padded collar, mag boots, war paint; gunmetal titan plates |
 
-  Once she has a tier, the locker's **Weight** row refits the suit (free, any time):
-
-  | Weight | Armour | Bonus | Looks |
-  | --- | --- | --- | --- |
-  | Light | half | 10% faster on the ground, grunts notice you 15% slower, wallruns 15% longer | cloth and leather: a wrap that supports her chest and covers her sides, choker with Dad's tag, a nose ring, wrapped arms and shins, a leather shoulder guard and knee pads, her stiletto on a thigh garter |
-  | Medium | as listed | armour refills twice as fast | a mechanic's jumpsuit (unzipped in a wide V down past her belly button, a heart window over the top of her glutes, left arm bare with Dad's cog tattoo, right sleeve rolled), a knotted scarf, a cheek plaster, a tool pouch, a canvas yoke, rubber knee caps, a cargo pocket, a wrist computer |
-  | Heavy | +60% | every hit lands 15% softer, but 10% slower on the ground | a quilted padded undersuit under titan-hull armour: a breastplate (Dad's titan's core light from tier 4), a comm earpiece, bracers, pauldrons, shin guards, knee cops, hip, elbow, upper-arm and thigh plates, a back plate, an armoured collar |
-
-  Tier 5 also costs a lock core. The armour pieces are part of `eco.glb` (`suit_t<tier>_*`
-  meshes, modelled by `suit_armor()`, `light_suit()` and `medium_suit()`, `heavy_extras()` in
-  `tools/eco/build_eco_vroid.py`; each weight also bakes its own bodysuit cut,
-  `v_body*_light.png`, `v_body*_medium.png` and `v_body*_heavy.png`); `eco_model.gd` `suit_tier` and
-  `suit_weight` show them.
+  Tier 5 also costs a lock core, repaints the plates in Dad's colours and turns every trim
+  gold. The locker screen (`suit_screen.gd`) has the kits across the top (Q/E or click) and
+  the sessions down the left (W/S or click, Space or a second click buys); picking one swings
+  the camera in on the part of her it changes. The gear is part of `eco.glb` (`suit_t<tier>_*`
+  meshes, modelled by `suit_armor()`, `light_suit()`, `medium_suit()` and `heavy_extras()` in
+  `tools/eco/build_eco_vroid.py`); the suit changes are baked by `kit_graph()` into
+  `v_kit_<weight>*.png` and laid over her suit style's bodysuit by the toon shader, her makeup
+  is `v_face_<weight>.png`; `eco_model.gd` `suit_tier` and `suit_weight` show them.
 
 On the screens: W/S pick a row, A/D browse, Space buy or fit, Tab or Q/E switch section,
 F or Esc to leave. Progress saves to `user://armory.cfg` (`scripts/hub/armory.gd` has every

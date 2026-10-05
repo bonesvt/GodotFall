@@ -33,6 +33,7 @@ const HubBuilder := preload("res://scripts/hub/hub_builder.gd")
 const Armory := preload("res://scripts/hub/armory.gd")
 const BenchScreen := preload("res://scripts/hub/bench_screen.gd")
 const GunsmithScreen := preload("res://scripts/hub/gunsmith_screen.gd")
+const SuitScreen := preload("res://scripts/hub/suit_screen.gd")
 const GiftScreen := preload("res://scripts/hub/gift_screen.gd")
 const GiftShop := preload("res://scripts/hub/gift_shop.gd")
 const SalonScreen := preload("res://scripts/hub/salon_screen.gd")
@@ -141,7 +142,8 @@ var course_time := -1.0
 var course_best := 0.0
 var armory: Armory
 ## The workbench screen while one is open (the hub is paused under it).
-## A BenchScreen, the GunsmithScreen at the gunsmith bench, or the SalonScreen.
+## A BenchScreen, the GunsmithScreen at the gunsmith bench, the SuitScreen at
+## the suit locker, or the SalonScreen.
 var bench = null
 ## Lays out loot and rolls drops, seeded per zone from the run seed so loot
 ## never shifts the run's own rolls.
@@ -620,6 +622,8 @@ func open_bench(kind: String) -> void:
 		bench = SalonScreen.new()
 	elif kind == "wardrobe":
 		bench = WardrobeScreen.new(runs_ended)
+	elif kind == "suit":
+		bench = SuitScreen.new(armory)
 	else:
 		bench = GunsmithScreen.new(armory) if kind == "gunsmith" else BenchScreen.new(armory, kind)
 	add_child(bench)

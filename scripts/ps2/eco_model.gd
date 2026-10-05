@@ -49,11 +49,11 @@ var stride_reverse := false
 		suit_tier = clampi(value, 0, SUIT_TIERS)
 		if is_inside_tree():
 			apply_suit()
-## The suit's weight (armory.gd SUIT_WEIGHTS). Pieces are marked after their
-## tier: "l" light only (the cloth-and-leather light suit), "m" medium and
-## heavy, "h" heavy only, unmarked for all three. The light suit also swaps
-## her bodysuit for its own cut (eco_v_body_light: no side cutouts, open
-## across the top of her chest) once she has a suit tier.
+## The suit's weight (armory.gd SUIT_WEIGHTS), once she has a suit tier. Its
+## kit's pieces are marked after their tier: "l" light only, "m" medium only,
+## "h" heavy only, unmarked for all three. Each weight also changes the suit
+## itself, whichever style she wears (body_material: KIT_TEX), and her makeup
+## (KIT_FACE).
 @export_enum("light", "medium", "heavy") var suit_weight := "medium":
 	set(value):
 		suit_weight = value
@@ -62,8 +62,8 @@ var stride_reverse := false
 ## What she has on (wear() by name; picked in her wardrobe,
 ## scripts/hub/wardrobe.gd). "suit" is her own pilot suit (gwen), the other
 ## suit_* are the other looks baked by tools/eco/build_eco_vroid.py
-## BASE_STYLES: each shows with no suit upgrade, and the upgrades' cuts go over
-## any of them. "skater", "y2k" and "date" are her clothes off duty (outfit_graph),
+## BASE_STYLES: each shows its own pieces with no suit upgrade, and the
+## upgrades go over any of them. "skater", "y2k" and "date" are her clothes off duty (outfit_graph),
 ## every suit piece hidden; each comes in a Teen and a Mature version, picked
 ## by the content rating (scripts/radio/content_rating.gd, O key) as it changes.
 @export_enum("suit", "suit_ghost", "suit_racer", "suit_harness", "suit_techwear", "suit_shade", "suit_homemade",
@@ -133,9 +133,25 @@ const JIGGLE_STYLES := {
 
 const SUIT_TIERS := 5
 const LEGACY_PLATE := preload("res://assets/materials/eco/eco_v_armor_legacy.tres")
-const LIGHT_BODY := preload("res://assets/materials/eco/eco_v_body_light.tres")
-const MEDIUM_BODY := preload("res://assets/materials/eco/eco_v_body_medium.tres")
-const HEAVY_BODY := preload("res://assets/materials/eco/eco_v_body_heavy.tres")
+## Her own suit's bodysuit (the glb's eco_v_body; STYLE_BODY has the others).
+const GWEN_BODY := preload("res://assets/materials/eco/eco_v_body.tres")
+## What each suit weight changes on the suit itself, laid over her style's
+## bodysuit (tools/eco/build_eco_vroid.py kit_graph): [colour, mask, glow].
+const KIT_TEX := {
+	"light": [preload("res://assets/textures/eco/v_kit_light.png"), preload("res://assets/textures/eco/v_kit_light_mask.png"),
+		preload("res://assets/textures/eco/v_kit_light_glow.png")],
+	"medium": [preload("res://assets/textures/eco/v_kit_medium.png"), preload("res://assets/textures/eco/v_kit_medium_mask.png"),
+		preload("res://assets/textures/eco/v_kit_medium_glow.png")],
+	"heavy": [preload("res://assets/textures/eco/v_kit_heavy.png"), preload("res://assets/textures/eco/v_kit_heavy_mask.png"),
+		preload("res://assets/textures/eco/v_kit_heavy_glow.png")],
+}
+## Her makeup with each suit weight on: a sharp wing and dark red lips (light),
+## a grease smear (medium), war paint under her eyes (heavy).
+const KIT_FACE := {
+	"light": preload("res://assets/materials/eco/eco_v_face_light.tres"),
+	"medium": preload("res://assets/materials/eco/eco_v_face_medium.tres"),
+	"heavy": preload("res://assets/materials/eco/eco_v_face_heavy.tres"),
+}
 ## Everything she can wear (outfit): her pilot suits, then her clothes. Each
 ## suit but her own has its bodysuit material, and its own pieces in the glb as
 ## base_<style>_* (a jacket, cowl, vest or skirt; harness and the vesper looks
@@ -203,6 +219,8 @@ var _face: MeshInstance3D
 var _awake_face := {}
 ## The content rating her clothes were last put on for.
 var _dressed_rating := ""
+## Her bodysuit with her suit weight's changes laid over it, by "<outfit>/<weight>" (body_material).
+var _kit_bodies := {}
 
 
 func _ready() -> void:
@@ -322,25 +340,35 @@ func apply_suit() -> void:
 				if m != null and m.resource_name == "eco_v_body":
 					mi.set_surface_override_material(i, body_material())
 				elif m != null and m.resource_name == "eco_v_face":
-					mi.set_surface_override_material(i, DATE_FACE if outfit == "date" else null)
+					mi.set_surface_override_material(i, face_material())
 		mi.set_instance_shader_parameter("trim_gold", 1.0 if legacy else 0.0)
 
 
-## Her clothes' body texture, or the bodysuit for her weight: each weight has
-## its own cut (tools/eco/build_eco_vroid.py suit_graph); the bare suit uses
-## the base one (her style's).
+## Her clothes' body texture, or her suit style's bodysuit (null: the glb's
+## own, her gwen suit), with her suit weight's changes laid over it once she
+## has a suit tier (one material per style and weight, made once).
 func body_material() -> Material:
 	if not suited():
 		return OUTFIT_BODY[look()]
-	if suit_tier <= 0:
+	if suit_tier <= 0 or not KIT_TEX.has(suit_weight):
 		return STYLE_BODY.get(outfit)
-	match suit_weight:
-		"light":
-			return LIGHT_BODY
-		"medium":
-			return MEDIUM_BODY
-		"heavy":
-			return HEAVY_BODY
+	var key := outfit + "/" + suit_weight
+	if not _kit_bodies.has(key):
+		var m: ShaderMaterial = STYLE_BODY.get(outfit, GWEN_BODY).duplicate()
+		m.set_shader_parameter("use_kit", true)
+		m.set_shader_parameter("kit_tex", KIT_TEX[suit_weight][0])
+		m.set_shader_parameter("kit_mask_tex", KIT_TEX[suit_weight][1])
+		m.set_shader_parameter("kit_glow_tex", KIT_TEX[suit_weight][2])
+		_kit_bodies[key] = m
+	return _kit_bodies[key]
+
+
+## Her makeup: her date-night face, her suit weight's, or null (the glb's own).
+func face_material() -> Material:
+	if outfit == "date":
+		return DATE_FACE
+	if suited() and suit_tier > 0:
+		return KIT_FACE.get(suit_weight)
 	return null
 
 

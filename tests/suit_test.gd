@@ -87,10 +87,11 @@ func _model() -> void:
 		_check("%s wears its own pieces and the shared ones only" % w, w[0] in marks and "_" in marks \
 				and marks.all(func(c): return c == w[0] or not c in ["l", "m", "h"]), marks)
 	eco.suit_weight = "medium"
-	_check("medium has its own mechanic's rig", eco.find_child("suit_t1m_scarf", true, false) != null \
-			and eco.find_child("suit_t4m_wristcomp", true, false).visible, "")
+	_check("medium has its own mechanic's rig", eco.find_child("suit_t2m_scarf", true, false).visible \
+			and eco.find_child("suit_t1m_wristcomp", true, false).visible and eco.find_child("suit_t4m_bedroll", true, false).visible, "")
 	eco.suit_weight = "light"
-	_check("light wears a nose ring", eco.find_child("suit_t1l_nose_ring", true, false).visible, "")
+	_check("light wears a brow bar and a low belt", eco.find_child("suit_t1l_brow", true, false).visible \
+			and eco.find_child("suit_t1l_belt", true, false).visible and not eco.find_child("suit_t1m_belt", true, false).visible, "")
 	var body_mesh: MeshInstance3D = null
 	var body_surface := -1
 	for mi in eco.find_children("*", "MeshInstance3D", true, false):
@@ -98,15 +99,25 @@ func _model() -> void:
 			if mi.mesh.surface_get_material(i) != null and mi.mesh.surface_get_material(i).resource_name == "eco_v_body":
 				body_mesh = mi
 				body_surface = i
-	_check("light swaps in its own bodysuit cut", body_mesh != null and body_mesh.get_surface_override_material(body_surface) == eco.LIGHT_BODY, body_surface)
-	eco.suit_weight = "medium"
-	_check("medium swaps in its jumpsuit", body_mesh.get_surface_override_material(body_surface) == eco.MEDIUM_BODY, "")
-	eco.suit_weight = "heavy"
-	_check("heavy swaps in its padded undersuit", body_mesh.get_surface_override_material(body_surface) == eco.HEAVY_BODY, "")
+	var face: MeshInstance3D = eco.find_child("Face", true, false)
+	var makeup := func() -> Material:
+		for i in face.mesh.get_surface_count():
+			var m := face.mesh.surface_get_material(i)
+			if m != null and m.resource_name == "eco_v_face":
+				return face.get_surface_override_material(i)
+		return null
+	for w in ["light", "medium", "heavy"]:
+		eco.suit_weight = w
+		var kit: Material = body_mesh.get_surface_override_material(body_surface) if body_mesh != null else null
+		_check("%s changes her suit over its own" % w, kit != null and kit.get_shader_parameter("use_kit") \
+				and kit.get_shader_parameter("kit_tex") == eco.KIT_TEX[w][0] \
+				and kit.get_shader_parameter("albedo_tex") == eco.GWEN_BODY.get_shader_parameter("albedo_tex"), body_surface)
+		_check("%s has its own makeup" % w, makeup.call() == eco.KIT_FACE[w], makeup.call())
 	_check("heavy has its breastplate and core", eco.find_child("suit_t1h_breastplate", true, false).visible \
-			and eco.find_child("suit_t4h_core", true, false).visible, "")
+			and eco.find_child("suit_t5h_core", true, false).visible, "")
 	eco.suit_tier = 0
-	_check("the bare suit wears the plain bodysuit", body_mesh.get_surface_override_material(body_surface) == null, "")
+	_check("the bare suit wears the plain bodysuit and makeup", body_mesh.get_surface_override_material(body_surface) == null \
+			and makeup.call() == null, "")
 	eco.suit_tier = 5
 	var plate: MeshInstance3D = eco.find_child("suit_t1h_bracer_l", true, false)
 	_check("tier 5 repaints the plates in Dad's colours", plate.get_surface_override_material(0) == eco.LEGACY_PLATE, "")
@@ -130,25 +141,25 @@ func _run() -> void:
 	run_node.open_bench("suit")
 	await _ticks(2)
 	var bench = run_node.bench
-	_check("locker lists the weight and 5 tiers", bench.rows.size() == 6, bench.rows.size())
-	bench.select(0)
-	bench.step(1)
-	_check("no weight without a suit tier", armory.suit_weight == "medium", armory.suit_weight)
+	_check("locker shows the kit and its 5 sessions", bench.weight == "medium" and bench._cards.get_child_count() == 6, bench._cards.get_child_count())
+	bench.set_kit("heavy")
+	_check("no refit without a suit tier", armory.suit_weight == "medium" and bench.weight == "heavy", armory.suit_weight)
+	bench.set_kit("medium")
 	bench.select(3)
 	_check("can't skip ahead to tier 3", not bench.confirm() and armory.suit_tier == 0, armory.suit_tier)
+	_check("tier 3 closes in on her legs", bench.focus()["part"] == "KNEES AND THIGH" and bench.focus()["dist"] < 3.0, bench.focus())
 	bench.select(1)
 	_check("buy tier 1", bench.confirm() and armory.suit_tier == 1, armory.suit_tier)
 	bench.select(2)
 	_check("buy tier 2", bench.confirm() and armory.suit_tier == 2, armory.suit_tier)
 	await _ticks(2)
-	var preview = bench._turntable.get_child(0).get_child(0)
-	_check("the preview wears the browsed tier", preview.suit_tier == 2, preview.suit_tier)
-	bench.select(0)
-	bench.step(1)
+	_check("the preview wears the browsed tier", bench.eco.suit_tier == 2, bench.eco.suit_tier)
+	bench.switch_kit(1)
 	_check("weight: heavy", armory.suit_weight == "heavy", armory.suit_weight)
 	await _ticks(2)
-	preview = bench._turntable.get_child(0).get_child(0)
-	_check("the preview wears the weight", preview.suit_weight == "heavy", preview.suit_weight)
+	_check("the preview wears the kit", bench.eco.suit_weight == "heavy" and bench.eco.suit_tier == 2, bench.eco.suit_weight)
+	bench.select(0)
+	_check("the kit's overview shows all of her", bench.focus()["dist"] > 3.0 and bench.eco.suit_tier == 2, bench.focus())
 	run_node.close_bench()
 	await _ticks(2)
 	_check("heavy: more armour, softer hits, slower", player.max_armor == 64.0 and player.damage_mult == 0.85 and player.suit_speed == 0.9, [player.max_armor, player.damage_mult])
