@@ -66,9 +66,12 @@ func _run() -> void:
 	_check("alerted grunts see to full range", g.has_sight, g.has_sight)
 	_clear()
 
-	# Off to the side, past the edge of its vision cone.
+	# Off to the side, past the edge of its vision cone. An unaware grunt sweeps
+	# its look 35 degrees either way (grunt.gd _unaware_look) from a random
+	# phase, so the pilot sits 95 degrees off its facing: outside the cone
+	# however the sweep starts.
 	_place(SPOT)
-	g = _grunt(Vector3(-8, 0, -11), Vector3(1, 0, 0))
+	g = _grunt(Vector3(-8, 0, -11), Vector3(0.755, 0, -0.656))
 	await _seconds(2.0)
 	_check("pilot at the edge of vision is not seen", g.detection < 0.02, g.detection)
 	_clear()
