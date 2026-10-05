@@ -973,6 +973,13 @@ def base_jacket(shape=None, name=None, mat=None, cuff=None, pick_cuff=False):
     return ob
 
 
+def _leg_centre(s, z):
+    """The middle of her left (s 1) or right (s -1) leg at height z, rest space."""
+    P = np.array([v.co[:] for v in bpy.data.objects["Body"].data.vertices])
+    sel = (P[:, 0] * s > 0.01) & (np.abs(P[:, 2] - z) < 0.004)
+    return P[sel].mean(0)
+
+
 def light_suit(bvh):
     """The light kit (suit_t<tier>l_*): black leather with crimson edges and
     steel buckles, strapped over whichever suit she wears.
@@ -1034,7 +1041,8 @@ def light_suit(bvh):
             out.append(shell("suit_t3l_shinstrap%d_%s" % (k, side), lambda c, n: 0.2 < c.z < 0.4 and c.x * s > 0.0,
                              planes=[((0, 0, a), (0, 0, -1)), ((0, 0, b), (0, 0, 1))],
                              gap=0.003, thick=0.003, plate="eco_v_kit_leather", edge="eco_v_kit_leather"))
-            p, n = surface(bvh, (s * 0.5, -0.005, (a + b) / 2), (-s, 0, 0))
+            zc = (a + b) / 2
+            p, n = surface(bvh, (s * 0.5, _leg_centre(s, zc)[1], zc), (-s, 0, 0))
             x, y, z = frame_at(p, n)
             box(bm, p + y * 0.0065, (x, y, z), (0.012, 0.003, 0.017), 0, bevel=0.001)
         out.append(rigid("suit_t3l_shinbuckles_" + side, bm, ["eco_v_steel"], "J_Bip_%s_LowerLeg" % side.upper()))
