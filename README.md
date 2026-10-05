@@ -566,7 +566,7 @@ Grunts start **unaware** and have to notice you first.
 - **Over each grunt**: a **?** that grows from yellow to orange as it notices you (half full, it turns to look), then a red **!** once alerted. Visible through cover.
 - **Around the crosshair**: an arc points at every grunt noticing you, including ones behind you, and fills toward red.
 - **Sneak attacks**: anything that hits a grunt that hasn't noticed you does double damage, so a pistol headshot on an unaware grunt kills outright.
-- **Stiletto** (Z or the mouse thumb button): tap for a quick stab from Eco's left hand, 2.4 m reach. **Hold** to draw it with a flip-spin and keep it out: the pistol drops, Eco runs 20% faster, left mouse swings alternating slashes (light trail off the tip), and I plays a knife inspect (edge glint, finger spins, toss and catch). Takedowns are always a straight thrust. Let go to put it away. She carries the knife picked at the hub's knife case (Needle, Plate Kunai or Butterfly), all three built in Blender by `tools/knife/build_knives.py`. On an unaware grunt it's a silent takedown that kills instantly; on one that knows you're there it does 30 damage and alerts it. The pistol can't fire mid-stab.
+- **Knife** (Z or the mouse thumb button): **tap** for a quick strike from Eco's left hand, 2.4 m reach, with the gun still in the other. **Hold for about a second** to draw the knife as her weapon: the gun goes away (it can't fire), Eco runs 20% faster, left mouse attacks (two alternating moves, light trail off the tip) and I plays the knife's inspect. Tap Z again, press R or roll the mouse wheel (`swap_weapon`, rebindable) to put it away; the gun comes back up with its draw. Each knife moves its own way (`scripts/knife_moves.gd`): the **Needle** is held like a foil (a finger-roll draw off its ring pommel, quick straight thrusts, a ring-spin inspect), the **Plate Kunai** in reverse grip (flipped into it on the draw, hooking and hammer slashes, a twirl round her finger in its ring), and the **Butterfly** comes out closed and flips open (snappy wrist flicks, rollovers and an aerial on the inspect). Every knife hits on the same beat. On an unaware grunt any strike becomes that knife's takedown thrust. She carries the knife picked at the hub's knife case (Needle, Plate Kunai or Butterfly), all three built in Blender by `tools/knife/build_knives.py`. On an unaware grunt it's a silent takedown that kills instantly; on one that knows you're there it does 30 damage and alerts it. The pistol can't fire mid-stab.
 - **Alerted** grunts fight exactly as before, and call in every squadmate within 16 m. Getting shot always alerts. Out of sight for 10 s, they lose you and go back to searching.
 
 ## Enemy radio
@@ -657,6 +657,9 @@ select the Player node and tweak values in the Inspector, or change the defaults
 - `tools/hub/bench_shots.gd` screenshots of the benches, their screens, the guns and the loot
   (needs a renderer): `xvfb-run -a godot --path . -s res://tools/hub/bench_shots.gd -- out_dir`
   (add `knives` for just the knife case, its screen and each knife in her hand)
+- `tools/knife/knife_shots.gd` quick stills of each knife's moves in her hand and the knife
+  case screen, no level loaded: `xvfb-run -a godot --path . -s res://tools/knife/knife_shots.gd -- out_dir [frames|clips]`
+  (`clips` writes 30 fps frames per knife for ffmpeg)
 - `tools/hub/base_shots.gd` screenshots of the temple base: the hall, the stairs and loft
   bedroom, the lore, mission table and armour bench, the poster and its marker, and the tents
   inside and out: `xvfb-run -a godot --path . -s res://tools/hub/base_shots.gd -- out_dir [--only=hall,loft]`

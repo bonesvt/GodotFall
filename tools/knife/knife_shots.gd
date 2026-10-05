@@ -2,9 +2,11 @@ extends SceneTree
 ## Quick screenshots of Eco's three knives as she holds them (the knife.gd
 ## viewmodel on a plain backdrop, no level loaded, so it's fast on the CPU
 ## renderer) and the knife case's screen.
-##   xvfb-run -a godot --path . -s res://tools/knife/knife_shots.gd -- [out_dir]
-## Per knife: held ready, mid finger-spin (frozen pointing forward, so the
-## Butterfly's swung-open bite handle reads) and shown off on the inspect.
+##   xvfb-run -a godot --path . -s res://tools/knife/knife_shots.gd -- [out_dir] [frames|clips]
+## Default: per knife, held ready, its two attacks at the hit and three
+## moments of its inspect. "frames": each knife's draw, attacks and inspect
+## sampled every 1/10 s (knife-<id>-<anim>-NN.png) for strips. "clips": every
+## 1/30 s, numbered per knife (clip-<id>-NNNN.png) for ffmpeg.
 
 const KnifeScript := preload("res://scripts/knife.gd")
 const Armory := preload("res://scripts/hub/armory.gd")
@@ -12,6 +14,7 @@ const BenchScreen := preload("res://scripts/hub/bench_screen.gd")
 const PATH := "user://knife_shots_armory.cfg"
 
 var out := "user://knife_shots"
+var mode := ""
 var knife: Node3D
 
 
@@ -19,6 +22,8 @@ func _initialize() -> void:
 	var args := OS.get_cmdline_user_args()
 	if args.size() > 0:
 		out = args[0]
+	if args.size() > 1:
+		mode = args[1]
 	DirAccess.make_dir_recursive_absolute(out)
 	root.size = Vector2i(1280, 720)
 	var stage := Node3D.new()
@@ -47,17 +52,32 @@ func _go() -> void:
 	knife.set_process(false)
 	knife.set_physics_process(false)
 	knife.set_process_unhandled_input(false)
-	knife.readied = true  # held out, as when Z is held
+	knife.out = true  # drawn as her weapon
 	knife._ready_blend = 1.0
 	for id in Armory.KNIVES:
 		knife.set_model(id)
-		for pose in [["ready", "draw", KnifeScript.DRAW_TIME - 0.001], ["spin", "inspect", 1.02], ["show", "inspect", 0.5]]:
-			knife.anim = pose[1]
-			knife.anim_time = pose[2]
-			knife._process(0.0)
-			if pose[0] == "spin":
-				knife._blade.rotation = Vector3.ZERO  # freeze the spin pointing forward to show the handle
-			await _save("knife-hand-%s-%s" % [id, pose[0]])
+		if mode == "frames":
+			for a in ["draw", "attack_a", "attack_b", "inspect"]:
+				var n := ceili(knife.anim_length(a) * 10.0)
+				for i in n:
+					await _pose(a, i * 0.1, "knife-%s-%s-%02d" % [id, a, i])
+		elif mode == "clips":
+			var f := 0
+			for a in ["draw", "attack_a", "attack_b", "attack_a", "inspect"]:
+				var n := ceili(knife.anim_length(a) * 30.0)
+				for i in n:
+					await _pose(a, i / 30.0, "clip-%s-%04d" % [id, f], 1)
+					f += 1
+		else:
+			await _pose("", 0.0, "knife-hand-%s-ready" % id)
+			await _pose("draw", 0.2, "knife-hand-%s-draw" % id)
+			await _pose("attack_a", knife.hit_time, "knife-hand-%s-attack-a" % id)
+			await _pose("attack_b", knife.hit_time, "knife-hand-%s-attack-b" % id)
+			for t in [0.5, 1.4, 2.0]:
+				await _pose("inspect", t, "knife-hand-%s-inspect-%d" % [id, roundi(t * 10)])
+	if mode != "":
+		quit()
+		return
 	knife.get_parent().remove_child(knife)
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(PATH))
 	var a = Armory.open(PATH)
@@ -71,8 +91,17 @@ func _go() -> void:
 	quit()
 
 
-func _save(name: String) -> void:
-	await _frames(4)
+## Freezes the knife in animation `anim` at `t` seconds and saves a picture.
+func _pose(anim: String, t: float, name: String, settle := 3) -> void:
+	knife.anim = anim
+	knife.anim_time = t
+	knife._events_done = 1000  # no sounds or sparkles in stills
+	knife._process(0.0)
+	await _save(name, settle)
+
+
+func _save(name: String, settle := 4) -> void:
+	await _frames(settle)
 	root.get_viewport().get_texture().get_image().save_png(out.path_join(name + ".png"))
 	print("shot ", name)
 

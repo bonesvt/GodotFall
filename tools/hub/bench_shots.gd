@@ -177,15 +177,15 @@ func _knife_shots() -> void:
 		run_node.equip_loadout()
 		knife.set_physics_process(false)
 		knife.set_process(false)
-		weapon.holstered = true
-		knife.readied = true
+		knife.draw_knife()
 		knife._ready_blend = 1.0
-		for pose in [["ready", "", 0.0], ["flip", "inspect", 1.02], ["show", "inspect", 0.5]]:
+		for pose in [["ready", "", 0.0], ["attack", "attack_a", knife.hit_time], ["show", "inspect", 0.5]]:
 			knife.anim = pose[1]
 			knife.anim_time = pose[2]
 			knife._process(0.0)
 			await _shot("k4-hand-%s-%s" % [id, pose[0]], Vector3(-20, 0.2, 10), Vector3(-30, 1.4, 10))
 		knife.anim = ""
+		knife.put_away()
 		knife.set_process(true)
 		knife.set_physics_process(true)
 	run_node.armory.set_knife("needle")
