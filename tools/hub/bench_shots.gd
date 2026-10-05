@@ -30,7 +30,7 @@ func _initialize() -> void:
 	a.set_finish("rivet_cannon", "midnight")
 	a.fit("smart_pistol", "muzzle", "long_barrel")
 	a.fit("smart_pistol", "mag", "extended")
-	a.buy_refit("kit", "scrap")  # level 2: the heavy revolver is one upgrade off
+	a.buy_refit("kit", "scrap")  # level 2: the hand cannon is one upgrade off
 	a.set_start_part("chassis", "atlas")
 	a.set_start_part("weapon", "xo16")
 	a.equip("smart_pistol")
@@ -68,7 +68,7 @@ func _go() -> void:
 	run_node.open_bench("workshop")
 	await _frames(12)
 	await _save("7-screen-workshop")
-	# Refits level Eco up: 3 unlocks the heavy revolver, 6 the auto handgun.
+	# Refits level Eco up: 3 unlocks the hand cannon, 6 the auto handgun.
 	run_node.bench.switch_tab(1)
 	run_node.bench.select(0)
 	run_node.bench.confirm()

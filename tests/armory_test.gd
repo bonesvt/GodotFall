@@ -52,16 +52,16 @@ func _rules() -> void:
 
 	# Upgrades: each gun its own, capped, paid for.
 	_check("starts at level 1", a.pilot_level() == 1 and a.next_unlock() == "rivet_cannon", a.pilot_level())
-	_check("heavy revolver is locked below level 3", not a.buy_weapon("rivet_cannon") and not a.owns_weapon("rivet_cannon") and not a.equip("rivet_cannon"), a.stash)
+	_check("hand cannon is locked below level 3", not a.buy_weapon("rivet_cannon") and not a.owns_weapon("rivet_cannon") and not a.equip("rivet_cannon"), a.stash)
 	a.stash = {"scrap": 2000, "alloy": 2000, "circuits": 200, "lock_cores": 0}
 	_check("smart pistol's only upgrade is smart rounds", Armory.upgrade_tracks("smart_pistol") == ["smart_rounds"] and Armory.max_level("smart_rounds") == 8, Armory.upgrade_tracks("smart_pistol"))
-	_check("no revolver upgrades on the smart pistol", not a.buy_upgrade("smart_pistol", "rivet_heads"), a.upgrades)
+	_check("no hand cannon upgrades on the smart pistol", not a.buy_upgrade("smart_pistol", "rivet_heads"), a.upgrades)
 	_check("smart rounds need lock cores", not a.buy_upgrade("smart_pistol", "smart_rounds"), a.stash)
 	a.stash["lock_cores"] = 20
 	for i in 4:
 		a.buy_upgrade("smart_pistol", "smart_rounds")
 	var up: Dictionary = a.weapon_profile("smart_pistol")
-	_check("level 5: revolver unlocked, auto handgun not yet", a.pilot_level() == 5 and a.owns_weapon("rivet_cannon") and not a.owns_weapon("machine_pistol"), a.pilot_level())
+	_check("level 5: hand cannon unlocked, auto handgun not yet", a.pilot_level() == 5 and a.owns_weapon("rivet_cannon") and not a.owns_weapon("machine_pistol"), a.pilot_level())
 	_check("4 levels: half the mag is smart", is_equal_approx(up["stats"]["smart_fraction"], 0.5), up["stats"]["smart_fraction"])
 	_check("smart rounds move the look tier", up["tier"] == 3, up["tier"])
 	_check("lock cores spent", a.amount("lock_cores") == 16, a.stash)
@@ -69,7 +69,7 @@ func _rules() -> void:
 		a.buy_upgrade("smart_pistol", "smart_rounds")
 	up = a.weapon_profile("smart_pistol")
 	_check("every upgrade raises Eco's level", a.pilot_level() == 1 + 8, a.pilot_level())
-	_check("level 6+ unlocks the heavy revolver and auto handgun", a.owns_weapon("rivet_cannon") and a.owns_weapon("machine_pistol") and a.next_unlock() == "", [a.owns_weapon("rivet_cannon"), a.owns_weapon("machine_pistol")])
+	_check("level 6+ unlocks the hand cannon and auto handgun", a.owns_weapon("rivet_cannon") and a.owns_weapon("machine_pistol") and a.next_unlock() == "", [a.owns_weapon("rivet_cannon"), a.owns_weapon("machine_pistol")])
 	_check("unlocks between levels", Armory.unlocks_between(2, 6) == ["rivet_cannon", "machine_pistol"] and Armory.unlocks_between(1, 2).is_empty(), Armory.unlocks_between(2, 6))
 	_check("smart rounds cap at 8", a.upgrade_level("smart_pistol", "smart_rounds") == 8 and is_equal_approx(up["stats"]["smart_fraction"], 1.0), a.upgrade_level("smart_pistol", "smart_rounds"))
 	_check("a maxed gun is the top model tier", up["tier"] == Armory.MODEL_TIERS, up["tier"])
@@ -79,11 +79,11 @@ func _rules() -> void:
 	# Each gun's own set.
 	_check("every gun has its own upgrades", Armory.upgrade_tracks("rivet_cannon") == ["rivet_heads", "punch_through", "stagger_coils", "speed_loader"] \
 			and Armory.upgrade_tracks("machine_pistol") == ["drum_feed", "recoil_buffer", "overclock", "hot_streak"], "")
-	_check("no auto handgun upgrades on the revolver", not a.buy_upgrade("rivet_cannon", "drum_feed"), a.upgrades)
+	_check("no auto handgun upgrades on the hand cannon", not a.buy_upgrade("rivet_cannon", "drum_feed"), a.upgrades)
 	for track in ["rivet_heads", "punch_through", "punch_through", "stagger_coils"]:
 		a.buy_upgrade("rivet_cannon", track)
 	var rv: Dictionary = a.weapon_profile("rivet_cannon")["stats"]
-	_check("revolver: heavier rivets, two through, stagger", is_equal_approx(rv["damage"], 42.0 * 1.1) and is_equal_approx(rv["headshot_multiplier"], 2.2) \
+	_check("hand cannon: heavier rounds, two through, stagger", is_equal_approx(rv["damage"], 42.0 * 1.1) and is_equal_approx(rv["headshot_multiplier"], 2.2) \
 			and is_equal_approx(rv["pierce"], 2.0) and is_equal_approx(rv["stagger"], 0.35) and rv["smart_fraction"] == 0.0, rv)
 	for track in ["drum_feed", "overclock", "recoil_buffer", "hot_streak"]:
 		a.buy_upgrade("machine_pistol", track)
@@ -259,7 +259,7 @@ func _run() -> void:
 	run_node.hud.crosshair.queue_redraw()
 	await process_frame
 
-	# Heavy revolver: punch-through goes on into the grunt behind, and a hit
+	# Hand cannon: punch-through goes on into the grunt behind, and a hit
 	# knocks a grunt's wound-up shot away.
 	var back = run_node.zone_info["grunts"][2]
 	back.passive = true
