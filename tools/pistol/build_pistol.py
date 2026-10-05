@@ -75,6 +75,8 @@ COLORS = {
 	"pistol_copper": (0.85, 0.5, 0.3),
 	"pistol_gold": (1.0, 0.78, 0.3),
 	"pistol_live": (0.3, 0.95, 1.0),
+	"pistol_ebony": (0.12, 0.1, 0.1),
+	"pistol_chrome": (0.86, 0.88, 0.92),
 }
 
 
@@ -172,8 +174,8 @@ def empty(name, pos, rot=(0, 0, 0)):
 GRIP_POS = Vector((0, -0.088, 0.072))
 GRIP_ROT = (-16, 0, 0)
 
-# The old smart pistol's boxy grip, guard and grip tape: the heavy revolver
-# (build_sidearms.py rivet_cannon) is still built on them.
+# The old smart pistol's boxy grip, guard and grip tape (no longer used by any
+# gun, kept for reference).
 
 
 def grip_tape():
@@ -347,12 +349,14 @@ def bead(name, pos, r, mat):
 	return obj_from_bm(name, bm, mat, xform(pos))
 
 
-def cable(points, mat, r=0.0016):
-	"""A cable through Godot-frame points."""
+def cable(points, mat, r=0.0016, res=12, bevel_res=2):
+	"""A cable through Godot-frame points (`res` steps per span, `bevel_res`
+	rounds the section)."""
 	cu = bpy.data.curves.new("Cable", "CURVE")
 	cu.dimensions = "3D"
 	cu.bevel_depth = r
-	cu.bevel_resolution = 2
+	cu.bevel_resolution = bevel_res
+	cu.resolution_u = res
 	sp = cu.splines.new("BEZIER")
 	sp.bezier_points.add(len(points) - 1)
 	for bp_, p in zip(sp.bezier_points, points):
