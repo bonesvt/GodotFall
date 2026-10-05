@@ -37,7 +37,7 @@ import bmesh
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import kit  # noqa: E402
-from kit import Model, band, cyl, dent, gear, jitter, merge, rbox, rivets, row, smooth, sphere, studs, tire, tube  # noqa: E402
+from kit import Model, band, cyl, dent, gear, jitter, merge, rbox, rivets, row, smooth, sphere, tire, tube  # noqa: E402
 
 args = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
 OUT = args[0] if args else "assets/models/titans"
@@ -65,6 +65,10 @@ SHARED = {
 	"glow_core": ((0.4, 0.85, 1.0), (0.4, 0.85, 1.0)),
 	"glow_lamp": ((1.0, 0.9, 0.65), (1.0, 0.9, 0.65)),
 	"glow_red": ((1.0, 0.18, 0.1), (1.0, 0.18, 0.1)),
+	# The Precursor teal: dim on purpose, since glow_ materials render
+	# unshaded at three times their colour and ACES bleaches bright ones.
+	"glow_teal": ((0.004, 0.08, 0.065), (0.004, 0.08, 0.065)),
+	"glow_hot": ((0.2, 0.34, 0.3), (0.2, 0.34, 0.3)),
 	"glow_dead": (0.08, 0.1, 0.11),
 }
 
@@ -657,8 +661,9 @@ def titan(id, P):
 
 
 # --- weapons ---------------------------------------------------------------------
-# The XO-16 and the Splitter follow the concept sheets Bones picked (side
-# profiles drawn gun-forward: x forward, y left, z up). Sketch maps that
+# The XO-16, the Splitter and the Obelisk Rail (weapon id "scrap") follow
+# the concept sheets Bones picked (side profiles drawn gun-forward: x
+# forward, y left, z up). Sketch maps that
 # frame onto the weapon's own: the wrist (WeaponMount) sits at sketch
 # (x0, 0, z0), length scales by sx, width by sy and height by sz, so the
 # side silhouette keeps the sheet's proportions while the cross-section is
@@ -728,8 +733,24 @@ class Sketch:
 		bmesh.ops.transform(bm, matrix=kit.Matrix.Translation((a + b) / 2) @ q.to_matrix().to_4x4(), verts=bm.verts)
 		return self.m.add(group, bm, mat)
 
-	def tube(self, group, pts, r, mat):
-		return self.m.add(group, tube([tuple(self.at(p)) for p in pts], r * self.s[2], 8), mat)
+	def tube(self, group, pts, r, mat, closed=False, curved=True):
+		return self.m.add(group, tube([tuple(self.at(p)) for p in pts], r * self.s[2], 8, closed=closed, smooth_path=curved), mat)
+
+	def hull(self, group, pts, mat, bevel=0.0):
+		"""Convex hull of sketch points (frusta, pyramidions, wedges); edges
+		sharper than 30 degrees get a bevel."""
+		bm = bmesh.new()
+		for p in pts:
+			bm.verts.new(p)
+		bmesh.ops.convex_hull(bm, input=bm.verts[:])
+		bmesh.ops.dissolve_limit(bm, angle_limit=math.radians(1), verts=bm.verts[:], edges=bm.edges[:])
+		bmesh.ops.recalc_face_normals(bm, faces=bm.faces[:])
+		if bevel > 0.0:
+			edges = [e for e in bm.edges if e.is_manifold and e.calc_face_angle(0.0) > math.radians(30)]
+			bmesh.ops.bevel(bm, geom=edges, offset=bevel, offset_type="OFFSET", segments=2, profile=0.5,
+				affect="EDGES", clamp_overlap=True)
+		bmesh.ops.transform(bm, matrix=self.M, verts=bm.verts)
+		return self.m.add(group, bm, mat, smooth=False)
 
 	def slots(self, group, x0, x1, n, z0, z1, y, mat="soot", gap=0.4, slant=0.0):
 		step = (x1 - x0) / n
@@ -863,11 +884,217 @@ def splitter(m, paint, stripe, trim):
 		k.sym(B, [(x, 0.29), (x + 0.05, 0.29), (x + 0.05, 0.38), (x, 0.38)], 0.36, "dark", 0.008)
 
 
+def _spine(a, b):
+	"""Unit direction a -> b in the sketch's (x, z) plane and its front normal."""
+	dx, dz = b[0] - a[0], b[1] - a[1]
+	n = math.hypot(dx, dz)
+	return (dx / n, dz / n), (-dz / n, dx / n)
+
+
+def _along(a, b, t, off=0.0):
+	d, n = _spine(a, b)
+	return (a[0] + (b[0] - a[0]) * t + n[0] * off, a[1] + (b[1] - a[1]) * t + n[1] * off)
+
+
+def _ribbon(pts, th):
+	"""A thick (x, z) polyline as a closed outline; one thickness per point."""
+	L, R = [], []
+	for i, p in enumerate(pts):
+		q0, q1 = pts[max(i - 1, 0)], pts[min(i + 1, len(pts) - 1)]
+		dx, dz = q1[0] - q0[0], q1[1] - q0[1]
+		ln = math.hypot(dx, dz) or 1
+		nx, nz = -dz / ln, dx / ln
+		L.append((p[0] + nx * th[i] / 2, p[1] + nz * th[i] / 2))
+		R.append((p[0] - nx * th[i] / 2, p[1] - nz * th[i] / 2))
+	return L + R[::-1]
+
+
+def obelisk_rail(m, paint, stripe, trim):
+	"""Precursor concept I, Obelisk Rail: Precursor tech Eco found at the
+	temple. Two pale obelisks hover one over the other with a teal beam
+	thread between them, carved with glowing glyph channels, rooted in a
+	faceted receiver with the great eye on its flank; keystones and a
+	capstone hover over it on gaps held by nothing. The sheet's lying-obelisk
+	stock is split into two cheek slabs so the forearm runs between them,
+	each ending in a hovering butt plate. Inverted-obelisk grip, glowing
+	keystone trigger in a hovering bracket, floating pommel, and Eco's one
+	touch: a wrap of orange cord. Every glowing part is in Glow."""
+	k = Sketch(m, -0.8, 0.037, 0.9, 1.3, 0.95)
+	B, G = "Body", "Glow"
+	TEAL, HOT = "glow_teal", "glow_hot"
+	R = 0.01
+
+	def groove(pts, y, r=R, mat=TEAL):
+		# Carved channels go on both flanks: the pilot sees the inner one.
+		for s in (1, -1):
+			k.tube(G, [(x, s * y, z) for x, z in pts], r, mat, curved=False)
+
+	def line(a, b, y, r=R):
+		groove([a, b], y, r)
+
+	def dot(x, z, y, r, mat=TEAL):
+		for s in (1, -1):
+			m.add(G, sphere(r * k.s[2], tuple(k.at((x, s * y, z))), seg=8, rings=6), mat)
+
+	def circle(cx, cz, r, y, n=12, rr=R):
+		groove([(cx + r * math.cos(math.tau * i / n), cz + r * math.sin(math.tau * i / n)) for i in range(n + 1)], y, rr)
+
+	def eye(cx, cz, L, H, y, iris=True, r=R):
+		groove([(cx - L / 2 + L * i / 12, cz + H / 2 * math.sin(math.pi * i / 12)) for i in range(13)], y, r)
+		groove([(cx + L / 2 - L * i / 12, cz - H / 2 * math.sin(math.pi * i / 12)) for i in range(13)], y, r)
+		if iris:
+			ri = H * 0.36
+			for s in (1, -1):
+				k.cyl(G, (cx, s * (y - 0.006), cz), (cx, s * (y + 0.006), cz), ri, TEAL, segs=28)
+				k.cyl(G, (cx, s * (y + 0.006), cz), (cx, s * (y + 0.011), cz), ri * 0.45, HOT, segs=20)
+
+	def glyphs(x0, x1, zc, h, y, seed, r=0.008):
+		"""A row of Precursor glyphs: bars, rings, little eyes, chevrons, dots."""
+		rnd = random.Random(seed)
+		step = h * 0.9
+		x = x0
+		while x + step * 0.8 < x1:
+			c, hh = x + step / 2, h / 2
+			g = rnd.choice(("bar", "ring", "eye", "chev", "dots", "tee"))
+			if g == "bar":
+				line((c, zc - hh), (c, zc + hh), y, r)
+				line((c - hh * 0.5, zc + hh * 0.3), (c + hh * 0.5, zc + hh * 0.3), y, r)
+			elif g == "ring":
+				circle(c, zc, hh * 0.6, y, 10, r)
+				line((c, zc - hh), (c, zc - hh * 0.6), y, r)
+			elif g == "eye":
+				eye(c, zc, h * 0.8, h * 0.45, y, False, r)
+				dot(c, zc, y, r * 1.6)
+			elif g == "chev":
+				groove([(c - hh * 0.5, zc + hh), (c + hh * 0.4, zc), (c - hh * 0.5, zc - hh)], y, r)
+			elif g == "dots":
+				for dz in (-hh * 0.6, 0, hh * 0.6):
+					dot(c, zc + dz, y, r * 1.5)
+			else:
+				line((c - hh * 0.5, zc + hh), (c + hh * 0.5, zc + hh), y, r)
+				line((c, zc + hh), (c, zc - hh), y, r)
+			x += step
+
+	def slab(secs, mat, c=0.05, bevel=0.012, y0=None):
+		"""Faceted block along x: secs = [(x, zlo, zhi, half_y)], corners
+		chamfered by c. y0 shifts it off-centre to a side slab (y0..y0+2*half_y)."""
+		pts = []
+		for x, z0, z1, hy in secs:
+			yc = 0.0 if y0 is None else y0 + hy
+			for y, z in ((-hy + c, z0), (hy - c, z0), (hy, z0 + c), (hy, z1 - c), (hy - c, z1), (-hy + c, z1),
+					(-hy, z1 - c), (-hy, z0 + c)):
+				pts.append((x, yc + y, z))
+		return k.hull(B, pts, mat, bevel)
+
+	def rail(x0, x1, zc, h0, h1, w, tip):
+		pts = [(x, y, z) for x, h in ((x0, h0), (x1, h1)) for y in (-w / 2, w / 2) for z in (zc - h / 2, zc + h / 2)]
+		k.hull(B, pts + [(x1 + tip, 0, zc)], paint, 0.02)
+
+	def pyramid(x, z, s, sy=None):
+		sy = s if sy is None else sy
+		k.hull(B, [(x - s, -sy, z), (x + s, -sy, z), (x - s, sy, z), (x + s, sy, z), (x, 0, z + s * 1.6)], paint, 0.008)
+
+	# Two obelisks with the beam thread between them.
+	w = 0.24
+	yz = w / 2 + 0.004
+	zu, zl = 0.27, -0.09
+	rail(-0.6, 2.05, zu, 0.24, 0.16, w, 0.3)
+	rail(-0.6, 1.85, zl, 0.24, 0.16, w, 0.28)
+	glyphs(-0.1, 1.85, zu + 0.005, 0.085, yz, 11)
+	glyphs(-0.1, 1.65, zl - 0.005, 0.085, yz, 12)
+	for zz, x1 in ((zu, 1.95), (zl, 1.75)):
+		line((-0.1, zz - 0.085), (x1, zz - 0.055), yz)
+	k.cyl(G, (-0.12, 0, 0.09), (2.1, 0, 0.09), 0.03, TEAL, segs=16)
+	k.cyl(G, (-0.12, 0, 0.09), (2.12, 0, 0.09), 0.014, HOT, segs=12)
+	# Keystones hovering over the upper obelisk.
+	for x, s in ((0.3, 0.09), (0.62, 0.07), (0.88, 0.05)):
+		pyramid(x, 0.43, s)
+	# Receiver: the faceted block both obelisks grow out of, the great eye on
+	# its flanks and a capstone hovering over it.
+	hr = 0.28
+	slab([(-0.96, -0.19, 0.37, hr - 0.05), (-0.84, -0.27, 0.44, hr), (-0.3, -0.27, 0.44, hr), (-0.12, -0.23, 0.4, hr - 0.04)], paint, 0.08)
+	ym = hr + 0.004
+	eye(-0.52, 0.12, 0.42, 0.19, ym)
+	for dx in (-0.1, 0.0, 0.1):
+		line((-0.52 + dx, 0.24), (-0.52 + dx * 1.3, 0.32), ym)
+	glyphs(-0.8, -0.26, -0.1, 0.08, ym, 13)
+	line((-0.8, -0.2), (-0.26, -0.2), ym)
+	pyramid(-0.52, 0.48, 0.16, 0.15)
+	# Stock: the lying obelisk, split into two cheek slabs the forearm runs
+	# between, its underside rising so the grip hand has room.
+	yi, yo = 0.24, 0.28
+	for s in (1, -1):
+		k.prof(B, [(-0.88, -0.15), (-1.32, -0.05), (-1.32, 0.27), (-0.88, 0.35)], s * yi, s * yo, paint, 0.012)
+	for z0, z1 in ((0.26, 0.2), (-0.06, 0.03)):
+		line((-0.97, z0), (-1.28, z1), yo + 0.004)
+	glyphs(-1.24, -0.98, 0.11, 0.075, yo + 0.004, 14)
+	# Butt plates hovering behind a glowing seam.
+	for s in (1, -1):
+		k.box(G, (-1.347, s * (yi + yo) / 2, 0.11), (0.012, yo - yi - 0.01, 0.24), TEAL)
+		k.hull(B, [(x, s * y, z) for x, z0, z1 in ((-1.37, -0.1, 0.33), (-1.46, -0.14, 0.37))
+			for y in (yi, yo + 0.01) for z in (z0, z1)], trim, 0.012)
+	line((-1.415, -0.06), (-1.415, 0.28), yo + 0.014)
+	obelisk_grip(k, (-0.56, -0.17), (-0.74, -0.93), -0.31, paint, stripe, TEAL, HOT, groove)
+
+
+def obelisk_grip(k, a, b, gz, paint, cord, teal, hot, groove):
+	"""Inverted-obelisk grip along spine a -> b: faceted, tapering out of the
+	receiver, a glowing keystone trigger in a hovering angular bracket, a
+	floating pyramidion pommel and two loops of Eco's orange cord. gz = height
+	of the bracket's top end."""
+	B, G = "Body", "Glow"
+	d, n = _spine(a, b)
+
+	def octo(t, hd, hy, c=0.32):
+		p = _along(a, b, t)
+		return [(p[0] + n[0] * u, v, p[1] + n[1] * u) for u, v in ((hd, hy * (1 - c)), (hd * (1 - c), hy),
+			(-hd * (1 - c), hy), (-hd, hy * (1 - c)), (-hd, -hy * (1 - c)), (-hd * (1 - c), -hy), (hd * (1 - c), -hy), (hd, -hy * (1 - c)))]
+
+	def hd_at(t):
+		return 0.16 - 0.07 * (t - 0.13) / 0.72
+
+	def hy_at(t):
+		return 0.11 - 0.02 * (t - 0.13) / 0.72
+
+	k.hull(B, octo(0.0, 0.17, 0.11) + octo(0.13, 0.16, 0.11) + octo(0.85, 0.09, 0.09), paint, 0.01)
+	# Pyramidion pommel hovering under the grip.
+	p, q = _along(a, b, 0.885), _along(a, b, 1.04)
+	k.hull(B, [(p[0] + n[0] * u, v, p[1] + n[1] * u) for u in (-0.085, 0.085) for v in (-0.085, 0.085)] + [(q[0], 0, q[1])], paint, 0.008)
+	# Glyph channel down the flanks.
+	groove([_along(a, b, 0.2), _along(a, b, 0.8)], hy_at(0.5) + 0.004)
+	for t, L in ((0.3, 0.05), (0.42, 0.035), (0.54, 0.05), (0.66, 0.035)):
+		groove([_along(a, b, t, -L), _along(a, b, t, L)], hy_at(t) + 0.004, 0.008)
+	# Glowing keystone trigger hovering off the front face.
+	tc = _along(a, b, 0.29, hd_at(0.29) + 0.05)
+	kp = []
+	for s in (-1, 1):
+		for u in (-0.028, 0.028):
+			for v in (-0.045, 0.045):
+				hl = 0.07 - (0.015 if u > 0 else 0)
+				kp.append((tc[0] + d[0] * s * hl + n[0] * u, v, tc[1] + d[1] * s * hl + n[1] * u))
+	k.hull(G, kp, teal, 0.006)
+	groove([(tc[0] - d[0] * 0.05, tc[1] - d[1] * 0.05), (tc[0] + d[0] * 0.05, tc[1] + d[1] * 0.05)], 0.05, 0.01, hot)
+	# Open angular bracket guard, hovering, straight facets only.
+	br = [(tc[0] + 0.1, gz), (tc[0] + 0.15, tc[1] + 0.02), (tc[0] + 0.12, tc[1] - 0.15),
+		(tc[0] + 0.0, tc[1] - 0.205), (tc[0] - 0.08, tc[1] - 0.185)]
+	k.sym(B, _ribbon(br, [0.03, 0.05, 0.05, 0.05, 0.03]), 0.1, paint, 0.01)
+	groove(br[1:-1], 0.054, 0.008)
+	# Eco's touch: a tight wrap of orange cord.
+	for t in (0.56, 0.61):
+		c = _along(a, b, t)
+		r = 0.014
+		F, Y = hd_at(t) + 0.004 + r, hy_at(t) + 0.004 + r
+		qq = 0.35
+		ring = [(F, -Y * (1 - qq)), (F, Y * (1 - qq)), (F * (1 - qq), Y), (-F * (1 - qq), Y),
+			(-F, Y * (1 - qq)), (-F, -Y * (1 - qq)), (-F * (1 - qq), -Y), (F * (1 - qq), -Y)]
+		k.tube(B, [(c[0] + n[0] * u, v, c[1] + n[1] * u) for u, v in ring], r, cord, closed=True, curved=False)
+
+
 WEAPONS = {
 	"xo16": {"paint": (0.15, 0.16, 0.18), "stripe": (1.0, 0.72, 0.02), "trim": (0.22, 0.23, 0.26)},
 	"tracker": {"paint": (0.22, 0.32, 0.17), "stripe": (1.0, 0.4, 0.02)},
 	"splitter": {"paint": (0.9, 0.9, 0.88), "stripe": (0.2, 0.75, 0.95), "trim": (0.78, 0.79, 0.8)},
-	"scrap": {"paint": (0.62, 0.3, 0.12), "stripe": (0.3, 0.5, 0.75)},
+	"scrap": {"paint": (0.36, 0.31, 0.23), "stripe": (1.0, 0.2, 0.02), "trim": (0.64, 0.54, 0.38)},
 }
 
 
@@ -906,23 +1133,9 @@ def weapon(id, P):
 	elif id == "splitter":
 		splitter(m, paint, stripe, trim)
 	else:
-		# Scrap rifle: a pipe on an engine cylinder, clamps, tape and a patch.
-		recv = cyl(0.32, 1.2, (0, 0, 0), "z", 14, bevel=0.05)
-		m.add("Body", recv, "rust", kit.xform((0, 0, -0.5), (0, 0, 4)))
-		for i in range(5):
-			m.add("Body", cyl(0.4, 0.06, (0, 0, -0.1 - i * 0.18), "z", 14), "metal")
-		plate = m.add("Body", rbox((0.08, 0.5, 0.7), (0, 0, 0), r=0.03, seg=1), paint, kit.xform((0.38, 0.05, -0.55), (0, 0, 6)))
-		m.add("Body", studs(plate, [(0.2, 0.05 + y, -0.55 + z) for y in (-0.18, 0.18) for z in (-0.26, 0.26)], (-1, 0, 0)), "metal")
-		m.add("Body", cyl(0.14, 1.6, (0.03, 0.05, -1.85), "z", 10), "metal")
-		for z in (-1.3, -2.0, -2.5):
-			m.add("Body", cyl(0.18, 0.08, (0.03, 0.05, z), "z", 10), "chrome")
-		m.add("Body", cyl(0.2, 0.25, (0.03, 0.05, -2.5), "z", 10, bevel=0.03), "dark")
-		for z in (-0.25, -0.85):
-			m.add("Body", cyl(0.345, 0.1, (0, 0, z), "z", 14), "rubber")
-		m.add("Body", tube([(0, 0.35, -0.2), (0.0, 0.6, -0.5), (0.1, 0.45, -0.95)], 0.05, 8), "hose")
-		m.add("Body", cyl(0.07, 0.5, (0.12, 0.45, -0.8), "z", 10, rot=(0, 0, -12)), "dark")
-		m.add("Body", cyl(0.07, 0.5, (0.27, 0.45, -0.8), "z", 10), stripe)
-		m.add("Body", rbox((0.3, 0.55, 0.35), (0, 0, 0), r=0.08, seg=2), "dark", kit.xform((0, -0.45, -0.6), (10, 0, 0)))
+		# The pale alloy takes the trim_ finish (clean, satin), the darker
+		# butt plates the gun paint's weathered one.
+		obelisk_rail(m, trim, stripe, paint)
 	m.build()
 	kit.export(os.path.join(OUT, "titan_weapon_%s.glb" % id))
 

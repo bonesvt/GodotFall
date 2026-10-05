@@ -468,7 +468,7 @@ late-90s anime finish. **F9** cycles Anime, PS3 and PS2 to compare.
   stripes, green is crates, red is lava.
 - **Models** (`assets/models/*.tscn`): Eco (see below), her smart pistol held in her gloved hand, grunt (legs swing
   as it walks, visor glows on wind-up), four titan chassis (Atlas, Ogre, Stryder, Scrap)
-  and four titan guns (XO-16, 40mm Tracker, Splitter, scrap rifle). Your titan is built
+  and four titan guns (XO-16, 40mm Tracker, Splitter, Obelisk Rail). Your titan is built
   from the chassis and weapon you salvaged. Plus the red enemy titan, salvage cache and
   extract beacon. They are plain scenes made of primitive meshes, so you can edit them
   in the editor or swap in Blender models later. `tools/bake_models.gd` regenerates them (run it without `--headless`).
@@ -622,7 +622,7 @@ select the Player node and tweak values in the Inspector, or change the defaults
   one and otherwise synthesizes the sound at runtime; `SFX.variant("step_grass")` picks a random
   numbered take. Sources and credits: `assets/audio/sfx/README.md`; rebuild specs in `tools/audio/`
 - `scripts/ambience.gd` looping background beds from `assets/audio/ambience/` (forest, temple hub)
-- `scripts/run/titan_gun.gd` titan weapon personalities (XO-16 spin-up, Tracker shells, Splitter beam, jamming scrap rifle)
+- `scripts/run/titan_gun.gd` titan weapon personalities (XO-16 spin-up, Tracker shells, Splitter beam, stuttering Obelisk Rail)
 - `scripts/hud.gd` crosshair, hitmarkers, health, ammo, speedometer, state and cooldown readout
 - `scripts/radio/` enemy radio: `radio_chatter.gd` (listens to grunt awareness and deaths, picks lines),
   `radio_popup.gd` (the intercept box), `radio_lines.gd` (every line, by situation)
