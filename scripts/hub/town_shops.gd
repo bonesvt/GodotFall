@@ -83,6 +83,7 @@ const DATES := {
 	"garden": {"name": "the rooftop garden", "cost": {}},
 	"noodles": {"name": "Seven Suns", "cost": {"scrap": 8}},
 	"bar": {"name": "the Rusted Halo", "cost": {"scrap": 15}, "mature": true},
+	"smoke": {"name": "the Halo's back step", "cost": {}, "mature": true},
 }
 
 ## Ink & Iron's prices (what each looks like: eco_extras.gd).

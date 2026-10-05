@@ -112,6 +112,64 @@ static func _load_poses(npc: Node3D) -> void:
 	src.free()
 
 
+## Strikes a spot's pose (and its props) wherever they're standing now: a
+## date somewhere else that wants, say, the cigarette ("smoke").
+static func pose_here(npc: Node3D, spot: String) -> void:
+	var s: Dictionary = spots(npc.who).get(spot, {})
+	if s.is_empty() or npc._anim == null:
+		return
+	_load_poses(npc)
+	var name := LIB + "/" + String(s["anim"])
+	if npc._anim.has_animation(name):
+		npc._anim.play(name, 0.3)
+		npc.posed = true
+	for prop in s.get("props", []):
+		_prop(npc, prop)
+
+
+## The cigarette's finished: their props go, and a breath of smoke leaves
+## their lips (the "exhale" mood in dialogue).
+static func exhale(npc: Node3D) -> void:
+	for p in npc.find_children("*", "Node3D", true, false):
+		if p.has_meta("idle_prop"):
+			p.get_parent().remove_child(p)
+			p.queue_free()
+	var puff := CPUParticles3D.new()
+	puff.one_shot = true
+	puff.amount = 18
+	puff.lifetime = 2.4
+	puff.explosiveness = 0.6
+	puff.local_coords = false
+	var fwd := -npc.global_basis.z   # they face -Z
+	puff.direction = (fwd + Vector3(0, 0.35, 0)).normalized()
+	puff.spread = 18.0
+	puff.gravity = Vector3(0, 0.08, 0)
+	puff.initial_velocity_min = 0.12
+	puff.initial_velocity_max = 0.3
+	puff.damping_min = 0.08
+	puff.damping_max = 0.15
+	puff.scale_amount_min = 0.6
+	puff.scale_amount_max = 1.6
+	var quad := QuadMesh.new()
+	quad.size = Vector2(0.07, 0.07)
+	var mat := StandardMaterial3D.new()
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
+	mat.vertex_color_use_as_albedo = true
+	quad.material = mat
+	puff.mesh = quad
+	var fade := Gradient.new()
+	fade.set_color(0, Color(0.92, 0.92, 0.95, 0.55))
+	fade.set_color(1, Color(0.92, 0.92, 0.95, 0.0))
+	puff.color_ramp = fade
+	npc.add_child(puff)
+	var mouth: Vector3 = npc.head_position() + Vector3(0, -0.13, 0) + fwd * 0.09 if npc.has_method("head_position") else npc.global_position + Vector3(0, 1.45, 0)
+	puff.global_position = mouth
+	puff.emitting = true
+	puff.finished.connect(puff.queue_free)
+
+
 ## A prop on one of their bones (or, for the cushion, on the floor under them).
 static func _prop(npc: Node3D, kind: String) -> void:
 	if kind == "cushion":

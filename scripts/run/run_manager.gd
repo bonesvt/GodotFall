@@ -629,6 +629,8 @@ func date_at(spot: Dictionary) -> bool:
 	if npc._anim != null and npc._anim.has_animation("idle"):
 		npc._anim.play("idle", 0.3)
 	npc.calm()
+	if place == "smoke":
+		NpcIdles.pose_here(npc, "smoke")   # her lit cigarette, to share
 	for s in zone_info["interactables"]:
 		if s.get("npc", "") == who:
 			s["pos"] = npc.global_position

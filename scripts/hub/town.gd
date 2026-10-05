@@ -58,7 +58,7 @@ const SHOPS := {
 	"jobs": "quests",
 	"cafe": "dates",
 	"arcade": "dates",
-	"bar": "quest givers and rumours; Mature-only dates",
+	"bar": "quest givers and rumours; Mature-only dates (and the back step: a smoke with Ophelia)",
 	"cinema": "dates",
 	"ice_cream": "dates",
 	"gifts": "gifts for romance partners (gift_shop.gd)",
@@ -630,6 +630,13 @@ static func _low_row(root: Node3D, info: Dictionary, rng: RandomNumberGenerator)
 		"Every bad idea in Solace starts at the Halo. Most of mine did.",
 		"The fixer in the back booth pays in cash and doesn't ask why I can shoot.",
 	], "bar", {"date": "bar"})  # a Mature-only date (town_shops.gd DATES)
+	# The back step in the alley by the Halo, where Ophelia smokes: a
+	# Mature-only date (share her last cigarette).
+	K.mesh(root, Vector3(STREET_HALF + 0.5, 0.1, 203.6), Vector3(0.9, 0.2, 0.6), Art.material("concrete"))
+	K.mesh(root, Vector3(STREET_HALF + 0.45, 0.45, 204.55), Vector3(0.6, 0.9, 0.55), Art.material("gunmetal", Color(0.22, 0.3, 0.26)))
+	shop(info, "halo_step", Vector3(STREET_HALF - 0.6, 0, 204.0), "[F] The Halo's back step", [
+		"Ophelia's spot. Bins, a step, one flickering light. She says it's the only quiet place in town.",
+	], "", {"date": "smoke"})
 
 	var cinema := _building(root, 1, 209.5, "shop_w9_f2", 9.0, {"wall": Color(0.84, 0.88, 0.94), "shop": CYAN}, "HOLO-CINEMA")
 	_neon_text(root, Vector3(STREET_HALF - 0.62, GF - 1.6, 209.5), "TONIGHT: TITANFALL ROMANCE", Color(1.0, 0.95, 0.85), 30, -90.0)

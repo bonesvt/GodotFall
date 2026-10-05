@@ -58,6 +58,22 @@ func _run() -> void:
 		var cut := "date_m" if Shops.DATES[place].get("mature", false) else "date"
 		_check("Ophelia has lines for a date at %s" % place, (bank[cut] as Dictionary).has(place), place)
 		_check("and a Mature cut of it", (bank["date_m"] as Dictionary).has(place), place)
+	var smoke: Array = bank["date_m"].get("smoke", [])
+	var moods := []
+	for l in smoke:
+		if l is Array and l.size() > 2:
+			moods.append_array(l[2])
+	_check("the back step date: a kiss, then she breathes out the smoke", moods.has("kiss") and moods.has("exhale") and moods.find("kiss") < moods.find("exhale"), moods)
+	var smoker := Node3D.new()
+	root.add_child(smoker)
+	var stub := Node3D.new()
+	stub.set_meta("idle_prop", true)
+	smoker.add_child(stub)
+	preload("res://scripts/hub/npc_idles.gd").exhale(smoker)
+	_check("exhale: the cigarette's gone, a puff of smoke", not is_instance_valid(stub) or stub.is_queued_for_deletion(), "")
+	_check("and the smoke leaves her lips", smoker.find_children("*", "CPUParticles3D", true, false).size() == 1, "")
+	smoker.free()
+	_check("narration lines have no name", NpcTalk.NAMES.get("narrator", "x") == "", "")
 	for spot in info["interactables"]:
 		_check("%s isn't 'coming soon' any more" % spot["id"], not String(spot["prompt"]).contains("coming soon") or spot["id"] in ["job_board", "shop_bar"], spot["prompt"])
 	town.free()

@@ -51,8 +51,9 @@ const GAP := 0.9
 ## Walk this far (m) from whoever you're talking to and the talk ends.
 const LEAVE_RANGE := 5.5
 
-const NAMES := {"mom": "MOM", "ophelia": "OPHELIA", "biggie": "BIGGIE", "eco": "ECO"}
-const COLORS := {"mom": Color(0.6, 0.85, 0.6), "ophelia": Color(0.78, 0.55, 1.0), "biggie": Color(0.95, 0.75, 0.4), "eco": Color(1.0, 0.45, 0.45)}
+const NAMES := {"mom": "MOM", "ophelia": "OPHELIA", "biggie": "BIGGIE", "eco": "ECO", "narrator": ""}
+const COLORS := {"mom": Color(0.6, 0.85, 0.6), "ophelia": Color(0.78, 0.55, 1.0), "biggie": Color(0.95, 0.75, 0.4), "eco": Color(1.0, 0.45, 0.45),
+	"narrator": Color(0.8, 0.8, 0.82)}
 
 var save_path := DEFAULT_PATH
 var state := ConfigFile.new()
@@ -628,13 +629,16 @@ func _next() -> void:
 		npc.mood(lines[index][2])
 		if "kiss" in lines[index][2]:
 			fade_through_black(1.8)
-	var babble := Babble.make(speaker, text)
+		if "exhale" in lines[index][2]:
+			NpcIdles.exhale(npc)
+	# "narrator: ..." lines are stage directions: silent, no name
+	var babble := _quiet(text) if speaker == "narrator" else Babble.make(speaker, text)
 	var stream: AudioStream = babble["stream"]
 	_times = babble["times"]
 	_line_t = 0.0
 	var length: float = babble["length"]
 	_eco_voice.stop()
-	if speaker == "eco":
+	if speaker == "eco" or speaker == "narrator":
 		npc.hush()
 		npc.talking = true   # still facing her
 		if stream != null:
@@ -650,6 +654,14 @@ func _next() -> void:
 	_text.visible_characters = 0
 	_hint.text = "[F] next"
 	_panel.visible = true
+
+
+## A silent line's timing (narration): letters at a steady reading pace.
+static func _quiet(text: String) -> Dictionary:
+	var times := PackedFloat32Array()
+	for i in text.length():
+		times.append(i * 0.03)
+	return {"stream": null, "times": times, "length": text.length() * 0.035 + 0.8}
 
 
 ## Called every frame by the run manager while the hub runs. `pilot` is where
