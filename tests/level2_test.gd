@@ -13,6 +13,7 @@ extends SceneTree
 
 const Levels := preload("res://scripts/run/levels.gd")
 const LevelPlan := preload("res://scripts/run/procgen/level_plan.gd")
+const Romance := preload("res://scripts/hub/romance.gd")
 
 var failures := 0
 var run_node
@@ -58,6 +59,8 @@ func _play_checks() -> void:
 	await _ticks(5)
 	player = run_node.player
 	run_node.tutorial.set_enabled(false)
+	_check("no Ophelia in the hub before she's rescued", not run_node.hub_npcs.has("ophelia") and run_node.zone_info["interactables"].filter(func(i): return i.get("npc", "") == "ophelia").is_empty(), run_node.hub_npcs.keys())
+	var affection_before: int = Romance.affection(run_node.npc_talk.state, "ophelia")
 
 	# The mission table's Level 2 pin: locked until Level 1 is cleared.
 	var spot: Dictionary = run_node.zone_info["interactables"].filter(func(i): return i.get("level", "") == "level2")[0]
@@ -186,6 +189,11 @@ func _play_checks() -> void:
 	await _press("run_restart")
 	await _ticks(3)
 	_check("back to the temple", run_node.phase == run_node.Phase.HUB, run_node.phase)
+	_check("Ophelia's in the hub once rescued", run_node.hub_npcs.has("ophelia"), run_node.hub_npcs.keys())
+	var gained: int = Romance.affection(run_node.npc_talk.state, "ophelia") - affection_before
+	_check("the rescue starts her romance on +%d" % run_node.RESCUE_AFFECTION, gained == run_node.RESCUE_AFFECTION, gained)
+	run_node._rescue_bonus("level2")
+	_check("the rescue bonus is given only once", Romance.affection(run_node.npc_talk.state, "ophelia") - affection_before == run_node.RESCUE_AFFECTION, Romance.affection(run_node.npc_talk.state, "ophelia"))
 
 
 ## Whether a ray from the street into the cell stops at the screen.

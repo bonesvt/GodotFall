@@ -23,6 +23,10 @@ func _initialize() -> void:
 	run_node.armory_path = "user://test_hub_armory.cfg"
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(run_node.armory_path))
 	DirAccess.remove_absolute(ProjectSettings.globalize_path("user://test_settings.cfg"))
+	# Ophelia is only in the hub once Level 2 has rescued her (run_manager RESCUED_IN).
+	var progress := ConfigFile.new()
+	progress.set_value("progress", "cleared", ["level2"])
+	progress.save(run_node.armory_path)
 	root.add_child(run_node)
 	_run.call_deferred()
 
