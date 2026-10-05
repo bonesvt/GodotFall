@@ -23,10 +23,15 @@ const MAX_TURN := 60.0
 ## tools/npc/build_npc.py). They change between runs.
 const OUTFITS := {"ophelia": ["tee", "hoodie", "night"], "mom": ["home", "night"]}
 ## Outfits only worn on missions, never picked for the hub (Ophelia's
-## detainee rags in Level 2's holding cell): body_<outfit>.png too.
-const MISSION_OUTFITS := {"ophelia": ["prison"]}
+## detainee rags, and the colony's torn intake suit she's held in at Level 2's
+## stasis column, "colony" for Teen and "colony_m" for Mature):
+## body_<outfit>.png too. An outfit can bring its own face (face_<outfit>.png:
+## the ruined make-up) and hair blend shape (MESS: frizzed from the fight).
+const MISSION_OUTFITS := {"ophelia": ["prison", "colony", "colony_m"]}
 ## Outfits worn barefoot or in socks: the boots come off.
-const NO_BOOTS := ["night", "prison"]
+const NO_BOOTS := ["night", "prison", "colony", "colony_m"]
+## The hair blend shape an outfit turns on (tools/npc/build_npc.py mess_colony()).
+const MESS := {"colony": "mess_colony", "colony_m": "mess_colony"}
 
 const NpcSprings := preload("res://scripts/hub/npc_springs.gd")
 const Hair := preload("res://scripts/hub/hair.gd")
@@ -230,6 +235,32 @@ func wear(p_outfit: String) -> void:
 		for i in mi.mesh.get_surface_count():
 			var mat := mi.mesh.surface_get_material(i) as ShaderMaterial
 			if mat == null or mat.resource_name != "npc_%s_body" % who:
+				continue
+			var mine := mi.get_surface_override_material(i) as ShaderMaterial
+			if mine == null:
+				mine = mat.duplicate()
+				mi.set_surface_override_material(i, mine)
+			mine.set_shader_parameter("albedo_tex", tex)
+	_dress_face(p_outfit)
+
+
+## The outfit's own face texture (face_<outfit>.png) or their usual one, and
+## its hair blend shape on (any other outfit's off).
+func _dress_face(p_outfit: String) -> void:
+	var path := "res://assets/textures/npc/%s/face_%s.png" % [who, p_outfit]
+	if not ResourceLoader.exists(path):
+		path = "res://assets/textures/npc/%s/face.png" % who
+	var tex: Texture2D = load(path) if ResourceLoader.exists(path) else null
+	for mi in find_children("*", "MeshInstance3D", true, false):
+		for shape in MESS.values():
+			var b: int = mi.find_blend_shape_by_name(shape)
+			if b >= 0:
+				mi.set_blend_shape_value(b, 1.0 if MESS.get(p_outfit, "") == shape else 0.0)
+		if tex == null:
+			continue
+		for i in mi.mesh.get_surface_count():
+			var mat := mi.mesh.surface_get_material(i) as ShaderMaterial
+			if mat == null or mat.resource_name != "npc_%s_face" % who:
 				continue
 			var mine := mi.get_surface_override_material(i) as ShaderMaterial
 			if mine == null:

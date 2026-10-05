@@ -942,7 +942,7 @@ func holding_cell_in_reach() -> Node3D:
 	return cell
 
 
-## Drops the cell's screen and breaks the prisoner's chains. They have a
+## Drops the cell's screen and the prisoner's stasis field. They have a
 ## word, then follow Eco out (escort.gd) to the exfil.
 func rescue(cell: Node3D) -> void:
 	if not cell.release():
@@ -1313,7 +1313,7 @@ func _prompt() -> String:
 		Phase.ZONE:
 			var cell := holding_cell_in_reach()
 			if cell != null:
-				return "[F] Short the screen and break her chains"
+				return "[F] Short the screen and overload the pylons"
 			if escort != null and escort.in_reach(player.global_position):
 				return "[F] %s: come on" % _rescue_name() if escort.waiting else "[F] %s: wait here" % _rescue_name()
 			var cache := nearest_cache()

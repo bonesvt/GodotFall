@@ -61,15 +61,15 @@ const LEVELS := {
 		"rescue": "ophelia",
 		# What they say when the screen drops (rated T both ways).
 		"rescue_lines": [
-			"OPHELIA: ...Who's there?",
-			"ECO: Shh. Eco. Rescue. Hold still.",
-			"OPHELIA: Nobody was supposed to come. Nobody even knows I'm gone.",
-			"ECO: I knew. Their radio wouldn't shut up about you. Can you walk?",
+			"OPHELIA: ...Eco? What are you doing here? They only grabbed me last night.",
+			"ECO: Last night? Ophelia, you've been gone nineteen days.",
+			"OPHELIA: No. The light came on, and then you were... Nineteen days?",
+			"ECO: Later. I've got you. Can you walk?",
 			"OPHELIA: Barefoot, through their city, in the dark? Sure. Love that for me.",
 			"ECO: Stay close. I crouch, you crouch. We go out the way I came in.",
 		],
 		"blurb": "The colony's radio keeps joking about a girl from town in their holding block downtown. "
-			+ "Nobody in town has even noticed she's gone. Ophelia. Go in at night, get her out of her chains, and get her back out the way you came without waking the district.",
+			+ "Nobody in town has even noticed she's gone. Ophelia. Go in at night, get her out of whatever they've got her in, and get her back out the way you came without waking the district.",
 	},
 }
 
