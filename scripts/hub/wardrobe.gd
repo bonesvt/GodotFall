@@ -1,21 +1,27 @@
 extends RefCounted
 ## Eco's wardrobe in the hub: one place to pick what everyone wears (Eco,
 ## Mom, Ophelia). The picks are saved; an NPC left on "changes every run"
-## rotates through her outfits as before (hub_npc.gd wear_for_run). Eco wears
-## her pick at home and in town and her pilot suit on a run. The screen is
-## wardrobe_screen.gd; build() puts the wardrobe itself by her bed.
+## rotates through her outfits as before (hub_npc.gd wear_for_run). Eco's
+## outfits are her pilot suits and her clothes (eco_model.gd OUTFITS); she
+## wears her pick everywhere, and anything that isn't a pilot suit only at home. The screen is
+## wardrobe_screen.gd; build() puts the wardrobe itself in her loft bedroom.
 
 const K := preload("res://scripts/hub/hub_kit.gd")
 const Art := preload("res://scripts/ps2/ps2_assets.gd")
 const ECO_MODEL := "res://scripts/ps2/eco_model.gd"
 const HUB_NPC := "res://scripts/hub/hub_npc.gd"
+const ContentRating := preload("res://scripts/radio/content_rating.gd")
 
-## Whose clothes are in it, in tab order, with their tab names.
+## Whose clothes can be in it, in tab order, with their tab names (people()
+## leaves out anyone with only the one outfit for now).
 const PEOPLE := [["eco", "ECO"], ["mom", "MOM"], ["ophelia", "OPHELIA"]]
 ## What each outfit is called on the screen (anything missing is capitalised).
 const NAMES := {
-	"suit": "Pilot suit", "sleep": "Sleepwear", "work": "Work clothes", "date": "Date night",
-	"casual": "Casual", "swim": "Bikini", "bikini": "Bikini", "sheer": "Sheer layers",
+	"suit": "Pilot suit", "suit_ghost": "Ghost suit", "suit_racer": "Racer suit",
+	"suit_harness": "Harness suit", "suit_techwear": "Techwear suit", "suit_shade": "Shade catsuit",
+	"suit_homemade": "Mom's handmade suit", "suit_ophelia": "Ophelia's suit",
+	"suit_vesper": "Gunslinger (Vesper)", "suit_vesper_open": "Gunslinger, unzipped (Vesper)", "sleep": "Sleepwear", "work": "Work clothes", "date": "Date night",
+	"skater": "Skater brat", "y2k": "Y2K pop", "casual": "Casual", "swim": "Bikini", "bikini": "Bikini", "sheer": "Sheer layers",
 	"tight": "Tight and daring", "lingerie": "Lingerie", "home": "Home clothes",
 	"tee": "Band tee", "hoodie": "Hoodie", "night": "Nightwear",
 }
@@ -24,19 +30,30 @@ const ROTATE := ""
 
 ## Where the picks are saved ([wardrobe] <who> = <outfit>).
 static var save_path := "user://wardrobe.cfg"
-## What Eco has on when she isn't resting: her pick at home, the suit on a run.
+## What Eco has on when she isn't resting: her pick at home, and on a run her
+## pick if it's a pilot suit, else her own.
 ## eco_fp_body.gd puts her back in it when she gets up.
 static var eco_now := "suit"
 
 
-## The outfits someone has. Eco's come from her model (eco_model.gd OUTFITS);
-## until her outfits are in the game that is just the suit.
+## The outfits someone has. Eco's come from her model (eco_model.gd OUTFITS:
+## her pilot suits and her clothes), less its MATURE_OUTFITS under the Teen
+## content rating.
 static func outfits(who: String) -> Array:
 	if who == "eco":
-		var eco: Script = load(ECO_MODEL)
-		return eco.get_script_constant_map().get("OUTFITS", ["suit"]).duplicate()
+		var consts: Dictionary = (load(ECO_MODEL) as Script).get_script_constant_map()
+		var list: Array = consts.get("OUTFITS", ["suit"]).duplicate()
+		if ContentRating.current() != "M":
+			var mature: Array = consts.get("MATURE_OUTFITS", [])
+			list = list.filter(func(o): return not o in mature)
+		return list
 	var npc: Script = load(HUB_NPC)
 	return npc.get_script_constant_map().get("OUTFITS", {}).get(who, []).duplicate()
+
+
+## The tabs on the screen: everyone in PEOPLE with more than one outfit.
+static func people() -> Array:
+	return PEOPLE.filter(func(p): return outfits(p[0]).size() > 1)
 
 
 ## The options on the screen: the NPCs' first is "changes every run".
@@ -72,7 +89,8 @@ static func choose(who: String, outfit: String) -> void:
 ## Puts Eco (the player's full-body model) in her pick at home, or her suit
 ## on a run. Left alone while she's lying down or sitting.
 static func dress_eco(player: Node, at_home: bool) -> void:
-	eco_now = choice("eco") if at_home else "suit"
+	var pick := choice("eco")
+	eco_now = pick if at_home or pick.begins_with("suit") else "suit"
 	var body := player.get_node_or_null("EcoBody") if player != null else null
 	if body == null:
 		return
@@ -84,11 +102,11 @@ static func dress_eco(player: Node, at_home: bool) -> void:
 	shadow.wear(eco_now)
 
 
-## The wardrobe against the front wall by her bed (hub_builder.gd), outside
-## the bed curtain: a tall cupboard with one door hanging open on clothes, a
-## cracked mirror on the other door.
-static func build(root: Node3D, info: Dictionary, floor_y: float, front_z: float) -> void:
-	var w := Vector3(-5.5, floor_y, front_z - 0.38)
+## The wardrobe in her loft bedroom (hub_builder.gd), its back to `front_z`
+## at `x`, opening toward -Z: a tall cupboard with one door hanging open on
+## clothes, a cracked mirror on the other door.
+static func build(root: Node3D, info: Dictionary, floor_y: float, front_z: float, x := -5.5) -> void:
+	var w := Vector3(x, floor_y, front_z - 0.38)
 	var wood := Color(0.55, 0.38, 0.26)
 	K.mesh(root, w + Vector3(0, 1.1, 0), Vector3(1.3, 2.2, 0.62), Art.material("wood", wood))
 	K.mesh(root, w + Vector3(0, 2.25, 0), Vector3(1.42, 0.1, 0.7), Art.material("wood", wood.darkened(0.2)))

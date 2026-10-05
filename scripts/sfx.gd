@@ -200,7 +200,7 @@ static func _synth(id: String) -> PackedFloat32Array:
 				_delay(_ring([1850.0, 2770.0], 0.25, 14.0, 0.07), 0.06),
 				_delay(_clack(1900.0, 180.0, 0.35), 0.12),
 			]), 0.3, 1.6)
-		"machine_pistol":  # militia machine pistol: a short, snappy, papery bark
+		"machine_pistol":  # colony machine pistol: a short, snappy, papery bark
 			return _master(_mix([
 				_filter(_burst(0.025, 0.0003, 190.0, 0.9), "hp", 2400.0),
 				_filter(_burst(0.07, 0.0006, 55.0, 0.6), "bp", 1300.0, 0.8),

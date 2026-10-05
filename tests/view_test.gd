@@ -49,6 +49,11 @@ func _run() -> void:
 	var mesh: GeometryInstance3D = eco.shadow.find_children("*", "GeometryInstance3D", true, false)[0]
 	_check("full model not shadow-only", mesh.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON, mesh.cast_shadow)
 	_check("pistol in her hand", eco.shadow.find_child("GunHold", true, false) != null, null)
+	var arms_on_gun := 0
+	for n in eco.shadow.find_child("GunHold", true, false).find_children("*", "", true, false):
+		if n.get_script() == preload("res://scripts/eco_fp_arms.gd"):
+			arms_on_gun += 1
+	_check("no first-person arm rides on her gun", arms_on_gun == 0, arms_on_gun)
 	var muzzle: Vector3 = view.muzzle_position()
 	_check("tracers start from her gun, not the camera", muzzle.distance_to(player.global_position + Vector3.UP * 1.2) < 1.3 and muzzle.distance_to(cam.global_position) > 1.0, muzzle)
 

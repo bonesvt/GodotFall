@@ -37,7 +37,7 @@ const MAX_QUEUE := 8
 
 ## Higher interrupts lower. Equal or higher priority 2+ calls queue instead of dropping.
 const PRIORITY := {
-	"idle": 0, "rumor_eco": 0, "rumor_salvage": 0,
+	"idle": 0, "rumor_eco": 0, "rumor_salvage": 0, "prisoner": 0,
 	"combat": 1, "pilot_moving": 1, "hurt": 1,
 	"suspicious": 2, "stand_down": 2, "lost": 2,
 	"alerted": 3, "man_down": 3, "last_man": 3, "no_answer": 3,
@@ -57,7 +57,10 @@ var ambient_timer := 4.0
 var scan_timer := 0.0
 var bags := {}  # category -> shuffled entry indices still to use
 var last_entry := {}  # category -> index of the last entry used
-var history: Array = []  # every line put on air, for tests and debugging
+var history: Array = []
+## A level's own gossip mixed into the calm chatter ("prisoner" while
+## someone's in the holding block: run_manager), or "".
+var extra_rumor := ""  # every line put on air, for tests and debugging
 var _callsigns_used := {}
 
 var squelch: AudioStreamPlayer
@@ -105,7 +108,7 @@ func _process(delta: float) -> void:
 func _scan() -> void:
 	for g in get_tree().get_nodes_in_group("enemies"):
 		if g.get("on_radio") == false:
-			continue  # the Choir and the wildlife aren't on the militia net
+			continue  # the Choir and the wildlife aren't on the colony net
 		if not known.has(g):
 			_track(g)
 	for g in known.keys():
@@ -236,6 +239,8 @@ func _ambient() -> void:
 		return
 	ambient_timer = rng.randf_range(IDLE_GAP.x, IDLE_GAP.y)
 	var roll := rng.randf()
+	if extra_rumor != "" and rng.randf() < 0.4 and _call(extra_rumor, null):
+		return
 	_call("idle" if roll < 0.45 else ("rumor_eco" if roll < 0.75 else "rumor_salvage"), null)
 
 

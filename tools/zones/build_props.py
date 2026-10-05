@@ -158,7 +158,7 @@ def lily_pads(name, seed):
 
 
 def stilt_hut(name, seed):
-    """A fishing hut on stilts the militia took over. Deck 6 x 6 with its top
+    """A fishing hut on stilts the colony took over. Deck 6 x 6 with its top
     at 2.5 m, the cabin 4.4 W x 3.6 D x 2.6 H at the back of it, a low-pitched
     tin roof whose flat top is at 5.4 m (stand on it), a porch on the front
     (-Y) with a rail, and a ladder down to the water."""

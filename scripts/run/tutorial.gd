@@ -115,7 +115,7 @@ func _flash(text: String) -> void:
 
 # --- the run manager's side -----------------------------------------------------
 
-## "zone0".."zone2", "arena", "hub" or anything else (no beats).
+## "zone0".."zone2", "arena", "level1", "level2", "hub" or anything else (no beats).
 func start_level(which: String) -> void:
 	_finish()
 	level = which
@@ -131,6 +131,10 @@ func start_level(which: String) -> void:
 			beats = _boneyard() + _anywhere()
 		"arena":
 			beats = _arena()
+		"level1":
+			beats = _level1() + _anywhere()
+		"level2":
+			beats = _level2() + _anywhere()
 		"hub":
 			beats = _hub()
 	var radio = _radio()
@@ -568,7 +572,7 @@ func _pinewoods() -> Array:
 	out.append(_materials_beat())
 	if crate != null:
 		out.append({"id": "supply_crate", "title": "SUPPLY CRATE", "max": 25.0, "at": crate.global_position,
-			"body": "Militia supplies. Press [F] to pry the lid off.\nInside is scrap, and sometimes circuits: the gunsmith's bench at the temple turns them into weapon upgrades.",
+			"body": "Colony supplies. Press [F] to pry the lid off.\nInside is scrap, and sometimes circuits: the gunsmith's bench at the temple turns them into weapon upgrades.",
 			"targets": func(): return [{"node": crate, "tag": "SUPPLY CRATE", "color": AMBER}],
 			"when": func(): return is_instance_valid(crate) and not crate.opened and _near(crate.global_position, 14.0),
 			"done": func(): return not is_instance_valid(crate) or crate.opened})
@@ -598,8 +602,8 @@ func _blackwater() -> Array:
 			"targets": func(): return _noticing().map(func(g): return {"node": g, "tag": "", "color": RED, "ring": false}),
 			"when": func(): return not _noticing().is_empty(),
 			"done": func(): return _noticing().is_empty()},
-		{"id": "radio", "title": "MILITIA RADIO", "color": RED, "max": 8.0,
-			"body": "Eco's patched into the militia's squad net. Their chatter tells you when they've spotted something, and who's coming. [O] changes how filthy it gets.",
+		{"id": "radio", "title": "ENEMY RADIO", "color": RED, "max": 8.0,
+			"body": "Eco's patched into the colony's squad net. Their chatter tells you when they've spotted something, and who's coming. [O] switches it between Teen and Mature.",
 			"when": func(): return _events.has("radio")},
 		_knife_beat(),
 		{"id": "grapple", "title": "GRAPPLE ANCHORS", "color": ORANGE, "max": 25.0, "at": _lip(),
@@ -635,7 +639,7 @@ func _boneyard() -> Array:
 func _anywhere() -> Array:
 	return [
 		{"id": "salvage_cache", "title": "SALVAGE CACHE", "max": 20.0,
-			"body": "Titan parts, hidden by the militia. Open it with [F] and keep one part for the titan you'll call in at the end of the run.",
+			"body": "Titan parts, hidden by the colony. Open it with [F] and keep one part for the titan you'll call in at the end of the run.",
 			"targets": func(): return _target_for(_cache(false, 25.0), "SALVAGE", AMBER),
 			"when": func(): return _cache(false, 25.0) != null,
 			"done": func(): return _cache(false, 30.0) == null},
@@ -678,6 +682,56 @@ func _arena() -> Array:
 	]
 
 
+## The first real level (levels.gd): what's different from the tutorial run.
+func _level1() -> Array:
+	return [
+		{"id": "level1_intro", "title": "LEVEL 1: THE DEEPWOOD", "color": AMBER, "max": 14.0,
+			"body": "No more training wheels. The woods are laid out fresh every run, the colony's grunts hit harder and see further. Pick a lane: the road, the quiet gully or the high ridge.",
+			"targets": func(): return _route_tags(_info().get("routes", [])),
+			"when": func(): return level_time > 2.0},
+		{"id": "level1_depot", "title": "SALVAGE DEPOT", "color": RED, "max": 16.0,
+			"body": "Their depot has a titan part crated up on a flatbed, and it's top grade. The crate stays locked until every guard in the yard is down. Watch the towers.",
+			"targets": func(): return _depot_tag(),
+			"when": func(): return _depot_tag().size() > 0 and _near(_info()["depot_cache"].global_position, 70.0),
+			"done": func(): return _info()["depot_cache"].opened},
+		{"id": "level1_finale", "title": "THE CLEARING", "color": GREEN, "max": 14.0,
+			"body": "The road runs out into a clearing and their titan is parked on it. Step out of the trees and it's titanfall: call yours in, beat theirs, walk it to the evac.",
+			"when": func(): return _info().has("arena") and _pos().z < float(_info()["arena"]["enter_z"]) + 45.0 and run.phase == run.Phase.ZONE},
+	]
+
+
+func _level2() -> Array:
+	return [
+		{"id": "level2_intro", "title": "LEVEL 2: THE GLASS DISTRICT", "color": AMBER, "max": 15.0,
+			"body": "Night in the colony's streets. Their torches show where they're looking, and in the dark they don't see far. Stay quiet: Ophelia's in their holding block at the far end of the district.",
+			"targets": func(): return _route_tags(_info().get("routes", [])),
+			"when": func(): return level_time > 2.0},
+		{"id": "level2_cell", "title": "HOLDING BLOCK", "color": RED, "max": 16.0,
+			"body": "Her cell's behind an energy screen, a guard on it and more round the block. Take him quietly with the stiletto [Z], walk up to the screen and press [F] to short it and break her chains.",
+			"targets": func(): return _cell_tag(),
+			"when": func(): return _cell_tag().size() > 0 and _near(_info()["holding_cell"].global_position, 70.0),
+			"done": func(): return _info()["holding_cell"].opened},
+		{"id": "level2_out", "title": "GET HER OUT", "color": GREEN, "max": 16.0,
+			"body": "She follows you, and crouches when you crouch. Grunts can spot her too. [F] next to her tells her to wait or to come on. The exfil is back where you came in, and she has to be with you.",
+			"targets": func(): return [{"node": _info()["beacon"], "tag": "EXFIL", "color": GREEN}] if _info().get("beacon") != null else [],
+			"when": func(): return _events.has("rescued") and level_time > 0.0},
+	]
+
+
+func _cell_tag() -> Array:
+	var c = _info().get("holding_cell")
+	if c == null or not is_instance_valid(c) or c.opened:
+		return []
+	return [{"node": c, "tag": "OPHELIA", "color": ORANGE}]
+
+
+func _depot_tag() -> Array:
+	var c = _info().get("depot_cache")
+	if c == null or not is_instance_valid(c) or c.opened:
+		return []
+	return [{"node": c, "tag": "TITAN PART", "color": ORANGE}]
+
+
 func _hub() -> Array:
 	return [
 		{"id": "hub_benches", "title": "SPEND IT", "max": 16.0,
@@ -694,7 +748,7 @@ func _materials_beat() -> Dictionary:
 
 
 func _grunt_beat() -> Dictionary:
-	return {"id": "grunts", "title": "MILITIA", "color": RED, "max": 12.0,
+	return {"id": "grunts", "title": "COLONY GRUNT", "color": RED, "max": 12.0,
 		"body": "He hasn't seen you. Unaware grunts take double damage, and the stiletto [Z] kills them outright. Get spotted and he calls his squad in.",
 		"targets": func(): return _target_for(_seen_grunt(45.0), "UNAWARE", RED, false),
 		"when": func(): return _seen_grunt(40.0) != null,

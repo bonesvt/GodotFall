@@ -20,8 +20,9 @@ Or play the Windows build (no editor needed): `GodotFall.exe`, see **Windows bui
 - **Settings** (`scripts/ui/settings_menu.gd`, saved by `scripts/game/prefs.gd` to
   `user://settings.cfg`): mouse sensitivity, invert Y, field of view; every key rebindable
   (primary and secondary); master / effects / ambience / voices volume (buses in
-  `default_bus_layout.tres`); windowed / borderless / fullscreen, vsync, frame cap, PS3 or
-  PS2 look (F9 remembers too); dialogue rating, tutorial hints, start in third person.
+  `default_bus_layout.tres`); windowed / borderless / fullscreen, vsync, frame cap, look
+  (Anime, PS3 or PS2; F9 remembers too) and film grain; dialogue rating, tutorial hints, start in third person,
+  Eco's jiggle style (Classic, Smooth anime, Realistic).
 - **Save slots** (`scripts/game/saves.gd`): three, in `user://saves/slot1..3/`. Each holds the
   files the game already saved on its own (armory, hub conversations, titan paint, tutorial
   hints seen) plus runs / wins / time played. A run in progress isn't saved; Continue puts you
@@ -51,14 +52,16 @@ The preset keeps `dialogue/*` (plain text the hub people read at runtime) and le
 | G | Reset the grunt arena |
 | Esc | Pause menu (settings, quit) |
 | H | Toggle help |
-| F9 | Switch between the PS3 look and the old PS2 look |
+| F9 | Change look: Anime (default), PS3, old PS2 |
 
 ## The temple (hub)
 Pressing Play (`scenes/run.tscn`) opens in the hub: the small abandoned temple Eco hides
-out in. A lost civilization built it for their precursor god; she has made it her secret
-base since the militia turned her away. Walk around, warm up the movement kit, and
-press **F** at the map table ("HEAD OUT") to start a run. When a run ends, won or lost,
-**Enter** brings you back here.
+out in. The Precursors, a lost civilization, built it for their god; she has made it her
+secret base since the recruiters turned her away. Walk around, warm up the movement kit,
+and press **F** at the poster outside (the Pinewoods run, the tutorial; a gold marker turns
+over it until you've won it once) or at the mission table in the hall (the real levels and
+the uncharted long way) to start a run. When a run ends, won or lost, **Enter** brings you
+back here.
 
 Off duty (in the hub and the town, but not on the range, the movement course or the titan
 yard) Eco doesn't run: she struts at a stroll (`player.gd` `stroll_speed`, hold **Shift**
@@ -74,27 +77,38 @@ shoulders back, and stands with her weight on one hip. The strut is layered over
   zigzagging across the nave, paper lanterns in the aisles, potted ferns, a porch with
   lanterns over the door and a tarp over half the roof hole. (`HubBuilder.home_style`
   can build it in the precursors' pale alloy instead, `"alloy"`.)
-- **Kitchen** (under the gallery): a barrel stove, a counter and shelf of jars, herbs
+- **Kitchen** (under the loft): a barrel stove, a counter and shelf of jars, herbs
   drying, a little table with two stools.
 - **Couch** (by the bench): a pilot seat from a scrapped Ogre on a crate base, with a
   crate table and a spotlight floor lamp.
-- **The idol**: the precursor god, seated on a stepped dais with its hands open on its
+- **The idol**: the Precursors' god, seated on a stepped dais with its hands open on its
   knees and one great eye still glowing in its brow. Fire bowls either side.
-- **Eco's corner** (left of the door): the bed she built, a curtain round it, her
-  lantern, a photo of her and her dad, her drawings, and the militia's letter turning
-  down her pilot application, pinned to the wall.
-- **Workbench** (right of the door): her father's smart pistol stripped down, its burnt
-  auto-lock board on the bench. An `EcoSpot` marker beside it is where her character
-  model will stand.
+- **Precursor lore**: two carved reliefs on the back wall either side of the idol (the
+  builders holding up their eyes; the great eye over the world), grooves still glowing,
+  and a stand of tablets Eco dug out of the rubble. F on each for what she's worked out.
+- **Mission table** (in the nave): the map of the real levels (Level 1 opens once the
+  Pinewoods run is won) with the uncharted long way at its far end.
+- **Armour bench** (left wall, under the loft): the scavenged locker and her spare suit on
+  a pipe stand; F opens the suit screen (upgrades and changes).
+- **Workbench and weapon rack** (right of the door): the gunsmith's bench with the gun in
+  her hand on the mat, and the rack of the sidearms she owns. An `EcoSpot` marker beside
+  the bench is where her character model stands.
 - **Her father's titan** (right aisle): the wreck sitting slumped against the wall, left
   arm torn off and lying beside it, core dark, wired to a bank of salvaged batteries.
-- **The gallery**: a ledge 4.5 m up the left wall. Run up the fallen pillar from the nave,
-  or double-jump up the rubble by the door. Her stash of scrap is up there.
+- **Eco's loft** (up the stairs left of the door): a timber floor 4.5 m up over the left
+  aisle with a rail between the pillars, made into her bedroom: the bed she built (F to lie
+  down), a lantern and the photo of her and her dad, a desk under her drawings with the
+  recruiters' refusal pinned up, the wardrobe at the top of the stairs, a rug, a beanbag,
+  fairy lights along the rail and her stash of scrap at the back.
 - **The grounds** (`scripts/hub/hub_grounds.gd`): a big grassy clearing round the temple,
   closed in by a ruined boundary wall, thick jungle and green hills, so there is no void.
   - **Plaza** in front of the door, with the god's eye on a plinth and lamp posts.
-  - **Eco's camp** (east, also out through the breach): tents, a campfire with smoke,
+  - **The camp** (east, also out through the breach): Mom's, Ophelia's and Biggie's tents
+    (`scripts/hub/hub_rooms.gd`), big canvas wall tents on raised timber decks with
+    porches, lanterns and guy ropes, round a campfire with smoke; Eco's old little tent,
     laundry and banners in the breeze, a salvage tarp over titan scrap, a pond.
+  - **Tutorial poster** (left edge of the plaza): a notice board with Eco's poster for the
+    Pinewoods run.
   - **Shooting range** (west): a covered firing line and nine pop-up targets from 8 to
     40 m. Shoot one and it drops, then springs back up; the board counts hits and headshots.
   - **Movement course** (behind the temple): three jumps, a wallrun, a climb, a grapple to
@@ -137,7 +151,7 @@ enemy titan's salvage when you win); a lost run banks half. The HUD shows what y
   grip) plus free paint **finishes** (on the shell or frame). Q/E switches guns, Tab parts.
 - **Weapon rack** (on the wall past the bench): pick your starting sidearm. Dad's smart
   pistol from the start; the **Heavy Revolver** (six titan rivets in a hand-turned
-  cylinder) at **level 3**; the **Auto Handgun** (a militia machine pistol, full auto,
+  cylinder) at **level 3**; the **Auto Handgun** (a colony machine pistol, full auto,
   fifteen rounds a second) at **level 6**.
 - **Eco's level** is 1 plus every upgrade she has bought: weapon upgrades, titan refits and
   suit upgrades. It shows in the hub HUD and on every bench, which also says what unlocks
@@ -211,10 +225,10 @@ The movement and grunt test level is still at `scenes/test_level.tscn` (open it 
    group, and dense patches also have an invisible `sight_blocker` body on collision layer 16
    (mask 0) that blocks grunt line of sight but not the player, grunts or the grapple.
    The routes are listed in `zone_info["routes"]`, and the map shot draws them.
-   **Zone 2: Blackwater.** A flooded fen at dusk in the rain, where the militia runs its
+   **Zone 2: Blackwater.** A flooded fen at dusk in the rain, where the colony runs its
    fuel line. You start on the bank where Eco left her skiff and wade north through
    knee-deep water and swamp cypress: the roadblock on the old causeway, a stilt village the
-   militia took from the fishers (lookouts on the porches, a squad dug in on the road), the
+   colony took from the fishers (lookouts on the porches, a squad dug in on the road), the
    channel where the causeway bridge was blown (wallrun the side of a grounded barge, grapple
    the crane, hop the old piers, or walk the back of a titan that drowned there in the war),
    the pump station (pump house, storage tanks, watchtower, a squad in the yard), and the
@@ -226,12 +240,12 @@ The movement and grunt test level is still at `scenes/test_level.tscn` (open it 
    guarded by the village's or the station's squad; the other is on a hut roof or the pump
    house roof. Falling into the channel costs integrity like the ravine does.
    **Zone 3: the Boneyard.** The old front line where the titans died, a burnt valley of
-   craters and wrecks under a smoky sky, where the militia strip the dead titans for parts.
+   craters and wrecks under a smoky sky, where the colony strips the dead titans for parts.
    You start behind the war's front-line trench: no-man's land (wire, craters, a titan dead on
    its knees, the picket), the salvage yard (wall and gate, a gantry crane over a titan they're
    stripping, the strip shed, container stacks, a watchtower), the rift (wallrun a titan's
    tower shield wedged in it, grapple the crane, hop the precursor columns standing in it, or
-   walk a fallen precursor obelisk), the ruins of the precursor's shrine where the militia set
+   walk a fallen precursor obelisk), the ruins of the precursor's shrine where the colony set
    up a radio post (the god's eye still glows on the standing stone), and the beacon at the
    edge of the burn, where the living forest starts again. Three ways through: the **haul
    road** (loud), the **old trenches** (quiet: down the communication trench, out through a
@@ -246,7 +260,7 @@ The movement and grunt test level is still at `scenes/test_level.tscn` (open it 
    ambience. Getting gunned down costs 25 pilot integrity and puts you back at the last
    checkpoint. At 0 the run is over.
 
-   **Uncharted zones (the long way).** On the far side of the hub's map table is a second
+   **Uncharted zones (the long way).** At the far end of the hub's mission table is a second
    sheet, UNCHARTED: press F there and the run goes through the three zones above and then
    two more that are generated from the run's seed, before the titan fight. See
    *Generated zones* below.
@@ -374,10 +388,48 @@ res://tools/zones/shots.gd -- /some/dir [2|3]` saves screenshots and route maps 
   has the real player controller kick up a kick slot, run a billboard, grapple a mast, climb
   a corner kick and a pillar ledge, and grapple up onto a scaffold roost.
 
-## Art: PS3 look (with the old PS2 look on F9)
-Everything is stylized in the spirit of Jak and Daxter and Shadow of the Colossus,
-rendered at roughly PS3-era quality. **F9** flips back to the original PS2 look to compare.
+## Level 1: The Deepwood
 
+The first real level after the tutorial run (`scripts/run/levels.gd`). It opens from the
+**mission table** in the temple's nave once you've won the Pinewoods run (bring
+a titan home once; older saves that have banked a lock core count). A level run is one long
+generated forest valley, laid out fresh from the run's seed every time, built to the level's
+own spec:
+
+- **Harder than the tutorial.** Generated at difficulty 4: three extra sections, sometimes a
+  second chasm, bigger squads, grunts that hit harder and see further. Grunts only: the Choir
+  and wildlife stay past the border.
+- **The salvage depot** (section `depot`): a yard like the outpost with the titan part the
+  colony crated up on a flatbed, the scrapped titan it came off, containers and a second
+  watchtower. Its squad is bigger and the crate stays locked until every guard is down. Its
+  offer is always top grade (tier 3). The outpost's and camp's caches are there too.
+- **The clearing** (section `finale`, in place of the extraction beacon): the valley opens
+  into a wide flat clearing with their titan parked on the road and the evac pad behind it,
+  blast walls and wrecks for titan cover, two grunts dug in where the road comes out. Walk
+  out into it and it's titanfall right there, no separate arena: call yours, fight, walk it
+  to the evac. Winning marks the level cleared in the armory save (`[progress] cleared`).
+- Hint cards for the level (intro, the depot, the clearing) come from `tutorial.gd`.
+- **Maps.** `xvfb-run -a godot --path . --rendering-driver opengl3 -s res://tools/procgen/maps.gd
+  -- /some/dir 5150 2024 --level=level1` draws the level for those seeds.
+- **Tests.** `godot --headless --path . -s res://tests/level1_test.gd` plans 40 seeds (depot,
+  flat clearing last), then plays one: the board locked and unlocked, the depot locked behind
+  its squad with a top grade offer, the clearing starting the fight, the titan dropping inside
+  it, and the evac completing and saving the level.
+
+## Art: Anime look (with the PS3 and old PS2 looks on F9)
+Everything is stylized in the spirit of Jak and Daxter and Shadow of the Colossus. The
+default **Anime look** paints the world to match the toon-shaded characters, with a
+late-90s anime finish. **F9** cycles Anime, PS3 and PS2 to compare.
+
+- **Anime look** (default): the PS3 look's lighting and haze, but `ps2_surface` (the
+  `anime_look` shader global) reads textures from a blurrier mip, squashes their grain
+  toward their broad colour and posterises brightness into a few flat tones; no normal
+  maps or highlights; cel lighting with lavender shadows and hard-edged lamp pools.
+  `assets/shaders/anime_post.gdshader` (a full-screen quad the PS2 autoload keeps on the
+  current camera) paints the set with a Kuwahara filter (characters stay crisp: the set
+  writes roughness 0.5, the toon characters 1.0), draws ink lines from depth and normal
+  breaks, and grades it: warm highlights, cool shadows, halation, vignette, film grain
+  (Settings > Video > Film grain). Concepts: `tools/art/style_shots.gd`.
 - **PS3 look** (default): full resolution with 4x MSAA and 16x anisotropic filtering;
   normal-mapped textures with roughness and bare-metal masks; GGX highlights and sky
   reflections; sky-tinted ambient light with SSAO; soft 4-split sun shadows (4096 px);
@@ -446,7 +498,7 @@ Weak on purpose, so skill decides fights.
   reload and inspect (I). All feel; none of it changes the numbers above.
 
 ## Eco, the heroine
-A young mechanic who went rogue after the militia turned her down as a Pilot. She fights with
+A 21-year-old mechanic and weaponsmith from Solace. When her father, the village's only Pilot, was killed in the war against the off-world colony, the recruiters turned her away for crying, so she fights the colony on her own from a Precursor temple outside town. She fights with
 her late father's broken smart pistol and builds titans from scrap. Anime toon look: a short,
 daring dark-red bob with a fringe swept over her right eye, a fierce face with mature makeup,
 pilot goggles pushed up on her head, full hips and thighs, and a skin-tight pilot suit (halter
@@ -462,6 +514,10 @@ boots with knee plates, teal glowing trims).
   behind when she runs). `SPRINGS` in `scripts/ps2/eco_model.gd` tunes stiffness, drag,
   gravity, swing limits and how much of her movement each spring feels; `jiggle` scales the
   chest and glute bounce (0 turns it off) and `springs_enabled` turns them all off.
+  `jiggle_style` picks a tuning from `JIGGLE_STYLES`: classic, anime (slower, floatier, eases
+  into its limit) or realistic (firm, quick, mostly vertical). Left unset she follows
+  Settings > Game > Jiggle style, live. `tools/eco/jiggle_clips.gd` renders the three side by
+  side through a run, jump, landing and turn.
 - **First person**: the player's `EcoBody` node (`scripts/eco_fp_body.gd`) shows her body when
   you look down (head and arms hidden, kept under the camera in every pose) and casts her full
   shadow. `camera_above_neck` and `camera_ahead` place it; `show_body` and `cast_shadow` toggle it.
@@ -508,7 +564,7 @@ Grunts start **unaware** and have to notice you first.
 
 ## Enemy radio
 Get within about 45 m of grunts and Eco picks up their squad net. A small **INTERCEPT** box
-above your health shows who's talking (amber callsigns, militia HQ in red) as the lines type out
+above your health shows who's talking (amber callsigns, colony command in red) as the lines type out
 through static. She only listens; she never talks back.
 - **Calm squads** trade banter, gossip about "the Pilot reject" (they don't know she's listening), and pass
   around salvage rumours naming real titan parts.
@@ -518,8 +574,8 @@ through static. She only listens; she never talks back.
   a terrified last man, and HQ calling into silence once the squad is gone.
 - Bigger events cut off small talk; lines never repeat back to back, and every exchange plays before any repeats.
 - Speakers near the edge of range break up: fewer signal bars and garbled characters.
-- **Dialogue rating**: press **O** to cycle E, T, M and AO (saved between sessions; default M). Not F8: that stops the game when it runs from the Godot editor.
-  E and T have their own clean line banks; AO currently uses the M bank. `scripts/radio/content_rating.gd`
+- **Dialogue rating**: press **O** to switch between Teen and Mature (saved between sessions; default M). Not F8: that stops the game when it runs from the Godot editor.
+  Each rating has its own line files in `dialogue/`. `scripts/radio/content_rating.gd`
   holds the setting.
 - Lines live in `scripts/radio/radio_lines.gd`, one exchange per string (`"a: ... | b: ... | hq: ..."`).
   `radio_chatter.gd` emits `line_started(callsign, text, category)` for voice-over later.
@@ -561,7 +617,9 @@ select the Player node and tweak values in the Inspector, or change the defaults
 - `scripts/hud.gd` crosshair, hitmarkers, health, ammo, speedometer, state and cooldown readout
 - `scripts/radio/` enemy radio: `radio_chatter.gd` (listens to grunt awareness and deaths, picks lines),
   `radio_popup.gd` (the intercept box), `radio_lines.gd` (every line, by situation)
-- Eco's whispers (`scripts/radio/`): she can't answer the militia on their net, so she talks back
+- `dialogue/` every radio and whisper line as plain text, one file per rating; edit and press O in
+  game to reload. Format and situation names: `dialogue/README.md`
+- Eco's whispers (`scripts/radio/`): she can't answer the colony grunts on their net, so she talks back
   under her breath once an exchange ends, and mutters through kills, takedowns, getting hurt, quiet
   stretches and the run's beats. `eco_whispers.gd` (triggers, cooldowns, breath sound),
   `eco_whisper_lines.gd` (every line, by situation and rating; `keyword>` lines answer what the radio
@@ -591,6 +649,9 @@ select the Player node and tweak values in the Inspector, or change the defaults
   `godot --headless --path . -s res://tests/suit_test.gd`
 - `tools/hub/bench_shots.gd` screenshots of the benches, their screens, the guns and the loot
   (needs a renderer): `xvfb-run -a godot --path . -s res://tools/hub/bench_shots.gd -- out_dir`
+- `tools/hub/base_shots.gd` screenshots of the temple base: the hall, the stairs and loft
+  bedroom, the lore, mission table and armour bench, the poster and its marker, and the tents
+  inside and out: `xvfb-run -a godot --path . -s res://tools/hub/base_shots.gd -- out_dir [--only=hall,loft]`
 - `tests/run_loop_test.gd` headless run loop test (generator limits, a bot pilot clearing the
   hardest gap of each kind and all three real ravine crossings and the culvert, log-bridge and ridge
   flanks in the forest, salvage,
@@ -602,6 +663,7 @@ select the Player node and tweak values in the Inspector, or change the defaults
   `hub_kit.gd` shared shape helpers, `hub_props.gd` the Blender props; `practice_target.gd`, `titan_dummy.gd` and
   `ambient.gd` (fire flicker, swaying cloth, birds) are the hub's moving parts
 - `tests/hub_test.gd` headless hub test (opens in the hub, walking the nave, every look-at
-  spot, the climb to the gallery, the grounds are closed in, range targets, the course
-  clock, the practice titan and dummies, map table starts a run, runs return to the hub):
+  spot, the stairs up to the loft, the bed, letter and wardrobe upstairs, the tents outside,
+  the poster and its marker, the grounds are closed in, range targets, the course
+  clock, the practice titan and dummies, the poster starts a run, runs return to the hub):
   `godot --headless --path . -s res://tests/hub_test.gd`

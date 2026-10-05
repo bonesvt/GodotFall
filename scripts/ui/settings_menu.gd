@@ -4,8 +4,10 @@ extends Control
 ##   Controls  mouse sensitivity, invert Y, field of view
 ##   Keys      rebind every action (primary and secondary), reset to defaults
 ##   Sound     master, effects, ambience, voices
-##   Video     window / borderless / fullscreen, vsync, frame cap, PS3 or PS2 look
-##   Game      dialogue rating, tutorial hints, start in third person
+##   Video     window / borderless / fullscreen, vsync, frame cap, look
+##             (Anime, PS3 or PS2) and film grain
+##   Game      dialogue rating, tutorial hints, start in third person, Eco's
+##             jiggle style
 ## Esc or Back closes it (emits `closed`).
 
 signal closed
@@ -16,6 +18,7 @@ const RadioLines := preload("res://scripts/radio/radio_lines.gd")
 const Tutorial := preload("res://scripts/run/tutorial.gd")
 
 const FPS_CAPS := [0, 30, 60, 120, 144, 165, 240]
+const LOOKS := ["anime", "ps3", "ps2"]
 
 ## The live tutorial (run_manager.gd's), so toggling hints here works mid-game.
 var tutorial: Node
@@ -265,9 +268,14 @@ func _video_tab() -> void:
 	_options(box, "Frame rate cap", FPS_CAPS.map(func(f): return "Unlimited" if f == 0 else "%d fps" % f),
 		FPS_CAPS.find(int(Prefs.get_value("video", "max_fps"))),
 		func(i): _set_video("max_fps", FPS_CAPS[i]))
-	_options(box, "Look", ["PS3 (sharp, detailed)", "PS2 (retro, F9)"],
-		1 if bool(Prefs.get_value("video", "ps2_look")) else 0,
-		func(i): _set_video("ps2_look", i == 1))
+	_options(box, "Look (F9)", ["Anime (painted, inked)", "PS3 (sharp, detailed)", "PS2 (retro)"],
+		maxi(LOOKS.find(Prefs.look()), 0),
+		func(i):
+			Prefs.set_value("video", "ps2_look", LOOKS[i] == "ps2")
+			_set_video("look", LOOKS[i]))
+	_slider(box, "Film grain (Anime look)", 0.0, 1.0, 0.05, float(Prefs.get_value("video", "film_grain")),
+		func(v): return "Off" if v <= 0.001 else "%d%%" % roundi(v * 100.0),
+		func(v): _set_video("film_grain", v))
 
 
 func _set_video(key: String, value: Variant) -> void:
@@ -282,7 +290,7 @@ func _game_tab() -> void:
 	_options(box, "Dialogue rating (O)", ratings.map(func(r): return RadioLines.RATING_NAMES[r]),
 		ratings.find(Prefs.rating()),
 		func(i): Prefs.set_rating(ratings[i]))
-	box.add_child(UI.label("How rough the militia radio and Eco's whispers get.", 18, UI.MUTED))
+	box.add_child(UI.label("Teen or Mature: how rough the enemy radio and Eco's whispers get.", 18, UI.MUTED))
 	# Hints are kept per save slot, so they're only offered with a game going.
 	if tutorial != null:
 		_toggle(box, "Tutorial hints (F1)", _hints_on(), _set_hints)
@@ -290,6 +298,11 @@ func _game_tab() -> void:
 		func(v):
 			_save_pref("game", "third_person", v)
 			load("res://scripts/view_camera.gd").prefer_third_person = v)
+	var styles: Array = Prefs.JIGGLE_STYLES
+	_options(box, "Jiggle style", ["Classic", "Smooth anime", "Realistic"],
+		styles.find(Prefs.jiggle_style()),
+		func(i): Prefs.set_jiggle_style(styles[i]))
+	box.add_child(UI.label("How Eco's hair and body bounce as she moves.", 18, UI.MUTED))
 
 
 func _hints_on() -> bool:

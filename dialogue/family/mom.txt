@@ -41,7 +41,7 @@ mom: My bed's warm any time you want it, you know. Like when you were little.
 [bond 25]
 mom (smile): Turn around. Your braid's come out again.
 eco: I don't have a braid.
-mom: You had one when you left. The militia don't get to undo my braids.
+mom: You had one when you left. The colony doesn't get to undo my braids.
 eco: You can't braid hair this short, Mom.
 mom (tilt): Watch me.
 eco: ...Are you humming Dad's reload song?
@@ -190,14 +190,14 @@ mom (smile, closed): I'm not going anywhere.
 eco: I hate being sick. I can't fix anything lying down.
 mom: You can fix one thing. You can rest.
 eco: That's not fixing, that's lying here.
-mom (smile): Then lie here. I'll read you the funny parts of the militia bulletin.
+mom (smile): Then lie here. I'll read you the funny parts of the recruiters' bulletin.
 eco: They have funny parts?
-mom (joy): They spelled "tactical" wrong twice.
+mom (joy): They spelled "hardened" wrong twice.
 eco: ...Okay. That's actually funny.
 
 [sick]
 mom (sad): Look at you. All that fight, and a fever knocks you flat.
-eco: Don't tell the militia. They'll send a cold after me instead of grunts.
+eco: Don't tell the colony. They'll send a cold after me instead of grunts.
 mom (smile): I'll guard the door.
 eco: With what?
 mom: The soup ladle. I'm very dangerous with it.

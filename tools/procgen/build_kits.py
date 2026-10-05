@@ -1,5 +1,5 @@
 """Models the next two kinds of area's set pieces in Blender: the high tech
-city's streets and the militia's bases and outposts.
+city's streets and the colony's bases and outposts.
 
     python3 tools/procgen/build_kits.py            (both kits)
     python3 tools/procgen/build_kits.py city        (one kit; the other's shapes are kept)

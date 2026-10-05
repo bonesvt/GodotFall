@@ -19,6 +19,7 @@ extends Node
 
 const PlayerState := preload("res://scripts/ps2/eco_model.gd").PlayerState
 const GUN := preload("res://assets/models/smart_pistol/smart_pistol.glb")
+const EcoArms := preload("res://scripts/eco_fp_arms.gd")
 
 ## Remembered across zones and respawns for the session.
 static var prefer_third_person := false
@@ -281,9 +282,11 @@ func _attach_gun() -> void:
 	sk.add_child(hold)
 	if source != null and is_instance_valid(source):
 		_gun = source.duplicate() as Node3D
-		var arm := _gun.get_node_or_null("Arm")  # the first-person arm rides on the view-model
-		if arm != null:
-			arm.free()
+		# the first-person arm (eco_fp_arms.gd) rides on the view-model gun; the
+		# copy doesn't keep its name, so find it by its script
+		for child in _gun.get_children():
+			if child.get_script() == EcoArms or child.name == "Arm":
+				child.free()
 	else:
 		_gun = GUN.instantiate()
 	_gun_source = source

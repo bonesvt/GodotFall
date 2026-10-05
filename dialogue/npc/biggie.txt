@@ -1,7 +1,9 @@
 # Biggie. Big, old, grey, a bad knee and a bigger gut. Won't give his real name.
-# Says he fought beside Eco's father, and knows things only someone who did would.
-# Sharp about the battlefield, foggy about everything else; should have retired
-# a long time ago. He rambles, he drinks, he means well.
+# He fought beside Eco's father until a bad hit forced him to quit, so he had
+# already retired when her father died. Now he fixes her titan and the
+# workshops in the background and tells her about her father and their army.
+# Sharp about the battlefield, foggy about everything else. He rambles, he
+# drinks, he means well.
 #
 # Format: see mom.txt. Speakers are biggie and eco.
 
@@ -41,14 +43,14 @@ biggie: There's always a corner behind you. That's how they got Mendez. And Mend
 eco: What's your actual name?
 biggie: Big. Then -ie.
 eco: Your mother did not name you Biggie.
-biggie: My mother named me something the militia has on a list. Biggie keeps you safe. Biggie keeps me breathing.
+biggie: My mother named me something the colony has on a list. Biggie keeps you safe. Biggie keeps me breathing.
 
 [any]
 biggie: Your pop never fired first. Not once. Drove the sergeant mad.
 eco: That sounds like him.
 biggie: Said if you shoot first, you never find out if you had to.
-eco: And the militia shot him anyway.
-biggie: Yeah. They did. Doesn't make him wrong, kid. Just makes him dead.
+eco: And somebody shot him anyway.
+biggie: Yeah. Somebody did. Doesn't make him wrong, kid. Just makes him dead.
 
 [any]
 biggie: Grunts move in threes. Point, the loud one, and the one who actually shoots.
@@ -85,3 +87,27 @@ eco: Probably?
 biggie: Your father said the same thing. Then he had three cups.
 eco: It's actually good.
 biggie: Good tea and a good fight. Both go wrong when you rush them.
+
+[any]
+eco: How did Dad even get a titan? Nobody in Solace had one.
+biggie: He stole it. Off the colony. Middle of the night, out of their own hangar.
+eco: He did not.
+biggie: Walked in with a wrench and a smile. Then he spent a month rewriting every line of its brain, till it flew like it was born here.
+eco: That is so cool and I'm so mad nobody told me.
+
+[any]
+eco: Why'd you stop flying with him?
+biggie: Took a round through the hip at the Hollow Line. Doc said walk or fly, pick one.
+eco: You picked walk.
+biggie: I picked live. Your pop flew on without me. I wasn't there at the end, kid. I carry that.
+eco: It wasn't your fault.
+biggie: Didn't say it was. Said I carry it.
+
+[any]
+biggie: I've been looking at your pop's titan. The hole in the cockpit.
+eco: I know. Point-blank, right through the front.
+biggie: And the canopy was up when it hit. Not blown. Unlatched.
+eco: Dad never opened up in a fight. Never.
+biggie: Not for the colony, he didn't. He opened up for somebody he trusted.
+eco: Then who was standing in front of him?
+biggie: Don't know. But your pop used to say the only thing that can kill a Pilot is an equal. No grunt did that.

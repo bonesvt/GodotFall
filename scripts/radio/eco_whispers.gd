@@ -1,5 +1,5 @@
 extends Node
-## Eco's whispers. She can't answer the militia on their own net without
+## Eco's whispers. She can't answer the colony grunts on their own net without
 ## giving herself away, so she talks back under her breath once an exchange
 ## goes off the air, and mutters to herself through the fight and the quiet
 ## stretches. Lines come from eco_whisper_lines.gd, picked by the dialogue
@@ -38,7 +38,7 @@ const HURT_FRACTION := 0.4
 ## Chance to whisper and per-category cooldown (s). Radio categories react to
 ## the exchange that just ended; categories not listed always speak.
 const CHANCE := {
-	"rumor_eco": 0.75, "rumor_salvage": 0.4, "idle": 0.15,
+	"rumor_eco": 0.75, "rumor_salvage": 0.4, "prisoner": 0.8, "idle": 0.15,
 	"suspicious": 0.55, "stand_down": 0.5, "alerted": 0.6, "lost": 0.6,
 	"man_down": 0.35, "last_man": 0.6, "no_answer": 0.7,
 	"kill": 0.3, "headshot": 0.3, "takedown": 0.6, "hurt": 0.6, "dry": 0.35,
@@ -49,7 +49,7 @@ const COOLDOWN := {
 }
 ## Higher wins when several are waiting; 3+ also cut the GAP short.
 const PRIORITY := {
-	"quiet": 0, "idle": 0, "rumor_salvage": 1, "rumor_eco": 2, "stand_down": 1,
+	"quiet": 0, "idle": 0, "rumor_salvage": 1, "rumor_eco": 2, "prisoner": 2, "stand_down": 1,
 	"kill": 2, "headshot": 2, "dry": 1, "man_down": 2, "lost": 2,
 	"suspicious": 3, "alerted": 3, "takedown": 3, "hurt": 3, "last_man": 3, "no_answer": 3,
 	"downed": 4, "zone_start": 4, "part_installed": 4, "titanfall": 4, "boss_down": 4, "home": 4,
@@ -268,7 +268,7 @@ func _pick(category: String, context := "") -> Dictionary:
 		var keys := _keys(entries[i])
 		if keys.is_empty():
 			plain.append(i)
-		elif keys.any(func(k): return context.contains(k)):
+		elif keys.any(func(k): return _mentions(context, k)):
 			keyed.append(i)
 	if keyed.is_empty():
 		var soft := _soft(category)
@@ -291,7 +291,7 @@ func _pick(category: String, context := "") -> Dictionary:
 	var i: int = choices[0]
 	bag.erase(i)
 	last_entry[key] = i
-	var index := i if rating in ["M", "AO"] else -1
+	var index := i if rating == "M" else -1
 	return {"text": _text(entries[i]), "index": index}
 
 
@@ -307,15 +307,33 @@ func _soft(category: String) -> String:
 	return _last_soft
 
 
-## "goggles|cage>Line" -> ["goggles", "cage"]; plain lines have none.
+## "goggles|old man > Line" -> ["goggles", "old man"]; plain lines have none.
 static func _keys(entry: String) -> Array:
 	var cut := entry.find(">")
-	return [] if cut < 0 else Array(entry.substr(0, cut).split("|"))
+	if cut < 0:
+		return []
+	var keys := []
+	for k in entry.substr(0, cut).split("|", false):
+		keys.append(k.strip_edges().to_lower())
+	return keys
 
 
 static func _text(entry: String) -> String:
 	var cut := entry.find(">")
-	return entry if cut < 0 else entry.substr(cut + 1)
+	return entry if cut < 0 else entry.substr(cut + 1).strip_edges()
+
+
+## True when `context` (lowercase) has `word` as a whole word or phrase.
+static func _mentions(context: String, word: String) -> bool:
+	var re := RegEx.create_from_string("\\b" + _escape(word) + "\\b")
+	return re.search(context) != null
+
+
+static func _escape(word: String) -> String:
+	var out := ""
+	for c in word:
+		out += ("\\" + c) if c in ".*+?^$()[]{}|\\" else c
+	return out
 
 
 func _play_voice(category: String, index: int, text: String) -> void:

@@ -9,11 +9,15 @@ extends Node3D
 ## destroyed. Beat the enemy titan and the evac dropship comes for yours: walk
 ## it onto the pad to finish the run.
 ## Between runs you are in the hub, the temple Eco hides out in (hub_builder.gd):
-## the game opens there, the map table starts a run, and a finished run, won or
-## lost, goes back there.
+## the game opens there, the poster outside starts the Pinewoods run (the
+## tutorial), and a finished run, won or lost, goes back there.
 ## Out in the zones you pick up materials (loot.gd: grunt drops, supply crates,
 ## alloy nodes); a run banks them in Eco's armory (armory.gd) when it ends, and
 ## the hub's workbenches (bench_screen.gd) spend them on guns and titan parts.
+## Once the tutorial run is won, the mission table in the nave opens the
+## real levels (levels.gd): one long generated zone each, with a salvage depot
+## holding a titan part, that ends in a clearing where the enemy titan waits.
+## There the fight starts as soon as you walk out into the clearing.
 
 enum Phase { ZONE, CHOOSING, ARENA, FIGHT, OVER, HUB }
 
@@ -23,6 +27,7 @@ const RunHud := preload("res://scripts/run/run_hud.gd")
 const RunState := preload("res://scripts/run/run_state.gd")
 const TitanParts := preload("res://scripts/run/titan_parts.gd")
 const ZoneBuilder := preload("res://scripts/run/zone_builder.gd")
+const Levels := preload("res://scripts/run/levels.gd")
 const Titan := preload("res://scripts/run/titan.gd")
 const HubBuilder := preload("res://scripts/hub/hub_builder.gd")
 const Armory := preload("res://scripts/hub/armory.gd")
@@ -36,6 +41,7 @@ const Wardrobe := preload("res://scripts/hub/wardrobe.gd")
 const Loot := preload("res://scripts/run/loot.gd")
 const Gifts := preload("res://scripts/run/gifts.gd")
 const NpcIdles := preload("res://scripts/hub/npc_idles.gd")
+const Escort := preload("res://scripts/run/escort.gd")
 const Weapon := preload("res://scripts/weapon.gd")
 const Art := preload("res://scripts/ps2/ps2_assets.gd")
 const Garage := preload("res://scripts/hub/garage.gd")
@@ -44,6 +50,7 @@ const HubNpc := preload("res://scripts/hub/hub_npc.gd")
 const NpcTalk := preload("res://scripts/hub/npc_talk.gd")
 const Family := preload("res://scripts/hub/family.gd")
 const FamilyScene := preload("res://scripts/hub/family_scene.gd")
+const Townsfolk := preload("res://scripts/hub/townsfolk.gd")
 const Tutorial := preload("res://scripts/run/tutorial.gd")
 const ViewCamera := preload("res://scripts/view_camera.gd")
 const Prefs := preload("res://scripts/game/prefs.gd")
@@ -73,6 +80,8 @@ const HUB_LINE_SECONDS := 4.5
 ## Generated zones added after the handmade ones when the scene drops straight
 ## into a run (start_in_hub off). The hub's uncharted map sets it per run.
 @export var uncharted_zones := 0
+## A level (levels.gd id) to drop straight into instead, start_in_hub off.
+@export var level_id := ""
 ## Where Eco's armory (materials, guns, upgrades, titan parts) is saved.
 @export var armory_path := Armory.DEFAULT_PATH
 ## Where who Eco has talked to in the hub (and what about) is saved.
@@ -93,6 +102,16 @@ var checkpoint := Vector3.ZERO
 var result := ""
 ## The enemy titan is down and the evac dropship is waiting at the pad.
 var evac_open := false
+## A rescue level (levels.gd "rescue"): whether they're out of the cell yet,
+## and how long until Eco next says she's not leaving without them.
+var rescued := false
+var _rescue_nag := 0.0
+## Them following Eco out (escort.gd), once they're free.
+var escort: Escort
+## Whether any grunt went loud on this level.
+var _alarm_raised := false
+## How close they have to be when Eco steps into the exfil (m).
+const EXFIL_TOGETHER := 9.0
 ## How many times each hub interactable has been looked at, so its lines cycle.
 var hub_reads := {}
 var runs_started := 0
@@ -191,7 +210,7 @@ func _ready() -> void:
 	if start_in_hub:
 		enter_hub()
 	else:
-		start_run(run_seed, uncharted_zones)
+		start_run(run_seed, uncharted_zones, level_id)
 
 
 ## Reads and writes the save slot picked on the title screen (saves.gd). Left
@@ -234,10 +253,10 @@ func abandon_run() -> void:
 	end_run("RUN ABANDONED", "Eco pulled out before the job was done.")
 
 
-func start_run(seed_value: int, uncharted := 0) -> void:
+func start_run(seed_value: int, uncharted := 0, level := "") -> void:
 	if seed_value == 0:
 		seed_value = randi_range(1, 999999)
-	run = RunState.new(seed_value, uncharted)
+	run = RunState.new(seed_value, uncharted, level)
 	for part in armory.start_parts().values():
 		run.install(part)
 	run.refits = armory.refit_bonus()
@@ -274,7 +293,7 @@ func _fresh_level(level_name: String) -> void:
 	add_child(zone_root)
 
 
-## Back to the temple: no run in progress, walk around, start one at the map table.
+## Back to the temple: no run in progress, walk around, start one at the poster or the mission table.
 func enter_hub() -> void:
 	titan = null
 	boss = null
@@ -296,6 +315,7 @@ func enter_hub() -> void:
 		npc.wear_for_run(runs_ended)
 		NpcIdles.settle(npc, zone_info, runs_ended)
 		hub_npcs[spec["who"]] = npc
+	Townsfolk.populate(zone_root, player, runs_ended)
 	family_scene = null
 	if Family.enabled:
 		family_scene = FamilyScene.new()
@@ -319,9 +339,14 @@ func load_zone(index: int) -> void:
 	_fresh_level("Zone")
 	run.zone = index
 	if index < run.zone_count:
-		zone_info = ZoneBuilder.build_zone(zone_root, run.rng, index)
+		var loot_zone := index
+		if run.level != "":
+			zone_info = Levels.build(zone_root, run.rng, run.level)
+			loot_zone = int(Levels.spec(run.level)["difficulty"])
+		else:
+			zone_info = ZoneBuilder.build_zone(zone_root, run.rng, index)
 		loot_rng.seed = run.run_seed * 7919 + index
-		Loot.scatter(zone_root, zone_info, loot_rng, index)
+		Loot.scatter(zone_root, zone_info, loot_rng, loot_zone)
 		# Gifts roll on their own generator, so they never shift the loot rolls.
 		var gift_rng := RandomNumberGenerator.new()
 		gift_rng.seed = run.run_seed * 104729 + index
@@ -329,10 +354,18 @@ func load_zone(index: int) -> void:
 		for grunt in zone_info["grunts"]:
 			grunt.target = player
 			grunt.died.connect(_on_grunt_died)
+			grunt.called_out.connect(func(_g, _squad): _alarm_raised = true)
 		phase = Phase.ZONE
 		var zone_name: String = zone_info.get("name", "")
 		var uncharted := "UNCHARTED: " if index >= RunState.ZONE_COUNT else ""
-		hud.toast("ZONE %d / %d: %s%s" % [index + 1, run.zone_count, uncharted, zone_name])
+		rescued = false
+		escort = null
+		_alarm_raised = false
+		_set_prisoner_chatter(zone_info.has("holding_cell"))
+		if run.level != "":
+			hud.toast(Levels.title(run.level), 4.0)
+		else:
+			hud.toast("ZONE %d / %d: %s%s" % [index + 1, run.zone_count, uncharted, zone_name])
 		_whisper("zone_start", 2.5)
 	else:
 		zone_info = ZoneBuilder.build_arena(zone_root)
@@ -344,7 +377,10 @@ func load_zone(index: int) -> void:
 	Wardrobe.dress_eco(player, false)
 	place_player(zone_info["spawn"])
 	player.second_wind_ready = player.second_wind  # Eco's suit: once per zone
-	tutorial.start_level("zone%d" % index if index < run.zone_count else "arena")
+	if run.level != "":
+		tutorial.start_level(run.level)
+	else:
+		tutorial.start_level("zone%d" % index if index < run.zone_count else "arena")
 
 
 func place_player(pos: Vector3) -> void:
@@ -371,7 +407,7 @@ func _physics_process(delta: float) -> void:
 				if start_in_hub:
 					enter_hub()
 				else:
-					start_run(0, uncharted_zones)
+					start_run(0, uncharted_zones, level_id)
 		Phase.HUB:
 			_hub_tick(delta)
 	_update_hud()
@@ -422,11 +458,20 @@ func _hub_tick(delta: float) -> void:
 		return
 	if spot.is_empty() or not Input.is_action_just_pressed("interact"):
 		return
-	if spot["id"] == "map_table":
+	if spot["id"] == "tutorial_poster":
 		start_run(run_seed)
 		return
 	if spot["id"] == "uncharted_map":
 		start_run(run_seed, RunState.UNCHARTED_ZONES)
+		return
+	if spot.has("level"):
+		var id: String = spot["level"]
+		if Levels.unlocked(id, armory.cleared_levels()):
+			start_run(run_seed, 0, id)
+		elif Levels.spec(id)["needs"] == "tutorial":
+			hud.toast("Not yet. Get through the Pinewoods run and bring a titan home first.", HUB_LINE_SECONDS)
+		else:
+			hud.toast("Not yet. Clear %s first." % Levels.title(Levels.spec(id)["needs"]), HUB_LINE_SECONDS)
 		return
 	if spot.has("screen"):
 		open_bench(spot["screen"])
@@ -612,10 +657,26 @@ func equip_loadout() -> void:
 	player.apply_suit(armory.suit_profile())
 
 
-## Shows the armory on the benches: the equipped gun on the gunsmith's mat,
+## Shows whether each level on the mission table is open, turns the marker
+## over the tutorial poster off once that run is won, and shows the armory on
+## the benches: the equipped gun on the gunsmith's mat,
 ## the guns you own on the rack (locked slots stay empty under a tag), and the
 ## titan you'd start a run with standing in the workshop's gantry.
 func dress_hub() -> void:
+	var marker: Node3D = zone_info.get("tutorial_marker")
+	if marker != null:
+		marker.visible = not "tutorial" in armory.cleared_levels()
+	for board in zone_info.get("level_boards", []):
+		var id: String = board["id"]
+		var open := Levels.unlocked(id, armory.cleared_levels())
+		var label: Label3D = board["label"]
+		label.text = Levels.title(id) + ("" if open else "\n(locked)")
+		label.modulate = Color(1.0, 0.55, 0.4) if open else Color(0.6, 0.58, 0.55)
+		var need: String = Levels.spec(id)["needs"]
+		var first := "win the Pinewoods run first" if need == "tutorial" else "clear %s first" % Levels.title(need)
+		for spot in zone_info["interactables"]:
+			if spot.get("level", "") == id:
+				spot["prompt"] = "[F] Head out: %s" % Levels.title(id) if open else "%s: %s" % [Levels.title(id), first]
 	var mat: Node3D = zone_info.get("gun_marker")
 	if mat != null:
 		for c in mat.get_children():
@@ -824,14 +885,118 @@ func _zone_tick(delta: float) -> void:
 	if _check_fall():
 		return
 	_track_checkpoint()
+	_rescue_nag -= delta
+	var cell := holding_cell_in_reach()
+	if cell != null and Input.is_action_just_pressed("interact"):
+		rescue(cell)
+		return
+	if escort != null and escort.in_reach(player.global_position) and Input.is_action_just_pressed("interact"):
+		_escort_order()
+		return
 	var cache := nearest_cache()
 	if cache != null and Input.is_action_just_pressed("interact"):
 		open_salvage(cache)
 		return
 	if cache == null:
 		_loot_tick(delta)
-	if zone_info["beacon"].contains(player.global_position):
-		load_zone(run.zone + 1)
+	if zone_info.has("arena") and player.global_position.z < zone_info["arena"]["enter_z"]:
+		if not rescue_pending():
+			_enter_finale()
+			return
+		if _rescue_nag <= 0.0:
+			_rescue_nag = 8.0
+			hud.toast("Not leaving without %s. The holding block's back up the street." % _rescue_name(), 4.0)
+	if zone_info["beacon"] != null and zone_info["beacon"].contains(player.global_position):
+		if zone_info.has("holding_cell"):
+			_exfil()
+		else:
+			load_zone(run.zone + 1)
+
+
+## A level's clearing: their titan is waiting, so it's the arena from here,
+## in the same zone. Grunts still about keep shooting.
+func _enter_finale() -> void:
+	boss = zone_info["boss"]
+	boss.defeated.connect(_on_boss_defeated)
+	phase = Phase.ARENA
+	evac_open = false
+	hud.toast("ENEMY TITAN ON THE ROAD: TITANFALL STANDING BY", 4.0)
+	_whisper("titanfall", 0.5)
+	tutorial.start_level("arena")
+
+
+## Whether this level's prisoner (levels.gd "rescue") is still in the cell.
+func rescue_pending() -> bool:
+	return zone_info.has("holding_cell") and not rescued
+
+
+func _rescue_name() -> String:
+	return String(Levels.spec(run.level).get("rescue", "them")).capitalize()
+
+
+## The holding cell, when Eco's at its screen and the prisoner's still inside.
+func holding_cell_in_reach() -> Node3D:
+	var cell: Node3D = zone_info.get("holding_cell")
+	if cell == null or cell.opened or not cell.in_range(player.global_position):
+		return null
+	return cell
+
+
+## Drops the cell's screen and breaks the prisoner's chains. They have a
+## word, then follow Eco out (escort.gd) to the exfil.
+func rescue(cell: Node3D) -> void:
+	if not cell.release():
+		return
+	rescued = true
+	_set_prisoner_chatter(false)
+	tutorial.event("rescued")
+	var who: Node3D = cell.ophelia
+	if who != null:
+		escort = Escort.new()
+		escort.name = "Escort"
+		escort.npc = who
+		escort.pilot = player
+		zone_root.add_child(escort)
+		zone_info["escort"] = escort
+	var lines: Array = Levels.spec(run.level).get("rescue_lines", [])
+	var t := 0.0
+	for line in lines:
+		if t == 0.0:
+			hud.toast(line, 3.6)
+		else:
+			get_tree().create_timer(t, false, true).timeout.connect(_rescue_line.bind(line))
+		t += 3.4
+	get_tree().create_timer(t, false, true).timeout.connect(_rescue_line.bind(
+			"GET %s OUT: BACK TO THE EXFIL WHERE YOU CAME IN.  [F] BY HER: WAIT / FOLLOW" % _rescue_name().to_upper()))
+
+
+func _rescue_line(line: String) -> void:
+	if phase == Phase.ZONE and rescued:
+		hud.toast(line, 3.6)
+
+
+## [F] next to them: wait here, or come on.
+func _escort_order() -> void:
+	escort.toggle_wait()
+	var n := _rescue_name()
+	hud.toast(("%s: Okay. Here. Don't forget me." % n.to_upper()) if escort.waiting else ("%s: Right behind you." % n.to_upper()), 2.5)
+
+
+## The way out on a rescue level: only with them out and close behind.
+func _exfil() -> void:
+	if not rescued:
+		return
+	if escort != null and escort.npc.global_position.distance_to(player.global_position) < EXFIL_TOGETHER:
+		end_run("RUN COMPLETE", "%s's out. The district never woke up." % _rescue_name() if not _alarm_raised else "%s's out. Loud, but out." % _rescue_name())
+	elif _rescue_nag <= 0.0:
+		_rescue_nag = 6.0
+		hud.toast("Not without %s. Go back for her." % _rescue_name(), 3.5)
+
+
+func _set_prisoner_chatter(on: bool) -> void:
+	var radio = pilot_hud.get("radio") if pilot_hud != null else null
+	if radio != null and "extra_rumor" in radio:
+		radio.extra_rumor = "prisoner" if on else ""
 
 
 ## Below this height the pilot has fallen out of the level.
@@ -904,7 +1069,10 @@ func open_salvage(cache: Node3D) -> void:
 		tutorial.event("locked")
 		return
 	open_cache = cache
-	offer = TitanParts.roll_offer(run.rng, run.zone, OFFER_SIZE)
+	var tier_zone := run.zone
+	if run.level != "":
+		tier_zone = int(Levels.spec(run.level)["difficulty"]) - 2  # past the tutorial's last zone
+	offer = TitanParts.roll_offer(run.rng, tier_zone + int(cache.get_meta("part_bonus", 0)), OFFER_SIZE)
 	phase = Phase.CHOOSING
 	get_tree().paused = true
 	tutorial.event("choosing")
@@ -958,9 +1126,14 @@ func call_titan() -> void:
 	var forward := -player.global_basis.z
 	forward.y = 0.0
 	var drop := player.global_position + forward.normalized() * 12.0
-	var half: float = zone_info["half_size"]
-	drop.x = clampf(drop.x, -half, half)
-	drop.z = clampf(drop.z, -half, half)
+	if zone_info.has("arena"):
+		var r: Rect2 = zone_info["arena"]["rect"]
+		drop.x = clampf(drop.x, r.position.x, r.end.x)
+		drop.z = clampf(drop.z, r.position.y, r.end.y)
+	else:
+		var half: float = zone_info["half_size"]
+		drop.x = clampf(drop.x, -half, half)
+		drop.z = clampf(drop.z, -half, half)
 	zone_root.add_child(titan)
 	titan.global_position = Vector3(drop.x, TITAN_DROP_HEIGHT, drop.z)
 	titan.rotation.y = atan2(-(boss.global_position.x - drop.x), -(boss.global_position.z - drop.z))
@@ -1037,6 +1210,8 @@ func end_run(title: String, reason: String) -> void:
 	runs_ended += 1
 	last_parts = run.parts.duplicate()
 	var won := title == "RUN COMPLETE"
+	if won:
+		armory.mark_cleared(run.level if run.level != "" else "tutorial")
 	var haul := Armory.run_haul(run.materials, won)
 	armory.bank(haul)
 	Saves.record_run(won)
@@ -1077,7 +1252,7 @@ func _update_hud() -> void:
 			status += "    COURSE %.1f s" % course_time
 		elif course_best > 0.0:
 			status += "    Course best %.2f s" % course_best
-		hud.status_label.text = status + "\nWalk up to the map table and press F to head out. F looks at things and works the benches."
+		hud.status_label.text = status + "\nHead out from the poster outside or the mission table in the hall. F looks at things and works the benches."
 		hud.prompt_label.text = _prompt()
 		hud.crosshair.visible = hub_piloting
 		hud.fight_label.visible = hub_piloting
@@ -1086,6 +1261,8 @@ func _update_hud() -> void:
 			hud.fight_label.text = "PRACTICE TITAN    DASH [Shift] %s    Left mouse fire\n[F] Climb out" % dash_text
 		return
 	var where := "ZONE %d/%d" % [run.zone + 1, run.zone_count] if run.zone < run.zone_count else "FINAL"
+	if run.level != "":
+		where = "LEVEL %d" % Levels.spec(run.level)["number"] + ("  FINAL" if phase in [Phase.ARENA, Phase.FIGHT] else "")
 	hud.status_label.text = "RUN %d    %s    PILOT %d    %s    %s\n%s" % [
 		run.run_seed, where, run.pilot_hp, _clock(run.time), _materials_text(run.materials), CONTROLS]
 
@@ -1134,6 +1311,11 @@ func _prompt() -> String:
 			if in_titan_yard():
 				return "[V] Call in your titan" if hub_titan == null else "[V] Call your titan here"
 		Phase.ZONE:
+			var cell := holding_cell_in_reach()
+			if cell != null:
+				return "[F] Short the screen and break her chains"
+			if escort != null and escort.in_reach(player.global_position):
+				return "[F] %s: come on" % _rescue_name() if escort.waiting else "[F] %s: wait here" % _rescue_name()
 			var cache := nearest_cache()
 			if cache != null:
 				return "[F] Open salvage" if cache.can_open() else "Locked: clear the guards"

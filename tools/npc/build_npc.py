@@ -13,7 +13,7 @@ clothes:
 - ophelia: twenties, emo. Choppy black hair with a fringe over her right eye
   and a violet streak, pale skin, heavy liner, dark lips, a lip ring; band tee,
   striped arm warmers, studded belt, ripped black jeans over fishnets, choker.
-- biggie: an old militia veteran gone soft. The preset rebuilt as a big man:
+- biggie: an old Pilot who flew beside Eco's father, retired by a bad hit. The preset rebuilt as a big man:
   flat chest, broad shoulders, a gut, thick limbs, a grey buzz cut and a big
   grey beard, a scar over his left eye; his faded field jacket (too tight now)
   over a grey tee, ribbons on his chest, cargo trousers and a knee brace.
@@ -327,10 +327,10 @@ def body_mom():
         x, y, z = P[:, 0], P[:, 1], P[:, 2]
         ax = np.abs(x)
         out = N[:, 0] * np.sign(x)
-        # well past Eco's (glutes 0.026, hips 0.014, thighs 0.009): Bones wants her plainly thicker
-        glute = 0.052 * np.exp(-((ax - 0.064) / 0.064) ** 2 - ((z - 0.755) / 0.08) ** 2) * ss(-0.02, 0.04, y)
-        hip = 0.034 * np.exp(-((z - 0.76) / 0.085) ** 2) * ss(0.1, 0.65, out)
-        thigh = 0.03 * ss(0.4, 0.55, z) * ss(0.8, 0.68, z) * (0.35 + 0.65 * ss(-0.5, 0.5, out))
+        # past Eco's (glutes 0.026, hips 0.014, thighs 0.009); 20% under the 2026-10-03 peak (Bones, 2026-10-04)
+        glute = 0.0416 * np.exp(-((ax - 0.064) / 0.064) ** 2 - ((z - 0.755) / 0.08) ** 2) * ss(-0.02, 0.04, y)
+        hip = 0.0272 * np.exp(-((z - 0.76) / 0.085) ** 2) * ss(0.1, 0.65, out)
+        thigh = 0.024 * ss(0.4, 0.55, z) * ss(0.8, 0.68, z) * (0.35 + 0.65 * ss(-0.5, 0.5, out))
         calf = 0.007 * ss(0.2, 0.28, z) * ss(0.4, 0.33, z)
         bust = 0.026 * gauss(P, 0.062, -0.105, 1.035, 0.052, 0.055, 0.055) * ss(-0.03, -0.07, y)
         waist = 0.01 * np.exp(-((z - 0.9) / 0.06) ** 2) * (0.3 + 0.7 * np.clip(out, 0, 1)) * (ax < 0.2)
@@ -345,9 +345,7 @@ def body_ophelia():
     def amount(P, N):
         z = P[:, 2]
         out = N[:, 0] * np.sign(P[:, 0])
-        # the piercings lift the fabric a touch
-        nip = 0.0034 * gauss(P, NIP[0], -0.12, NIP[1], 0.006, 0.012, 0.006) * ss(-0.08, -0.11, P[:, 1])
-        return nip - 0.006 * np.exp(-((z - 0.74) / 0.08) ** 2) * np.clip(out, 0, 1) - 0.004 * ss(0.5, 0.6, z) * ss(0.75, 0.68, z)
+        return -0.006 * np.exp(-((z - 0.74) / 0.08) ** 2) * np.clip(out, 0, 1) - 0.004 * ss(0.5, 0.6, z) * ss(0.75, 0.68, z)
     print("ophelia body: up to %.1f mm" % (push(bpy.data.objects["Body"], amount) * 1000))
 
 
@@ -693,6 +691,137 @@ def lip_ring(arm):
     return ob
 
 
+def new_mat(name, col=(0.5, 0.5, 0.5)):
+    m = bpy.data.materials.get(name) or bpy.data.materials.new(name)
+    m.diffuse_color = (*col, 1)
+    return m
+
+
+# --- loose nightwear ---------------------------------------------------------------------
+# Painted clothes wrap each leg like leggings, so anything that hangs (Mom's
+# nightgown, Ophelia's pajama legs) is a mesh: rings round the convex hull of
+# her hips and legs (from the Eco outfits build's skirt(), 2026-10-03). The
+# game shows Outfit_<outfit>_* meshes only in that outfit (hub_npc.gd wear()).
+
+def _hull(pts):
+    """Convex hull (counter-clockwise) of 2D points, monotone chain."""
+    pts = sorted(set(pts))
+
+    def half(seq):
+        h = []
+        for p in seq:
+            while len(h) >= 2 and (h[-1][0] - h[-2][0]) * (p[1] - h[-2][1]) - (h[-1][1] - h[-2][1]) * (p[0] - h[-2][0]) <= 0:
+                h.pop()
+            h.append(p)
+        return h
+    lo, hi = half(pts), half(reversed(pts))
+    return lo[:-1] + hi[:-1]
+
+
+def _ray_hull(hull, c, d):
+    """How far from c along direction d the hull's edge is."""
+    best = 0.0
+    for i in range(len(hull)):
+        a, b = Vector(hull[i]), Vector(hull[i - 1])
+        e = b - a
+        den = d.x * e.y - d.y * e.x
+        if abs(den) < 1e-9:
+            continue
+        w = a - c
+        t = (w.x * e.y - w.y * e.x) / den
+        u = (w.x * d.y - w.y * d.x) / den
+        if t > 0 and -1e-6 <= u <= 1 + 1e-6:
+            best = max(best, t)
+    return best
+
+
+def garment(name, part, top, hem, gap=0.008, gap_top=None, tilt=0.0, v_span=None, flare=0.0, side=0, follow=(0.25, 0.65), rows=16, hang=True):
+    """A loose hanging tube from `top` down to `hem` round her hips and legs
+    (side 1 or -1: round her left or right leg only), skinned half to her hips
+    and half to the nearest body vertex's bones further down. Material
+    npc_<who>_<part>; gap_top lets the top ring sit snug on her (no rim)
+    and opens to gap over the first quarter; its UVs run round (u) and down (v) the tube, so the
+    texture's bottom rows (v 0) are the hem
+    (v_span: the heights v 0 and 1 map to, so pieces of one garment line up)."""
+    from mathutils.kdtree import KDTree
+    body = bpy.data.objects["Body"]
+    co = np.array([v.co[:] for v in body.data.vertices])
+    cols = 56
+    v0, v1 = v_span or (hem, top)   # the heights texture v 0 and 1 map to
+    bm = bmesh.new()
+    uv = bm.loops.layers.uv.new("UVMap")
+    grid = []
+    zs = []
+    widest = [0.0] * cols
+    for r in range(rows + 1):
+        t = r / rows
+        z = top + (hem - top) * t
+        keep = (co[:, 2] > z - 0.012) & (co[:, 2] < z + 0.012) & (np.abs(co[:, 0]) < 0.25)
+        if side:
+            keep &= co[:, 0] * side > 0.004
+        hull = _hull([(round(p[0], 5), round(p[1], 5)) for p in co[keep]])
+        c = Vector((float(np.mean([h[0] for h in hull])), float(np.mean([h[1] for h in hull]))))
+        ring = []
+        for k in range(cols):
+            a = 2 * math.pi * k / cols
+            d = Vector((math.cos(a), math.sin(a)))
+            raw = _ray_hull(hull, c, d) + (gap if gap_top is None else gap_top + (gap - gap_top) * min(1.0, t * 4))
+            widest[k] = max(widest[k], raw) if hang else max(raw, 0.8 * widest[k])
+            rad = widest[k] + flare * t * t
+            lift = tilt * max(0.0, d.y) * (1.0 - t)   # tilt: the top rides higher at the back (+y)
+            ring.append(bm.verts.new((c.x + d.x * rad, c.y + d.y * rad, z + lift)))
+        grid.append(ring)
+        zs.append(z)
+    for r in range(rows):
+        for k in range(cols):
+            k1 = (k + 1) % cols
+            f = bm.faces.new((grid[r][k], grid[r][k1], grid[r + 1][k1], grid[r + 1][k]))
+            f.smooth = True
+            for loop, (uu, vv) in zip(f.loops, ((k, r), (k + 1, r), (k + 1, r + 1), (k, r + 1))):
+                loop[uv].uv = (uu / cols, (zs[vv] - v0) / (v1 - v0))
+    bm.normal_update()
+    f0 = next(iter(bm.faces))
+    cm = f0.calc_center_median()
+    if f0.normal.dot(Vector((cm.x, cm.y, 0))) < 0:   # face outwards
+        bmesh.ops.reverse_faces(bm, faces=bm.faces[:])
+    bmesh.ops.solidify(bm, geom=bm.faces[:], thickness=0.004)
+    bm.normal_update()
+    me = bpy.data.meshes.new(name)
+    bm.to_mesh(me)
+    bm.free()
+    me.materials.append(new_mat("npc_%s_%s" % (WHO, part)))
+    ob = bpy.data.objects.new(name, me)
+    bpy.context.scene.collection.objects.link(ob)
+    arm = [o for o in bpy.data.objects if o.type == "ARMATURE"][0]
+    kd = KDTree(len(co))
+    for i, p in enumerate(co):
+        if abs(p[0]) < 0.25 and p[2] < top + 0.03 and (not side or p[0] * side > 0.004):
+            kd.insert(Vector(p), i)
+    kd.balance()
+    names = {gr.index: gr.name for gr in body.vertex_groups}
+    groups = {}
+    for v in me.vertices:
+        t = min(1.0, max(0.0, (top - v.co.z) / (top - hem)))
+        f = follow[0] + (follow[1] - follow[0]) * t
+        _, i, _ = kd.find(v.co)
+        w = {"J_Bip_C_Hips": 1.0 - f}
+        for ge in body.data.vertices[i].groups:
+            w[names[ge.group]] = w.get(names[ge.group], 0.0) + f * ge.weight
+        for gname, wt in w.items():
+            if wt > 0.001:
+                if gname not in groups:
+                    groups[gname] = ob.vertex_groups.new(name=gname)
+                groups[gname].add([v.index], wt, "REPLACE")
+    ob.parent = arm
+    ob.modifiers.new("Armature", "ARMATURE").object = arm
+    return ob
+
+
+# where Ophelia's piercings sit (rest space, mirrored): x, z. The mesh is only
+# shown with the content rating on Mature (hub_npc.gd).
+NIP = (0.056, 1.049)
+
+
 def nipple_bars(arm, bars=True, r=0.0052, h=0.005):
     """Nipples that show through their clothes as real shape: on each side a
     rounded nub (Ophelia's with her bar's two balls either side of it; Mom's
@@ -774,10 +903,66 @@ def nipple_bars(arm, bars=True, r=0.0052, h=0.005):
     return ob
 
 
-def new_mat(name, col=(0.5, 0.5, 0.5)):
-    m = bpy.data.materials.get(name) or bpy.data.materials.new(name)
-    m.diffuse_color = (*col, 1)
-    return m
+# Ophelia's pajama pants ride low: their waist sits well under her navel
+PJ_WAIST = 0.768
+GOWN_ROSE, GOWN_SPRIG = (0.62, 0.38, 0.4), (0.3, 0.13, 0.2)
+
+
+def nightwear(arm):
+    """Mom: a long cotton nightgown, rose-pink with little sprigs, a lace hem.
+    Ophelia: baggy plaid pajama pants (hips plus a leg each, ankle cuffs).
+    Their textures go to assets/textures/npc/<who>/<part>.png."""
+    out = []
+    n = 256
+    vv, uu = np.mgrid[0:n, 0:n] / n
+    px = np.ones((n, n, 4), np.float32)
+    if WHO == "mom":
+        out.append(garment("Outfit_night_Gown", "gown", 0.9, 0.2, gap=0.012, gap_top=0.0015, flare=0.05, follow=(0.55, 0.8), rows=18))
+        # the same rose and sprigs the bodice is painted in (clothes_graph), in sRGB
+        base = to_srgb(np.array(GOWN_ROSE))
+        sprig = (np.sin(uu * 2 * math.pi * 14) * np.sin(vv * 2 * math.pi * 10) > 0.93)[..., None]
+        col = base * (1 - sprig) + to_srgb(np.array(GOWN_SPRIG)) * sprig
+        lace = (vv < 0.07)[..., None]   # the hem rows (texture v 0 = hem)
+        holes = (lace[..., 0] & (np.sin(uu * 2 * math.pi * 56) * np.sin(vv * 2 * math.pi * 40) > 0.5))[..., None]
+        col = col * (1 - lace) + np.array((0.95, 0.92, 0.88)) * lace
+        col = col * (1 - holes) + base * 0.9 * holes
+        px[..., :3] = col
+        write_png(px, "gown")
+        _textured("gown")
+    elif WHO == "ophelia":
+        # snug over her hips; each leg starts just above the hip piece's bottom
+        # edge, tucked inside it, and the plaid runs on across the join (v_span)
+        out.append(garment("Outfit_night_PantsHips", "pajama", PJ_WAIST, 0.7, gap=0.006, gap_top=0.002,
+                           v_span=(0.1, 0.8), rows=8))
+        for sd, nm in ((1, "L"), (-1, "R")):
+            out.append(garment("Outfit_night_Pants" + nm, "pajama", 0.712, 0.1, gap=0.014, gap_top=0.004, flare=0.012, side=sd, v_span=(0.1, 0.8),
+                               follow=(0.8, 0.98), rows=22, hang=False))
+        # black and violet tartan, a darker cuff at the hem rows
+        a = (np.sin(uu * 2 * math.pi * 12) > 0.3).astype(np.float32)
+        b = (np.sin(vv * 2 * math.pi * 10) > 0.3).astype(np.float32)
+        line = ((np.abs(np.sin(uu * 2 * math.pi * 24)) < 0.08) | (np.abs(np.sin(vv * 2 * math.pi * 20)) < 0.08)).astype(np.float32)
+        col = np.array((0.05, 0.04, 0.07)) + (a + b)[..., None] * np.array((0.11, 0.03, 0.17))
+        col = col * (1 - line[..., None]) + np.array((0.5, 0.45, 0.55)) * line[..., None]
+        cuff = (vv < 0.08)[..., None]
+        col = col * (1 - cuff) + col * 0.45 * cuff   # a darker band of the same plaid
+        px[..., :3] = np.clip(col, 0, 1)
+        write_png(px, "pajama")
+        _textured("pajama")
+    return out
+
+
+def _textured(part):
+    """Points the garment material at its texture (assets/textures/npc/<who>/<part>.png),
+    for the concept renders; the game's importer finds it by name."""
+    m = bpy.data.materials["npc_%s_%s" % (WHO, part)]
+    m.use_nodes = True
+    nt = m.node_tree
+    bsdf = next(n for n in nt.nodes if n.type == "BSDF_PRINCIPLED")
+    t = nt.nodes.new("ShaderNodeTexImage")
+    path = os.path.join(TEX_OUT, part + ".png")
+    t.image = bpy.data.images.get(part) or bpy.data.images.new(part, 4, 4)
+    t.image.filepath = path
+    nt.links.new(t.outputs["Color"], bsdf.inputs["Base Color"])
 
 
 # --- face paint -------------------------------------------------------------------------
@@ -875,11 +1060,12 @@ def skin_tone(px):
 
 # Ophelia's outfits: "tee" is the one she's built in (body.png); the others
 # bake to body_<outfit>.png and hub_npc.gd swaps them in.
-OUTFITS = {"ophelia": ["tee", "hoodie", "night", "bikini", "sheer", "tight", "lingerie"],
-           "mom": ["home", "bikini", "sheer", "tight", "lingerie"]}
+# (Mom's and Ophelia's bikini/sheer/tight/lingerie were shelved 2026-10-04;
+# backup: /mnt/project-files/hub-npcs/shelved/npc_outfits.bundle)
+OUTFITS = {"ophelia": ["tee", "hoodie", "night", "prison"], "mom": ["home", "night"]}
+# Outfits worn barefoot (the boots mesh hidden; hub_npc.gd NO_BOOTS).
+BAREFOOT = ["night", "prison"]
 OUTFIT = "tee"
-# where her piercings sit (rest space, mirrored): x, z
-NIP = (0.056, 1.049)
 
 
 def ophelia_outfit(g, skin, x, y, z, ax, front, cov, edge, sine, neck_r):
@@ -888,30 +1074,23 @@ def ophelia_outfit(g, skin, x, y, z, ax, front, cov, edge, sine, neck_r):
     hoodie: a big charcoal zip hoodie, half open, sleeves down over her
     hands (thumb holes), violet-lined hood band and drawstrings, a pale moth on
     the back; black skinny jeans and a wallet chain.
-    night: a black cami under a sheer fishnet long-sleeve, high-waisted black
-    shorts with the studded belt, black and violet striped thigh-highs.
+    night: a worn-out band crop top on spaghetti straps and baggy plaid
+    pajama pants (meshes from nightwear()).
+    prison: what the colony put her in (Level 2's holding cell, not worn in
+    the hub): a faded orange detainee tunic and trousers worn to rags, the
+    sleeves torn off ragged above the elbows, the trousers frayed at the
+    shins, a rip over one knee and a smaller one on her back, ID patches
+    front and back, grime worked in, and barefoot with dirty feet.
     All of them: her choker with its o-ring."""
     BLACK, PURPLE, PINK, DENIM, STUD = (0.012, 0.011, 0.015), (0.12, 0.03, 0.22), (0.7, 0.08, 0.3), (0.02, 0.02, 0.026), (0.6, 0.6, 0.65)
     CHAR, BONE = (0.035, 0.033, 0.04), (0.62, 0.58, 0.6)
     net = g.mx(g.sstep(0.82, 0.92, sine(g.add(x, z), 0.01)), g.sstep(0.82, 0.92, sine(g.sub(x, z), 0.01)))
     choker = g.mul(g.band(z, 1.178, 1.192), g.sub(1.0, g.sstep(0.065, 0.075, neck_r)))
     o_ring = g.mul(g.mul(g.band(g.sqrt(g.add(g.sq(x), g.sq(g.sub(z, 1.174)))), 0.004, 0.0055), front), g.sstep(1.16, 1.165, z))
-    # her nipple piercings: small barbells that show through whatever she
-    # wears, a raised point catching the light with a bar end either side
-    nx = g.sub(ax, NIP[0])
-    nz = g.sub(z, NIP[1])
-    nub = g.mul(g.sub(1.0, g.sstep(0.0035, 0.0055, g.sqrt(g.add(g.sq(nx), g.sq(nz))))), front)
-    ends = g.mul(g.sub(1.0, g.sstep(0.0016, 0.0026, g.sqrt(g.add(g.sq(g.sub(g.abs(nx), 0.0085)), g.sq(nz))))), front)
-
+    # (her nipple piercings were taken off for the T rating, 2026-10-04; in the
+    # shelved-outfits backup)
     def pierce(col, strong=False):
-        if strong:   # pressed hard through the thin cami: a bright point, shadow under it, bigger bar ends
-            shade = g.mul(g.sub(1.0, g.sstep(0.004, 0.0075, g.sqrt(g.add(g.sq(nx), g.sq(g.add(nz, 0.0035)))))), front)
-            col = g.mixc(col, (0.0, 0.0, 0.0), g.mul(shade, 0.6))
-            col = g.mixc(col, (0.24, 0.22, 0.26), g.mul(nub, 0.3))   # the fabric stretched thin over her (the shape is mesh: nipple_bars())
-            big = g.mul(g.sub(1.0, g.sstep(0.0022, 0.0032, g.sqrt(g.add(g.sq(g.sub(g.abs(nx), 0.0095)), g.sq(nz))))), front)
-            return g.mixc(col, (0.62, 0.62, 0.68), big)
-        col = g.mixc(col, (0.16, 0.15, 0.18), g.mul(nub, 0.25))
-        return g.mixc(col, (0.42, 0.42, 0.46), g.mul(ends, 0.8))
+        return col
     if OUTFIT == "tee":
         neck_z = g.lerp(g.sub(1.168, g.mul(0.012, front)), 1.4, g.sstep(0.065, 0.09, ax))
         d_tee = g.mn(g.mn(g.sub(neck_z, z), g.sub(z, 0.865)), g.sub(0.175, ax))
@@ -983,201 +1162,66 @@ def ophelia_outfit(g, skin, x, y, z, ax, front, cov, edge, sine, neck_r):
         col = g.mixc(col, BLACK, choker)
         ink = g.mx(g.mx(edge(d_hood), g.mul(edge(open_), hood)), g.mx(edge(d_jeans), g.mul(edge(g.sub(0.075, g.add(ax, g.mul(g.sub(z, 0.78), 0.4)))), g.mul(pocket, 1.0))))
         return pierce(g.mixc(col, INK, ink))
-    # night
-    neck_z = g.lerp(1.172, 1.4, g.sstep(0.065, 0.09, ax))
-    d_mesh = g.mn(g.mn(g.sub(neck_z, z), g.sub(z, 0.84)), g.sub(0.47, ax))
-    mesh = cov(d_mesh)
-    # the cami: a straight top edge across the bust, thin straps
-    top_z = g.add(1.085, g.mul(g.sub(1.0, front), 0.03))
-    d_cami = g.mn(g.sub(top_z, z), g.sub(z, 0.9))
-    cami = g.mul(cov(d_cami), g.sstep(0.2, 0.18, ax))
-    straps = g.mul(g.mul(g.band(ax, 0.06, 0.068), g.sstep(1.08, 1.09, z)), g.sstep(0.2, 0.18, ax))
-    # tiny low-rise shorts: the leg openings cut up high over the hips and
-    # cheeky at the back, still covering where they need to
-    waist_z = g.add(0.8, g.mul(g.sub(1.0, front), 0.012))
-    open_z = g.add(0.702, g.mul(g.sstep(0.02, 0.11, ax), g.add(0.07, g.mul(g.sub(1.0, front), 0.012))))
-    d_shorts = g.mn(g.sub(waist_z, z), g.sub(z, open_z))
-    shorts = cov(d_shorts)
-    belt = g.mul(g.band(g.sub(z, waist_z), -0.014, 0.0), shorts)
-    studs = g.mul(g.mul(belt, g.sstep(0.75, 0.85, sine(g.add(x, y), 0.012))), g.band(g.sub(z, waist_z), -0.009, -0.005))
-    lace = g.mul(g.mul(g.band(g.abs(g.sub(ax, g.mul(g.abs(g.sub(g.op("FRACT", g.div(z, 0.02)), 0.5)), 0.012))), 0.0, 0.0012), front), g.mul(g.band(ax, 0.0, 0.012), g.band(z, 0.7, 0.82)))
-    d_socks = g.mn(g.sub(0.565, z), g.sub(z, 0.12))
-    socks = cov(d_socks)
-    stripes = g.mul(socks, g.sstep(-0.15, 0.15, sine(z, 0.03)))
-    col = g.mixc(skin, BLACK, g.mul(g.mul(mesh, net), 0.85))
-    col = g.mixc(col, BLACK, g.mx(cami, straps))
+    if OUTFIT == "prison":
+        ORANGE, ORANGE_D, PATCH, GRIME = (0.26, 0.1, 0.04), (0.14, 0.055, 0.025), (0.5, 0.48, 0.44), (0.075, 0.06, 0.045)
+        neck_z = g.lerp(g.sub(1.168, g.mul(0.016, front)), 1.4, g.sstep(0.065, 0.09, ax))
+        # torn edges: the cut wanders round the limb
+        cuff = g.add(0.27, g.add(g.mul(0.012, sine(g.add(y, z), 0.031)), g.mul(0.005, sine(g.sub(z, g.mul(y, 1.3)), 0.0113))))
+        hem_z = g.add(0.16, g.add(g.mul(0.013, sine(g.add(x, y), 0.034)), g.mul(0.005, sine(g.sub(x, g.mul(y, 1.7)), 0.0117))))
+        d_suit = g.mn(g.mn(g.sub(neck_z, z), g.sub(z, hem_z)), g.sub(cuff, ax))
+        suit = cov(d_suit)
+        # a ragged rip over her left knee, a smaller one high on her back
+        r_knee = g.add(g.sqrt(g.add(g.sq(g.div(g.sub(x, 0.072), 0.032)), g.sq(g.div(g.sub(z, 0.475), 0.027)))), g.mul(0.16, sine(g.add(x, g.mul(z, 1.3)), 0.006)))
+        r_back = g.add(g.sqrt(g.add(g.sq(g.div(g.add(x, 0.07), 0.022)), g.sq(g.div(g.sub(z, 0.93), 0.016)))), g.mul(0.18, sine(g.sub(z, x), 0.005)))
+        rip = g.mx(g.mul(g.sub(1.0, g.sstep(0.9, 1.0, r_knee)), front), g.mul(g.sub(1.0, g.sstep(0.9, 1.0, r_back)), g.sub(1.0, front)))
+        frays = g.mx(g.mul(g.band(r_knee, 1.0, 1.12), front), g.mul(g.band(r_back, 1.0, 1.15), g.sub(1.0, front)))
+        # ID patches: a small one on the chest, a big one across the back with a bar code
+        chest = g.mul(g.mul(g.band(x, 0.025, 0.085), g.band(z, 1.0, 1.04)), front)
+        back = g.mul(g.mul(g.band(x, -0.075, 0.075), g.band(z, 0.99, 1.075)), g.sub(1.0, front))
+        bars = g.mul(g.mul(back, g.band(z, 0.995, 1.025)), g.sstep(0.2, 0.4, sine(g.add(x, g.mul(g.op("FRACT", g.div(x, 0.031)), 0.004)), 0.0065)))
+        waist = g.mul(g.band(z, 0.79, 0.806), suit)
+        # grime: blotches all over, heavier toward the hems; dirty bare feet
+        blot = g.sstep(0.35, 0.8, g.mul(sine(g.add(g.mul(x, 1.3), z), 0.23), sine(g.sub(z, g.mul(y, 1.7)), 0.17)))
+        low = g.sstep(0.36, 0.17, z)
+        dirt = g.sstep(0.15, 0.04, z)
+        col = g.mixc(skin, ORANGE, suit)
+        col = g.mixc(col, ORANGE_D, g.mul(g.mul(blot, suit), 0.3))
+        col = g.mixc(col, GRIME, g.mul(g.mul(low, suit), 0.5))
+        col = g.mixc(col, ORANGE_D, waist)
+        col = g.mixc(col, PATCH, g.mul(g.mx(chest, back), suit))
+        col = g.mixc(col, INK, g.mul(bars, suit))
+        col = g.mixc(col, skin, g.mul(rip, suit))
+        col = g.mixc(col, ORANGE_D, g.mul(g.mul(frays, suit), g.sub(1.0, rip)))
+        col = g.mixc(col, GRIME, g.mul(dirt, 0.8))
+        col = g.mixc(col, STUD, o_ring)
+        col = g.mixc(col, BLACK, choker)
+        ink = g.mx(edge(d_suit), g.mul(g.mx(g.band(r_knee, 0.98, 1.02), g.band(r_back, 0.98, 1.02)), 0.7))
+        return g.mixc(col, INK, ink)
+    # night: a worn-out band crop on spaghetti straps (a faded bolt-in-a-ring
+    # logo, cracked print) over plaid pajama pants (meshes: nightwear()); the
+    # paint under the pants matches them so no gap shows, black ankle socks
+    top_z = g.add(1.088, g.mul(g.sub(1.0, front), 0.03))
+    # cropped just under her bust at the front, high up her back
+    hem_z = g.add(0.978, g.mul(g.sub(1.0, front), 0.07))
+    d_crop = g.mn(g.sub(top_z, z), g.sub(z, hem_z))
+    crop = g.mul(cov(d_crop), g.sstep(0.2, 0.18, ax))
+    straps = g.mul(g.mul(g.band(ax, 0.058, 0.064), g.sstep(1.08, 1.09, z)), g.sstep(0.2, 0.18, ax))
+    ring_r = g.sqrt(g.add(g.sq(x), g.sq(g.sub(z, 1.0))))
+    ring = g.band(ring_r, 0.024, 0.029)
+    bolt = g.mul(g.band(g.add(x, g.mul(g.abs(g.sub(g.op("FRACT", g.div(g.sub(z, 0.976), 0.024)), 0.5)), 0.03)), -0.004, 0.004),
+                 g.sstep(0.025, 0.02, ring_r))
+    crack = g.sstep(0.55, 0.75, g.mul(sine(g.add(g.mul(x, 3.1), z), 0.007), sine(g.sub(z, g.mul(x, 1.7)), 0.009)))
+    logo = g.mul(g.mul(g.mx(ring, bolt), front), g.sub(1.0, g.mul(crack, 0.7)))
+    d_pj = g.mn(g.sub(PJ_WAIST - 0.015, z), g.sub(z, 0.1))   # kept under the pants' meshes   # low on her hips
+    pj = cov(d_pj)
+    socks = cov(g.sub(0.1, z))
+    col = g.mixc(skin, (0.03, 0.028, 0.034), g.mx(crop, straps))
+    col = g.mixc(col, (0.42, 0.4, 0.44), g.mul(logo, crop))
+    col = g.mixc(col, (0.1, 0.03, 0.15), pj)
     col = g.mixc(col, BLACK, socks)
-    col = g.mixc(col, PURPLE, stripes)
-    col = g.mixc(col, BLACK, shorts)
-    col = g.mixc(col, (0.06, 0.06, 0.07), belt)
-    col = g.mixc(col, STUD, g.mx(g.mx(studs, o_ring), g.mul(lace, shorts)))
+    col = g.mixc(col, STUD, o_ring)
     col = g.mixc(col, BLACK, choker)
-    ink = g.mx(g.mx(edge(d_cami), edge(d_shorts)), g.mx(g.mul(edge(d_socks), 1.0), g.mul(edge(d_mesh), 0.6)))
-    return pierce(g.mixc(col, INK, ink), strong=True)
-
-
-# The outfits Mom and Ophelia both have, each in their own style (Bones,
-# 2026-10-03): a bikini, a sheer layer over solid underwear, a tight thong
-# bodysuit cut to show cleavage / underboob / sideboob, and lingerie. The
-# line held in all of them: solid fabric always over the nipples (with a margin
-# round them) and between the legs; sheer only ever over solid or skin elsewhere.
-EXTRA_OUTFITS = ["bikini", "sheer", "tight", "lingerie"]
-# plain skin for bare legs (the preset's skin has stockings painted below the
-# knee); bake_body samples it from her thighs
-LEG_SKIN = (0.6, 0.45, 0.4)
-
-
-def extra_outfit(g, skin, x, y, z, ax, front, cov, edge, sine, neck_r):
-    mom = WHO == "mom"
-    if mom:
-        MAIN, DARK, TRIM, SHEER_C, METAL = (0.13, 0.19, 0.12), (0.07, 0.1, 0.06), (0.6, 0.55, 0.45), (0.03, 0.02, 0.02), (0.55, 0.45, 0.25)
-        LACE_A, LACE_B = (0.16, 0.02, 0.06), (0.06, 0.005, 0.02)   # deep plum lace
-    else:
-        MAIN, DARK, TRIM, SHEER_C, METAL = (0.012, 0.011, 0.015), (0.005, 0.005, 0.007), (0.12, 0.03, 0.22), (0.01, 0.01, 0.014), (0.6, 0.6, 0.65)
-        LACE_A, LACE_B = (0.02, 0.018, 0.025), (0.1, 0.025, 0.18)    # black lace, violet ribbon
-
-    def front_only(d):   # a piece that exists only on her front
-        return g.sub(g.mul(front, d), g.sub(1.0, front))
-
-    col = g.mixc(skin, LEG_SKIN, g.sstep(0.63, 0.59, z))
-    ink = 0.0
-    net = g.mx(g.sstep(0.82, 0.92, sine(g.add(x, z), 0.01)), g.sstep(0.82, 0.92, sine(g.sub(x, z), 0.01)))
-    lace = g.mul(g.sstep(0.2, 0.7, sine(g.add(g.mul(x, 1.3), g.mul(z, 0.7)), 0.008)), g.sstep(0.0, 0.6, sine(g.sub(x, z), 0.011)))
-    torso = g.sstep(0.135, 0.125, ax)   # not the arms
-    if OUTFIT == "bikini":
-        # triangle top: each triangle's point at her collarbone, base under the bust
-        tri_w = g.mul(0.046, g.sstep(1.1, 1.0, z))
-        d_tri = front_only(g.mn(g.sub(tri_w, g.abs(g.sub(ax, 0.058))), g.sub(z, 0.998)))
-        tri = cov(d_tri)
-        under = g.mul(g.band(z, 0.993, 1.003), torso)
-        halter_x = g.lerp(0.058, 0.036, g.sstep(1.09, 1.18, z))
-        halter = g.mul(g.mul(g.band(g.sub(ax, halter_x), -0.0018, 0.0018), g.mul(g.sstep(1.08, 1.09, z), g.sstep(1.19, 1.18, z))), front)
-        neck_tie = g.mul(g.band(z, 1.172, 1.18), g.mul(g.sub(1.0, front), g.sub(1.0, g.sstep(0.065, 0.075, neck_r))))
-        # string bottoms cut high over the hips, cheeky at the back
-        waist_z = g.add(0.77, g.mul(g.sub(1.0, front), 0.01))
-        back_cut = 0.0 if mom else 0.012
-        open_z = g.add(0.701, g.mul(g.sstep(0.016, 0.08, ax), g.add(0.068, g.mul(g.sub(1.0, front), back_cut))))
-        d_bot = g.mn(g.sub(waist_z, z), g.sub(z, open_z))
-        bot = cov(d_bot)
-        strings = g.mul(g.band(g.sub(z, waist_z), -0.004, 0.0), torso)
-        col = g.mixc(col, MAIN, g.mx(tri, bot))
-        col = g.mixc(col, TRIM if mom else TRIM, g.mx(g.mx(under, halter), g.mx(neck_tie, strings)))
-        if mom:   # white piping round each triangle
-            col = g.mixc(col, TRIM, g.mul(edge(d_tri, 0.0016), tri))
-        else:     # silver o-rings at the hips
-            ring = g.mul(g.band(g.sqrt(g.add(g.sq(g.sub(ax, 0.085)), g.sq(g.sub(z, 0.766)))), 0.004, 0.006), front)
-            col = g.mixc(col, METAL, ring)
-        ink = g.mx(edge(d_tri), edge(d_bot))
-    elif OUTFIT in ("sheer", "lingerie"):
-        lingerie = OUTFIT == "lingerie"
-        # bra: plunging cups that come well up over her (top edge 1.07 at the
-        # nipple, 1.054 the top of it), low at the centre gore
-        cup_top = g.add(1.038, g.mul(0.034, g.sstep(0.008, 0.046, ax)))
-        d_cup = front_only(g.mn(g.mn(g.sub(cup_top, z), g.sub(z, 0.996)), g.sub(0.106, ax)))
-        cup = cov(d_cup)
-        band_ = g.mul(g.band(z, 0.99, 1.002), torso)
-        straps = g.mul(g.mul(g.band(ax, 0.058, 0.066), g.sstep(1.06, 1.07, z)), g.sstep(0.2, 0.18, ax))
-        if lingerie:
-            # thong: a small front panel, the back a strip widening at the waist
-            waist_z = g.sub(0.775, g.mul(front, g.mul(0.012, g.sstep(0.05, 0.0, ax))))
-            open_f = g.add(0.701, g.mul(g.sstep(0.014, 0.07, ax), 0.072))
-            w_back = g.add(0.011, g.mul(0.05, g.sstep(0.74, 0.79, z)))   # wide enough to show going down between fuller cheeks
-            d_bot = g.mn(g.sub(waist_z, z), g.lerp(g.sub(w_back, ax), g.sub(z, open_f), front))
-            string = g.mul(g.band(g.sub(z, waist_z), -0.004, 0.0), torso)   # round her hips, holding the back strip
-        else:
-            waist_z = g.add(0.79, g.mul(g.sub(1.0, front), 0.01))
-            open_z = g.add(0.701, g.mul(g.sstep(0.018, 0.085, ax), g.add(0.05, g.mul(g.sub(1.0, front), 0.01))))
-            d_bot = g.mn(g.sub(waist_z, z), g.sub(z, open_z))
-        bot = cov(d_bot)
-        if OUTFIT == "sheer":
-            if mom:   # a long sheer black slip on thin straps, to below her knees
-                d_veil = g.mn(g.mn(g.sub(g.add(1.075, g.mul(0.33, g.band(ax, 0.056, 0.066))), z), g.sub(z, 0.42)), g.sub(g.add(0.13, g.mul(0.07, g.sstep(0.82, 0.78, z))), ax))
-                veil = g.mul(cov(d_veil), 0.62)
-                pattern = 0.0
-            else:     # a short sheer mesh dress with long sleeves, over the set
-                neck_z = g.lerp(1.172, 1.4, g.sstep(0.065, 0.09, ax))
-                d_veil = g.mn(g.mn(g.sub(neck_z, z), g.sub(z, 0.665)), g.sub(0.47, ax))
-                veil = g.mul(cov(d_veil), 0.5)
-                pattern = net
-            col = g.mixc(col, MAIN, g.mx(g.mx(cup, band_), bot))
-            col = g.mixc(col, DARK, g.mul(straps, g.sub(1.0, cup)))
-            col = g.mixc(col, SHEER_C, g.mul(veil, g.sub(1.0, g.mul(g.mx(cup, bot), 0.4))))
-            col = g.mixc(col, SHEER_C, g.mul(g.mul(cov(d_veil), pattern), 0.6))
-            if not mom:   # striped thigh-highs
-                d_socks = g.mn(g.sub(0.58, z), g.sub(z, 0.12))
-                socks = cov(d_socks)
-                col = g.mixc(col, MAIN, socks)
-                col = g.mixc(col, TRIM, g.mul(socks, g.sstep(-0.15, 0.15, sine(z, 0.03))))
-                ink = edge(d_socks)
-            ink = g.mx(ink, g.mx(g.mx(edge(d_cup), edge(d_bot)), g.mul(edge(d_veil), 0.5)))
-        else:
-            # garter belt, suspenders, stockings with lace tops
-            garter = g.mul(g.band(z, 0.8, 0.835), torso)
-            susp = g.mul(g.band(g.abs(g.sub(ax, 0.07)), 0.0, 0.0025), g.band(z, 0.585, 0.8))
-            d_stock = g.mn(g.sub(0.6, z), g.sub(z, 0.12))
-            stock = cov(d_stock)
-            lace_top = g.mul(g.band(z, 0.565, 0.6), stock)
-            col = g.mixc(col, SHEER_C, g.mul(stock, 0.6))
-            if not mom:
-                col = g.mixc(col, MAIN, g.mul(g.mul(stock, net), 0.9))
-            col = g.mixc(col, LACE_A, g.mx(g.mx(cup, bot), g.mx(garter, lace_top)))
-            col = g.mixc(col, LACE_B, g.mul(lace, g.mx(g.mx(cup, garter), lace_top)))
-            col = g.mixc(col, LACE_A, g.mx(g.mx(band_, straps), g.mx(susp, string)))
-            if not mom:   # a strappy harness over her chest
-                # two straps from her cups slanting in to the choker's o-ring, and one across
-                strap_x = g.lerp(0.031, 0.008, g.sstep(1.06, 1.18, z))
-                up = g.mul(g.band(g.sub(ax, strap_x), -0.003, 0.003), g.mul(g.sstep(1.05, 1.06, z), g.sstep(1.19, 1.18, z)))
-                harness = g.mul(g.mx(g.mul(g.band(z, 1.105, 1.112), front), up), g.mul(g.sstep(0.0, -0.012, y), torso))
-                col = g.mixc(col, MAIN, harness)
-            ink = g.mx(g.mx(edge(d_cup), edge(d_bot)), edge(d_stock))
-    else:   # tight
-        # a thong bodysuit: very high cut at the front, a strip at the back
-        open_f = g.add(0.701, g.mul(g.sstep(0.016, 0.09, ax), 0.09))
-        w_back = g.add(0.008, g.mul(0.06, g.sstep(0.8, 0.86, z)))
-        d_legs = g.lerp(g.sub(w_back, ax), g.sub(z, open_f), front)
-        if mom:
-            # halter neck, plunging V nearly to the navel, open sides, backless
-            neck_z = g.lerp(1.17, 1.4, g.sstep(0.05, 0.06, ax))
-            v_half = g.add(0.006, g.mul(g.mx(g.sub(z, 0.86), 0.0), 0.15))   # 0.034 at the nipple: 0.017 clear of it
-            d_v = front_only(g.mn(g.sub(v_half, ax), g.sub(z, 0.9)))   # down to her navel, no further
-            # open from under her arm to her waist into the bare back, and round
-            # the outside of her bust (0.017 clear of the nipple)
-            # (an oval opening, widest at 1.015, closing in curves above and below)
-            side = g.sub(g.mx(g.sub(ax, 0.08), g.add(y, 0.035)), g.mul(0.03, g.sq(g.div(g.sub(z, 1.015), 0.115))))
-            backless = g.mul(g.sub(1.0, front), g.sstep(0.855, 0.865, z))
-            halter = g.mul(g.band(z, 1.165, 1.178), g.sub(1.0, g.sstep(0.065, 0.075, neck_r)))
-            d_suit = g.mn(g.mn(g.sub(neck_z, z), g.sub(0.14, ax)), d_legs)
-            suit = g.mul(g.mul(cov(d_suit), g.sub(1.0, cov(d_v))), g.mul(g.sub(1.0, g.sstep(-0.0025, 0.0025, side)), g.sub(1.0, backless)))
-            stock = cov(g.mn(g.sub(0.6, z), g.sub(z, 0.12)))
-            col = g.mixc(col, SHEER_C, g.mul(stock, 0.55))
-            col = g.mixc(col, (0.2, 0.02, 0.03), suit)    # wine red
-            col = g.mixc(col, (0.2, 0.02, 0.03), halter)
-            sheen = g.mul(g.mul(g.sstep(0.6, 1.0, sine(g.add(x, g.mul(z, 0.2)), 0.07)), 0.25), suit)
-            col = g.mixc(col, (0.45, 0.1, 0.12), sheen)
-            ink = g.mx(g.mul(edge(d_suit), 1.0), g.mul(g.mx(edge(d_v), edge(side)), suit))
-        else:
-            # long sleeves and a high neck, a keyhole down her cleavage, the
-            # underside of her bust bare below the cups, o-ring at the keyhole
-            neck_z = g.lerp(1.176, 1.4, g.sstep(0.065, 0.09, ax))
-            key = front_only(g.mn(g.sub(0.016, ax), g.mn(g.sub(z, 1.0), g.sub(1.1, z))))
-            under = front_only(g.mn(g.sub(0.04, g.abs(g.sub(ax, 0.058))), g.mn(g.sub(z, 0.972), g.sub(1.0, z))))
-            d_suit = g.mn(g.mn(g.sub(neck_z, z), g.sub(0.47, ax)), d_legs)
-            suit = g.mul(g.mul(cov(d_suit), g.sub(1.0, cov(key))), g.sub(1.0, cov(under)))
-            ring = g.mul(g.band(g.sqrt(g.add(g.sq(x), g.sq(g.sub(z, 1.106)))), 0.005, 0.0075), front)
-            seams = g.mul(g.band(g.abs(g.sub(ax, 0.11)), 0.0, 0.0012), suit)
-            d_socks = g.mn(g.sub(0.58, z), g.sub(z, 0.12))
-            socks = cov(d_socks)
-            col = g.mixc(col, MAIN, socks)
-            col = g.mixc(col, TRIM, g.mul(socks, g.sstep(-0.15, 0.15, sine(z, 0.03))))
-            col = g.mixc(col, MAIN, suit)
-            sheen = g.mul(g.mul(g.sstep(0.6, 1.0, sine(g.add(x, g.mul(z, 0.2)), 0.07)), 0.5), suit)
-            col = g.mixc(col, (0.06, 0.055, 0.07), sheen)
-            col = g.mixc(col, TRIM, seams)
-            col = g.mixc(col, METAL, ring)
-            ink = g.mx(g.mx(edge(d_suit), g.mul(g.mx(edge(key), edge(under)), suit)), edge(d_socks))
-    if not mom:   # her choker, always
-        choker = g.mul(g.band(z, 1.178, 1.192), g.sub(1.0, g.sstep(0.065, 0.075, neck_r)))
-        col = g.mixc(col, MAIN, choker)
+    ink = g.mx(edge(d_crop), g.mul(edge(d_pj), 0.5))
     return g.mixc(col, INK, ink)
 
 
@@ -1207,9 +1251,30 @@ def clothes_graph(nt, skin):
         xx = ax if mirror else x
         return g.op("EXPONENT", g.mul(g.add(g.sq(g.sub(xx, cx)), g.sq(g.sub(z, cz))), -1.0 / (2 * r * r)))
     neck_r = g.sqrt(g.add(g.sq(x), g.sq(g.sub(y, 0.022))))
-    if OUTFIT in EXTRA_OUTFITS:
-        return extra_outfit(g, skin, x, y, z, ax, front, cov, edge, sine, neck_r)
     # sleeves end at d_cuff = cuff - ax; the upper body starts at d_hem = z - hem
+    if WHO == "mom" and OUTFIT == "night":
+        # a classic long nightgown (its skirt is a mesh: nightwear()): rose
+        # cotton, a scoop neck edged in cream lace, little cap sleeves, a
+        # buttoned placket; under the skirt the paint matches it, and cream bed socks
+        ROSE, CREAM = GOWN_ROSE, (0.9, 0.86, 0.8)
+        scoop = g.mul(g.mul(0.05, front), g.op("EXPONENT", g.mul(g.sq(g.div(ax, 0.05)), -1.0)))
+        neck_z = g.lerp(g.sub(1.17, scoop), 1.4, g.sstep(0.07, 0.095, ax))
+        d_gown = g.mn(g.mn(g.sub(neck_z, z), g.sub(z, 0.2)), g.sub(0.215, ax))
+        gown = cov(d_gown)
+        lace = g.mul(g.band(g.sub(neck_z, z), 0.0, 0.012), gown)
+        lace_cut = g.sstep(0.4, 0.8, sine(g.add(x, g.mul(y, 0.5)), 0.008))
+        cuff = g.mul(g.band(ax, 0.2, 0.215), gown)
+        placket = g.mul(g.mul(g.band(x, -0.006, 0.006), front), g.mul(gown, g.sstep(0.95, 0.955, z)))
+        buttons = g.mul(g.mul(g.sub(1.0, g.sstep(0.0025, 0.0035, g.sqrt(g.add(g.sq(x), g.sq(g.sub(g.op("FRACT", g.div(z, 0.035)), 0.5)))))), placket), 1.0)
+        socks = cov(g.sub(0.2, z))
+        col = g.mixc(skin, ROSE, gown)
+        sprigs = g.sstep(0.9, 0.95, g.mul(sine(g.add(x, g.mul(y, 0.7)), 0.024), sine(z, 0.03)))
+        col = g.mixc(col, GOWN_SPRIG, g.mul(sprigs, gown))
+        col = g.mixc(col, CREAM, g.mx(g.mul(lace, lace_cut), cuff))
+        col = g.mixc(col, CREAM, g.mul(buttons, g.sstep(1.12, 1.11, z)))
+        col = g.mixc(col, CREAM, socks)
+        ink = g.mx(edge(d_gown), g.mul(edge(g.sub(0.2, z)), 0.5))
+        return g.mixc(col, INK, ink)
     if WHO == "mom":
         SAGE, SAGE_D, SHIRT, SHEER, SHORTS, BELT, TAG = (0.16, 0.22, 0.14), (0.1, 0.14, 0.09), (0.12, 0.16, 0.24), (0.035, 0.025, 0.02), (0.018, 0.016, 0.018), (0.06, 0.03, 0.015), (0.55, 0.56, 0.58)
         LEG = (0.62, 0.42, 0.35)
@@ -1301,21 +1366,7 @@ def clothes_graph(nt, skin):
 def bake_body(body, skin_img):
     """Bakes the painted clothes over the skin into body.png, and each of the
     character's other outfits (OUTFITS) into body_<outfit>.png."""
-    global OUTFIT, LEG_SKIN
-    # plain leg skin: the mean of her skin over the thighs (rest z 0.64..0.68)
-    px = read_px(skin_img)
-    h, w = px.shape[:2]
-    rest = body.data.attributes["rest"].data
-    uvl = body.data.uv_layers.active.data
-    picks = []
-    for poly in body.data.polygons:
-        for li, vi in zip(poly.loop_indices, poly.vertices):
-            if 0.64 < rest[vi].vector.z < 0.68:
-                u, v = uvl[li].uv
-                picks.append(px[min(h - 1, int(v * h)), min(w - 1, int(u * w)), :3])
-    if picks:
-        LEG_SKIN = tuple(float(c) for c in to_lin(np.median(np.array(picks), axis=0)))
-        print("leg skin", LEG_SKIN)
+    global OUTFIT
     sc = bpy.context.scene
     sc.render.engine = "CYCLES"
     sc.cycles.samples = 4
@@ -1715,11 +1766,19 @@ def concept(arm, objs):
         sc.render.resolution_x, sc.render.resolution_y = res
         sc.render.filepath = "%s_%s.png" % (prefix, name)
         bpy.ops.render.render(write_still=True)
+    def dress(outfit):   # as hub_npc.gd wear(): an outfit's meshes, no boots at night
+        for o in bpy.data.objects:
+            if o.name.startswith("Outfit_"):
+                o.hide_render = not o.name.startswith("Outfit_%s_" % outfit)
+            elif o.name == "Boots":
+                o.hide_render = outfit in BAREFOOT
+    dress(OUTFITS.get(WHO, ["default"])[0])
     for shot in shots:
         shoot(*shot, CONCEPT)
     # the other outfits: the body texture swapped, full-length shots only
     tex = next((n for n in bpy.data.materials["npc_%s_body" % WHO].node_tree.nodes if n.type == "TEX_IMAGE"), None)
     for outfit in OUTFITS.get(WHO, [])[1:]:
+        dress(outfit)
         tex.image = bpy.data.images.load(os.path.join(TEX_OUT, "body_%s.png" % outfit))
         for shot in shots[:3]:
             shoot(*shot, "%s_%s" % (CONCEPT, outfit))
@@ -1739,22 +1798,23 @@ def main():
         {"mom": body_mom, "ophelia": body_ophelia}[WHO]()
         E["glute_bones"](arm)   # jiggle springs, as Eco's
     extras = []
+    if WHO in ("mom", "ophelia"):
+        extras += nightwear(arm)
+    if WHO == "ophelia":
+        extras.append(nipple_bars(arm))
     if WHO == "biggie":
         extras.append(beard(arm))
         extras.append(topknot(arm))
     if WHO == "ophelia":
         extras.append(lip_ring(arm))
-        extras.append(nipple_bars(arm))
-    if WHO == "mom":   # fuller than Ophelia's, no bars: they show through everything she wears
-        extras.append(nipple_bars(arm, bars=False, r=0.0068, h=0.0066))
     objs = [bpy.data.objects[n] for n in ("Body", "Face", "Hair") if n in bpy.data.objects] + [boots] + extras
     textures(objs, boots)
+    if WHO == "ophelia":
+        bpy.data.objects["Piercings"].material_slots[0].material = bpy.data.materials["npc_%s_body" % WHO]
     if WHO == "biggie":
         beard_m = bpy.data.materials["npc_biggie_beard"]
         bpy.data.objects["Beard"].material_slots[0].material = beard_m
         bpy.data.objects["Topknot"].material_slots[0].material = beard_m
-    if WHO in ("ophelia", "mom"):
-        bpy.data.objects["Piercings"].material_slots[0].material = bpy.data.materials["npc_%s_body" % WHO]
     prune_bones(arm)
     E["proportions"](arm, objs)
     E["face_forward_and_scale"](arm, objs)

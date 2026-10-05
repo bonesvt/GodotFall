@@ -28,6 +28,14 @@ rest are struck for her heart scenes):
   scene_sit     sitting on the floor, arms round her knees
   scene_mirror  standing, eyeliner to one eye, little mirror in the other hand
   scene_shy     standing, hands behind her back, weight on one hip
+
+Level 2 (the holding cell and getting out of it; scripts/run/escort.gd):
+  chained       sitting on the cell floor, knees up, shackled wrists resting
+                on them, head down
+  move_walk     a careful, hunched walking stride (about 1.15 m a cycle)
+  move_run      a running stride (about 3.6 m a cycle)
+  move_crouch   crouched low, still
+  move_crouch_walk  creeping along crouched (about 0.9 m a cycle)
 """
 import math
 import os
@@ -50,6 +58,7 @@ exec(compile(_src, _eco_path, "exec"), E)
 sys.argv = _saved
 
 X, Y, Z = E["X"], E["Y"], E["Z"]
+eco_hips_loc = E["hips_loc"]
 add, key_pose, base_pose = E["add"], E["key_pose"], E["base_pose"]
 BONE, ORDER, FINGERS = E["BONE"], E["ORDER"], E["FINGERS"]
 
@@ -213,6 +222,130 @@ def sit(f, n):
     return p
 
 
+def chained(f, n):
+    """On the cell floor, knees up, her shackled wrists together resting on
+    her knees, head hung; a slow breath, a glance up now and then."""
+    p = base_pose()
+    b = wave(f, n, 2)
+    look = max(0.0, wave(f, n, 1, -1.2)) ** 3
+    add(p, "spine", X, -10)
+    add(p, "chest", X, -8 - 1.2 * b)
+    add(p, "neck", X, -16 + 10 * look)
+    add(p, "head", X, -18 + 16 * look)
+    add(p, "head", Z, 6 * look)
+    for s, sgn in (("R", 1), ("L", -1)):
+        add(p, "thigh." + s, X, 128)
+        add(p, "thigh." + s, Y, -sgn * 8)
+        add(p, "shin." + s, X, -100)
+        add(p, "foot." + s, X, 30)
+        add(p, "upperarm." + s, X, 42)
+        add(p, "upperarm." + s, Y, sgn * 10)
+        add(p, "forearm." + s, X, 38)
+        add(p, "forearm." + s, Z, sgn * 48)
+        add(p, "hand." + s, X, -20)
+    p["_hips_loc"] = (0.0, 0.0, SIT - HIPS)
+    return p
+
+
+## How far down her hips go in a crouch (Eco's 0.4 m, scaled to her).
+def _crouch_drop():
+    return 0.4 * HIPS / 0.9
+
+
+def sneak_walk(f, n):
+    """Eco's walk, hunched and careful: knees soft, shoulders in, arms close."""
+    p = base_pose()
+    t = f / n * 2 * math.pi
+    sw = math.sin(t)
+    add(p, "upperarm.R", Y, 6)
+    add(p, "upperarm.L", Y, -6)
+    add(p, "thigh.R", X, 22 * sw + 8)
+    add(p, "thigh.L", X, -22 * sw + 8)
+    add(p, "shin.R", X, -40 * max(0.0, math.sin(t - 1.2)) - 14)
+    add(p, "shin.L", X, -40 * max(0.0, math.sin(t + math.pi - 1.2)) - 14)
+    add(p, "foot.R", X, 8 * math.cos(t) + 4)
+    add(p, "foot.L", X, -8 * math.cos(t) + 4)
+    add(p, "upperarm.R", X, -12 * sw + 10)
+    add(p, "upperarm.L", X, 12 * sw + 10)
+    add(p, "forearm.R", X, 35)
+    add(p, "forearm.L", X, 35)
+    add(p, "hips", Z, 4 * sw)
+    add(p, "chest", Z, -5 * sw)
+    add(p, "spine", X, -12)
+    add(p, "neck", X, 6)
+    add(p, "head", X, 6)
+    add(p, "head", Z, 10 * math.sin(t * 0.5))   # glancing round
+    p["_hips_loc"] = eco_hips_loc(-0.05 - 0.015 * abs(math.cos(t)), 0.02)
+    return p
+
+
+def run(f, n):
+    """Eco's run, a little less flashy."""
+    p = base_pose()
+    t = f / n * 2 * math.pi
+    sw = math.sin(t)
+    add(p, "upperarm.R", Y, -9)
+    add(p, "upperarm.L", Y, 9)
+    add(p, "thigh.R", X, 40 * sw + 6)
+    add(p, "thigh.L", X, -40 * sw + 6)
+    add(p, "shin.R", X, -90 * max(0.0, math.sin(t - 1.4)) - 14)
+    add(p, "shin.L", X, -90 * max(0.0, math.sin(t + math.pi - 1.4)) - 14)
+    add(p, "foot.R", X, 16 * math.cos(t))
+    add(p, "foot.L", X, -16 * math.cos(t))
+    add(p, "upperarm.R", X, -30 * sw)
+    add(p, "upperarm.L", X, 30 * sw)
+    add(p, "forearm.R", X, 55 + 12 * max(0.0, -sw))
+    add(p, "forearm.L", X, 55 + 12 * max(0.0, sw))
+    add(p, "spine", X, -10)
+    add(p, "head", X, 8)
+    add(p, "hips", Z, 8 * sw)
+    add(p, "chest", Z, -11 * sw)
+    p["_hips_loc"] = eco_hips_loc(-0.035 + 0.03 * abs(math.sin(t)), 0)
+    return p
+
+
+def _crouch_body(p, breath):
+    add(p, "spine", X, -26 - 1.5 * breath)
+    add(p, "chest", X, -6)
+    add(p, "neck", X, 14)
+    add(p, "head", X, 16)
+    add(p, "upperarm.R", X, 34)
+    add(p, "upperarm.L", X, 26)
+    add(p, "forearm.R", X, 40)
+    add(p, "forearm.L", X, 46)
+
+
+def crouch(f, n):
+    """Low on her heels, hands near her knees, breathing quick and shallow."""
+    p = base_pose()
+    for sd, sgn in (("R", 1), ("L", -1)):
+        add(p, "thigh." + sd, X, 74)
+        add(p, "thigh." + sd, Y, -9 * sgn)
+        add(p, "shin." + sd, X, -112)
+        add(p, "foot." + sd, X, 36)
+    _crouch_body(p, wave(f, n, 3))
+    add(p, "head", Z, 12 * wave(f, n, 1))
+    p["_hips_loc"] = eco_hips_loc(-_crouch_drop(), 0.13)
+    return p
+
+
+def crouch_walk(f, n):
+    """Creeping along crouched: short steps, hips low and level."""
+    p = base_pose()
+    t = f / n * 2 * math.pi
+    sw = math.sin(t)
+    for sd, sgn, ph in (("R", 1, 0.0), ("L", -1, math.pi)):
+        s2 = math.sin(t + ph)
+        add(p, "thigh." + sd, X, 68 + 20 * s2)
+        add(p, "thigh." + sd, Y, -7 * sgn)
+        add(p, "shin." + sd, X, -104 - 18 * max(0.0, math.sin(t + ph - 1.2)))
+        add(p, "foot." + sd, X, 30 + 8 * math.cos(t + ph))
+    _crouch_body(p, sw)
+    add(p, "hips", Z, 4 * sw)
+    p["_hips_loc"] = eco_hips_loc(-_crouch_drop() + 0.03 + 0.015 * abs(math.cos(t)), 0.11)
+    return p
+
+
 def mirror(f, n):
     """Doing her eyeliner: right hand up at her right eye, left hand holding a
     small mirror at chest height, head tipped back a touch."""
@@ -353,6 +486,11 @@ POSES = {
     "scene_sit": (sit, 150),
     "scene_mirror": (mirror, 120),
     "scene_shy": (shy, 120),
+    "chained": (chained, 180),
+    "move_walk": (sneak_walk, 32, 2),
+    "move_run": (run, 22, 1),
+    "move_crouch": (crouch, 60),
+    "move_crouch_walk": (crouch_walk, 36, 2),
 }
 
 
@@ -362,11 +500,13 @@ def make(arm):
     keyed = [BONE[n] for n in ORDER] + ["J_Bip_%s_%s%d" % (s, f, j) for s in "RL" for f in FINGERS + ("Thumb",) for j in (1, 2, 3)]
     keyed = [k for k in keyed if k in arm.pose.bones]
     acts = []
-    for name, (fn, n) in POSES.items():
+    for name, spec in POSES.items():
+        fn, n = spec[0], spec[1]
+        step = spec[2] if len(spec) > 2 else 10
         a = bpy.data.actions.new(name)
         a.use_fake_user = True
         arm.animation_data.action = a
-        for f in range(0, n + 1, 10):
+        for f in range(0, n + 1, step):
             key_pose(arm, f, fn(f, n), keyed)
         acts.append(a)
     return acts

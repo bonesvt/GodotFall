@@ -1,10 +1,13 @@
 extends RefCounted
-## Content rating for dialogue: "E", "T", "M" or "AO". Saved to
-## user://settings.cfg. The radio picks its line bank from this.
+## Content rating for dialogue: "T" (Teen) or "M" (Mature). Saved to
+## user://settings.cfg. The radio and Eco's whispers pick their lines from
+## this. E and AO were dropped (Bones, 2026-10-04); an old saved E reads as T
+## and an old AO as M.
 
 const PATH := "user://settings.cfg"
 const DEFAULT := "M"
-const RATINGS := ["E", "T", "M", "AO"]
+const RATINGS := ["T", "M"]
+const OLD := {"E": "T", "AO": "M"}
 
 static var _rating := ""
 
@@ -15,6 +18,7 @@ static func current() -> String:
 		_rating = DEFAULT
 		if cfg.load(PATH) == OK:
 			var saved: String = cfg.get_value("content", "rating", DEFAULT)
+			saved = OLD.get(saved, saved)
 			if saved in RATINGS:
 				_rating = saved
 	return _rating

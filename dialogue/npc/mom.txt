@@ -25,12 +25,72 @@ mom: Sit. Let me see that arm.
 eco: It's fine. It's a scratch.
 mom: It's a hole, Eco. I can see the bone.
 eco: Then it's a cool scratch.
-mom: You think it's funny. I sat up all night listening to the militia band, waiting to hear your name.
-eco: ...They don't say my name, Mom. They don't think I'm worth it.
-mom: Good. Let them keep thinking that, and come home.
+mom: You think it's funny. I sat up all night listening to their radio, waiting to hear your name.
+eco: ...They don't say my name, Mom. They call me "the Starling".
+mom: Good. Let them keep calling you a bird, and keep coming home.
+
+# What Mom told the town this time. Each time Eco comes home from a run, the
+# next [excuse] plays straight after Mom's [won] / [lost] talk, in order, and
+# they get wilder as the town gets more suspicious. Once they run out, the
+# last three take turns.
+[excuse]
+mom: And before you ask: you have a cold. Mrs. Tran sent soup.
+eco: Do I get the soup?
+mom: You get the soup if you cough when she asks after you.
+eco: Cough, cough. Like that?
+mom: Worse. You're very sick, sweetheart.
+
+[excuse]
+mom: Juno asked why you're never in town. You've taken up birdwatching.
+eco: Birdwatching?
+mom: You leave at dawn and come back covered in mud. It fit.
+eco: What's my favourite bird?
+mom: The starling. Don't look at me like that, it was the first one I thought of.
+
+[excuse]
+mom: The checkpoint boys asked about you. You have a boyfriend in the next valley now.
+eco: Mom!
+mom: He farms goats. He's very shy. That's why nobody's met him.
+eco: If I die out there my headstone's going to say "goat farmer's girlfriend".
+mom: Then don't die out there. Problem solved.
+
+[excuse]
+mom: Mara wanted to know what you do all day. You're taking a course by post. Pottery.
+eco: Pottery.
+mom: She wants a bowl.
+eco: I can weld her a bowl.
+mom: I hate lying for you, you know. I'm just very good at it.
+
+[excuse]
+mom: Old Hiro saw lights up at the temple last night. I told him you sleepwalk.
+eco: To the temple? That's miles.
+mom: You're a very determined sleepwalker.
+eco: Did he buy it?
+mom: He asked a lot of questions for a man who sells noodles. Be more careful with the lights.
+
+[excuse]
+mom: Now half the plaza thinks the temple is haunted. I may have said it was your father's ghost.
+eco: Mom.
+mom: They've started leaving flowers at the gate. It's sweet. Also, stop flying things over the town at night.
+eco: That was one time.
+mom: That was one time on Tuesday.
+
+[excuse]
+mom: Doc Imani asked why you keep coming in with burns. You were struck by lightning. Twice.
+eco: Twice?
+mom: The first one didn't take.
+eco: Nobody's going to believe that.
+mom: She didn't. She just looked at me for a very long time and gave me extra bandages.
+
+[excuse]
+mom: I'm running out, Eco. Today I told Mrs. Tran you ran off to join a travelling circus.
+eco: ...Did she believe it?
+mom: She asked if you do the trapeze. I said yes. You may need to learn the trapeze.
+eco: I wallrun. That's basically trapeze.
+mom: People are starting to talk, sweetheart. Not about goats.
 
 [any]
-mom: The militia came through the valley road again. Six of them, laughing.
+mom: A colony patrol came up the valley road again. Six of them, laughing.
 eco: Did they see you?
 mom: No. I know how to be quiet. I learned when your father was flying.
 eco: Stay inside when they pass. Please.
@@ -40,7 +100,7 @@ mom: Listen to you. Telling your mother what to do.
 mom: I found his tags in your old jacket pocket. I've put them on.
 eco: You can keep them. I've got the pistol.
 mom: That gun is what got him killed.
-eco: No. The militia got him killed. The gun's what I'm getting even with.
+eco: No. Whoever shot him got him killed. The gun's what I'm getting even with.
 mom: Even isn't a thing, sweetheart. There's just more graves.
 
 [any]
@@ -91,45 +151,6 @@ eco: Why are you staring at me like that?
 mom: Just thinking. When I was your age I couldn't walk past the motor pool without three mechanics dropping their wrenches.
 eco: Mom. Please.
 mom: Your father dropped his on his own foot. Broke a toe. Married me anyway.
-eco: I am going to go stand in the lava now.
-mom: Don't sulk. You'll fill out. Maybe. Eventually.
-
-[any]
-mom: Hand me that jar on the top shelf.
-eco: You're closer to it.
-mom: I am. But if I reach up, these hips knock the whole shelf down. You don't have that problem.
-eco: Was that a compliment or an insult?
-mom: Yes.
-
-[any]
-eco: Can I borrow one of your shirts? Mine's got a hole in it.
-mom: Of course. It'll hang off you like a tent, but of course.
-eco: It will not.
-mom: Darling, I nursed two babies in that shirt. It has seen things you are not built for.
-eco: I hate this family.
-mom: You love this family. Now come here and let me take it in at the waist for you.
-
-[any]
-mom: Ophelia borrowed my bikini for the hot spring yesterday.
-eco: Did it fit her?
-mom: Nothing of mine fits anyone, dear. That's the curse of the women in this family. Well. Most of the women.
-eco: I'm standing right here.
-mom: I know, sweetheart. I can see all of you from here. It doesn't take long.
-
-[any]
-mom: Turn around. Let me look at you.
-eco: Why do I feel like this is a trap?
-mom: That suit. It doesn't leave much to the imagination, does it?
-eco: It's for mobility, Mom.
-mom: Mm. Well, you got your father's shoulders. The rest you clearly borrowed from me.
-eco: Borrowed. Wow.
-mom: Borrowed, sweetheart. I kept the good half.
-
-[any]
-eco: Why are you staring at me like that?
-mom: Just thinking. When I was your age I couldn't walk past the motor pool without three mechanics dropping their wrenches.
-eco: Mom. Please.
-mom: Your father dropped his on his own foot. Broke a toe. Married me anyway.
 eco: I'm going to go stand in the lava now.
 mom: Don't sulk. You'll fill out. Maybe. Eventually.
 
@@ -148,9 +169,143 @@ mom: Darling, I carried and fed two babies in that shirt. It has room you were n
 eco: I hate this family.
 mom: You love this family. Now come here and let me take it in at the waist for you.
 
-[any]
-mom: Ophelia borrowed my bikini for the hot spring yesterday.
-eco: Did it fit her?
-mom: Nothing of mine fits anyone, dear. That's the curse of the women in this family. Well. Most of the women.
-eco: I'm standing right here.
-mom: I know, sweetheart. I can see all of you from here. It doesn't take long.
+
+# --- Eco and Ophelia, as Mom sees it (npc_talk.gd _about_talk) ---------------
+# [about ophelia <stage>] plays once, one per hub stay, once Eco and Ophelia's
+# romance (dialogue/npc/ophelia.txt, scripts/hub/romance.gd) has got that far:
+# wary 10, friend 25, close 45, crush 65, smitten 85 affection while it's still
+# undecided; together or friends once Ophelia's last heart scene settles it;
+# dated after their first date. In file order. Mom teases, asks, and loves her.
+# Choices move Mom's bond with Eco (dialogue/family/mom.txt).
+
+[about ophelia wary]
+mom: You went into Ophelia's tent today. On purpose.
+eco: She had my wrench.
+mom: For an hour?
+eco: It was a long wrench conversation.
+mom: Mm. She has a nice voice, when she uses it. She never uses it on me.
+eco: She doesn't talk to anyone. She mostly talks at me.
+mom: That's a start, sweetheart. That's how it starts.
+
+[about ophelia friend]
+mom: Ophelia ate today. Two bowls. She said you told her to.
+eco: I told her she looked like a coat hanger. Same thing.
+mom: And she's been sitting by the map table all afternoon. Right where you can see her when you come in.
+eco: It's a good table.
+mom: Mm. It's a very good table.
+
+[about ophelia close]
+mom: I couldn't sleep last night. There was music coming out of Ophelia's tent. Sad music. And two people laughing at it.
+eco: It's a horror tape. You're supposed to laugh at the bad bits.
+mom: At two in the morning?
+eco: The bad bits are long.
+mom: You came out with eyeliner on, Eco. Wings. Very sharp ones.
+eco: ...She was practising.
+mom: On your face. Mm-hm. It suits you. Don't tell her I said that, she'll get ideas.
+
+[about ophelia crush]
+mom: Sit down a minute. Not there. Here, where I can see your face.
+eco: Am I in trouble?
+mom: You've said her name eleven times since breakfast. I counted.
+eco: Whose name?
+mom: Eco.
+eco: ...She's my friend, Mom.
+mom: I was friends with your father for about a week. Then I wasn't.
+mom: Can I ask you something, and you won't throw a wrench at me? Is it girls, for you? Only girls? Or is it just her?
+choice +4: eco: Girls. I think it's always been girls. I just never had time to say it out loud.
+> mom: Sweetheart. Come here.
+> mom: I think I knew when you were eleven. You cut the boys out of every picture and kept the girl pilots.
+> eco: They had better helmets.
+choice +3: eco: I don't know. It's her. I don't think it needs a name yet.
+> mom: It doesn't. It doesn't need anything from me but a hug and another chair at dinner.
+choice -2: eco: Mom. Can we not do this. Ever.
+> mom: All right. All right. The door's open whenever you want to walk through it.
+> mom: I'll just be over here. Counting.
+mom: Whatever it is, I love you exactly the same. That's the whole speech. I practised it.
+
+[about ophelia crush]
+mom: What does she like? Ophelia.
+eco: Why do you want to know?
+mom: Because I'm her cook, her nurse and her landlady, and I'd like to know what to put in her bowl.
+eco: Black sesame ice cream. Books where everyone dies. Tapes where everyone's already dead.
+mom: And you.
+eco: I didn't say that.
+mom: You didn't have to. You said it with your whole face.
+
+[about ophelia dated]
+mom: Where were you two last night? The gate creaked at midnight. Twice.
+eco: Scoops. Then Glowbox. She beat me at everything.
+mom: You let her win?
+eco: I did not let her win. She's terrifying on the claw machine.
+mom: You've got ice cream on your collar. Black. That's not a flavour, Eco, that's a warning.
+eco: Black sesame. It's her favourite.
+mom: And now it's yours, I suppose.
+eco: ...Shut up.
+mom: Don't tell your mother to shut up. Tell her what Ophelia said when you walked her home.
+choice +3: eco: She said it was the best night she's ever had. Then she told me to forget she said it.
+> mom: Oh, that poor girl. Don't forget it. Not ever.
+choice +1: eco: Nothing. We didn't talk. It was a nice nothing.
+> mom: The nice nothings are the ones you remember, sweetheart. Trust me.
+
+[about ophelia smitten]
+mom: The checkpoint boys asked after your goat farmer again.
+eco: Oh no.
+mom: I told them it didn't work out. You broke his heart. He's taken up drinking.
+eco: Poor guy.
+mom: So now I need a new story. Something with black lipstick, maybe.
+eco: Mom!
+mom: She's in love with you, you know. Anyone with eyes can see it. Even Biggie, and he can barely see his tea.
+choice +3: eco: ...You really think so?
+> mom: I know so. She sits up counting the hours when you're out. She told me. Then she made me swear not to tell you.
+> mom: So I didn't. You heard nothing.
+choice +1: eco: She's not in love with me. She's just... gloomy at me. A lot.
+> mom: That's how that one says it, sweetheart. Gloomy at you is a love letter.
+mom: Whatever you do with it, be kind. Nobody's ever been kind to that girl on purpose.
+
+[about ophelia together]
+mom: So.
+eco: So what?
+mom: Ophelia came to breakfast in your jacket. The one with the hole in it.
+eco: It was cold.
+mom: She was smiling, Eco. Ophelia. Smiling. At porridge.
+eco: ...We're together. Me and her. It's a thing now.
+mom: I know, sweetheart. The whole temple knows. Biggie cried into his tea.
+mom: I'm so happy for you. Bring her to dinner. Properly. She sits next to me.
+choice +4: eco: She'll come. She's scared of you, though.
+> mom: Good. A little scared is healthy. I'll make the root stew.
+choice +2: eco: Please don't interrogate her.
+> mom: I would never. I'll just ask a few questions. Lots of them. In a row.
+
+[about ophelia together]
+mom: Are you two being careful?
+eco: With the titans? Yeah, I always strap her in before I-
+mom: Eco.
+eco: Oh my god. Mom.
+mom: I'm only asking. I was young once, you know. Your father and I used to sneak off behind the motor pool and-
+eco: I'm going back out. I'll take my chances with the colony.
+mom: Wear a jacket! And tell her she can have the good quilt.
+
+[about ophelia together]
+mom: Ophelia asked me how to make the root stew. Wrote it all down. Black ink, in a little black book.
+eco: She's never cooked anything in her life.
+mom: She's trying, for you. Eat it, whatever it tastes like. Smile while you do.
+eco: Even if it's terrible?
+mom: Especially if it's terrible. That's most of what love is, sweetheart. Terrible stew and smiling.
+
+[about ophelia together]
+mom: Does she make you happy? Really happy? Not "it's fine, Mom" happy.
+eco: She makes me want to come home. Even more than before.
+mom: ...Then I owe that girl everything.
+choice +5: eco: Tell her that. She thinks you don't like her.
+> mom: Doesn't like her? I'm knitting her a scarf. A black one. Do you know how hard it is to find black wool?
+choice +2: eco: Don't get weepy. You'll set her off, and then we'll all be crying.
+> mom: Let me be weepy. I've earned it. I'm a mother with two daughters at dinner now.
+
+[about ophelia friends]
+mom: Ophelia's been quiet. Quieter. I didn't know that was possible.
+eco: We talked. We're... friends. Just friends. It's better that way.
+mom: Is it better, or is it safer?
+eco: Mom.
+mom: All right. I'll leave it. Just be gentle with her. She gave you something she's never given anyone.
+eco: I know. I am being gentle.
+mom: I know you are, sweetheart. You got that from your father, too.

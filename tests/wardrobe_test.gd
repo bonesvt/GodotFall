@@ -34,16 +34,14 @@ func _run() -> void:
 	Wardrobe.save_path = "user://test_wardrobe.cfg"
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(Wardrobe.save_path))
 
-	for who in ["mom", "ophelia"]:
-		var list := Wardrobe.outfits(who)
-		_check("%s's outfits are her model's" % who, list == HubNpc.OUTFITS[who], list)
-		_check("%s starts on changes every run" % who, Wardrobe.choice(who) == Wardrobe.ROTATE)
-		_check("%s's options lead with changes every run" % who, Wardrobe.options(who) == [Wardrobe.ROTATE] + list)
-	var eco := Wardrobe.outfits("eco")
-	_check("Eco has her suit at least, and wears it", eco.has("suit") and Wardrobe.choice("eco") == "suit", eco)
-	for who in ["eco", "mom", "ophelia"]:
-		for outfit in Wardrobe.outfits(who):
-			_check("%s: %s has a name" % [who, outfit], Wardrobe.outfit_name(outfit) != "")
+	var list := Wardrobe.outfits("ophelia")
+	_check("Ophelia's outfits are her model's", list == HubNpc.OUTFITS["ophelia"], list)
+	_check("Ophelia starts on changes every run", Wardrobe.choice("ophelia") == Wardrobe.ROTATE)
+	_check("her options lead with changes every run", Wardrobe.options("ophelia") == [Wardrobe.ROTATE] + list)
+	_check("Eco wears her suit", Wardrobe.outfits("eco").has("suit") and Wardrobe.choice("eco") == "suit")
+	_check("only people with outfits to pick get a tab", Wardrobe.people().all(func(p): return Wardrobe.outfits(p[0]).size() > 1) and Wardrobe.people().any(func(p): return p[0] == "ophelia"), Wardrobe.people())
+	for outfit in list:
+		_check("ophelia: %s has a name" % outfit, Wardrobe.outfit_name(outfit) != "")
 
 	# A pick sticks across runs; no pick rotates.
 	var stage := Node3D.new()
@@ -53,38 +51,34 @@ func _run() -> void:
 	await _ticks(2)
 	oph.wear_for_run(1)
 	_check("no pick: run 1's outfit", oph.outfit == HubNpc.OUTFITS["ophelia"][1], oph.outfit)
-	Wardrobe.choose("ophelia", "lingerie")
-	_check("the pick is saved", Wardrobe.choice("ophelia") == "lingerie")
+	Wardrobe.choose("ophelia", "night")
+	_check("the pick is saved", Wardrobe.choice("ophelia") == "night")
 	for r in [0, 1, 4]:
 		oph.wear_for_run(r)
-		_check("picked outfit worn after run %d" % r, oph.outfit == "lingerie", oph.outfit)
+		_check("picked outfit worn after run %d" % r, oph.outfit == "night", oph.outfit)
 	Wardrobe.choose("ophelia", "not_an_outfit")
-	_check("an unknown outfit isn't saved", Wardrobe.choice("ophelia") == "lingerie")
+	_check("an unknown outfit isn't saved", Wardrobe.choice("ophelia") == "night")
 	Wardrobe.choose("ophelia", Wardrobe.ROTATE)
 	oph.wear_for_run(2)
 	_check("back to changes every run", oph.outfit == HubNpc.OUTFITS["ophelia"][2], oph.outfit)
 	stage.queue_free()
 
 	# The screen.
-	var screen := WardrobeScreen.new(3)
+	var screen := WardrobeScreen.new(4)
 	root.add_child(screen)
 	await _ticks(3)
-	_check("screen opens on Eco", screen.who() == "eco" and screen.kind == "wardrobe")
-	screen.switch_person(1)
-	_check("next is Mom", screen.who() == "mom")
-	screen.select(Wardrobe.options("mom").find("bikini"))
-	_check("picking an outfit saves it", screen.confirm() and Wardrobe.choice("mom") == "bikini")
+	var tabs: Array = Wardrobe.people().map(func(p): return p[0])
+	screen.person = tabs.find("ophelia")
+	screen.switch_person(0)
+	_check("screen shows Ophelia", screen.who() == "ophelia" and screen.kind == "wardrobe")
+	screen.select(Wardrobe.options("ophelia").find("hoodie"))
+	_check("picking an outfit saves it", screen.confirm() and Wardrobe.choice("ophelia") == "hoodie")
 	_check("picking it again changes nothing", not screen.confirm())
-	_check("the change is listed for the run manager", screen.changed == [["mom", "bikini"]], screen.changed)
+	_check("the change is listed for the run manager", screen.changed == [["ophelia", "hoodie"]], screen.changed)
 	var preview: Node = screen._model
-	_check("Mom on the turntable in her bikini", preview != null and preview.outfit == "bikini", preview.outfit if preview != null else null)
+	_check("Ophelia on the turntable in her hoodie", preview != null and preview.outfit == "hoodie", preview.outfit if preview != null else null)
 	screen.select(0)
-	_check("changes every run previews this run's outfit", preview.outfit == HubNpc.OUTFITS["mom"][3 % HubNpc.OUTFITS["mom"].size()], preview.outfit)
-	screen.switch_person(1)
-	await _ticks(1)
-	_check("then Ophelia, on her own model", screen.who() == "ophelia" and screen._model.who == "ophelia")
-	screen.switch_person(1)
-	_check("and round to Eco", screen.who() == "eco")
+	_check("changes every run previews this run's outfit", preview.outfit == list[4 % list.size()], preview.outfit)
 	screen.queue_free()
 
 	# In the hub.

@@ -172,7 +172,7 @@ func _stage(kind: String) -> void:
 	eco.name = "EcoScene"
 	eco.set("idle_motion", false)
 	add_child(eco)
-	_dress(eco, "casual" if kind == "cuddle" else "sleep")
+	_dress(eco, "skater" if kind == "cuddle" else "sleep")
 	_camera = Camera3D.new()
 	_camera.fov = 55.0
 	add_child(_camera)

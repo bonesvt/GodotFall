@@ -26,7 +26,7 @@ const FRIENDS_AT := 25
 const SHOPKEEPER := [
 	"Auntie Pim: \"For someone special? Don't tell me. I'll guess.\"",
 	"Auntie Pim: \"Your father bought your mother candles here every winter. Good taste runs in families.\"",
-	"Auntie Pim: \"Militia boys come in for perfume. For whom, I don't ask.\"",
+	"Auntie Pim: \"The checkpoint boys come in for perfume. For whom, I don't ask.\"",
 ]
 
 var armory: Armory

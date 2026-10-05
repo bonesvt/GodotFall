@@ -1,6 +1,6 @@
 extends SceneTree
 ## Headless test for the people in the hub (Mom, Ophelia, Biggie): each stands
-## in their room, Eco can walk in through the door, F starts a talk that opens
+## in their tent, Eco can walk in through the door, F starts a talk that opens
 ## with their intro, F moves it on, walking off ends it, a finished run gets a
 ## reaction, and every line babbles in its speaker's voice.
 ## Run: godot --headless --path . -s res://tests/npc_test.gd
@@ -8,14 +8,12 @@ extends SceneTree
 const Rooms := preload("res://scripts/hub/hub_rooms.gd")
 const NpcTalk := preload("res://scripts/hub/npc_talk.gd")
 const Babble := preload("res://scripts/hub/babble.gd")
+const Wardrobe := preload("res://scripts/hub/wardrobe.gd")
+const ContentRating := preload("res://scripts/radio/content_rating.gd")
 
 const WHO := ["mom", "ophelia", "biggie"]
-## Where Eco stands in the hall to walk through each door, and which way is in.
-const DOORS := {
-	"mom": [Vector3(-10.5, Rooms.F, Rooms.MOM_DOOR_Z), Vector3(-1, 0, 0)],
-	"ophelia": [Vector3(Rooms.OPHELIA_DOOR_X, Rooms.F, -29.5), Vector3(0, 0, -1)],
-	"biggie": [Vector3(Rooms.BIGGIE_DOOR_X, Rooms.F, -29.5), Vector3(0, 0, -1)],
-}
+## Where Eco stands on each tent's porch to walk in, and which way is in.
+var DOORS := {"mom": Rooms.doorstep("mom"), "ophelia": Rooms.doorstep("ophelia"), "biggie": Rooms.doorstep("biggie")}
 
 var run_node
 var player
@@ -27,7 +25,8 @@ func _initialize() -> void:
 	run_node.run_seed = 7
 	run_node.armory_path = "user://test_npc_armory.cfg"
 	run_node.npc_path = "user://test_npcs.cfg"
-	for p in [run_node.armory_path, run_node.npc_path]:
+	Wardrobe.save_path = "user://test_npc_wardrobe.cfg"   # not the player's own picks
+	for p in [run_node.armory_path, run_node.npc_path, Wardrobe.save_path]:
 		DirAccess.remove_absolute(ProjectSettings.globalize_path(p))
 	root.add_child(run_node)
 	_run.call_deferred()
@@ -63,7 +62,30 @@ func _run() -> void:
 		for i in range(1, list.size()):
 			if not ResourceLoader.exists("res://assets/textures/npc/%s/body_%s.png" % [who, list[i]]):
 				gone.append(list[i])
-		_check("%s has all %d outfits" % [who, list.size()], gone.is_empty() and list.has("lingerie"), gone)
+		_check("%s has all %d outfits" % [who, list.size()], gone.is_empty() and list.has("night"), gone)
+		# nightwear meshes show only at night, and the boots come off
+		var npc: Node = run_node.hub_npcs[who]
+		var before: String = npc.outfit
+		var meshes: Array = npc.find_children("Outfit_night_*", "MeshInstance3D", true, false)
+		var boots: Array = npc.find_children("Boots*", "MeshInstance3D", true, false)
+		npc.wear("night")
+		_check("%s's nightwear meshes show at night" % who, not meshes.is_empty() and meshes.all(func(m): return m.visible) and boots.all(func(b): return not b.visible), [meshes.size(), boots.size()])
+		npc.wear(list[0])
+		_check("%s's nightwear meshes hide by day" % who, meshes.all(func(m): return not m.visible) and boots.all(func(b): return b.visible), npc.outfit)
+		npc.wear(before)
+
+	# Ophelia's piercings: only with the rating on Mature
+	var oph_p: Node = run_node.hub_npcs["ophelia"]
+	var bars: Array = oph_p.find_children("Piercings*", "MeshInstance3D", true, false)
+	var was := ContentRating.current()
+	ContentRating.set_rating("T", false)
+	oph_p._process(0.0)
+	_check("Ophelia's piercings hidden on Teen", not bars.is_empty() and bars.all(func(b): return not b.visible), bars.size())
+	ContentRating.set_rating("M", false)
+	oph_p._process(0.0)
+	_check("Ophelia's piercings show on Mature", not bars.is_empty() and bars.all(func(b): return b.visible), bars.size())
+	ContentRating.set_rating(was, false)
+	oph_p._process(0.0)
 
 	# Every line in every conversation babbles, one beat per character.
 	var missing := []
@@ -71,7 +93,7 @@ func _run() -> void:
 	for who in WHO:
 		var b: Dictionary = run_node.npc_talk.bank(who)
 		_check("%s has intro, won, lost and chat" % who, b.has("intro") and b.has("won") and b.has("lost") and b["any"].size() >= 3, b.keys())
-		var convs: Array = b["any"].duplicate()
+		var convs: Array = b["any"] + b["excuse"]
 		for tag in ["intro", "won", "lost"]:
 			convs.append(b.get(tag, []))
 		for conv in convs:
@@ -81,12 +103,32 @@ func _run() -> void:
 				if babble["stream"].data.size() < 2000 or babble["times"].size() != line[1].length() + 1:
 					missing.append(line)
 	_check("every line babbles (%d lines)" % count, missing.is_empty() and count > 60, missing.slice(0, 3))
+	# Mom's running gag: the first talk home after each run ends with the next
+	# excuse she gave the town, in order; once they run out the last three cycle.
+	var talk: NpcTalk = NpcTalk.new()
+	talk.save_path = "user://npc_test_excuses.cfg"
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(talk.save_path))
+	root.add_child(talk)
+	var excuses: Array = talk.bank("mom")["excuse"]
+	_check("Mom has her excuses", excuses.size() >= 6 and talk.bank("biggie")["excuse"].is_empty(), excuses.size())
+	talk.pick("mom", 0, false)
+	var homes := []
+	for run in range(1, excuses.size() + 5):
+		var conv: Array = talk.pick("mom", run, run % 2 == 0)
+		var won_lost: Array = talk.bank("mom")["won" if run % 2 == 0 else "lost"]
+		homes.append(conv.slice(won_lost.size()))
+	var in_order := range(excuses.size()).all(func(i): return homes[i] == excuses[i])
+	var tail: Array = homes.slice(excuses.size())
+	_check("an excuse after every run home, in order", in_order, homes.size())
+	_check("then the last three take turns", tail[0] == excuses[-3] and tail[1] == excuses[-2] and tail[2] == excuses[-1] and tail[3] == excuses[-3], tail.size())
+	_check("no excuse twice in one stay", not excuses.has(talk.pick("mom", excuses.size() + 4, true).slice(talk.bank("mom")["won"].size())), "")
+	talk.queue_free()
 	var low: float = Babble.VOICES["biggie"]["pitch"]
 	_check("each has their own voice", low < Babble.VOICES["mom"]["pitch"] and Babble.VOICES["mom"]["pitch"] < Babble.VOICES["eco"]["pitch"], low)
 
 	for who in WHO:
 		var npc = run_node.hub_npcs[who]
-		# Walk in through the door from the hall until they're in talking range.
+		# Walk in through the door from the porch until they're in talking range.
 		var door: Array = DOORS[who]
 		_place(door[0] + Vector3(0, 0.3, 0))
 		await _ticks(20)

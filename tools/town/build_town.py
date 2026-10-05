@@ -504,7 +504,7 @@ def gate_arch():
 
 
 def checkpoint():
-    """Militia checkpoint booth with a raised boom, a flagpole and a barrier."""
+    """Army checkpoint booth (the town's own army, not the colony) with a raised boom, a flagpole and a barrier."""
     m = Model("checkpoint", 19)
     m.box("base", (0, 0, 1.4), (2.6, 2.6, 2.8), bevel=0.06)
     m.box("glass_dark", (-1.31, 0, 1.9), (0.04, 2.0, 0.9))

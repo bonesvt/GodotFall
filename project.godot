@@ -30,6 +30,10 @@ ps3_look={
 "type": "float",
 "value": 1.0
 }
+anime_look={
+"type": "float",
+"value": 1.0
+}
 
 [rendering]
 

@@ -17,14 +17,14 @@ const Art := preload("res://scripts/ps2/ps2_assets.gd")
 const CATALOG := {
 	"book": ["Water-stained paperback", "A paperback. Somebody died reading it, probably. She'll love it."],
 	"eyeliner": ["Black eyeliner pencil", "Black eyeliner. Barely used. Ophelia goes through these."],
-	"black_lipstick": ["Black lipstick", "Black lipstick. In a militia locker. Somebody had secrets."],
+	"black_lipstick": ["Black lipstick", "Black lipstick. In a colony locker. Somebody had secrets."],
 	"cigarettes": ["Pack of smokes", "A full pack of smokes. Mom's going to kill me."],
 	"tape": ["Cassette of sad songs", "A mixtape. Track one is called 'Bury Me Twice'. Perfect."],
 	"horror_movie": ["Horror film reel", "A horror reel. The box says 'banned in three provinces'."],
 	"candles": ["Box of black candles", "Black candles. For the girl who lives in the dark."],
 	"arcade_tokens": ["Glowbox tokens", "A roll of Glowbox tokens. That's a date, right there."],
 	"flowers": ["Wild flowers", "Flowers. Pretty. Ophelia's going to hate these, isn't she."],
-	"perfume": ["Officer's perfume", "Militia officer's perfume. Smells like money and bad decisions."],
+	"perfume": ["Officer's perfume", "Colony officer's perfume. Smells like money and bad decisions."],
 	"makeup": ["Midnight makeup palette", "A whole palette of dark shades. Off-world. She'll pretend not to care."],
 	"records": ["Gloom rock vinyl", "A record. Pre-war gloom rock. Ophelia's going to play it until it wears through."],
 }
