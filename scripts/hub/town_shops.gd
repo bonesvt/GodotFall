@@ -8,6 +8,8 @@ extends RefCounted
 ##   Ink & Iron           piercings and tattoos (eco_extras.gd puts them on her)
 ##   Stitch & Steel       accessories (eco_extras.gd), and a fitting room for her outfits
 ## Prices are in her materials (armory.gd). Everything is saved to save_path.
+## Entries marked "mature" (here and in eco_extras.gd) are only on sale while
+## the content rating is Mature (content_rating.gd): see available().
 ##
 ## The boosts ride on her suit's profile (armory.gd suit_profile, which
 ## player.gd apply_suit reads): boost() adds the meal waiting for the next run
@@ -15,6 +17,7 @@ extends RefCounted
 
 const Armory := preload("res://scripts/hub/armory.gd")
 const Extras := preload("res://scripts/hub/eco_extras.gd")
+const ContentRating := preload("res://scripts/radio/content_rating.gd")
 
 ## Where purchases are saved.
 static var save_path := "user://town.cfg"
@@ -37,6 +40,9 @@ const MEALS := {
 	"sticky_parcels": {"name": "Sticky rice parcels", "cost": {"scrap": 14},
 		"blurb": "Wrapped in leaves, three to a string. Health starts coming back 1 s sooner next run.",
 		"boost": {"regen_delay_add": -1.0}},
+	"firewater": {"name": "Hiro's firewater", "cost": {"scrap": 18}, "mature": true,
+		"blurb": "A shot of something Hiro brews behind the stall, and a bowl to soak it up. Guns hit 10% harder next run, but she's louder: grunts notice her 15% sooner.",
+		"boost": {"damage_mult": 1.1, "notice_mult": 1.15}},
 }
 
 const IMPLANTS := {
@@ -76,20 +82,25 @@ const DATES := {
 	"ice_cream": {"name": "Scoops", "cost": {"scrap": 5}},
 	"garden": {"name": "the rooftop garden", "cost": {}},
 	"noodles": {"name": "Seven Suns", "cost": {"scrap": 8}},
+	"bar": {"name": "the Rusted Halo", "cost": {"scrap": 15}, "mature": true},
 }
 
 ## Ink & Iron's prices (what each looks like: eco_extras.gd).
 const PIERCING_COST := {
 	"lobes": {"scrap": 10}, "lobe_hoops": {"scrap": 15}, "helix": {"scrap": 20}, "nose_stud": {"scrap": 15},
 	"septum": {"scrap": 20}, "brow": {"scrap": 20},
+	"snakebites": {"scrap": 25}, "bridge": {"scrap": 25}, "navel": {"scrap": 20, "alloy": 2},
 }
 const TATTOO_COST := {
 	"precursor": {"scrap": 45, "alloy": 8}, "cry_anyway": {"scrap": 40, "alloy": 5}, "fern_band": {"scrap": 60, "alloy": 12},
 	"swallows": {"scrap": 45, "alloy": 6}, "sun_tree": {"scrap": 55, "alloy": 10}, "stars": {"scrap": 30, "alloy": 4},
 	"heart_bolt": {"scrap": 40, "alloy": 6}, "wrench": {"scrap": 40, "alloy": 6},
+	"tally": {"scrap": 35, "alloy": 4}, "lower_back": {"scrap": 65, "alloy": 12}, "hip_moth": {"scrap": 50, "alloy": 8},
+	"thigh_snake": {"scrap": 60, "alloy": 10},
 }
 const ACCESSORY_COST := {
 	"shades": {"scrap": 25}, "visor": {"scrap": 35, "alloy": 6}, "beanie": {"scrap": 20}, "bandana": {"scrap": 15},
+	"choker": {"scrap": 20, "alloy": 3},
 }
 
 ## What each kind of thing is called in the save file, and its catalogue.
@@ -147,10 +158,30 @@ static func price(kind: String, id: String) -> Dictionary:
 	return {}
 
 
+## Whether `id` of `kind` is on sale under the current content rating
+## (Mature-only entries need Mature). Kinds as price(), plus "dates".
+static func available(kind: String, id: String) -> bool:
+	var entry: Dictionary = {}
+	match kind:
+		"piercings":
+			entry = Extras.PIERCINGS.get(id, {})
+		"tattoos":
+			entry = Extras.TATTOOS.get(id, {})
+		"accessories":
+			entry = Extras.ACCESSORIES.get(id, {})
+		"implants":
+			entry = IMPLANTS.get(id, {})
+		"meals":
+			entry = MEALS.get(id, {})
+		"dates":
+			entry = DATES.get(id, {})
+	return not entry.is_empty() and (not entry.get("mature", false) or ContentRating.current() == "M")
+
+
 ## Pays for something and keeps it (and puts it on). False if she owns it
 ## already or can't pay.
 static func buy(armory: Armory, kind: String, id: String) -> bool:
-	if owns(kind, id) or price(kind, id).is_empty() or not armory._spend(price(kind, id)):
+	if owns(kind, id) or price(kind, id).is_empty() or not available(kind, id) or not armory._spend(price(kind, id)):
 		return false
 	armory.save()
 	var list := owned(kind)
@@ -192,7 +223,7 @@ static func meal() -> String:
 
 ## Buys a meal for the next run (replacing one already eaten, which is wasted).
 static func buy_meal(armory: Armory, id: String) -> bool:
-	if not MEALS.has(id) or not armory._spend(MEALS[id]["cost"]):
+	if not available("meals", id) or not armory._spend(MEALS[id]["cost"]):
 		return false
 	armory.save()
 	var cfg := _cfg()
@@ -227,7 +258,7 @@ static func trade(armory: Armory, id: String) -> bool:
 static func boosts() -> Array:
 	var out := []
 	var m := meal()
-	if MEALS.has(m):
+	if available("meals", m):
 		out.append(MEALS[m]["boost"])
 	for id in owned("implants"):
 		if IMPLANTS.has(id):

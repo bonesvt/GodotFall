@@ -136,6 +136,12 @@ Down the pilgrim road past the front gate, Eco's hometown sells her things for h
 - **Dates**: once Ophelia is ready for one, the Greenhouse Cafe, Glowbox Arcade, Holo-Cinema,
   Scoops, the rooftop garden and the Seven Suns stall each say "Take Ophelia on a date". One date
   between runs; her lines are `[date <place>]` in `dialogue/npc/ophelia.txt`.
+- **Mature only** (Settings > Game > rating set to Mature; tagged **M** on the shelves): snakebite
+  lip rings, a bridge bar, a belly ring (shows only with a bare stomach), a spiked choker, tattoos
+  on the forearm (a tally), small of the back, side of the waist and outer thigh, Hiro's firewater
+  (harder hits, louder), and Mature cuts of every date (`[date <place> m]`: flirtier, a drink, a
+  kiss, then the night fades out) plus a date at the Rusted Halo. Switched back to Teen, none of it
+  shows or sells, and Eco keeps it for later.
 Close-ups: `xvfb-run -a godot --path . --rendering-driver opengl3 -s res://tools/ink/ink_shots.gd
 -- <dir> --pierce=all --ink=all`, and `tools/ink/shop_shots.gd` for the counters. Test:
 `tests/town_shops_test.gd`.

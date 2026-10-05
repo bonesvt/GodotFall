@@ -600,7 +600,7 @@ func romance_partners() -> Array:
 func date_at(spot: Dictionary) -> bool:
 	var place: String = spot["date"]
 	var who := date_partner()
-	if who == "":
+	if who == "" or not TownShops.available("dates", place):
 		return false
 	var npc: Node3D = hub_npcs[who]
 	var name := String(NpcTalk.NAMES.get(who, who)).capitalize()
@@ -731,7 +731,7 @@ func dress_hub() -> void:
 			if not spot.has("base_prompt"):
 				spot["base_prompt"] = spot["prompt"]
 			var place: Dictionary = TownShops.DATES.get(spot["date"], {})
-			spot["prompt"] = spot["base_prompt"] if partner == "" else "[F] Take %s on a date at %s (%s)" % [
+			spot["prompt"] = spot["base_prompt"] if partner == "" or not TownShops.available("dates", spot["date"]) else "[F] Take %s on a date at %s (%s)" % [
 					String(NpcTalk.NAMES.get(partner, partner)).capitalize(), place.get("name", "here"), Armory.cost_text(place.get("cost", {}))]
 	var marker: Node3D = zone_info.get("tutorial_marker")
 	if marker != null:

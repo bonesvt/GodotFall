@@ -20,6 +20,12 @@ const VIEWS := {
 	"arm_r": [Vector3(0.36, 1.75, -0.2), Vector3(0.36, 1.34, 0.0)],
 	"chest": [Vector3(-0.05, 1.36, -0.45), Vector3(-0.05, 1.33, 0)],
 	"back": [Vector3(0.05, 1.3, 0.55), Vector3(0.05, 1.28, 0)],
+	"mouth": [Vector3(0.08, 1.49, -0.26), Vector3(0, 1.48, 0)],
+	"neck": [Vector3(0.1, 1.44, -0.4), Vector3(0, 1.42, 0)],
+	"navel": [Vector3(0.08, 1.1, -0.42), Vector3(0, 1.06, 0)],
+	"small_back": [Vector3(0.0, 1.1, 0.6), Vector3(0, 1.04, 0)],
+	"hip_l": [Vector3(-0.6, 1.08, -0.15), Vector3(-0.08, 1.04, 0)],
+	"thigh_r": [Vector3(0.7, 0.7, -0.15), Vector3(0.1, 0.62, 0)],
 }
 
 var out := "user://ink_shots"

@@ -43,6 +43,7 @@ const Family := preload("res://scripts/hub/family.gd")
 const FAMILY_DIR := "res://dialogue/family/"
 const Gifts := preload("res://scripts/run/gifts.gd")
 const NpcIdles := preload("res://scripts/hub/npc_idles.gd")
+const ContentRating := preload("res://scripts/radio/content_rating.gd")
 ## Where the gift bag lives in the save file.
 const BAG := "_bag"
 ## How long a line stays up after it's all been said.
@@ -110,11 +111,12 @@ func active() -> bool:
 
 ## Parses dialogue/npc/<who>.txt: {"intro": [...], "won": [...], "lost": [...],
 ## "any": [[...], ...], "together": [[...], ...], "heart": [{at, lines}, ...],
-## "date": {place: [...]}, "gift": {item: [...]}, "romance": [[key, value], ...]},
+## "date": {place: [...]}, "date_m": {place: [...]} (the Mature cut of a date,
+## [date <place> m]), "gift": {item: [...]}, "romance": [[key, value], ...]},
 ## each conversation a list of [speaker, text] lines and {"choice": [{delta,
 ## flag, lines}, ...]} questions.
 static func parse(text: String) -> Dictionary:
-	var bank := {"any": [], "together": [], "flirt": [], "heart": [], "date": {}, "gift": {}, "spot": {},
+	var bank := {"any": [], "together": [], "flirt": [], "heart": [], "date": {}, "date_m": {}, "gift": {}, "spot": {},
 		"bond": [], "close": [], "soft": [], "cuddle": [], "sick": [], "excuse": [], "about": []}
 	var cur: Array = []
 	var choice_re := RegEx.create_from_string("^choice\\s*([+-]?\\d+)?\\s*(?:!(\\w+))?\\s*:\\s*(\\w+(?:\\s*\\([^)]*\\))?)\\s*:\\s*(.+)$")
@@ -138,7 +140,9 @@ static func parse(text: String) -> Dictionary:
 					# else's romance with Eco once it gets that far
 					bank["about"].append({"who": parts[1] if parts.size() > 1 else "", "stage": parts[2] if parts.size() > 2 else "", "lines": cur})
 				"date", "gift":
-					bank[parts[0]][parts[1] if parts.size() > 1 else "any"] = cur
+					# [date cafe m]: the Mature cut of that date
+					var key: String = parts[0] + ("_m" if parts[0] == "date" and parts.size() > 2 and parts[2] == "m" else "")
+					bank[key][parts[1] if parts.size() > 1 else "any"] = cur
 				"spot":
 					# [spot yoga] / [spot yoga flirt]: talks about what they're
 					# doing at that idle spot (npc_idles.gd), flirty ones once
@@ -450,7 +454,8 @@ func _play(p_npc: Node3D, p_lines: Array) -> void:
 
 
 ## A date with them at `place` (a hook for date spots outside the hub). Plays
-## their [date <place>] lines, else [date any], and raises affection once per
+## their [date <place>] lines (the [date <place> m] cut when the content rating
+## is Mature and they have one), else [date any], and raises affection once per
 ## run. False if they won't go yet (see Romance.can_date).
 func date(p_npc: Node3D, place: String, run_id: int) -> bool:
 	stop()
@@ -461,9 +466,16 @@ func date(p_npc: Node3D, place: String, run_id: int) -> bool:
 	if int(state.get_value(who, "date_run", -1)) != run_id:
 		state.set_value(who, "date_run", run_id)
 		_add_affection(who, Romance.DATE_GAIN)
-	_play(p_npc, b["date"].get(place, b["date"].get("any", [])))
+	_play(p_npc, date_lines(b, place))
 	_scene_start()
 	return true
+
+
+## The lines for a date at `place` from a parsed bank, by content rating.
+static func date_lines(b: Dictionary, place: String) -> Array:
+	if ContentRating.current() == "M" and b.get("date_m", {}).has(place):
+		return b["date_m"][place]
+	return b["date"].get(place, b["date"].get("any", []))
 
 
 ## Eco gives them `gift` (an item id; a hook for shops and loot). Their taste

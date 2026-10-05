@@ -10,7 +10,7 @@ tattoo only shows where her outfit leaves skin bare.
 
 Needs numpy and pillow, and the body mesh dumped by Godot first:
     godot --headless --path . -s res://tools/ink/dump_body.gd -- /tmp/ink
-    python3 tools/ink/build_tattoos.py /tmp/ink [--preview out.png]
+    python3 tools/ink/build_tattoos.py /tmp/ink [--preview out.png] [--only=tally,hip_moth]
 Coordinates are Godot's, model space, rest pose: she faces -Z, her left is -X,
 arms out along X at y 1.354 (T-pose, palms down).
 """
@@ -49,6 +49,11 @@ PLACES = {
     "stars": {"mode": "decal", "c": v3(-0.05, 1.43, 0.012), "n": v3(-1, 0, 0.15), "right": v3(0, 0, 1), "w": 0.045, "h": 0.056, "depth": 0.03},
     "heart_bolt": {"mode": "decal", "c": v3(0.16, 1.385, 0.026), "n": v3(0, 1, 0), "right": v3(0, 0, -1), "w": 0.06, "h": 0.06, "depth": 0.04},
     "wrench": {"mode": "decal", "c": v3(0.525, 1.37, 0.026), "n": v3(0, 1, 0), "right": v3(0, 0, -1), "w": 0.056, "h": 0.056, "depth": 0.04},
+    # Mature only (eco_extras.gd "mature"): all well clear of the always-covered zones.
+    "tally": {"mode": "decal", "c": v3(0.41, 1.372, 0.026), "n": v3(0, 1, 0), "right": v3(1, 0, 0), "w": 0.13, "h": 0.04, "depth": 0.035},
+    "lower_back": {"mode": "decal", "c": v3(0.0, 1.06, 0.046), "n": v3(0, 0.3, 1), "right": v3(1, 0, 0), "w": 0.16, "h": 0.056, "depth": 0.035},
+    "hip_moth": {"mode": "decal", "c": v3(-0.11, 1.05, 0.0), "n": v3(-1, 0.1, -0.1), "right": v3(0, 0, 1), "w": 0.07, "h": 0.06, "depth": 0.035},
+    "thigh_snake": {"mode": "decal", "c": v3(0.125, 0.6, 0.0), "n": v3(1, 0, 0), "right": v3(0, 0, -1), "w": 0.07, "h": 0.17, "depth": 0.04},
 }
 
 
@@ -190,8 +195,86 @@ def wrench():
     return img
 
 
+def tally():
+    """Five gates of five: one mark for every colony grunt."""
+    img, d = canvas(640, 200)
+    for g in range(5):
+        x0 = 30 + g * 122
+        for k in range(4):
+            x = x0 + k * 22 + (k % 2) * 3
+            d.line([(x, 40 + (k * 7) % 11), (x + 4, 160 - (k * 5) % 9)], fill=INK + (255,), width=11)
+        d.line([(x0 - 12, 140), (x0 + 84, 58)], fill=RED + (255,) if g == 4 else INK + (255,), width=11)
+    return img
+
+
+def lower_back():
+    """The temple spiral with a wing either side, across the small of her back."""
+    img, d = canvas(768, 272)
+    c, cy = 384, 136
+    d.ellipse([c - 62, cy - 62, c + 62, cy + 62], outline=INK + (255,), width=12)
+    pts = []
+    for i in range(240):
+        t = i / 240 * 2.6 * math.pi
+        r = 8 + t * 6.5
+        pts.append((c + math.cos(t) * r, cy + math.sin(t) * r))
+    d.line(pts, fill=TEAL + (255,), width=9, joint="curve")
+    for s in (-1, 1):
+        for k in range(6):
+            # feathers fanning out and down, longest at the top
+            length = 290 - k * 34
+            a0 = math.radians(-14 + k * 11)
+            x0 = c + s * 74
+            y0 = cy - 30 + k * 12
+            tip = (x0 + s * math.cos(a0) * length, y0 + math.sin(a0) * length * 0.55)
+            mid = (x0 + s * math.cos(a0) * length * 0.55, y0 + math.sin(a0) * length * 0.3 - 26)
+            d.line([(x0, y0), mid, tip], fill=INK + (255,), width=12 - k, joint="curve")
+            d.ellipse([tip[0] - 6, tip[1] - 6, tip[0] + 6, tip[1] + 6], fill=INK + (255,))
+    return img
+
+
+def hip_moth():
+    """A death's-head moth: four wings, a little skull on its back."""
+    img, d = canvas(512, 444)
+    c, cy = 256, 222
+    for s in (-1, 1):
+        upper = [(c + s * 18, cy - 20), (c + s * 230, cy - 150), (c + s * 245, cy - 40), (c + s * 30, cy + 10)]
+        lower = [(c + s * 22, cy + 10), (c + s * 170, cy + 40), (c + s * 120, cy + 150), (c + s * 16, cy + 60)]
+        d.polygon(upper, fill=(60, 52, 64, 255), outline=INK + (255,), width=10)
+        d.polygon(lower, fill=(150, 110, 60, 255), outline=INK + (255,), width=10)
+        d.line([(c + s * 40, cy - 20), (c + s * 200, cy - 110)], fill=INK + (255,), width=6)
+        d.line([(c + s * 8, cy - 70), (c + s * 70, cy - 190)], fill=INK + (255,), width=6)
+    d.ellipse([c - 24, cy - 70, c + 24, cy + 140], fill=INK + (255,))
+    d.ellipse([c - 18, cy - 50, c + 18, cy - 10], fill=(230, 220, 190, 255))
+    for x in (c - 8, c + 8):
+        d.ellipse([x - 5, cy - 40, x + 5, cy - 30], fill=INK + (255,))
+    return img
+
+
+def thigh_snake():
+    """Sailor flash: a snake winding down a dagger."""
+    img, d = canvas(280, 680)
+    c = 140
+    d.polygon([(c - 22, 170), (c + 22, 170), (c, 640)], fill=(205, 210, 220, 255), outline=INK + (255,), width=9)
+    d.line([(c, 180), (c, 600)], fill=INK + (255,), width=4)
+    d.rectangle([c - 70, 150, c + 70, 172], fill=INK + (255,))
+    d.rectangle([c - 14, 60, c + 14, 150], fill=(120, 60, 40, 255), outline=INK + (255,), width=6)
+    d.ellipse([c - 22, 30, c + 22, 72], fill=RED + (255,), outline=INK + (255,), width=6)
+    pts = []
+    for i in range(200):
+        t = i / 200
+        pts.append((c + math.sin(t * 3.4 * math.pi) * 62, 120 + t * 470))
+    d.line(pts, fill=INK + (255,), width=30, joint="curve")
+    d.line(pts, fill=(60, 150, 80, 255), width=16, joint="curve")
+    hx, hy = pts[0]
+    d.ellipse([hx - 30, hy - 26, hx + 30, hy + 22], fill=(60, 150, 80, 255), outline=INK + (255,), width=7)
+    d.line([(hx + 26, hy), (hx + 52, hy - 6), (hx + 60, hy - 14)], fill=RED + (255,), width=5)
+    d.ellipse([hx + 4, hy - 12, hx + 14, hy - 2], fill=INK + (255,))
+    return img
+
+
 DESIGNS = {"precursor": precursor, "cry_anyway": cry_anyway, "fern_band": fern_band, "swallows": swallows,
-           "sun_tree": sun_tree, "stars": stars, "heart_bolt": heart_bolt, "wrench": wrench}
+           "sun_tree": sun_tree, "stars": stars, "heart_bolt": heart_bolt, "wrench": wrench,
+           "tally": tally, "lower_back": lower_back, "hip_moth": hip_moth, "thigh_snake": thigh_snake}
 
 
 # --- projection ------------------------------------------------------------------
@@ -304,7 +387,8 @@ def bake(tid, mesh):
 def main():
     dump = sys.argv[1] if len(sys.argv) > 1 else "/tmp/ink"
     mesh = load(dump)
-    imgs = [bake(t, mesh) for t in PLACES]
+    only = [a.split("=", 1)[1].split(",") for a in sys.argv if a.startswith("--only=")]
+    imgs = [bake(t, mesh) for t in PLACES if not only or t in only[0]]
     if "--preview" in sys.argv:
         prev = Image.open(os.path.join(ROOT, "assets", "textures", "eco", "v_body.png")).convert("RGBA").resize((SIZE, SIZE))
         for img in imgs:

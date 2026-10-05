@@ -207,6 +207,14 @@ func switch_tab(dir: int) -> void:
 # --- what's on the shelf -------------------------------------------------------
 
 func _ids() -> Array:
+	var k := tab_kind()
+	if k in ["meals", "implants", "piercings", "tattoos", "accessories"]:
+		return _shelf().filter(func(id): return Shops.available(k, id))
+	return _shelf()
+
+
+## Everything the shop stocks, Mature-only things included.
+func _shelf() -> Array:
 	match tab_kind():
 		"meals":
 			return Shops.MEALS.keys()
@@ -359,6 +367,20 @@ func _status_line() -> String:
 	return ""
 
 
+## Whether a row is a Mature-only thing (tagged "M" on the shelf).
+func _mature(id: String) -> bool:
+	match tab_kind():
+		"meals":
+			return Shops.MEALS[id].get("mature", false)
+		"piercings":
+			return Extras.PIERCINGS[id].get("mature", false)
+		"tattoos":
+			return Extras.TATTOOS[id].get("mature", false)
+		"accessories":
+			return Extras.ACCESSORIES[id].get("mature", false)
+	return false
+
+
 func _row_view(i: int) -> PanelContainer:
 	var id: String = rows[i]
 	var on := i == selected
@@ -371,6 +393,8 @@ func _row_view(i: int) -> PanelContainer:
 	var label := _text(item_name(id), 17, color if on else INK)
 	label.custom_minimum_size = Vector2(260, 0)
 	line.add_child(label)
+	if _mature(id):
+		line.add_child(_text("M", 13, Color(0.95, 0.4, 0.45)))
 	var state := _row_state(id)
 	var r := _text(state[0], 15, state[1])
 	r.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -429,6 +453,12 @@ func _frame(id: String) -> void:
 		"piercings", "accessories":
 			at = Vector3(0, 1.5, 0)
 			from = Vector3(0.12 if id != "helix" else 0.32, 1.53, 0.42)
+			if id == "navel":
+				at = Vector3(0, 1.06, 0)
+				from = Vector3(0.15, 1.12, 0.6)
+			elif id == "choker":
+				at = Vector3(0, 1.42, 0)
+				from = Vector3(0.15, 1.46, 0.5)
 		"tattoos":
 			var where: String = Extras.TATTOOS[id]["where"]
 			at = Vector3(0, 1.25, 0)
@@ -442,6 +472,15 @@ func _frame(id: String) -> void:
 			if where.contains("neck"):
 				at = Vector3(0, 1.45, 0)
 				from = Vector3(0.55, 1.5, 0.5)
+			if where.contains("hip"):
+				at = Vector3(0, 0.95, 0)
+				from = Vector3(0.9, 1.0, 0.25)
+			elif where.contains("thigh"):
+				at = Vector3(0, 0.65, 0)
+				from = Vector3(-0.9, 0.75, 0.3)
+			elif where.contains("back"):
+				at = Vector3(0, 1.0, 0)
+				from = Vector3(0, 1.08, -1.0)
 	_camera.look_at_from_position(from, at)
 
 

@@ -6,7 +6,9 @@ extends SceneTree
 ## counting as salvage; piercings, tattoos and accessories are bought, worn and
 ## taken off (one accessory per slot), and show on Eco's model: head pieces
 ## on her head bone, the tattoo texture on her body material, no goggles
-## under a beanie; every shop screen opens and sells.
+## under a beanie; every shop screen opens and sells. Mature-only things
+## (tattoos, piercings, the choker, firewater, the Rusted Halo date and the
+## Mature cuts of Ophelia's dates) only show and sell under the Mature rating.
 ## Run: godot --headless --path . -s res://tests/town_shops_test.gd
 
 const Shops := preload("res://scripts/hub/town_shops.gd")
@@ -16,6 +18,7 @@ const Town := preload("res://scripts/hub/town.gd")
 const Armory := preload("res://scripts/hub/armory.gd")
 const NpcTalk := preload("res://scripts/hub/npc_talk.gd")
 const ECO := preload("res://assets/models/eco.tscn")
+const ContentRating := preload("res://scripts/radio/content_rating.gd")
 const ARMORY_PATH := "user://test_town_armory.cfg"
 const SHOP_PATH := "user://test_town.cfg"
 
@@ -27,6 +30,7 @@ func _initialize() -> void:
 
 
 func _run() -> void:
+	ContentRating.set_rating("M", false)
 	for p in [ARMORY_PATH, SHOP_PATH]:
 		DirAccess.remove_absolute(ProjectSettings.globalize_path(p))
 	Shops.save_path = SHOP_PATH
@@ -51,7 +55,9 @@ func _run() -> void:
 	var bank := NpcTalk.parse(f.get_as_text())
 	for place in Shops.DATES:
 		_check("date spot in town: %s" % place, dates.has(place), dates.keys())
-		_check("Ophelia has lines for a date at %s" % place, (bank["date"] as Dictionary).has(place), place)
+		var cut := "date_m" if Shops.DATES[place].get("mature", false) else "date"
+		_check("Ophelia has lines for a date at %s" % place, (bank[cut] as Dictionary).has(place), place)
+		_check("and a Mature cut of it", (bank["date_m"] as Dictionary).has(place), place)
 	for spot in info["interactables"]:
 		_check("%s isn't 'coming soon' any more" % spot["id"], not String(spot["prompt"]).contains("coming soon") or spot["id"] in ["job_board", "shop_bar"], spot["prompt"])
 	town.free()
@@ -139,6 +145,56 @@ func _run() -> void:
 	_check("all off", skel.get_node(Extras.NODE).find_children("*", "MeshInstance3D", true, false).is_empty(), "")
 	eco.free()
 
+	# Mature-only things.
+	var m_ids := {"piercings": ["snakebites", "bridge", "navel"], "tattoos": ["tally", "lower_back", "hip_moth", "thigh_snake"], "accessories": ["choker"]}
+	ContentRating.set_rating("T", false)
+	armory.stash = {"scrap": 900, "alloy": 200, "circuits": 0, "lock_cores": 0}
+	for k in m_ids:
+		for id in m_ids[k]:
+			_check("%s is Mature only" % id, not Shops.available(k, id), id)
+			_check("not sold under Teen: %s" % id, not Shops.buy(armory, k, id), id)
+	_check("no firewater under Teen", not Shops.available("meals", "firewater") and not Shops.buy_meal(armory, "firewater"), "")
+	_check("no Halo date under Teen", not Shops.available("dates", "bar") and Shops.available("dates", "cafe"), "")
+	_check("Teen date lines are the plain cut", NpcTalk.date_lines(bank, "cafe") == bank["date"]["cafe"], "")
+	var ink_screen: Screen = Screen.new("ink", armory)
+	root.add_child(ink_screen)
+	await process_frame
+	_check("Teen shelf hides Mature piercings", not ink_screen.rows.has("navel") and ink_screen.rows.has("septum"), ink_screen.rows)
+	ink_screen.switch_tab(1)
+	_check("Teen shelf hides Mature tattoos", not ink_screen.rows.has("tally") and ink_screen.rows.has("stars"), ink_screen.rows)
+	ink_screen.free()
+	ContentRating.set_rating("M", false)
+	_check("Mature date lines are the Mature cut", NpcTalk.date_lines(bank, "cafe") == bank["date_m"]["cafe"], "")
+	for k in m_ids:
+		for id in m_ids[k]:
+			_check("sold under Mature: %s" % id, Shops.buy(armory, k, id), armory.stash)
+	_check("firewater under Mature", Shops.buy_meal(armory, "firewater") and is_equal_approx(float(Shops.boost(armory.suit_profile())["damage_mult"]), 1.1), Shops.meal())
+	ContentRating.set_rating("T", false)
+	_check("firewater does nothing under Teen", not Shops.boost(armory.suit_profile()).has("damage_mult") or is_equal_approx(float(Shops.boost(armory.suit_profile())["damage_mult"]), 1.0), Shops.boost(armory.suit_profile()))
+	ContentRating.set_rating("M", false)
+	Shops.finish_meal()
+	var m_worn := {"piercings": ["navel", "snakebites"], "tattoos": ["tally", "stars"], "accessories": ["choker"]}
+	var eco2: Node3D = ECO.instantiate()
+	root.add_child(eco2)
+	await process_frame
+	eco2.wear("y2k")
+	Extras.apply(eco2, m_worn)
+	var skel2: Skeleton3D = eco2.find_child("Skeleton3D", true, false)
+	_check("belly ring on her bare stomach (Y2K top)", skel2.get_node_or_null(Extras.NODE + "_navel") != null, "")
+	_check("choker on her neck", skel2.get_node_or_null(Extras.NODE + "_choker") != null, "")
+	_check("Mature ink stacked in", _body_tattoo(eco2) == Extras.tattoo_texture(["tally", "stars"]), "")
+	eco2.wear("suit")
+	Extras.apply(eco2, m_worn)
+	_check("no belly ring through her bodysuit", skel2.get_node_or_null(Extras.NODE + "_navel") == null, "")
+	ContentRating.set_rating("T", false)
+	eco2.wear("y2k")
+	Extras.apply(eco2, m_worn)
+	_check("Teen: no belly ring, no choker", skel2.get_node_or_null(Extras.NODE + "_navel") == null and skel2.get_node_or_null(Extras.NODE + "_choker") == null, "")
+	_check("Teen: only the Teen ink", _body_tattoo(eco2) == Extras.tattoo_texture(["stars"]), "")
+	_check("Teen: no snakebites", skel2.get_node(Extras.NODE).find_children("*", "MeshInstance3D", true, false).is_empty(), "")
+	ContentRating.set_rating("M", false)
+	eco2.free()
+
 	# Every screen opens and sells.
 	for kind in Screen.SHOPS:
 		armory.stash = {"scrap": 500, "alloy": 100, "circuits": 10, "lock_cores": 0}
@@ -156,6 +212,15 @@ func _run() -> void:
 
 	print("RESULT: %s (%d failures)" % ["PASS" if failures == 0 else "FAIL", failures])
 	quit(1 if failures > 0 else 0)
+
+
+func _body_tattoo(eco: Node) -> Texture2D:
+	var body := eco.find_child("Body", true, false) as MeshInstance3D
+	for i in body.mesh.get_surface_count():
+		var m := body.get_active_material(i) as ShaderMaterial
+		if m != null and Extras._is_body(m):
+			return m.get_shader_parameter("tattoo_tex")
+	return null
 
 
 func _check(label: String, ok: bool, detail: Variant) -> void:

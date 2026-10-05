@@ -58,7 +58,7 @@ const SHOPS := {
 	"jobs": "quests",
 	"cafe": "dates",
 	"arcade": "dates",
-	"bar": "quest givers and rumours",
+	"bar": "quest givers and rumours; Mature-only dates",
 	"cinema": "dates",
 	"ice_cream": "dates",
 	"gifts": "gifts for romance partners (gift_shop.gd)",
@@ -629,7 +629,7 @@ static func _low_row(root: Node3D, info: Dictionary, rng: RandomNumberGenerator)
 	shop(info, "shop_bar", bar, "[F] The Rusted Halo: jobs and rumours (coming soon)", [
 		"Every bad idea in Solace starts at the Halo. Most of mine did.",
 		"The fixer in the back booth pays in cash and doesn't ask why I can shoot.",
-	], "bar")
+	], "bar", {"date": "bar"})  # a Mature-only date (town_shops.gd DATES)
 
 	var cinema := _building(root, 1, 209.5, "shop_w9_f2", 9.0, {"wall": Color(0.84, 0.88, 0.94), "shop": CYAN}, "HOLO-CINEMA")
 	_neon_text(root, Vector3(STREET_HALF - 0.62, GF - 1.6, 209.5), "TONIGHT: TITANFALL ROMANCE", Color(1.0, 0.95, 0.85), 30, -90.0)

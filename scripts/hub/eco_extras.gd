@@ -11,6 +11,10 @@ extends RefCounted
 ## tattoo_tex (eco_toon.gdshaderinc), which only lays them on bare skin, so her
 ## clothes cover them.
 ##
+## Entries marked "mature" are only sold, and only shown on her, while the
+## content rating is Mature (content_rating.gd). They follow the project's
+## limits like everything else: nothing near the always-covered zones.
+##
 ## eco_model.gd apply_suit() calls apply() on every model of her (her full
 ## model, her first-person arm and body, the shop previews), so they follow
 ## whatever she has on.
@@ -23,11 +27,20 @@ const CANVAS := preload("res://assets/materials/eco/eco_v_canvas.tres")
 const LENS := preload("res://assets/materials/eco/eco_v_goggle_lens.tres")
 const OUTLINED := preload("res://assets/materials/eco/eco_v_leather.tres")
 const TWO_SIDED := preload("res://assets/shaders/eco_toon_2side.gdshader")
+const ContentRating := preload("res://scripts/radio/content_rating.gd")
 
 ## Where her ears, nose and brows are (measured on eco.glb's Face mesh; the
 ## date outfit's hoops hang from the same lobes).
 const LOBE := Vector3(0.0744, 1.5174, 0.0214)
 const NOSE_TIP := Vector3(0.0, 1.4896, -0.078)
+
+## Pieces that ride a body bone instead of her head, and the spot in her body's
+## UV space that must be bare skin (suit mask green low) for them to show, so a
+## belly ring never pokes through a jacket: id -> [bone, uv].
+const BODY_PIECES := {
+	"navel": ["J_Bip_C_Spine", Vector2(0.5, 0.408)],
+	"choker": ["J_Bip_C_Neck", Vector2(0.5, 0.0824)],
+}
 
 ## Piercings: [name, Juno-style blurb, where]. "both" marks a pair (mirrored).
 const PIERCINGS := {
@@ -37,6 +50,9 @@ const PIERCINGS := {
 	"nose_stud": {"name": "Nose stud", "blurb": "A pin of steel on the right side of her nose. Subtle. For her."},
 	"septum": {"name": "Septum ring", "blurb": "A ring through the middle of her nose. The recruiters will hate it. That's the point."},
 	"brow": {"name": "Eyebrow bar", "blurb": "A barbell through the end of her right brow. Makes every glare count double."},
+	"snakebites": {"name": "Snakebites", "mature": true, "blurb": "Two little rings at the corners of her bottom lip. Mom will cry. Ophelia won't stop looking at them."},
+	"bridge": {"name": "Bridge bar", "mature": true, "blurb": "A barbell across the bridge of her nose, between the eyes. Hurts like hell. She laughed the whole way through."},
+	"navel": {"name": "Belly ring", "mature": true, "blurb": "A steel ring with a teal drop, through her navel. Only shows in the tops that show her stomach."},
 }
 
 ## Tattoos, baked by tools/ink/build_tattoos.py: [name, blurb, where it sits].
@@ -49,6 +65,10 @@ const TATTOOS := {
 	"stars": {"name": "Three stars", "where": "side of her neck", "blurb": "A little constellation under her left ear. Dad named it after her. Nobody else uses the name."},
 	"heart_bolt": {"name": "Struck heart", "where": "top of her right shoulder", "blurb": "A red heart split by a lightning bolt. Loud, cute, a bit of a threat."},
 	"wrench": {"name": "Spanner heart", "where": "back of her right wrist", "blurb": "A spanner through a teal heart. Mechanic for life."},
+	"tally": {"name": "Tally", "mature": true, "where": "top of her right forearm", "blurb": "Tally marks in fives, one for every colony grunt she's put down. Mara stopped at twenty-five. Eco said keep going."},
+	"lower_back": {"name": "Precursor wings", "mature": true, "where": "small of her back", "blurb": "The temple's spiral with a wing either side, right across the small of her back. Loud. Bratty. Worth it."},
+	"hip_moth": {"name": "Death's-head moth", "mature": true, "where": "left side of her waist, above the hip", "blurb": "A moth with a skull on its back. It goes where the light is. So does she."},
+	"thigh_snake": {"name": "Snake and dagger", "mature": true, "where": "outside of her right thigh", "blurb": "Old sailor flash: a snake round a dagger. Better to die than live a coward."},
 }
 
 ## Accessories: one per slot (head, eyes, face). Goggles go when something sits on her head.
@@ -57,11 +77,20 @@ const ACCESSORIES := {
 	"visor": {"name": "Wraparound visor", "slot": "eyes", "blurb": "One curved band of teal glass, ear to ear. Very titan pilot. Mara swears it's not stolen."},
 	"beanie": {"name": "Knit beanie", "slot": "head", "blurb": "Charcoal, rib-knit, warm. Her goggles go in her pocket."},
 	"bandana": {"name": "Face bandana", "slot": "face", "blurb": "Red bandana tied over her nose and mouth. Dust, smoke, cameras. Very guerrilla."},
+	"choker": {"name": "Spiked choker", "slot": "neck", "mature": true, "blurb": "Black leather, steel spikes. Only shows with a bare neck. Ophelia lent her the idea, and then the choker."},
 }
+
+## Whether `id` from `catalogue` (PIERCINGS, TATTOOS, ACCESSORIES) may be sold
+## and shown under the current content rating.
+static func allowed(catalogue: Dictionary, id: String) -> bool:
+	return catalogue.has(id) and (not catalogue[id].get("mature", false) or ContentRating.current() == "M")
+
 
 ## Stacked tattoo textures, by the worn ids joined (so models share them).
 static var _tattoo_cache := {}
 static var _mats := {}
+## Her suit masks as images (for the bare-skin check of BODY_PIECES).
+static var _masks := {}
 
 
 ## Puts her extras on a model of her (eco_model.gd): `worn` is
@@ -76,8 +105,11 @@ static func apply(model: Node, worn := {}) -> void:
 	if skel == null or skel.find_bone(HEAD) < 0:
 		return
 	var outfit := String(model.get("outfit")) if model.get("outfit") != null else ""
-	_dress_head(model, skel, worn.get("piercings", []), worn.get("accessories", []), outfit)
-	_ink(model, worn.get("tattoos", []))
+	var piercings: Array = worn.get("piercings", []).filter(func(id): return allowed(PIERCINGS, id))
+	var accessories: Array = worn.get("accessories", []).filter(func(id): return allowed(ACCESSORIES, id))
+	_dress_head(model, skel, piercings, accessories, outfit)
+	_dress_body(model, skel, piercings + accessories)
+	_ink(model, worn.get("tattoos", []).filter(func(id): return allowed(TATTOOS, id)))
 
 
 ## Rebuilds the head pieces (piercings and accessories) on her head bone.
@@ -96,11 +128,15 @@ static func _dress_head(model: Node, skel: Skeleton3D, piercings: Array, accesso
 	root.transform = skel.get_bone_global_rest(head).affine_inverse()
 	att.add_child(root)
 	for id in piercings:
+		if BODY_PIECES.has(id):
+			continue
 		if id in ["lobes", "lobe_hoops"] and outfit == "date":
 			continue  # her date night hoops are in
 		_piercing(root, String(id))
 	var goggles := true
 	for id in accessories:
+		if BODY_PIECES.has(id):
+			continue
 		_accessory(root, String(id))
 		if ACCESSORIES.get(id, {}).get("slot", "") == "head":
 			goggles = false
@@ -108,11 +144,70 @@ static func _dress_head(model: Node, skel: Skeleton3D, piercings: Array, accesso
 	if not goggles:
 		for mi in model.find_children("Goggles*", "MeshInstance3D", true, false):
 			mi.visible = false
-	# Same render layers as her own meshes (the first-person body hides some).
-	var face := model.find_child("Face", true, false) as MeshInstance3D
-	if face != null:
+	_match_layers(model, root, "Face")
+
+
+## Same render layers as her own meshes (the first-person body hides some).
+static func _match_layers(model: Node, root: Node3D, mesh_name: String) -> void:
+	var own := model.find_child(mesh_name, true, false) as MeshInstance3D
+	if own != null:
 		for mi in root.find_children("*", "MeshInstance3D", true, false):
-			mi.layers = face.layers
+			mi.layers = own.layers
+
+
+## Rebuilds the pieces that ride her body (BODY_PIECES), each on its own bone,
+## shown only where her outfit leaves that spot bare.
+static func _dress_body(model: Node, skel: Skeleton3D, ids: Array) -> void:
+	for child in skel.get_children():
+		if String(child.name).begins_with(NODE + "_"):
+			skel.remove_child(child)
+			child.free()
+	for id in ids:
+		if not BODY_PIECES.has(id):
+			continue
+		var bone: String = BODY_PIECES[id][0]
+		if skel.find_bone(bone) < 0 or not _bare(model, BODY_PIECES[id][1]):
+			continue
+		var att := BoneAttachment3D.new()
+		att.name = NODE + "_" + id
+		att.bone_name = bone
+		skel.add_child(att)
+		var root := Node3D.new()
+		root.transform = skel.get_bone_global_rest(skel.find_bone(bone)).affine_inverse()
+		att.add_child(root)
+		if PIERCINGS.has(id):
+			_piercing(root, id)
+		else:
+			_accessory(root, id)
+		_match_layers(model, root, "Body")
+
+
+## Whether her outfit leaves `uv` (body UV space) bare: the suit mask's green
+## is low there. No mask (no suit) counts as bare.
+static func _bare(model: Node, uv: Vector2) -> bool:
+	for mi in model.find_children("*", "MeshInstance3D", true, false):
+		var m := mi as MeshInstance3D
+		if m.mesh == null:
+			continue
+		for i in m.mesh.get_surface_count():
+			var mat := m.get_active_material(i) as ShaderMaterial
+			if mat == null or not _is_body(mat):
+				continue
+			var tex := mat.get_shader_parameter("mask_tex") as Texture2D
+			if tex == null or not mat.get_shader_parameter("use_mask"):
+				return true
+			var key := tex.resource_path if tex.resource_path != "" else str(tex.get_instance_id())
+			if not _masks.has(key):
+				var img := tex.get_image()
+				if img != null and img.is_compressed():
+					img.decompress()
+				_masks[key] = img
+			var mask: Image = _masks[key]
+			if mask == null:
+				return true
+			var px := Vector2i(clampi(int(uv.x * mask.get_width()), 0, mask.get_width() - 1), clampi(int(uv.y * mask.get_height()), 0, mask.get_height() - 1))
+			return mask.get_pixelv(px).g < 0.4
+	return true
 
 
 static func _piercing(root: Node3D, id: String) -> void:
@@ -137,6 +232,16 @@ static func _piercing(root: Node3D, id: String) -> void:
 			var bottom := Vector3(0.0473, 1.5385, -0.0493) + n * 0.0016
 			_ball(root, top, 0.0019, steel)
 			_ball(root, bottom, 0.0019, steel)
+		"snakebites":
+			for s: float in [-1.0, 1.0]:
+				_ring(root, Vector3(0.0105 * s, 1.4598, -0.0612), Vector3(0, 0.3, -1).cross(Vector3.UP).normalized(), 0.0026, 0.0006, steel)
+		"bridge":
+			for s: float in [-1.0, 1.0]:
+				_ball(root, Vector3(0.0068 * s, 1.517, -0.0596), 0.0017, steel)
+		"navel":
+			_ball(root, Vector3(0.0, 1.072, -0.1125), 0.0022, steel)
+			_ring(root, Vector3(0.0, 1.061, -0.1135), Vector3.RIGHT, 0.0052, 0.0008, steel)
+			_ball(root, Vector3(0.0, 1.0545, -0.1145), 0.0032, _mat("gem", LENS, Color(0.2, 0.85, 0.8), false))
 
 
 static func _accessory(root: Node3D, id: String) -> void:
@@ -179,6 +284,17 @@ static func _accessory(root: Node3D, id: String) -> void:
 			_ball(root, Vector3(0, 1.46, 0.07), 0.012, red)
 			for s: float in [-1.0, 1.0]:
 				_bar(root, Vector3(0.004 * s, 1.455, 0.074), Vector3(0.018 * s, 1.40, 0.085), 0.006, red)
+		"choker":
+			var leather := _leather()
+			var c := Vector3(0, 1.42, 0.022)
+			_band(root, c, Vector2(0.0335, 0.0335), 1.408, 1.426, -180.0, 180.0, leather)
+			var spike := _mat("steel", STEEL, Color(0.78, 0.8, 0.84), false)
+			for a in range(-75, 76, 25):
+				var t := deg_to_rad(a)
+				var out := Vector3(sin(t), 0, -cos(t))
+				var at := c + out * 0.0335
+				at.y = 1.417
+				_spike(root, at, out, spike)
 
 
 # --- tattoos ------------------------------------------------------------------
@@ -261,6 +377,18 @@ static func _glass(color: Color) -> StandardMaterial3D:
 	return m
 
 
+## Plain black leather (a choker): the toon materials tint very dark colours.
+static func _leather() -> StandardMaterial3D:
+	if _mats.has("leather"):
+		return _mats["leather"]
+	var m := StandardMaterial3D.new()
+	m.albedo_color = Color(0.03, 0.03, 0.035)
+	m.roughness = 0.45
+	m.cull_mode = BaseMaterial3D.CULL_DISABLED
+	_mats["leather"] = m
+	return m
+
+
 static func _ball(root: Node3D, at: Vector3, r: float, mat: Material) -> MeshInstance3D:
 	var mi := MeshInstance3D.new()
 	var s := SphereMesh.new()
@@ -288,6 +416,23 @@ static func _ring(root: Node3D, at: Vector3, axis: Vector3, r: float, thick: flo
 	mi.position = at
 	# TorusMesh lies flat round Y: turn Y onto the axis.
 	mi.basis = Basis(Quaternion(Vector3.UP, axis.normalized()))
+	root.add_child(mi)
+	return mi
+
+
+## A little cone pointing along `dir` (a choker stud).
+static func _spike(root: Node3D, at: Vector3, dir: Vector3, mat: Material) -> MeshInstance3D:
+	var mi := MeshInstance3D.new()
+	var c := CylinderMesh.new()
+	c.top_radius = 0.0
+	c.bottom_radius = 0.0028
+	c.height = 0.006
+	c.radial_segments = 8
+	c.rings = 1
+	mi.mesh = c
+	mi.material_override = mat
+	mi.position = at + dir * 0.003
+	mi.basis = Basis(Quaternion(Vector3.UP, dir.normalized()))
 	root.add_child(mi)
 	return mi
 
