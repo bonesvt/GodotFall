@@ -6,8 +6,9 @@ extends Control
 ##   Sound     master, effects, ambience, voices
 ##   Video     window / borderless / fullscreen, vsync, frame cap, look
 ##             (Anime, PS3 or PS2) and film grain
-##   Game      dialogue rating, tutorial hints, start in third person, Eco's
-##             jiggle style
+##   Game      dialogue rating, tutorial hints, Eco's jiggle style, and the
+##             third person camera: start in it, how far back it sits, the
+##             shoulder swap key, the hub camera nudge keys
 ## Esc or Back closes it (emits `closed`).
 
 signal closed
@@ -287,22 +288,54 @@ func _set_video(key: String, value: Variant) -> void:
 func _game_tab() -> void:
 	var box := _page("Game")
 	var ratings: Array = Prefs.ContentRating.RATINGS
-	_options(box, "Dialogue rating (O)", ratings.map(func(r): return RadioLines.RATING_NAMES[r]),
+	_options(box, "Dialogue rating", ratings.map(func(r): return RadioLines.RATING_NAMES[r]),
 		ratings.find(Prefs.rating()),
 		func(i): Prefs.set_rating(ratings[i]))
 	box.add_child(UI.label("Teen or Mature: how rough the enemy radio and Eco's whispers get.", 18, UI.MUTED))
 	# Hints are kept per save slot, so they're only offered with a game going.
 	if tutorial != null:
 		_toggle(box, "Tutorial hints (F1)", _hints_on(), _set_hints)
-	_toggle(box, "Start in third person (F5)", bool(Prefs.get_value("game", "third_person")),
-		func(v):
-			_save_pref("game", "third_person", v)
-			load("res://scripts/view_camera.gd").prefer_third_person = v)
 	var styles: Array = Prefs.JIGGLE_STYLES
 	_options(box, "Jiggle style", ["Classic", "Smooth anime", "Realistic"],
 		styles.find(Prefs.jiggle_style()),
 		func(i): Prefs.set_jiggle_style(styles[i]))
 	box.add_child(UI.label("How Eco's hair and body bounce as she moves.", 18, UI.MUTED))
+	_third_person_rows(box)
+
+
+## Third person camera rows (view_camera.gd reads them through Prefs.apply_camera).
+func _third_person_rows(box: VBoxContainer) -> void:
+	var view = load("res://scripts/view_camera.gd")
+	box.add_child(UI.heading("THIRD PERSON CAMERA", 24))
+	_toggle(box, "Start in third person (%s)" % _key_hint("toggle_view"), bool(Prefs.get_value("game", "third_person")),
+		func(v):
+			_save_pref("game", "third_person", v)
+			view.prefer_third_person = v)
+	_slider(box, "Camera distance", view.DISTANCE_MIN, view.DISTANCE_MAX, 0.1, float(Prefs.get_value("game", "tp_distance")),
+		func(v): return "%.1f m" % v,
+		func(v): _set_camera("tp_distance", v))
+	box.add_child(UI.label("How far behind Eco the camera sits (1.7 m is the default). The hub camera follows.", 18, UI.MUTED))
+	_toggle(box, "Swap shoulder on %s" % _key_hint("swap_shoulder"), bool(Prefs.get_value("game", "shoulder_swap")),
+		func(v): _set_camera("shoulder_swap", v))
+	_toggle(box, "Move hub camera with the arrow keys", bool(Prefs.get_value("game", "hub_nudge")),
+		func(v): _set_camera("hub_nudge", v))
+	box.add_child(UI.label("In the hub and town, hold an arrow key to slide the camera up, down, left or right. It stays where you leave it.", 18, UI.MUTED))
+	var reset := UI.button("Recentre", func():
+		_save_pref("game", "hub_nudge_x", 0.0)
+		_set_camera("hub_nudge_y", 0.0))
+	reset.name = "RecentreHubCamera"
+	_row(box, "Hub camera position", reset)
+
+
+func _set_camera(key: String, value: Variant) -> void:
+	_save_pref("game", key, value)
+	Prefs.apply_camera()
+
+
+## The first binding of an action, for labels: "Middle mouse", "X".
+func _key_hint(action: String) -> String:
+	var events: Array = Prefs.bindings(action)
+	return Prefs.event_name(events[0]) if not events.is_empty() else "a key"
 
 
 func _hints_on() -> bool:

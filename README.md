@@ -21,8 +21,10 @@ Or play the Windows build (no editor needed): `GodotFall.exe`, see **Windows bui
   `user://settings.cfg`): mouse sensitivity, invert Y, field of view; every key rebindable
   (primary and secondary); master / effects / ambience / voices volume (buses in
   `default_bus_layout.tres`); windowed / borderless / fullscreen, vsync, frame cap, look
-  (Anime, PS3 or PS2; F9 remembers too) and film grain; dialogue rating, tutorial hints, start in third person,
-  Eco's jiggle style (Classic, Smooth anime, Realistic).
+  (Anime, PS3 or PS2; F9 remembers too) and film grain; dialogue rating (Teen / Mature; no hotkey any more), tutorial hints,
+  Eco's jiggle style (Classic, Smooth anime, Realistic); third person camera: start in it, camera
+  distance (1.0 to 4.5 m, the hub orbit scales with it), X swaps shoulders, arrow keys slide the hub
+  camera (remembered; Recentre resets it). Middle mouse (or F5) swaps first / third person.
 - **Save slots** (`scripts/game/saves.gd`): three, in `user://saves/slot1..3/`. Each holds the
   files the game already saved on its own (armory, hub conversations, titan paint, tutorial
   hints seen) plus runs / wins / time played. A run in progress isn't saved; Continue puts you
@@ -617,8 +619,8 @@ select the Player node and tweak values in the Inspector, or change the defaults
 - `scripts/hud.gd` crosshair, hitmarkers, health, ammo, speedometer, state and cooldown readout
 - `scripts/radio/` enemy radio: `radio_chatter.gd` (listens to grunt awareness and deaths, picks lines),
   `radio_popup.gd` (the intercept box), `radio_lines.gd` (every line, by situation)
-- `dialogue/` every radio and whisper line as plain text, one file per rating; edit and press O in
-  game to reload. Format and situation names: `dialogue/README.md`
+- `dialogue/` every radio and whisper line as plain text, one file per rating; edit and pick the rating
+  again in Settings > Game to reload. Format and situation names: `dialogue/README.md`
 - Eco's whispers (`scripts/radio/`): she can't answer the colony grunts on their net, so she talks back
   under her breath once an exchange ends, and mutters through kills, takedowns, getting hurt, quiet
   stretches and the run's beats. `eco_whispers.gd` (triggers, cooldowns, breath sound),

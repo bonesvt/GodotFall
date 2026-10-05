@@ -1,6 +1,6 @@
 extends Node
 ## First / third person view for the player (child "ViewCam" of scenes/player.tscn).
-## F5 toggles it. Third person is a close over-the-shoulder camera:
+## Middle mouse (or F5) toggles it. Third person is a close over-the-shoulder camera:
 ## - looking straight ahead it frames her from just over the top of her head
 ##   (the crosshair clears it) down to just under her knees;
 ## - turning and aiming are exact (the camera hangs off the Head, so the
@@ -16,6 +16,9 @@ extends Node
 ## orbit camera instead: the mouse swings it all the way round her, the keys
 ## walk her relative to the camera and she turns to face where she walks. It
 ## blends back to the shoulder camera on the training grounds and on runs.
+## Settings > Game (prefs.gd apply_camera) sets how far back it sits, whether
+## X swaps shoulders by hand, and whether the arrow keys nudge the hub camera
+## up, down, left and right (the nudge is remembered).
 
 const PlayerState := preload("res://scripts/ps2/eco_model.gd").PlayerState
 const GUN := preload("res://assets/models/smart_pistol/smart_pistol.glb")
@@ -23,6 +26,21 @@ const EcoArms := preload("res://scripts/eco_fp_arms.gd")
 
 ## Remembered across zones and respawns for the session.
 static var prefer_third_person := false
+## Settings > Game (prefs.gd apply_camera). Metres behind her eyes on the
+## shoulder; the orbit and resting distances scale with it. 0 = `distance`.
+static var distance_setting := 0.0
+## The swap_shoulder key (X) moves the camera to her other shoulder.
+static var shoulder_swap_key := true
+## The cam_nudge_* keys (arrows) slide the hub/town camera, in metres
+## (x right, y up of the orbit point), and it stays where it was left.
+static var hub_nudge_keys := true
+static var hub_nudge := Vector2.ZERO
+## The settings screen offers this range.
+const DISTANCE_MIN := 1.0
+const DISTANCE_MAX := 4.5
+const NUDGE_X := 1.2
+const NUDGE_DOWN := -0.8
+const NUDGE_UP := 1.2
 
 @export_group("Shoulder")
 ## Metres behind her eyes. With height and tp_fov this frames her from over
@@ -60,6 +78,8 @@ static var prefer_third_person := false
 @export var orbit_pitch_max := 35.0
 ## How quickly it swaps between the orbit and the shoulder camera.
 @export var orbit_blend_rate := 5.0
+## Metres a second the nudge keys slide it.
+@export var nudge_speed := 1.5
 
 var third_person := false
 ## +1 = right shoulder, -1 = left.
@@ -85,6 +105,7 @@ var _gun_source: Node3D
 var _orbit_blend := 0.0
 var _orbit_pivot := Vector3.ZERO
 var _orbit_was_on := false
+var _nudging := false
 
 
 func _ready() -> void:
@@ -111,6 +132,55 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("toggle_view") and not event.is_echo():
 		prefer_third_person = not third_person
 		set_third_person(prefer_third_person)
+	elif event.is_action_pressed("swap_shoulder") and not event.is_echo():
+		swap_shoulder()
+
+
+## Moves the shoulder camera to her other shoulder (the swap_shoulder key). It
+## stays there until a wallrun or a wall in the way moves it again.
+func swap_shoulder() -> bool:
+	if not third_person or orbiting or not shoulder_swap_key:
+		return false
+	side = -side
+	_swap_cooldown = 0.8
+	return true
+
+
+## Shoulder distance in metres: the setting, else the tuned default.
+func shoulder_distance() -> float:
+	return clampf(distance_setting, DISTANCE_MIN, DISTANCE_MAX) if distance_setting > 0.0 else distance
+
+
+## The setting relative to the tuned default; the orbit and resting distances follow it.
+func _distance_scale() -> float:
+	return shoulder_distance() / distance
+
+
+func _nudge_input() -> Vector2:
+	return Vector2(Input.get_axis("cam_nudge_left", "cam_nudge_right"), Input.get_axis("cam_nudge_down", "cam_nudge_up"))
+
+
+## Arrow keys held while orbiting slide the camera (hub_nudge).
+func _update_nudge(delta: float) -> void:
+	if not hub_nudge_keys or not InputMap.has_action("cam_nudge_up"):
+		return
+	var dir := _nudge_input()  # menus and bench screens pause the hub, so no clash
+	if dir == Vector2.ZERO:
+		if _nudging:
+			_nudging = false
+			_save_nudge()
+		return
+	_nudging = true
+	hub_nudge = Vector2(clampf(hub_nudge.x + dir.x * nudge_speed * delta, -NUDGE_X, NUDGE_X),
+		clampf(hub_nudge.y + dir.y * nudge_speed * delta, NUDGE_DOWN, NUDGE_UP))
+
+
+## Remembers where the nudge was left (settings.cfg).
+func _save_nudge() -> void:
+	var prefs = load("res://scripts/game/prefs.gd")
+	prefs.set_value("game", "hub_nudge_x", hub_nudge.x)
+	prefs.set_value("game", "hub_nudge_y", hub_nudge.y)
+	prefs.save()
 
 
 func set_third_person(on: bool) -> void:
@@ -164,6 +234,7 @@ func _process(delta: float) -> void:
 	_attach_gun()  # follows a gun change at the bench
 	if orbiting:
 		player.set("move_yaw", orbit_yaw)
+		_update_nudge(delta)
 	_orbit_blend = move_toward(_orbit_blend, 1.0 if orbiting else 0.0, orbit_blend_rate * delta)
 	_swap_cooldown -= delta
 	_pick_shoulder()
@@ -180,7 +251,7 @@ func _process(delta: float) -> void:
 	var speed_t := clampf((player.velocity.length() - 7.0) / 15.0, 0.0, 1.0)
 	# resting (player.gd resting) the camera centres on her and stands back a little
 	var rest: bool = player.get("resting") == true
-	var offset := Vector3(0.0 if rest else _side_x * shoulder, height, (rest_distance if rest else distance) + speed_pullback * speed_t)
+	var offset := Vector3(0.0 if rest else _side_x * shoulder, height, (rest_distance * _distance_scale() if rest else shoulder_distance()) + speed_pullback * speed_t)
 	var want := _anchor + _head.global_basis * offset
 	# Pull in front of anything between her and the camera.
 	var pivot := target + _head.global_basis * Vector3(_side_x * shoulder * 0.5, height * 0.5, 0.0)
@@ -199,13 +270,16 @@ func _process(delta: float) -> void:
 
 ## Places the camera on its orbit round her, blended with the shoulder view.
 func _blend_orbit(shoulder_at: Vector3, delta: float) -> void:
-	var target := _orbit_centre() + Vector3.UP * orbit_height
+	var look := Basis.from_euler(Vector3(orbit_pitch, orbit_yaw, 0.0))
+	# the nudge slides the point it circles: up, and sideways across the view
+	var nudge := hub_nudge if hub_nudge_keys else Vector2.ZERO
+	var target := _orbit_centre() + Vector3.UP * (orbit_height + nudge.y) \
+		+ Basis(Vector3.UP, orbit_yaw) * Vector3(nudge.x, 0.0, 0.0)
 	var a := 1.0 - exp(-follow_rate * delta)
 	_orbit_pivot = _orbit_pivot.lerp(target, a)
 	if _orbit_pivot.distance_to(target) > max_lag:
 		_orbit_pivot = target + (_orbit_pivot - target).normalized() * max_lag
-	var look := Basis.from_euler(Vector3(orbit_pitch, orbit_yaw, 0.0))
-	var at := _orbit_pivot + look * Vector3(0.0, 0.0, orbit_distance)
+	var at := _orbit_pivot + look * Vector3(0.0, 0.0, orbit_distance * _distance_scale())
 	var hit := _ray(target, at)
 	if not hit.is_empty():
 		var dir := (at - target).normalized()
