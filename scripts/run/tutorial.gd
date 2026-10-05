@@ -603,7 +603,7 @@ func _blackwater() -> Array:
 			"when": func(): return not _noticing().is_empty(),
 			"done": func(): return _noticing().is_empty()},
 		{"id": "radio", "title": "ENEMY RADIO", "color": RED, "max": 8.0,
-			"body": "Eco's patched into the colony's squad net. Their chatter tells you when they've spotted something, and who's coming. [O] switches it between Teen and Mature.",
+			"body": "Eco's patched into the colony's squad net. Their chatter tells you when they've spotted something, and who's coming. Settings > Game switches it between Teen and Mature.",
 			"when": func(): return _events.has("radio")},
 		_knife_beat(),
 		{"id": "grapple", "title": "GRAPPLE ANCHORS", "color": ORANGE, "max": 25.0, "at": _lip(),

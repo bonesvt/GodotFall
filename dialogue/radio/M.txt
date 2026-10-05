@@ -6,8 +6,8 @@
 # reports call "the Starling". They don't know who killed her father (nobody on
 # their side ever claimed it).
 #
-# Edit, add or delete lines freely; press O in game to reload (it also
-# switches rating). Format:
+# Edit, add or delete lines freely; pick a dialogue rating in
+# Settings > Game in game to reload (or just restart). Format:
 #   [category]      lines below belong to this situation (names are fixed,
 #                   see the list in dialogue/README.md)
 #   one exchange per line: speakers split by " | ", each "role: text"

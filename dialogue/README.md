@@ -9,8 +9,8 @@ Change them, add to them or delete from them without touching any code.
 | `eco/T.txt`, `eco/M.txt` | Eco's whispers, Teen and Mature |
 | `town/T.txt`, `town/M.txt` | the people of Solace, Teen and Mature |
 
-In game, **O** switches the dialogue rating between Teen and Mature and re-reads these files, so you can
-edit a file while the game is running and press O to hear the new lines.
+In game, **Settings > Game > Dialogue rating** switches between Teen and Mature and re-reads these files, so you can
+edit a file while the game is running and pick the rating again to hear the new lines.
 
 ## How a file is laid out
 

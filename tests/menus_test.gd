@@ -62,6 +62,22 @@ func _prefs() -> void:
 	Prefs.set_value("game", "jiggle_style", "bogus")
 	_check("unknown jiggle style reads as classic", Prefs.jiggle_style() == "classic", Prefs.jiggle_style())
 	Prefs.set_jiggle_style("classic")
+	# third person camera settings reach the camera, and survive a reload
+	var View = load("res://scripts/view_camera.gd")
+	Prefs.set_value("game", "tp_distance", 2.6)
+	Prefs.set_value("game", "shoulder_swap", false)
+	Prefs.set_value("game", "hub_nudge_x", -0.4)
+	Prefs.save()
+	Prefs._cfg = null
+	Prefs.apply_camera()
+	_check("camera distance setting saved and applied", is_equal_approx(View.distance_setting, 2.6), View.distance_setting)
+	_check("shoulder swap key setting applied", View.shoulder_swap_key == false, View.shoulder_swap_key)
+	_check("hub camera nudge remembered", is_equal_approx(View.hub_nudge.x, -0.4), View.hub_nudge)
+	_check("new camera keys are rebindable", Prefs.BINDABLE.any(func(p): return p[0] == "swap_shoulder") \
+		and Prefs.BINDABLE.any(func(p): return p[0] == "cam_nudge_left"), "")
+	for key in ["tp_distance", "shoulder_swap", "hub_nudge_x"]:
+		Prefs.set_value("game", key, Prefs.DEFAULTS["game"][key])
+	Prefs.apply_camera()
 	Prefs.set_value("audio", "Effects", 1.0)
 	Prefs.set_value("controls", "sensitivity", 1.0)
 	Prefs.set_value("controls", "invert_y", false)
@@ -173,6 +189,11 @@ func _title_and_pause() -> void:
 	title.open_settings()
 	await _ticks(1)
 	_check("settings opens from the title", title._settings != null and title._settings.tabs.get_tab_count() == 5, "")
+	var game_tab: Node = title._settings.tabs.get_node("Game")
+	var texts := game_tab.find_children("*", "Label", true, false).map(func(l): return l.text)
+	_check("rating lives in Settings > Game", texts.has("Dialogue rating"), "")
+	_check("third person camera rows in Settings > Game", texts.has("Camera distance") and texts.has("Swap shoulder on X") \
+		and texts.has("Move hub camera with the arrow keys") and texts.has("Start in third person (Middle mouse)"), texts)
 	await _esc()
 	_check("Esc closes settings", title._settings == null and title.main_menu.visible, "")
 

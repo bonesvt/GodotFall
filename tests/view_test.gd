@@ -2,12 +2,17 @@ extends SceneTree
 ## Headless test for the first / third person toggle (scripts/view_camera.gd).
 ## Run: godot --headless --path . -s res://tests/view_test.gd
 
+const ViewCamera := preload("res://scripts/view_camera.gd")
+const Prefs := preload("res://scripts/game/prefs.gd")
+
 var player
 var view
 var failures := 0
 
 
 func _initialize() -> void:
+	Prefs.path = "user://view_test_settings.cfg"
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(Prefs.path))
 	var level: Node = load("res://scenes/test_level.tscn").instantiate()
 	root.add_child(level)
 	_run.call_deferred()
@@ -64,6 +69,63 @@ func _run() -> void:
 	await _ticks(10)
 	var moved: float = (cam.global_position - before).length()
 	_check("camera keeps up with her", absf(moved - 0.5) < 0.05, moved)
+	await _ticks(90)
+
+	# Middle mouse is the view swap's main button (F5 still works)
+	var view_keys: Array = InputMap.action_get_events("toggle_view")
+	_check("middle mouse swaps the view", view_keys[0] is InputEventMouseButton and view_keys[0].button_index == MOUSE_BUTTON_MIDDLE, view_keys)
+	_check("F5 still swaps the view", view_keys.any(func(e): return e is InputEventKey and e.physical_keycode == KEY_F5), view_keys)
+
+	# Shoulder swap key
+	var head: Node3D = player.get_node("Head")
+	await _press("swap_shoulder")
+	await _ticks(60)
+	right = (cam.global_position - head.global_position).dot(player.global_basis.x)
+	_check("X swaps to the left shoulder", view.side < 0.0 and right < -0.3, right)
+	await _press("swap_shoulder")
+	await _ticks(60)
+	right = (cam.global_position - head.global_position).dot(player.global_basis.x)
+	_check("X swaps back to the right", view.side > 0.0 and right > 0.3, right)
+	ViewCamera.shoulder_swap_key = false
+	await _press("swap_shoulder")
+	await _ticks(10)
+	_check("swap key off: shoulder stays", view.side > 0.0, view.side)
+	ViewCamera.shoulder_swap_key = true
+
+	# Camera distance setting
+	ViewCamera.distance_setting = 3.0
+	await _ticks(30)
+	behind = (cam.global_position - head.global_position).dot(player.global_basis.z)
+	_check("distance setting pulls the camera back", absf(behind - 3.0) < 0.15, behind)
+	ViewCamera.distance_setting = 1.2
+	await _ticks(30)
+	behind = (cam.global_position - head.global_position).dot(player.global_basis.z)
+	_check("distance setting brings it close", absf(behind - 1.2) < 0.15, behind)
+	ViewCamera.distance_setting = 0.0
+	await _ticks(30)
+
+	# Hub orbit: the arrow keys nudge the camera, and the distance setting scales it
+	player.strolling = true
+	await _ticks(90)
+	_check("orbiting in the hub", view.orbiting, view.orbiting)
+	var start: Vector3 = cam.global_position
+	var orbit_back: float = (start - player.global_position - Vector3.UP * view.orbit_height).length()
+	Input.action_press("cam_nudge_up")
+	Input.action_press("cam_nudge_right")
+	await _ticks(20)
+	Input.action_release("cam_nudge_up")
+	Input.action_release("cam_nudge_right")
+	await _ticks(60)
+	var shift: Vector3 = cam.global_basis.inverse() * (cam.global_position - start)
+	_check("arrow keys nudge the hub camera up and right", shift.y > 0.2 and shift.x > 0.2, shift)
+	_check("the nudge is saved", float(Prefs.get_value("game", "hub_nudge_y")) > 0.2, Prefs.get_value("game", "hub_nudge_y"))
+	ViewCamera.hub_nudge = Vector2.ZERO
+	ViewCamera.distance_setting = view.distance * 2.0
+	await _ticks(60)
+	var orbit_far: float = (cam.global_position - player.global_position - Vector3.UP * view.orbit_height).length()
+	_check("distance setting scales the hub camera", orbit_far > orbit_back * 1.6, [orbit_back, orbit_far])
+	ViewCamera.distance_setting = 0.0
+	player.strolling = false
 	await _ticks(90)
 
 	# Wallrun with the wall on her left: camera stays on the open (right) side

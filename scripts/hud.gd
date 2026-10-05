@@ -8,10 +8,7 @@ extends CanvasLayer
 ## Also hosts the enemy radio chatter popup and Eco's whispers (scripts/radio/).
 
 const RadioChatter := preload("res://scripts/radio/radio_chatter.gd")
-const ContentRating := preload("res://scripts/radio/content_rating.gd")
-const RadioLines := preload("res://scripts/radio/radio_lines.gd")
 const EcoWhispers := preload("res://scripts/radio/eco_whispers.gd")
-const DialogueBank := preload("res://scripts/radio/dialogue_bank.gd")
 
 var player: Node
 var level: Node
@@ -42,7 +39,7 @@ Q, E or right mouse  grapple (hold)
 Left mouse  shoot    R  reload    I  inspect
 Z or mouse thumb  knife (kills unaware grunts)
 T  respawn    G  reset grunt arena
-H  hide help    O  dialogue rating    F1  tutorial hints    Esc  free mouse"""
+H  hide help    Middle mouse  1st / 3rd person    F1  tutorial hints    Esc  free mouse"""
 
 
 func _ready() -> void:
@@ -135,10 +132,6 @@ func _label(size: int) -> Label:
 func _unhandled_key_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo and event.physical_keycode == KEY_H:
 		help_label.visible = not help_label.visible
-	if event is InputEventKey and event.pressed and not event.echo and event.physical_keycode == KEY_O:
-		DialogueBank.reload()  # picks up edits to dialogue/*.txt
-		var r: String = ContentRating.cycle()
-		flash_message("Dialogue rating: %s" % RadioLines.RATING_NAMES[r], 2.5)
 
 
 func flash_message(text: String, seconds := 2.0) -> void:

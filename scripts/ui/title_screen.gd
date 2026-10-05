@@ -182,7 +182,7 @@ func _build_ui() -> void:
 	spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	col.add_child(spacer)
-	var hint := UI.label("Esc pauses in game.  F1 hints  ·  F5 camera  ·  F9 change look", 18, UI.MUTED)
+	var hint := UI.label("Esc pauses in game.  F1 hints  ·  Middle mouse camera  ·  F9 change look", 18, UI.MUTED)
 	col.add_child(hint)
 
 	# Overwrite check for New game on a used slot.
