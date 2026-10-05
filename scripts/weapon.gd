@@ -86,8 +86,11 @@ const ATTACHMENT_MODELS := {
 	"wrap": preload("res://assets/models/sidearms/att_grip_wrap.glb"),
 	"skeleton": preload("res://assets/models/sidearms/att_grip_skeleton.glb"),
 }
-## Paint slots a finish recolours, by material file name.
-const FINISH_SLOTS := {"pistol_shell": "shell", "pistol_blue": "blue", "pistol_stripe": "stripe"}
+## Paint slots a finish recolours, by material file name. "black" is the smart
+## pistol's black slide and can: a finish without its own black paints it in
+## its shell colour. The auto handgun's polymer takes the shell colour too.
+const FINISH_SLOTS := {"pistol_shell": "shell", "pistol_polymer": "shell", "pistol_blue": "blue", "pistol_stripe": "stripe",
+		"pistol_black": "black"}
 const INSPECT_LINES := [
 	"Dad's. The lock-on died with him.",
 	"Tracker screen's smashed. Holo sight it is.",
@@ -1046,7 +1049,7 @@ static func _apply_finish(model: Node3D, p_finish: Dictionary) -> void:
 			var key := "%s/%s" % [p_finish.get("id", ""), slot_name]
 			if not _finish_cache.has(key):
 				var painted: ShaderMaterial = mat.duplicate()
-				painted.set_shader_parameter("albedo", p_finish[FINISH_SLOTS[slot_name]])
+				painted.set_shader_parameter("albedo", p_finish.get(FINISH_SLOTS[slot_name], p_finish.get("shell", Color.WHITE)))
 				_finish_cache[key] = painted
 			(mi as MeshInstance3D).set_surface_override_material(i, _finish_cache[key])
 
