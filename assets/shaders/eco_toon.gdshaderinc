@@ -42,6 +42,10 @@ uniform sampler2D glow_tex : source_color, hint_default_black, filter_linear_mip
 uniform float glow_tex_energy = 1.6;
 uniform vec4 emission : source_color = vec4(0.0, 0.0, 0.0, 1.0);
 uniform float emission_energy = 0.0;
+// Tattoos from Ink & Iron in Solace (scripts/hub/eco_extras.gd), baked into her
+// body's UVs by tools/ink/build_tattoos.py: laid over the colour wherever the
+// body texture is skin (the mask's green is low), so clothes cover them.
+uniform sampler2D tattoo_tex : source_color, hint_default_transparent, filter_linear_mipmap;
 // Suit upgrade armour edges: how brightly they glow gold once her trims turn gold.
 uniform float gold_edge = 0.0;
 
@@ -73,6 +77,10 @@ void fragment() {
 	vec2 mask = use_mask ? texture(mask_tex, UV).rg : vec2(1.0, 0.0);
 	v_sheen_mask = sheen * mask.r;
 	v_shade = mix(shade_tint, shade_tint_2, mask.g);
+	vec4 tattoo = texture(tattoo_tex, UV);
+	if (use_mask && tattoo.a > 0.0) {
+		col = mix(col, tattoo.rgb, tattoo.a * 0.9 * (1.0 - smoothstep(0.3, 0.6, mask.g)));
+	}
 	ALBEDO = col * exposure;
 	if (use_normal) {
 		NORMAL_MAP = texture(normal_tex, UV).rgb;

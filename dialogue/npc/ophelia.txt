@@ -294,7 +294,8 @@ choice +2: eco: Then shove over and share the blanket.
 choice +1: eco: Needy. I like it.
 > ophelia (blush, smile, lookaway): Don't get used to it. Actually, do.
 
-# Date spots in Solace (scripts/hub/town.gd shop kinds): Glowbox Arcade, Scoops.
+# Date spots in Solace (scripts/hub/town.gd "date" spots, run_manager.gd date_at): Glowbox Arcade,
+# Scoops, the Greenhouse Cafe, the Holo-Cinema, the rooftop garden, Seven Suns Noodles.
 [date arcade]
 ophelia (smile): Third cabinet from the back. Nobody ever takes it. Nobody ever saw me play it.
 eco: Your name's on every high score. O-P-H.
@@ -304,6 +305,55 @@ ophelia (blush, smile, lookaway): Somebody noticed. Took them twenty-two years. 
 ophelia (blush, down): Black sesame. Two scoops. You remembered.
 eco: You told me to remember it. Very threateningly.
 ophelia (smile, tilt): This is a date. I'm on a date. In public. With the lights on.
+
+[date cafe]
+ophelia (closed, lookaway): Everyone in here is looking at us.
+eco: Nobody's looking at us. Mrs. Okafor is looking at her scone.
+ophelia (down): I ordered the black coffee so I'd look mysterious. I hate black coffee.
+choice +6: eco: Swap. Mine's got three sugars and a heart in the foam. Very mysterious.
+> ophelia (blush, smile): You drink a heart. Of course you drink a heart.
+choice +3: eco: Drink it anyway. Suffering suits you.
+> ophelia (smile, tilt): It really does.
+choice -4: eco: Then why'd you order it? That's dumb.
+> ophelia (angry, lookaway): Wow. Okay. I'll be mysterious somewhere else.
+ophelia (plain): First date in the greenhouse. Every couple in Solace has had one. Now us. Weird.
+
+[date cinema]
+ophelia (smile): Front row. Nobody sits in the front row. That's why I sit in the front row.
+eco: It's a war film again. The heroes never cry.
+ophelia (tilt): Watch the one at the back of the dropship. Left side. He cries in every reel. They forgot to cut him.
+choice +7: eco: You watch these for the guy at the back who cries?
+> ophelia (blush, down): Somebody has to. Nobody watched for me.
+> eco: I'm watching. Pass the popcorn.
+choice +3: eco: Shh. Somebody's about to explode.
+> ophelia (smile): Somebody's always about to explode. That's the genre.
+choice -4: eco: Can we leave halfway? I've seen enough war for one life.
+> ophelia (sad, lookaway): Yeah. Sure. I didn't think about that.
+ophelia (blush): Your hand's on the armrest. My hand's on the armrest. That's just geography.
+
+[date garden]
+ophelia (closed): It's so high up. You can see the turbines. And the city they keep promising.
+eco: Dad proposed to Mom up here. She said no the first time.
+ophelia (surprised, tilt): And the second time?
+eco: Second time he brought noodles.
+choice +7: eco: I brought noodles.
+> ophelia (fluster, closed): That's not... that's not funny. Give me the noodles.
+> ophelia (blush, smile, lookaway): The burnt edges. You saved me the burnt edges.
+choice +4: eco: Relax, nobody's proposing. Look at the view, gloom girl.
+> ophelia (smile, nod): I'm looking. It's not even that gloomy up here. Don't tell anyone.
+choice -5: eco: Don't get any ideas.
+> ophelia (sad, down): I don't have ideas. I never have ideas.
+ophelia (plain): Stay till the lights come on in the valley. Please.
+
+[date noodles]
+ophelia (down): Hiro gave me extra egg. He's never given me extra egg.
+eco: That's because you're with me. I'm a regular. Regulars get egg.
+ophelia (smile, tilt): So I'm with you. Officially. Egg official.
+choice +6: eco: Egg official. There's no going back from egg.
+> ophelia (blush, smile): Okay. Okay. Eat your noodles, mechanic.
+choice +2: eco: Don't let it go to your head. It's just egg.
+> ophelia (smile): It's the best egg I've ever had and you'll never take that from me.
+ophelia (plain): Twenty-three years in this town and nobody ever bought me noodles.
 
 [date any]
 ophelia (blush, down): So this is a date.

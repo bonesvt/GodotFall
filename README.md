@@ -122,6 +122,24 @@ shoulders back, and stands with her weight on one hip. The strut is layered over
     round titan-sized cover, dash, and shoot the four scrap titan dummies; they topple
     and get propped back up.
 
+### Solace's shops
+Down the pilgrim road past the front gate, Eco's hometown sells her things for her materials
+(`scripts/hub/town_shops.gd`, counters in `town_shop_screen.gd`):
+- **Seven Suns Noodles**: one meal at a time, a boost for the next run only (max health, speed,
+  wallruns, stealth or faster healing).
+- **Mercy Clinic**: implants, small boosts for good.
+- **Sal's Salvage**: swap scrap, alloy, circuits and lock cores.
+- **Ink & Iron** (a shipping container on the plaza, west side): piercings and tattoos. Tattoos are
+  baked into her body's UVs by `tools/ink/build_tattoos.py` and only show on bare skin, so her
+  clothes cover them. Piercings and accessories are built in `scripts/hub/eco_extras.gd`.
+- **Stitch & Steel**: accessories (shades, a visor, a beanie, a face bandana) and a fitting room.
+- **Dates**: once Ophelia is ready for one, the Greenhouse Cafe, Glowbox Arcade, Holo-Cinema,
+  Scoops, the rooftop garden and the Seven Suns stall each say "Take Ophelia on a date". One date
+  between runs; her lines are `[date <place>]` in `dialogue/npc/ophelia.txt`.
+Close-ups: `xvfb-run -a godot --path . --rendering-driver opengl3 -s res://tools/ink/ink_shots.gd
+-- <dir> --pierce=all --ink=all`, and `tools/ink/shop_shots.gd` for the counters. Test:
+`tests/town_shops_test.gd`.
+
 ### Workbenches and materials
 Out on runs you collect four materials, and the hub's workbenches spend them:
 - **Scrap**: grunts drop it when they die; small **supply crates** beside the routes hold
