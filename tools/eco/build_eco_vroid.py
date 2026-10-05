@@ -1999,9 +1999,11 @@ def vesper_graph(nt, skin):
     w_v = g.mul(g.mx(g.sub(z, v0), 0.0), slope)
     if unzip:
         w_v = g.mn(g.mn(w_v, 0.043), g.add(0.014, g.mul(0.9, g.sub(z, APEX_POS[2]))))
-        # open right through the hem: no strip joins the cups below her cleavage
-        # (8 mm either side of centre, 3 cm clear of the covered zones)
-        w_v = g.mx(w_v, 0.008)
+        # open right through the hem: no strip joins the cups below her cleavage,
+        # and each cup's lower inner corner sweeps out in a curve to the hem
+        # (8 mm either side of centre, widening to 2.8 cm at the hem; still
+        # 1.6 cm from the covered zones at the nearest point)
+        w_v = g.mx(w_v, g.add(0.008, g.mul(50.0, g.sq(g.mx(g.sub(1.042, z), 0.0)))))
     d_v = g.sub(w_v, ax)
     d_v = g.mn(d_v, g.mul(g.sub(front, 0.5), 0.1))   # (front only)
     d_top = g.mn(d_top, g.neg(d_v))
