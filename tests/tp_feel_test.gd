@@ -76,6 +76,14 @@ func _run() -> void:
 	await _ticks(60)
 	var anim: AnimationPlayer = shadow.get("_anim")
 	_check("fluid: backpedals", moves.backpedal and absf(moves.twist) < deg_to_rad(15.0) and anim.speed_scale < 0.0, [moves.backpedal, rad_to_deg(moves.twist), anim.speed_scale])
+	# backpedalling and shooting, she stays as far from the lens as standing
+	var cam_b: Camera3D = player.get_node("Head/Camera3D")
+	var gap_still := 1.7
+	player.get_node("Head/Camera3D/Weapon").since_shot = 0.0
+	await _ticks(40)
+	var gap: float = (cam_b.global_position - player.get_node("Head").global_position).dot(player.global_basis.z)
+	_check("fluid: backpedal keeps the camera back", gap > gap_still - 0.12, gap)
+	player.get_node("Head/Camera3D/Weapon").since_shot = 10.0
 	Input.action_release("move_back")
 	await _ticks(60)
 	_check("stride forward again", not moves.backpedal and anim.speed_scale >= 0.0, [moves.backpedal, anim.speed_scale])

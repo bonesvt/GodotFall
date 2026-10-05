@@ -66,6 +66,7 @@ var _shake := 0.0
 var _lead := 0.0
 var _roll := 0.0
 var _fov_touched := false
+var _back := 0.0
 var _rng := RandomNumberGenerator.new()
 
 
@@ -146,10 +147,27 @@ func _process(delta: float) -> void:
 	var side: float = _view.get("_side_x") if _view.get("_side_x") != null else 1.0
 	var lat := player.velocity.dot(player.global_basis.x)
 	_lead = lerpf(_lead, clampf(lat / 7.0, -1.0, 1.0), 1.0 - exp(-4.0 * delta))
-	var f := smoothstep(0.0, 1.0, focus) * float(_p["focus"])
+	# coming back toward the camera: no pull-in, and the camera's trail
+	# (view_camera.gd follow lag) doesn't let her crowd the lens
+	var head := _camera.get_parent() as Node3D
+	var back_dir := head.global_basis.z
+	back_dir.y = 0.0
+	back_dir = back_dir.normalized()
+	var back := clampf(player.velocity.dot(back_dir) / 5.0, 0.0, 1.0)
+	_back = lerpf(_back, back, 1.0 - exp(-6.0 * delta))
+	var f := smoothstep(0.0, 1.0, focus) * float(_p["focus"]) * (1.0 - _back)
+	var anchor: Vector3 = _view.get("_anchor")
+	var trail := maxf(-(anchor - head.global_position).dot(back_dir), 0.0)
 	var offset := Vector3(side * 0.12 * f + _lead * float(_p["lead"]), -0.04 * f - _dip, -0.45 * f)
-	# pulling in is always clear; only a lead out to the side could clip a wall
 	_camera.position += offset
+	if trail > 0.005:
+		# step back by the trail, unless that would put it in a wall
+		var from := _camera.global_position
+		var to := from + back_dir * (trail + 0.2)
+		var q := PhysicsRayQueryParameters3D.create(from, to)
+		q.exclude = [player.get_rid()]
+		if player.get_world_3d().direct_space_state.intersect_ray(q).is_empty():
+			_camera.global_position = from + back_dir * trail
 
 
 func _physics_process(delta: float) -> void:
