@@ -9,11 +9,11 @@ shader = ExtResource("2_outline")
 shader_parameter/width = 1.2
 
 [resource]
-resource_name = "eco_v_cloth"
+resource_name = "eco_v_kit_canvas"
 render_priority = 0
 next_pass = SubResource("ShaderMaterial_ink")
 shader = ExtResource("1_shader")
-shader_parameter/albedo = Color(0.3, 0.28, 0.25, 1)
+shader_parameter/albedo = Color(0.735, 0.584, 0.152, 1)
 shader_parameter/shade_tint = Vector3(0.6, 0.6, 0.72)
 shader_parameter/sheen = 0.0
 

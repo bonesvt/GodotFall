@@ -63,7 +63,8 @@ func _run() -> void:
 			and eco.find_child("outfit_date_t_jacket", true, false).visible and not eco.find_child("outfit_date_m_skirt", true, false).visible, eco.look())
 	eco.wear("suit")
 	_check("back in her suit her armour comes back", pieces.any(func(p): return p.visible) and goggles.visible and boots.visible \
-			and _body(eco) == eco.HEAVY_BODY and _face(face) == null and eco.look() == "", "")
+			and _body(eco) == eco.body_material() and _body(eco).get_shader_parameter("use_kit") \
+			and _face(face) == eco.KIT_FACE["heavy"] and eco.look() == "", "")
 	Wardrobe.save_path = PATH
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(PATH))
 	_check("the wardrobe has her clothes", Wardrobe.options("eco").has("skater") and Wardrobe.options("eco").has("y2k") and Wardrobe.options("eco").has("date"), "")
