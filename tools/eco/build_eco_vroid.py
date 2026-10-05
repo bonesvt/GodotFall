@@ -1999,6 +1999,9 @@ def vesper_graph(nt, skin):
     w_v = g.mul(g.mx(g.sub(z, v0), 0.0), slope)
     if unzip:
         w_v = g.mn(g.mn(w_v, 0.043), g.add(0.014, g.mul(0.9, g.sub(z, APEX_POS[2]))))
+        # open right through the hem: no strip joins the cups below her cleavage
+        # (8 mm either side of centre, 3 cm clear of the covered zones)
+        w_v = g.mx(w_v, 0.008)
     d_v = g.sub(w_v, ax)
     d_v = g.mn(d_v, g.mul(g.sub(front, 0.5), 0.1))   # (front only)
     d_top = g.mn(d_top, g.neg(d_v))
@@ -2042,10 +2045,8 @@ def vesper_graph(nt, skin):
         gleam = g.mx(gleam, g.sub(1.0, g.sstep(0.55, 1.0, dg)))
     col = g.mixc(col, V_YELLOW_DK, g.mul(g.mul(g.mul(under, c_top), front), 0.45))
     col = g.mixc(col, (1.0, 0.86, 0.45), g.mul(g.mul(g.mul(gleam, c_top), front), 0.55))
-    if unzip:   # zipper teeth down each edge of the opening, the pull at the bottom
+    if unzip:   # zipper teeth down each edge of the opening
         col = g.mixc(col, (0.45, 0.42, 0.38), g.mul(g.mul(g.band(d_v, -0.0026, -0.0010, 0.0003), c_top), front))
-        pull = g.mul(g.band(ax, -0.001, 0.0035, 0.0004), g.band(z, V_HEM, V_HEM + 0.006, 0.0004))
-        col = g.mixc(col, (0.7, 0.66, 0.6), g.mul(pull, c_top))
     col = g.mixc(col, GEAR, c_gear)
     cover = g.mx(g.mx(g.mx(c_top, c_sh), c_st), g.mx(c_sl, c_gear))
     crease = crease_lines(g, x, y, z, 0.0015)
