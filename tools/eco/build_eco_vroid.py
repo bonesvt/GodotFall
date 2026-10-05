@@ -712,12 +712,14 @@ def _drape(bm):
 
 
 def shell(name, keep, planes=(), gap=0.004, thick=0.004, plate="eco_v_armor", edge="eco_v_armor_edge", smooth=0,
-          smooth_edge=0, border=0, drape=False):
+          smooth_edge=0, border=0, drape=False, clear=0.0):
     """A plate that follows her body: the Body faces `keep(centre, normal)` picks,
     welded, trimmed straight by `planes` ((point, normal): the normal side is cut
     away), lifted `gap` off her skin and given `thick`ness. It keeps the body's
     skin weights, so it moves exactly as she does. Its sides are the bright edge.
-    `drape` hangs it loose over her torso (_drape), for a baggy top."""
+    `drape` hangs it loose over her torso (_drape), for a baggy top. `clear`
+    keeps every point of it at least that far out from her (a smoothed plate
+    sinks below the peaks of her bust, and the suit would poke through)."""
     body = bpy.data.objects["Body"]
     ob = body.copy()
     ob.data = body.data.copy()
@@ -775,6 +777,20 @@ def shell(name, keep, planes=(), gap=0.004, thick=0.004, plate="eco_v_armor", ed
             bmesh.ops.smooth_vert(bm, verts=inner, factor=0.5, use_axis_x=True, use_axis_y=True, use_axis_z=True)
         for f in bm.faces:
             f.smooth = True
+        bm.normal_update()
+    if clear:
+        bvh = _body_bvh()
+        for _ in range(3):   # pushed out, then smoothed a little so the pushes don't leave dents
+            for v in bm.verts:
+                loc, nrm, _i, _d = bvh.find_nearest(v.co)
+                if loc is not None and (v.co - loc).dot(nrm) < clear:
+                    v.co = loc + nrm * clear
+            bmesh.ops.smooth_vert(bm, verts=[v for v in bm.verts if not v.is_boundary], factor=0.3,
+                                  use_axis_x=True, use_axis_y=True, use_axis_z=True)
+        for v in bm.verts:
+            loc, nrm, _i, _d = bvh.find_nearest(v.co)
+            if loc is not None and (v.co - loc).dot(nrm) < clear:
+                v.co = loc + nrm * clear
         bm.normal_update()
     if border:
         # cloth: a plain shell `thick` out along the normals (bmesh's solidify spikes
@@ -1035,7 +1051,7 @@ def light_suit(bvh):
         out.append(shell("suit_t3l_knee_" + side,
                          lambda c, n: c.y < 0.06 and 0.4 < c.z < 0.56 and c.x * s > 0.0,
                          planes=[((0, 0, 0.44), (0, 0, -1)), ((0, 0, 0.505), (0, 0, 1)), ((0, -0.012, 0), (0, 1, 0))],
-                         gap=0.008, thick=0.005, plate="eco_v_kit_leather", edge="eco_v_leather_red"))
+                         gap=0.005, thick=0.004, plate="eco_v_kit_leather", edge="eco_v_leather_red", smooth=3, smooth_edge=3))
         bm = bmesh.new()
         for k, (a, b) in enumerate(((0.25, 0.264), (0.33, 0.344))):
             out.append(shell("suit_t3l_shinstrap%d_%s" % (k, side), lambda c, n: 0.2 < c.z < 0.4 and c.x * s > 0.0,
@@ -1096,7 +1112,7 @@ def heavy_extras(bvh):
                   lambda c, n: c.y < 0.0 and 0.94 < c.z < 1.14 and abs(c.x) < 0.14,
                   planes=[((0, 0, 0.978), (0, 0, -1)), ((0, 0, 1.118), (0, 0, 1)), ((0.112, 0, 0), (1, 0, 0)),
                           ((-0.112, 0, 0), (-1, 0, 0)), ((0, -0.02, 0), (0, 1, 0))],
-                  gap=0.012, thick=0.007, smooth=12)
+                  gap=0.012, thick=0.007, smooth=12, clear=0.016)
     out.append(plate)
     # comm earpiece over her left ear, a mic boom to the corner of her mouth
     bm = bmesh.new()
@@ -2968,8 +2984,8 @@ def bake_body(body, skin_img, cut="base"):
 
 KITS = ("light", "medium", "heavy")
 SQUEEZE = (0.55, 0.655)             # the light kit's compression bands round her thighs (rest-space z)
-SQUEEZE_IN = 0.0035                 # how far they pull her thighs in
-SQUEEZE_BULGE = 0.0012              # and how far the flesh swells just above and below them
+SQUEEZE_IN = 0.007                  # how far they pull her thighs in
+SQUEEZE_BULGE = 0.0028              # and how far the flesh swells just above and below them
 KIT_GLOSS = (0.006, 0.006, 0.008)   # light: glossy black compression bands and boots
 KIT_BROWN = (0.1, 0.045, 0.018)     # medium: work boots
 KIT_SOCK = (0.45, 0.4, 0.3)
@@ -3030,18 +3046,24 @@ def kit_graph(nt, skin, weight):
         d_neck = g.mn(g.sub(z, 1.162), g.sub(0.074, r))
         put(inside(d_neck), skin, shade=0.0)
         put(g.mul(g.band(z, 1.162, 1.1645), inside(g.sub(0.074, r))), INK)
-        # a window over her stomach, piped in teal (the belt is slung below it)
-        q = g.sqrt(g.add(g.sq(g.div(ax, 0.046)), g.sq(g.div(g.sub(z, 0.93), 0.054))))
-        d_win = g.mul(g.sub(1.0, q), 0.045)
+        # a window over her stomach round her belly button, piped in teal (the
+        # belt is slung below it), the suit's edge shading the skin just inside it
+        q = g.sqrt(g.add(g.sq(g.div(ax, 0.034)), g.sq(g.div(g.sub(z, 0.915), 0.038))))
+        d_win = g.mul(g.sub(1.0, q), 0.034)
         win = g.mul(inside(d_win), front)
-        put(win, skin, shade=0.0)
+        shaded = g.mixc(skin, CREASE_SKIN, g.sub(1.0, g.sstep(0.0, 0.007, d_win)), "MULTIPLY")
+        navel = g.sqrt(g.add(g.sq(g.div(x, 0.0028)), g.sq(g.div(g.sub(z, 0.902), 0.0045))))
+        shaded = g.mixc(shaded, (0.42, 0.24, 0.22), g.mul(g.sub(1.0, g.sstep(0.35, 1.0, navel)), 0.75))
+        put(win, shaded, shade=0.0)
         put(g.mul(g.band(d_win, -0.0028, -0.0012), front), TRIM, glow=TRIM)
         put(g.mul(g.band(d_win, -0.0012, 0.0), front), INK)
         # glossy compression bands round her thighs and upper arms, sheer enough
         # that her skin shows through a little (well clear of the covered zones:
         # the thigh bands stop 5 cm below her crotch); the thighs' squeeze in
         # under them is a shape key (thigh_squeeze)
-        sheer = g.mixc(KIT_GLOSS, skin, 0.3)
+        sheer = g.mixc(KIT_GLOSS, skin, 0.14)
+        streak = g.mul(g.op("EXPONENT", g.neg(g.sq(g.div(g.sub(y, -0.045), 0.012)))), 0.55)
+        sheer = g.mixc(sheer, (0.3, 0.32, 0.38), streak)
         d_thigh = g.mn(g.sub(z, SQUEEZE[0]), g.sub(SQUEEZE[1], z))
         put(inside(d_thigh), sheer, sheen=1.0, shade=0.6)
         d_arm = g.mn(g.mn(g.sub(ax, 0.19), g.sub(0.262, ax)), g.sub(z, 1.0))
@@ -3129,7 +3151,7 @@ def thigh_squeeze(objs):
 
     def amount(z):
         band = ss(lo - 0.003, lo + 0.003, z) * (1 - ss(hi - 0.003, hi + 0.003, z))
-        swell = np.exp(-((z - (lo - 0.008)) / 0.005) ** 2) + np.exp(-((z - (hi + 0.008)) / 0.005) ** 2)
+        swell = np.exp(-((z - (lo - 0.009)) / 0.007) ** 2) + np.exp(-((z - (hi + 0.009)) / 0.007) ** 2)
         return -SQUEEZE_IN * band + SQUEEZE_BULGE * swell
 
     def squeezed(co):
