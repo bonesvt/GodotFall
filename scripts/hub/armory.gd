@@ -198,7 +198,7 @@ const ATTACHMENTS := {
 
 ## Finishes: free, cosmetic. Colours for the pistol_* paint slots.
 const FINISHES := [
-	{"id": "dads", "name": "Dad's colours", "shell": Color(1.0, 1.02, 1.05), "blue": Color(0.42, 0.58, 0.8), "stripe": Color(1.2, 0.62, 0.22)},
+	{"id": "dads", "name": "Dad's colours", "shell": Color(1.0, 1.02, 1.05), "blue": Color(0.42, 0.58, 0.8), "stripe": Color(1.2, 0.62, 0.22), "black": Color(0.15, 0.15, 0.17)},
 	{"id": "bubblegum", "name": "Bubblegum chrome", "shell": Color(1.15, 0.72, 0.9), "blue": Color(0.95, 0.95, 1.0), "stripe": Color(0.4, 0.95, 1.1)},
 	{"id": "jungle", "name": "Jungle", "shell": Color(0.52, 0.62, 0.4), "blue": Color(0.36, 0.28, 0.2), "stripe": Color(1.1, 0.85, 0.3)},
 	{"id": "midnight", "name": "Midnight", "shell": Color(0.22, 0.22, 0.28), "blue": Color(0.45, 0.3, 0.8), "stripe": Color(1.2, 0.3, 0.6)},
