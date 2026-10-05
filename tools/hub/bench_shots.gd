@@ -1,8 +1,9 @@
 extends SceneTree
 ## Screenshots of the workbenches, their screens, the guns in hand and the
 ## loot out in the forest, for checking the look.
-##   xvfb-run -a godot --path . -s res://tools/hub/bench_shots.gd -- [out_dir] [gunsmith]
-## "gunsmith" shoots only the gunsmith screen (much quicker).
+##   xvfb-run -a godot --path . -s res://tools/hub/bench_shots.gd -- [out_dir] [gunsmith|knives]
+## "gunsmith" shoots only the gunsmith screen (much quicker); "knives" only the
+## knife case, its screen and each knife in her hand.
 ## Needs a renderer (not --headless). Uses its own armory save, stocked up.
 
 const Armory := preload("res://scripts/hub/armory.gd")
@@ -11,6 +12,7 @@ const PATH := "user://shots_armory.cfg"
 var run_node
 var out := "user://bench_shots"
 var only_gunsmith := false
+var only_knives := false
 
 
 func _initialize() -> void:
@@ -18,6 +20,7 @@ func _initialize() -> void:
 	if args.size() > 0:
 		out = args[0]
 	only_gunsmith = "gunsmith" in args
+	only_knives = "knives" in args
 	DirAccess.make_dir_recursive_absolute(out)
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(PATH))
 	var a = Armory.open(PATH)
@@ -38,14 +41,19 @@ func _initialize() -> void:
 	run_node.run_seed = 1234
 	run_node.armory_path = PATH
 	root.add_child(run_node)
-	run_node.tutorial.set_enabled(false)
 	_go.call_deferred()
 
 
 func _go() -> void:
+	if run_node.tutorial != null:
+		run_node.tutorial.set_enabled(false)
 	await _frames(20)
 	if only_gunsmith:
 		await _gunsmith_shots()
+		quit()
+		return
+	if only_knives:
+		await _knife_shots()
 		quit()
 		return
 	await _shot("1-gunsmith-bench", Vector3(8.2, 1.2, 1.2), Vector3(11, 2.0, 0.4))
@@ -150,6 +158,38 @@ func _save(name: String) -> void:
 	await _frames(2)
 	root.get_viewport().get_texture().get_image().save_png(out.path_join(name + ".png"))
 	print("shot ", name)
+
+
+## The knife case by the door, its screen, and each knife in her hand: held
+## ready, and caught mid-flip on the draw (the Butterfly's handle swings open).
+func _knife_shots() -> void:
+	await _shot("k1-knife-case", Vector3(7.4, 1.2, 7.0), Vector3(10.6, 1.9, 4.0))
+	await _shot("k2-knife-case-close", Vector3(9.25, 1.2, 4.8), Vector3(10.6, 2.0, 4.8))
+	run_node.open_bench("knives")
+	run_node.bench.select(1)
+	await _frames(12)
+	await _save("k3-screen-knife-case")
+	run_node.close_bench()
+	var knife = run_node.player.get_node("Head/Camera3D/Knife")
+	var weapon = run_node.player.get_node("Head/Camera3D/Weapon")
+	for id in run_node.Armory.KNIVES:
+		run_node.armory.set_knife(id)
+		run_node.equip_loadout()
+		knife.set_physics_process(false)
+		knife.set_process(false)
+		weapon.holstered = true
+		knife.readied = true
+		knife._ready_blend = 1.0
+		for pose in [["ready", "", 0.0], ["flip", "inspect", 1.02], ["show", "inspect", 0.5]]:
+			knife.anim = pose[1]
+			knife.anim_time = pose[2]
+			knife._process(0.0)
+			await _shot("k4-hand-%s-%s" % [id, pose[0]], Vector3(-20, 0.2, 10), Vector3(-30, 1.4, 10))
+		knife.anim = ""
+		knife.set_process(true)
+		knife.set_physics_process(true)
+	run_node.armory.set_knife("needle")
+	run_node.equip_loadout()
 
 
 ## The gunsmith: the pistol in 3D with its part markers, a part picked, a

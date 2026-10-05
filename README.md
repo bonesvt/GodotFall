@@ -92,7 +92,8 @@ shoulders back, and stands with her weight on one hip. The strut is layered over
   a pipe stand; F opens the suit screen (upgrades and changes).
 - **Workbench and weapon rack** (right of the door): the gunsmith's bench with the gun in
   her hand on the mat, and the rack of the sidearms she owns. An `EcoSpot` marker beside
-  the bench is where her character model stands.
+  the bench is where her character model stands. Between the bench and the door, a
+  glass-topped **knife case** shows her three knives on velvet.
 - **Her father's titan** (right aisle): the wreck sitting slumped against the wall, left
   arm torn off and lying beside it, core dark, wired to a bank of salvaged batteries.
 - **Eco's loft** (up the stairs left of the door): a timber floor 4.5 m up over the left
@@ -153,6 +154,12 @@ enemy titan's salvage when you win); a lost run banks half. The HUD shows what y
   pistol from the start; the **Heavy Revolver** (six titan rivets in a hand-turned
   cylinder) at **level 3**; the **Auto Handgun** (a colony machine pistol, full auto,
   fifteen rounds a second) at **level 6**.
+- **Knife case** (against the right wall by the door): pick which of her three knives she
+  carries, free: the **Needle** (the stiletto refined: diamond needle blade, swept guard lit
+  cyan, ring pommel; the default), the **Plate Kunai** (a tanto cut from colony armour plate,
+  its power trace still glowing, cobalt paracord) or the **Butterfly** (a balisong held open,
+  handles shut round the tang; the bite handle flips open as she spins it). They fight the
+  same. The case tags the one she carries.
 - **Eco's level** is 1 plus every upgrade she has bought: weapon upgrades, titan refits and
   suit upgrades. It shows in the hub HUD and on every bench, which also says what unlocks
   next.
@@ -559,7 +566,7 @@ Grunts start **unaware** and have to notice you first.
 - **Over each grunt**: a **?** that grows from yellow to orange as it notices you (half full, it turns to look), then a red **!** once alerted. Visible through cover.
 - **Around the crosshair**: an arc points at every grunt noticing you, including ones behind you, and fills toward red.
 - **Sneak attacks**: anything that hits a grunt that hasn't noticed you does double damage, so a pistol headshot on an unaware grunt kills outright.
-- **Stiletto** (Z or the mouse thumb button): tap for a quick stab from Eco's left hand, 2.4 m reach. **Hold** to draw it with a flip-spin and keep it out: the pistol drops, Eco runs 20% faster, left mouse swings alternating slashes (light trail off the tip), and I plays a knife inspect (edge glint, finger spins, toss and catch). Takedowns are always a straight thrust. Let go to put it away. Cobalt-steel model built in Blender by `tools/knife/build_stiletto.py`. On an unaware grunt it's a silent takedown that kills instantly; on one that knows you're there it does 30 damage and alerts it. The pistol can't fire mid-stab.
+- **Stiletto** (Z or the mouse thumb button): tap for a quick stab from Eco's left hand, 2.4 m reach. **Hold** to draw it with a flip-spin and keep it out: the pistol drops, Eco runs 20% faster, left mouse swings alternating slashes (light trail off the tip), and I plays a knife inspect (edge glint, finger spins, toss and catch). Takedowns are always a straight thrust. Let go to put it away. She carries the knife picked at the hub's knife case (Needle, Plate Kunai or Butterfly), all three built in Blender by `tools/knife/build_knives.py`. On an unaware grunt it's a silent takedown that kills instantly; on one that knows you're there it does 30 damage and alerts it. The pistol can't fire mid-stab.
 - **Alerted** grunts fight exactly as before, and call in every squadmate within 16 m. Getting shot always alerts. Out of sight for 10 s, they lose you and go back to searching.
 
 ## Enemy radio
@@ -649,6 +656,7 @@ select the Player node and tweak values in the Inspector, or change the defaults
   `godot --headless --path . -s res://tests/suit_test.gd`
 - `tools/hub/bench_shots.gd` screenshots of the benches, their screens, the guns and the loot
   (needs a renderer): `xvfb-run -a godot --path . -s res://tools/hub/bench_shots.gd -- out_dir`
+  (add `knives` for just the knife case, its screen and each knife in her hand)
 - `tools/hub/base_shots.gd` screenshots of the temple base: the hall, the stairs and loft
   bedroom, the lore, mission table and armour bench, the poster and its marker, and the tents
   inside and out: `xvfb-run -a godot --path . -s res://tools/hub/base_shots.gd -- out_dir [--only=hall,loft]`
