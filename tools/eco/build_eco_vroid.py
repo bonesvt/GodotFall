@@ -780,17 +780,25 @@ def shell(name, keep, planes=(), gap=0.004, thick=0.004, plate="eco_v_armor", ed
         bm.normal_update()
     if clear:
         bvh = _body_bvh()
-        for _ in range(3):   # pushed out, then smoothed a little so the pushes don't leave dents
+
+        def lift(p):   # how far the suit's small peaks over her bust stand out (curves() apex): bridged over, not followed
+            d2 = (abs(p.x) - APEX_POS[0]) ** 2 + (p.y - APEX_POS[1]) ** 2 + (p.z - APEX_POS[2]) ** 2
+            return APEX * math.exp(-d2 / (2 * 0.0065 ** 2))
+
+        def push():   # out along its own normal, only over the part of her it faces, never far
+            bm.normal_update()
             for v in bm.verts:
                 loc, nrm, _i, _d = bvh.find_nearest(v.co)
-                if loc is not None and (v.co - loc).dot(nrm) < clear:
-                    v.co = loc + nrm * clear
+                if loc is None or nrm.dot(v.normal) < 0.5:
+                    continue
+                need = clear - lift(loc) - (v.co - loc).dot(nrm)
+                if need > 0:
+                    v.co += v.normal * min(need, 0.02)
+        for _ in range(4):   # pushed out, then smoothed a little so the pushes don't leave dents
+            push()
             bmesh.ops.smooth_vert(bm, verts=[v for v in bm.verts if not v.is_boundary], factor=0.3,
                                   use_axis_x=True, use_axis_y=True, use_axis_z=True)
-        for v in bm.verts:
-            loc, nrm, _i, _d = bvh.find_nearest(v.co)
-            if loc is not None and (v.co - loc).dot(nrm) < clear:
-                v.co = loc + nrm * clear
+        push()
         bm.normal_update()
     if border:
         # cloth: a plain shell `thick` out along the normals (bmesh's solidify spikes
@@ -1051,7 +1059,8 @@ def light_suit(bvh):
         out.append(shell("suit_t3l_knee_" + side,
                          lambda c, n: c.y < 0.06 and 0.4 < c.z < 0.56 and c.x * s > 0.0,
                          planes=[((0, 0, 0.44), (0, 0, -1)), ((0, 0, 0.505), (0, 0, 1)), ((0, -0.012, 0), (0, 1, 0))],
-                         gap=0.005, thick=0.004, plate="eco_v_kit_leather", edge="eco_v_leather_red", smooth=3, smooth_edge=3))
+                         gap=0.008, thick=0.004, plate="eco_v_kit_leather", edge="eco_v_leather_red", smooth=3, smooth_edge=3,
+                         clear=0.009))
         bm = bmesh.new()
         for k, (a, b) in enumerate(((0.25, 0.264), (0.33, 0.344))):
             out.append(shell("suit_t3l_shinstrap%d_%s" % (k, side), lambda c, n: 0.2 < c.z < 0.4 and c.x * s > 0.0,
@@ -1108,11 +1117,13 @@ def heavy_extras(bvh):
       5  the titan's old core light set in the breastplate"""
     out = []
     # a plate shaped to her chest, lifted clear of the suit and smoothed so it reads as one stiff piece
+    # (only the faces turned to the front: wrapped round her sides its edge tore into
+    # shards; a plain shell, as bmesh solidify spikes along its smoothed edge)
     plate = shell("suit_t1h_breastplate",
-                  lambda c, n: c.y < 0.0 and 0.94 < c.z < 1.14 and abs(c.x) < 0.14,
+                  lambda c, n: c.y < 0.0 and 0.94 < c.z < 1.14 and abs(c.x) < 0.14 and n.y < -0.3,
                   planes=[((0, 0, 0.978), (0, 0, -1)), ((0, 0, 1.118), (0, 0, 1)), ((0.112, 0, 0), (1, 0, 0)),
-                          ((-0.112, 0, 0), (-1, 0, 0)), ((0, -0.02, 0), (0, 1, 0))],
-                  gap=0.012, thick=0.007, smooth=12, clear=0.016)
+                          ((-0.112, 0, 0), (-1, 0, 0))],
+                  gap=0.012, thick=0.007, smooth=12, smooth_edge=4, clear=0.016, border=1)
     out.append(plate)
     # comm earpiece over her left ear, a mic boom to the corner of her mouth
     bm = bmesh.new()
