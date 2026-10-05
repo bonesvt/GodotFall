@@ -12,7 +12,10 @@ extends Node3D
 ## (lips, a cheek, a hip), bodies and heads by turns about the model's axes
 ## (they face -Z, their right is +X), like eco_model.gd's strut. A beat is a
 ## few keys over time; a key sets any of the controls (held, then eased into
-## the key's value over its last EASE seconds) and the rest carry on.
+## the key's value over its last EASE seconds) and the rest carry on. What they
+## show trails those values on a soft spring (LAG), quicker for eyes and heads
+## than for arms and bodies, so moves overlap and settle instead of stopping
+## dead; under it all they breathe, sway and blink.
 ##
 ## Controls, per person ("e." Eco, "o." Ophelia):
 ##   step    metres forward from where they started
@@ -46,7 +49,16 @@ const ARM := {"r": ["J_Bip_R_UpperArm", "J_Bip_R_LowerArm", "J_Bip_R_Hand", "J_B
 ## Their lips from the head joint, in the model's rest axes (measured on the
 ## Face meshes: Eco's lips ~0.09 m in front of it, level with it).
 const LIPS := Vector3(0.0, -0.002, -0.088)
-const SECONDS_TO_SETTLE := 0.45
+const SECONDS_TO_SETTLE := 0.25
+## How far behind its keys each control trails (the spring's time constant, in
+## seconds; it settles in about four of these). Not listed: no trail.
+const LAG := {"look": 0.05, "nod": 0.05, "tilt": 0.06, "eyes": 0.025, "r": 0.06, "l": 0.06,
+	"lean": 0.09, "twist": 0.09, "step": 0.1, "breath": 0.08, "grind": 0.035, "lips": 0.06,
+	"kiss": 0.08, "ember": 0.05}
+## How far behind its target a reaching hand trails (seconds, as LAG).
+const HAND_LAG := 0.07
+## A cigarette changing hands slides between them over this long.
+const HANDOFF := 0.2
 ## Longest a control takes to ease into a key's value (it holds before that).
 const EASE := 0.75
 
@@ -67,7 +79,7 @@ const SHOTS := {
 ## Vector3(right, up, forward)] from their feet; ["head", who, Vector3] from
 ## their head joint and ["lips", who, Vector3] from their lips, in their own
 ## axes; ["hand", who, "r"/"l"] where that hand is.
-const MID := ["stage", Vector3(-0.04, 1.2, 0.0)]
+const MID := ["stage", Vector3(-0.04, 1.1, 0.0)]
 const BEATS := {
 	"arrive": {"keys": [
 		{"t": 0.0, "do": [["cam", "two"], ["cig", ""]]},
@@ -157,16 +169,19 @@ const BEATS := {
 	]},
 	"kiss": {"keys": [
 		{"t": 0.0, "do": [["cam", "kiss"]]},
-		{"t": 0.8, "kiss": 1.0, "o.step": 0.04, "o.lean": 20.0, "o.r": 1.0, "o.r_at": ["head", "e", Vector3(-0.075, -0.045, -0.02)],
+		# she looks at her mouth, tips her head, and only then leans in
+		{"t": 0.7, "o.look": 1.0, "o.tilt": 7.0, "o.nod": 6.0, "o.lean": 5.0, "e.look": 1.0, "e.nod": 0.0},
+		{"t": 1.5, "kiss": 1.0, "o.step": 0.04, "o.lean": 20.0, "o.r": 1.0, "o.r_at": ["head", "e", Vector3(-0.075, -0.045, -0.02)],
 			"o.l": 1.0, "o.l_at": ["body", "e", Vector3(0.13, 1.06, 0.06)], "o.look": 1.0, "o.tilt": 14.0, "o.nod": 3.0,
 			"e.step": 0.0, "e.lean": 18.0, "e.tilt": -10.0, "e.look": 1.0, "e.nod": 0.0, "e.breath": 4.0},
-		{"t": 0.9, "do": [["mood", "o", ["closed", "blush"]]]},
-		{"t": 1.2, "e.eyes": 1.0, "do": [["wisp", true]]},
-		{"t": 1.5, "e.l": 1.0, "e.l_at": ["body", "o", Vector3(0.15, 1.0, -0.02)]},
+		{"t": 1.4, "do": [["mood", "o", ["closed", "blush"]]]},
+		{"t": 1.8, "e.eyes": 1.0, "do": [["wisp", true]]},
+		{"t": 2.3, "e.l": 1.0, "e.l_at": ["body", "o", Vector3(0.15, 1.0, -0.02)]},
 	]},
 	"kiss_hold": {"keys": [
 		{"t": 0.0, "do": [["cam", "kiss"]]},
-		{"t": 1.5, "o.tilt": 17.0, "e.tilt": -12.0, "e.breath": 0.0},
+		{"t": 1.4, "o.tilt": 17.0, "e.tilt": -12.0, "e.breath": 0.0, "o.breath": 3.0},
+		{"t": 2.4, "o.breath": 0.0},
 		{"t": 3.0, "o.tilt": 14.0, "e.tilt": -10.0},
 	]},
 	"exhale": {"keys": [
@@ -179,8 +194,9 @@ const BEATS := {
 	]},
 	"after": {"keys": [
 		{"t": 0.0, "do": [["cam", "two"]]},
-		{"t": 1.0, "o.step": 0.14, "o.l": 1.0, "o.l_at": ["body", "e", Vector3(0.2, 1.31, 0.08)], "o.look": 1.0,
-			"e.l": 0.0, "e.look": 1.0, "e.tilt": 6.0, "o.tilt": 8.0},
+		# she finds Eco's hand and holds it
+		{"t": 0.9, "e.l": 0.0, "e.r": 1.0, "e.r_at": ["body", "e", Vector3(0.14, 0.97, 0.21)], "e.look": 1.0, "e.tilt": 6.0},
+		{"t": 1.4, "o.step": 0.1, "o.l": 1.0, "o.l_at": ["hand", "e", "r"], "o.look": 1.0, "o.tilt": 8.0},
 	]},
 }
 
@@ -211,6 +227,16 @@ var _shot := "two"
 var _player_body: Node3D
 var _cam_ready := false
 var _kiss_reach := 0.0
+## What's on show: the controls trailing `now` on their springs.
+var _shown := {}
+var _vel := {}
+var _clock := 0.0
+var _shot_t := 0.0
+var _cut := true
+var _handoff := 1.0
+var _handoff_from := Transform3D()
+var _rng := RandomNumberGenerator.new()
+var _spring_vel: Variant = 0.0
 
 
 ## Stages it at `anchor` (Eco's feet, facing `face_toward`, a point Ophelia
@@ -240,6 +266,7 @@ func setup(ophelia: Node3D, anchor: Vector3, toward: Vector3, player_body: Node3
 			p.queue_free()
 	if oph._anim != null and oph._anim.has_animation("idle"):
 		oph._anim.play("idle", 0.3)
+	_rng.seed = 7
 	_actors["e"] = _actor(eco, "e")
 	_actors["o"] = _actor(oph, "o")
 	_build_props()
@@ -253,7 +280,8 @@ func setup(ophelia: Node3D, anchor: Vector3, toward: Vector3, player_body: Node3
 
 func _actor(model: Node3D, key: String) -> Dictionary:
 	var skel := model.find_child("Skeleton3D", true, false) as Skeleton3D
-	var a := {"model": model, "skel": skel, "key": key, "ik": {}, "target": {}, "pole": {}}
+	var a := {"model": model, "skel": skel, "key": key, "ik": {}, "target": {}, "pole": {}, "hand": {}, "hand_vel": {},
+		"blink_in": 1.0 + (0.0 if key == "e" else 1.3), "blink": 0.0, "eyes_base": 0.0}
 	var pose := Puppet.new()
 	pose.scene = self
 	pose.key = key
@@ -344,6 +372,7 @@ func _tick(delta: float) -> void:
 			for ev in k.get("do", []):
 				_event(ev)
 	_evaluate()
+	_smooth(delta)
 	if _t >= end:
 		if _next != "":
 			play(_next)
@@ -355,9 +384,42 @@ func _tick(delta: float) -> void:
 			for k in _from:
 				if _from[k] is Array:
 					_from[k] = ["world", _where(_from[k])]
-	_place_people()
+	_clock += delta
+	_place_people(delta)
 	_dress_props(delta)
 	_aim_camera(delta)
+
+
+## Moves what's shown toward `now`: a critically damped spring per control.
+func _smooth(delta: float) -> void:
+	for c: String in now:
+		var v: Variant = now[c]
+		if v is Array:
+			continue
+		var lag: float = LAG.get(c.get_slice(".", 1) if c.contains(".") else c, 0.0)
+		if lag <= 0.0 or not _shown.has(c):
+			_shown[c] = float(v)
+			_vel[c] = 0.0
+			continue
+		var x: float = _shown[c]
+		var vel: float = _vel[c]
+		var to := float(v)
+		_shown[c] = _spring(x, vel, to, lag, delta)
+		_vel[c] = _spring_vel
+
+
+## One step of a critically damped spring (stable for any step): returns the
+## new position and leaves the new velocity in _spring_vel.
+func _spring(x: Variant, vel: Variant, to: Variant, lag: float, delta: float) -> Variant:
+	if delta <= 0.0:
+		_spring_vel = vel
+		return x
+	var w := 1.0 / lag
+	var f := 1.0 + 2.0 * delta * w
+	var hoo := delta * w * w
+	var inv := 1.0 / (f + delta * hoo)
+	_spring_vel = (vel + (to - x) * hoo) * inv
+	return (x * f + vel * delta + to * (delta * hoo)) * inv
 
 
 ## Every control's value now: eased between the keys that set it.
@@ -408,6 +470,8 @@ func _blend(a: Variant, b: Variant, s: float) -> Variant:
 
 
 func get_value(c: String) -> float:
+	if _shown.has(c):
+		return _shown[c]
 	var v: Variant = now.get(c, _default(c))
 	return float(v) if not v is Array else 0.0
 
@@ -455,7 +519,7 @@ func _record(key: String, skel: Skeleton3D) -> void:
 	if a.is_empty():
 		return
 	var at: Dictionary = a["at"]
-	for bone in [HEAD, ARM["r"][0], ARM["l"][0], ARM["r"][3], ARM["l"][3]]:
+	for bone in [HEAD, ARM["r"][0], ARM["l"][0], ARM["r"][2], ARM["l"][2], ARM["r"][3], ARM["l"][3]]:
 		var i := skel.find_bone(bone)
 		if i >= 0:
 			at[bone] = skel.global_transform * skel.get_bone_global_pose(i)
@@ -477,7 +541,11 @@ func finger_point(a: Dictionary, side: String) -> Vector3:
 func _event(ev: Array) -> void:
 	match String(ev[0]):
 		"cig":
+			var was := _holder
 			_holder = String(ev[1])
+			if was in ["e", "o"] and _holder in ["e", "o"] and was != _holder:
+				_handoff = 0.0   # slides from one hand into the other
+				_handoff_from = _cig.global_transform
 			if _holder == "drop":
 				_dropped = true
 				_drop_at = _cig.global_position
@@ -492,6 +560,7 @@ func _event(ev: Array) -> void:
 			var v := float(ev[1])
 			now["burn"] = clampf(get_value("burn") + v, 0.2, 1.0) if v < 0.0 else v
 			_from["burn"] = now["burn"]
+			_shown["burn"] = now["burn"]
 		"puff":
 			puff(_actors[ev[1]], float(ev[2]), float(ev[3]))
 		"wisp":
@@ -500,12 +569,15 @@ func _event(ev: Array) -> void:
 			if ev[1] == "o" and oph.has_method("mood"):
 				oph.mood(ev[2])
 		"cam":
-			_shot = String(ev[1])
+			if String(ev[1]) != _shot:
+				_shot = String(ev[1])
+				_shot_t = 0.0
+				_cut = true
 
 
 # --- people -------------------------------------------------------------------------
 
-func _place_people() -> void:
+func _place_people(delta := 0.0) -> void:
 	var e_step := get_value("e.step")
 	var o_step := get_value("o.step")
 	eco.global_transform = global_transform * Transform3D(Basis(), Vector3(0, 0, GAP * 0.5 - e_step))
@@ -527,15 +599,46 @@ func _place_people() -> void:
 		for side in ARM:
 			var ik: TwoBoneIK3D = a["ik"][side]
 			ik.influence = clampf(get_value(key + "." + side), 0.0, 1.0)
-			if ik.influence > 0.0:
-				(a["target"][side] as Node3D).global_position = _where(now.get(key + "." + side + "_at", _default(key + "." + side + "_at")))
+			var want := _where(now.get(key + "." + side + "_at", _default(key + "." + side + "_at")))
+			if ik.influence <= 0.001 or not a["hand"].has(side):
+				# a reach starts from wherever the hand hangs
+				a["hand"][side] = _seen(a, ARM[side][2]).origin if ik.influence <= 0.001 else want
+				a["hand_vel"][side] = Vector3.ZERO
+			else:
+				a["hand"][side] = _spring(a["hand"][side], a["hand_vel"][side], want, HAND_LAG, delta)
+				a["hand_vel"][side] = _spring_vel
+			(a["target"][side] as Node3D).global_position = a["hand"][side]
 			# elbows down and out, a little behind
 			var s: float = ARM[side][4]
 			var shoulder := _seen(a, ARM[side][0]).origin
 			(a["pole"][side] as Node3D).global_position = shoulder + m.global_basis * Vector3(0.35 * s, -0.45, 0.15)
-		var face: MeshInstance3D = a.get("face")
-		if face != null and key == "e":
-			_shape(face, "Fcl_EYE_Close", get_value("e.eyes"))
+		_blink(a, delta)
+
+
+## Every few seconds a blink. Eco's eyes are the scene's ("e.eyes");
+## Ophelia's belong to her moods, so a blink only shuts them a moment and
+## gives back what they were.
+func _blink(a: Dictionary, delta: float) -> void:
+	var face: MeshInstance3D = a.get("face")
+	if face == null:
+		return
+	var i := face.find_blend_shape_by_name("Fcl_EYE_Close")
+	a["blink_in"] -= delta
+	if a["blink_in"] <= 0.0 and a["blink"] <= 0.0:
+		a["blink"] = 0.16
+		a["blink_in"] = _rng.randf_range(2.4, 5.2)
+		a["eyes_base"] = face.get_blend_shape_value(i)
+	var shut := 0.0
+	if a["blink"] > 0.0:
+		a["blink"] -= delta
+		shut = sin(clampf(1.0 - a["blink"] / 0.16, 0.0, 1.0) * PI)
+	if a["key"] == "e":
+		face.set_blend_shape_value(i, maxf(get_value("e.eyes"), shut))
+	elif a["blink"] > 0.0:
+		face.set_blend_shape_value(i, maxf(a["eyes_base"], shut))
+	elif shut == 0.0 and a.get("blinked", false):
+		face.set_blend_shape_value(i, a["eyes_base"])
+	a["blinked"] = a["blink"] > 0.0
 
 
 func _shape(mi: MeshInstance3D, shape: String, v: float) -> void:
@@ -566,6 +669,13 @@ class Puppet extends SkeletonModifier3D:
 		if skel == null or scene == null or scene.eco == null:
 			return
 		var v := func(c: String) -> float: return scene.get_value(key + "." + c)
+		# alive underneath: a slow breath, a sway, the head drifting (less so
+		# mid-kiss, where their lips have to stay put)
+		var t: float = scene._clock + (0.0 if key == "e" else 1.7)
+		var still: float = 1.0 - 0.8 * clampf(scene.get_value("kiss"), 0.0, 1.0)
+		_turn(skel, "J_Bip_C_UpperChest", Vector3.RIGHT, sin(t * TAU / 3.8) * 1.1)
+		_turn(skel, "J_Bip_C_Spine", Vector3.BACK, sin(t * TAU / 6.3) * 0.8 * still)
+		_turn(skel, "J_Bip_C_Head", Vector3.UP, (sin(t * TAU / 4.7) + 0.5 * sin(t * TAU / 2.3 + 1.0)) * 1.3 * still)
 		var lean: float = v.call("lean")
 		_turn(skel, "J_Bip_C_Spine", Vector3.RIGHT, -lean * 0.5)
 		_turn(skel, "J_Bip_C_Chest", Vector3.RIGHT, -lean * 0.5 + float(v.call("breath")) * 0.4)
@@ -637,7 +747,7 @@ func _build_props() -> void:
 	_ember_light.light_color = Color(1.0, 0.45, 0.2)
 	_ember_light.omni_range = 0.35
 	_ember.add_child(_ember_light)
-	_cig_smoke = _smoke_emitter(26, 2.6, 0.2, 0.5)
+	_cig_smoke = _smoke_emitter(46, 2.6, 0.25, 0.55, 0.22)
 	_cig_smoke.gravity = Vector3(0.0, 0.12, 0.0)
 	_ember.add_child(_cig_smoke)
 	_cig_smoke.emitting = false
@@ -709,7 +819,7 @@ func _flat(color: Color) -> StandardMaterial3D:
 	return m
 
 
-func _smoke_emitter(amount: int, life: float, size_min: float, size_max: float) -> CPUParticles3D:
+func _smoke_emitter(amount: int, life: float, size_min: float, size_max: float, alpha := 0.3) -> CPUParticles3D:
 	var p := CPUParticles3D.new()
 	p.amount = amount
 	p.lifetime = life
@@ -727,7 +837,7 @@ func _smoke_emitter(amount: int, life: float, size_min: float, size_max: float) 
 	mat.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
 	# (no vertex colour: a fresh burst can draw black for a frame before its
 	# colour ramp kicks in; the puffs swell and then shrink away instead)
-	mat.albedo_color = Color(0.9, 0.9, 0.93, 0.42)
+	mat.albedo_color = Color(0.74, 0.74, 0.78, alpha)   # grey: white smoke blooms into solid discs
 	mat.albedo_texture = _puff_texture()
 	quad.material = mat
 	p.mesh = quad
@@ -767,7 +877,11 @@ func _dress_props(delta: float) -> void:
 		var at := fingers.lerp(lips_point(a) + m.global_basis * Vector3(0.0, -0.004, -0.004), clampf((lips - 0.5) * 2.0, 0.0, 1.0))
 		# out from the face and to the side of the hand holding it, tipped up a little
 		var out := (m.global_basis * Vector3(0.45, 0.25 - 0.35 * lips, -1.0)).normalized()
-		_cig.global_transform = Transform3D(Basis(Quaternion(Vector3.UP, out)), at)
+		var xf := Transform3D(Basis(Quaternion(Vector3.UP, out)), at)
+		if _handoff < 1.0:
+			_handoff = minf(_handoff + delta / HANDOFF, 1.0)
+			xf = _handoff_from.interpolate_with(xf, smoothstep(0.0, 1.0, _handoff))
+		_cig.global_transform = xf
 	elif _holder == "drop":
 		_drop_at = _drop_at.move_toward(Vector3(_drop_at.x, global_position.y + 0.005, _drop_at.z), delta * 2.5)
 		_cig.global_transform = Transform3D(Basis(Vector3.BACK, PI * 0.5), _drop_at)
@@ -783,12 +897,14 @@ func _dress_props(delta: float) -> void:
 ## left, 0 ahead and up, 1 their right.
 func puff(a: Dictionary, strength: float, side: float) -> void:
 	var m: Node3D = a["model"]
-	var p := _smoke_emitter(int(10 + 22 * strength), 1.8 + strength, 0.3, 0.9)
+	var p := _smoke_emitter(int(18 + 34 * strength), 1.6 + strength, 0.3, 0.85, 0.2)
 	p.one_shot = true
-	p.explosiveness = 0.75
+	p.explosiveness = 0.6
+	p.emission_shape = CPUParticles3D.EMISSION_SHAPE_SPHERE
+	p.emission_sphere_radius = 0.01
 	p.direction = (m.global_basis * Vector3(0.8 * side, 0.6 + 0.4 * (1.0 if side == 0.0 else 0.0), -1.0 + absf(side) * 0.5)).normalized()
-	p.spread = 14.0
-	p.initial_velocity_min = 0.12 * strength
+	p.spread = 20.0
+	p.initial_velocity_min = 0.08 * strength
 	p.initial_velocity_max = 0.32 * strength
 	p.damping_min = 0.1
 	p.damping_max = 0.2
@@ -800,11 +916,19 @@ func puff(a: Dictionary, strength: float, side: float) -> void:
 
 # --- camera --------------------------------------------------------------------------
 
+## Cuts straight to a new shot, then creeps in on it, a touch sideways, like
+## a hand-held camera that's settled.
 func _aim_camera(delta: float) -> void:
+	_shot_t += delta
 	var shot: Array = SHOTS.get(_shot, SHOTS["two"])
-	var want_at := global_transform * (shot[0] as Vector3)
-	var want_look := global_transform * (shot[1] as Vector3)
-	var k := 1.0 - exp(-delta / SECONDS_TO_SETTLE * 2.0) if delta < 1.0 else 1.0
+	var from := shot[0] as Vector3
+	var to := shot[1] as Vector3
+	var push := minf(_shot_t * 0.014, 0.09)
+	var side := (to - from).cross(Vector3.UP).normalized() * minf(_shot_t * 0.012, 0.08)
+	var want_at := global_transform * (from.lerp(to, push) + side)
+	var want_look := global_transform * to
+	var k := 1.0 - exp(-delta / SECONDS_TO_SETTLE * 2.0) if delta < 1.0 and not _cut else 1.0
+	_cut = false
 	cam.global_position = cam.global_position.lerp(want_at, k)
 	var look_now: Vector3 = cam.get_meta("look", want_look)
 	look_now = look_now.lerp(want_look, k)

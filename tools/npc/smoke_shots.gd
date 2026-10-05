@@ -12,7 +12,7 @@ const Art := preload("res://scripts/ps2/ps2_assets.gd")
 
 ## [beat, seconds it gets], in the dialogue's order.
 const PLAN := [["arrive", 1.5], ["pack", 2.2], ["light", 5.6], ["first", 6.4], ["pass", 7.0], ["short", 2.6],
-	["hand_last", 2.2], ["last_drag", 4.8], ["kiss", 2.6], ["kiss_hold", 3.2], ["exhale", 2.6], ["after", 2.4]]
+	["hand_last", 2.2], ["last_drag", 4.8], ["kiss", 3.2], ["kiss_hold", 3.2], ["exhale", 2.6], ["after", 2.4]]
 
 var scene: Node3D
 var plan: Array = []
