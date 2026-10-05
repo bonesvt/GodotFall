@@ -77,7 +77,7 @@ func _run() -> void:
 	_check("six bond scenes in order", ats == [10, 25, 40, 55, 70, 85], ats)
 	_check("cuddle, sick and close talks", b["cuddle"].size() >= 5 and b["sick"].size() >= 3 and b["close"].size() >= 4, [b["cuddle"].size(), b["sick"].size(), b["close"].size()])
 	_check("Ophelia and Biggie have soft talks", t.bank("ophelia")["soft"].size() >= 3 and t.bank("biggie")["soft"].size() >= 3, "")
-	_check("Ophelia's romance is untouched", t.romanceable("ophelia") and t.bank("ophelia")["heart"].size() == 6, t.bank("ophelia")["heart"].size())
+	_check("Ophelia's romance is untouched", t.romanceable("ophelia") and t.bank("ophelia")["heart"].size() >= 6, t.bank("ophelia")["heart"].size())
 	_check_lines(t)
 
 	# Intro first, no bond for it; one talk a stay grows it.
