@@ -17,6 +17,7 @@ const ECO := preload("res://assets/models/eco.tscn")
 const EcoModel := preload("res://scripts/ps2/eco_model.gd")
 const EcoReact := preload("res://scripts/ps2/eco_react.gd")
 const EcoGunStance := preload("res://scripts/ps2/eco_gun_stance.gd")
+const EcoCombatMoves := preload("res://scripts/ps2/eco_combat_moves.gd")
 const Wardrobe := preload("res://scripts/hub/wardrobe.gd")
 const HIDDEN_BONES := ["J_Bip_C_Neck", "J_Bip_C_Head", "J_Bip_R_UpperArm", "J_Bip_L_UpperArm"]
 
@@ -48,6 +49,8 @@ var shadow: EcoModel
 var react: EcoReact
 ## Her pistol grip and combat stance in third person (after react).
 var stance: EcoGunStance
+## Her legs, leans and flinches in third person combat (between react and stance).
+var moves: EcoCombatMoves
 var _camera: Camera3D
 var _neck_bone := -1
 var _player: CharacterBody3D
@@ -79,6 +82,12 @@ func _ready() -> void:
 			react.name = "React"
 			react.body = get_parent() as CharacterBody3D
 			shadow.skeleton.add_child(react)
+			# runs where she goes while her chest stays on the aim
+			moves = EcoCombatMoves.new()
+			moves.name = "CombatMoves"
+			moves.body = react.body
+			moves.model = shadow
+			shadow.skeleton.add_child(moves)
 			# and holds her pistol like a gunfighter in third person
 			stance = EcoGunStance.new()
 			stance.name = "GunStance"
@@ -211,7 +220,7 @@ func _process(delta: float) -> void:
 	# her reactions and gun stance fade out while she sits or lies down
 	if shadow != null:
 		var rest_in: float = shadow.rest_weight() if shadow.resting() else 0.0
-		for layer: SkeletonModifier3D in [react, stance]:
+		for layer: SkeletonModifier3D in [react, moves, stance]:
 			if layer != null:
 				layer.influence = 1.0 - rest_in
 	if body == null or _third_person or body.skeleton == null:
