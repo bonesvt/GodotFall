@@ -67,6 +67,7 @@ const FOCUS := {
 const SWING := 6.0
 const CONFIRM_SOUND := "workbench_ratchet"
 
+var kind := "suit"
 var armory: Armory
 ## The kit being looked at; picking it refits her (once she has a suit tier).
 var weight := "medium"

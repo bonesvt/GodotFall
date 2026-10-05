@@ -4,7 +4,7 @@ extends SceneTree
 ## from above with her full model stood where her first-person body would be
 ## (neck under the camera, as scripts/eco_fp_body.gd places it), to check the
 ## arm comes out of her shoulder.
-##   xvfb-run -a godot --path . -s res://tools/fp_arm_shots.gd -- [out_dir] [--outfit=suit_ghost] [--tier=3]
+##   xvfb-run -a godot --path . -s res://tools/fp_arm_shots.gd -- [out_dir] [--outfit=suit_ghost] [--tier=3] [--gun=rivet_cannon]
 ## Needs a renderer (not --headless).
 
 const Art := preload("res://scripts/ps2/ps2_assets.gd")
@@ -17,6 +17,8 @@ var outfit := "suit"
 var tier := 0
 ## --pos=x,y,z tries another gun spot (camera space) instead of weapon.gd VIEW_POS.
 var gun_pos := Weapon.VIEW_POS
+## --gun=<model> shows another sidearm (an Art.model name) instead of the smart pistol.
+var gun := "pistol"
 
 
 func _initialize() -> void:
@@ -25,6 +27,8 @@ func _initialize() -> void:
 			outfit = a.trim_prefix("--outfit=")
 		elif a.begins_with("--tier="):
 			tier = int(a.trim_prefix("--tier="))
+		elif a.begins_with("--gun="):
+			gun = a.trim_prefix("--gun=")
 		elif a.begins_with("--pos="):
 			var p := a.trim_prefix("--pos=").split_floats(",")
 			gun_pos = Vector3(p[0], p[1], p[2])
@@ -82,7 +86,7 @@ func _go() -> void:
 	var view := Node3D.new()
 	cam.add_child(view)
 	view.position = gun_pos
-	var pistol := Art.model("pistol")
+	var pistol := Art.model(gun)
 	view.add_child(pistol)
 	var old := pistol.get_node_or_null("Arm")
 	if old != null:

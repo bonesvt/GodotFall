@@ -1,11 +1,13 @@
 extends CanvasLayer
-## The hub's workbench screens, over a turntable preview. One screen, two
+## The hub's workbench screens, over a turntable preview. One screen, three
 ## benches, each with its own tabs (armory.gd holds the rules and prices; the
 ## gunsmith and the suit locker have their own screens, gunsmith_screen.gd and
 ## suit_screen.gd):
 ##   rack       SIDEARMS      buy guns and pick the one you head out with
 ##   workshop   LOADOUT       the titan parts a run starts with (Mk I) instead of scrap
 ##              REFITS        upgrade any part you own, salvaged copies included
+##   knives     KNIVES        the knife case: pick which of her three knives
+##                            she carries (free)
 ## The run manager opens it (pausing the hub) and closes it on F or Esc.
 ##   W/S or Up/Down    pick a row       A/D or Left/Right    browse a row's options
 ##   Space or Enter    buy / fit / pick                Tab or Q/E    switch tab
@@ -17,13 +19,15 @@ const Art := preload("res://scripts/ps2/ps2_assets.gd")
 const LootArt := preload("res://scripts/run/loot_art.gd")
 const SFX := preload("res://scripts/sfx.gd")
 const TitanStyle := preload("res://scripts/run/titan_style.gd")
+const Knife := preload("res://scripts/knife.gd")
 
-const TITLES := {"rack": "WEAPON RACK", "workshop": "TITAN WORKSHOP"}
+const TITLES := {"rack": "WEAPON RACK", "workshop": "TITAN WORKSHOP", "knives": "KNIFE CASE"}
 const SUBTITLES := {
 	"rack": "Pick what goes in your hand on the next run.",
 	"workshop": "Start runs with real parts, and make every copy of a part better.",
+	"knives": "Pick the blade she carries. They all cut the same.",
 }
-const TABS := {"rack": ["SIDEARMS"], "workshop": ["LOADOUT", "REFITS"]}
+const TABS := {"rack": ["SIDEARMS"], "workshop": ["LOADOUT", "REFITS"], "knives": ["KNIVES"]}
 const INK := Color(0.98, 0.94, 0.86)
 const DIM := Color(0.98, 0.94, 0.86, 0.55)
 const ACCENT := Color(1.0, 0.72, 0.35)
@@ -34,7 +38,7 @@ const SPIN_SPEED := 0.4
 var armory: Armory
 var kind := "rack"
 ## What a purchase sounds like at each bench (recordings in assets/audio/sfx).
-const CONFIRM_SOUND := {"rack": "reload_in", "workshop": "workbench_ratchet"}
+const CONFIRM_SOUND := {"rack": "reload_in", "workshop": "workbench_ratchet", "knives": "knife_draw"}
 var tab := 0
 var selected := 0
 ## The gun in hand (the rack's preview falls back to it).
@@ -213,6 +217,8 @@ func refresh() -> void:
 	var row: Dictionary = rows[selected] if not rows.is_empty() else {}
 	_detail.text = row.get("note", "")
 	_hint.text = "W/S pick   A/D browse   Space buy/fit   %s   F or Esc done" % ("Q/E section" if TABS[kind].size() > 1 else "")
+	if kind == "knives":
+		_hint.text = "W/S pick   Space carry it   F or Esc done"
 	_update_preview(row)
 
 
@@ -224,6 +230,8 @@ func _rows() -> Array:
 			return _loadout_rows()
 		["workshop", "REFITS"]:
 			return _refit_rows()
+		["knives", "KNIVES"]:
+			return _knife_rows()
 	return []
 
 
@@ -298,6 +306,22 @@ func _refit_rows() -> Array:
 	return out
 
 
+## The knife case: her three knives, the one she carries marked.
+func _knife_rows() -> Array:
+	var out := []
+	for id in Armory.KNIVES:
+		var k: Dictionary = Armory.KNIVES[id]
+		out.append({
+			"label": k["name"],
+			"value": "",
+			"state": "CARRIED" if id == armory.knife else "",
+			"note": k["desc"],
+			"confirm": func(): return armory.set_knife(id),
+			"knife": id,
+		})
+	return out
+
+
 static func _stat_line(p: Dictionary) -> String:
 	var s: Dictionary = p["stats"]
 	var line := "Damage %.1f (head x%.2f)   Mag %d   Reload %.2f s   %d shots/s" % [
@@ -367,7 +391,7 @@ func _row_view(i: int) -> PanelContainer:
 		color = GOOD if armory.can_afford(cost) else BAD
 	elif row.has("state"):
 		right = row["state"]
-		color = ACCENT if right in ["FITTED", "IN HAND", "STARTS RUNS"] else DIM
+		color = ACCENT if right in ["FITTED", "IN HAND", "STARTS RUNS", "CARRIED"] else DIM
 	elif row.has("cost"):
 		right = "MAX"
 	var r := _text(right, 15, color)
@@ -430,6 +454,9 @@ func _frame_camera(bench_kind: String) -> void:
 	if bench_kind == "workshop":
 		_camera.fov = 38.0
 		_camera.look_at_from_position(Vector3(-7.5, 5.8, -15.5), Vector3(0, 3.7, 0))
+	elif bench_kind == "knives":
+		_camera.fov = 30.0
+		_camera.look_at_from_position(Vector3(0.0, 0.1, 0.78), Vector3(0, 0, 0))
 	else:
 		_camera.fov = 30.0
 		_camera.look_at_from_position(Vector3(0.0, 0.08, 1.15), Vector3(0, -0.02, 0))
@@ -440,7 +467,21 @@ func _frame_camera(bench_kind: String) -> void:
 func _update_preview(row: Dictionary) -> void:
 	var key := ""
 	var make: Callable
-	if kind == "workshop":
+	if kind == "knives":
+		var id: String = row.get("knife", armory.knife)
+		key = "knife/" + id
+		make = func():
+			# Stood on edge, the flat to the camera and the point to the right.
+			var blade := Knife.knife_model(id)
+			blade.rotation.x = PI / 2.0
+			var holder := Node3D.new()
+			holder.rotation.z = -PI / 2.0
+			holder.add_child(blade)
+			var centre := Node3D.new()
+			centre.position.x = -0.08
+			centre.add_child(holder)
+			return centre
+	elif kind == "workshop":
 		var chassis: String = browse_parts.get("chassis", armory.titan_loadout["chassis"])
 		var gun: String = browse_parts.get("weapon", armory.titan_loadout["weapon"])
 		if row.has("slot"):

@@ -56,7 +56,7 @@ func _run() -> void:
 		Input.action_release("titan_fire")
 		var dps := dummy.dealt / SECONDS
 		var want: float = part["dps"]
-		# The scrap rifle loses a little to jams; everything else stays close.
+		# The Obelisk Rail loses a little to its stalls; everything else stays close.
 		var low := 0.8 if weapon["id"] == "scrap" else 0.9
 		_check("%s keeps its damage per second" % weapon["name"], dps > want * low and dps < want * 1.1, "%.0f of %.0f" % [dps, want])
 		_check("%s shows shots" % weapon["name"], titan.gun.shots > 0, titan.gun.shots)

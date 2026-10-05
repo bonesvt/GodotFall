@@ -36,7 +36,7 @@ const BINDABLE := [
 	["move_left", "Move left"], ["move_right", "Move right"],
 	["jump", "Jump / wall jump"], ["crouch", "Crouch / slide"], ["sprint", "Sprint / titan dash"],
 	["grapple", "Grapple"], ["fire", "Shoot"], ["reload", "Reload"],
-	["melee", "Knife"], ["inspect", "Inspect weapon"], ["interact", "Interact / embark"],
+	["melee", "Knife (tap: strike, hold: draw it)"], ["swap_weapon", "Switch knife / gun"], ["inspect", "Inspect weapon"], ["interact", "Interact / embark"],
 	["titan_core", "Call titan / core"], ["reset", "Respawn"],
 	["toggle_view", "First / third person"], ["swap_shoulder", "Swap shoulder (third person)"],
 	["cam_nudge_up", "Hub camera up"], ["cam_nudge_down", "Hub camera down"],

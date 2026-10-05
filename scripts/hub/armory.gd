@@ -12,10 +12,11 @@ extends RefCounted
 ##   gunsmith bench   weapon upgrades (each gun has its own) and attachments
 ##                    (one per slot, each a trade-off), plus finishes
 ##   weapon rack      pick the sidearm you head out with
+##   knife case       pick the knife she carries (free; all three are hers)
 ##
 ## Eco's level is 1 plus every upgrade level she has bought: weapon upgrades,
 ## titan refits and suit upgrades all count. It unlocks starting weapons:
-## the heavy revolver at level 3, the auto handgun at 6.
+## the hand cannon at level 3, the auto handgun at 6.
 ##   titan workshop   buy titan parts to start runs with instead of scrap, and
 ##                    refit any part so every copy of it you install is better
 ##   suit locker      upgrade Eco's pilot suit, one tier at a time: each tier adds
@@ -67,21 +68,21 @@ const WEAPONS := {
 		],
 	},
 	"rivet_cannon": {
-		"name": "Heavy Revolver", "short": "HEAVY REVOLVER", "cost": {}, "unlock_level": 3, "model": "rivet_cannon",
-		"desc": "Six titan rivets in a hand-turned cylinder. Slow, loud, kicks like a mule.",
+		"name": "Hand Cannon", "short": "HAND CANNON", "cost": {}, "unlock_level": 3, "model": "rivet_cannon",
+		"desc": "A chrome hand cannon: seven big rounds, a long barrel, a slide that slams back like a door. Slow, loud, kicks like a mule.",
 		"smart": false, "automatic": false, "suppressed": false,
 		"upgrades": ["rivet_heads", "punch_through", "stagger_coils", "speed_loader"],
 		"sound": "rivet_cannon", "sound_last": "rivet_cannon", "tracer": Color(1.0, 0.75, 0.4, 0.9),
 		"stats": {
 			"damage": 42.0, "headshot_multiplier": 2.0, "falloff_start": 22.0, "falloff_end": 50.0,
-			"falloff_min": 0.65, "fire_interval": 0.42, "magazine_size": 6, "reload_time": 2.1,
+			"falloff_min": 0.65, "fire_interval": 0.42, "magazine_size": 7, "reload_time": 2.1,
 			"base_spread": 0.1, "bloom_per_shot": 1.6, "bloom_recovery": 5.0, "max_bloom": 4.0,
 			"move_spread": 0.8, "air_spread": 1.05, "recoil_kick": 3.6,
 		},
 		"lines": [
-			"Built it round a rivet driver. It still thinks it's holding titans together.",
-			"Six shots. Make them count or make them run.",
-			"The coils glow when it's angry. It's always a bit angry.",
+			"Found it in a crate of junk off an old bounty hunter's ship. Polished it for a week.",
+			"Seven shots. Make them count or make them run.",
+			"Gold on the barrel, a jewel on the grip. Showing off? Maybe.",
 		],
 	},
 	"machine_pistol": {
@@ -104,23 +105,37 @@ const WEAPONS := {
 	},
 }
 
+## Eco's knives, all three hers from the start: the knife case in the hub
+## picks the one she carries (scripts/knife.gd loads its model,
+## assets/models/knife/<id>.glb, built by tools/knife/build_knives.py). They
+## fight the same; only the look changes.
+const KNIVES := {
+	"needle": {"name": "Needle", "short": "NEEDLE",
+		"desc": "Her stiletto, refined: a diamond needle blade with a dark fuller, a swept guard lit cyan, and a ring pommel to spin it on a finger."},
+	"kunai": {"name": "Plate Kunai", "short": "PLATE KUNAI",
+		"desc": "A tanto blade cut from colony armour plate, its old power trace still glowing, cobalt paracord on the tang and a finger ring."},
+	"butterfly": {"name": "Butterfly", "short": "BUTTERFLY",
+		"desc": "A balisong: cobalt clip-point blade, skeleton channel handles with cyan inlays. It flips open in her fingers."},
+}
+const DEFAULT_KNIFE := "needle"
+
 ## Upgrade tracks. Each gun lists its own in WEAPONS "upgrades", and each gun's
-## set leans into what it is: the smart pistol rebuilds Dad's lock, the heavy
-## revolver hits harder and goes through things, the auto handgun rewards
+## set leans into what it is: the smart pistol rebuilds Dad's lock, the hand
+## cannon hits harder and goes through things, the auto handgun rewards
 ## holding the trigger. A track has one cost per level (its length is the max
 ## level) and changes the gun's stats per level: "scale" multiplies a stat by
 ## 1 + n x level, "add" adds n x level. Stats weapon.gd only has for these
 ## tracks (pierce, stagger, streak_bonus, smart_fraction) start at 0.
 const UPGRADE_COST := [{"scrap": 40}, {"scrap": 70, "circuits": 2}, {"scrap": 110, "circuits": 5}]
 const UPGRADES := {
-	# Heavy revolver: big, slow, decisive.
+	# Hand cannon: big, slow, decisive.
 	"rivet_heads": {"name": "Rivet heads", "desc": "+10% damage and +0.2x headshot damage per level",
 		"scale": {"damage": 0.10}, "add": {"headshot_multiplier": 0.2}, "costs": UPGRADE_COST},
 	"punch_through": {"name": "Punch-through", "desc": "Rounds go through a body into the next one: +1 body per level",
 		"add": {"pierce": 1.0}, "costs": UPGRADE_COST},
 	"stagger_coils": {"name": "Stagger coils", "desc": "Every hit knocks a grunt off their aim: +0.35 s per level",
 		"add": {"stagger": 0.35}, "costs": UPGRADE_COST},
-	"speed_loader": {"name": "Speed loader", "desc": "12% faster reload per level",
+	"speed_loader": {"name": "Speed mag", "desc": "Flared mag well and a slick spring: 12% faster reload per level",
 		"scale": {"reload_time": -0.12}, "costs": UPGRADE_COST},
 	# Auto handgun: hold the trigger and keep it on them.
 	"drum_feed": {"name": "Drum feed", "desc": "+6 rounds per level",
@@ -181,9 +196,11 @@ const ATTACHMENTS := {
 	],
 }
 
-## Finishes: free, cosmetic. Colours for the pistol_* paint slots.
+## Finishes: free, cosmetic. Colours for the pistol_* paint slots ("chrome",
+## the hand cannon's polish, falls back to "shell" when a finish has none).
 const FINISHES := [
-	{"id": "dads", "name": "Dad's colours", "shell": Color(1.0, 1.02, 1.05), "blue": Color(0.42, 0.58, 0.8), "stripe": Color(1.2, 0.62, 0.22)},
+	{"id": "dads", "name": "Dad's colours", "shell": Color(1.0, 1.02, 1.05), "blue": Color(0.42, 0.58, 0.8), "stripe": Color(1.2, 0.62, 0.22), "black": Color(0.15, 0.15, 0.17),
+		"chrome": Color(1.5, 1.52, 1.58)},
 	{"id": "bubblegum", "name": "Bubblegum chrome", "shell": Color(1.15, 0.72, 0.9), "blue": Color(0.95, 0.95, 1.0), "stripe": Color(0.4, 0.95, 1.1)},
 	{"id": "jungle", "name": "Jungle", "shell": Color(0.52, 0.62, 0.4), "blue": Color(0.36, 0.28, 0.2), "stripe": Color(1.1, 0.85, 0.3)},
 	{"id": "midnight", "name": "Midnight", "shell": Color(0.22, 0.22, 0.28), "blue": Color(0.45, 0.3, 0.8), "stripe": Color(1.2, 0.3, 0.6)},
@@ -297,6 +314,8 @@ var lifetime := {}
 var suit_tier := 0
 ## Light, medium or heavy (SUIT_WEIGHTS).
 var suit_weight := "medium"
+## The knife she carries (KNIVES), picked at the knife case.
+var knife := DEFAULT_KNIFE
 ## Levels cleared ("tutorial" for the Pinewoods run, then levels.gd ids).
 var cleared := []
 
@@ -337,6 +356,9 @@ func load_file() -> void:
 	suit_tier = clampi(cfg.get_value("suit", "tier", 0), 0, SUIT_TIERS.size())
 	suit_weight = cfg.get_value("suit", "weight", "medium")
 	cleared = cfg.get_value("progress", "cleared", [])
+	knife = String(cfg.get_value("weapons", "knife", DEFAULT_KNIFE))
+	if not KNIVES.has(knife):
+		knife = DEFAULT_KNIFE
 	if not SUIT_WEIGHTS.has(suit_weight):
 		suit_weight = "medium"
 	if not WEAPONS.has(equipped) or not owns_weapon(equipped):
@@ -353,6 +375,7 @@ func save() -> void:
 	cfg.set_value("weapons", "attachments", owned_attachments)
 	cfg.set_value("weapons", "fitted", fitted)
 	cfg.set_value("weapons", "finishes", finishes)
+	cfg.set_value("weapons", "knife", knife)
 	cfg.set_value("titan", "owned", owned_parts)
 	cfg.set_value("titan", "loadout", titan_loadout)
 	cfg.set_value("titan", "refits", refits)
@@ -697,6 +720,15 @@ func refit_bonus() -> Dictionary:
 	for key in refits:
 		bonus[key] = 1.0 + REFIT_STEP * refits[key]
 	return bonus
+
+
+## Picks the knife she carries (free). Returns false for an unknown knife.
+func set_knife(id: String) -> bool:
+	if not KNIVES.has(id):
+		return false
+	knife = id
+	save()
+	return true
 
 
 # --- Eco's suit -----------------------------------------------------------------
