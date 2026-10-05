@@ -33,6 +33,8 @@ import os
 import random
 import sys
 
+import bmesh
+
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import kit  # noqa: E402
 from kit import Model, band, cyl, dent, gear, jitter, merge, rbox, rivets, row, smooth, sphere, studs, tire, tube  # noqa: E402
@@ -655,11 +657,216 @@ def titan(id, P):
 
 
 # --- weapons ---------------------------------------------------------------------
+# The XO-16 and the Splitter follow the concept sheets Bones picked (side
+# profiles drawn gun-forward: x forward, y left, z up). Sketch maps that
+# frame onto the weapon's own: the wrist (WeaponMount) sits at sketch
+# (x0, 0, z0), length scales by sx, width by sy and height by sz, so the
+# side silhouette keeps the sheet's proportions while the cross-section is
+# fat enough to swallow the end of the titan's forearm. Plates that the
+# sheet puts on one side (stripes, vents, windows) go on both, since the
+# pilot sees the inner side and everyone else the outer one.
+
+class Sketch:
+	def __init__(self, m, x0, z0, sx, sy, sz):
+		self.m = m
+		self.s = (sx, sy, sz)
+		self.M = kit.Matrix(((0, -sy, 0, 0), (0, 0, sz, -z0 * sz), (-sx, 0, 0, x0 * sx), (0, 0, 0, 1)))
+
+	def at(self, p):
+		return self.M @ kit.Vector(p)
+
+	@staticmethod
+	def arc(cx, cz, r, a0, a1, n=8):
+		return [(cx + r * math.cos(math.radians(a0 + (a1 - a0) * i / n)),
+			cz + r * math.sin(math.radians(a0 + (a1 - a0) * i / n))) for i in range(n + 1)]
+
+	def prof(self, group, pts, y0, y1, mat, bevel=0.0):
+		"""A side profile (x, z) extruded across y from y0 to y1; edges sharper
+		than 35 degrees get a bevel, like the sheet's bevel modifier."""
+		bm = bmesh.new()
+		vs = [bm.verts.new((x, y0, z)) for x, z in pts]
+		f = bm.faces.new(vs)
+		ext = bmesh.ops.extrude_face_region(bm, geom=[f])
+		bmesh.ops.translate(bm, vec=kit.Vector((0, y1 - y0, 0)), verts=[e for e in ext["geom"] if isinstance(e, bmesh.types.BMVert)])
+		bmesh.ops.recalc_face_normals(bm, faces=bm.faces[:])
+		if bevel > 0.0:
+			edges = [e for e in bm.edges if e.is_manifold and e.calc_face_angle(0.0) > math.radians(35)]
+			bmesh.ops.bevel(bm, geom=edges, offset=bevel, offset_type="OFFSET", segments=2, profile=0.5,
+				affect="EDGES", clamp_overlap=True)
+		bmesh.ops.transform(bm, matrix=self.M, verts=bm.verts)
+		return self.m.add(group, bm, mat, smooth=False)
+
+	def sym(self, group, pts, w, mat, bevel=0.0):
+		return self.prof(group, pts, -w / 2, w / 2, mat, bevel)
+
+	def side(self, group, pts, w, y, mat, both=True):
+		"""A thin plate on the face at |y| (the sheet's camera side, and the
+		other side too unless both=False)."""
+		y = abs(y)
+		self.prof(group, pts, -y, -y - w, mat)
+		if both:
+			self.prof(group, pts, y, y + w, mat)
+
+	def box(self, group, c, s, mat, bevel=0.0):
+		x, y, z = c
+		w, d, h = s
+		return self.prof(group, [(x - w / 2, z - h / 2), (x + w / 2, z - h / 2), (x + w / 2, z + h / 2), (x - w / 2, z + h / 2)],
+			y - d / 2, y + d / 2, mat, bevel)
+
+	def cyl(self, group, p0, p1, r, mat, r1=None, segs=24, bevel=0.0):
+		"""Round in the game whatever the width scale (radius scales with sz)."""
+		a, b = self.at(p0), self.at(p1)
+		rs = self.s[2]
+		bm = bmesh.new()
+		bmesh.ops.create_cone(bm, cap_ends=True, cap_tris=False, segments=segs, radius1=r * rs,
+			radius2=(r if r1 is None else r1) * rs, depth=(b - a).length)
+		if bevel > 0.0:
+			caps = [e for e in bm.edges if e.is_manifold and e.calc_face_angle(0.0) > math.radians(60)]
+			bmesh.ops.bevel(bm, geom=caps, offset=bevel * rs, offset_type="OFFSET", segments=2, profile=0.5,
+				affect="EDGES", clamp_overlap=True)
+		q = kit.Vector((0, 0, 1)).rotation_difference((b - a).normalized())
+		bmesh.ops.transform(bm, matrix=kit.Matrix.Translation((a + b) / 2) @ q.to_matrix().to_4x4(), verts=bm.verts)
+		return self.m.add(group, bm, mat)
+
+	def tube(self, group, pts, r, mat):
+		return self.m.add(group, tube([tuple(self.at(p)) for p in pts], r * self.s[2], 8), mat)
+
+	def slots(self, group, x0, x1, n, z0, z1, y, mat="soot", gap=0.4, slant=0.0):
+		step = (x1 - x0) / n
+		for i in range(n):
+			x = x0 + i * step
+			self.side(group, [(x, z0), (x + step * (1 - gap), z0), (x + step * (1 - gap) + slant, z1), (x + slant, z1)], 0.006, y, mat)
+
+	def grip(self, group, x, ztop, mat, h=0.5, rake=0.12, w=0.2, depth=0.17, accent=None):
+		xb, zb = x - rake, ztop - h
+		self.sym(group, [(x - depth / 2, ztop), (x + depth / 2 + 0.02, ztop), (xb + depth / 2 + 0.03, zb + 0.05),
+			(xb + depth / 2, zb), (xb - depth / 2 - 0.02, zb), (xb - depth / 2 - 0.04, zb + 0.06)], w, mat, 0.025)
+		self.sym(group, [(xb - depth / 2 - 0.05, zb + 0.01), (xb + depth / 2 + 0.03, zb + 0.01), (xb + depth / 2 + 0.04, zb - 0.05),
+			(xb - depth / 2 - 0.07, zb - 0.05)], w + 0.03, accent or mat, 0.015)
+		for i in range(3):
+			zz = ztop - 0.1 - i * 0.11
+			self.box(group, (x + depth / 2 + 0.02 - (ztop - zz) / h * rake, 0, zz), (0.03, w + 0.004, 0.04), "soot", 0.008)
+
+	def guard(self, group, x0, x1, ztop, depth, mat, w=0.08, th=0.035):
+		zb, r = ztop - depth, 0.06
+		outer = [(x0, ztop), (x0, zb)] + self.arc(x1 - r, zb + r, r, -90, 0, 5) + [(x1, ztop)]
+		inner = [(x1 - th, ztop)] + self.arc(x1 - r, zb + r, r - th, 0, -90, 5) + [(x0 + th, zb + th), (x0 + th, ztop)]
+		self.sym(group, outer + inner, w, mat, 0.008)
+
+	def trigger(self, group, x, ztop, mat, curl=0.12, w=0.05):
+		self.sym(group, [(x, ztop), (x + 0.035, ztop), (x + 0.025, ztop - curl * 0.6), (x - 0.01, ztop - curl),
+			(x - 0.03, ztop - curl + 0.02), (x - 0.005, ztop - curl * 0.6)], w, mat, 0.006)
+
+
+def xo16(m, paint, stripe, trim):
+	"""Concept B, Bullpup Heavy Rifle: long low receiver, box mag behind the
+	grip, square vented shroud, heavy barrel and brake, carry handle with
+	Eco's re-glassed optic, one yellow flash. The forearm plugs into the butt.
+	Barrels holds the barrel and brake (it used to be the rotary cluster)."""
+	k = Sketch(m, -0.983, -0.016, 0.75, 1.25, 0.9)
+	B = "Body"
+	k.sym(B, [(-1.15, -0.2), (0.75, -0.2), (0.8, -0.1), (0.8, 0.22), (0.65, 0.3), (-0.95, 0.3), (-1.15, 0.18)], 0.5, paint, 0.03)
+	# Butt: a rubber socket the wrist sits in.
+	k.sym(B, [(-1.25, -0.26), (-1.12, -0.24), (-1.12, 0.22), (-1.25, 0.26)], 0.52, "rubber", 0.02)
+	k.side(B, [(-1.05, -0.02), (-0.75, 0.16), (0.78, 0.16), (0.78, 0.22), (-0.78, 0.22), (-1.08, 0.04)], 0.01, 0.25, stripe)
+	# Ejection port and bolt on the outer side only.
+	k.side(B, [(-0.15, 0.0), (0.2, 0.0), (0.2, 0.1), (-0.15, 0.1)], 0.006, 0.25, "soot", both=False)
+	k.cyl(B, (-0.12, -0.25, 0.05), (0.15, -0.25, 0.05), 0.04, "chrome", segs=12)
+	# Box magazine behind the grip, round window with brass showing.
+	k.sym(B, [(-0.62, -0.2), (-0.25, -0.2), (-0.22, -0.82), (-0.6, -0.86)], 0.36, trim, 0.025)
+	k.sym(B, [(-0.64, -0.84), (-0.2, -0.8), (-0.2, -0.9), (-0.65, -0.94)], 0.4, stripe, 0.02)
+	k.slots(B, -0.55, -0.3, 1, -0.35, -0.7, 0.181, gap=0.0, slant=0.02)
+	for s in (-1, 1):
+		for i in range(5):
+			z = -0.4 - i * 0.07
+			k.cyl(B, (-0.5, s * 0.183, z), (-0.32, s * 0.183, z + 0.004), 0.025, "brass", segs=10)
+	k.grip(B, 0.02, -0.2, "rubber", h=0.48, accent=trim)
+	k.guard(B, 0.09, 0.4, -0.2, 0.22, trim)
+	k.trigger(B, 0.17, -0.2, "metal")
+	# Square vented shroud with a yellow band at the nose.
+	k.sym(B, [(0.8, -0.14), (1.75, -0.12), (1.8, -0.06), (1.8, 0.16), (1.75, 0.2), (0.8, 0.22)], 0.36, paint, 0.025)
+	k.slots(B, 0.95, 1.65, 5, 0.0, 0.14, 0.181, slant=0.03)
+	k.side(B, [(1.62, -0.11), (1.72, -0.11), (1.72, 0.19), (1.62, 0.19)], 0.006, 0.181, stripe)
+	k.sym(B, [(1.05, -0.12), (1.2, -0.12), (1.17, -0.52), (1.08, -0.52)], 0.15, "rubber", 0.02)
+	# Heavy barrel and muzzle brake.
+	k.cyl("Barrels", (1.78, 0, 0.04), (2.47, 0, 0.04), 0.1, "chrome", segs=20)
+	k.cyl("Barrels", (1.8, 0, 0.04), (1.95, 0, 0.04), 0.14, "metal", segs=20, bevel=0.01)
+	k.sym("Barrels", [(2.45, -0.08), (2.85, -0.08), (2.9, -0.04), (2.9, 0.12), (2.85, 0.16), (2.45, 0.16)], 0.28, trim, 0.02)
+	for x in (2.52, 2.64, 2.76):
+		k.box("Barrels", (x + 0.035, 0, 0.04), (0.06, 0.3, 0.17), "soot")
+	k.cyl("Barrels", (2.89, 0, 0.04), (2.91, 0, 0.04), 0.05, "soot", segs=12)
+	# Carry handle and optic.
+	k.sym(B, [(-0.7, 0.29), (-0.6, 0.5), (0.4, 0.5), (0.5, 0.29), (0.38, 0.29), (0.3, 0.41), (-0.5, 0.41), (-0.58, 0.29)], 0.12, trim, 0.015)
+	k.cyl(B, (-0.3, 0, 0.6), (0.25, 0, 0.6), 0.09, paint, bevel=0.012)
+	k.cyl(B, (0.2, 0, 0.6), (0.32, 0, 0.6), 0.12, trim, bevel=0.012)
+	k.cyl(B, (0.32, 0, 0.6), (0.335, 0, 0.6), 0.09, "glass_optic")
+	k.box(B, (-0.05, 0, 0.53), (0.3, 0.1, 0.06), trim, 0.01)
+	k.box(B, (-0.25, -0.12, 0.6), (0.06, 0.06, 0.06), stripe, 0.008)
+	# Eco's ammo count on the stock.
+	for i in range(5):
+		k.side(B, [(-0.865 + i * 0.05, 0.035), (-0.835 + i * 0.05, 0.035), (-0.835 + i * 0.05, 0.085), (-0.865 + i * 0.05, 0.085)], 0.01, 0.251, "glow_core")
+
+
+def splitter(m, paint, stripe, trim):
+	"""Concept A, Twin Rail: white receiver with the core glowing through
+	window panels, two long emitter rails bolted into a dark yoke with the
+	core rod between them and arcs jumping rail to rail. The skeleton stock
+	is split into two side braces so the forearm runs between them. Every
+	glowing part is in Glow."""
+	k = Sketch(m, -0.797, -0.0165, 0.885, 1.2, 0.885)
+	B, G = "Body", "Glow"
+	top, bot, x1 = 0.3, -0.24, 0.5
+	k.sym(B, [(-1.0, bot)] + k.arc(-0.85, top - 0.15, 0.15, 180, 90, 5) + [(x1 - 0.15, top), (x1, top - 0.08), (x1, bot)], 0.5, paint, 0.03)
+	k.sym(B, [(-0.95, bot + 0.02), (x1, bot + 0.02), (x1 - 0.04, bot - 0.08), (-0.9, bot - 0.08)], 0.44, "dark", 0.02)
+	for s in (-1, 1):
+		y = s * 0.27
+		k.prof(B, [(-1.0, -0.15), (-1.35, -0.3), (-1.42, -0.26), (-1.42, 0.16), (-1.35, 0.2), (-1.0, 0.2), (-1.0, 0.1),
+			(-1.32, 0.1), (-1.32, -0.18), (-1.0, -0.05)], y - 0.025, y + 0.025, "dark", 0.012)
+		k.prof(B, [(-1.48, -0.3), (-1.4, -0.3), (-1.4, 0.2), (-1.48, 0.2)], y - 0.035, y + 0.035, "rubber", 0.015)
+	# Core window panels.
+	x0w, x1w, z0w, z1w = -0.75, 0.25, 0.0, 0.14
+	k.side(B, [(x0w - 0.03, z0w - 0.03), (x1w + 0.03, z0w - 0.03), (x1w + 0.03, z1w + 0.03), (x0w - 0.03, z1w + 0.03)], 0.008, 0.25, "dark")
+	k.side(G, [(x0w, z0w), (x1w, z0w), (x1w, z1w), (x0w, z1w)], 0.006, 0.258, "glow_core")
+	for i in range(1, 4):
+		x = x0w + (x1w - x0w) * i / 4
+		k.side(B, [(x - 0.015, z0w), (x + 0.015, z0w), (x + 0.015, z1w), (x - 0.015, z1w)], 0.006, 0.262, "dark")
+	# Yoke and rails.
+	k.sym(B, [(0.45, -0.3), (0.75, -0.3), (0.8, -0.24), (0.8, 0.34), (0.75, 0.38), (0.45, 0.38)], 0.4, "dark", 0.025)
+	zc, tip = 0.04, 2.65
+	for s in (1, -1):
+		zi, zo = zc + s * 0.11, zc + s * 0.27
+		lo, hi = min(zi, zo), max(zi, zo)
+		if s > 0:
+			pts = [(0.75, lo), (tip - 0.15, lo), (tip, lo + 0.05), (tip - 0.1, hi), (0.75, hi)]
+		else:
+			pts = [(0.75, hi), (tip - 0.15, hi), (tip, hi - 0.05), (tip - 0.1, lo), (0.75, lo)]
+		k.sym(B, pts, 0.2, paint, 0.025)
+		ze = zi + (-0.01 if s > 0 else 0.01)
+		k.sym(G, [(0.8, ze - 0.012), (tip - 0.15, ze - 0.012), (tip - 0.15, ze + 0.012), (0.8, ze + 0.012)], 0.12, "glow_core")
+		zm = (zi + zo) / 2
+		k.side(B, [(1.0, zm - 0.02), (2.2, zm - 0.02), (2.2, zm + 0.02), (1.0, zm + 0.02)], 0.008, 0.1, "dark")
+	# Core rod and arcs.
+	k.cyl(G, (0.8, 0, zc), (2.3, 0, zc), 0.035, "glow_core", segs=12)
+	for x in (1.1, 1.45, 1.8, 2.15):
+		pts = [(x + (0.05 if i % 2 else -0.05) if 0 < i < 5 else x, 0.0, zc - 0.12 + 0.24 * i / 5) for i in range(6)]
+		k.tube(G, pts, 0.014, "glow_core")
+	# Far-side braces keep the rails parallel.
+	for x in (1.3, 2.0):
+		k.box(B, (x, 0.12, zc), (0.1, 0.04, 0.6), "dark", 0.012)
+	k.grip(B, -0.05, -0.32, "rubber", h=0.48, accent="dark")
+	k.guard(B, 0.02, 0.31, -0.32, 0.2, "dark")
+	k.trigger(B, 0.1, -0.32, "metal")
+	k.sym(B, [(0.48, -0.32), (0.64, -0.32), (0.61, -0.72), (0.51, -0.72)], 0.16, "rubber", 0.02)
+	# Heat sink fins.
+	for i in range(5):
+		x = -0.5 + i * 0.12
+		k.sym(B, [(x, 0.29), (x + 0.05, 0.29), (x + 0.05, 0.38), (x, 0.38)], 0.36, "dark", 0.008)
+
 
 WEAPONS = {
-	"xo16": {"paint": (0.15, 0.16, 0.18), "stripe": (1.0, 0.72, 0.02)},
+	"xo16": {"paint": (0.15, 0.16, 0.18), "stripe": (1.0, 0.72, 0.02), "trim": (0.22, 0.23, 0.26)},
 	"tracker": {"paint": (0.22, 0.32, 0.17), "stripe": (1.0, 0.4, 0.02)},
-	"splitter": {"paint": (0.9, 0.9, 0.88), "stripe": (0.2, 0.75, 0.95)},
+	"splitter": {"paint": (0.9, 0.9, 0.88), "stripe": (0.2, 0.75, 0.95), "trim": (0.78, 0.79, 0.8)},
 	"scrap": {"paint": (0.62, 0.3, 0.12), "stripe": (0.3, 0.5, 0.75)},
 }
 
@@ -669,26 +876,14 @@ def weapon(id, P):
 	mats = dict(SHARED)
 	mats[paint] = P["paint"]
 	mats[stripe] = P["stripe"]
+	trim = "trim_gun_" + id
+	if "trim" in P:
+		mats[trim] = P["trim"]
+	mats["glass_optic"] = (0.3, 0.78, 0.92)
 	kit.reset(mats)
 	m = Model()
 	if id == "xo16":
-		body = smooth((0.72, 0.82, 1.5), (0, 0, 0), lambda co, h: (co.__setitem__(0, co.x * (0.85 if co.z < 0 else 1.0)), co.__setitem__(1, co.y * (0.85 if co.z < 0 else 1.0))))
-		band(body, 2, -0.35, -0.15, 1, lambda c, n: abs(n.z) < 0.9)
-		m.add("Body", body, [paint, stripe], kit.xform((0, 0, -0.5)))
-		drum = cyl(0.45, 0.5, (0, 0, 0), "x", 18, bevel=0.08)
-		band(drum, 0, -0.08, 0.08, 1)
-		m.add("Body", drum, [stripe, "dark"], kit.xform((0.58, -0.08, -0.35)))
-		m.add("Body", studs(drum, [(0.6, -0.08 + math.sin(a) * 0.3, -0.35 + math.cos(a) * 0.3) for a in [i * math.tau / 8 for i in range(8)]], (-1, 0, 0)), "metal")
-		m.add("Body", tube([(0.4, 0.2, -0.3), (0.25, 0.45, -0.6), (0.0, 0.42, -1.0)], 0.06, 8), "dark")
-		m.add("Body", tube([(0, 0.42, -0.1), (0, 0.65, -0.35), (0, 0.65, -0.75), (0, 0.42, -0.95)], 0.05, 8), "chrome")
-		m.add("Body", cyl(0.36, 0.25, (0, 0, -1.25), "z", 16, bevel=0.05), "dark")
-		m.add("Body", cyl(0.34, 0.12, (0, 0, -2.0), "z", 16, bevel=0.03), "dark")
-		barrels = cyl(0.33, 0.2, (0, 0, -2.75), "z", 16, bevel=0.04)
-		for i in range(6):
-			a = math.tau * i / 6
-			merge(barrels, cyl(0.075, 1.7, (math.cos(a) * 0.2, math.sin(a) * 0.2, -2.0), "z", 8))
-		m.add("Barrels", barrels, "chrome")
-		m.add("Barrels", cyl(0.08, 1.7, (0, 0, -2.0), "z", 8), "dark")
+		xo16(m, paint, stripe, trim)
 	elif id == "tracker":
 		body = smooth((0.82, 0.92, 2.0), (0, 0, 0), lambda co, h: (co.__setitem__(1, co.y - (0.14 if co.z < 0 and co.y > 0 else 0)), co.__setitem__(0, co.x * (0.85 if co.z < 0 else 1.0))))
 		band(body, 0, -0.12, 0.12, 1, lambda c, n: n.y > 0.3)
@@ -709,20 +904,7 @@ def weapon(id, P):
 			m.add("Body", rbox((0.1, 0.18, 0.1), (0, 0, 0), r=0.02), "dark", kit.xform((0, 0.5, z)))
 		m.add("Body", cyl(0.18, 0.8, (-0.48, -0.1, -0.7), "z", 12, bevel=0.04), "brass")
 	elif id == "splitter":
-		body = smooth((0.58, 0.72, 2.7), (0, 0, 0), lambda co, h: (co.__setitem__(1, co.y * (0.6 if co.z < 0 else 1.0)), co.__setitem__(0, co.x * (0.75 if co.z < 0 else 1.0))))
-		band(body, 2, 0.5, 0.75, 1)
-		m.add("Body", body, [paint, stripe], kit.xform((0, 0, -1.1)))
-		m.add("Glow", rbox((0.16, 0.06, 1.8), (0, 0, 0), r=0.03, seg=1), "glow_core", kit.xform((0, 0.25, -1.1)))
-		for i in range(3):
-			z = -1.6 - i * 0.28
-			m.add("Body", cyl(0.33, 0.08, (0, 0, z), "z", 16, bevel=0.02), "chrome")
-			m.add("Glow", cyl(0.29, 0.1, (0, 0, z), "z", 16), "glow_core")
-		for s in (-1, 1):
-			prong = rbox((0.12, 0.2, 1.05), (0, 0, 0), r=0.05, seg=2, shape=lambda v, h: v.__setitem__(1, v.y * (0.5 if v.z < 0 else 1.0)))
-			m.add("Body", prong, "dark", kit.xform((s * 0.17, 0, -2.55)))
-			m.add("Glow", sphere(0.06, (s * 0.17, 0, -3.02)), "glow_core")
-		m.add("Body", rbox((0.38, 0.48, 0.65), (0, 0, 0), r=0.1, seg=2), "dark", kit.xform((0, -0.45, -0.4)))
-		m.add("Glow", rbox((0.4, 0.1, 0.4), (0, 0, 0), r=0.02), "glow_core", kit.xform((0, -0.45, -0.4)))
+		splitter(m, paint, stripe, trim)
 	else:
 		# Scrap rifle: a pipe on an engine cylinder, clamps, tape and a patch.
 		recv = cyl(0.32, 1.2, (0, 0, 0), "z", 14, bevel=0.05)
