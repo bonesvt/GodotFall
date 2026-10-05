@@ -8,6 +8,7 @@ Change them, add to them or delete from them without touching any code.
 | `radio/T.txt`, `radio/M.txt` | enemy radio chatter, Teen and Mature |
 | `eco/T.txt`, `eco/M.txt` | Eco's whispers, Teen and Mature |
 | `town/T.txt`, `town/M.txt` | the people of Solace, Teen and Mature |
+| `npc/<who>.txt`, `npc/<who>_M.txt` | hub talks with Mom, Ophelia and Biggie; the `_M` file (Ophelia's so far) is read on top under Mature and replaces each kind of talk it has |
 
 In game, **Settings > Game > Dialogue rating** switches between Teen and Mature and re-reads these files, so you can
 edit a file while the game is running and pick the rating again to hear the new lines.
