@@ -32,6 +32,8 @@ class FakeNpc extends Node3D:
 
 
 func _initialize() -> void:
+	# Motherly Love is shelved in the game (family.gd `enabled`); test it switched on.
+	Family.enabled = true
 	_run.call_deferred()
 
 

@@ -281,7 +281,11 @@ func _run() -> void:
 	var bond0 := t6.bond("mom")
 	said = _play_out(t6, 0)
 	_check("and asks, and Eco answers", said.has("eco: Girls. I think it's always been girls. I just never had time to say it out loud.") and said.back().begins_with("mom: Whatever it is, I love you"), said.slice(-4))
-	_check("an honest answer warms Mom's bond", t6.bond("mom") > bond0, [bond0, t6.bond("mom")])
+	# Motherly Love is shelved (family.gd `enabled`): no bond to warm then.
+	if Family.enabled:
+		_check("an honest answer warms Mom's bond", t6.bond("mom") > bond0, [bond0, t6.bond("mom")])
+	else:
+		_check("no bond while Motherly Love is shelved", t6.bond("mom") == bond0, [bond0, t6.bond("mom")])
 	_check("the second crush talk next", t6.pick("mom", 7, false) == _about(abouts, "crush", 1), "")
 	t6.state.set_value("ophelia", "date_run", 7)
 	_check("a date gets noticed", t6.pick("mom", 8, false) == _about(abouts, "dated", 0), "")
