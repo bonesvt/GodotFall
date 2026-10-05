@@ -1,17 +1,27 @@
 extends Node3D
-## Eco's stiletto (Z or the mouse thumb button). A tap is a quick strike from
+## Eco's knife (Z or the mouse thumb button). A tap is a quick strike from
 ## her left hand. Holding the key draws it with a flip-spin and keeps it out
 ## with the pistol lowered, and she runs faster; left mouse swings while it's
 ## out (alternating slashes, with a light trail off the tip), and I plays an
 ## inspect flourish. On a grunt that hasn't noticed her the strike becomes a
 ## thrust and a silent takedown that kills outright; on anyone else it's a
-## solid hit that alerts them. Model: assets/models/knife/stiletto.glb
-## (tools/knife/build_stiletto.py).
+## solid hit that alerts them. She carries the knife picked at the hub's knife
+## case (armory.gd KNIVES; the run manager calls set_model()): the Needle by
+## default, the Plate Kunai or the Butterfly, whose bite handle flips open as
+## she spins it. Models: assets/models/knife/<id>.glb
+## (tools/knife/build_knives.py).
 
 const FX := preload("res://scripts/fx.gd")
 const SFX := preload("res://scripts/sfx.gd")
-const MODEL := preload("res://assets/models/knife/stiletto.glb")
+const MODELS := {
+	"needle": preload("res://assets/models/knife/needle.glb"),
+	"kunai": preload("res://assets/models/knife/kunai.glb"),
+	"butterfly": preload("res://assets/models/knife/butterfly.glb"),
+}
+const DEFAULT_MODEL := "needle"
 const MATERIALS := "res://assets/materials/knife/"
+## How much bigger than life the knife is drawn in her hand.
+const VIEW_SCALE := 1.3
 
 ## Emitted on every stab: "miss", "hit", "kill" or "takedown".
 signal stabbed(kind: String)
@@ -43,8 +53,14 @@ var _long_hold := false  # this press already brought the knife out
 var _ready_blend := 0.0
 var _struck := false
 var _blade_root: Node3D  # Eco's hand: pose follows the animation
-var _blade: Node3D  # the stiletto in her fingers: spins and tosses on its own
+var _blade: Node3D  # the knife in her fingers: spins and tosses on its own
 var _tip: Node3D
+## Which knife she carries (armory.gd KNIVES id) and its model in her hand.
+var model_id := DEFAULT_MODEL
+var model: Node3D
+## The butterfly's free handle (null on the fixed blades) and its rest pose.
+var _bite: Node3D
+var _bite_rest := Basis.IDENTITY
 var _last_tip := Vector3.ZERO
 var _trail_on := false
 ## Current knife animation: "", "draw", "thrust", "slash_a", "slash_b", "inspect".
@@ -156,7 +172,24 @@ func _process(delta: float) -> void:
 	_blade_root.rotation = hand[1]
 	_blade.position = blade[0]
 	_blade.rotation = blade[1]
+	if _bite != null:
+		_bite.basis = _bite_rest * Basis(Vector3.UP, -handle_swing(anim, anim_time))
 	_update_trail()
+
+
+## How far the butterfly's bite handle has swung open (radians, 0 = shut round
+## the tang): it flies out and back as she flips the knife on the draw, on the
+## inspect's finger spins and on the toss.
+static func handle_swing(name: String, t: float) -> float:
+	match name:
+		"draw":
+			return 2.7 * sin(PI * t / 0.36) if t < 0.36 else 0.0
+		"inspect":
+			if t >= 0.85 and t <= 1.5:
+				return 2.7 * absf(sin(TAU * (t - 0.85) / 0.65))
+			if t >= 1.55 and t <= 2.05:
+				return 2.7 * sin(PI * (t - 1.55) / 0.5)
+	return 0.0
 
 
 ## Starts a knife animation ("" stops it).
@@ -412,21 +445,10 @@ func _build_blade() -> void:
 	add_child(_blade_root)
 	_blade = Node3D.new()  # pivot at the grip, where her fingers hold it
 	_blade_root.add_child(_blade)
-	var blade: Node3D = MODEL.instantiate()
-	blade.name = "Stiletto"
-	blade.scale = Vector3.ONE * 1.3
-	_blade.add_child(blade)
 	_tip = Node3D.new()
 	_tip.name = "Tip"
-	_tip.position = Vector3(0, 0, -0.25 * 1.3)
 	_blade.add_child(_tip)
-	for mi in blade.find_children("*", "MeshInstance3D", true, false):
-		var mesh := (mi as MeshInstance3D).mesh
-		for i in mesh.get_surface_count():
-			var m := mesh.surface_get_material(i)
-			if m != null and ResourceLoader.exists(MATERIALS + m.resource_name + ".tres"):
-				(mi as MeshInstance3D).set_surface_override_material(i, load(MATERIALS + m.resource_name + ".tres"))
-		(mi as MeshInstance3D).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	set_model(model_id)
 
 	# Eco's left fist round the grip and her forearm running back off screen.
 	var glove := StandardMaterial3D.new()
@@ -447,6 +469,53 @@ func _build_blade() -> void:
 	arm.material = sleeve
 	var forearm := _part(_blade_root, arm, Vector3(0.0, -0.012, 0.22), Vector3.ONE)
 	forearm.rotation.x = PI / 2.0
+
+
+## Puts the knife `id` (armory.gd KNIVES) in her hand; unknown ids get the Needle.
+func set_model(id: String) -> void:
+	if not MODELS.has(id):
+		id = DEFAULT_MODEL
+	model_id = id
+	if _blade == null:
+		return  # _ready builds it
+	if model != null:
+		model.free()
+	model = knife_model(id)
+	model.name = "Knife_" + id
+	model.scale = Vector3.ONE * VIEW_SCALE
+	_blade.add_child(model)
+	_tip.position = Vector3(0, 0, -blade_length(model) * VIEW_SCALE)
+	_bite = model.find_child("BiteHandle", true, false) as Node3D
+	if _bite != null:
+		_bite_rest = _bite.basis
+
+
+## A knife's model with the game materials on (for her hand, the knife case and
+## the case's preview screen). The blade points down -z from the grip.
+static func knife_model(id: String) -> Node3D:
+	var node: Node3D = MODELS.get(id, MODELS[DEFAULT_MODEL]).instantiate()
+	for mi in node.find_children("*", "MeshInstance3D", true, false):
+		var mesh := (mi as MeshInstance3D).mesh
+		for i in mesh.get_surface_count():
+			var m := mesh.surface_get_material(i)
+			if m != null and ResourceLoader.exists(MATERIALS + m.resource_name + ".tres"):
+				(mi as MeshInstance3D).set_surface_override_material(i, load(MATERIALS + m.resource_name + ".tres"))
+		(mi as MeshInstance3D).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	return node
+
+
+## How far the point reaches past the middle of the grip, in model metres.
+static func blade_length(node: Node3D) -> float:
+	var reach := 0.0
+	for mi in node.find_children("*", "MeshInstance3D", true, false):
+		var xf: Transform3D = (mi as Node3D).transform
+		var p: Node = mi.get_parent()
+		while p != node and p is Node3D:
+			xf = (p as Node3D).transform * xf
+			p = p.get_parent()
+		var box: AABB = xf * (mi as MeshInstance3D).get_aabb()
+		reach = maxf(reach, -box.position.z)
+	return reach
 
 
 func _part(parent: Node3D, mesh: Mesh, pos: Vector3, scl: Vector3) -> MeshInstance3D:

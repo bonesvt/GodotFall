@@ -12,6 +12,7 @@ extends RefCounted
 ##   gunsmith bench   weapon upgrades (each gun has its own) and attachments
 ##                    (one per slot, each a trade-off), plus finishes
 ##   weapon rack      pick the sidearm you head out with
+##   knife case       pick the knife she carries (free; all three are hers)
 ##
 ## Eco's level is 1 plus every upgrade level she has bought: weapon upgrades,
 ## titan refits and suit upgrades all count. It unlocks starting weapons:
@@ -103,6 +104,20 @@ const WEAPONS := {
 		],
 	},
 }
+
+## Eco's knives, all three hers from the start: the knife case in the hub
+## picks the one she carries (scripts/knife.gd loads its model,
+## assets/models/knife/<id>.glb, built by tools/knife/build_knives.py). They
+## fight the same; only the look changes.
+const KNIVES := {
+	"needle": {"name": "Needle", "short": "NEEDLE",
+		"desc": "Her stiletto, refined: a diamond needle blade with a dark fuller, a swept guard lit cyan, and a ring pommel to spin it on a finger."},
+	"kunai": {"name": "Plate Kunai", "short": "PLATE KUNAI",
+		"desc": "A tanto blade cut from colony armour plate, its old power trace still glowing, cobalt paracord on the tang and a finger ring."},
+	"butterfly": {"name": "Butterfly", "short": "BUTTERFLY",
+		"desc": "A balisong: cobalt clip-point blade, skeleton channel handles with cyan inlays. It flips open in her fingers."},
+}
+const DEFAULT_KNIFE := "needle"
 
 ## Upgrade tracks. Each gun lists its own in WEAPONS "upgrades", and each gun's
 ## set leans into what it is: the smart pistol rebuilds Dad's lock, the heavy
@@ -272,6 +287,8 @@ var lifetime := {}
 var suit_tier := 0
 ## Light, medium or heavy (SUIT_WEIGHTS).
 var suit_weight := "medium"
+## The knife she carries (KNIVES), picked at the knife case.
+var knife := DEFAULT_KNIFE
 ## Levels cleared ("tutorial" for the Pinewoods run, then levels.gd ids).
 var cleared := []
 
@@ -312,6 +329,9 @@ func load_file() -> void:
 	suit_tier = clampi(cfg.get_value("suit", "tier", 0), 0, SUIT_TIERS.size())
 	suit_weight = cfg.get_value("suit", "weight", "medium")
 	cleared = cfg.get_value("progress", "cleared", [])
+	knife = String(cfg.get_value("weapons", "knife", DEFAULT_KNIFE))
+	if not KNIVES.has(knife):
+		knife = DEFAULT_KNIFE
 	if not SUIT_WEIGHTS.has(suit_weight):
 		suit_weight = "medium"
 	if not WEAPONS.has(equipped) or not owns_weapon(equipped):
@@ -328,6 +348,7 @@ func save() -> void:
 	cfg.set_value("weapons", "attachments", owned_attachments)
 	cfg.set_value("weapons", "fitted", fitted)
 	cfg.set_value("weapons", "finishes", finishes)
+	cfg.set_value("weapons", "knife", knife)
 	cfg.set_value("titan", "owned", owned_parts)
 	cfg.set_value("titan", "loadout", titan_loadout)
 	cfg.set_value("titan", "refits", refits)
@@ -672,6 +693,15 @@ func refit_bonus() -> Dictionary:
 	for key in refits:
 		bonus[key] = 1.0 + REFIT_STEP * refits[key]
 	return bonus
+
+
+## Picks the knife she carries (free). Returns false for an unknown knife.
+func set_knife(id: String) -> bool:
+	if not KNIVES.has(id):
+		return false
+	knife = id
+	save()
+	return true
 
 
 # --- Eco's suit -----------------------------------------------------------------

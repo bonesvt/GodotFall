@@ -1,8 +1,9 @@
 extends SceneTree
 ## Headless test for Eco's armory and the hub workbenches, and the materials
 ## that pay for them: the rules (prices, upgrades, attachments, titan parts,
-## refits, what a run banks), the bench screens changing what you carry, and
-## collecting scrap, alloy and circuits out in a run.
+## refits, what a run banks), the bench screens changing what you carry (the
+## knife case included: the picked knife is saved and is the one in her hand),
+## and collecting scrap, alloy and circuits out in a run.
 ## Run: godot --headless --path . -s res://tests/armory_test.gd
 
 const Armory := preload("res://scripts/hub/armory.gd")
@@ -113,11 +114,21 @@ func _rules() -> void:
 	_check("lost run banks half, but keeps lock cores", Armory.run_haul({"scrap": 11, "alloy": 4, "circuits": 1, "lock_cores": 1}, false) == {"scrap": 5, "alloy": 2, "circuits": 0, "lock_cores": 1}, "")
 	_check("won run banks it all plus titan salvage", Armory.run_haul({"scrap": 10}, true)["scrap"] == 10 + Armory.WIN_BONUS["scrap"], "")
 
+	# Knives: all three hers, the Needle by default; the pick is free and saved.
+	_check("carries the Needle by default", a.knife == "needle" and Armory.DEFAULT_KNIFE == "needle" and Armory.KNIVES.keys() == ["needle", "kunai", "butterfly"], a.knife)
+	_check("picks the Plate Kunai", a.set_knife("kunai") and a.knife == "kunai" and a.stash == Armory.open(PATH).stash, a.knife)
+	_check("no knife that doesn't exist", not a.set_knife("spork") and a.knife == "kunai", a.knife)
+	var odd := ConfigFile.new()
+	odd.set_value("weapons", "knife", "spork")
+	odd.save("user://test_armory_knife.cfg")
+	_check("an unknown saved knife falls back to the Needle", Armory.open("user://test_armory_knife.cfg").knife == "needle", "")
+	DirAccess.remove_absolute(ProjectSettings.globalize_path("user://test_armory_knife.cfg"))
+
 	# It all survives a save and load.
 	a.equip("machine_pistol")
 	var b = Armory.open(PATH)
 	_check("armory saves and loads", b.equipped == "machine_pistol" and b.upgrade_level("smart_pistol", "smart_rounds") == 8 \
-			and b.fitted_attachment("smart_pistol", "muzzle") == "long_barrel" and b.titan_loadout["chassis"] == "ogre" and b.stash == a.stash, b.stash)
+			and b.fitted_attachment("smart_pistol", "muzzle") == "long_barrel" and b.titan_loadout["chassis"] == "ogre" and b.stash == a.stash and b.knife == "kunai", b.stash)
 
 
 func _run() -> void:
@@ -137,6 +148,31 @@ func _run() -> void:
 	_check("closing the rack puts it in hand", weapon.weapon_id == "smart_pistol" and weapon.smart and not weapon.automatic, weapon.weapon_id)
 	_check("upgrades and attachments carried into the hand", weapon.magazine_size == 11 and weapon.smart_left == 11 and is_equal_approx(weapon.damage, 20.0), [weapon.magazine_size, weapon.smart_left, weapon.damage])
 	_check("the long barrel is on the gun", weapon.viewmodel.find_child("Attachment_muzzle", true, false) != null, "")
+
+	# Knife case: the saved knife is in her hand and on show; picking another
+	# puts it in her hand and moves the tag.
+	var knife = player.get_node("Head/Camera3D/Knife")
+	_check("the saved knife is in her other hand", knife.model_id == "kunai" and knife.model != null and knife.model.name == "Knife_kunai" \
+			and knife.model.find_child("Kunai", true, false) != null, knife.model_id)
+	var slots: Array = run_node.zone_info.get("knife_slots", [])
+	_check("the case shows all three knives", slots.size() == 3 and slots.all(func(s): return s != null and s.get_child_count() == 2), slots)
+	run_node.open_bench("knives")
+	await _ticks(2)
+	bench = run_node.bench
+	_check("knife case: lists the three, the carried one marked", bench.kind == "knives" and bench.rows.size() == 3 \
+			and bench.rows[1]["state"] == "CARRIED" and bench.rows[0]["state"] == "" and bench.rows[2]["note"] != "", bench.rows.map(func(r): return r["state"]))
+	bench.select(2)
+	_check("knife case: shows the knife you're on", bench._preview_key == "knife/butterfly" and bench._turntable.get_child_count() == 1, bench._preview_key)
+	_check("knife case: pick the Butterfly", bench.confirm() and run_node.armory.knife == "butterfly" and bench.rows[2]["state"] == "CARRIED", run_node.armory.knife)
+	run_node.close_bench()
+	await _ticks(2)
+	_check("closing the case puts the Butterfly in her hand", knife.model_id == "butterfly" and knife.model.find_child("BiteHandle", true, false) != null \
+			and knife.find_children("Knife_*", "", true, false).size() == 1, knife.model_id)
+	_check("the trail comes off the Butterfly's shorter point", knife._tip.position.z < -0.2 and knife._tip.position.z > -0.3, knife._tip.position)
+	_check("the case tags the Butterfly as carried", (slots[2].get_child(1) as Label3D).text == "CARRIED" and (slots[1].get_child(1) as Label3D).text != "CARRIED", "")
+	_check("the pick is saved", Armory.open(PATH).knife == "butterfly", "")
+	# The Butterfly's bite handle flips open on the draw and is shut again after.
+	_check("the bite handle swings open mid-flip and shuts", knife.handle_swing("draw", 0.18) > 2.0 and knife.handle_swing("draw", 0.45) == 0.0 and knife.handle_swing("", 0.0) == 0.0, "")
 
 	# Gunsmith: the gun in 3D with clickable parts. Grip, then paint.
 	run_node.open_bench("gunsmith")

@@ -43,6 +43,7 @@ const Gifts := preload("res://scripts/run/gifts.gd")
 const NpcIdles := preload("res://scripts/hub/npc_idles.gd")
 const Escort := preload("res://scripts/run/escort.gd")
 const Weapon := preload("res://scripts/weapon.gd")
+const Knife := preload("res://scripts/knife.gd")
 const Art := preload("res://scripts/ps2/ps2_assets.gd")
 const Garage := preload("res://scripts/hub/garage.gd")
 const TitanStyle := preload("res://scripts/run/titan_style.gd")
@@ -649,17 +650,20 @@ func close_bench() -> void:
 
 
 ## Puts the gun picked at the weapon rack, upgraded and fitted, in Eco's hand,
-## and her suit upgrade (suit locker) on her.
+## the knife picked at the knife case in the other, and her suit upgrade
+## (suit locker) on her.
 func equip_loadout() -> void:
 	player.get_node("Head/Camera3D/Weapon").equip(armory.weapon_profile())
+	player.get_node("Head/Camera3D/Knife").set_model(armory.knife)
 	player.apply_suit(armory.suit_profile())
 
 
 ## Shows whether each level on the mission table is open, turns the marker
 ## over the tutorial poster off once that run is won, and shows the armory on
 ## the benches: the equipped gun on the gunsmith's mat,
-## the guns you own on the rack (locked slots stay empty under a tag), and the
-## titan you'd start a run with standing in the workshop's gantry.
+## the guns you own on the rack (locked slots stay empty under a tag), her
+## three knives under the knife case's glass (the one she carries tagged), and
+## the titan you'd start a run with standing in the workshop's gantry.
 func dress_hub() -> void:
 	var marker: Node3D = zone_info.get("tutorial_marker")
 	if marker != null:
@@ -707,6 +711,28 @@ func dress_hub() -> void:
 		else:
 			tag.text = "LEVEL %d" % Armory.unlock_level(id) if armory.level_locked(id) else "LOCKED"
 			tag.modulate = Color(0.6, 0.6, 0.62)
+	var knife_slots: Array = zone_info.get("knife_slots", [])
+	var knife_ids: Array = Armory.KNIVES.keys()
+	for i in mini(knife_slots.size(), knife_ids.size()):
+		var slot: Node3D = knife_slots[i]
+		if slot == null:
+			continue
+		for c in slot.get_children():
+			c.free()
+		var id: String = knife_ids[i]
+		var blade := Knife.knife_model(id)
+		blade.scale = Vector3.ONE * 1.35  # lies flat, point to the back of the case
+		slot.add_child(blade)
+		var tag := Label3D.new()
+		tag.font_size = 40
+		tag.pixel_size = 0.0016
+		tag.shaded = false
+		tag.outline_size = 8
+		tag.rotation_degrees = Vector3(-90, 0, 0)
+		tag.position = Vector3(0, 0.003, 0.2)
+		tag.text = "CARRIED" if id == armory.knife else Armory.KNIVES[id]["short"]
+		tag.modulate = Color(1.0, 0.8, 0.35) if id == armory.knife else Color(0.9, 0.88, 0.82)
+		slot.add_child(tag)
 	var stand: Node3D = zone_info.get("workshop_titan")
 	if stand != null:
 		for c in stand.get_children():
