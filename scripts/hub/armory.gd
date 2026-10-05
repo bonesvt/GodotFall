@@ -212,45 +212,70 @@ const FINISHES := [
 ## everything before it and adds armour (a second bar over her health that
 ## takes hits first and comes back after the same pause as her health), one
 ## passive, and armour pieces you can see on her (eco_model.gd suit_tier;
-## the pieces are modelled in tools/eco/build_eco_vroid.py). `armor` is the
-## tier's total. The passives' numbers live in suit_profile().
+## the pieces are modelled in tools/eco/build_eco_vroid.py, each weight's
+## its own: SUIT_KIT_LOOKS). `armor` is the tier's total. The passives'
+## numbers live in suit_profile().
 const SUIT_TIERS := [
 	{"name": "Scav Rig", "armor": 20, "cost": {"scrap": 80, "alloy": 10},
 		"passive": "Magnet pouches", "passive_desc": "Materials fly to you from twice as far.",
-		"look": "Forearm bracers, a belt with hip pouches.",
 		"line": "Bracers off a dead grunt, pouches off another. Waste not."},
 	{"name": "Seal Weave", "armor": 40, "cost": {"scrap": 120, "alloy": 25, "circuits": 2},
 		"passive": "Auto-seal", "passive_desc": "Health and armour start coming back after 2 s instead of 3.",
-		"look": "Layered shoulder plates, a seal injector strapped to her thigh.",
 		"line": "Sealant in the weave. It stings. It works."},
 	{"name": "Dampers", "armor": 60, "cost": {"scrap": 160, "alloy": 40, "circuits": 4},
 		"passive": "Hush dampers", "passive_desc": "Grunts take 30% longer to notice you, by sight or by footsteps.",
-		"look": "Shin guards, knee cops and hip plates.",
 		"line": "Rubber-backed plates. They'll never hear me coming."},
 	{"name": "Jump Kit", "armor": 80, "cost": {"scrap": 220, "alloy": 60, "circuits": 6},
 		"passive": "Jump kit", "passive_desc": "Wallruns last 40% longer and the grapple recharges 30% faster.",
-		"look": "A jump pack low on her back, an armoured collar.",
 		"line": "Dad's old jump kit, rewound. The Pilot program can keep theirs."},
 	{"name": "Dad's Colours", "armor": 100, "cost": {"scrap": 300, "alloy": 90, "circuits": 8, "lock_cores": 1},
 		"passive": "Second wind", "passive_desc": "Once per zone, a hit that would down you leaves you on 1 HP, untouchable for 1.5 s.",
-		"look": "Plates repainted in Dad's colours, crests on her shoulders, every trim gold.",
 		"line": "His colours. I earned them."},
 ]
 
 ## Suit weights: once she has a suit tier, the locker refits it light, medium
 ## or heavy, free and as often as she likes. The weight scales every tier's
-## armour and adds its own bonus on top of the tiers' passives, and changes
-## which armour pieces she wears (eco_model.gd suit_weight).
+## armour and adds its own bonus on top of the tiers' passives. Each weight is
+## a kit: it changes the suit itself, whichever style she wears ("look"), and
+## its own armour pieces go on tier by tier (SUIT_KIT_LOOKS; eco_model.gd
+## suit_weight).
 const SUIT_WEIGHTS := {
-	"light": {"name": "Light", "armor_mult": 0.5, "speed": 1.1, "notice_mult": 0.85, "wallrun_time_mult": 1.15,
+	"light": {"name": "Light", "kit": "Runner", "armor_mult": 0.5, "speed": 1.1, "notice_mult": 0.85, "wallrun_time_mult": 1.15,
 		"bonus": "Half the armour. 10% faster on the ground, grunts notice you 15% slower, wallruns 15% longer.",
-		"look": "Cloth and leather: a wrap that supports her chest and covers her sides, the suit open across the top of her chest, choker with Dad's tag, a nose ring, wrapped arms and shins, a leather shoulder guard and knee pads, her stiletto on a thigh garter."},
-	"medium": {"name": "Medium", "armor_mult": 1.0, "armor_regen_mult": 2.0,
+		"look": "Her suit cut down for speed: the collar cut away, a window over her stomach, glossy compression bands, tight knee-high boots. A steel bar through her brow, a sharp wing and a dark red lip.",
+		"line": "Less suit, more speed. They can't hit what they can't catch."},
+	"medium": {"name": "Medium", "kit": "Mechanic", "armor_mult": 1.0, "armor_regen_mult": 2.0,
 		"bonus": "The tier's armour. Armour refills twice as fast.",
-		"look": "A mechanic's jumpsuit: unzipped in a wide V down past her belly button, a heart window over the top of her glutes, left arm bare with Dad's cog tattoo, right sleeve rolled, rust side panels. A knotted scarf, a plaster on her cheek, a tool pouch, a canvas yoke, rubber knee caps, a cargo pocket and a wrist computer."},
-	"heavy": {"name": "Heavy", "armor_mult": 1.6, "damage_mult": 0.85, "speed": 0.9,
+		"look": "Her suit worn for work: the right sleeve torn off, grease on her arm and cheek, laced work boots over rolled socks, patches sewn on.",
+		"line": "Everything I need is on me. Everything I break, I fix."},
+	"heavy": {"name": "Heavy", "kit": "Titan", "armor_mult": 1.6, "damage_mult": 0.85, "speed": 0.9,
 		"bonus": "60% more armour and every hit lands 15% softer, but 10% slower on the ground.",
-		"look": "A padded undersuit quilted in diamonds under titan-hull armour: a breastplate with Dad's titan's core light at tier 4, a comm earpiece, bracers, pauldrons, shin guards, knee cops, hip plates, elbow cops, upper-arm and thigh plates, a back plate and an armoured collar."},
+		"look": "Her suit padded for a beating: quilted shoulders, sides, knees and collar, gunmetal mag boots with glowing ankle coils, war paint under her eyes.",
+		"line": "Dad's titan, a piece at a time. Come on then."},
+}
+## What each weight's kit puts on her at each suit tier (SUIT_TIERS order).
+const SUIT_KIT_LOOKS := {
+	"light": [
+		"Black leather cuffs with steel buckles, a studded belt slung low on her hips with a crimson pouch.",
+		"A crimson-edged leather guard on her left shoulder, a seal injector strapped to her thigh.",
+		"Leather knee pads, buckled shin straps, her stiletto sheathed on a thigh garter.",
+		"Dad's dog tag on a leather choker, a status light on her arm band, the jump pack on her back.",
+		"Dad's crest on her shoulder guard. Every trim turns gold.",
+	],
+	"medium": [
+		"A tool pouch on her hip with a spanner and a screwdriver, a wrist computer on her forearm.",
+		"A teal scarf, a plaster on her cheek, a mustard canvas yoke, a rubber elbow pad, a seal injector on her thigh.",
+		"Rubber knee caps on straps, a cargo pocket on her thigh.",
+		"A canvas bedroll strapped across her back, over the jump pack.",
+		"Dad's crest on a patch on her yoke. Every trim turns gold.",
+	],
+	"heavy": [
+		"Gunmetal bracers and elbow cops, a breastplate cut from Dad's titan, a comm earpiece, a belt with hip pouches.",
+		"Layered shoulder plates and upper-arm plates, a seal injector on her thigh.",
+		"Shin guards, knee cops, thigh and hip plates.",
+		"A back plate, an armoured collar, the jump pack low on her back.",
+		"Plates repainted in Dad's colours, crests on her shoulders, his titan's core light in her breastplate. Every trim turns gold.",
+	],
 }
 const SUIT_WEIGHT_ORDER := ["light", "medium", "heavy"]
 

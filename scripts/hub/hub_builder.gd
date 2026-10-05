@@ -561,7 +561,7 @@ static func _knife_case(root: Node3D, info: Dictionary) -> void:
 
 
 ## On the left wall under the loft: Eco's armour bench, where she upgrades
-## and changes her suit (bench_screen.gd "suit"): the scavenged locker, her
+## and changes her suit (suit_screen.gd): the scavenged locker, her
 ## spare suit on a stand made of pipe, plates and tools on a pegboard.
 static func _armor_bench(root: Node3D, info: Dictionary) -> void:
 	var l := Vector3(-HALF + 0.42, F, -3.0)
