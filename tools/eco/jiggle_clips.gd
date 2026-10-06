@@ -3,7 +3,7 @@ extends SceneTree
 ## same run, jump, landing and quick turn played by three copies of her, left
 ## to right classic, anime, realistic (labelled on screen). She really moves through the world, so
 ## her speed and landings drive the springs as in game.
-##   godot --path . --fixed-fps 60 --write-movie <dir>/frame.png -s res://tools/eco/jiggle_clips.gd -- [--view=front|back] [--styles=anime,realistic]
+##   godot --path . --fixed-fps 60 --write-movie <dir>/frame.png -s res://tools/eco/jiggle_clips.gd -- [--view=front|back|side] [--styles=anime,realistic]
 ## A style ending "+body" also turns on full body jiggle (eco_flesh.gd), so
 ## --styles=classic,classic+body compares it off and on. --close frames them
 ## nearer.
@@ -129,10 +129,14 @@ func _follow() -> void:
 	if close:
 		centre.y = 1.0 + walkers[0].position.y * 0.8
 		dist = 1.0 + width * 0.42
+		if view == "side":
+			dist = maxf(dist, 2.9)  # one copy side on: wide enough for her whole stride
 	var offset: Vector3
 	match view:
 		"back":
 			offset = Vector3(0.0, 0.45, dist)
+		"side":
+			offset = Vector3(dist * 1.1, 0.2, dist * 0.15)
 		_:
 			offset = Vector3(dist * 0.18, 0.25, -dist)
 	cam.look_at_from_position(centre + offset, centre)
