@@ -37,23 +37,37 @@ func _run() -> void:
 	_check("the player's Eco hides for the scene", not stand_in_for.visible, "")
 	_check("Ophelia stands facing her", oph.global_position.distance_to(Vector3(0, 0, -SmokeDate.GAP)) < 0.05, oph.global_position)
 	scene.play("light")
-	await _frames(60)
+	var flame_gap := 9.0
+	for i in 60:
+		await _frames(1)
+		if scene._flame.visible:
+			flame_gap = minf(flame_gap, scene._flame.global_position.distance_to(scene._ember.global_position))
+	_check("the flame finds the tip", flame_gap < 0.03, flame_gap)
 	_check("lit", scene._cig.visible and scene.get_value("ember") > 0.9 and scene._holder == "o", scene._holder)
+	_check("held between her fingers", _in_fingers("o") < 0.03, _in_fingers("o"))
 	scene.play("first")
-	await _frames(12)
+	await _frames(20)
 	_check("Eco takes it", scene._holder == "e", scene._holder)
-	var lips: Vector3 = scene.lips_point(scene._actors["e"])
-	await _frames(10)
-	_check("to her lips", scene._cig.global_position.distance_to(scene.lips_point(scene._actors["e"])) < 0.06, [scene._t, scene.get_value("e.lips"), scene._cig.global_position, scene.lips_point(scene._actors["e"]), lips])
+	var off_fingers := 0.0
+	var to_lips := 9.0
+	for i in 20:
+		await _frames(1)
+		if scene._handoff >= 1.0:
+			off_fingers = maxf(off_fingers, _in_fingers("e"))
+		to_lips = minf(to_lips, scene._cig.global_position.distance_to(scene.lips_point(scene._actors["e"])))
+	_check("it stays in her fingers", off_fingers < 0.03, off_fingers)
+	_check("to her lips", to_lips < 0.03, to_lips)
+	var out_of_face: float = (scene._cig.global_basis.y).dot(-scene._actors["e"]["model"].global_basis.z)
+	_check("pointing away from her face", out_of_face > 0.3, out_of_face)
 	scene.play("last_drag")
-	await _frames(45)
+	await _frames(60)
 	_check("the stub's dropped", scene._holder == "" or scene._holder == "drop", scene._holder)
 	scene.play("kiss")
-	await _frames(30)
+	await _frames(45)
 	var gap: float = scene.lips_point(scene._actors["e"]).distance_to(scene.lips_point(scene._actors["o"]))
 	_check("their lips meet", gap < 0.045, gap)
 	scene.play("exhale")
-	await _frames(15)
+	await _frames(22)
 	gap = scene.lips_point(scene._actors["e"]).distance_to(scene.lips_point(scene._actors["o"]))
 	_check("and part", gap > 0.15, gap)
 	scene.finish()
@@ -113,6 +127,17 @@ func _in_hub() -> void:
 	ContentRating.set_rating("T", false)
 	run_node.queue_free()
 	await _frames(2)
+
+
+## How far the cigarette sits from the holder's index and middle fingers.
+func _in_fingers(who: String) -> float:
+	# (where her fingers ended up this frame, after the IK: the bone poses read
+	# from out here are from before it)
+	var mid: Vector3 = scene._actors[who]["knuckles"]
+	var cig: Transform3D = scene._cig.global_transform
+	# from the knuckles to the nearest point along the cigarette
+	var along := clampf((mid - cig.origin).dot(cig.basis.y), 0.0, 0.08)
+	return mid.distance_to(cig.origin + cig.basis.y * along)
 
 
 func _check(label: String, ok: bool, detail: Variant) -> void:

@@ -10,7 +10,7 @@ const SmokeDate := preload("res://scripts/hub/smoke_date.gd")
 const HubNpc := preload("res://scripts/hub/hub_npc.gd")
 const Art := preload("res://scripts/ps2/ps2_assets.gd")
 
-## [beat, seconds it gets], in the dialogue's order.
+## [beat, key seconds it gets (real time: over SmokeDate.TEMPO)], in the dialogue's order.
 const PLAN := [["arrive", 1.5], ["pack", 2.2], ["light", 5.6], ["first", 6.4], ["pass", 7.0], ["short", 2.6],
 	["hand_last", 2.2], ["last_drag", 4.8], ["kiss", 3.2], ["kiss_hold", 3.2], ["exhale", 2.6], ["after", 2.4]]
 
@@ -84,6 +84,6 @@ func _process(delta: float) -> bool:
 		if _i >= plan.size():
 			return true   # quit
 		scene.play(plan[_i][0])
-		_left = float(plan[_i][1])
+		_left = float(plan[_i][1]) / SmokeDate.TEMPO
 		print("beat ", plan[_i][0])
 	return false

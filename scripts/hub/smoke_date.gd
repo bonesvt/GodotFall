@@ -52,15 +52,25 @@ const LIPS := Vector3(0.0, -0.002, -0.088)
 const SECONDS_TO_SETTLE := 0.25
 ## How far behind its keys each control trails (the spring's time constant, in
 ## seconds; it settles in about four of these). Not listed: no trail.
-const LAG := {"look": 0.05, "nod": 0.05, "tilt": 0.06, "eyes": 0.025, "r": 0.06, "l": 0.06,
-	"lean": 0.09, "twist": 0.09, "step": 0.1, "breath": 0.08, "grind": 0.035, "lips": 0.06,
-	"kiss": 0.08, "ember": 0.05}
+const LAG := {"look": 0.06, "nod": 0.06, "tilt": 0.07, "eyes": 0.03, "r": 0.08, "l": 0.08,
+	"lean": 0.11, "twist": 0.11, "step": 0.12, "breath": 0.1, "grind": 0.045, "lips": 0.08,
+	"kiss": 0.1, "ember": 0.06}
 ## How far behind its target a reaching hand trails (seconds, as LAG).
-const HAND_LAG := 0.07
-## A cigarette changing hands slides between them over this long.
-const HANDOFF := 0.2
+const HAND_LAG := 0.09
+## A cigarette changing hands slides from one grip to the other over this long.
+const HANDOFF := 0.4
+## Fingers the cigarette sits between (right hand), and how much of it pokes
+## out on the palm side (metres).
+const GRIP := ["J_Bip_R_Index1", "J_Bip_R_Index2", "J_Bip_R_Middle1", "J_Bip_R_Middle2"]
+const FILTER_IN := 0.016
+## Where a hand takes the cigarette from another's: this far along it from the
+## filter (metres).
+const TAKE := ["cig", 0.035]
 ## Longest a control takes to ease into a key's value (it holds before that).
 const EASE := 0.75
+## How fast the beats play: key seconds per real second (under 1: slower,
+## unhurried; everything eases over EASE / TEMPO real seconds).
+const TEMPO := 0.72
 
 ## Camera shots, in the stage's space: Eco at +Z, Ophelia at -Z, both on the
 ## Z axis, Eco's right toward -X. [camera position, where it looks].
@@ -78,7 +88,10 @@ const SHOTS := {
 ## Positions: ["stage", Vector3] in the stage's space; ["body", who,
 ## Vector3(right, up, forward)] from their feet; ["head", who, Vector3] from
 ## their head joint and ["lips", who, Vector3] from their lips, in their own
-## axes; ["hand", who, "r"/"l"] where that hand is.
+## axes; ["hand", who, "r"/"l"] where that hand is. Three aim what the hand
+## holds rather than the wrist: ["lips", ...] puts the cigarette's filter
+## there (the right hand) and ["ember", Vector3] the lighter's flame (the left),
+## ["cig", metres] the right hand's grip on the cigarette that far along it.
 const MID := ["stage", Vector3(-0.04, 1.1, 0.0)]
 const BEATS := {
 	"arrive": {"keys": [
@@ -94,8 +107,8 @@ const BEATS := {
 	"light": {"keys": [
 		{"t": 0.0, "do": [["cam", "ophelia"], ["cig", "o"]]},
 		{"t": 0.3, "do": [["lighter", true]]},
-		{"t": 0.9, "o.r": 1.0, "o.r_at": ["lips", "o", Vector3(0.03, -0.035, 0.075)], "o.lips": 1.0, "o.look": 0.0,
-			"o.l": 1.0, "o.l_at": ["lips", "o", Vector3(-0.03, -0.06, 0.12)], "o.nod": 10.0},
+		{"t": 0.9, "o.r": 1.0, "o.r_at": ["lips", "o", Vector3(0.0, -0.004, 0.002)], "o.lips": 1.0, "o.look": 0.0,
+			"o.l": 1.0, "o.l_at": ["ember", Vector3(0.0, -0.014, 0.0)], "o.nod": 10.0},
 		{"t": 1.2, "do": [["flame", true]]},
 		{"t": 1.9, "ember": 1.0, "o.breath": 5.0, "o.eyes": 0.6},
 		{"t": 2.1, "do": [["flame", false]]},
@@ -107,10 +120,11 @@ const BEATS := {
 	]},
 	"first": {"keys": [
 		{"t": 0.0, "do": [["cam", "two"]]},
-		{"t": 0.7, "e.r": 1.0, "e.r_at": MID, "o.r_at": MID},
-		{"t": 0.8, "do": [["cig", "e"]]},
-		{"t": 1.3, "o.r": 0.0},
-		{"t": 1.7, "e.r_at": ["lips", "e", Vector3(0.03, -0.035, 0.075)], "e.lips": 1.0, "e.look": 0.2},
+		{"t": 0.7, "o.r_at": MID},
+		{"t": 0.9, "e.r": 1.0, "e.r_at": TAKE},
+		{"t": 1.05, "do": [["cig", "e"]]},
+		{"t": 1.6, "o.r": 0.0},
+		{"t": 1.7, "e.r_at": ["lips", "e", Vector3(0.0, -0.004, 0.002)], "e.lips": 1.0, "e.look": 0.2},
 		{"t": 2.5, "e.breath": 6.0, "e.eyes": 0.5, "do": [["burn", 0.82]]},
 		{"t": 2.8, "e.r_at": ["body", "e", Vector3(0.2, 1.12, 0.22)], "e.lips": 0.0, "e.breath": 0.0},
 		# the cough: a little forward jerk, eyes screwed shut, smoke everywhere
@@ -126,16 +140,18 @@ const BEATS := {
 	], "next": "pass"},
 	"pass": {"loop": 7.0, "keys": [
 		{"t": 0.0, "e.r": 1.0, "e.r_at": ["body", "e", Vector3(0.2, 1.12, 0.22)]},
-		{"t": 0.8, "e.r_at": MID, "o.r": 1.0, "o.r_at": MID},
-		{"t": 0.9, "do": [["cig", "o"]]},
-		{"t": 1.5, "e.r": 0.0},
-		{"t": 2.0, "o.r_at": ["lips", "o", Vector3(0.03, -0.035, 0.075)], "o.lips": 1.0, "o.look": 0.3},
+		{"t": 0.7, "e.r_at": MID},
+		{"t": 0.9, "o.r": 1.0, "o.r_at": TAKE},
+		{"t": 1.05, "do": [["cig", "o"]]},
+		{"t": 1.6, "e.r": 0.0},
+		{"t": 2.0, "o.r_at": ["lips", "o", Vector3(0.0, -0.004, 0.002)], "o.lips": 1.0, "o.look": 0.3},
 		{"t": 2.7, "o.breath": 5.0, "do": [["burn", -0.12]]},
 		{"t": 3.1, "o.r_at": ["body", "o", Vector3(0.2, 1.2, 0.24)], "o.lips": 0.0, "o.breath": 0.0, "o.look": 1.0},
 		{"t": 3.3, "do": [["puff", "o", 0.6, -1.0]]},
-		{"t": 4.2, "o.r_at": MID, "e.r": 1.0, "e.r_at": MID},
-		{"t": 4.3, "do": [["cig", "e"]]},
-		{"t": 4.9, "o.r": 0.0, "e.r_at": ["lips", "e", Vector3(0.03, -0.035, 0.075)], "e.lips": 1.0, "e.look": 0.3},
+		{"t": 4.0, "o.r_at": MID},
+		{"t": 4.2, "e.r": 1.0, "e.r_at": TAKE},
+		{"t": 4.35, "do": [["cig", "e"]]},
+		{"t": 4.9, "o.r": 0.0, "e.r_at": ["lips", "e", Vector3(0.0, -0.004, 0.002)], "e.lips": 1.0, "e.look": 0.3},
 		{"t": 5.6, "e.breath": 5.0, "do": [["burn", -0.12]]},
 		{"t": 6.0, "e.r_at": ["body", "e", Vector3(0.2, 1.12, 0.22)], "e.lips": 0.0, "e.breath": 0.0, "e.look": 1.0},
 		{"t": 6.2, "do": [["puff", "e", 0.6, 1.0]]},
@@ -143,20 +159,22 @@ const BEATS := {
 	]},
 	"short": {"keys": [
 		{"t": 0.0, "do": [["cam", "hand"]]},
-		{"t": 0.6, "e.r_at": MID, "o.r": 1.0, "o.r_at": MID},
-		{"t": 0.7, "do": [["cig", "o"]]},
-		{"t": 1.2, "e.r": 0.0},
+		{"t": 0.5, "e.r_at": MID},
+		{"t": 0.7, "o.r": 1.0, "o.r_at": TAKE},
+		{"t": 0.85, "do": [["cig", "o"]]},
+		{"t": 1.3, "e.r": 0.0},
 		{"t": 1.8, "o.r_at": ["body", "o", Vector3(0.1, 1.28, 0.3)], "o.look": 0.0, "o.nod": 22.0, "burn": 0.14},
 	]},
 	"hand_last": {"keys": [
 		{"t": 0.0, "do": [["cam", "two"]]},
-		{"t": 0.8, "o.r_at": MID, "o.nod": 0.0, "o.look": 1.0, "o.tilt": 10.0, "e.r": 1.0, "e.r_at": MID},
-		{"t": 0.9, "do": [["cig", "e"]]},
+		{"t": 0.7, "o.r_at": MID, "o.nod": 0.0, "o.look": 1.0, "o.tilt": 10.0},
+		{"t": 0.9, "e.r": 1.0, "e.r_at": TAKE},
+		{"t": 1.05, "do": [["cig", "e"]]},
 		{"t": 1.6, "o.r": 0.0, "e.r_at": ["body", "e", Vector3(0.22, 1.2, 0.2)], "e.tilt": -6.0},
 	]},
 	"last_drag": {"keys": [
 		{"t": 0.0, "do": [["cam", "eco"]]},
-		{"t": 0.7, "e.r_at": ["lips", "e", Vector3(0.03, -0.035, 0.075)], "e.lips": 1.0, "e.look": 0.6, "e.tilt": 0.0},
+		{"t": 0.7, "e.r_at": ["lips", "e", Vector3(0.0, -0.004, 0.002)], "e.lips": 1.0, "e.look": 0.6, "e.tilt": 0.0},
 		{"t": 1.0, "ember": 1.0},
 		{"t": 2.1, "e.breath": 9.0, "e.eyes": 0.7, "burn": 0.0},
 		{"t": 2.6, "e.r_at": ["body", "e", Vector3(0.24, 0.98, 0.14)], "e.lips": 0.0, "e.look": 1.0, "e.eyes": 0.0},
@@ -234,7 +252,7 @@ var _clock := 0.0
 var _shot_t := 0.0
 var _cut := true
 var _handoff := 1.0
-var _handoff_from := Transform3D()
+var _giver := ""
 var _rng := RandomNumberGenerator.new()
 var _spring_vel: Variant = 0.0
 
@@ -319,6 +337,12 @@ func _actor(model: Node3D, key: String) -> Dictionary:
 	var head := skel.find_bone(HEAD)
 	a["head"] = head
 	a["lips"] = skel.get_bone_global_rest(head).basis.orthonormalized().inverse() * LIPS
+	# which way the back of the hand faces (up, palms down, in the rest pose)
+	var g: Array = []
+	for bone in GRIP:
+		g.append(skel.get_bone_global_rest(skel.find_bone(bone)).origin)
+	a["grip_sign"] = 1.0
+	a["grip_sign"] = 1.0 if _grip(g, 1.0).basis.y.y > 0.0 else -1.0
 	for mi in model.find_children("*", "MeshInstance3D", true, false):
 		var m := mi as MeshInstance3D
 		if m.mesh != null and m.find_blend_shape_by_name("Fcl_EYE_Close") >= 0:
@@ -343,7 +367,7 @@ func play(name: String) -> void:
 	_from = now.duplicate()
 	for k in _from:
 		if _from[k] is Array:
-			_from[k] = ["world", _where(_from[k])]
+			_from[k] = _pin(k, _from[k])
 	_tick(0.0)
 
 
@@ -363,7 +387,7 @@ func _process(delta: float) -> void:
 
 func _tick(delta: float) -> void:
 	var prev := _t
-	_t += delta
+	_t += delta * TEMPO
 	var end := float(_keys.back()["t"]) if not _keys.is_empty() else 0.0
 	for i in _keys.size():
 		var k: Dictionary = _keys[i]
@@ -383,7 +407,7 @@ func _tick(delta: float) -> void:
 			_from = now.duplicate()
 			for k in _from:
 				if _from[k] is Array:
-					_from[k] = ["world", _where(_from[k])]
+					_from[k] = _pin(k, _from[k])
 	_clock += delta
 	_place_people(delta)
 	_dress_props(delta)
@@ -461,11 +485,21 @@ func _default(c: String) -> Variant:
 	return 0.0
 
 
+## A reach pinned where its wrist is aimed right now (a new beat eases on
+## from there).
+func _pin(c: String, v: Variant) -> Variant:
+	var a: Dictionary = _actors.get(c.substr(0, 1), {})
+	var side := c.substr(2, 1)
+	if not a.is_empty() and a["hand"].has(side):
+		return ["world", a["hand"][side]]
+	return ["world", _where(v)]
+
+
 func _blend(a: Variant, b: Variant, s: float) -> Variant:
 	if b is Array:
 		if s >= 1.0:
 			return b
-		return ["world", _where(a).lerp(_where(b), s)] if a is Array else b
+		return ["mix", a, b, s] if a is Array else b
 	return lerpf(float(a), float(b), s)
 
 
@@ -502,6 +536,12 @@ func _where(spec: Variant) -> Vector3:
 			return lips_point(a) + b * Vector3(o.x, o.y, -o.z)
 		"hand":
 			return finger_point(_actors[spec[1]], String(spec[2]))
+		"ember":
+			return _ember.global_position + (spec[1] as Vector3)
+		"cig":
+			return _cig.global_transform * Vector3(0.0, float(spec[1]), 0.0)
+		"mix":
+			return _where(spec[1]).lerp(_where(spec[2]), float(spec[3]))
 	return global_position
 
 
@@ -523,6 +563,50 @@ func _record(key: String, skel: Skeleton3D) -> void:
 		var i := skel.find_bone(bone)
 		if i >= 0:
 			at[bone] = skel.global_transform * skel.get_bone_global_pose(i)
+	# the cigarette rides in her fingers as they are this very frame, so it
+	# never trails her hand
+	var g: Array = []
+	for bone in GRIP:
+		g.append(skel.global_transform * skel.get_bone_global_pose(skel.find_bone(bone)).origin)
+	a["grip"] = _grip(g, a["grip_sign"])
+	a["knuckles"] = (g[0] + g[1] + g[2] + g[3]) * 0.25
+	_hold_cig()
+	if key == "o":
+		_hold_lighter()
+
+
+## Between the index and middle fingers, through the gap and out the back of
+## the hand: the cigarette's own transform there (its +Y runs filter to ember).
+static func _grip(g: Array, sign: float) -> Transform3D:
+	var base: Vector3 = (g[0] + g[2]) * 0.5
+	var tip: Vector3 = (g[1] + g[3]) * 0.5
+	var along := (tip - base).normalized()
+	var across: Vector3 = ((g[1] as Vector3) - (g[3] as Vector3)).normalized()
+	var out := along.cross(across).normalized() * sign
+	var x := along - out * along.dot(out)
+	var b := Basis(x.normalized(), out, x.normalized().cross(out))
+	return Transform3D(b, base.lerp(tip, 0.65) - out * FILTER_IN)
+
+
+## Ophelia's lighter in her left fingers, as they are this frame.
+func _hold_lighter() -> void:
+	if not _lighter.visible or not _actors.has("o"):
+		return
+	var o: Dictionary = _actors["o"]
+	var m: Node3D = o["model"]
+	_lighter.global_transform = Transform3D(m.global_basis, finger_point(o, "l") + m.global_basis * Vector3(0.0, 0.0, -0.01))
+
+
+func _hold_cig() -> void:
+	if _holder != "e" and _holder != "o":
+		return
+	var a: Dictionary = _actors[_holder]
+	if not a.has("grip"):
+		return
+	var xf: Transform3D = a["grip"]
+	if _handoff < 1.0 and _actors.has(_giver) and _actors[_giver].has("grip"):
+		xf = (_actors[_giver]["grip"] as Transform3D).interpolate_with(xf, smoothstep(0.0, 1.0, _handoff))
+	_cig.global_transform = xf
 
 
 func head_point(a: Dictionary) -> Vector3:
@@ -544,8 +628,8 @@ func _event(ev: Array) -> void:
 			var was := _holder
 			_holder = String(ev[1])
 			if was in ["e", "o"] and _holder in ["e", "o"] and was != _holder:
-				_handoff = 0.0   # slides from one hand into the other
-				_handoff_from = _cig.global_transform
+				_handoff = 0.0   # slides from one grip into the other
+				_giver = was
 			if _holder == "drop":
 				_dropped = true
 				_drop_at = _cig.global_position
@@ -599,7 +683,8 @@ func _place_people(delta := 0.0) -> void:
 		for side in ARM:
 			var ik: TwoBoneIK3D = a["ik"][side]
 			ik.influence = clampf(get_value(key + "." + side), 0.0, 1.0)
-			var want := _where(now.get(key + "." + side + "_at", _default(key + "." + side + "_at")))
+			var spec: Variant = now.get(key + "." + side + "_at", _default(key + "." + side + "_at"))
+			var want := _aim(a, side, spec)
 			if ik.influence <= 0.001 or not a["hand"].has(side):
 				# a reach starts from wherever the hand hangs
 				a["hand"][side] = _seen(a, ARM[side][2]).origin if ik.influence <= 0.001 else want
@@ -613,6 +698,27 @@ func _place_people(delta := 0.0) -> void:
 			var shoulder := _seen(a, ARM[side][0]).origin
 			(a["pole"][side] as Node3D).global_position = shoulder + m.global_basis * Vector3(0.35 * s, -0.45, 0.15)
 		_blink(a, delta)
+
+
+## Where the wrist goes for a hand to reach `spec`. Lips, ember and cig specs
+## aim what the hand holds (the filter in its grip, the lighter's flame), so
+## the wrist goes there plus wherever it sits from that thing right now.
+func _aim(a: Dictionary, side: String, spec: Variant) -> Vector3:
+	if spec is Array and not spec.is_empty() and spec[0] == "mix":
+		return _aim(a, side, spec[1]).lerp(_aim(a, side, spec[2]), float(spec[3]))
+	var want := _where(spec)
+	if not spec is Array or spec.is_empty() or not String(spec[0]) in ["lips", "ember", "cig"]:
+		return want
+	var held: Variant = null
+	if side == "r" and a.has("grip"):
+		if String(spec[0]) == "cig" and _holder == a["key"]:
+			return _seen(a, ARM[side][2]).origin   # it's hers already: stay put
+		held = (a["grip"] as Transform3D).origin
+	elif side == "l" and a["key"] == "o" and _lighter.visible:
+		held = _flame.global_position
+	if held == null:
+		return want
+	return want + (_seen(a, ARM[side][2]).origin - (held as Vector3))
 
 
 ## Every few seconds a blink. Eco's eyes are the scene's ("e.eyes");
@@ -869,26 +975,14 @@ func _dress_props(delta: float) -> void:
 	(_ember.material_override as StandardMaterial3D).albedo_color = Color(0.25, 0.22, 0.2).lerp(Color(1.0, 0.4 + 0.3 * drag, 0.12), hot)
 	_ember_light.light_energy = 0.12 * hot + 0.2 * drag * glow
 	_cig_smoke.emitting = _cig.visible and glow > 0.1 and burn > 0.01
+	if _handoff < 1.0:
+		_handoff = minf(_handoff + delta / HANDOFF, 1.0)
 	if _holder == "e" or _holder == "o":
-		var a: Dictionary = _actors[_holder]
-		var m: Node3D = a["model"]
-		var fingers := finger_point(a, "r")
-		var lips := get_value(_holder + ".lips")
-		var at := fingers.lerp(lips_point(a) + m.global_basis * Vector3(0.0, -0.004, -0.004), clampf((lips - 0.5) * 2.0, 0.0, 1.0))
-		# out from the face and to the side of the hand holding it, tipped up a little
-		var out := (m.global_basis * Vector3(0.45, 0.25 - 0.35 * lips, -1.0)).normalized()
-		var xf := Transform3D(Basis(Quaternion(Vector3.UP, out)), at)
-		if _handoff < 1.0:
-			_handoff = minf(_handoff + delta / HANDOFF, 1.0)
-			xf = _handoff_from.interpolate_with(xf, smoothstep(0.0, 1.0, _handoff))
-		_cig.global_transform = xf
+		_hold_cig()   # (and again as each skeleton finishes posing)
 	elif _holder == "drop":
 		_drop_at = _drop_at.move_toward(Vector3(_drop_at.x, global_position.y + 0.005, _drop_at.z), delta * 2.5)
 		_cig.global_transform = Transform3D(Basis(Vector3.BACK, PI * 0.5), _drop_at)
-	if _lighter.visible:
-		var o: Dictionary = _actors["o"]
-		var m: Node3D = o["model"]
-		_lighter.global_transform = Transform3D(m.global_basis, finger_point(o, "l") + m.global_basis * Vector3(0.0, 0.0, -0.01))
+	_hold_lighter()
 	if _wisp.emitting:
 		_wisp.global_position = (lips_point(_actors["e"]) + lips_point(_actors["o"])) * 0.5 + Vector3(0, -0.01, 0)
 
