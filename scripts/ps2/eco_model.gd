@@ -40,6 +40,13 @@ var stride_reverse := false
 		_apply_jiggle_style()
 ## How far her chest and glutes may bounce (1 = as tuned, 0 = not at all).
 @export_range(0.0, 2.0) var jiggle := 1.0
+## Full body jiggle (experimental): soft springs in her stomach, thighs, upper
+## arms and calves as well (scripts/ps2/eco_flesh.gd). Left unset, she follows
+## the Full body jiggle setting (Game tab) with her jiggle style.
+@export var body_jiggle := false:
+	set(value):
+		body_jiggle = value
+		_set_flesh(value)
 ## Her suit upgrade (scripts/hub/armory.gd SUIT_TIERS): 0 is the bare pilot
 ## suit; each tier shows its armour pieces (the glb's suit_t<tier>_* meshes,
 ## from tools/eco/build_eco_vroid.py) on top of the tiers before it. Tier 5
@@ -112,7 +119,7 @@ const SPRINGS := {
 }
 
 ## Jiggle styles: per spring group, values that replace the group's own
-## (bust, glute) or scale them (hair: "<key>_scale"). Extra keys:
+## (bust, glute) or scale them (hair, flesh: "<key>_scale"). Extra keys:
 ## "soft" eases the swing into its limit instead of stopping it dead;
 ## "lateral" is how much side-to-side swing is kept (1 = all).
 const JIGGLE_STYLES := {
@@ -122,12 +129,14 @@ const JIGGLE_STYLES := {
 		"bust": {"stiffness": 0.07, "drag": 0.065, "gravity": 0.08, "limit": 30.0, "inertia": 0.25, "soft": true},
 		"glute": {"stiffness": 0.08, "drag": 0.07, "gravity": 0.08, "limit": 22.0, "inertia": 0.25, "soft": true},
 		"hair": {"stiffness_scale": 0.8, "drag_scale": 0.7, "gravity_scale": 0.6},
+		"flesh": {"stiffness_scale": 0.7, "drag_scale": 0.8, "reach_scale": 1.25, "soft": true},
 	},
 	# about 5 bounces a second, one small rebound and still within a quarter second
 	"realistic": {
 		"bust": {"stiffness": 0.28, "drag": 0.22, "gravity": 0.3, "limit": 12.0, "inertia": 0.2, "lateral": 0.45},
 		"glute": {"stiffness": 0.32, "drag": 0.25, "gravity": 0.3, "limit": 9.0, "inertia": 0.2, "lateral": 0.45},
 		"hair": {"stiffness_scale": 1.15, "drag_scale": 1.4, "gravity_scale": 1.3},
+		"flesh": {"stiffness_scale": 1.3, "drag_scale": 1.5, "reach_scale": 0.7, "lateral": 0.6},
 	},
 }
 
@@ -192,6 +201,7 @@ const ContentRating := preload("res://scripts/radio/content_rating.gd")
 const EcoRest := preload("res://scripts/ps2/eco_rest.gd")
 const Prefs := preload("res://scripts/game/prefs.gd")
 const Hair := preload("res://scripts/hub/hair.gd")
+const EcoFlesh := preload("res://scripts/ps2/eco_flesh.gd")
 ## Her face while she sleeps (blend shape -> weight); the import's fierce look
 ## comes back when she wakes.
 const ASLEEP_FACE := {"Fcl_EYE_Close": 1.0, "Fcl_EYE_Angry": 0.0, "Fcl_BRW_Angry": 0.25, "Fcl_MTH_Down": 0.0}
@@ -223,6 +233,8 @@ var _dressed_rating := ""
 var _kit_bodies := {}
 # the heavy breastplate is on (apply_suit): her chest's springs stay at rest under it
 var _plated := false
+## Meshes swapped for full body jiggle ones (MeshInstance3D -> [mesh, skin] it had).
+var _flesh_swapped := {}
 
 
 func _ready() -> void:
@@ -256,6 +268,8 @@ func _ready() -> void:
 			_rest = null
 	if not _style_chosen:
 		follow_jiggle_setting()
+	elif body_jiggle:
+		_set_flesh(true)
 	_face = find_child("Face", true, false) as MeshInstance3D
 	Hair.apply(self, "eco")  # her haircut from the salon in Solace
 	set_process(_anim != null or not _springs.is_empty())
@@ -584,6 +598,49 @@ func follow_jiggle_setting() -> void:
 	jiggle_style = Prefs.jiggle_style()
 	_style_chosen = false
 	add_to_group("eco_jiggle")
+	body_jiggle = Prefs.body_jiggle()
+
+
+## Turns the soft stomach, thigh, arm and calf springs on or off: on adds
+## their bones (once) and swaps her meshes for ones weighted to them; off puts
+## the original meshes back and lets the bones rest.
+func _set_flesh(on: bool) -> void:
+	if skeleton == null or (on and not springs_enabled):
+		return  # not ready yet (_ready turns it on), or posed by hand (first-person arm)
+	var had := _springs.any(func(s: Dictionary) -> bool: return s.get("flesh", false))
+	if on == had:
+		return
+	if not on:
+		_springs.assign(_springs.filter(func(s: Dictionary) -> bool: return not s.get("flesh", false)))
+		for mi: MeshInstance3D in _flesh_swapped:
+			if is_instance_valid(mi):
+				mi.mesh = _flesh_swapped[mi][0]
+				mi.skin = _flesh_swapped[mi][1]
+		_flesh_swapped.clear()
+		for bone_name: String in EcoFlesh.bone_names():
+			var i := skeleton.find_bone(bone_name)
+			if i >= 0:
+				skeleton.reset_bone_pose(i)
+		return
+	for spring: Dictionary in EcoFlesh.add_bones(skeleton):
+		var base: Dictionary = spring["base"]
+		var s: Dictionary = base.duplicate()
+		s["bone"] = spring["bone"]
+		s["parent"] = skeleton.get_bone_parent(spring["bone"])
+		s["aim"] = spring["aim"]
+		s["ready"] = false
+		s["base"] = base
+		s["flesh"] = true
+		_springs.append(s)
+	_springs.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return a["bone"] < b["bone"])
+	_apply_jiggle_style()
+	for node in skeleton.find_children("*", "MeshInstance3D", true, false):
+		var mi := node as MeshInstance3D
+		var swap := EcoFlesh.reweight(mi, skeleton)
+		if not swap.is_empty():
+			_flesh_swapped[mi] = [mi.mesh, mi.skin]
+			mi.mesh = swap[0]
+			mi.skin = swap[1]
 
 
 ## Sets every spring's settings from its group's own and jiggle_style's.
@@ -591,8 +648,9 @@ func _apply_jiggle_style() -> void:
 	var style: Dictionary = JIGGLE_STYLES.get(jiggle_style, {})
 	for s in _springs:
 		var base: Dictionary = s["base"]
-		for key: String in ["stiffness", "drag", "gravity", "limit", "inertia"]:
-			s[key] = base[key]
+		for key: String in ["stiffness", "drag", "gravity", "limit", "inertia", "reach"]:
+			if base.has(key):
+				s[key] = base[key]
 		s.erase("soft")
 		s.erase("lateral")
 		var tune: Dictionary = style.get(base.get("group", ""), {})
@@ -631,24 +689,61 @@ func _step_springs(delta: float) -> void:
 		var length := maxf(aim_world.length(), 0.02)
 		var origin := to_world * rest_xf.origin
 		var rest_dir := aim_world / length
-		var limit: float = deg_to_rad(s["limit"]) * (jiggle if s.get("jiggle", false) else 1.0)
+		# soft-body springs (eco_flesh.gd) slide their bone up to `reach` metres instead of turning it
+		var slide: bool = s.has("reach")
+		var limit: float = (float(s["reach"]) if slide else deg_to_rad(s["limit"])) * (jiggle if s.get("jiggle", false) else 1.0)
 		if _plated and s["base"].get("group", "") == "bust":
 			limit = 0.0
 		var target := origin + rest_dir * length
 		if limit <= 0.0 or not s["ready"] or (s["tip"] as Vector3).distance_to(target) > 1.0:
 			s["tip"] = target
 			s["prev"] = target
+			s["prev_target"] = target
 			s["ready"] = true
 			if limit <= 0.0:
-				skeleton.set_bone_pose_rotation(i, skeleton.get_bone_rest(i).basis.get_rotation_quaternion())
+				if slide:
+					skeleton.set_bone_pose_position(i, skeleton.get_bone_rest(i).origin)
+				else:
+					skeleton.set_bone_pose_rotation(i, skeleton.get_bone_rest(i).basis.get_rotation_quaternion())
 				continue
-		elif moved.length() < 1.0:
+		elif moved.length() < 1.0 and not slide:
 			# carry the spring along with the part of her movement it shouldn't feel
 			var carry := moved * (1.0 - float(s["inertia"]))
 			s["tip"] += carry
 			s["prev"] += carry
 		var tip: Vector3 = s["tip"]
 		var prev: Vector3 = s["prev"]
+		if slide:
+			# damp the flesh's speed relative to her body, not to the world: moving
+			# steadily (running, a swinging leg) leaves it in place, speeding up,
+			# slowing down and landing set it wobbling. Stepped a frame (at 60 fps)
+			# at a time, so a slow frame doesn't kick it.
+			var from_target: Vector3 = s["prev_target"]
+			s["prev_target"] = target
+			var count := ceili(steps)
+			var sub := steps / count
+			var next: Vector3 = tip
+			for n in count:
+				# where her body held it at the start of this step, and how far that moves
+				var goal := from_target.lerp(target, float(n) / count)
+				var moving := (target - from_target) / count
+				next = tip + moving + ((tip - prev) - moving) * pow(1.0 - s["drag"], sub)
+				next += (goal - tip) * minf(s["stiffness"] * sub, 1.0)
+				prev = tip
+				tip = next
+			if s.has("lateral"):
+				var across := to_world.basis.x.normalized()
+				next -= across * (next - target).dot(across) * (1.0 - float(s["lateral"]))
+			var off: Vector3 = next - target
+			var d := off.length()
+			if s.get("soft", false) and d > limit * 0.6:
+				off *= (limit * 0.6 + limit * 0.4 * tanh((d - limit * 0.6) / (limit * 0.4))) / d
+			elif d > limit:
+				off *= limit / d
+			s["prev"] = prev
+			s["tip"] = target + off
+			skeleton.set_bone_pose_position(i, skeleton.get_bone_rest(i).origin + parent_pose.basis.inverse() * (to_skel.basis * off))
+			continue
 		var next: Vector3 = tip + (tip - prev) * (1.0 - s["drag"])
 		next += (target - tip) * minf(s["stiffness"] * steps, 1.0)
 		next += Vector3.DOWN * s["gravity"] * 0.01 * steps * length
