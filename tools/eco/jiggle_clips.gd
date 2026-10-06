@@ -4,14 +4,19 @@ extends SceneTree
 ## to right classic, anime, realistic (labelled on screen). She really moves through the world, so
 ## her speed and landings drive the springs as in game.
 ##   godot --path . --fixed-fps 60 --write-movie <dir>/frame.png -s res://tools/eco/jiggle_clips.gd -- [--view=front|back] [--styles=anime,realistic]
+## A style ending "+body" also turns on full body jiggle (eco_flesh.gd), so
+## --styles=classic,classic+body compares it off and on. --close frames them
+## nearer.
 ## --write-movie writes numbered PNGs (or an .avi); join them with ffmpeg at 60
 ## fps for real time, 30 for half speed. Needs a renderer (not --headless).
 
 const ECO := preload("res://assets/models/eco.tscn")
 const SPACING := 1.9  # wide enough that each copy sits under her label column
-const LABEL := {"classic": "Classic (now)", "anime": "Smooth anime", "realistic": "Realistic"}
+const LABEL := {"classic": "Classic (now)", "anime": "Smooth anime", "realistic": "Realistic",
+	"classic+body": "Full body jiggle"}
 
 var view := "front"
+var close := false  # --close: nearer, following her up into the jump
 var styles: PackedStringArray = ["classic", "anime", "realistic"]
 var walkers: Array[Walker] = []
 var cam: Camera3D
@@ -29,6 +34,8 @@ func _initialize() -> void:
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("--view="):
 			view = a.get_slice("=", 1)
+		elif a == "--close":
+			close = true
 		elif a.begins_with("--styles="):
 			styles = a.get_slice("=", 1).split(",", false)
 	root.size = Vector2i(400 * styles.size() + 200, 900)
@@ -50,7 +57,8 @@ func _go() -> void:
 		w.position = Vector3(side * (i - (styles.size() - 1) * 0.5) * SPACING, 0, 0)
 		root.add_child(w)
 		var eco = ECO.instantiate()
-		eco.jiggle_style = styles[i]
+		eco.jiggle_style = styles[i].trim_suffix("+body")
+		eco.body_jiggle = styles[i].ends_with("+body")
 		w.add_child(eco)
 		walkers.append(w)
 	_labels()
@@ -118,6 +126,9 @@ func _follow() -> void:
 	var centre := Vector3(0, 1.2, walkers[0].position.z)
 	var width := SPACING * styles.size()
 	var dist := 2.4 + width * 0.5
+	if close:
+		centre.y = 1.0 + walkers[0].position.y * 0.8
+		dist = 1.0 + width * 0.42
 	var offset: Vector3
 	match view:
 		"back":

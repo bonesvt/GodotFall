@@ -614,6 +614,7 @@ func _set_flesh(on: bool) -> void:
 		_springs.assign(_springs.filter(func(s: Dictionary) -> bool: return not s.get("flesh", false)))
 		for mi: MeshInstance3D in _flesh_swapped:
 			if is_instance_valid(mi):
+				# mesh first: the original mesh fits either skin, the soft one only its own
 				mi.mesh = _flesh_swapped[mi][0]
 				mi.skin = _flesh_swapped[mi][1]
 		_flesh_swapped.clear()
@@ -639,8 +640,8 @@ func _set_flesh(on: bool) -> void:
 		var swap := EcoFlesh.reweight(mi, skeleton)
 		if not swap.is_empty():
 			_flesh_swapped[mi] = [mi.mesh, mi.skin]
+			mi.skin = swap[1]  # skin first, so the mesh never meets a skin missing its new bones
 			mi.mesh = swap[0]
-			mi.skin = swap[1]
 
 
 ## Sets every spring's settings from its group's own and jiggle_style's.
