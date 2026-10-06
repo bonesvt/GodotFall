@@ -218,6 +218,18 @@ var _springs: Array[Dictionary] = []
 var _last_origin := Vector3.ZERO
 ## Strut and off-duty stance blend in and out over a moment (0..1).
 var _strut_weight := 0.0
+## Starting off and pulling up from a run (_run_moves): seconds into each
+## (-1 = not happening), how long since she stood still / was running, how
+## hard the move is (0..1).
+var _start_t := -1.0
+var _stop_t := -1.0
+var _since_still := 99.0
+var _since_running := 99.0
+var _stop_force := 1.0
+## Footfalls (_footfalls): each foot's height, speed and fastest drop since
+## its last landing (skeleton space), and how many each side has had.
+var _feet := {}
+var footfalls := {"L": 0, "R": 0}
 var _pose_weight := 0.0
 var _bones := {}
 ## What the strut changed last frame (bone -> [pose before, pose after]), so it
@@ -433,8 +445,10 @@ func _process(delta: float) -> void:
 	if _anim != null:
 		_animate()
 		_strut(delta)
+		_run_moves(delta)
 		_rest_layer(delta)
 	if springs_enabled and skeleton != null:
+		_footfalls(delta)
 		_step_springs(delta)
 
 
@@ -447,6 +461,12 @@ func _animate() -> void:
 		return
 	if _anim.current_animation != anim_name:
 		var blend := anim_blend * 0.5 if anim_name in ["slide", "fall"] else anim_blend
+		# from a stand straight into a run, and from a run to a stand, ease
+		# across over longer so the stride builds up and winds down
+		if anim_name == "run" and _anim.current_animation == "idle":
+			blend = anim_blend * 1.4
+		elif anim_name == "idle" and _anim.current_animation == "run":
+			blend = anim_blend * 2.0
 		_anim.play(anim_name, blend)
 	_anim.speed_scale = -pick[1] if stride_reverse and anim_name in ["walk", "run"] else pick[1]
 
@@ -494,6 +514,7 @@ func _set_asleep(asleep: bool) -> void:
 const STRUT_BONES := {
 	"hips": "J_Bip_C_Hips", "spine": "J_Bip_C_Spine", "chest": "J_Bip_C_Chest", "head": "J_Bip_C_Head",
 	"thigh.R": "J_Bip_R_UpperLeg", "thigh.L": "J_Bip_L_UpperLeg", "shin.L": "J_Bip_L_LowerLeg",
+	"shin.R": "J_Bip_R_LowerLeg", "foot.L": "J_Bip_L_Foot", "foot.R": "J_Bip_R_Foot",
 	"upperarm.R": "J_Bip_R_UpperArm", "upperarm.L": "J_Bip_L_UpperArm",
 	"forearm.R": "J_Bip_R_LowerArm", "forearm.L": "J_Bip_L_LowerArm",
 	"hand.R": "J_Bip_R_Hand", "hand.L": "J_Bip_L_Hand",
@@ -565,6 +586,118 @@ func _strut(delta: float) -> void:
 	_turn("hand.L", Vector3.BACK, -14.0 * (w + p))
 
 
+## How long the push-off into a run and the pull-up out of one last (seconds).
+const START_TIME := 0.45
+const STOP_TIME := 0.6
+## Thigh and shin lengths, for bending her knees without lifting her feet.
+const LEG_LENGTH := 0.82
+## A foot lower than this (its bone, in skeleton space) is on the ground.
+const FOOT_DOWN := 0.16
+
+
+## Starting and stopping a run, laid over the animation like the strut: from a
+## stand she drops a little and leans into the first strides; pulling up from
+## a run she plants, sinks into her knees and leans back against the stop,
+## arms swinging forward, then rocks forward and settles upright.
+func _run_moves(delta: float) -> void:
+	if skeleton == null or _bones.is_empty() or _body == null or resting():
+		return
+	var speed := Vector2(_body.velocity.x, _body.velocity.z).length()
+	var on_ground: bool = _anim.current_animation in ["idle", "walk", "run"]
+	_since_still = 0.0 if speed < 0.6 else _since_still + delta
+	_since_running = 0.0 if speed > run_threshold and on_ground else _since_running + delta
+	if on_ground and speed > run_threshold and _since_still < 0.3 and _start_t < 0.0 and _stop_t < 0.0:
+		_start_t = 0.0
+	if on_ground and speed < 0.6 and _since_running > 0.0 and _since_running < 0.3 and _stop_t < 0.0:
+		_stop_t = 0.0
+		_start_t = -1.0
+	if not on_ground:
+		_start_t = -1.0
+		_stop_t = -1.0
+	if _start_t >= 0.0:
+		var u := _start_t / START_TIME
+		var a := smoothstep(0.0, 0.2, u) * (1.0 - smoothstep(0.35, 1.0, u))
+		_bend_knees(10.0 * a, 10.0 * a)
+		_turn("spine", Vector3.RIGHT, -9.0 * a)
+		_turn("chest", Vector3.RIGHT, -5.0 * a)
+		_turn("head", Vector3.RIGHT, 6.0 * a)  # eyes stay on where she's going
+		_turn("forearm.R", Vector3.RIGHT, 12.0 * a)
+		_turn("forearm.L", Vector3.RIGHT, 12.0 * a)
+		_start_t += delta
+		if _start_t > START_TIME:
+			_start_t = -1.0
+	if _stop_t >= 0.0:
+		var u := _stop_t / STOP_TIME
+		# brake: sink and lean back early on; settle: rock forward past upright, then stand
+		var brake := smoothstep(0.0, 0.12, u) * (1.0 - smoothstep(0.25, 0.6, u))
+		var settle := smoothstep(0.35, 0.55, u) * (1.0 - smoothstep(0.6, 1.0, u))
+		var sink := smoothstep(0.0, 0.12, u) * (1.0 - smoothstep(0.3, 1.0, u))
+		_bend_knees(16.0 * sink, 16.0 * sink)
+		_turn("spine", Vector3.RIGHT, 10.0 * brake - 5.0 * settle)
+		_turn("chest", Vector3.RIGHT, 5.0 * brake - 3.0 * settle)
+		_turn("head", Vector3.RIGHT, -8.0 * brake + 3.0 * settle)
+		_turn("upperarm.R", Vector3.RIGHT, 18.0 * brake - 4.0 * settle)
+		_turn("upperarm.L", Vector3.RIGHT, 14.0 * brake - 4.0 * settle)
+		_turn("forearm.R", Vector3.RIGHT, 25.0 * brake)
+		_turn("forearm.L", Vector3.RIGHT, 22.0 * brake)
+		_stop_t += delta
+		if _stop_t > STOP_TIME:
+			_stop_t = -1.0
+
+
+## Bends both knees (thigh forward, shin back twice as far, foot level again)
+## and lowers her hips by as much, so her feet stay on the ground.
+func _bend_knees(left: float, right: float) -> void:
+	var deg := (left + right) * 0.5
+	if deg < 0.05:
+		return
+	_offset_hips(Vector3(0.0, -LEG_LENGTH * (1.0 - cos(deg_to_rad(deg))), 0.0))
+	for side: String in ["L", "R"]:
+		var d := left if side == "L" else right
+		_turn("thigh." + side, Vector3.RIGHT, d)
+		_turn("shin." + side, Vector3.RIGHT, -2.0 * d)
+		_turn("foot." + side, Vector3.RIGHT, d)
+
+
+## Each time a foot comes down and takes her weight, that side's glute, thigh,
+## calf and (a little) chest get shoved down, so the side she lands on
+## jiggles more than the other.
+func _footfalls(delta: float) -> void:
+	if _bones.is_empty() or delta <= 0.0:
+		return
+	for side: String in ["L", "R"]:
+		var i: int = _bones.get("foot." + side, -1)
+		if i < 0:
+			continue
+		var y := skeleton.get_bone_global_pose(i).origin.y
+		var was: Array = _feet.get(side, [y, 0.0, 0.0])
+		var vy: float = (y - float(was[0])) / delta
+		var fastest: float = maxf(float(was[2]), -vy) if vy < 0.0 else float(was[2])
+		# the low point of a step: it was coming down, now it isn't, and it's at the ground
+		if float(was[1]) < 0.0 and vy >= 0.0 and y < FOOT_DOWN:
+			if fastest > 0.4:
+				footfall(side, minf(fastest, 4.0))
+			fastest = 0.0
+		_feet[side] = [y, vy, fastest]
+
+
+## Shoves one side's springs down, as a foot landing with `impact` (m/s) would.
+func footfall(side: String, impact: float) -> void:
+	footfalls[side] = int(footfalls.get(side, 0)) + 1
+	var tag := "_%s_" % side
+	var down := -skeleton.global_transform.basis.y.normalized()
+	for s in _springs:
+		if not s.get("jiggle", false) or not s["ready"]:
+			continue
+		var bone_name := skeleton.get_bone_name(s["bone"])
+		if not tag in bone_name or "Arm" in bone_name:
+			continue
+		var amount := 0.002 if s.has("reach") else 0.003
+		if s["base"].get("group", "") == "bust":
+			amount *= 0.4
+		s["tip"] += down * amount * impact * jiggle
+
+
 ## Rotates a bone about a skeleton-space axis through its joint, on top of its
 ## current pose (like tools/eco/build_eco_vroid.py turn()).
 func _turn(bone: String, axis: Vector3, deg: float) -> void:
@@ -589,7 +722,7 @@ func _offset_hips(offset: Vector3) -> void:
 	var before := skeleton.get_bone_pose_position(i)
 	var moved := before + parent_basis.inverse() * offset
 	skeleton.set_bone_pose_position(i, moved)
-	_strut_undo["hips_at"] = [before, moved]
+	_strut_undo["hips_at"] = [_strut_undo["hips_at"][0] if _strut_undo.has("hips_at") else before, moved]
 
 
 ## Takes the Jiggle style setting (Prefs.set_jiggle_style calls this on every
