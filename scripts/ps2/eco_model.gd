@@ -40,6 +40,8 @@ var stride_reverse := false
 		_apply_jiggle_style()
 ## How far her chest and glutes may bounce (1 = as tuned, 0 = not at all).
 @export_range(0.0, 2.0) var jiggle := 1.0
+## How big her glutes' swing shows, over what their springs simulate (1 = as tuned).
+@export_range(0.0, 3.0) var glute_swing := 1.0
 ## Full body jiggle (experimental): soft springs in her stomach, thighs, upper
 ## arms and calves as well (scripts/ps2/eco_flesh.gd). Left unset, she follows
 ## the Full body jiggle setting (Game tab) with her jiggle style.
@@ -896,6 +898,12 @@ func _step_springs(delta: float) -> void:
 			dir = rest_dir.slerp(dir, limit / angle).normalized()
 		s["prev"] = tip
 		s["tip"] = origin + dir * length
+		if glute_swing != 1.0 and s["base"].get("group", "") == "glute":
+			# shown bigger (or smaller) than simulated, so the spring itself behaves the same
+			var swung := dir.angle_to(rest_dir)
+			var turn_axis := rest_dir.cross(dir)
+			if swung > 1e-4 and turn_axis.length() > 1e-6:
+				dir = rest_dir.rotated(turn_axis.normalized(), swung * glute_swing)
 		# rotate the bone so its child lies along the simulated direction
 		var from_skel := aim_skel.normalized()
 		var to_dir: Vector3 = (to_skel.basis * dir).normalized()

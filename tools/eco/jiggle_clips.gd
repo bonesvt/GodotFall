@@ -5,7 +5,8 @@ extends SceneTree
 ## her speed and landings drive the springs as in game.
 ##   godot --path . --fixed-fps 60 --write-movie <dir>/frame.png -s res://tools/eco/jiggle_clips.gd -- [--view=front|back|side] [--styles=anime,realistic]
 ## A style ending "+body" also turns on full body jiggle (eco_flesh.gd), so
-## --styles=classic,classic+body compares it off and on. --close frames them
+## --styles=classic,classic+body compares it off and on; "@1.25" after a
+## style shows her glutes swinging 25% further (eco_model.gd glute_swing). --close frames them
 ## nearer.
 ## --write-movie writes numbered PNGs (or an .avi); join them with ffmpeg at 60
 ## fps for real time, 30 for half speed. Needs a renderer (not --headless).
@@ -13,7 +14,7 @@ extends SceneTree
 const ECO := preload("res://assets/models/eco.tscn")
 const SPACING := 1.9  # wide enough that each copy sits under her label column
 const LABEL := {"classic": "Classic (now)", "anime": "Smooth anime", "realistic": "Realistic",
-	"classic+body": "Full body jiggle"}
+	"classic+body": "Full body jiggle", "classic+body@1": "Glutes now", "classic+body@1.25": "Glutes +25%", "classic+body@1.5": "Glutes +50%"}
 
 var view := "front"
 var close := false  # --close: nearer, following her up into the jump
@@ -57,8 +58,12 @@ func _go() -> void:
 		w.position = Vector3(side * (i - (styles.size() - 1) * 0.5) * SPACING, 0, 0)
 		root.add_child(w)
 		var eco = ECO.instantiate()
-		eco.jiggle_style = styles[i].trim_suffix("+body")
-		eco.body_jiggle = styles[i].ends_with("+body")
+		# "<style>[+body][@<glute swing>]", e.g. classic+body@1.25
+		var spec := styles[i].get_slice("@", 0)
+		eco.jiggle_style = spec.trim_suffix("+body")
+		eco.body_jiggle = spec.ends_with("+body")
+		if "@" in styles[i]:
+			eco.glute_swing = styles[i].get_slice("@", 1).to_float()
 		w.add_child(eco)
 		walkers.append(w)
 	_labels()
