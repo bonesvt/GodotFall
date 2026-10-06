@@ -2,7 +2,8 @@ extends SceneTree
 ## Screenshots of the Rusted Halo (bar_screen.gd): the drinks menu, a
 ## Scrapjack hand, and the test level seen sober, buzzed and hammered
 ## (drunk_screen.gd). Sets the rating to Mature for the run, not saved.
-##   xvfb-run -a godot --path . --audio-driver Dummy -s res://tools/hub/bar_shots.gd -- [out_dir]
+##   xvfb-run -a godot --path . --audio-driver Dummy -s res://tools/hub/bar_shots.gd -- [out_dir] [--bar]
+## --bar skips the drunk views (they're slow on the cloud's software renderer).
 ## Needs a renderer (not --headless).
 
 const BarScreen := preload("res://scripts/hub/bar_screen.gd")
@@ -38,7 +39,7 @@ func _go() -> void:
 	if player != null:
 		player.set_physics_process(false)
 	root.add_child(DrunkScreen.new())
-	for b in [0.0, 2.0, 4.5]:
+	for b in ([] if "--bar" in OS.get_cmdline_user_args() else [0.0, 2.0, 4.5]):
 		Vices.buzz = b
 		await _shot("drunk_view_%d" % int(b * 10), 40)
 
@@ -48,7 +49,8 @@ func _go() -> void:
 	var bar := BarScreen.new(armory, 5)
 	root.add_child(bar)
 	bar.select(1)
-	await _shot("bar_drinks")
+	if not "--bar" in OS.get_cmdline_user_args():
+		await _shot("bar_drinks")
 	bar.set_tab("cards")
 	bar.set_bet(1)
 	bar.deal()
