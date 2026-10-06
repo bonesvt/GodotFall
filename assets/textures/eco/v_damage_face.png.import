@@ -2,10 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
+uid="uid://qiw3n5rquuk"
+path="res://.godot/imported/v_damage_face.png-f4f2a0c6aaca139d157ac53ed7aa4206.ctex"
+metadata={
+"vram_texture": false
+}
 
 [deps]
 
 source_file="res://assets/textures/eco/v_damage_face.png"
+dest_files=["res://.godot/imported/v_damage_face.png-f4f2a0c6aaca139d157ac53ed7aa4206.ctex"]
 
 [params]
 

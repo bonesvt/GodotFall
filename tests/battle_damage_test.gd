@@ -61,14 +61,12 @@ func _rating_and_setting() -> void:
 	var v := BattleDamage.shown()
 	_check("Teen: dirt and scuffs only", v.x > 0.7 and v.y > 0.7 and v.z == 0.0 and v.w == 0.0, v)
 	BattleDamage.apply()
-	_check("Teen: no tears reach the shader", float(RenderingServer.global_shader_parameter_get(&"eco_tears")) == 0.0,
-			RenderingServer.global_shader_parameter_get(&"eco_tears"))
+	_check("Teen: no tears reach the shader", BattleDamage._pushed.z == 0.0, BattleDamage._pushed)
 	ContentRating.set_rating("M", false)
 	v = BattleDamage.shown()
 	_check("Mature: torn and cut too", v.z > 0.7 and v.w > 0.7, v)
 	BattleDamage.apply()
-	_check("Mature: tears reach the shader", float(RenderingServer.global_shader_parameter_get(&"eco_tears")) > 0.7,
-			RenderingServer.global_shader_parameter_get(&"eco_tears"))
+	_check("Mature: tears reach the shader", BattleDamage._pushed.z > 0.7, BattleDamage._pushed)
 	_check("on by default", Prefs.battle_damage(), Prefs.battle_damage())
 	Prefs.set_battle_damage(false)
 	_check("setting off: nothing shows", BattleDamage.shown() == Vector4.ZERO, BattleDamage.shown())
@@ -159,8 +157,7 @@ func _in_a_run() -> void:
 	await _ticks(240)
 	_check("hits on a run tear her suit", BattleDamage.tears > 0.05, BattleDamage.tears)
 	_check("time on a run dirties her", BattleDamage.grime > 0.005, BattleDamage.grime)
-	_check("the shader sees it", float(RenderingServer.global_shader_parameter_get(&"eco_tears")) > 0.05,
-			RenderingServer.global_shader_parameter_get(&"eco_tears"))
+	_check("the shader sees it", BattleDamage._pushed.z > 0.05, BattleDamage._pushed)
 	run_node.enter_hub()
 	await _ticks(5)
 	_check("home at the temple she's clean", BattleDamage.shown() == Vector4.ZERO, BattleDamage.shown())
