@@ -9,6 +9,7 @@ extends SceneTree
 const HubBuilder := preload("res://scripts/hub/hub_builder.gd")
 const Grounds := preload("res://scripts/hub/hub_grounds.gd")
 const TitanStyle := preload("res://scripts/run/titan_style.gd")
+const Vices := preload("res://scripts/hub/vices.gd")
 
 var run_node
 var player
@@ -59,6 +60,15 @@ func _run() -> void:
 		if spot["id"] in ["tutorial_poster", "uncharted_map", "garage", "level_board", "level2_board"]:  # level boards: tests/level1_test.gd, level2_test.gd
 			continue
 		await _stand_at(spot["pos"])
+		if spot.get("shop", "") == "bar" and Vices.allowed():
+			# Under Mature the Rusted Halo opens its bar screen (tests/vices_test.gd).
+			await _press("interact")
+			await _ticks(2)
+			_check("the Halo opens its bar", run_node.bench != null and run_node.bench.kind == "bar" and paused, spot["id"])
+			await _press("interact")
+			await _ticks(2)
+			_check("the Halo closes", run_node.bench == null and not paused, spot["id"])
+			continue
 		if spot.has("screen"):
 			# Workbenches open their screen (pausing the hub) and F closes it.
 			await _press("interact")

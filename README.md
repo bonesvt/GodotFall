@@ -123,6 +123,22 @@ shoulders back, and stands with her weight on one hip. The strut is layered over
     round titan-sized cover, dash, and shoot the four scrap titan dummies; they topple
     and get propped back up.
 
+### The Rusted Halo: drinks and Scrapjack (Mature only)
+Under the Mature rating (Settings > Game), **F** at the Rusted Halo on Low Row opens the bar
+(`scripts/hub/bar_screen.gd`). Under Teen it keeps its old lines and none of this shows.
+
+- **Drinks** (Rook, the bartender) cost scrap: Halo Lager, Rust Bucket, Precursor Shine.
+  Each adds buzz; Rook cuts Eco off near the top and pours free water to sober her up.
+- **Buzz** (`scripts/hub/vices.gd`) wears off about one drink a minute, in the hub and on a
+  run alike, so drinking right before a run carries into it. While buzzed the screen blurs,
+  doubles and closes in (`scripts/ui/drunk_screen.gd`), her aim drifts on its own, the gun's
+  cone opens and her steps wander, but she's numb: hits hurt up to 15% less. The HUD shows
+  TIPSY, BUZZED or HAMMERED.
+- **Scrapjack** (Dutch, at the back table; `scripts/hub/scrapjack.gd`) is blackjack for scrap:
+  Tab switches tabs, **1-4** bet 5/15/30/60, **Space** deals, **H** hit, **S** stand,
+  **D** double down. A natural pays 3:2; Dutch stands on 17.
+- Test: `godot --headless --path . -s res://tests/vices_test.gd`
+
 ### Workbenches and materials
 Out on runs you collect four materials, and the hub's workbenches spend them:
 - **Scrap**: grunts drop it when they die; small **supply crates** beside the routes hold

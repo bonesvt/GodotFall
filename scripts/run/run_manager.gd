@@ -58,6 +58,9 @@ const ViewCamera := preload("res://scripts/view_camera.gd")
 const Prefs := preload("res://scripts/game/prefs.gd")
 const Saves := preload("res://scripts/game/saves.gd")
 const PauseMenu := preload("res://scripts/ui/pause_menu.gd")
+const Vices := preload("res://scripts/hub/vices.gd")
+const BarScreen := preload("res://scripts/hub/bar_screen.gd")
+const DrunkScreen := preload("res://scripts/ui/drunk_screen.gd")
 
 const FALL_DAMAGE := 25
 ## Integrity lost when grunts take the pilot's health to zero.
@@ -215,6 +218,9 @@ func _ready() -> void:
 	pause_menu.name = "PauseMenu"
 	pause_menu.run = self
 	add_child(pause_menu)
+	var drunk := DrunkScreen.new()
+	drunk.name = "DrunkScreen"
+	add_child(drunk)
 	equip_loadout()
 	if start_in_hub:
 		enter_hub()
@@ -283,6 +289,8 @@ func start_run(seed_value: int, uncharted := 0, level := "") -> void:
 	if w != null:
 		w.set("softness", Family.softness(npc_talk.state))
 	load_zone(0)
+	if Vices.effect() > 0.0:
+		hud.toast(Vices.run_line(), HUB_LINE_SECONDS)
 
 
 func _fresh_level(level_name: String) -> void:
@@ -401,6 +409,8 @@ func place_player(pos: Vector3) -> void:
 
 func _physics_process(delta: float) -> void:
 	Saves.tick(delta)
+	if not get_tree().paused:
+		Vices.tick(delta)
 	player.strolling = phase == Phase.HUB and not on_training_ground()
 	match phase:
 		Phase.ZONE:
@@ -485,6 +495,9 @@ func _hub_tick(delta: float) -> void:
 		return
 	if spot.has("screen"):
 		open_bench(spot["screen"])
+		return
+	if spot.get("shop", "") == "bar" and Vices.allowed():
+		open_bench("bar")
 		return
 	if spot["id"] == "garage":
 		open_garage()
@@ -622,7 +635,7 @@ func close_garage() -> void:
 
 
 ## Opens a workbench screen ("gunsmith", "rack", "workshop", "knives" or "suit"), or a
-## town shop's ("salon", "gifts"), pausing the hub.
+## town shop's ("salon", "gifts", the Rusted Halo's "bar"), pausing the hub.
 func open_bench(kind: String) -> void:
 	if kind == "gifts":
 		bench = GiftScreen.new(armory, npc_talk, romance_partners())
@@ -632,6 +645,8 @@ func open_bench(kind: String) -> void:
 		bench = WardrobeScreen.new(runs_ended)
 	elif kind == "suit":
 		bench = SuitScreen.new(armory)
+	elif kind == "bar":
+		bench = BarScreen.new(armory)
 	else:
 		bench = GunsmithScreen.new(armory) if kind == "gunsmith" else BenchScreen.new(armory, kind)
 	add_child(bench)
@@ -648,6 +663,8 @@ func close_bench() -> void:
 	if not bench.unlocked.is_empty():
 		var names: Array = bench.unlocked.map(func(id): return Armory.WEAPONS[id]["name"].to_upper())
 		hud.toast("LEVEL %d: %s UNLOCKED. PICK %s AT THE WEAPON RACK" % [armory.pilot_level(), " AND ".join(names), "IT" if names.size() == 1 else "THEM"], 5.0)
+	if bench is BarScreen and bench.net != 0:
+		hud.toast("Scrapjack: %s%d scrap tonight." % ["+" if bench.net > 0 else "", bench.net], HUB_LINE_SECONDS)
 	if bench is WardrobeScreen and not bench.changed.is_empty():
 		for npc in hub_npcs.values():
 			npc.wear_for_run(runs_ended)
@@ -1313,6 +1330,8 @@ func _update_hud() -> void:
 			status += "    COURSE %.1f s" % course_time
 		elif course_best > 0.0:
 			status += "    Course best %.2f s" % course_best
+		if Vices.state_name() != "":
+			status += "    %s" % Vices.state_name().to_upper()
 		hud.status_label.text = status + "\nHead out from the poster outside or the mission table in the hall. F looks at things and works the benches."
 		hud.prompt_label.text = _prompt()
 		hud.crosshair.visible = hub_piloting
@@ -1324,8 +1343,9 @@ func _update_hud() -> void:
 	var where := "ZONE %d/%d" % [run.zone + 1, run.zone_count] if run.zone < run.zone_count else "FINAL"
 	if run.level != "":
 		where = "LEVEL %d" % Levels.spec(run.level)["number"] + ("  FINAL" if phase in [Phase.ARENA, Phase.FIGHT] else "")
-	hud.status_label.text = "RUN %d    %s    PILOT %d    %s    %s\n%s" % [
-		run.run_seed, where, run.pilot_hp, _clock(run.time), _materials_text(run.materials), CONTROLS]
+	hud.status_label.text = "RUN %d    %s    PILOT %d    %s    %s%s\n%s" % [
+		run.run_seed, where, run.pilot_hp, _clock(run.time), _materials_text(run.materials),
+		"    " + Vices.state_name().to_upper() if Vices.state_name() != "" else "", CONTROLS]
 
 	var build := ["TITAN BUILD"]
 	for slot in TitanParts.SLOTS:
@@ -1361,6 +1381,8 @@ func _prompt() -> String:
 			if not spot.is_empty():
 				if spot.has("family"):
 					return family_scene.prompt()
+				if spot.get("shop", "") == "bar" and Vices.allowed():
+					return "[F] The Rusted Halo: drinks and Scrapjack"
 				if spot.get("npc", "") == "mom" and Family.sick(npc_talk.state, runs_ended):
 					return spot["prompt"] + "  (you're burning up)"
 				var text: String = spot["prompt"]

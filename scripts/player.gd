@@ -8,6 +8,7 @@ enum State { GROUND, AIR, SLIDE, WALLRUN, GRAPPLE }
 
 const SFX := preload("res://scripts/sfx.gd")
 const Prefs := preload("res://scripts/game/prefs.gd")
+const Vices := preload("res://scripts/hub/vices.gd")
 ## Metres between footsteps on the ground and when running along a wall.
 const STRIDE := 2.4
 const WALL_STRIDE := 1.9
@@ -182,6 +183,10 @@ var move_turn_rate := 10.0
 ## Eco is sitting or lying down somewhere (the run manager's rest spots): she
 ## doesn't move, but you can still look around her.
 var resting := false
+## Drink in her (vices.gd): the clock her aim drifts on, and the drift (degrees:
+## yaw, pitch) already added to her look, so each frame only adds the change.
+var _drunk_t := 0.0
+var _drunk_sway := Vector2.ZERO
 
 
 static func ensure_input_actions() -> void:
@@ -269,6 +274,7 @@ func _physics_process(delta: float) -> void:
 		wish_dir = (Basis(Vector3.UP, move_yaw) * Vector3(input_dir.x, 0.0, input_dir.y)).normalized()
 		if wish_dir != Vector3.ZERO:
 			rotation.y = lerp_angle(rotation.y, atan2(-wish_dir.x, -wish_dir.z), 1.0 - exp(-move_turn_rate * delta))
+	_drunk(delta)
 	if Input.is_action_just_pressed("jump"):
 		jump_buffer_timer = jump_buffer
 	if Input.is_action_just_pressed("crouch") and state != State.GROUND and state != State.SLIDE:
@@ -627,7 +633,7 @@ func respawn() -> void:
 func take_damage(amount: float, from := Vector3.ZERO) -> void:
 	if health <= 0.0 or untouchable_timer > 0.0:
 		return
-	amount *= damage_mult
+	amount *= damage_mult * Vices.damage_scale()
 	var soaked := minf(armor, amount)
 	armor -= soaked
 	health -= amount - soaked
@@ -666,6 +672,22 @@ func apply_suit(profile: Dictionary) -> void:
 	var body := get_node_or_null("EcoBody")
 	if body != null and body.has_method("set_suit"):
 		body.set_suit(suit_tier, suit_weight)
+
+
+## A few drinks in (vices.gd): her aim drifts on its own, and the change in
+## drift goes onto her look so the shot drifts with it and the mouse fights it.
+## Her steps wander a little off the way she means to go.
+func _drunk(delta: float) -> void:
+	_drunk_t += delta
+	var want := Vices.sway(_drunk_t)
+	var step := want - _drunk_sway
+	_drunk_sway = want
+	if step != Vector2.ZERO and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
+		rotate_y(deg_to_rad(step.x))
+		head.rotation.x = clampf(head.rotation.x + deg_to_rad(step.y), -1.55, 1.55)
+	var veer := Vices.stagger(_drunk_t)
+	if veer != 0.0 and wish_dir != Vector3.ZERO:
+		wish_dir = wish_dir.rotated(Vector3.UP, veer)
 
 
 # --- Crouch, camera, rope -----------------------------------------------------
