@@ -114,6 +114,12 @@ var escort: Escort
 var _alarm_raised := false
 ## How close they have to be when Eco steps into the exfil (m).
 const EXFIL_TOGETHER := 9.0
+## Who's only in the hub once Eco has got them out (levels.gd "rescue"),
+## by the level that rescues them.
+const RESCUED_IN := {"ophelia": "level2"}
+## Romance affection the rescue starts them on (romance.gd STAGES: "wary"),
+## given once.
+const RESCUE_AFFECTION := 15
 ## How many times each hub interactable has been looked at, so its lines cycle.
 var hub_reads := {}
 var runs_started := 0
@@ -310,6 +316,7 @@ func enter_hub() -> void:
 	course_time = -1.0
 	_fresh_level("Hub")
 	zone_info = HubBuilder.build(zone_root)
+	_hide_unrescued(zone_info)
 	hub_npcs = {}
 	for spec in zone_info.get("npcs", []):
 		var npc := HubNpc.create(spec["who"], spec["pos"], spec["yaw"])
@@ -955,6 +962,29 @@ func _enter_finale() -> void:
 	tutorial.start_level("arena")
 
 
+## Whether Eco has got `who` out yet (true for anyone nobody has to rescue).
+func is_rescued(who: String) -> bool:
+	return not RESCUED_IN.has(who) or RESCUED_IN[who] in armory.cleared_levels()
+
+
+## Leaves anyone not rescued yet out of the hub: no one at their spot and no
+## [F] Talk (their tent stays, empty).
+func _hide_unrescued(info: Dictionary) -> void:
+	info["npcs"] = info.get("npcs", []).filter(func(n): return is_rescued(n["who"]))
+	info["interactables"] = info.get("interactables", []).filter(func(i): return is_rescued(i.get("npc", "")))
+
+
+## Winning a rescue level starts the one rescued on some romance affection,
+## the first time only.
+func _rescue_bonus(level: String) -> void:
+	var who := String(Levels.spec(level).get("rescue", ""))
+	if who == "" or npc_talk == null or npc_talk.state.get_value(who, "rescue_bonus", false):
+		return
+	NpcTalk.Romance.add(npc_talk.state, who, RESCUE_AFFECTION)
+	npc_talk.state.set_value(who, "rescue_bonus", true)
+	npc_talk.state.save(npc_talk.save_path)
+
+
 ## Whether this level's prisoner (levels.gd "rescue") is still in the cell.
 func rescue_pending() -> bool:
 	return zone_info.has("holding_cell") and not rescued
@@ -972,7 +1002,7 @@ func holding_cell_in_reach() -> Node3D:
 	return cell
 
 
-## Drops the cell's screen and breaks the prisoner's chains. They have a
+## Drops the cell's screen and the prisoner's stasis field. They have a
 ## word, then follow Eco out (escort.gd) to the exfil.
 func rescue(cell: Node3D) -> void:
 	if not cell.release():
@@ -1242,6 +1272,7 @@ func end_run(title: String, reason: String) -> void:
 	var won := title == "RUN COMPLETE"
 	if won:
 		armory.mark_cleared(run.level if run.level != "" else "tutorial")
+		_rescue_bonus(run.level)
 	var haul := Armory.run_haul(run.materials, won)
 	armory.bank(haul)
 	Saves.record_run(won)
@@ -1343,7 +1374,7 @@ func _prompt() -> String:
 		Phase.ZONE:
 			var cell := holding_cell_in_reach()
 			if cell != null:
-				return "[F] Short the screen and break her chains"
+				return "[F] Short the screen and overload the pylons"
 			if escort != null and escort.in_reach(player.global_position):
 				return "[F] %s: come on" % _rescue_name() if escort.waiting else "[F] %s: wait here" % _rescue_name()
 			var cache := nearest_cache()

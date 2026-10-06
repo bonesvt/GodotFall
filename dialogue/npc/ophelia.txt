@@ -2,7 +2,8 @@
 # Solace, same town as Eco, and nobody ever noticed her: not the town, not the
 # orphan house, not even when the colony took her. Her mind always drifted
 # somewhere dark, and her looks went with it. She never let anyone in and
-# brushed everyone off. Eco pulled her out of a colony cage, and now, very slowly, she lets Eco see what she's into:
+# brushed everyone off. Eco pulled her out of a colony stasis column (Level 2: a
+# transit pillar; she lost nineteen days in it and thought it was one night), and now, very slowly, she lets Eco see what she's into:
 # dressing up and doing her makeup emo, dark songs and dark films, smoking in
 # the dark, reading (more than gaming). When she does go out, it's the arcade
 # or the ice cream place. Flat, dry, quietly funny.
@@ -15,7 +16,7 @@
 [intro]
 ophelia (plain): Oh. It's you.
 eco: Wow. Lovely to see you too.
-ophelia: You pulled me out of the cage. I'm supposed to say thanks, I think.
+ophelia: You pulled me out of that light. I'm supposed to say thanks, I think.
 eco: That's usually how it goes, yeah.
 ophelia (tilt): You're from Solace. Lantern Row. Your dad fixed titans.
 eco: Wait. How do you know that?
@@ -42,7 +43,7 @@ eco: I'm looking at you right now.
 ophelia (lookaway): Yeah. I noticed. It's weird.
 
 [any]
-ophelia (down): The colony gave me a number in the cage. Forty-one.
+ophelia (down): The colony gave me a number on their manifest. Forty-one.
 eco: You're not a number.
 ophelia: I know. Numbers get counted.
 eco: Ophelia.
@@ -177,7 +178,7 @@ choice +6: eco: Read me the good part, then. I'll be quiet. Probably.
 > ophelia (surprised): You actually want to hear it?
 > ophelia (smile, lookaway): Fine. Sit on the floor. The bed's mine.
 choice +2: eco: Wouldn't you rather game? I could find you a handheld.
-> ophelia (tilt): I game sometimes. Books don't run out of batteries in a cage.
+> ophelia (tilt): I game sometimes. Books don't run out of batteries in a blackout.
 choice -4: eco: Everybody dies? Sounds like a real page-turner.
 > ophelia (angry, lookaway): Right. Forget I said anything. I always do.
 ophelia (plain): You're the first person who's asked what I'm reading. Don't let it go to your head.
@@ -185,8 +186,8 @@ ophelia (plain): You're the first person who's asked what I'm reading. Don't let
 [heart 25 mirror]
 ophelia (plain): Stop hovering. You'll make me smudge.
 eco: How long does that eyeliner take you, anyway?
-ophelia: Twenty minutes. Thirty if my hands shake. I did it in the cage with soot and spit.
-eco: In the cage? Who were you doing it for?
+ophelia: Twenty minutes. Thirty if my hands shake. I did it once with a burnt match and a shop window.
+eco: With a match? Who were you doing it for?
 ophelia (down): Me. I dress like this so the outside matches the inside. At least then it's honest.
 ophelia (blush, lookaway): I could do yours. If you want. You'd look less like a wrench.
 choice +8: eco: Go on, then. Make me look dangerous.
@@ -214,9 +215,9 @@ choice -5: eco: Can we not do the death music tonight? I'm wiped.
 ophelia (plain): I've never let anyone sit here with me. Just so you know.
 
 [heart 55 sit]
-ophelia (down): Do you know how long I was in that cage before you came?
-eco: A few weeks?
-ophelia: Four months. They took me off the road outside the arcade. In daylight.
+ophelia (down): Do you know how long I was in that pillar before you came?
+eco: Nineteen days.
+ophelia: It felt like one night. They took me off the road outside the arcade. In daylight.
 ophelia (sad): Nobody looked for me. My mom told the neighbours I'd moved away. She didn't know. She guessed.
 ophelia (sad, lookaway): Nobody in Solace ever saw me. Not school. Not home. I was furniture.
 choice +9: eco: I see you. I'm looking right at you, and I'm not going anywhere.
@@ -333,7 +334,7 @@ ophelia (smile, nod): Huh. Thanks. I'll find somewhere dark to put it.
 eco: Are you... doing yoga?
 ophelia (plain): No. I'm summoning something. Slowly. With my hamstrings.
 eco: Since when do you stretch?
-ophelia (smile, lookaway): Since a cage that was too small to stand up in. My back still remembers it.
+ophelia (smile, lookaway): Since I spent nineteen days hanging in a pillar of light. My back still remembers it.
 eco: ...Want company sometime?
 ophelia (tilt): You'd have to be quiet. You can't be quiet.
 
