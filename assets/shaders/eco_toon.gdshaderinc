@@ -66,7 +66,7 @@ global uniform float eco_scars;
 uniform int damage_kind = 0;
 uniform sampler2D damage_tex : hint_default_white, filter_linear, repeat_disable;
 // Her skin where the suit tears open.
-uniform vec3 skin_tone : source_color = vec3(1.0, 0.95, 0.9);
+uniform vec3 skin_tone : source_color = vec3(0.97, 0.86, 0.8);
 const vec3 DIRT = vec3(0.24, 0.2, 0.16);
 const vec3 CUT = vec3(0.62, 0.1, 0.12);
 
@@ -131,13 +131,13 @@ void fragment() {
 		col *= 1.0 - fray * (0.55 + 0.3 * speck);
 		// skin inside, a little shadowed under the torn edge
 		float lip = 1.0 - smoothstep(d.g + 0.012, d.g + 0.08, eco_tears);
-		col = mix(col, skin_tone * albedo.rgb * (1.0 - 0.22 * lip), torn);
+		col = mix(col, skin_tone * albedo.rgb * (1.0 - 0.3 * lip), torn);
 		mask = mix(mask, vec2(0.0), torn);
 		// fresh cuts, on her skin only (bare, or where the suit tore)
 		float cut = smoothstep(d.a, d.a + 0.02, eco_scars) * max(torn, 1.0 - fabric);
 		col = mix(col, CUT, cut * 0.85);
 		float g = smoothstep(d.r, d.r + 0.22, eco_grime);
-		col = mix(col, col * DIRT * 2.2 + DIRT * 0.1, g * (0.35 + 0.4 * damage_noise(UV * 140.0)) * (0.7 + 0.3 * speck));
+		col = mix(col, col * DIRT * 2.2 + DIRT * 0.1, g * (0.4 + 0.25 * damage_noise(UV * 140.0)) * (0.8 + 0.2 * speck));
 	} else if (damage_kind == 2) {
 		float n = damage_noise(UV * 30.0) * 0.6 + damage_noise(UV * 95.0) * 0.4;
 		scuffed = smoothstep(0.35 + n * 0.6, 0.5 + n * 0.6, eco_scuffs);
