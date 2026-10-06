@@ -6,7 +6,7 @@ extends Control
 ##   Sound     master, effects, ambience, voices
 ##   Video     window / borderless / fullscreen, vsync, frame cap, look
 ##             (Anime, PS3 or PS2) and film grain
-##   Game      dialogue rating, tutorial hints, Eco's jiggle style, and the
+##   Game      dialogue rating, tutorial hints, Eco's jiggle style and full body jiggle, and the
 ##             third person camera: start in it, how far back it sits, the
 ##             shoulder swap key, the hub camera nudge keys
 ## Esc or Back closes it (emits `closed`).
@@ -300,6 +300,8 @@ func _game_tab() -> void:
 		styles.find(Prefs.jiggle_style()),
 		func(i): Prefs.set_jiggle_style(styles[i]))
 	box.add_child(UI.label("How Eco's hair and body bounce as she moves.", 18, UI.MUTED))
+	_toggle(box, "Full body jiggle (experimental)", Prefs.body_jiggle(), Prefs.set_body_jiggle)
+	box.add_child(UI.label("A little softness in her stomach, thighs, arms and calves too.", 18, UI.MUTED))
 	_third_person_rows(box)
 
 
