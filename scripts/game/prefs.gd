@@ -21,7 +21,7 @@ const DEFAULTS := {
 	"controls": {"sensitivity": 1.0, "invert_y": false, "fov": 90.0},
 	"audio": {"Master": 0.9, "Effects": 1.0, "Ambience": 1.0, "Voices": 1.0},
 	"video": {"display": "windowed", "vsync": true, "max_fps": 0, "look": "anime", "film_grain": 0.4, "ps2_look": false},
-	"game": {"third_person": false, "jiggle_style": "classic", "body_jiggle": false,
+	"game": {"third_person": false, "jiggle_style": "classic", "body_jiggle": false, "battle_damage": true,
 		"tp_distance": 1.7, "shoulder_swap": true, "hub_nudge": true, "hub_nudge_x": 0.0, "hub_nudge_y": 0.0},
 }
 ## The FOV the cameras were tuned at; the FOV setting shifts every camera by
@@ -213,6 +213,18 @@ static func set_body_jiggle(on: bool) -> void:
 		(Engine.get_main_loop() as SceneTree).call_group("eco_jiggle", "follow_jiggle_setting")
 
 
+## Battle damage (scripts/ps2/battle_damage.gd): Eco gets dirty, scuffed and
+## (Mature) torn and cut over a run.
+static func battle_damage() -> bool:
+	return bool(get_value("game", "battle_damage"))
+
+
+static func set_battle_damage(on: bool) -> void:
+	set_value("game", "battle_damage", on)
+	save()
+	load("res://scripts/ps2/battle_damage.gd").apply()
+
+
 # --- dialogue rating ------------------------------------------------------------
 
 static func rating() -> String:
@@ -223,6 +235,7 @@ static func set_rating(r: String) -> void:
 	ContentRating.set_rating(r)
 	load("res://scripts/radio/dialogue_bank.gd").reload()  # picks up edits to dialogue/*.txt
 	_cfg = null  # content_rating.gd wrote the file itself
+	load("res://scripts/ps2/battle_damage.gd").apply()  # no tears or cuts in Teen
 
 
 # --- keys -----------------------------------------------------------------------

@@ -16,4 +16,5 @@ shader = ExtResource("1_shader")
 shader_parameter/albedo = Color(0.42, 0.31, 0.15, 1)
 shader_parameter/shade_tint = Vector3(0.7, 0.62, 0.66)
 shader_parameter/sheen = 0.0
+shader_parameter/damage_kind = 2
 

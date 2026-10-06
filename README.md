@@ -555,6 +555,19 @@ boots with knee plates, teal glowing trims).
   (`tools/eco/build_eco.py ... --fp`).
 - **Reference sheet renders**: `godot res://scenes/eco_showcase.tscn -- --shots=<folder> [--clean] [--suit=<tier>] [--weight=light|medium|heavy] [--only=front,back]`.
   In the showcase, S cycles her suit upgrade tiers and W the suit weight.
+- **Battle damage** (`scripts/ps2/battle_damage.gd`): over a run she gets dirty from the
+  boots up, her suit scuffs pale at the knees, elbows and hips, and (Mature only) it tears open
+  at the knees, elbows, shins, shoulders, a strip of stomach and so on, with fresh cuts on the
+  skin underneath. Time out in a zone, slides, wallruns, hits, falls and going down all add to
+  four levels (grime, scuffs, tears, scars); she's clean again at the start of every run and back
+  at the temple. Teen shows the dirt and scuffs only; Settings > Game > Battle damage turns it
+  off. The levels are shader globals (`eco_grime` etc.) read by `eco_toon.gdshaderinc`
+  (`damage_kind` 1: her body and face, from `v_damage.png` / `v_damage_face.png`; 2: her kit,
+  dust and scuffs only). `tools/eco/bake_damage.py` bakes those maps from `eco.glb` (each texel
+  holds the level it turns at); tears and cuts can only land on her arms, legs below mid-thigh,
+  shoulders, upper back, flanks and stomach, and the bake fails if anything near the
+  always-covered zones could tear. In the showcase D steps through the levels; `--damage=0.8`
+  renders with them.
 
 ## Grunts
 - 60 HP, headshots count above the shoulders. Visor glows red during a 0.4 s wind-up before each shot.
@@ -652,6 +665,9 @@ select the Player node and tweak values in the Inspector, or change the defaults
   `godot --headless --path . -s res://tests/combat_test.gd`
 - `tests/stealth_test.gd` headless stealth test (vision cone, sight range, cover, detection meter,
   gunshots, squad callouts, losing the pilot): `godot --headless --path . -s res://tests/stealth_test.gd`
+- `tests/battle_damage_test.gd` Eco's battle damage (levels, Teen vs Mature, the setting,
+  nothing near the covered zones can tear, a run dirties her and the temple cleans her):
+  `godot --headless --path . -s res://tests/battle_damage_test.gd`
 - `tests/eco_test.gd` Eco's model (toon materials, expression, animations, hair and jiggle
   springs bounce and settle): `godot --headless --path . -s res://tests/eco_test.gd`
 - `tests/armory_test.gd` headless workbench test (prices, upgrades, attachments, titan parts and

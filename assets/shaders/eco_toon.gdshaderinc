@@ -53,6 +53,23 @@ uniform sampler2D kit_tex : source_color, hint_default_black, filter_linear_mipm
 uniform sampler2D kit_mask_tex : hint_default_black, filter_linear_mipmap;
 uniform sampler2D kit_glow_tex : source_color, hint_default_black, filter_linear_mipmap;
 
+// Battle damage (scripts/ps2/battle_damage.gd): how dirty, scuffed, torn and
+// scarred she has got this run, 0..1, the same for every copy of her.
+global uniform float eco_grime;
+global uniform float eco_scuffs;
+global uniform float eco_tears;
+global uniform float eco_scars;
+// 0: none (hair, eyes, glass). 1: her body or face, from damage_tex
+// (tools/eco/bake_damage.py; each channel the level at which a texel turns:
+// R grime, G torn, B scuffed, A scarred; tears only open on her suit's fabric,
+// where the mask's G is). 2: a piece of kit she wears: dust and scuffs only.
+uniform int damage_kind = 0;
+uniform sampler2D damage_tex : hint_default_white, filter_linear, repeat_disable;
+// Her skin where the suit tears open.
+uniform vec3 skin_tone : source_color = vec3(1.0, 0.95, 0.9);
+const vec3 DIRT = vec3(0.24, 0.2, 0.16);
+const vec3 CUT = vec3(0.62, 0.1, 0.12);
+
 // Per-object knobs shared with ps2_surface.gdshader (see ps2_model.gd).
 instance uniform float flash : instance_index(0) = 0.0;
 instance uniform float glow : instance_index(1) = 1.0;
@@ -63,6 +80,18 @@ instance uniform float trim_gold : instance_index(3) = 0.0;
 const vec3 GOLD = vec3(1.0, 0.68, 0.2);
 
 varying float v_sheen_mask;
+
+float damage_hash(vec2 p) {
+	return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
+}
+
+float damage_noise(vec2 p) {
+	vec2 i = floor(p);
+	vec2 f = fract(p);
+	f = f * f * (3.0 - 2.0 * f);
+	return mix(mix(damage_hash(i), damage_hash(i + vec2(1.0, 0.0)), f.x),
+			mix(damage_hash(i + vec2(0.0, 1.0)), damage_hash(i + vec2(1.0, 1.0)), f.x), f.y);
+}
 varying float v_rim;
 varying vec3 v_shade;
 
@@ -84,11 +113,44 @@ void fragment() {
 		col = mix(col, texture(kit_tex, UV).rgb * albedo.rgb * paint.rgb, kit_mask.b);
 		mask = mix(mask, kit_mask.rg, kit_mask.b);
 	}
-	v_sheen_mask = sheen * mask.r;
+	// battle damage, laid on in the order it happens to her: scuffed fabric,
+	// torn open, cut, then dirt over all of it
+	float torn = 0.0;
+	float scuffed = 0.0;
+#ifndef OVERLAY
+	if (damage_kind == 1) {
+		vec4 d = texture(damage_tex, UV);
+		float fabric = step(0.5, mask.g);
+		float speck = damage_noise(UV * 900.0);
+		scuffed = smoothstep(d.b, d.b + 0.1, eco_scuffs) * fabric;
+		vec3 worn = mix(col, vec3(dot(col, vec3(0.333))), 0.55) * 1.3 + 0.05;
+		col = mix(col, worn, scuffed * (0.45 + 0.35 * speck));
+		torn = smoothstep(d.g, d.g + 0.012, eco_tears) * fabric;
+		// the fabric round a tear darkens and frays before it opens
+		float fray = smoothstep(d.g - 0.07, d.g, eco_tears) * fabric * (1.0 - torn) * step(d.g, 0.99);
+		col *= 1.0 - fray * (0.55 + 0.3 * speck);
+		// skin inside, a little shadowed under the torn edge
+		float lip = 1.0 - smoothstep(d.g + 0.012, d.g + 0.08, eco_tears);
+		col = mix(col, skin_tone * albedo.rgb * (1.0 - 0.22 * lip), torn);
+		mask = mix(mask, vec2(0.0), torn);
+		// fresh cuts, on her skin only (bare, or where the suit tore)
+		float cut = smoothstep(d.a, d.a + 0.02, eco_scars) * max(torn, 1.0 - fabric);
+		col = mix(col, CUT, cut * 0.85);
+		float g = smoothstep(d.r, d.r + 0.22, eco_grime);
+		col = mix(col, col * DIRT * 2.2 + DIRT * 0.1, g * (0.35 + 0.4 * damage_noise(UV * 140.0)) * (0.7 + 0.3 * speck));
+	} else if (damage_kind == 2) {
+		float n = damage_noise(UV * 30.0) * 0.6 + damage_noise(UV * 95.0) * 0.4;
+		scuffed = smoothstep(0.35 + n * 0.6, 0.5 + n * 0.6, eco_scuffs);
+		col = mix(col, mix(col, vec3(dot(col, vec3(0.333))), 0.5) * 1.25 + 0.04, scuffed * 0.4);
+		float g = smoothstep(n * 0.7, n * 0.7 + 0.35, eco_grime);
+		col = mix(col, col * DIRT * 2.2 + DIRT * 0.1, g * 0.55);
+	}
+#endif
+	v_sheen_mask = sheen * mask.r * (1.0 - scuffed * 0.8);
 	v_shade = mix(shade_tint, shade_tint_2, mask.g);
 	ALBEDO = col * exposure;
 	if (use_normal) {
-		NORMAL_MAP = texture(normal_tex, UV).rgb;
+		NORMAL_MAP = mix(texture(normal_tex, UV).rgb, vec3(0.5, 0.5, 1.0), torn);
 		NORMAL_MAP_DEPTH = normal_depth;
 	}
 	ROUGHNESS = 1.0;
@@ -98,6 +160,7 @@ void fragment() {
 	if (use_kit) {
 		emit = mix(emit, texture(kit_glow_tex, UV).rgb * glow_tex_energy, kit_mask.b);
 	}
+	emit *= 1.0 - torn;
 	if (trim_gold > 0.0) {
 		emit = mix(emit, GOLD * max(emit.r, max(emit.g, emit.b)), trim_gold) + GOLD * gold_edge * trim_gold;
 	}

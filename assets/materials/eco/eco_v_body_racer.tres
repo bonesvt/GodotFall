@@ -1,4 +1,4 @@
-[gd_resource type="ShaderMaterial" load_steps=8 format=3]
+[gd_resource type="ShaderMaterial" load_steps=9 format=3]
 
 [ext_resource type="Shader" path="res://assets/shaders/eco_toon.gdshader" id="1_shader"]
 [ext_resource type="Shader" path="res://assets/shaders/eco_outline.gdshader" id="2_outline"]
@@ -6,6 +6,7 @@
 [ext_resource type="Texture2D" path="res://assets/textures/eco/v_body_n.png" id="4_v_body_n"]
 [ext_resource type="Texture2D" path="res://assets/textures/eco/v_body_mask_racer.png" id="5_v_body_mask"]
 [ext_resource type="Texture2D" path="res://assets/textures/eco/v_body_glow_racer.png" id="6_v_body_glow"]
+[ext_resource type="Texture2D" path="res://assets/textures/eco/v_damage.png" id="7_damage"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_ink"]
 render_priority = 0
@@ -26,3 +27,5 @@ shader_parameter/use_mask = true
 shader_parameter/mask_tex = ExtResource("5_v_body_mask")
 shader_parameter/sheen = 0.3
 shader_parameter/glow_tex = ExtResource("6_v_body_glow")
+shader_parameter/damage_kind = 1
+shader_parameter/damage_tex = ExtResource("7_damage")
