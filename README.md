@@ -125,7 +125,7 @@ shoulders back, and stands with her weight on one hip. The strut is layered over
     round titan-sized cover, dash, and shoot the four scrap titan dummies; they topple
     and get propped back up.
 
-### Vices: the Rusted Halo, smokes and stims (Mature only)
+### Vices: the Rusted Halo, smokes, stims and Hush (Mature only)
 Under the Mature rating (Settings > Game), **F** at the Rusted Halo on Low Row opens the bar
 (`scripts/hub/bar_screen.gd`). Under Teen it keeps its old lines and none of this shows.
 
@@ -148,6 +148,15 @@ Under the Mature rating (Settings > Game), **F** at the Rusted Halo on Low Row o
   10 s). Then a 15 s crash: slower, hurts more, the view swims. A jab during a crash cuts it
   short. Every jab adds dependence; at 3 and over she gets the shakes (aim drift, haze) on runs
   until she jabs again, and each clean run wears it down. Smokes, belt and dependence save per slot.
+- **Hush** from Marrow (`scripts/hub/hush_den.gd`, `hush_screen.gd`): he leans in the alley gap
+  between the Glowbox Arcade and Eco's old flat, and lives in the basement under the Holo-Cinema
+  (cellar door by the cinema). A dose (40 scrap, 1 circuit) carries her whole next run: harder
+  hits, faster healing, grunts slower to notice her, all stronger the deeper his **Hold**.
+  Each dose raises his Hold and costs her Ophelia's affection and Mom's bond. After a run on
+  Hush she comes to in his basement armchair instead of the temple, short 10 scrap; once his Hold
+  is 60 or more she ends up there after every run. Clean runs loosen it. **X** in his screen walks
+  away for good while his Hold is under 60, or at any Hold if Ophelia or Mom is at 50 or more,
+  which wins some of their love back. Marrow is a primitive placeholder figure for now.
 - Test: `godot --headless --path . -s res://tests/vices_test.gd`
 
 ### Workbenches and materials

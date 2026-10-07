@@ -61,6 +61,8 @@ const PauseMenu := preload("res://scripts/ui/pause_menu.gd")
 const Vices := preload("res://scripts/hub/vices.gd")
 const BarScreen := preload("res://scripts/hub/bar_screen.gd")
 const StimScreen := preload("res://scripts/hub/stim_screen.gd")
+const HushScreen := preload("res://scripts/hub/hush_screen.gd")
+const HushDen := preload("res://scripts/hub/hush_den.gd")
 const SFX := preload("res://scripts/sfx.gd")
 const DrunkScreen := preload("res://scripts/ui/drunk_screen.gd")
 
@@ -80,6 +82,12 @@ const CONTROLS := "F salvage / embark    V call titan / core    Shift titan dash
 ## How long a line Eco says about something in the hub stays up.
 const HUB_LINE_SECONDS := 4.5
 ## Mom smells smoke on Eco when she gets home (vices.gd).
+## Ophelia notices Eco slipping away while Marrow's Hold is deep (vices.gd).
+const OPHELIA_NOTICES := [
+	"Ophelia: \"Where do you keep going? You come back and look straight through me.\"",
+	"Ophelia: \"Your eyes are doing that purple thing again. Don't tell me it's nothing.\"",
+	"Ophelia: \"I waited up. Again. Whatever it is, I'm not going anywhere. Just... come back.\"",
+]
 const MOM_SMELLS := [
 	"Mom: \"You smell like the Halo's back step. Don't lie to me, I can smell it.\"",
 	"Mom: \"Smoke in your hair again. Your father quit for you, you know.\"",
@@ -298,7 +306,10 @@ func start_run(seed_value: int, uncharted := 0, level := "") -> void:
 	if w != null:
 		w.set("softness", Family.softness(npc_talk.state))
 	load_zone(0)
-	if Vices.craving() > 0.0:
+	Vices.run_started()
+	if Vices.hush() > 0.0:
+		hud.toast("The Hush settles in. Everything goes quiet, and sharp, and violet.", HUB_LINE_SECONDS)
+	elif Vices.craving() > 0.0:
 		hud.toast(Vices.craving_line(), HUB_LINE_SECONDS)
 	elif Vices.effect() > 0.0:
 		hud.toast(Vices.run_line(), HUB_LINE_SECONDS)
@@ -359,10 +370,14 @@ func enter_hub() -> void:
 	dress_hub()
 	place_player(zone_info["spawn"])
 	tutorial.start_level("hub")
-	if last_result != "":
+	if Vices.trance and Vices.allowed() and zone_info.has("hush"):
+		_wake_at_marrows()
+	elif last_result != "":
 		var mom := ""
 		if Vices.smoked and Vices.allowed() and hub_npcs.has("mom") and not sick:
 			mom = "  " + MOM_SMELLS[runs_ended % MOM_SMELLS.size()]
+		elif Vices.hold >= 30.0 and Vices.allowed() and hub_npcs.has("ophelia"):
+			mom = "  " + OPHELIA_NOTICES[runs_ended % OPHELIA_NOTICES.size()]
 		Vices.smoked = false
 		hud.toast("Back at the temple." + ("  You're burning up. Go find Mom." if sick else "") + mom, HUB_LINE_SECONDS + (2.0 if mom != "" else 0.0))
 		_whisper("home", 2.0)
@@ -512,8 +527,12 @@ func _hub_tick(delta: float) -> void:
 	if spot.has("screen"):
 		open_bench(spot["screen"])
 		return
-	if spot.get("shop", "") in ["bar", "stims"] and Vices.allowed():
+	if spot.get("shop", "") in ["bar", "stims", "hush"] and Vices.allowed():
 		open_bench(spot["shop"])
+		return
+	if spot.has("teleport") and Vices.allowed():
+		place_player(spot["teleport"])
+		hud.toast("Down into the violet dark." if spot["id"] == "cinema_cellar" else "Up into the street. The air tastes clean.", 2.5)
 		return
 	if spot["id"] == "garage":
 		open_garage()
@@ -665,6 +684,8 @@ func open_bench(kind: String) -> void:
 		bench = BarScreen.new(armory)
 	elif kind == "stims":
 		bench = StimScreen.new(armory)
+	elif kind == "hush":
+		bench = HushScreen.new(armory, npc_talk.state)
 	else:
 		bench = GunsmithScreen.new(armory) if kind == "gunsmith" else BenchScreen.new(armory, kind)
 	add_child(bench)
@@ -681,6 +702,10 @@ func close_bench() -> void:
 	if not bench.unlocked.is_empty():
 		var names: Array = bench.unlocked.map(func(id): return Armory.WEAPONS[id]["name"].to_upper())
 		hud.toast("LEVEL %d: %s UNLOCKED. PICK %s AT THE WEAPON RACK" % [armory.pilot_level(), " AND ".join(names), "IT" if names.size() == 1 else "THEM"], 5.0)
+	if bench is HushScreen:
+		npc_talk.state.save(npc_talk.save_path)
+		if bench.freed:
+			hud.toast("Eco walks out on Marrow. Her hands are shaking, but she's out. She should go and see the people who waited for her.", 5.0)
 	if bench is BarScreen and bench.net != 0:
 		hud.toast("Scrapjack: %s%d scrap tonight." % ["+" if bench.net > 0 else "", bench.net], HUB_LINE_SECONDS)
 	if bench is WardrobeScreen and not bench.changed.is_empty():
@@ -1358,6 +1383,20 @@ func _vice_keys() -> void:
 			hud.toast("No stims on your belt. Sal's side hatch, in town.", 2.5)
 
 
+## After a run on Hush (or with his Hold deep): she comes to in Marrow's
+## basement armchair instead of at the temple, short his tab.
+func _wake_at_marrows() -> void:
+	Vices.trance = false
+	Vices.save()
+	place_player(zone_info["hush"]["wake"])
+	var tab := mini(Vices.TAB, armory.amount("scrap"))
+	if tab > 0:
+		armory.stash["scrap"] = armory.amount("scrap") - tab
+		armory.save()
+	Vices.wakes += 1
+	hud.toast(HushDen.WAKE_LINES[(Vices.wakes - 1) % HushDen.WAKE_LINES.size()] + ("  (-%d scrap)" % tab if tab > 0 else ""), 6.0)
+
+
 ## A breath of smoke drifting up in front of the camera.
 func _puff() -> void:
 	var cam: Camera3D = player.camera
@@ -1477,6 +1516,10 @@ func _prompt() -> String:
 					return "[F] The Rusted Halo: drinks, smokes and Scrapjack"
 				if spot.get("shop", "") == "stims" and Vices.allowed():
 					return "[F] Sal's side hatch: stims"
+				if spot["id"] == "hush_alley" and Vices.allowed():
+					return "[F] Marrow: Hush"
+				if spot["id"] == "cinema_cellar" and Vices.allowed():
+					return "[F] Go down to Marrow's basement"
 				if spot.get("npc", "") == "mom" and Family.sick(npc_talk.state, runs_ended):
 					return spot["prompt"] + "  (you're burning up)"
 				var text: String = spot["prompt"]

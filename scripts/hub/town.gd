@@ -27,6 +27,7 @@ const Ambient := preload("res://scripts/hub/ambient.gd")
 const TP := preload("res://scripts/hub/town_props.gd")
 const TownMood := preload("res://scripts/hub/town_mood.gd")
 const GiftShop := preload("res://scripts/hub/gift_shop.gd")
+const HushDen := preload("res://scripts/hub/hush_den.gd")
 
 ## The road leaves the hub's front gate at z = ROAD_START and reaches the town gate at TOWN_GATE.
 const ROAD_START := 94.0
@@ -90,6 +91,7 @@ static func build(root: Node3D, info: Dictionary) -> void:
 	_lantern_row(town, info, rng)
 	_plaza(town, info, rng)
 	_low_row(town, info, rng)
+	HushDen.build(town, info)  # Marrow's alley and cinema basement (vices.gd, Mature)
 	_garden(town, info, rng)
 	_canopy(town, rng)
 	_surroundings(town, rng)

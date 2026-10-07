@@ -12,6 +12,7 @@ const BarScreen := preload("res://scripts/hub/bar_screen.gd")
 const Armory := preload("res://scripts/hub/armory.gd")
 const ContentRating := preload("res://scripts/radio/content_rating.gd")
 const StimScreen := preload("res://scripts/hub/stim_screen.gd")
+const HushScreen := preload("res://scripts/hub/hush_screen.gd")
 const ARMORY_PATH := "user://test_vices_armory.cfg"
 const VICES_PATH := "user://test_vices.cfg"
 
@@ -140,6 +141,7 @@ func _run() -> void:
 	bar.free()
 
 	_smokes_and_stims()
+	_hush()
 
 	Vices.reset()
 	ContentRating.set_rating(old_rating, false)
@@ -211,6 +213,65 @@ func _smokes_and_stims() -> void:
 	_check("teen: nothing on the HUD", Vices.pockets_text() == "" and Vices.state_name() == "", Vices.pockets_text())
 	ContentRating.set_rating("M", false)
 	_check("mature: pockets on the HUD", Vices.pockets_text().contains("[B]") and Vices.pockets_text().contains("[N]"), Vices.pockets_text())
+
+
+## Marrow's Hush: bonuses, his Hold, the trance, Ophelia and Mom paying for
+## it, and walking away.
+func _hush() -> void:
+	Vices.reset()
+	var armory: Armory = Armory.open(ARMORY_PATH)
+	armory.stash = {"scrap": 400, "alloy": 20, "circuits": 10, "lock_cores": 0}
+	var talks := ConfigFile.new()
+	talks.set_value("ophelia", "affection", 40)
+	talks.set_value("mom", "bond", 30)
+	var den := HushScreen.new(armory, talks)
+	root.add_child(den)
+	_check("a dose", den.take() and Vices.dosed and is_equal_approx(Vices.hold, Vices.HOLD_PER_DOSE), Vices.hold)
+	_check("costs scrap and a circuit", armory.amount("scrap") == 360 and armory.amount("circuits") == 9, armory.stash)
+	_check("Ophelia feels it", int(talks.get_value("ophelia", "affection")) == 40 + Vices.DOSE_ROMANCE, talks.get_value("ophelia", "affection"))
+	_check("Mom feels it", int(talks.get_value("mom", "bond")) == 30 + Vices.DOSE_BOND, talks.get_value("mom", "bond"))
+	_check("one dose waiting at a time", not den.take(), Vices.hold)
+	_check("no bonus before the run", Vices.damage_out() == 1.0, Vices.damage_out())
+	Vices.run_started()
+	_check("Hush in her on the run", Vices.hush() > 0.0 and not Vices.dosed, Vices.hush())
+	_check("hits harder", Vices.damage_out() > 1.2, Vices.damage_out())
+	_check("heals faster", Vices.regen_scale() > 1.0, Vices.regen_scale())
+	_check("harder to notice", Vices.notice_scale() < 0.8, Vices.notice_scale())
+	_check("HUD says Hushed", Vices.state_name().contains("Hushed"), Vices.state_name())
+	Vices.run_over()
+	_check("a Hush run ends at his place", Vices.trance and Vices.hush() == 0.0, Vices.trance)
+	_check("his hold stays after a Hush run", is_equal_approx(Vices.hold, Vices.HOLD_PER_DOSE), Vices.hold)
+	Vices.trance = false
+	Vices.run_started()
+	Vices.run_over()
+	_check("a clean run: home, hold loosens", not Vices.trance and Vices.hold < Vices.HOLD_PER_DOSE, Vices.hold)
+
+	# Deep in: four more doses.
+	for i in 4:
+		Vices.dosed = false
+		den.take()
+	_check("deep hold", Vices.hold >= Vices.TRANCE_HOLD, Vices.hold)
+	Vices.dosed = false
+	Vices.run_started()
+	Vices.run_over()
+	_check("deep hold: his place even after a clean run", Vices.trance, Vices.hold)
+	Vices.trance = false
+	Vices.dosed = false
+	den.take()
+	talks.set_value("ophelia", "affection", 20)
+	talks.set_value("mom", "bond", 10)
+	_check("too deep to walk away alone", not Vices.can_walk_away(talks) and not den.walk_away(), Vices.hold)
+	talks.set_value("ophelia", "affection", Vices.STRONG_BOND)
+	var before := int(talks.get_value("ophelia", "affection"))
+	_check("Ophelia pulls her out", den.walk_away() and Vices.hold == 0.0 and den.freed and not Vices.trance, Vices.hold)
+	_check("walking away wins her back", int(talks.get_value("ophelia", "affection")) == before + Vices.FREE_ROMANCE, talks.get_value("ophelia", "affection"))
+	den.free()
+	Vices.open(VICES_PATH)
+	_check("hold saved", Vices.hold == 0.0 and Vices.walked_away, [Vices.hold, Vices.walked_away])
+
+	ContentRating.set_rating("T", false)
+	_check("teen: no Hush", not Vices.dose(talks) and Vices.hush() == 0.0, Vices.dosed)
+	ContentRating.set_rating("M", false)
 
 
 func _check(label: String, ok: bool, got) -> void:

@@ -21,6 +21,16 @@ extends RefCounted
 ## (slower, hurts more, the view swims). Every jab adds dependence; at
 ## CRAVE_AT and over, a run without one gives her the shakes. Runs without a
 ## jab wear it down. Smokes, stims and dependence are saved per save slot.
+##
+## Hush: glowing Precursor resin Marrow sells in the alley off Low Row
+## (hush_den.gd, hush_screen.gd). A dose carries her whole next run: she hits
+## harder, heals faster and grunts are slower to notice her, more so the deeper
+## his Hold. Each dose raises his Hold and costs her with Mom and Ophelia. A
+## run on Hush, or any run once his Hold is at TRANCE_HOLD, ends with her
+## coming to in his basement under the cinema, not at the temple, short a
+## little scrap. Clean runs loosen his Hold; she can walk away from him for
+## good while it's under BREAK_AT, or at any Hold if Mom or Ophelia are close
+## enough to her (STRONG_BOND) to pull her out.
 
 const ContentRating := preload("res://scripts/radio/content_rating.gd")
 
@@ -75,6 +85,22 @@ const CRAVE_AT := 3.0
 const CLEAN_RUN := 1.5
 const CRAVE_HAZE := 0.3
 
+## Hush.
+const HUSH_COST := {"scrap": 40, "circuits": 1}
+const HOLD_PER_DOSE := 15.0
+const HOLD_CLEAN_RUN := 10.0
+const TRANCE_HOLD := 60.0
+const BREAK_AT := 60.0
+const STRONG_BOND := 50
+## What a dose costs her with the people who love her.
+const DOSE_ROMANCE := -4
+const DOSE_BOND := -3
+## What walking away wins back.
+const FREE_ROMANCE := 6
+const FREE_BOND := 5
+## Scrap Marrow keeps from her pockets each time she comes to at his place.
+const TAB := 10
+
 static var buzz := 0.0
 ## Drinks bought this session, for Rook's lines.
 static var drinks_had := 0
@@ -92,6 +118,15 @@ static var jabbed := false
 static var smokes := 0
 static var belt: Array = []
 static var dependence := 0.0
+## Hush: his Hold (0..100), a dose waiting for her next run, Hush in her this
+## run, a trance due when she gets back, and whether she ever walked away.
+static var hold := 0.0
+static var dosed := false
+static var hushed := false
+static var trance := false
+static var walked_away := false
+## Times she's come to at his place (for his lines, in turn).
+static var wakes := 0
 static var save_path := "user://vices.cfg"
 
 
@@ -207,12 +242,100 @@ static func craving() -> float:
 	return clampf((dependence - CRAVE_AT + 1.0) / 3.0, 0.0, 1.0)
 
 
-## A run ended: a clean one wears dependence down.
+## A run starts: a dose waiting goes in.
+static func run_started() -> void:
+	hushed = dosed and allowed()
+	dosed = false
+	save()
+
+
+## A run ended: a clean one wears dependence and his Hold down; a Hush run (or
+## a deep enough Hold) sends her to his basement when she gets back.
 static func run_over() -> void:
 	if not jabbed:
 		dependence = maxf(dependence - CLEAN_RUN, 0.0)
 	jabbed = false
+	if allowed() and (hushed or hold >= TRANCE_HOLD):
+		trance = true
+	if not hushed:
+		hold = maxf(hold - HOLD_CLEAN_RUN, 0.0)
+	hushed = false
 	save()
+
+
+# --- Hush ---------------------------------------------------------------------
+
+## Takes a dose from Marrow (the screen has taken the price): raises his Hold.
+## `state` is the hub talks' ConfigFile (npc_talk.state): Ophelia and Mom feel it.
+static func dose(state: ConfigFile = null) -> bool:
+	if not allowed() or dosed:
+		return false
+	dosed = true
+	hold = minf(hold + HOLD_PER_DOSE, 100.0)
+	walked_away = false
+	if state != null:
+		_nudge(state, DOSE_ROMANCE, DOSE_BOND)
+	save()
+	return true
+
+
+## She can walk away now (not too deep, or someone close enough to pull her out).
+static func can_walk_away(state: ConfigFile = null) -> bool:
+	if hold <= 0.0 and not dosed:
+		return false
+	if hold < BREAK_AT:
+		return true
+	return state != null and (int(state.get_value("ophelia", "affection", 0)) >= STRONG_BOND or int(state.get_value("mom", "bond", 0)) >= STRONG_BOND)
+
+
+static func walk_away(state: ConfigFile = null) -> bool:
+	if not can_walk_away(state):
+		return false
+	hold = 0.0
+	dosed = false
+	trance = false
+	walked_away = true
+	if state != null:
+		_nudge(state, FREE_ROMANCE, FREE_BOND)
+	save()
+	return true
+
+
+static func _nudge(state: ConfigFile, romance: int, bond: int) -> void:
+	if state.has_section_key("ophelia", "affection"):
+		state.set_value("ophelia", "affection", clampi(int(state.get_value("ophelia", "affection", 0)) + romance, 0, 100))
+	if state.has_section_key("mom", "bond"):
+		state.set_value("mom", "bond", clampi(int(state.get_value("mom", "bond", 0)) + bond, 0, 100))
+
+
+## How strong the Hush is in her this run (0 none): stronger the deeper his Hold.
+static func hush() -> float:
+	if not hushed or not allowed():
+		return 0.0
+	return 1.0 + hold / 100.0
+
+
+## Damage her shots deal.
+static func damage_out() -> float:
+	var h := hush()
+	return 1.0 if h == 0.0 else 1.0 + 0.2 * h
+
+
+## How quickly grunts notice her.
+static func notice_scale() -> float:
+	var h := hush()
+	return 1.0 if h == 0.0 else 1.0 - 0.2 * h
+
+
+## His Hold as a word, for Marrow's screen.
+static func hold_name() -> String:
+	if hold <= 0.0:
+		return "None"
+	if hold < 30.0:
+		return "A taste"
+	if hold < TRANCE_HOLD:
+		return "Hooked"
+	return "His"
 
 
 static func _stim_stat(key: String, default: float) -> float:
@@ -230,7 +353,9 @@ static func speed_scale() -> float:
 
 ## Health regen multiplier (smoking slows it).
 static func regen_scale() -> float:
-	return SMOKE_REGEN if calm() else 1.0
+	var k := SMOKE_REGEN if calm() else 1.0
+	var h := hush()
+	return k * (1.0 if h == 0.0 else 1.0 + 0.4 * h)
 
 
 ## Gun cone multiplier (a smoke steadies her; Deadeye most of all).
@@ -254,8 +379,19 @@ static func open(path: String) -> void:
 	smokes = 0
 	belt = []
 	dependence = 0.0
+	hold = 0.0
+	dosed = false
+	hushed = false
+	trance = false
+	walked_away = false
+	wakes = 0
 	var cfg := ConfigFile.new()
 	if cfg.load(path) == OK:
+		hold = cfg.get_value("vices", "hold", 0.0)
+		dosed = cfg.get_value("vices", "dosed", false)
+		trance = cfg.get_value("vices", "trance", false)
+		walked_away = cfg.get_value("vices", "walked_away", false)
+		wakes = cfg.get_value("vices", "wakes", 0)
 		smokes = cfg.get_value("vices", "smokes", 0)
 		belt = cfg.get_value("vices", "belt", []).filter(func(id): return STIMS.has(id))
 		dependence = cfg.get_value("vices", "dependence", 0.0)
@@ -266,6 +402,11 @@ static func save() -> void:
 	cfg.set_value("vices", "smokes", smokes)
 	cfg.set_value("vices", "belt", belt)
 	cfg.set_value("vices", "dependence", dependence)
+	cfg.set_value("vices", "hold", hold)
+	cfg.set_value("vices", "dosed", dosed)
+	cfg.set_value("vices", "trance", trance)
+	cfg.set_value("vices", "walked_away", walked_away)
+	cfg.set_value("vices", "wakes", wakes)
 	cfg.save(save_path)
 
 
@@ -312,6 +453,8 @@ static func state_name() -> String:
 		out.append("Tipsy" if buzz < 1.5 else ("Buzzed" if buzz < 3.0 else "Hammered"))
 	if calm():
 		out.append("Smoking")
+	if hush() > 0.0:
+		out.append("Hushed")
 	if stim != "" and allowed():
 		out.append("%s %ds" % [stim_name(stim), ceili(stim_left)])
 	elif crashing():
@@ -360,3 +503,8 @@ static func reset() -> void:
 	smokes = 0
 	belt = []
 	dependence = 0.0
+	hold = 0.0
+	dosed = false
+	hushed = false
+	trance = false
+	walked_away = false

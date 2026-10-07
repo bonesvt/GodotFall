@@ -448,7 +448,7 @@ func _trace_shot(from: Vector3, dir: Vector3, fx_parent: Node) -> Vector3:
 			_end_streak(landed)
 			return end
 		var head: bool = target.is_headshot(end)
-		var dmg := damage_at(from.distance_to(end)) * (headshot_multiplier if head else 1.0) * mult
+		var dmg := damage_at(from.distance_to(end)) * (headshot_multiplier if head else 1.0) * mult * Vices.damage_out()
 		var killed: bool = target.take_damage(dmg, end, head)
 		if stagger > 0.0 and not killed and target.has_method("stagger"):
 			target.stagger(stagger)
