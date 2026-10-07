@@ -172,9 +172,11 @@ var family_scene: FamilyScene
 ## The parts your last run ended with; the hub's practice titan is built from them.
 var last_parts := {}
 ## The hub spot Eco is sitting or lying down at ({} = she's on her feet), and
-## the rest pose she's in there (spot["rest"] or its "alt").
+## the rest pose she's in there (spot["rest"], its "alt" or one of its "more").
 var rest_spot := {}
 var rest_pose := ""
+## Which of the spot's poses she is in (rest_options).
+var rest_index := 0
 ## The practice titan in the hub's titan yard, and whether you're in it.
 var hub_titan: Titan
 var hub_piloting := false
@@ -616,14 +618,17 @@ func _hub_sound(spot: Dictionary) -> void:
 
 ## Eco sits or lies down at a hub spot with a "rest" entry ({pose, at, seat,
 ## alt}: hub_builder.gd): the view goes to third person while she rests, and
-## you can look around her. F at a spot with an "alt" pose moves her between
-## the two (sit up, stretch out); F anywhere else, jump or a move key gets her up.
-func rest_at(spot: Dictionary, alt := false) -> void:
+## you can look around her. F at a spot with an "alt" pose (or a "more" list)
+## steps her through them (sit up, stretch out, roll over); F anywhere else,
+## jump or a move key gets her up.
+func rest_at(spot: Dictionary, index := 0) -> void:
 	var eco_body := player.get_node_or_null("EcoBody")
 	if eco_body == null or not eco_body.has_method("rest"):
 		return
 	var rest: Dictionary = spot["rest"]
-	var pose: Dictionary = rest["alt"] if alt else rest
+	var options := rest_options(rest)
+	rest_index = index % options.size()
+	var pose: Dictionary = options[rest_index]
 	if rest_spot.is_empty():
 		player.resting = true
 		_set_rest_view(true)
@@ -635,7 +640,17 @@ func rest_at(spot: Dictionary, alt := false) -> void:
 		player.head.rotation.x = deg_to_rad(-22.0)
 	rest_spot = spot
 	rest_pose = pose["pose"]
-	eco_body.rest(rest_pose, pose["at"], float(rest.get("seat", 0.5)))
+	eco_body.rest(rest_pose, pose["at"], float(rest.get("seat", 0.5)), rest.get("bed", rest_pose == "sleep"))
+
+
+## A rest spot's poses in the order F steps through them: its own, its "alt",
+## then any "more" ({pose, at, label}).
+static func rest_options(rest: Dictionary) -> Array:
+	var out: Array = [rest]
+	if rest.has("alt"):
+		out.append(rest["alt"])
+	out.append_array(rest.get("more", []))
+	return out
 
 
 ## Gets Eco back on her feet; the player is free once she's up (_rest_tick).
@@ -658,9 +673,8 @@ func _rest_tick() -> void:
 	if moving or Input.is_action_just_pressed("jump"):
 		get_up()
 	elif Input.is_action_just_pressed("interact"):
-		var rest: Dictionary = rest_spot["rest"]
-		if rest.has("alt"):
-			rest_at(rest_spot, rest_pose == rest["pose"])
+		if rest_options(rest_spot["rest"]).size() > 1:
+			rest_at(rest_spot, rest_index + 1)
 		else:
 			get_up()
 
@@ -681,9 +695,10 @@ func _set_rest_view(on: bool) -> void:
 func _rest_prompt() -> String:
 	if rest_pose == "":
 		return ""
-	var rest: Dictionary = rest_spot["rest"]
-	if rest.has("alt"):
-		var other := "Stretch out" if rest_pose == rest["pose"] else "Sit up"
+	var options := rest_options(rest_spot["rest"])
+	if options.size() > 1:
+		var next := (rest_index + 1) % options.size()
+		var other: String = options[next].get("label", "Sit up" if next == 0 else "Stretch out")
 		return "[F] %s    [Space] Get up" % other
 	return "[F] Get up"
 

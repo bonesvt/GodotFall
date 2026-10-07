@@ -4,7 +4,8 @@ extends RefCounted
 ## kind of thing she can press into stands round it, labelled: a row of wall
 ## materials from hard stone to a soft cushion (softness meta, player.gd
 ## soft_press), a sharp corner, a round column, a thin post, glass the camera
-## sees through, and squeeze gaps of a few widths. A console by the door steps
+## sees through, squeeze gaps of a few widths, and a bench and a mat to sit and
+## lie on (her soft parts squash on what holds her up, eco_model.gd _support_y). A console by the door steps
 ## the "Press into things" setting (Prefs press_strength) so the same walls can
 ## be tried hard, normal or soft.
 
@@ -38,6 +39,7 @@ static func build(root: Node3D, info: Dictionary) -> void:
 	_walls(root)
 	_shapes(root)
 	_gaps(root, info)
+	_rests(root, info)
 	K.light(root, LAB + Vector3(-5, 3.4, 0), Color(1.0, 0.95, 0.9), 1.2, 12.0)
 	K.light(root, LAB + Vector3(5, 3.4, 0), Color(0.9, 0.95, 1.0), 1.2, 12.0)
 	# the hatch in the nave, and the door back up
@@ -112,6 +114,35 @@ static func _gaps(root: Node3D, info: Dictionary) -> void:
 			b.add_to_group("squeeze_gap")
 		_label(root, c + Vector3(0, 2.4, 0.7), "Gap %d cm" % roundi(w * 100), 0.0)
 		info["lab_gaps"].append({"centre": c, "width": w})
+
+
+## A hard bench to sit or lie along, and a low mat to lie on: back, face down or side.
+static func _rests(root: Node3D, info: Dictionary) -> void:
+	var bench := LAB + Vector3(-6.5, 0, 3.4)
+	_box(root, bench + Vector3(0, 0.225, 0), Vector3(1.9, 0.45, 0.5), Color(0.5, 0.45, 0.4))
+	_label(root, bench + Vector3(0, 1.6, 0), "Bench", 0.0)
+	K.interactable(info, "lab_bench", bench + Vector3(0, 0, 0.7), "[F] Sit on the bench", ["A hard bench."], 1.4)
+	info["interactables"].back()["rest"] = {
+		"pose": "sit", "at": Transform3D(Basis(Vector3.UP, PI), bench + Vector3(0, 0, 0.12)), "seat": 0.45, "label": "Sit up",
+		"more": [
+			{"pose": "back", "at": Transform3D(Basis(Vector3.UP, PI / 2.0), bench + Vector3(0.25, 0, 0)), "label": "Lie on your back"},
+			{"pose": "prone", "at": Transform3D(Basis(Vector3.UP, -PI / 2.0), bench + Vector3(0.25, 0, 0)), "label": "Lie face down"},
+		],
+	}
+	var mat := LAB + Vector3(-3.5, 0, 3.4)
+	var pad := _box(root, mat + Vector3(0, 0.2, 0), Vector3(2.1, 0.4, 1.0), Color(0.2, 0.3, 0.45))
+	pad.set_meta("softness", 0.6)
+	_label(root, mat + Vector3(0, 1.6, 0), "Mat", 0.0)
+	K.interactable(info, "lab_mat", mat + Vector3(0, 0, 0.9), "[F] Lie on the mat", ["A gym mat."], 1.4)
+	info["interactables"].back()["rest"] = {
+		"pose": "back", "at": Transform3D(Basis(Vector3.UP, PI / 2.0), mat + Vector3(0.2, 0, 0)), "seat": 0.4, "label": "Lie on your back",
+		"more": [
+			{"pose": "prone", "at": Transform3D(Basis(Vector3.UP, -PI / 2.0), mat + Vector3(0.2, 0, 0)), "label": "Lie face down"},
+			{"pose": "sleep", "at": Transform3D(Basis(), mat + Vector3(0.2, 0, 0)), "label": "Curl up on your side"},
+		],
+		"bed": false,
+	}
+	info["lab_rests"] = {"bench": bench, "mat": mat}
 
 
 static func _box(root: Node3D, c: Vector3, size: Vector3, color: Color) -> StaticBody3D:

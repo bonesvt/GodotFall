@@ -326,6 +326,11 @@ var _plated := false
 var _flesh_swapped := {}
 ## _collide's query (her own bodies excluded) and a ball per touch radius.
 var _touch_query: PhysicsShapeQueryParameters3D
+## World height of the seat or bed she is resting on (NAN when she isn't): her
+## soft parts can't sink below it, so they flatten and spread on it instead.
+var _support_y := NAN
+## How far above the support a part's centre rests, as a share of its touch radius.
+const SUPPORT_REST := 1.0
 var _touch_shapes := {}
 
 
@@ -598,6 +603,11 @@ func _rest_layer(delta: float) -> void:
 		return
 	_rest.seat_height = rest_seat_height
 	_rest.step(delta, rest_pose)
+	# what she sits or lies on: her soft parts rest on it and squash (_collide)
+	if rest_pose != "" and _rest.weight > 0.3 and is_inside_tree():
+		_support_y = (global_transform * Vector3(0, rest_seat_height, 0)).y
+	else:
+		_support_y = NAN
 	_set_asleep(_rest.pose == "sleep" and _rest.weight > 0.6 and rest_pose == "sleep")
 
 
@@ -957,6 +967,8 @@ func _collide(s: Dictionary, tip: Vector3) -> Vector3:
 	var r: float = s.get("touch", 0.0)
 	if not jiggle_collide or r <= 0.0 or not is_inside_tree():
 		return tip
+	if not is_nan(_support_y):
+		tip.y = maxf(tip.y, _support_y + r * SUPPORT_REST)
 	var space := skeleton.get_world_3d().direct_space_state
 	if space == null:
 		return tip

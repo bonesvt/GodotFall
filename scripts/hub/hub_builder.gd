@@ -454,8 +454,15 @@ static func _bedroom(root: Node3D, info: Dictionary) -> void:
 		"My own room, up where nobody can see me cry. Not that I do. Much.",
 		"Took me a week to build the frame. Worth it. The floor was cold.",
 	], 2.5)
-	# she curls up on her side on the quilt, head on the pillow, back to the wall
-	info["interactables"].back()["rest"] = {"pose": "sleep", "at": Transform3D(Basis(), c + Vector3(-0.25, 0, 0.2)), "seat": 0.6}
+	# she curls up on her side on the quilt, head on the pillow, back to the wall;
+	# F rolls her onto her back, then face down into the pillow, then back again
+	info["interactables"].back()["rest"] = {
+		"pose": "sleep", "at": Transform3D(Basis(), c + Vector3(-0.25, 0, 0.2)), "seat": 0.6, "bed": true, "label": "Curl up on your side",
+		"more": [
+			{"pose": "back", "at": Transform3D(Basis(Vector3.UP, -PI / 2.0), c + Vector3(-0.3, 0, 0)), "label": "Lie on your back"},
+			{"pose": "prone", "at": Transform3D(Basis(Vector3.UP, PI / 2.0), c + Vector3(-0.3, 0, 0)), "label": "Lie face down"},
+		],
+	}
 	# A desk against the wall: tools, a lamp, a titan model she's building,
 	# drawings pinned above it and the refusal letter in the middle of them.
 	var d := Vector3(-HALF + 0.45, y, -16.0)
