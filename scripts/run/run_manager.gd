@@ -70,6 +70,7 @@ const HushDen := preload("res://scripts/hub/hush_den.gd")
 const DrunkScreen := preload("res://scripts/ui/drunk_screen.gd")
 const Soundscape := preload("res://scripts/soundscape.gd")
 const SFX := preload("res://scripts/sfx.gd")
+const Weather := preload("res://scripts/game/weather.gd")
 
 const FALL_DAMAGE := 25
 ## Integrity lost when grunts take the pilot's health to zero.
@@ -98,6 +99,8 @@ const TELEPORT_LINES := {
 	"cellar_stairs": "Up into the street. The air tastes clean.",
 	"her_room": "Key, lock, in. She shuts it behind her and checks the weld.",
 	"her_room_door": "Back out into his basement.",
+	"physics_lab": "Down the ladder to the lab. Time to see what gives.",
+	"physics_lab_exit": "Back up into the temple.",
 }
 ## Ophelia notices Eco slipping away while Marrow's Hold is deep (vices.gd).
 const OPHELIA_NOTICES := [
@@ -170,9 +173,11 @@ var family_scene: FamilyScene
 ## The parts your last run ended with; the hub's practice titan is built from them.
 var last_parts := {}
 ## The hub spot Eco is sitting or lying down at ({} = she's on her feet), and
-## the rest pose she's in there (spot["rest"] or its "alt").
+## the rest pose she's in there (spot["rest"], its "alt" or one of its "more").
 var rest_spot := {}
 var rest_pose := ""
+## Which of the spot's poses she is in (rest_options).
+var rest_index := 0
 ## The practice titan in the hub's titan yard, and whether you're in it.
 var hub_titan: Titan
 var hub_piloting := false
@@ -366,6 +371,7 @@ func enter_hub() -> void:
 	course_time = -1.0
 	_fresh_level("Hub")
 	zone_info = HubBuilder.build(zone_root)
+	Weather.wind = Vector3.ZERO  # still air in the temple (the lab's fan aside)
 	_hide_unrescued(zone_info)
 	hub_npcs = {}
 	for spec in zone_info.get("npcs", []):
@@ -444,6 +450,7 @@ func load_zone(index: int) -> void:
 		evac_open = false
 		hud.toast("THE FOREST'S EDGE: TITANFALL STANDING BY")
 	Soundscape.battle(zone_root, str(zone_root.get_meta("biome", "")))
+	Weather.wind = zone_info.get("wind", Weather.for_biome(str(zone_root.get_meta("biome", run.level))))
 	Wardrobe.dress_eco(player, false)
 	place_player(zone_info["spawn"])
 	player.second_wind_ready = player.second_wind  # Eco's suit: once per zone
@@ -451,6 +458,20 @@ func load_zone(index: int) -> void:
 		tutorial.start_level(run.level)
 	else:
 		tutorial.start_level("zone%d" % index if index < run.zone_count else "arena")
+
+
+## The physics lab's console: steps the Press into things setting round
+## Off, 50%, 100%, 150%, 200%.
+func _step_press_strength() -> void:
+	var steps := [0.0, 0.5, 1.0, 1.5, 2.0]
+	var now := Prefs.press_strength()
+	var next: float = steps[0]
+	for v: float in steps:
+		if v > now + 0.01:
+			next = v
+			break
+	Prefs.set_press_strength(next)
+	hud.toast("Press into things: %s" % ("Off" if next < 0.05 else "%d%%" % roundi(next * 100)), 2.0)
 
 
 func place_player(pos: Vector3) -> void:
@@ -559,7 +580,17 @@ func _hub_tick(delta: float) -> void:
 	if vice_shop:
 		open_bench(spot["shop"])
 		return
-	if spot.has("teleport") and Vices.allowed():
+	if spot.get("lab_blast", false):
+		# the lab's blast button: a charge goes off down the room, its shock reaching her
+		var at: Vector3 = spot["blast_at"]
+		load("res://scripts/fx.gd").blast(player.get_parent(), at, Color(1.0, 0.55, 0.2), 2.0, 0.4)
+		hud.toast(spot["lines"][0], 1.5)
+		SFX.play_at(self, at, "explosion_small", -4.0)
+		return
+	if spot.get("press_console", false):
+		_step_press_strength()
+		return
+	if spot.has("teleport") and (spot.get("open", false) or Vices.allowed()):
 		place_player(spot["teleport"])
 		hud.toast(TELEPORT_LINES.get(spot["id"], ""), 2.5)
 		return
@@ -597,14 +628,17 @@ func _hub_sound(spot: Dictionary) -> void:
 
 ## Eco sits or lies down at a hub spot with a "rest" entry ({pose, at, seat,
 ## alt}: hub_builder.gd): the view goes to third person while she rests, and
-## you can look around her. F at a spot with an "alt" pose moves her between
-## the two (sit up, stretch out); F anywhere else, jump or a move key gets her up.
-func rest_at(spot: Dictionary, alt := false) -> void:
+## you can look around her. F at a spot with an "alt" pose (or a "more" list)
+## steps her through them (sit up, stretch out, roll over); F anywhere else,
+## jump or a move key gets her up.
+func rest_at(spot: Dictionary, index := 0) -> void:
 	var eco_body := player.get_node_or_null("EcoBody")
 	if eco_body == null or not eco_body.has_method("rest"):
 		return
 	var rest: Dictionary = spot["rest"]
-	var pose: Dictionary = rest["alt"] if alt else rest
+	var options := rest_options(rest)
+	rest_index = index % options.size()
+	var pose: Dictionary = options[rest_index]
 	if rest_spot.is_empty():
 		player.resting = true
 		_set_rest_view(true)
@@ -616,7 +650,17 @@ func rest_at(spot: Dictionary, alt := false) -> void:
 		player.head.rotation.x = deg_to_rad(-22.0)
 	rest_spot = spot
 	rest_pose = pose["pose"]
-	eco_body.rest(rest_pose, pose["at"], float(rest.get("seat", 0.5)))
+	eco_body.rest(rest_pose, pose["at"], float(rest.get("seat", 0.5)), rest.get("bed", rest_pose == "sleep"))
+
+
+## A rest spot's poses in the order F steps through them: its own, its "alt",
+## then any "more" ({pose, at, label}).
+static func rest_options(rest: Dictionary) -> Array:
+	var out: Array = [rest]
+	if rest.has("alt"):
+		out.append(rest["alt"])
+	out.append_array(rest.get("more", []))
+	return out
 
 
 ## Gets Eco back on her feet; the player is free once she's up (_rest_tick).
@@ -639,9 +683,8 @@ func _rest_tick() -> void:
 	if moving or Input.is_action_just_pressed("jump"):
 		get_up()
 	elif Input.is_action_just_pressed("interact"):
-		var rest: Dictionary = rest_spot["rest"]
-		if rest.has("alt"):
-			rest_at(rest_spot, rest_pose == rest["pose"])
+		if rest_options(rest_spot["rest"]).size() > 1:
+			rest_at(rest_spot, rest_index + 1)
 		else:
 			get_up()
 
@@ -662,9 +705,10 @@ func _set_rest_view(on: bool) -> void:
 func _rest_prompt() -> String:
 	if rest_pose == "":
 		return ""
-	var rest: Dictionary = rest_spot["rest"]
-	if rest.has("alt"):
-		var other := "Stretch out" if rest_pose == rest["pose"] else "Sit up"
+	var options := rest_options(rest_spot["rest"])
+	if options.size() > 1:
+		var next := (rest_index + 1) % options.size()
+		var other: String = options[next].get("label", "Sit up" if next == 0 else "Stretch out")
 		return "[F] %s    [Space] Get up" % other
 	return "[F] Get up"
 
@@ -1670,6 +1714,8 @@ func _prompt() -> String:
 				return ""
 			if not rest_spot.is_empty():
 				return _rest_prompt()
+			if player.stuck:
+				return "Stuck! Mash [Space] to wriggle through"
 			if course_armed:
 				return "Leave the pad to start the clock"
 			var spot := nearest_hub_spot()

@@ -4,7 +4,10 @@ extends RefCounted
 ## - "sleep": curled up on her side, hands tucked under her chin, slow breathing;
 ## - "sit": sitting up on a seat, hands on her thighs, feet on the floor;
 ## - "lounge": stretched out along a couch, propped up on one end, one arm
-##   behind her head, a knee up.
+##   behind her head, a knee up;
+## - "back": flat on her back, arms loose at her sides, one knee bent;
+## - "prone": face down, arms folded up under the pillow, cheek on them, one
+##   foot lifted.
 ## Each pose is authored like tools/eco/build_eco_vroid.py authors her
 ## animations: turns about skeleton-space axes through each joint (she faces -Z,
 ## her right is +X), parents first. A pose that lies her down is posed upright
@@ -26,7 +29,7 @@ const BONES := {
 	"upperarm.R": "J_Bip_R_UpperArm", "forearm.R": "J_Bip_R_LowerArm", "hand.R": "J_Bip_R_Hand",
 	"upperarm.L": "J_Bip_L_UpperArm", "forearm.L": "J_Bip_L_LowerArm", "hand.L": "J_Bip_L_Hand",
 }
-const POSES := ["sleep", "sit", "lounge"]
+const POSES := ["sleep", "sit", "lounge", "back", "prone"]
 ## Her leg (metres): hip joint to knee, knee to ankle, ankle above the sole.
 const THIGH := 0.383
 const SHIN := 0.451
@@ -250,3 +253,39 @@ func _sleep() -> Dictionary:
 		["hips", BACK, 84.0],
 	])
 	return {"turns": turns, "hips": Vector3(0.0, seat_height + 0.17, 0.0)}
+
+
+func _back() -> Dictionary:
+	var b := _breath(4.6)
+	var turns := [
+		["spine", R, -2.0], ["chest", R, -1.5 * b], ["neck", R, -6.0], ["head", R, -4.0], ["head", U, 14.0],
+	]
+	turns.append_array(_arms_down())
+	turns.append_array([
+		# arms loose at her sides, a little out, palms down
+		["upperarm.R", F, -12.0], ["upperarm.L", F, 12.0], ["forearm.R", R, 8.0], ["forearm.L", R, 8.0],
+		# right knee bent up a little, toes pointed
+		["thigh.R", R, 28.0], ["shin.R", R, -52.0], ["thigh.L", R, 3.0], ["shin.L", R, -4.0],
+		["foot.R", R, -20.0], ["foot.L", R, -40.0],
+		# tip her onto her back
+		["hips", R, 90.0],
+	])
+	return {"turns": turns, "hips": Vector3(0.0, seat_height + 0.105, 0.0)}
+
+
+func _prone() -> Dictionary:
+	var b := _breath(4.8)
+	var turns := [
+		# head turned onto her right cheek
+		["spine", R, 2.0 * b], ["neck", R, -8.0], ["head", U, -72.0],
+		# arms up past her head (from the T-pose), forearms folded in under the pillow
+		["upperarm.R", F, -58.0], ["upperarm.L", F, 58.0],
+		["upperarm.R", R, -20.0], ["upperarm.L", R, -20.0],
+		["forearm.R", F, -95.0], ["forearm.L", F, 95.0],
+		# legs out straight, her left foot lifted off the bed, toes pointed
+		["thigh.L", R, -4.0], ["shin.L", R, -55.0], ["thigh.R", U, -4.0],
+		["foot.R", R, -60.0], ["foot.L", R, -45.0],
+		# tip her face down
+		["hips", R, -90.0],
+	]
+	return {"turns": turns, "hips": Vector3(0.0, seat_height + 0.115, 0.0)}

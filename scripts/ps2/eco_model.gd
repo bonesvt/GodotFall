@@ -54,6 +54,14 @@ var stride_reverse := false
 ## Her chest and glutes flatten against what presses them and bulge out to
 ## the sides (up to "squish" of their size) instead of only swinging away.
 @export var jiggle_squish := true
+## Scales how much they squash (the Press into things setting sets it with
+## contact_give: follow_jiggle_setting).
+@export_range(0.0, 2.0) var squish_scale := 1.0
+## Her clothes ride her soft parts' swing and squash (eco_cling.gd), so a
+## bouncing glute moves the skirt over it instead of poking through.
+@export var cloth_cling := true
+## Clothing meshes put on the soft weights (for tests).
+var clung := 0
 ## Off duty (the hub and town), standing still with her back to a wall she
 ## eases back and leans on it: her capsule otherwise keeps walls some 27 cm
 ## off her, so this is where walls really press her soft parts.
@@ -263,6 +271,7 @@ const Prefs := preload("res://scripts/game/prefs.gd")
 const Hair := preload("res://scripts/hub/hair.gd")
 const Extras := preload("res://scripts/hub/eco_extras.gd")
 const EcoFlesh := preload("res://scripts/ps2/eco_flesh.gd")
+const EcoCling := preload("res://scripts/ps2/eco_cling.gd")
 ## Her face while she sleeps (blend shape -> weight); the import's fierce look
 ## comes back when she wakes.
 const ASLEEP_FACE := {"Fcl_EYE_Close": 1.0, "Fcl_EYE_Angry": 0.0, "Fcl_BRW_Angry": 0.25, "Fcl_MTH_Down": 0.0}
@@ -323,6 +332,11 @@ var _plated := false
 var _flesh_swapped := {}
 ## _collide's query (her own bodies excluded) and a ball per touch radius.
 var _touch_query: PhysicsShapeQueryParameters3D
+## World height of the seat or bed she is resting on (NAN when she isn't): her
+## soft parts can't sink below it, so they flatten and spread on it instead.
+var _support_y := NAN
+## How far above the support a part's centre rests, as a share of its touch radius.
+const SUPPORT_REST := 1.0
 var _touch_shapes := {}
 
 
@@ -350,12 +364,17 @@ func _ready() -> void:
 		_apply_jiggle_style()
 		_link_touches()
 		_last_origin = skeleton.global_position
+		if _body != null and _body.has_signal("damaged"):
+			_body.damaged.connect(_on_damaged)
+		add_to_group("eco_jolt")
 		for bone_name: String in STRUT_BONES:
 			_bones[bone_name] = skeleton.find_bone(STRUT_BONES[bone_name])
 		_bones["hips_at"] = _bones["hips"]
 		_rest = EcoRest.new(skeleton)
 		if not _rest.usable():
 			_rest = null
+	if cloth_cling and springs_enabled and skeleton != null:
+		_cling()
 	if not _style_chosen:
 		follow_jiggle_setting()
 	elif body_jiggle:
@@ -501,6 +520,8 @@ func pick_animation() -> Array:
 				return ["run", maxf(speed / run_speed, 0.8)]
 		if _body.get("crouching"):
 			return ["crouch", 1.0]
+		if _body.get("sidling") == true:
+			return ["idle", 1.0]  # side-on in a gap: _sidle shuffles her feet
 	elif not _body.is_on_floor():
 		return ["fall", 1.0]
 	if speed > run_threshold:
@@ -526,6 +547,9 @@ func _process(delta: float) -> void:
 		_strut(delta)
 		_run_moves(delta)
 		_wall_lean(delta)
+		_brace_layer(delta)
+		_wriggle(delta)
+		_sidle(delta)
 		_rest_layer(delta)
 	if springs_enabled and skeleton != null:
 		_footfalls(delta)
@@ -570,7 +594,8 @@ func _animate() -> void:
 		elif anim_name == "idle" and _anim.current_animation == "run":
 			blend = anim_blend * 2.0
 		_anim.play(anim_name, blend)
-	_anim.speed_scale = -pick[1] if stride_reverse and anim_name in ["walk", "run"] else pick[1]
+	var reverse: bool = stride_reverse or (_body != null and _body.get("backpedalling") == true)
+	_anim.speed_scale = -pick[1] if reverse and anim_name in ["walk", "run"] else pick[1]
 
 
 ## Whether she is in (or settling into) a rest pose.
@@ -594,6 +619,11 @@ func _rest_layer(delta: float) -> void:
 		return
 	_rest.seat_height = rest_seat_height
 	_rest.step(delta, rest_pose)
+	# what she sits or lies on: her soft parts rest on it and squash (_collide)
+	if rest_pose != "" and _rest.weight > 0.3 and is_inside_tree():
+		_support_y = (global_transform * Vector3(0, rest_seat_height, 0)).y
+	else:
+		_support_y = NAN
 	_set_asleep(_rest.pose == "sleep" and _rest.weight > 0.6 and rest_pose == "sleep")
 
 
@@ -800,6 +830,94 @@ func footfall(side: String, impact: float) -> void:
 		s["tip"] += down * amount * impact * jiggle
 
 
+## Wind and water. Wind (world m/s) is Weather.wind plus any "wind_zone" she
+## stands in (a box: meta "half" Vector3, "wind" Vector3, like the lab's fan),
+## gusting; it streams her hair and ripples her chest and glutes. Water: in
+## any "water" sheet (laid_out.gd water, meta "half" Vector2) her parts below
+## its surface float up and move slowly.
+const WIND_PUSH := {"hair": 0.0011, "bust": 0.00018, "glute": 0.00012}
+const WATER_LIFT := {"hair": 0.004, "bust": 0.0024, "glute": 0.0016}
+const WATER_DRAG := 0.55
+const Weather := preload("res://scripts/game/weather.gd")
+var _wind := Vector3.ZERO
+var _water_y := -INF
+var _weather_t := 0.0
+
+
+func _weather(delta: float) -> void:
+	_weather_t += delta
+	var at := global_position
+	var wind: Vector3 = Weather.wind
+	_water_y = -INF
+	if is_inside_tree():
+		for z: Node3D in get_tree().get_nodes_in_group("wind_zone"):
+			var half: Vector3 = z.get_meta("half", Vector3.ZERO)
+			var local := z.global_transform.affine_inverse() * (at + Vector3.UP)
+			if absf(local.x) <= half.x and absf(local.y) <= half.y and absf(local.z) <= half.z:
+				wind += z.global_basis * (z.get_meta("wind", Vector3.ZERO) as Vector3)
+		for w: Node3D in get_tree().get_nodes_in_group("water"):
+			var half: Vector2 = w.get_meta("half", Vector2.ZERO)
+			var local := w.global_transform.affine_inverse() * at
+			if absf(local.x) <= half.x and absf(local.z) <= half.y and at.y < w.global_position.y + 0.05:
+				_water_y = maxf(_water_y, w.global_position.y)
+	# gusts: two slow beats that don't line up
+	var gust := 1.0 + 0.45 * sin(_weather_t * 1.3) * sin(_weather_t * 0.37 + 1.0) + 0.15 * sin(_weather_t * 4.1)
+	_wind = wind * gust
+
+
+## A swinging spring's next tip, pushed by the wind and, under water, floated
+## up and slowed.
+func _in_weather(s: Dictionary, tip: Vector3, next: Vector3, steps: float) -> Vector3:
+	var group: String = s["base"].get("group", "")
+	if _wind != Vector3.ZERO:
+		next += _wind * float(WIND_PUSH.get(group, 0.0)) * steps
+	if next.y < _water_y:
+		next = tip + (next - tip) * WATER_DRAG
+		next += Vector3.UP * float(WATER_LIFT.get(group, 0.0)) * steps
+	return next
+
+
+## A jolt through her whole body (a hit, a blast's shock wave): every soft
+## part is flung along `dir` (world space, its length the strength, about 1
+## for a solid hit), then springs back and wobbles. Flesh moves a little less,
+## the chest and glutes most.
+func jolt(dir: Vector3) -> void:
+	if dir.length() < 0.001:
+		return
+	for s in _springs:
+		if not s["ready"]:
+			continue
+		var group: String = s["base"].get("group", "")
+		var amount: float = 0.012 if s.has("reach") else JOLT.get(group, 0.008)
+		# moving `prev` back gives the tip that much speed this step
+		s["prev"] -= dir * amount * jiggle
+	jolts += 1
+
+
+## How far a jolt of strength 1 flings each group's tips in one step (m).
+const JOLT := {"bust": 0.02, "glute": 0.022, "hair": 0.03}
+## Jolts taken (for tests).
+var jolts := 0
+
+
+## Hit: the jolt pushes away from where it came from (straight back if unknown).
+func _on_damaged(amount: float, from: Vector3) -> void:
+	var push := global_position - from if from != Vector3.ZERO else global_basis.z
+	push.y = 0.0
+	jolt(push.normalized() * clampf(amount / 25.0, 0.4, 1.6))
+
+
+## A blast at `pos` reaching `radius`: within four radii its shock jolts her,
+## harder the nearer it is (fx.gd blast calls this on everyone in "eco_jolt").
+func blast_at(pos: Vector3, radius: float) -> void:
+	var away := global_position + Vector3.UP * 1.0 - pos
+	var reach := radius * 4.0
+	var d := away.length()
+	if d > reach or d < 0.001:
+		return
+	jolt(away / d * 1.8 * pow(1.0 - d / reach, 1.5))
+
+
 ## Rotates a bone about a skeleton-space axis through its joint, on top of its
 ## current pose (like tools/eco/build_eco_vroid.py turn()).
 func _turn(bone: String, axis: Vector3, deg: float) -> void:
@@ -835,6 +953,127 @@ func _wall_lean(delta: float) -> void:
 	_turn("hips", Vector3.RIGHT, tilt)
 	_turn("thigh.L", Vector3.RIGHT, -tilt)  # feet stay flat under her
 	_turn("thigh.R", Vector3.RIGHT, -tilt)
+
+
+## Bracing (player.gd brace): held at full press into something in front of
+## her, she gets both hands up flat on it, elbows down, and turns her cheek
+## aside; into something at her side, the near hand goes up on it and she
+## looks away from it. Arm turns are from her T-pose (right arm; the left
+## mirrors), found to put her palms on a wall at her core distance.
+const BRACE_FRONT := {"upperarm": [[Vector3.FORWARD, 35.0], [Vector3.UP, -25.0]], "forearm": [[Vector3.UP, 125.0], [Vector3.RIGHT, 90.0]]}
+const BRACE_SIDE := {"upperarm": [[Vector3.FORWARD, 20.0], [Vector3.UP, 85.0]], "forearm": [[Vector3.UP, 10.0], [Vector3.RIGHT, 90.0]]}
+var _brace := 0.0
+## Toward what she braces on, in her own space (-Z ahead, +X her right).
+var _brace_dir := Vector3.FORWARD
+
+
+func _brace_layer(delta: float) -> void:
+	if skeleton == null or _bones.is_empty() or _body == null:
+		return
+	var want := 0.0
+	if strolling() and not resting() and _body.get("brace") != null:
+		want = float(_body.get("brace"))
+		var n: Vector3 = _body.get("press_normal")
+		if want > 0.0 and n != Vector3.ZERO:
+			_brace_dir = global_basis.orthonormalized().inverse() * -n
+			if _brace_dir.z > 0.4:
+				want = 0.0  # behind her: that's a lean, not a brace
+	_brace = move_toward(_brace, want, delta * (4.0 if want > _brace else 2.5))
+	if _brace < 0.001:
+		return
+	var w := smoothstep(0.0, 1.0, _brace)
+	var front := _brace_dir.z < -0.4 or absf(_brace_dir.x) < 0.6
+	for side: String in ["R", "L"]:
+		var near: bool = (_brace_dir.x > 0.0) == (side == "R")
+		if front:
+			_reach(side, BRACE_FRONT, w)
+		elif near:
+			_reach(side, BRACE_SIDE, w)
+	if front:
+		_turn("head", Vector3.UP, 45.0 * w)
+		_turn("spine", Vector3.RIGHT, -4.0 * w)
+	else:
+		_turn("head", Vector3.UP, (20.0 if _brace_dir.x > 0.0 else -20.0) * w)
+
+
+## Wriggling through a tight gap (player.gd squeeze): her hips and shoulders
+## twist against each other in quick shimmies, and her soft parts give more
+## (contact_give, squish_scale) while she does.
+var _squeeze := 0.0
+var _wriggle_time := 0.0
+
+
+func _wriggle(delta: float) -> void:
+	_squeeze = float(_body.get("squeeze")) if _body != null and strolling() and _body.get("squeeze") != null else 0.0
+	if _squeeze < 0.001:
+		_wriggle_time = 0.0
+		return
+	_wriggle_time += delta
+	var shimmy := sin(_wriggle_time * TAU * 2.6) * _squeeze
+	_turn("hips", Vector3.UP, 9.0 * shimmy)
+	_turn("chest", Vector3.UP, -7.0 * shimmy)
+	_turn("hips", Vector3.BACK, 3.0 * shimmy)
+	_turn("head", Vector3.UP, 4.0 * shimmy)
+
+
+## Side-on in a gap (player.gd sidling): she shuffles sideways, the leading
+## foot stepping out and the other closing up to it, her hips swaying over
+## them, her arms tucked in to her sides.
+var _sidle_w := 0.0
+var _sidle_phase := 0.0
+
+
+func _sidle(delta: float) -> void:
+	var on: bool = _body != null and strolling() and _body.get("sidling") == true and not resting()
+	_sidle_w = move_toward(_sidle_w, 1.0 if on else 0.0, delta * 4.0)
+	if _sidle_w < 0.001:
+		_sidle_phase = 0.0
+		return
+	# how fast she's moving to her own right (+) or left (-)
+	var right := global_basis.x.normalized()
+	var lateral: float = Vector3(_body.velocity.x, 0, _body.velocity.z).dot(right)
+	_sidle_phase = fmod(_sidle_phase + absf(lateral) * delta / SIDLE_STEP * TAU, TAU)
+	var lead := "R" if lateral >= 0.0 else "L"
+	var trail := "L" if lead == "R" else "R"
+	var out := 1.0 if lead == "R" else -1.0
+	var moving := clampf(absf(lateral) / 0.15, 0.0, 1.0) * _sidle_w
+	var step := sin(_sidle_phase)
+	# first half the lead foot reaches out, second half the trailing one follows in
+	_turn("thigh." + lead, Vector3.FORWARD, -out * 12.0 * maxf(step, 0.0) * moving)
+	_turn("thigh." + trail, Vector3.FORWARD, -out * 9.0 * maxf(-step, 0.0) * moving)
+	_offset_hips(Vector3.RIGHT * out * 0.015 * sin(_sidle_phase - 0.6) * moving)
+	_turn("hips", Vector3.BACK, out * 2.5 * step * moving)
+	# arms in close, hands in front of her hips, out of the walls' way
+	_turn("upperarm.R", Vector3.BACK, -8.0 * _sidle_w)
+	_turn("upperarm.L", Vector3.BACK, 8.0 * _sidle_w)
+	_turn("forearm.R", Vector3.RIGHT, 25.0 * _sidle_w)
+	_turn("forearm.L", Vector3.RIGHT, 25.0 * _sidle_w)
+
+
+## Metres of sideways shuffle per step (one foot out and the other in).
+const SIDLE_STEP := 0.35
+
+
+## Turns one arm (`side` "R" or "L") `w` of the way from its pose now to `spec`
+## (turns from her T-pose, given for the right arm).
+func _reach(side: String, spec: Dictionary, w: float) -> void:
+	var mirror := -1.0 if side == "L" else 1.0
+	for part: String in ["upperarm", "forearm"]:
+		var key := part + "." + side
+		var i: int = _bones.get(key, -1)
+		if i < 0:
+			continue
+		var parent := skeleton.get_bone_parent(i)
+		var pb := skeleton.get_bone_global_pose(parent).basis.orthonormalized() if parent >= 0 else Basis()
+		var before := skeleton.get_bone_pose_rotation(i)
+		var q := skeleton.get_bone_rest(i).basis.get_rotation_quaternion()
+		for t: Array in spec[part]:
+			var axis: Vector3 = t[0]
+			var deg: float = t[1] * (mirror if axis != Vector3.RIGHT else 1.0)
+			q = (pb.inverse() * Basis(axis, deg_to_rad(deg)) * pb * Basis(q)).get_rotation_quaternion()
+		var turned := before.slerp(q, w)
+		skeleton.set_bone_pose_rotation(i, turned)
+		_strut_undo[key] = [_strut_undo[key][0] if _strut_undo.has(key) else before, turned]
 
 
 ## How far she'd ease back to settle into a wall behind her (0 = none in reach).
@@ -877,6 +1116,22 @@ func follow_jiggle_setting() -> void:
 	_style_chosen = false
 	add_to_group("eco_jiggle")
 	body_jiggle = Prefs.body_jiggle()
+	var press := Prefs.press_strength()
+	contact_give = 1.0 + press
+	squish_scale = minf(press, 1.5)
+
+
+## Puts her clothes on the skin's soft weights (eco_cling.gd), so they ride
+## her chest's and glutes' swing and squash. Before the full body jiggle's
+## reweighting, which builds on these.
+func _cling() -> void:
+	for node in skeleton.find_children("*", "MeshInstance3D", false, false):
+		var mi := node as MeshInstance3D
+		var swap := EcoCling.reweight(mi, skeleton)
+		if not swap.is_empty():
+			mi.skin = swap[1]
+			mi.mesh = swap[0]
+			clung += 1
 
 
 ## Turns the soft stomach, thigh, arm and calf springs on or off: on adds
@@ -950,6 +1205,8 @@ func _collide(s: Dictionary, tip: Vector3) -> Vector3:
 	var r: float = s.get("touch", 0.0)
 	if not jiggle_collide or r <= 0.0 or not is_inside_tree():
 		return tip
+	if not is_nan(_support_y):
+		tip.y = maxf(tip.y, _support_y + r * SUPPORT_REST)
 	var space := skeleton.get_world_3d().direct_space_state
 	if space == null:
 		return tip
@@ -1053,7 +1310,7 @@ func _give(s: Dictionary, limit: float, was: float, now: float, steps: float) ->
 	var room: float = s.get("room", limit)
 	room = move_toward(room, limit, limit * 0.06 * steps)
 	if now > was + 1e-5 or shoved.length() > 0.0005:
-		room = maxf(room, minf(now, limit * contact_give))
+		room = maxf(room, minf(now, limit * (contact_give + _squeeze)))
 	s["room"] = room
 	return maxf(limit, room)
 
@@ -1068,7 +1325,7 @@ func _squash(s: Dictionary, i: int, push: Vector3, deep: float, bone_basis: Basi
 		# up to "squish" as contact presses it to its limit, then up to half as
 		# much again as it's pushed on past it (eased, so it never stops dead)
 		var past := maxf(deep - 1.0, 0.0)
-		want = float(s["squish"]) * (clampf(deep, 0.0, 1.0) + 0.5 * tanh(past * 1.5))
+		want = minf(float(s["squish"]) * (squish_scale + 0.8 * _squeeze) * (clampf(deep, 0.0, 1.0) + 0.5 * tanh(past * 1.5)), 0.6)
 		# the bone axis the push is most along
 		var local := (bone_basis.orthonormalized().inverse() * (to_skel * push)).abs()
 		s["squash_axis"] = 0 if local.x >= local.y and local.x >= local.z else (1 if local.y >= local.z else 2)
@@ -1107,6 +1364,7 @@ func _step_springs(delta: float) -> void:
 	var steps := clampf(delta * 60.0, 0.25, 3.0)
 	var moved := to_world.origin - _last_origin
 	_last_origin = to_world.origin
+	_weather(delta)
 	for s in _springs:
 		var i: int = s["bone"]
 		var parent_pose := skeleton.get_bone_global_pose(s["parent"])
@@ -1164,6 +1422,8 @@ func _step_springs(delta: float) -> void:
 				next += (goal - tip) * minf(s["stiffness"] * sub, 1.0)
 				prev = tip
 				tip = next
+			if next.y < _water_y:
+				next = tip + (next - tip) * WATER_DRAG
 			if s.has("lateral"):
 				var across := to_world.basis.x.normalized()
 				next -= across * (next - target).dot(across) * (1.0 - float(s["lateral"]))
@@ -1183,6 +1443,7 @@ func _step_springs(delta: float) -> void:
 		var next: Vector3 = tip + (tip - prev) * (1.0 - s["drag"])
 		next += (target - tip) * minf(s["stiffness"] * steps, 1.0)
 		next += Vector3.DOWN * s["gravity"] * 0.01 * steps * length
+		next = _in_weather(s, tip, next, steps)
 		if s.has("lateral"):
 			# keep only part of the swing across her body
 			var side := to_world.basis.x.normalized()
@@ -1195,7 +1456,7 @@ func _step_springs(delta: float) -> void:
 		var dir: Vector3 = (next - origin).normalized()
 		var angle: float = dir.angle_to(rest_dir)
 		if s.has("squish"):
-			var deep := angle / maxf(normal_limit * contact_give, 1e-3)
+			var deep := angle / maxf(normal_limit * (contact_give + _squeeze), 1e-3)
 			# pushed past even the extra room: the part spreads instead of going through
 			var held := origin + rest_dir.slerp(dir, minf(limit / maxf(angle, 1e-5), 1.0)).normalized() * length
 			deep += (_collide(s, held) - held).length() / maxf(float(s.get("touch", 0.05)), 1e-3)

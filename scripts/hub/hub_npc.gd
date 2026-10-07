@@ -65,6 +65,14 @@ var _gesture_t := 0.0
 var _faces: Array = []   # [[MeshInstance3D, {face: [[blend index, weight], ...]}]]
 var _blush_mats: Array = []
 var _head: HeadPose
+## Their soft capsule (_add_body), when they were last bumped (_t), and how
+## far (world space) a bump has rocked them off their feet, easing back.
+var soft_body: AnimatableBody3D
+var _bumped_at := -10.0
+var _nudge := Vector3.ZERO
+## How wide and soft that capsule is.
+const BODY_RADIUS := 0.2
+const BODY_SOFTNESS := 0.4
 
 const FACES := {
 	"smile": [["Fcl_ALL_Fun", 0.45]],
@@ -117,12 +125,51 @@ func _ready() -> void:
 	if _anim != null and _anim.has_animation("idle"):
 		_anim.play("idle")
 		_anim.seek(randf() * 3.0, true)   # so they don't breathe in step
+	_add_body()
 	voice = AudioStreamPlayer3D.new()
 	voice.name = "Voice"
 	voice.position = Vector3(0, 1.6, 0)
 	voice.unit_size = 6.0
 	voice.bus = "Voices"
 	add_child(voice)
+
+
+## Something soft for Eco to brush past and press into rather than walk
+## through: a slim capsule about their middle, as soft as a padded wall
+## (player.gd soft_press reads "softness"), in group "npc_body".
+func _add_body() -> void:
+	soft_body = AnimatableBody3D.new()
+	soft_body.name = "Body"
+	soft_body.sync_to_physics = false
+	soft_body.set_meta("softness", BODY_SOFTNESS)
+	soft_body.add_to_group("npc_body")
+	var col := CollisionShape3D.new()
+	var cap := CapsuleShape3D.new()
+	cap.radius = BODY_RADIUS
+	cap.height = 1.6
+	col.shape = cap
+	col.position = Vector3(0, 0.8, 0)
+	soft_body.add_child(col)
+	add_child(soft_body)
+
+
+## Eco brushed or pressed into them (player.gd soft_press): they glance at
+## her, a little surprised, and give a touch of ground. Not more than every
+## couple of seconds.
+func bumped(from: Vector3) -> bool:
+	if _t - _bumped_at < 2.0:
+		return false
+	_bumped_at = _t
+	if not posed:
+		mood(["surprised", "tilt"])
+		var away := global_position - from
+		away.y = 0.0
+		if away.length() > 0.01:
+			_nudge = away.normalized() * 0.06
+	get_tree().create_timer(1.2).timeout.connect(func() -> void:
+		if is_instance_valid(self) and face == "surprised":
+			calm())
+	return true
 
 
 ## The import script (npc_import.gd) names each material npc_<who>_<part> and
@@ -341,6 +388,13 @@ func _process(delta: float) -> void:
 	for b in _blush_mats:
 		b.set_shader_parameter("amount", blush)
 	_gesture_t += delta
+	# a bump rocks them a few centimetres off their feet and back
+	var model := get_node_or_null("Model") as Node3D
+	if model != null and (_nudge != Vector3.ZERO or model.position != Vector3.ZERO):
+		model.position = model.position.lerp(global_basis.inverse() * _nudge, minf(1.0, delta * 12.0))
+		_nudge = _nudge.move_toward(Vector3.ZERO, delta * 0.15)
+		if _nudge == Vector3.ZERO and model.position.length() < 0.001:
+			model.position = Vector3.ZERO
 
 
 ## How the head sits for the gesture on now, as (yaw, pitch, roll) radians:
