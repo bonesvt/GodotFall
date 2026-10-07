@@ -153,8 +153,10 @@ Under the Mature rating (Settings > Game), **F** at the Rusted Halo on Low Row o
   (cellar door by the cinema). A dose (40 scrap, 1 circuit) carries her whole next run: harder
   hits, faster healing, grunts slower to notice her, all stronger the deeper his **Hold**.
   Each dose raises his Hold and costs her Ophelia's affection and Mom's bond. After a run on
-  Hush she comes to in his basement armchair instead of the temple, short 10 scrap; once his Hold
-  is 60 or more she ends up there after every run. Clean runs loosen it. **X** in his screen walks
+  Hush she comes to at his place instead of the temple: while his Hold is under 30 she makes it
+  to her own room off his basement (a store room she welded a lock onto; he can't get in) and wakes
+  up safe, deeper in she wakes in his armchair, short 10 scrap. Once his Hold is 60 or more she
+  ends up there after every run. Clean runs loosen it. **X** in his screen walks
   away for good while his Hold is under 60, or at any Hold if Ophelia or Mom is at 50 or more,
   which wins some of their love back. Marrow is a primitive placeholder figure for now.
 - Test: `godot --headless --path . -s res://tests/vices_test.gd`

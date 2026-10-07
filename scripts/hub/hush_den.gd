@@ -3,8 +3,11 @@ extends RefCounted
 ##   - the alley gap between the Glowbox Arcade and Eco's old flat on Low Row,
 ##     where Marrow sells Hush (F opens hush_screen.gd),
 ##   - a cellar door by the Holo-Cinema, down to his basement,
-##   - the basement itself, where Eco comes to in his armchair after a run on
-##     Hush (or when his Hold on her is deep enough), and the stairs back up.
+##   - the basement itself, where Eco comes to after a run on Hush (or when his
+##     Hold on her is deep enough), and the stairs back up,
+##   - her own room off it: a store room she welded a lock onto, that he can't
+##     get into. While his Hold is shallow (OWN_ROOM_BELOW) she makes it there
+##     and wakes up locked in, safe; deeper, she wakes in his armchair.
 ## The basement is a sealed room built under the town (BASEMENT), so it never
 ## shows from the street. Under Teen the alley is empty talk and the cellar
 ## door stays chained (the run manager checks the rating).
@@ -24,7 +27,28 @@ const ROOM := Vector3(7.0, 3.0, 7.0)
 const WAKE := BASEMENT + Vector3(-1.9, 0, 1.4)
 const STAIRS := BASEMENT + Vector3(2.4, 0, -2.6)
 const VIOLET := Color(0.7, 0.35, 1.0)
+## Her room: a separate sealed room (doors between them teleport), her cot,
+## and her steel door's two sides.
+const HER_ROOM := BASEMENT + Vector3(10.0, 0, 0)
+const HER_SIZE := Vector3(3.6, 2.6, 3.6)
+const HER_WAKE := HER_ROOM + Vector3(-0.9, 0, 0.6)
+const HER_DOOR_IN := BASEMENT + Vector3(-2.9, 0, -0.6)
+const HER_DOOR_OUT := HER_ROOM + Vector3(1.2, 0, -1.2)
+## Under this Hold she still makes it to her own room.
+const OWN_ROOM_BELOW := 30.0
 
+## Coming to in her own locked room (his Hold still shallow).
+const OWN_ROOM_LINES := [
+	"Eco wakes on her cot behind her own welded door. Lock's still shut. Nice work, Eco. You made it.",
+	"She comes to in her room off his basement, curled up with her wrench. He knocked twice in the night. She didn't answer.",
+	"Her room. Her lock. Her head's pounding, but nobody got in. She checks the weld anyway.",
+]
+## Coming to in his armchair, by how deep his Hold is (hooked, his).
+const DEEP_LINES := [
+	"Eco wakes in his armchair, not her room. She doesn't remember walking past her own door. Marrow does. He's smiling.",
+	"Marrow: \"You didn't even try for your little room this time. That's all right. This chair's yours now.\"",
+	"She comes to with her key in his hand. He gives it back slowly. \"You won't need it. But keep it, if it helps.\"",
+]
 ## What she comes to, in his chair. One per trance, in turn.
 const WAKE_LINES := [
 	"...Eco comes to in a sagging armchair. Violet light. Hours gone. Marrow is watching her from across the table.",
@@ -41,7 +65,58 @@ static func build(root: Node3D, info: Dictionary) -> void:
 	_alley(root, info)
 	_cellar(root, info)
 	_basement(root, info)
-	info["hush"] = {"wake": WAKE, "street": CELLAR + Vector3(-1.2, 0, 0)}
+	_her_room(root, info)
+	info["hush"] = {"wake": WAKE, "own_room": HER_WAKE, "street": CELLAR + Vector3(-1.2, 0, 0)}
+
+
+## Which room she comes to in and what she finds, for his Hold `hold` and her
+## `n`th trance: {pos, line, his} (his: she's in his armchair, he takes a tab).
+static func wake(hold: float, n: int) -> Dictionary:
+	if hold < OWN_ROOM_BELOW:
+		return {"pos": HER_WAKE, "line": OWN_ROOM_LINES[n % OWN_ROOM_LINES.size()], "his": false}
+	if hold >= 60.0:
+		return {"pos": WAKE, "line": DEEP_LINES[n % DEEP_LINES.size()], "his": true}
+	return {"pos": WAKE, "line": WAKE_LINES[n % WAKE_LINES.size()], "his": true}
+
+
+## Her room: walls she patched, a cot, her tools, Dad's photo, a warm lamp,
+## and the inside of the steel door she welded the lock onto.
+static func _her_room(root: Node3D, info: Dictionary) -> void:
+	var r := HER_ROOM
+	var hw := HER_SIZE.x * 0.5
+	var hd := HER_SIZE.z * 0.5
+	var wall := Color(0.55, 0.52, 0.48)
+	K.carved(root, r + Vector3(0, -0.25, 0), Vector3(HER_SIZE.x + 0.6, 0.5, HER_SIZE.z + 0.6), Vector3.ZERO, Color(0.5, 0.47, 0.44))
+	K.carved(root, r + Vector3(0, HER_SIZE.y + 0.25, 0), Vector3(HER_SIZE.x + 0.6, 0.5, HER_SIZE.z + 0.6), Vector3.ZERO, Color(0.4, 0.38, 0.36))
+	for side in [-1.0, 1.0]:
+		K.carved(root, r + Vector3(side * (hw + 0.15), HER_SIZE.y * 0.5, 0), Vector3(0.3, HER_SIZE.y, HER_SIZE.z), Vector3.ZERO, wall)
+		K.carved(root, r + Vector3(0, HER_SIZE.y * 0.5, side * (hd + 0.15)), Vector3(HER_SIZE.x, HER_SIZE.y, 0.3), Vector3.ZERO, wall)
+	# Cot with a blanket, a crate for a table, her toolbox, Dad's photo.
+	K.mesh(root, HER_WAKE + Vector3(-0.2, 0.25, 0.2), Vector3(0.9, 0.12, 1.9), Art.material("canvas", Color(0.45, 0.5, 0.4)))
+	K.mesh(root, HER_WAKE + Vector3(-0.2, 0.33, 0.45), Vector3(0.85, 0.06, 1.1), Art.material("fabric", Color(0.75, 0.4, 0.3)))
+	for x in [-0.6, 0.2]:
+		for z in [-0.7, 1.1]:
+			K.mesh(root, HER_WAKE + Vector3(x, 0.1, z), Vector3(0.05, 0.2, 0.05), Art.material("gunmetal"))
+	K.mesh(root, r + Vector3(0.9, 0.3, 1.1), Vector3(0.6, 0.6, 0.6), Art.material("wood", Color(0.6, 0.5, 0.38)))
+	K.mesh(root, r + Vector3(0.9, 0.75, 1.1), Vector3(0.18, 0.24, 0.03), Art.material("canvas", Color(0.85, 0.8, 0.7)))
+	K.mesh(root, r + Vector3(1.1, 0.15, 0.2), Vector3(0.5, 0.3, 0.25), Art.material("gunmetal", Color(0.8, 0.25, 0.2)))
+	K.light(root, r + Vector3(0.6, 1.6, 0.8), Color(1.0, 0.75, 0.5), 0.9, 4.5)
+	# The steel door from inside: a fat bead of weld round a padlock plate.
+	K.mesh(root, HER_DOOR_OUT + Vector3(0.45, 1.05, 0), Vector3(0.08, 2.1, 1.0), Art.material("gunmetal", Color(0.35, 0.36, 0.38)))
+	K.mesh(root, HER_DOOR_OUT + Vector3(0.4, 1.1, -0.3), Vector3(0.06, 0.3, 0.2), Art.material("alloy", Color(1.0, 0.8, 0.5)))
+	K.interactable(info, "her_room_door", HER_DOOR_OUT, "[F] Unlock your door", [
+		"Her door. She welded the lock on herself.",
+	], 1.8)
+	var spot: Dictionary = info["interactables"].back()
+	spot["teleport"] = HER_DOOR_IN + Vector3(0.9, 0, 0)
+	# Its outside, on the basement's west wall.
+	K.mesh(root, HER_DOOR_IN + Vector3(-0.4, 1.05, 0), Vector3(0.08, 2.1, 1.0), Art.material("gunmetal", Color(0.35, 0.36, 0.38)))
+	K.mesh(root, HER_DOOR_IN + Vector3(-0.35, 1.1, 0.3), Vector3(0.06, 0.3, 0.2), Art.material("alloy", Color(1.0, 0.8, 0.5)))
+	K.interactable(info, "her_room", HER_DOOR_IN, "[F] Your room", [
+		"A steel door with a lock she welded on herself. Only her key fits. He's tried.",
+	], 1.6)
+	spot = info["interactables"].back()
+	spot["teleport"] = HER_DOOR_OUT + Vector3(-0.9, 0, 0)
 
 
 static func _alley(root: Node3D, info: Dictionary) -> void:

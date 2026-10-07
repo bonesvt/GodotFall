@@ -13,6 +13,7 @@ const Armory := preload("res://scripts/hub/armory.gd")
 const ContentRating := preload("res://scripts/radio/content_rating.gd")
 const StimScreen := preload("res://scripts/hub/stim_screen.gd")
 const HushScreen := preload("res://scripts/hub/hush_screen.gd")
+const HushDen := preload("res://scripts/hub/hush_den.gd")
 const ARMORY_PATH := "user://test_vices_armory.cfg"
 const VICES_PATH := "user://test_vices.cfg"
 
@@ -268,6 +269,13 @@ func _hush() -> void:
 	den.free()
 	Vices.open(VICES_PATH)
 	_check("hold saved", Vices.hold == 0.0 and Vices.walked_away, [Vices.hold, Vices.walked_away])
+
+	var shallow := HushDen.wake(10.0, 0)
+	_check("shallow hold: wakes in her own locked room", shallow["pos"] == HushDen.HER_WAKE and not shallow["his"], shallow)
+	var mid := HushDen.wake(45.0, 0)
+	_check("hooked: wakes in his armchair", mid["pos"] == HushDen.WAKE and mid["his"] and mid["line"] in HushDen.WAKE_LINES, mid)
+	var deep := HushDen.wake(80.0, 1)
+	_check("his: deep lines", deep["his"] and deep["line"] in HushDen.DEEP_LINES, deep)
 
 	ContentRating.set_rating("T", false)
 	_check("teen: no Hush", not Vices.dose(talks) and Vices.hush() == 0.0, Vices.dosed)

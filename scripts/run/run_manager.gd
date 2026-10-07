@@ -82,6 +82,13 @@ const CONTROLS := "F salvage / embark    V call titan / core    Shift titan dash
 ## How long a line Eco says about something in the hub stays up.
 const HUB_LINE_SECONDS := 4.5
 ## Mom smells smoke on Eco when she gets home (vices.gd).
+## What she says going through Marrow's doors (hush_den.gd teleport spots).
+const TELEPORT_LINES := {
+	"cinema_cellar": "Down into the violet dark.",
+	"cellar_stairs": "Up into the street. The air tastes clean.",
+	"her_room": "Key, lock, in. She shuts it behind her and checks the weld.",
+	"her_room_door": "Back out into his basement.",
+}
 ## Ophelia notices Eco slipping away while Marrow's Hold is deep (vices.gd).
 const OPHELIA_NOTICES := [
 	"Ophelia: \"Where do you keep going? You come back and look straight through me.\"",
@@ -532,7 +539,7 @@ func _hub_tick(delta: float) -> void:
 		return
 	if spot.has("teleport") and Vices.allowed():
 		place_player(spot["teleport"])
-		hud.toast("Down into the violet dark." if spot["id"] == "cinema_cellar" else "Up into the street. The air tastes clean.", 2.5)
+		hud.toast(TELEPORT_LINES.get(spot["id"], ""), 2.5)
 		return
 	if spot["id"] == "garage":
 		open_garage()
@@ -1383,18 +1390,21 @@ func _vice_keys() -> void:
 			hud.toast("No stims on your belt. Sal's side hatch, in town.", 2.5)
 
 
-## After a run on Hush (or with his Hold deep): she comes to in Marrow's
-## basement armchair instead of at the temple, short his tab.
+## After a run on Hush (or with his Hold deep): she comes to at Marrow's
+## instead of at the temple: locked in her own room while his Hold is shallow,
+## in his armchair (short his tab) once it's deeper (hush_den.gd wake()).
 func _wake_at_marrows() -> void:
 	Vices.trance = false
 	Vices.save()
-	place_player(zone_info["hush"]["wake"])
-	var tab := mini(Vices.TAB, armory.amount("scrap"))
+	var w := HushDen.wake(Vices.hold, Vices.wakes)
+	Vices.wakes += 1
+	Vices.save()
+	place_player(w["pos"])
+	var tab := mini(Vices.TAB, armory.amount("scrap")) if w["his"] else 0
 	if tab > 0:
 		armory.stash["scrap"] = armory.amount("scrap") - tab
 		armory.save()
-	Vices.wakes += 1
-	hud.toast(HushDen.WAKE_LINES[(Vices.wakes - 1) % HushDen.WAKE_LINES.size()] + ("  (-%d scrap)" % tab if tab > 0 else ""), 6.0)
+	hud.toast(w["line"] + ("  (-%d scrap)" % tab if tab > 0 else ""), 6.0)
 
 
 ## A breath of smoke drifting up in front of the camera.
