@@ -62,6 +62,12 @@ const Prefs := preload("res://scripts/game/prefs.gd")
 const BattleDamage := preload("res://scripts/ps2/battle_damage.gd")
 const Saves := preload("res://scripts/game/saves.gd")
 const PauseMenu := preload("res://scripts/ui/pause_menu.gd")
+const Vices := preload("res://scripts/hub/vices.gd")
+const BarScreen := preload("res://scripts/hub/bar_screen.gd")
+const StimScreen := preload("res://scripts/hub/stim_screen.gd")
+const HushScreen := preload("res://scripts/hub/hush_screen.gd")
+const HushDen := preload("res://scripts/hub/hush_den.gd")
+const DrunkScreen := preload("res://scripts/ui/drunk_screen.gd")
 const Soundscape := preload("res://scripts/soundscape.gd")
 const SFX := preload("res://scripts/sfx.gd")
 
@@ -85,6 +91,25 @@ const CHECKPOINT_RADIUS := 10.0
 const CONTROLS := "F salvage / embark    V call titan / core    Shift titan dash    Left mouse titan fire"
 ## How long a line Eco says about something in the hub stays up.
 const HUB_LINE_SECONDS := 4.5
+## Mom smells smoke on Eco when she gets home (vices.gd).
+## What she says going through Marrow's doors (hush_den.gd teleport spots).
+const TELEPORT_LINES := {
+	"cinema_cellar": "Down into the violet dark.",
+	"cellar_stairs": "Up into the street. The air tastes clean.",
+	"her_room": "Key, lock, in. She shuts it behind her and checks the weld.",
+	"her_room_door": "Back out into his basement.",
+}
+## Ophelia notices Eco slipping away while Marrow's Hold is deep (vices.gd).
+const OPHELIA_NOTICES := [
+	"Ophelia: \"Where do you keep going? You come back and look straight through me.\"",
+	"Ophelia: \"Your eyes are doing that purple thing again. Don't tell me it's nothing.\"",
+	"Ophelia: \"I waited up. Again. Whatever it is, I'm not going anywhere. Just... come back.\"",
+]
+const MOM_SMELLS := [
+	"Mom: \"You smell like the Halo's back step. Don't lie to me, I can smell it.\"",
+	"Mom: \"Smoke in your hair again. Your father quit for you, you know.\"",
+	"Mom: \"Open a window up there. And wash that jacket.\"",
+]
 
 ## Start in the hub. Off, the scene drops straight into a run (the run loop test does this).
 @export var start_in_hub := true
@@ -176,7 +201,7 @@ static func ensure_input_actions() -> void:
 	var keys := {
 		"interact": [KEY_F], "choice_1": [KEY_1], "choice_2": [KEY_2], "choice_3": [KEY_3],
 		"choice_skip": [KEY_X], "titan_core": [KEY_V], "titan_dash": [KEY_SHIFT],
-		"run_restart": [KEY_ENTER], "give_gift": [KEY_G],
+		"run_restart": [KEY_ENTER], "give_gift": [KEY_G], "smoke": [KEY_B], "stim": [KEY_N],
 	}
 	for action in keys:
 		if InputMap.has_action(action):
@@ -202,6 +227,7 @@ func _ready() -> void:
 	Prefs.apply_all()
 	_use_save_slot()
 	armory = Armory.open(armory_path)
+	Vices.open(armory_path.get_basename() + "_vices.cfg")
 	npc_talk = NpcTalk.new()
 	npc_talk.save_path = npc_path
 	add_child(npc_talk)
@@ -227,6 +253,9 @@ func _ready() -> void:
 	pause_menu.name = "PauseMenu"
 	pause_menu.run = self
 	add_child(pause_menu)
+	var drunk := DrunkScreen.new()
+	drunk.name = "DrunkScreen"
+	add_child(drunk)
 	equip_loadout()
 	if start_in_hub:
 		enter_hub()
@@ -296,6 +325,13 @@ func start_run(seed_value: int, uncharted := 0, level := "") -> void:
 	if w != null:
 		w.set("softness", Family.softness(npc_talk.state))
 	load_zone(0)
+	Vices.run_started()
+	if Vices.hush() > 0.0:
+		hud.toast("The Hush settles in. Everything goes quiet, and sharp, and violet.", HUB_LINE_SECONDS)
+	elif Vices.craving() > 0.0:
+		hud.toast(Vices.craving_line(), HUB_LINE_SECONDS)
+	elif Vices.effect() > 0.0:
+		hud.toast(Vices.run_line(), HUB_LINE_SECONDS)
 
 
 func _fresh_level(level_name: String) -> void:
@@ -355,8 +391,16 @@ func enter_hub() -> void:
 	dress_hub()
 	place_player(zone_info["spawn"])
 	tutorial.start_level("hub")
-	if last_result != "":
-		hud.toast("Back at the temple." + ("  You're burning up. Go find Mom." if sick else ""), HUB_LINE_SECONDS)
+	if Vices.trance and Vices.allowed() and zone_info.has("hush"):
+		_wake_at_marrows()
+	elif last_result != "":
+		var mom := ""
+		if Vices.smoked and Vices.allowed() and hub_npcs.has("mom") and not sick:
+			mom = "  " + MOM_SMELLS[runs_ended % MOM_SMELLS.size()]
+		elif Vices.hold >= 30.0 and Vices.allowed() and hub_npcs.has("ophelia"):
+			mom = "  " + OPHELIA_NOTICES[runs_ended % OPHELIA_NOTICES.size()]
+		Vices.smoked = false
+		hud.toast("Back at the temple." + ("  You're burning up. Go find Mom." if sick else "") + mom, HUB_LINE_SECONDS + (2.0 if mom != "" else 0.0))
 		_whisper("home", 2.0)
 
 
@@ -417,6 +461,9 @@ func place_player(pos: Vector3) -> void:
 
 func _physics_process(delta: float) -> void:
 	Saves.tick(delta)
+	if not get_tree().paused:
+		Vices.tick(delta)
+		_vice_keys()
 	player.strolling = phase == Phase.HUB and not on_training_ground()
 	if phase in [Phase.ZONE, Phase.ARENA] and not get_tree().paused:
 		BattleDamage.tick(delta, player)
@@ -503,10 +550,18 @@ func _hub_tick(delta: float) -> void:
 		else:
 			hud.toast("Not yet. Clear %s first." % Levels.title(Levels.spec(id)["needs"]), HUB_LINE_SECONDS)
 		return
-	if spot.has("date") and date_at(spot):
+	var vice_shop: bool = spot.get("shop", "") in ["bar", "stims", "hush"] and Vices.allowed()
+	if spot.has("date") and (not vice_shop or date_ready(spot)) and date_at(spot):
 		return
 	if spot.has("screen"):
 		open_bench(spot["screen"])
+		return
+	if vice_shop:
+		open_bench(spot["shop"])
+		return
+	if spot.has("teleport") and Vices.allowed():
+		place_player(spot["teleport"])
+		hud.toast(TELEPORT_LINES.get(spot["id"], ""), 2.5)
 		return
 	if spot["id"] == "garage":
 		open_garage()
@@ -699,6 +754,14 @@ func _stage_smoke(npc: Node3D) -> Node3D:
 
 ## Who Eco can ask out now: the first of the people she's romancing who's
 ## ready for a date ("" for nobody).
+## True when a date spot has someone ready to go out with Eco who hasn't
+## been on one since the last run (the Rusted Halo opens the bar otherwise).
+func date_ready(spot: Dictionary) -> bool:
+	var who := date_partner()
+	return who != "" and TownShops.available("dates", spot["date"]) \
+			and int(npc_talk.state.get_value(who, "date_run", -1)) != runs_ended
+
+
 func date_partner() -> String:
 	for who in hub_npcs:
 		if npc_talk.romanceable(who) and NpcTalk.Romance.can_date(npc_talk.state, npc_talk.bank(who), who):
@@ -729,8 +792,6 @@ func close_garage() -> void:
 		hud.toast("Call your titan again (V) to see the new paint.", HUB_LINE_SECONDS)
 
 
-## Opens a workbench screen ("gunsmith", "rack", "workshop", "knives" or "suit"), or a
-## town shop's ("salon", "gifts"), pausing the hub.
 ## [open, close] sounds for a hub screen: the town's shops ring their door bell.
 static func _bench_sounds(kind: String) -> Array:
 	if BENCH_SOUNDS.has(kind):
@@ -738,6 +799,8 @@ static func _bench_sounds(kind: String) -> Array:
 	return ["shop_bell", ""] if TownShopScreen.SHOPS.has(kind) else ["bench_open", "bench_close"]
 
 
+## Opens a workbench screen ("gunsmith", "rack", "workshop", "knives" or "suit"), or a
+## town shop's ("salon", "gifts", the Rusted Halo's "bar"), pausing the hub.
 func open_bench(kind: String) -> void:
 	if kind == "gifts":
 		bench = GiftScreen.new(armory, npc_talk, romance_partners())
@@ -749,6 +812,12 @@ func open_bench(kind: String) -> void:
 		bench = TownShopScreen.new(kind, armory)
 	elif kind == "suit":
 		bench = SuitScreen.new(armory)
+	elif kind == "bar":
+		bench = BarScreen.new(armory)
+	elif kind == "stims":
+		bench = StimScreen.new(armory)
+	elif kind == "hush":
+		bench = HushScreen.new(armory, npc_talk.state)
 	else:
 		bench = GunsmithScreen.new(armory) if kind == "gunsmith" else BenchScreen.new(armory, kind)
 	bench.set_meta("kind", kind)
@@ -767,6 +836,12 @@ func close_bench() -> void:
 	if not bench.unlocked.is_empty():
 		var names: Array = bench.unlocked.map(func(id): return Armory.WEAPONS[id]["name"].to_upper())
 		hud.toast("LEVEL %d: %s UNLOCKED. PICK %s AT THE WEAPON RACK" % [armory.pilot_level(), " AND ".join(names), "IT" if names.size() == 1 else "THEM"], 5.0)
+	if bench is HushScreen:
+		npc_talk.state.save(npc_talk.save_path)
+		if bench.freed:
+			hud.toast("Eco walks out on Marrow. Her hands are shaking, but she's out. She should go and see the people who waited for her.", 5.0)
+	if bench is BarScreen and bench.net != 0:
+		hud.toast("Scrapjack: %s%d scrap tonight." % ["+" if bench.net > 0 else "", bench.net], HUB_LINE_SECONDS)
 	if bench is WardrobeScreen and not bench.changed.is_empty():
 		for npc in hub_npcs.values():
 			npc.wear_for_run(runs_ended)
@@ -1415,6 +1490,7 @@ func end_run(title: String, reason: String) -> void:
 	if won:
 		armory.mark_cleared(run.level if run.level != "" else "tutorial")
 		_rescue_bonus(run.level)
+	Vices.run_over()
 	var haul := Armory.run_haul(run.materials, won)
 	armory.bank(haul)
 	# The meal from Seven Suns was for this run.
@@ -1440,6 +1516,94 @@ func end_run(title: String, reason: String) -> void:
 	hud.summary_panel.visible = true
 
 
+# --- vices (vices.gd) -----------------------------------------------------------
+
+## B lights a smoke, N jabs a stim: on foot, in the hub or on a run, with
+## nothing else open.
+func _vice_keys() -> void:
+	if not Vices.allowed() or bench != null or garage != null or hub_piloting or npc_talk.active():
+		return
+	if not (phase == Phase.HUB or in_run()) or (titan != null and titan.piloted):
+		return
+	if Input.is_action_just_pressed("smoke"):
+		if Vices.light_up():
+			hud.toast("Eco lights a Night Owl. Steady hands for a while; slower healing.", 3.0)
+			_puff()
+		elif Vices.smoke_left > 0.0:
+			hud.toast("Still got one going.", 2.0)
+		else:
+			hud.toast("Out of smokes. Rook sells them at the Halo.", 2.5)
+	if Input.is_action_just_pressed("stim"):
+		var id := Vices.jab()
+		if id != "":
+			hud.toast("%s. Here it comes..." % Vices.stim_name(id), 2.5)
+			SFX.play(player, "cloth_2", -2.0)
+		elif Vices.stim != "":
+			hud.toast("One at a time. Your heart's already going like a titan's.", 2.5)
+		else:
+			hud.toast("No stims on your belt. Sal's side hatch, in town.", 2.5)
+
+
+## After a run on Hush (or with his Hold deep): she comes to at Marrow's
+## instead of at the temple: locked in her own room while his Hold is shallow,
+## in his armchair (short his tab) once it's deeper (hush_den.gd wake()).
+func _wake_at_marrows() -> void:
+	Vices.trance = false
+	Vices.save()
+	var w := HushDen.wake(Vices.hold, Vices.wakes)
+	Vices.wakes += 1
+	Vices.save()
+	place_player(w["pos"])
+	var tab := mini(Vices.TAB, armory.amount("scrap")) if w["his"] else 0
+	if tab > 0:
+		armory.stash["scrap"] = armory.amount("scrap") - tab
+		armory.save()
+	hud.toast(w["line"] + ("  (-%d scrap)" % tab if tab > 0 else ""), 6.0)
+
+
+## A breath of smoke drifting up in front of the camera.
+func _puff() -> void:
+	var cam: Camera3D = player.camera
+	var p := CPUParticles3D.new()
+	p.amount = 18
+	p.lifetime = 2.6
+	p.one_shot = true
+	p.explosiveness = 0.15
+	p.direction = Vector3(0, 0.6, -1)
+	p.spread = 25.0
+	p.initial_velocity_min = 0.25
+	p.initial_velocity_max = 0.6
+	p.gravity = Vector3(0, 0.25, 0)
+	p.scale_amount_min = 0.12
+	p.scale_amount_max = 0.3
+	var quad := QuadMesh.new()
+	quad.size = Vector2.ONE
+	var mat := StandardMaterial3D.new()
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
+	mat.vertex_color_use_as_albedo = true
+	quad.material = mat
+	p.mesh = quad
+	var fade := Gradient.new()
+	fade.set_color(0, Color(0.7, 0.7, 0.72, 0.45))
+	fade.set_color(1, Color(0.7, 0.7, 0.72, 0.0))
+	p.color_ramp = fade
+	cam.add_child(p)
+	p.position = Vector3(0.05, -0.12, -0.45)
+	p.emitting = true
+	p.finished.connect(p.queue_free)
+
+
+func _vices_text() -> String:
+	var parts := []
+	if Vices.state_name() != "":
+		parts.append(Vices.state_name().to_upper())
+	if Vices.pockets_text() != "":
+		parts.append(Vices.pockets_text())
+	return "" if parts.is_empty() else "    " + "    ".join(parts)
+
+
 # --- HUD ----------------------------------------------------------------------
 
 ## Eco mutters about a beat of the run (eco_whisper_lines.gd).
@@ -1459,6 +1623,10 @@ func _update_hud() -> void:
 			status += "    COURSE %.1f s" % course_time
 		elif course_best > 0.0:
 			status += "    Course best %.2f s" % course_best
+		if Vices.state_name() != "":
+			status += "    %s" % Vices.state_name().to_upper()
+		if Vices.pockets_text() != "":
+			status += "    %s" % Vices.pockets_text()
 		hud.status_label.text = status + "\nHead out from the poster outside or the mission table in the hall. F looks at things and works the benches."
 		hud.prompt_label.text = _prompt()
 		hud.crosshair.visible = hub_piloting
@@ -1470,8 +1638,9 @@ func _update_hud() -> void:
 	var where := "ZONE %d/%d" % [run.zone + 1, run.zone_count] if run.zone < run.zone_count else "FINAL"
 	if run.level != "":
 		where = "LEVEL %d" % Levels.spec(run.level)["number"] + ("  FINAL" if phase in [Phase.ARENA, Phase.FIGHT] else "")
-	hud.status_label.text = "RUN %d    %s    PILOT %d    %s    %s\n%s" % [
-		run.run_seed, where, run.pilot_hp, _clock(run.time), _materials_text(run.materials), CONTROLS]
+	hud.status_label.text = "RUN %d    %s    PILOT %d    %s    %s%s\n%s" % [
+		run.run_seed, where, run.pilot_hp, _clock(run.time), _materials_text(run.materials),
+		_vices_text(), CONTROLS]
 
 	var build := ["TITAN BUILD"]
 	for slot in TitanParts.SLOTS:
@@ -1507,6 +1676,14 @@ func _prompt() -> String:
 			if not spot.is_empty():
 				if spot.has("family"):
 					return family_scene.prompt()
+				if spot.get("shop", "") == "bar" and Vices.allowed() and not date_ready(spot):
+					return "[F] The Rusted Halo: drinks, smokes and Scrapjack"
+				if spot.get("shop", "") == "stims" and Vices.allowed():
+					return "[F] Sal's side hatch: stims"
+				if spot["id"] == "hush_alley" and Vices.allowed():
+					return "[F] Marrow: Hush"
+				if spot["id"] == "cinema_cellar" and Vices.allowed():
+					return "[F] Go down to Marrow's basement"
 				if spot.get("npc", "") == "mom" and Family.sick(npc_talk.state, runs_ended):
 					return spot["prompt"] + "  (you're burning up)"
 				var text: String = spot["prompt"]
