@@ -819,6 +819,53 @@ func footfall(side: String, impact: float) -> void:
 		s["tip"] += down * amount * impact * jiggle
 
 
+## Wind and water. Wind (world m/s) is Weather.wind plus any "wind_zone" she
+## stands in (a box: meta "half" Vector3, "wind" Vector3, like the lab's fan),
+## gusting; it streams her hair and ripples her chest and glutes. Water: in
+## any "water" sheet (laid_out.gd water, meta "half" Vector2) her parts below
+## its surface float up and move slowly.
+const WIND_PUSH := {"hair": 0.0011, "bust": 0.00018, "glute": 0.00012}
+const WATER_LIFT := {"hair": 0.004, "bust": 0.0024, "glute": 0.0016}
+const WATER_DRAG := 0.55
+const Weather := preload("res://scripts/game/weather.gd")
+var _wind := Vector3.ZERO
+var _water_y := -INF
+var _weather_t := 0.0
+
+
+func _weather(delta: float) -> void:
+	_weather_t += delta
+	var at := global_position
+	var wind: Vector3 = Weather.wind
+	_water_y = -INF
+	if is_inside_tree():
+		for z: Node3D in get_tree().get_nodes_in_group("wind_zone"):
+			var half: Vector3 = z.get_meta("half", Vector3.ZERO)
+			var local := z.global_transform.affine_inverse() * (at + Vector3.UP)
+			if absf(local.x) <= half.x and absf(local.y) <= half.y and absf(local.z) <= half.z:
+				wind += z.global_basis * (z.get_meta("wind", Vector3.ZERO) as Vector3)
+		for w: Node3D in get_tree().get_nodes_in_group("water"):
+			var half: Vector2 = w.get_meta("half", Vector2.ZERO)
+			var local := w.global_transform.affine_inverse() * at
+			if absf(local.x) <= half.x and absf(local.z) <= half.y and at.y < w.global_position.y + 0.05:
+				_water_y = maxf(_water_y, w.global_position.y)
+	# gusts: two slow beats that don't line up
+	var gust := 1.0 + 0.45 * sin(_weather_t * 1.3) * sin(_weather_t * 0.37 + 1.0) + 0.15 * sin(_weather_t * 4.1)
+	_wind = wind * gust
+
+
+## A swinging spring's next tip, pushed by the wind and, under water, floated
+## up and slowed.
+func _in_weather(s: Dictionary, tip: Vector3, next: Vector3, steps: float) -> Vector3:
+	var group: String = s["base"].get("group", "")
+	if _wind != Vector3.ZERO:
+		next += _wind * float(WIND_PUSH.get(group, 0.0)) * steps
+	if next.y < _water_y:
+		next = tip + (next - tip) * WATER_DRAG
+		next += Vector3.UP * float(WATER_LIFT.get(group, 0.0)) * steps
+	return next
+
+
 ## A jolt through her whole body (a hit, a blast's shock wave): every soft
 ## part is flung along `dir` (world space, its length the strength, about 1
 ## for a solid hit), then springs back and wobbles. Flesh moves a little less,
@@ -1255,6 +1302,7 @@ func _step_springs(delta: float) -> void:
 	var steps := clampf(delta * 60.0, 0.25, 3.0)
 	var moved := to_world.origin - _last_origin
 	_last_origin = to_world.origin
+	_weather(delta)
 	for s in _springs:
 		var i: int = s["bone"]
 		var parent_pose := skeleton.get_bone_global_pose(s["parent"])
@@ -1312,6 +1360,8 @@ func _step_springs(delta: float) -> void:
 				next += (goal - tip) * minf(s["stiffness"] * sub, 1.0)
 				prev = tip
 				tip = next
+			if next.y < _water_y:
+				next = tip + (next - tip) * WATER_DRAG
 			if s.has("lateral"):
 				var across := to_world.basis.x.normalized()
 				next -= across * (next - target).dot(across) * (1.0 - float(s["lateral"]))
@@ -1331,6 +1381,7 @@ func _step_springs(delta: float) -> void:
 		var next: Vector3 = tip + (tip - prev) * (1.0 - s["drag"])
 		next += (target - tip) * minf(s["stiffness"] * steps, 1.0)
 		next += Vector3.DOWN * s["gravity"] * 0.01 * steps * length
+		next = _in_weather(s, tip, next, steps)
 		if s.has("lateral"):
 			# keep only part of the swing across her body
 			var side := to_world.basis.x.normalized()

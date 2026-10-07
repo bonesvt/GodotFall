@@ -5,12 +5,14 @@ extends RefCounted
 ## materials from hard stone to a soft cushion (softness meta, player.gd
 ## soft_press), a sharp corner, a round column, a thin post, glass the camera
 ## sees through, squeeze gaps of a few widths, and a bench and a mat to sit and
-## lie on (her soft parts squash on what holds her up, eco_model.gd _support_y). A console by the door steps
+## lie on (her soft parts squash on what holds her up, eco_model.gd _support_y),
+## a blast button, a wading tank and a fan. A console by the door steps
 ## the "Press into things" setting (Prefs press_strength) so the same walls can
 ## be tried hard, normal or soft.
 
 const K := preload("res://scripts/hub/hub_kit.gd")
 const Art := preload("res://scripts/ps2/ps2_assets.gd")
+const LaidOut := preload("res://scripts/run/laid_out.gd")
 
 ## The room's floor centre, and its size.
 const LAB := Vector3(0.0, -10.0, 60.0)
@@ -40,6 +42,7 @@ static func build(root: Node3D, info: Dictionary) -> void:
 	_shapes(root)
 	_gaps(root, info)
 	_rests(root, info)
+	_weather(root, info)
 	K.light(root, LAB + Vector3(-5, 3.4, 0), Color(1.0, 0.95, 0.9), 1.2, 12.0)
 	K.light(root, LAB + Vector3(5, 3.4, 0), Color(0.9, 0.95, 1.0), 1.2, 12.0)
 	# the hatch in the nave, and the door back up
@@ -123,6 +126,40 @@ static func _gaps(root: Node3D, info: Dictionary) -> void:
 			b.add_to_group("squeeze_gap")
 		_label(root, c + Vector3(0, 2.4, 0.7), "Gap %d cm" % roundi(w * 100), 0.0)
 		info["lab_gaps"].append({"centre": c, "width": w})
+
+
+## A wading tank (waist-deep water: her soft parts and hair float in it) and a
+## big fan blowing down the room beside it (a wind_zone, eco_model.gd _weather).
+static func _weather(root: Node3D, info: Dictionary) -> void:
+	var tank := LAB + Vector3(4.0, 0, 3.2)
+	var size := Vector2(2.0, 1.8)
+	var water := LaidOut.water(root, tank + Vector3(0, 0.95, 0), size, Color(0.25, 0.55, 0.7, 0.45))
+	water.name = "LabWater"
+	# the water's body, see-through, so she shows wading in it
+	var body := MeshInstance3D.new()
+	body.mesh = BoxMesh.new()
+	(body.mesh as BoxMesh).size = Vector3(size.x, 0.94, size.y)
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = Color(0.2, 0.45, 0.6, 0.22)
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	(body.mesh as BoxMesh).material = mat
+	body.position = tank + Vector3(0, 0.47, 0)
+	body.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	root.add_child(body)
+	_label(root, tank + Vector3(0, 2.0, 0), "Wading tank", 0.0)
+	var fan_at := LAB + Vector3(9.4, 0, 3.2)
+	K.mesh(root, fan_at + Vector3(0, 1.1, 0), Vector3(0.3, 2.0, 2.0), Art.material("gunmetal", Color(0.3, 0.32, 0.35)))
+	K.glow(root, fan_at + Vector3(-0.16, 1.1, 0), Vector3(0.02, 1.6, 1.6), Color(0.6, 0.8, 0.9))
+	var zone := Node3D.new()
+	zone.name = "LabFan"
+	zone.position = fan_at + Vector3(-1.9, 1.1, 0)
+	zone.set_meta("half", Vector3(1.7, 1.1, 1.0))
+	zone.set_meta("wind", Vector3(-9.0, 0, 0))
+	zone.add_to_group("wind_zone")
+	root.add_child(zone)
+	_label(root, fan_at + Vector3(0, 2.4, 0), "Fan", 0.0)
+	info["lab_weather"] = {"tank": tank, "water_y": tank.y + 0.95, "fan": zone.position}
 
 
 ## A hard bench to sit or lie along, and a low mat to lie on: back, face down or side.

@@ -70,6 +70,7 @@ const HushDen := preload("res://scripts/hub/hush_den.gd")
 const DrunkScreen := preload("res://scripts/ui/drunk_screen.gd")
 const Soundscape := preload("res://scripts/soundscape.gd")
 const SFX := preload("res://scripts/sfx.gd")
+const Weather := preload("res://scripts/game/weather.gd")
 
 const FALL_DAMAGE := 25
 ## Integrity lost when grunts take the pilot's health to zero.
@@ -370,6 +371,7 @@ func enter_hub() -> void:
 	course_time = -1.0
 	_fresh_level("Hub")
 	zone_info = HubBuilder.build(zone_root)
+	Weather.wind = Vector3.ZERO  # still air in the temple (the lab's fan aside)
 	_hide_unrescued(zone_info)
 	hub_npcs = {}
 	for spec in zone_info.get("npcs", []):
@@ -448,6 +450,7 @@ func load_zone(index: int) -> void:
 		evac_open = false
 		hud.toast("THE FOREST'S EDGE: TITANFALL STANDING BY")
 	Soundscape.battle(zone_root, str(zone_root.get_meta("biome", "")))
+	Weather.wind = zone_info.get("wind", Weather.for_biome(str(zone_root.get_meta("biome", run.level))))
 	Wardrobe.dress_eco(player, false)
 	place_player(zone_info["spawn"])
 	player.second_wind_ready = player.second_wind  # Eco's suit: once per zone
