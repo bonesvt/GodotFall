@@ -11,8 +11,12 @@ extends RefCounted
 ##     enough to her: the catch is always about them.
 ##   - Colony relics, sometimes in a salvage cache (COLONY_CHANCE): colony
 ##     tech that was never meant for her.
-## Marrow's Violet Coin is Mature only, like the rest of his things (vices.gd):
-## under Teen it isn't offered, can't be worn and does nothing.
+## Under Mature (vices.gd allowed()) most relics turn darker (MATURE: their
+## names, lines, perks and catches change, mostly feeding her vices: buzz,
+## stim dependence, smokes, Glass, Marrow's Hold), and a few only exist there
+## ("mature": Marrow's coin, the Censer, Rook's glass, Dutch's deck, the stim
+## injector, the Glass core): under Teen those aren't offered, can't be worn
+## and do nothing.
 ##
 ## The stat hooks (damage_out, damage_in, regen_scale, ...) are 1.0 off a run
 ## or without the relic; the timed side effects run in relic_fx.gd. What she
@@ -106,10 +110,91 @@ const RELICS := {
 		"curse": "Once they're shooting, they hit 25% harder. Nobody likes an impostor.",
 		"blurb": "A colony officer's friend-or-foe tag. He won't be needing it.",
 		"carry": "The IFF tag blinks green on her collar. As far as the colony knows, she's on their side."},
+	# Mature only
+	"censer": {"name": "Precursor Censer", "source": "precursor", "mature": true,
+		"perk": "Temple incense hangs round her: grunts are much slower to pick her up.",
+		"curse": "She's breathing it too: it works on her like drink, the buzz climbing the longer the run goes.",
+		"blurb": "A little bronze burner on a chain, still smouldering after a thousand years. The smoke smells like honey and pennies.",
+		"carry": "The censer swings at her hip. Sweet smoke. Her head's already lighter."},
+	"rooks_glass": {"name": "Rook's Lucky Shot Glass", "source": "npc", "giver": "rook", "mature": true,
+		"perk": "The drunker she is, the harder she hits (up to 35%).",
+		"curse": "The buzz never fully leaves her on a run, and Rook's tab takes scrap after every one.",
+		"blurb": "A chipped shot glass with a tally scratched round the rim. Rook's been counting something.",
+		"carry": "Rook's shot glass clinks in her pocket. She can still taste the last one.",
+		"gift": "Rook slides a chipped shot glass down the bar. \"Lucky. Every hero who ever drank from it came back. Mostly. I'll put it on your tab.\""},
+	"dutchs_deck": {"name": "Dutch's Marked Deck", "source": "npc", "giver": "dutch", "mature": true,
+		"perk": "Luck leans her way: a quarter more materials from everything.",
+		"curse": "Card-shark luck runs out: every third run with it, the deck turns and she loses half her haul.",
+		"blurb": "A worn deck with tiny pinpricks on the backs. Dutch swears he's never used it. On her.",
+		"carry": "Dutch's deck riffles in her hand. Feels lucky. Feels like a setup.",
+		"gift": "Dutch tucks a deck into her jacket. \"Marked. Don't tell Rook. Luck's a loan, kid. It always comes to collect.\""},
+	"stim_injector": {"name": "Combat Stim Injector", "source": "colony", "mature": true,
+		"perk": "When she's nearly down, it jabs her with Ironskin on its own (once a run).",
+		"curse": "Every jab it gives her counts towards her dependence, whether she wanted it or not.",
+		"blurb": "A colony trooper's auto-injector, strapped to the thigh. It decides when you need it.",
+		"carry": "The injector clicks onto her thigh. It's watching her vitals now. Not her."},
+	"glass_core": {"name": "Glass Core", "source": "colony", "mature": true,
+		"perk": "When she's hit, a free second of Glass slow-mo (every 45 s at most).",
+		"curse": "Each one crystallises her a step, like a vial does.",
+		"blurb": "Marrow's Glass, set in colony circuitry. A violet heart that ticks.",
+		"carry": "The Glass core hums against her spine. Cold. Waiting for her to get hurt."},
 }
-const ORDER := ["builder_eye", "heartstone", "sunless_mask", "idols_tooth",
+
+## What changes under Mature: id -> the keys that replace the Teen ones (text,
+## and the behaviour noted in each catch; relics.gd and relic_fx.gd check
+## mature() for it). Marrow's coin is Mature only already.
+const MATURE := {
+	"builder_eye": {"name": "Builder's Eye",
+		"curse": "The whispers are in her dad's voice, and cruel. While they talk, her aim drifts.",
+		"carry": "The Builder's eye is warm in her pocket. \"Hey, kiddo,\" it says, in his voice."},
+	"heartstone": {"perk": "Heals twice as fast.",
+		"curse": "It feeds on her: her max health drains, and she brings a fever home that weakens her next run.",
+		"carry": "The Heartstone beats against her ribs. Her skin's already hot."},
+	"sunless_mask": {"curse": "Longer blackouts, and sometimes she comes to somewhere else, bruised, with no idea how she got there.",
+		"carry": "The Sunless Mask settles cold on her face. She won't remember all of today."},
+	"idols_tooth": {"curse": "Bloodlust: every kill costs her health, and 30 s without one her hands start shaking.",
+		"carry": "The Idol's Tooth hums on its cord. It wants blood, and so, a little, does she."},
+	"moms_locket": {"name": "Mom's Rosary Flask",
+		"curse": "It's Mom's \"medicine\": when it keeps her up, she takes a long pull (a lot of buzz), and Mom finds it empty.",
+		"blurb": "A dented hip flask with a rosary wound round the neck. Mom says it's for emergencies. Mom has a lot of emergencies.",
+		"carry": "Mom's flask, under her suit. Sloshing. Mom said only if she really needs it.",
+		"gift": "Mom presses a dented flask into her palm and won't meet her eyes. \"For emergencies. Your father's. Don't tell Biggie I gave it you.\""},
+	"ophelias_watch": {"name": "Ophelia's Lighter",
+		"perk": "While she's smoking, a tighter cone, and headshots slow the world.",
+		"curse": "Smokes burn twice as fast, and every run she doesn't light up, Ophelia goes cold on her.",
+		"blurb": "A brass lighter engraved O + E. It smells like Night Owls and Ophelia's jacket.",
+		"carry": "Ophelia's lighter is warm in her pocket. She should light one. For her.",
+		"gift": "Ophelia presses her lighter into Eco's hand and closes her fingers round it. \"Think of me every time you light up. Every time.\""},
+	"biggies_tags": {"name": "Biggie's Hip Flask",
+		"perk": "Grunts' shots hurt her 35% less.",
+		"curse": "Old soldier's habit: she starts every run two drinks in, and his bad knee shortens her wallruns and slides.",
+		"blurb": "A battered army flask with his unit's number on it. It's never empty. He makes sure.",
+		"carry": "Two pulls from Biggie's flask before the drop. Old army habit. Her knee aches.",
+		"gift": "Biggie hands over a battered flask. \"Two swallows before the drop. Every pilot I flew with did it. Most of 'em are dead, but not from that.\""},
+	"sals_scale": {"name": "Sal's Back-Alley Kit",
+		"perk": "A free stim on her belt every run.",
+		"curse": "Sal cuts them with filler: crashes hit her harder, and any run she jabs costs extra dependence.",
+		"blurb": "A tin case of unlabelled shots and a rubber tourniquet. Sal says it's a loyalty scheme.",
+		"carry": "Sal's kit rattles on her belt. One on the house. There's always one on the house.",
+		"gift": "Sal pushes a tin case across the hatch. \"Loyalty scheme. One a run, free. Then you'll want two. That's how loyalty works.\""},
+	"imanis_kit": {"name": "Imani's Painkillers",
+		"perk": "Every kill patches her up, and every hit lands softer.",
+		"curse": "No health readout, and the pills build their own habit: go out without them and she gets the shakes.",
+		"blurb": "A brown bottle with Doc Imani's handwriting on it: ONE. ONLY ONE. ECO, I MEAN IT.",
+		"carry": "One of Imani's pills. Then another. She can't feel a thing.",
+		"gift": "Doc Imani hands over a brown bottle and holds on a beat too long. \"For the pain. One at a time. I'm trusting you with these, Eco.\""},
+	"prayer_beads": {"curse": "The town talks, and the colony listens: grunts start every zone already half suspicious.",
+		"carry": "Rosa's beads click at her wrist. Tobin's told the whole town where she went. Somebody else was listening."},
+	"target_lens": {"curse": "The colony tracks her, and taunts her over her own radio about her dad as their grunts close in.",
+		"carry": "The target lens clicks into place. A voice on her radio: \"Hello again, little pilot.\""},
+	"iff_tag": {"curse": "Once they're shooting they hit 25% harder, and word gets back to Mom that she's been wearing colony colours.",
+		"carry": "The IFF tag blinks green on her collar. Somewhere in Solace, someone sees it."},
+}
+
+const ORDER := ["builder_eye", "heartstone", "sunless_mask", "idols_tooth", "censer",
 	"moms_locket", "ophelias_watch", "biggies_tags", "sals_scale", "imanis_kit", "prayer_beads", "violet_coin",
-	"target_lens", "phase_harness", "iff_tag"]
+	"rooks_glass", "dutchs_deck",
+	"target_lens", "phase_harness", "iff_tag", "stim_injector", "glass_core"]
 
 ## Who gives a keepsake, and when (run_manager.gd _relic_gift): a bond or
 ## affection score in npc_talk's state, finished runs, or Marrow's Hold. `spot`
@@ -122,6 +207,8 @@ const GIVERS := {
 	"imani": {"relic": "imanis_kit", "spot": "shop_clinic", "runs": 3},
 	"townsfolk": {"relic": "prayer_beads", "spot": "job_board", "runs": 4},
 	"marrow": {"relic": "violet_coin", "spot": "hush_alley", "hold": 30.0},
+	"rook": {"relic": "rooks_glass", "spot": "shop_bar", "runs": 2},
+	"dutch": {"relic": "dutchs_deck", "spot": "shop_bar", "runs": 5},
 }
 ## Where she'd find the ones she hasn't got (for the reliquary).
 const HINTS := {
@@ -134,6 +221,8 @@ const HINTS := {
 	"imani": "Doc Imani, once you've come back hurt a few times.",
 	"townsfolk": "Old Tobin and Rosa by the job board, once you've been away a while.",
 	"marrow": "Marrow, once he has you.",
+	"rook": "Rook at the Rusted Halo, once you're a regular.",
+	"dutch": "Dutch at the Halo's card table, once he's taken enough of your scrap.",
 }
 
 ## Chance a zone has a Precursor shrine (while she's still missing one).
@@ -143,28 +232,60 @@ const COLONY_CHANCE := 0.25
 
 const TOOTH_DAMAGE := 1.4
 const TOOTH_PRICE := 4.0
+## Mature: seconds without a kill before the Tooth's bloodlust shakes her.
+const TOOTH_THIRST := 30.0
 const HEART_REGEN := 2.0
 ## Seconds of a run over which the Heartstone takes half her max health.
 const HEART_DRAIN_TIME := 480.0
 const HEART_FLOOR := 0.5
+## Mature: the fever she brings home takes this share of her max health next run.
+const FEVER := 0.85
 const MASK_NOTICE := 0.5
 const TAGS_DAMAGE := 0.7
+const TAGS_DAMAGE_M := 0.65
 const TAGS_WALLRUN := 0.55
 const TAGS_SLIDE_FRICTION := 2.2
+## Mature: buzz she starts a run with (Biggie's flask), and the flask's pull when Mom's saves her.
+const FLASK_BUZZ := 2.0
 const SCALE_LOOT := 1.5
 const SCALE_JAM := 0.05
 const JAM_TIME := 1.1
+## Mature: Sal's filler makes a crash hit this much harder.
+const FILLER_DAMAGE := 1.15
 const KIT_HEAL := 12.0
+## Mature: Imani's pills soften hits, and a habit of PILL_HABIT runs brings the shakes without them.
+const PILL_DAMAGE := 0.85
+const PILL_HABIT := 2
 const BEADS_DAMAGE := 0.85
+## Mature: how suspicious grunts start a zone when the colony's heard the town talk.
+const BEADS_WARY := 0.45
 const WATCH_LIMIT := 720.0
 const WATCH_COST := 5
 const WATCH_SLOW := 0.45
 const WATCH_TIME := 1.0
+## Mature: Ophelia's lighter.
+const LIGHTER_SPREAD := 0.7
+const LIGHTER_COST := 4
 const COIN_HOLD := 5.0
 const LENS_SPREAD := 0.55
 const HARNESS_SPEED := 1.15
 const IFF_NOTICE := 0.35
 const IFF_DAMAGE := 1.25
+const IFF_BOND := 2
+const FLASK_BOND := 3
+const CENSER_NOTICE := 0.55
+## Buzz the censer adds a second, and the most it takes her to.
+const CENSER_BUZZ := 1.0 / 75.0
+const CENSER_MAX := 3.0
+const ROOK_DAMAGE := 0.35
+const ROOK_FLOOR := 1.0
+const ROOK_TAB := 8
+const DECK_LOOT := 1.25
+const DECK_TURN := 3
+const DECK_CUT := 0.5
+const INJECTOR_AT := 0.3
+const CORE_COOLDOWN := 45.0
+const CORE_FOCUS := 1.0
 
 ## Saved per slot: what she's found and what she's wearing.
 static var owned: Array = []
@@ -174,12 +295,29 @@ static var worn: Array = []
 static var town_talk := 0
 ## Runs she's finished on this save (for Sal, Imani, Tobin and Rosa's gifts).
 static var runs := 0
+## Mature, saved: the Heartstone's fever (due on her next run), Imani's pill
+## habit, Dutch's deck's runs.
+static var fever := false
+static var pills := 0
+static var deck_runs := 0
 ## On a run right now (the hooks do nothing in the hub).
 static var on_run := false
 ## Seconds into this run (relic_fx.gd ticks it).
 static var run_time := 0.0
+## This run carries the fever from the last.
+static var feverish := false
 ## Mom's locket has saved her this run.
 static var locket_used := false
+## Mature, this run: she's lit a smoke, she's jabbed a stim, seconds since
+## her last kill, the injector's fired, the whispers are talking (0..1).
+static var lit := false
+static var jabbed := false
+static var since_kill := 0.0
+static var injected := false
+static var whispering := 0.0
+## Mature, end of run: scrap Rook's tab takes, and the share of her haul she keeps (Dutch's deck).
+static var scrap_owed := 0
+static var haul_keep := 1.0
 ## Something just happened that relic_fx.gd should say (and clears).
 static var locket_saved := false
 static var jammed := false
@@ -187,12 +325,24 @@ static var headshot := false
 static var save_path := "user://relics.cfg"
 
 
+## Under Mature (the game's rating): the relics' darker sides.
+static func mature() -> bool:
+	return Vices.allowed()
+
+
 static func allowed(id: String) -> bool:
-	return RELICS.has(id) and (not RELICS[id].get("mature", false) or Vices.allowed())
+	return RELICS.has(id) and (not RELICS[id].get("mature", false) or mature())
+
+
+## A relic's text under the current rating (`key`: name, perk, curse, blurb, carry, gift).
+static func text(id: String, key: String) -> String:
+	if mature() and MATURE.has(id) and MATURE[id].has(key):
+		return MATURE[id][key]
+	return RELICS[id].get(key, "")
 
 
 static func relic_name(id: String) -> String:
-	return RELICS[id]["name"]
+	return text(id, "name")
 
 
 ## The relics the reliquary lists under the current rating.
@@ -211,6 +361,11 @@ static func wearing(id: String) -> bool:
 ## The relic is on her on a run: its perk and its catch both apply.
 static func active(id: String) -> bool:
 	return on_run and wearing(id)
+
+
+## Worn on a run with its Mature side.
+static func dark(id: String) -> bool:
+	return active(id) and mature()
 
 
 ## Finds or is given `id`. Returns whether it's new.
@@ -232,16 +387,16 @@ static func toggle(id: String) -> bool:
 	if not owns(id) or not allowed(id):
 		return false
 	worn.append(id)
-	while worn.size() > SLOTS:
-		worn.pop_front()
+	while worn.filter(func(w): return allowed(w)).size() > SLOTS:
+		worn.erase(worn.filter(func(w): return allowed(w))[0])
 	save()
 	return true
 
 
-## Precursor or colony relics she hasn't found yet (shrines and caches only
-## offer these).
+## Precursor or colony relics she hasn't found yet under this rating (shrines
+## and caches only offer these).
 static func missing(source: String) -> Array:
-	return ORDER.filter(func(id): return RELICS[id]["source"] == source and not owns(id))
+	return ORDER.filter(func(id): return RELICS[id]["source"] == source and not owns(id) and allowed(id))
 
 
 ## A keepsake `who` (a GIVERS key) is ready to give her now, or "".
@@ -264,13 +419,12 @@ static func gift_due(who: String, state: ConfigFile) -> String:
 	return id
 
 
-## Which giver a hub spot belongs to ("" none).
-static func giver_at(spot: Dictionary) -> String:
+## Who's at a hub spot with a keepsake ready for her ("" nobody).
+static func giver_at(spot: Dictionary, state: ConfigFile = null) -> String:
 	for who: String in GIVERS:
 		var g: Dictionary = GIVERS[who]
-		if g.has("npc") and spot.get("npc", "") == g["npc"]:
-			return who
-		if g.has("spot") and spot.get("id", "") == g["spot"]:
+		var here: bool = (g.has("npc") and spot.get("npc", "") == g["npc"]) or (g.has("spot") and spot.get("id", "") == g["spot"])
+		if here and (state == null or gift_due(who, state) != ""):
 			return who
 	return ""
 
@@ -280,28 +434,54 @@ static func giver_at(spot: Dictionary) -> String:
 static func run_started() -> void:
 	on_run = true
 	run_time = 0.0
+	feverish = fever and mature()
+	fever = false
 	locket_used = false
 	locket_saved = false
 	jammed = false
 	headshot = false
+	lit = false
+	jabbed = false
+	since_kill = 0.0
+	injected = false
+	whispering = 0.0
+	scrap_owed = 0
+	haul_keep = 1.0
+	if dark("biggies_tags"):
+		Vices.buzz = minf(Vices.buzz + FLASK_BUZZ, Vices.MAX_BUZZ)
+	if dark("sals_scale") and not Vices.belt_full():
+		Vices.add_stim(Vices.STIM_ORDER[randi() % Vices.STIM_ORDER.size()])
+	save()
 
 
 ## What she says heading out with them on: one line (the newest one she put
 ## on), so the run's opening toast stays short; the HUD names the rest.
 static func carry_line() -> String:
+	var lines := []
 	for i in range(worn.size() - 1, -1, -1):
 		if allowed(worn[i]):
-			return RELICS[worn[i]]["carry"]
-	return ""
+			lines.append(text(worn[i], "carry"))
+			break
+	if feverish:
+		lines.append("Still burning up from the Heartstone's fever.")
+	if pill_craving():
+		lines.append("No pills today. Her hands won't keep still.")
+	return "\n".join(lines)
 
 
 ## A run ended (`run_seconds` long). Settles the catches that land at the end
 ## and returns lines for the summary. `state` is npc_talk's ConfigFile.
+## Rook's tab (scrap_owed) and Dutch's deck (haul_keep) are for the run
+## manager to take before it banks the haul.
 static func run_over(state: ConfigFile, run_seconds: float) -> Array:
 	var notes := []
-	if active("ophelias_watch") and run_seconds > WATCH_LIMIT and state != null:
-		state.set_value("ophelia", "affection", clampi(int(state.get_value("ophelia", "affection", 0)) - WATCH_COST, 0, 100))
+	var m := mature()
+	if active("ophelias_watch") and not m and run_seconds > WATCH_LIMIT and state != null:
+		_nudge(state, "ophelia", "affection", -WATCH_COST)
 		notes.append("Ophelia's watch: you kept her waiting. She'll be cold for a bit.")
+	if dark("ophelias_watch") and not lit and state != null:
+		_nudge(state, "ophelia", "affection", -LIGHTER_COST)
+		notes.append("Ophelia's lighter: you never lit up. She noticed.")
 	if active("violet_coin"):
 		Vices.hold = minf(Vices.hold + COIN_HOLD, Vices.MAX_HOLD)
 		Vices.reward_check()
@@ -309,17 +489,67 @@ static func run_over(state: ConfigFile, run_seconds: float) -> Array:
 		notes.append("Marrow's coin: his Hold tightens.")
 	if active("prayer_beads"):
 		town_talk += 1
-		notes.append("Prayer beads: Tobin and Rosa have been talking about you.")
+		notes.append("Prayer beads: Tobin and Rosa have been talking about you." + (" Somebody else was listening." if m else ""))
+	if dark("heartstone"):
+		fever = true
+		notes.append("Heartstone: she's burning up. The fever will still be on her next run.")
+	if dark("moms_locket") and locket_used and state != null:
+		_nudge(state, "mom", "bond", -FLASK_BOND)
+		notes.append("Mom's flask: empty. Mom will notice.")
+	if dark("iff_tag") and state != null:
+		_nudge(state, "mom", "bond", -IFF_BOND)
+		notes.append("IFF tag: someone in town saw her in colony colours and told Mom.")
+	if dark("sals_scale") and jabbed:
+		Vices.dependence += 1.0
+		Vices.save()
+		notes.append("Sal's kit: the filler's in her blood. Her dependence climbs.")
+	if m:
+		if dark("imanis_kit"):
+			pills += 1
+		elif pills > 0:
+			pills -= 1
+	if dark("rooks_glass"):
+		scrap_owed += ROOK_TAB
+		notes.append("Rook's tab: %d scrap." % ROOK_TAB)
+	if dark("dutchs_deck"):
+		deck_runs += 1
+		if deck_runs % DECK_TURN == 0:
+			haul_keep = DECK_CUT
+			notes.append("Dutch's deck turned on her: she lost half her haul.")
 	on_run = false
 	run_time = 0.0
+	feverish = false
 	runs += 1
 	save()
 	return notes
 
 
+static func _nudge(state: ConfigFile, who: String, key: String, delta: int) -> void:
+	state.set_value(who, key, clampi(int(state.get_value(who, key, 0)) + delta, 0, 100))
+
+
+## Game time on a run: the clock, the censer's smoke, Rook's floor, the lighter's burn.
 static func tick(delta: float) -> void:
-	if on_run:
-		run_time += delta
+	if not on_run:
+		return
+	run_time += delta
+	since_kill += delta
+	if not mature():
+		return
+	if Vices.smoke_left > 0.0:
+		lit = true
+		if dark("ophelias_watch"):
+			Vices.smoke_left = maxf(Vices.smoke_left - delta, 0.0)  # it burns twice as fast
+	if Vices.stim != "":
+		jabbed = true
+	if dark("censer") and Vices.buzz < CENSER_MAX:
+		Vices.buzz = minf(Vices.buzz + (CENSER_BUZZ + Vices.WEAR_OFF) * delta, CENSER_MAX)
+	if dark("rooks_glass"):
+		Vices.buzz = maxf(Vices.buzz, ROOK_FLOOR)
+
+
+static func on_kill() -> void:
+	since_kill = 0.0
 
 
 ## Mom's locket: once a run, a blow that would put her down doesn't.
@@ -328,20 +558,48 @@ static func cheat_death() -> bool:
 		return false
 	locket_used = true
 	locket_saved = true
+	if mature():
+		Vices.buzz = minf(Vices.buzz + FLASK_BUZZ, Vices.MAX_BUZZ)  # Mom's "medicine"
 	return true
 
 
-## Sal's parts: a shot that jams instead (`roll` 0..1).
+## Sal's parts: a shot that jams instead (`roll` 0..1). Not his Mature kit.
 static func jams(roll: float) -> bool:
-	if not active("sals_scale") or roll >= SCALE_JAM:
+	if not active("sals_scale") or mature() or roll >= SCALE_JAM:
 		return false
 	jammed = true
 	return true
 
 
 static func note_headshot() -> void:
-	if active("ophelias_watch"):
+	if active("ophelias_watch") and (not mature() or Vices.calm()):
 		headshot = true
+
+
+## The injector fires: she's nearly down (`health_frac`) and nothing's in her.
+## Returns whether it jabbed her.
+static func auto_jab(health_frac: float) -> bool:
+	if not dark("stim_injector") or injected or health_frac >= INJECTOR_AT or Vices.stim != "":
+		return false
+	injected = true
+	Vices.stim = "ironskin"
+	Vices.stim_left = Vices.STIMS["ironskin"]["time"]
+	Vices.crash_left = 0.0
+	Vices.dependence += 1.0
+	Vices.jabbed = true
+	jabbed = true
+	Vices.save()
+	return true
+
+
+## Mature: she goes without Imani's pills once she's hooked.
+static func pill_craving() -> bool:
+	return on_run and mature() and pills >= PILL_HABIT and not wearing("imanis_kit")
+
+
+## Mature: the Tooth wants blood.
+static func bloodlust() -> bool:
+	return dark("idols_tooth") and since_kill > TOOTH_THIRST
 
 
 # --- stat hooks -------------------------------------------------------------------
@@ -355,18 +613,23 @@ static func _coin() -> float:
 
 static func damage_out() -> float:
 	var k := TOOTH_DAMAGE if active("idols_tooth") else 1.0
-	var c := _coin()
-	return k * (1.0 + 0.2 * c)
+	if dark("rooks_glass"):
+		k *= 1.0 + ROOK_DAMAGE * Vices.effect()
+	return k * (1.0 + 0.2 * _coin())
 
 
 static func damage_in() -> float:
 	var k := 1.0
 	if active("biggies_tags"):
-		k *= TAGS_DAMAGE
+		k *= TAGS_DAMAGE_M if mature() else TAGS_DAMAGE
 	if active("prayer_beads"):
 		k *= BEADS_DAMAGE
 	if active("iff_tag"):
 		k *= IFF_DAMAGE
+	if dark("imanis_kit"):
+		k *= PILL_DAMAGE
+	if dark("sals_scale") and Vices.crashing():
+		k *= FILLER_DAMAGE
 	return k
 
 
@@ -375,11 +638,12 @@ static func regen_scale() -> float:
 	return k * (1.0 + 0.4 * _coin())
 
 
-## Her max health (the Heartstone's drain).
+## Her max health (the Heartstone's drain, and its fever).
 static func health_scale() -> float:
+	var k := FEVER if on_run and feverish else 1.0
 	if not active("heartstone"):
-		return 1.0
-	return 1.0 - (1.0 - HEART_FLOOR) * clampf(run_time / HEART_DRAIN_TIME, 0.0, 1.0)
+		return k
+	return k * (1.0 - (1.0 - HEART_FLOOR) * clampf(run_time / HEART_DRAIN_TIME, 0.0, 1.0))
 
 
 static func notice_scale() -> float:
@@ -388,11 +652,33 @@ static func notice_scale() -> float:
 		k *= MASK_NOTICE
 	if active("iff_tag"):
 		k *= IFF_NOTICE
+	if dark("censer"):
+		k *= CENSER_NOTICE
 	return k * (1.0 - 0.2 * _coin())
 
 
 static func spread_scale() -> float:
-	return LENS_SPREAD if active("target_lens") else 1.0
+	var k := LENS_SPREAD if active("target_lens") else 1.0
+	if dark("ophelias_watch") and Vices.calm():
+		k *= LIGHTER_SPREAD
+	if bloodlust():
+		k *= 1.5
+	return k
+
+
+## Mature drift on her aim (degrees: yaw, pitch) at time `t`: her dad's voice
+## in the Eye, the Tooth's bloodlust, no pills.
+static func sway(t: float) -> Vector2:
+	var e := 0.0
+	if dark("builder_eye"):
+		e = maxf(e, whispering * 0.7)
+	if bloodlust():
+		e = maxf(e, 0.55)
+	if pill_craving():
+		e = maxf(e, 0.5)
+	if e <= 0.0:
+		return Vector2.ZERO
+	return Vector2(sin(t * 1.7) * 0.7 + sin(t * 3.1 + 1.0) * 0.3, sin(t * 1.3 + 2.0) * 0.6 + sin(t * 2.7) * 0.3) * 2.2 * e
 
 
 static func speed_scale() -> float:
@@ -407,12 +693,17 @@ static func slide_friction_scale() -> float:
 	return TAGS_SLIDE_FRICTION if active("biggies_tags") else 1.0
 
 
-## Materials she picks up (Sal's scale), rounded up.
+## Materials she picks up (Sal's scale under Teen, Dutch's deck), rounded up.
 static func loot_amount(amount: int) -> int:
-	return ceili(amount * SCALE_LOOT) if active("sals_scale") else amount
+	var k := 1.0
+	if active("sals_scale") and not mature():
+		k *= SCALE_LOOT
+	if dark("dutchs_deck"):
+		k *= DECK_LOOT
+	return ceili(amount * k) if k != 1.0 else amount
 
 
-## Imani's patch: no health readout.
+## Imani's patch (or pills): no health readout.
 static func numb() -> bool:
 	return active("imanis_kit")
 
@@ -425,6 +716,11 @@ static func kill_health() -> float:
 	if active("idols_tooth"):
 		h -= TOOTH_PRICE
 	return h
+
+
+## How suspicious grunts start a zone (0: as usual): the town's talk reached the colony.
+static func grunt_wariness() -> float:
+	return BEADS_WARY if dark("prayer_beads") else 0.0
 
 
 ## For the run HUD: what she's wearing ("" nothing).
@@ -447,6 +743,9 @@ static func open(path: String) -> void:
 		worn = cfg.get_value("relics", "worn", []).filter(func(id): return id in owned)
 		town_talk = cfg.get_value("relics", "town_talk", 0)
 		runs = cfg.get_value("relics", "runs", 0)
+		fever = cfg.get_value("relics", "fever", false)
+		pills = cfg.get_value("relics", "pills", 0)
+		deck_runs = cfg.get_value("relics", "deck_runs", 0)
 
 
 static func save() -> void:
@@ -455,6 +754,9 @@ static func save() -> void:
 	cfg.set_value("relics", "worn", worn)
 	cfg.set_value("relics", "town_talk", town_talk)
 	cfg.set_value("relics", "runs", runs)
+	cfg.set_value("relics", "fever", fever)
+	cfg.set_value("relics", "pills", pills)
+	cfg.set_value("relics", "deck_runs", deck_runs)
 	cfg.save(save_path)
 
 
@@ -464,9 +766,20 @@ static func reset() -> void:
 	worn = []
 	town_talk = 0
 	runs = 0
+	fever = false
+	pills = 0
+	deck_runs = 0
 	on_run = false
 	run_time = 0.0
+	feverish = false
 	locket_used = false
 	locket_saved = false
 	jammed = false
 	headshot = false
+	lit = false
+	jabbed = false
+	since_kill = 0.0
+	injected = false
+	whispering = 0.0
+	scrap_owed = 0
+	haul_keep = 1.0

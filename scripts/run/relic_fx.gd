@@ -10,6 +10,10 @@ extends Node
 ##   - Colony Target Lens: the colony pings her, and grunts close in;
 ##   - Phase Harness: overheating on a long sprint;
 ##   - kills: Imani's sutures patch her up, the Idol's Tooth takes its price.
+## Under Mature (relics.gd MATURE) some of these turn darker: the whispers
+## are in her dad's voice and pull her aim, the mask's blackouts run longer
+## and can leave her somewhere else, the lens's colony taunts her; and the
+## Mature-only colony tech lives here too (the stim injector, the Glass core).
 ## The run manager ticks it on runs (run_tick), tells it about kills
 ## (on_kill) and stops it going home (stop).
 
@@ -30,8 +34,22 @@ const WHISPERS := [
 	"...the eye opens...",
 	"...that one. No. That one...",
 ]
+## Mature: the Eye's whispers, in her dad's voice.
+const DAD_WHISPERS := [
+	"\"Put it down, kiddo. You were never built for this.\"",
+	"\"They turned you away for a reason, Eco.\"",
+	"\"I died so you wouldn't have to do this.\"",
+	"\"Behind you. No. I'm kidding. Or am I.\"",
+	"\"You hum when you reload. Like me. Stop it.\"",
+	"\"Come sit with me a while. Just put the gun down.\"",
+]
 const BLACKOUT_EVERY := Vector2(35.0, 70.0)
 const BLACKOUT_TIME := Vector2(1.2, 2.0)
+const BLACKOUT_TIME_M := Vector2(2.0, 3.2)
+## Mature: the chance a blackout leaves her back at her last checkpoint, and what it costs.
+const LOST_TIME_CHANCE := 0.3
+const LOST_TIME_HURT := 8.0
+const LOST_TIME_LINE := "She comes to back down the trail, bruised, with no idea how she got here."
 const RADIO_EVERY := Vector2(45.0, 80.0)
 ## How far Mom's crackle carries to grunts.
 const RADIO_RANGE := 25.0
@@ -45,6 +63,15 @@ const MOM_LINES := [
 const BEACON_EVERY := Vector2(55.0, 90.0)
 const BEACON_RANGE := 45.0
 const BEACON_LINE := "The target lens chirps. Colony network: target located. Grunts are closing in on her."
+## Mature: the colony taunts her down her own radio.
+const TAUNTS := [
+	"Colony (radio): \"Found you, little pilot. Your father hid better than this.\"",
+	"Colony (radio): \"We still have his titan's black box. Want to hear the end?\"",
+	"Colony (radio): \"Turned away by your own people. Come work for us instead.\"",
+	"Colony (radio): \"Squad's on the way. Say hello to Daddy for us.\"",
+]
+const INJECTOR_LINE := "The injector bites her thigh on its own. Ironskin. She didn't ask for that."
+const CORE_LINE := "The Glass core cracks open in her. Everything slows. Her skin goes cold."
 ## The harness: sprinting longer than this (s) starts burning her, this much a second.
 const HARNESS_GRACE := 3.0
 const HARNESS_BURN := 5.0
@@ -66,6 +93,8 @@ var _sprint := 0.0
 var _slow_left := 0.0
 var _slowed := false
 var _health_tick := 0.0
+var _core_cooldown := 0.0
+var _whisper_left := 0.0
 ## False markers on screen: {pos: Vector3, left: float}.
 var fakes: Array = []
 
@@ -115,6 +144,14 @@ func run_tick(delta: float, free: bool) -> void:
 		if _slow_left <= 0.0:
 			_set_slow(false)
 	_blackout(real)
+	_core_cooldown -= delta
+	_whisper_left = maxf(_whisper_left - delta, 0.0)
+	Relics.whispering = clampf(_whisper_left / 1.5, 0.0, 1.0)
+	if Relics.auto_jab(rm.player.health / maxf(rm.player.max_health, 1.0)):
+		rm.hud.toast(INJECTOR_LINE, 2.5)
+		SFX.play(rm.player, "titan_hiss_short", -8.0, 2.0)
+	if Relics.dark("glass_core") and not rm.player.damaged.is_connected(_on_hit):
+		rm.player.damaged.connect(_on_hit)
 	_health_tick -= delta
 	if _health_tick <= 0.0:
 		_health_tick = 1.0
@@ -171,8 +208,16 @@ func _blackout(real: float) -> void:
 	_blackout_next -= real
 	if _blackout_next <= 0.0:
 		_blackout_next = rng.randf_range(BLACKOUT_EVERY.x, BLACKOUT_EVERY.y)
-		_blackout_len = rng.randf_range(BLACKOUT_TIME.x, BLACKOUT_TIME.y)
+		var span := BLACKOUT_TIME_M if Relics.mature() else BLACKOUT_TIME
+		_blackout_len = rng.randf_range(span.x, span.y)
 		_blackout_left = _blackout_len
+		if Relics.mature() and rng.randf() < LOST_TIME_CHANCE and rm.get("checkpoint") != null and rm.phase == rm.Phase.ZONE:
+			# lost time: she walked somewhere in the dark
+			var p: Node3D = rm.player
+			p.global_position = rm.checkpoint
+			p.velocity = Vector3.ZERO
+			p.health = maxf(p.health - LOST_TIME_HURT, 1.0)
+			rm.hud.toast(LOST_TIME_LINE, 3.0)
 
 
 func _whispers(delta: float) -> void:
@@ -187,7 +232,11 @@ func _whispers(delta: float) -> void:
 	var ang := rng.randf() * TAU
 	var dist := rng.randf_range(8.0, EYE_RANGE * 0.8)
 	fakes.append({"pos": p.global_position + Vector3(cos(ang) * dist, 1.2, sin(ang) * dist), "left": WHISPER_TIME})
-	rm.hud.toast(WHISPERS[rng.randi() % WHISPERS.size()], 2.0)
+	if Relics.mature():
+		rm.hud.toast(DAD_WHISPERS[rng.randi() % DAD_WHISPERS.size()], 3.0)
+		_whisper_left = WHISPER_TIME
+	else:
+		rm.hud.toast(WHISPERS[rng.randi() % WHISPERS.size()], 2.0)
 
 
 func _radio(delta: float) -> void:
@@ -208,7 +257,7 @@ func _beacon(delta: float) -> void:
 	if _beacon_next > 0.0:
 		return
 	_beacon_next = rng.randf_range(BEACON_EVERY.x, BEACON_EVERY.y)
-	rm.hud.toast(BEACON_LINE, 3.0)
+	rm.hud.toast(TAUNTS[rng.randi() % TAUNTS.size()] if Relics.mature() else BEACON_LINE, 3.0)
 	SFX.play(rm.player, "lock_on", -4.0)
 	var at: Vector3 = rm.player.global_position
 	for e in get_tree().get_nodes_in_group("enemies"):
@@ -226,6 +275,19 @@ func _harness(delta: float) -> void:
 		p.regen_timer = maxf(p.regen_timer, 0.5)
 		if _sprint - delta <= HARNESS_GRACE:
 			rm.hud.toast("The phase harness is cooking her. Ease off.", 1.5)
+
+
+## The Glass core: a hit cracks a second of Glass open in her.
+func _on_hit(_amount: float, _from: Vector3) -> void:
+	if not Relics.dark("glass_core") or _core_cooldown > 0.0 or Glass.focusing():
+		return
+	_core_cooldown = Relics.CORE_COOLDOWN
+	Glass.focus_left = Relics.CORE_FOCUS
+	Glass.glass = mini(Glass.glass + 1, Glass.MAX_GLASS)
+	Glass.used_this_run = true
+	Glass.save()
+	rm.player.refresh_glass()
+	rm.hud.toast(CORE_LINE, 2.0)
 
 
 ## A grunt went down: Imani's sutures, the Tooth's price.
@@ -269,6 +331,9 @@ func stop() -> void:
 		_dark.color.a = 0.0
 	fakes.clear()
 	_sprint = 0.0
+	_whisper_left = 0.0
+	_core_cooldown = 0.0
+	Relics.whispering = 0.0
 	_reset_timers()
 	if _marks != null:
 		_marks.queue_redraw()

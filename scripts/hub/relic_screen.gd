@@ -115,7 +115,7 @@ func _refresh() -> void:
 	var id: String = ids[selected]
 	var r: Dictionary = Relics.RELICS[id]
 	if Relics.owns(id):
-		_detail.text = "%s\n+ %s\n- %s" % [r["blurb"], r["perk"], r["curse"]]
+		_detail.text = "%s\n+ %s\n- %s" % [Relics.text(id, "blurb"), Relics.text(id, "perk"), Relics.text(id, "curse")]
 	else:
 		var hint: String = Relics.HINTS[r.get("giver", r["source"])]
 		_detail.text = "Not found yet. %s" % hint
@@ -131,7 +131,7 @@ func _row(i: int, id: String) -> Control:
 	b.alignment = HORIZONTAL_ALIGNMENT_LEFT
 	b.add_theme_font_size_override("font_size", 16)
 	var mark := "[ON] " if Relics.wearing(id) else "     "
-	b.text = mark + (r["name"] if owned else "???")
+	b.text = mark + (Relics.relic_name(id) if owned else "???")
 	var c: Color = SOURCE_COLORS[r["source"]] if owned else DIM
 	b.add_theme_color_override("font_color", c)
 	b.add_theme_color_override("font_hover_color", c.lightened(0.2))

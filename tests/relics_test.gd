@@ -53,7 +53,11 @@ func _unit() -> void:
 		_check("there are %s relics" % source, Relics.ORDER.any(func(id): return Relics.RELICS[id]["source"] == source), source)
 
 	# Teen: Marrow's coin isn't there.
-	_check("Teen: no coin listed", not "violet_coin" in Relics.listed() and Relics.listed().size() == Relics.ORDER.size() - 1, Relics.listed().size())
+	var mature_only: Array = Relics.ORDER.filter(func(id): return Relics.RELICS[id].get("mature", false))
+	_check("Teen: no Mature-only relics listed", not "violet_coin" in Relics.listed() and Relics.listed().size() == Relics.ORDER.size() - mature_only.size()
+			and mature_only.size() == 6, mature_only)
+	_check("Teen: Teen names", Relics.relic_name("moms_locket") == "Mom's Locket", Relics.relic_name("moms_locket"))
+	_check("Teen: shrines only offer Teen ones", not "censer" in Relics.missing("precursor"), Relics.missing("precursor"))
 	Relics.gain("violet_coin")
 	_check("Teen: the coin can't go on", not Relics.toggle("violet_coin") and not Relics.wearing("violet_coin"), Relics.worn)
 	Relics.owned.erase("violet_coin")
@@ -73,6 +77,8 @@ func _unit() -> void:
 	Relics.toggle("heartstone")
 	_check("taken off", Relics.worn == ["sunless_mask"], Relics.worn)
 	_check("missing precursor ones", Relics.missing("precursor") == ["builder_eye"], Relics.missing("precursor"))
+	for id: String in Relics.MATURE:
+		_check("%s's Mature side is a known relic" % id, Relics.RELICS.has(id), id)
 
 	# Off a run nothing applies.
 	for id in Relics.ORDER:
@@ -151,6 +157,8 @@ func _unit() -> void:
 	ContentRating.set_rating("T", false)
 	Vices.reset()
 
+	_mature()
+
 	# Givers.
 	Relics.owned = []
 	Relics.worn = []
@@ -178,6 +186,149 @@ func _unit() -> void:
 	Relics.open(PATH)
 	_check("saved and loaded", Relics.owned == owned and Relics.worn == ["heartstone"] and Relics.runs == 5, [Relics.owned, Relics.worn, Relics.runs])
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(PATH))
+
+
+## Under Mature: the darker sides, and the Mature-only relics.
+func _mature() -> void:
+	ContentRating.set_rating("M", false)
+	Vices.reset()
+	for id in Relics.ORDER:
+		Relics.gain(id)
+	_check("Mature: everything listed", Relics.listed().size() == Relics.ORDER.size(), Relics.listed().size())
+	_check("Mature: darker names", Relics.relic_name("moms_locket") == "Mom's Rosary Flask" and Relics.relic_name("ophelias_watch") == "Ophelia's Lighter", "")
+	var state := ConfigFile.new()
+	state.set_value("ophelia", "affection", 50)
+	state.set_value("mom", "bond", 50)
+
+	# Biggie's flask starts her two drinks in; Sal's kit puts a stim on her belt.
+	Relics.worn = ["biggies_tags", "sals_scale"]
+	Relics.run_started()
+	_check("Biggie's flask: buzzed from the start", is_equal_approx(Vices.buzz, Relics.FLASK_BUZZ) and Relics.damage_in() == Relics.TAGS_DAMAGE_M, Vices.buzz)
+	_check("Sal's kit: a free stim", Vices.belt.size() == 1 and not Relics.jams(0.0) and Relics.loot_amount(3) == 3, Vices.belt)
+	Vices.jab()
+	Relics.tick(0.1)
+	Relics.run_over(state, 60.0)
+	_check("Sal's kit: a jab costs extra dependence", is_equal_approx(Vices.dependence, 2.0), Vices.dependence)
+	Vices.reset()
+
+	# The flask: when it saves her, a long pull, and Mom notices.
+	Relics.worn = ["moms_locket"]
+	Relics.run_started()
+	_check("Mom's flask saves her", Relics.cheat_death() and is_equal_approx(Vices.buzz, Relics.FLASK_BUZZ), Vices.buzz)
+	var notes := Relics.run_over(state, 60.0)
+	_check("Mom finds it empty", int(state.get_value("mom", "bond")) == 50 - Relics.FLASK_BOND and notes.size() == 1, notes)
+	Vices.reset()
+
+	# Ophelia's lighter: works while she smokes, burns them fast, and she wants it lit.
+	Relics.worn = ["ophelias_watch"]
+	Relics.run_started()
+	Relics.note_headshot()
+	_check("lighter: no smoke, no slow-mo", not Relics.headshot, "")
+	Relics.run_over(state, 60.0)
+	_check("lighter: never lit, Ophelia's cold", int(state.get_value("ophelia", "affection")) == 50 - Relics.LIGHTER_COST, state.get_value("ophelia", "affection"))
+	Relics.run_started()
+	Vices.smokes = 1
+	Vices.light_up()
+	var left := Vices.smoke_left
+	Vices.tick(1.0)
+	Relics.tick(1.0)
+	_check("lighter: smokes burn twice as fast", is_equal_approx(Vices.smoke_left, left - 2.0), Vices.smoke_left)
+	Relics.note_headshot()
+	_check("lighter: smoking, headshots slow", Relics.headshot and Relics.spread_scale() < 1.0, Relics.spread_scale())
+	Relics.headshot = false
+	var aff := int(state.get_value("ophelia", "affection"))
+	Relics.run_over(state, 60.0)
+	_check("lighter: lit up, she's happy", int(state.get_value("ophelia", "affection")) == aff, "")
+	Vices.reset()
+
+	# Heartstone: a fever for the next run.
+	Relics.worn = ["heartstone"]
+	Relics.run_started()
+	Relics.run_over(state, 60.0)
+	Relics.worn = []
+	Relics.run_started()
+	_check("fever carries into the next run", Relics.feverish and Relics.health_scale() == Relics.FEVER and Relics.carry_line().contains("fever"), Relics.health_scale())
+	Relics.run_over(state, 60.0)
+	Relics.run_started()
+	_check("then it breaks", not Relics.feverish and Relics.health_scale() == 1.0, "")
+	Relics.run_over(state, 60.0)
+
+	# The Tooth's bloodlust.
+	Relics.worn = ["idols_tooth"]
+	Relics.run_started()
+	_check("Tooth: fed, steady", not Relics.bloodlust() and Relics.sway(1.0) == Vector2.ZERO, "")
+	Relics.tick(Relics.TOOTH_THIRST + 1.0)
+	_check("Tooth: hungry, shaking", Relics.bloodlust() and Relics.sway(1.0) != Vector2.ZERO and Relics.spread_scale() > 1.0, Relics.sway(1.0))
+	Relics.on_kill()
+	_check("Tooth: a kill settles it", not Relics.bloodlust(), "")
+	Relics.run_over(state, 60.0)
+
+	# Imani's pills build a habit.
+	Relics.worn = ["imanis_kit"]
+	for i in Relics.PILL_HABIT:
+		Relics.run_started()
+		_check("pills soften hits", Relics.damage_in() == Relics.PILL_DAMAGE, Relics.damage_in())
+		Relics.run_over(state, 60.0)
+	Relics.worn = []
+	Relics.run_started()
+	_check("no pills: the shakes", Relics.pill_craving() and Relics.sway(2.0) != Vector2.ZERO, Relics.pills)
+	Relics.run_over(state, 60.0)
+	_check("a run without wears it down", Relics.pills == Relics.PILL_HABIT - 1, Relics.pills)
+
+	# The censer's smoke, Rook's glass, Dutch's deck.
+	Vices.reset()
+	Relics.worn = ["censer", "rooks_glass"]
+	Relics.run_started()
+	Relics.tick(0.1)
+	_check("Rook's glass: never sober", Vices.buzz >= Relics.ROOK_FLOOR and Relics.notice_scale() < 1.0, Vices.buzz)
+	var sober_hit := Relics.damage_out()
+	Relics.tick(120.0)
+	_check("censer: the buzz climbs", Vices.buzz > Relics.ROOK_FLOOR and Vices.buzz <= Relics.CENSER_MAX + 0.01, Vices.buzz)
+	_check("Rook's glass: drunker hits harder", Relics.damage_out() > sober_hit, [sober_hit, Relics.damage_out()])
+	Relics.run_over(state, 60.0)
+	_check("Rook's tab", Relics.scrap_owed == Relics.ROOK_TAB, Relics.scrap_owed)
+	Vices.reset()
+	Relics.worn = ["dutchs_deck"]
+	Relics.deck_runs = 0
+	var kept := []
+	for i in Relics.DECK_TURN:
+		Relics.run_started()
+		_check("deck: luck leans her way", Relics.loot_amount(4) == 5, Relics.loot_amount(4))
+		Relics.run_over(state, 60.0)
+		kept.append(Relics.haul_keep)
+	_check("deck: every third run it turns", kept == [1.0, 1.0, Relics.DECK_CUT], kept)
+
+	# Beads: grunts start wary. The injector, once.
+	Relics.worn = ["prayer_beads", "stim_injector"]
+	Relics.run_started()
+	_check("beads: grunts start wary", Relics.grunt_wariness() > 0.0, "")
+	_check("injector: not while she's fine", not Relics.auto_jab(0.9), "")
+	_check("injector: fires when she's nearly down", Relics.auto_jab(0.1) and Vices.stim == "ironskin" and Vices.dependence == 1.0, Vices.stim)
+	Vices.stim = ""
+	_check("injector: once a run", not Relics.auto_jab(0.1), "")
+	Relics.run_over(state, 60.0)
+
+	# Givers under Mature: Rook and Dutch at the bar.
+	var runs_was := Relics.runs
+	Relics.owned.erase("rooks_glass")
+	Relics.owned.erase("dutchs_deck")
+	Relics.runs = 10
+	_check("Rook gives first at the bar", Relics.giver_at({"id": "shop_bar"}, state) == "rook", "")
+	Relics.gain("rooks_glass")
+	_check("then Dutch", Relics.giver_at({"id": "shop_bar"}, state) == "dutch", "")
+	Relics.runs = runs_was
+
+	# Teen again: the Mature-only ones do nothing.
+	Relics.worn = ["rooks_glass", "censer"]
+	ContentRating.set_rating("T", false)
+	Vices.reset()
+	Relics.run_started()
+	_check("Teen: Mature-only relics do nothing", Relics.notice_scale() == 1.0 and Relics.damage_out() == 1.0 and Relics.hud_text() == "", Relics.hud_text())
+	Relics.run_over(state, 60.0)
+	_check("Teen: no tab", Relics.scrap_owed == 0, Relics.scrap_owed)
+	Relics.worn = []
+	Relics.fever = false
+	Relics.pills = 0
 
 
 func _game() -> void:

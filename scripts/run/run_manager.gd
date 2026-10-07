@@ -542,6 +542,7 @@ func load_zone(index: int) -> void:
 			grunt.target = player
 			grunt.died.connect(_on_grunt_died)
 			grunt.called_out.connect(func(_g, _squad): _alarm_raised = true)
+			grunt.detection = maxf(grunt.detection, Relics.grunt_wariness())  # the colony heard the town talk
 		phase = Phase.ZONE
 		var zone_name: String = zone_info.get("name", "")
 		var uncharted := "UNCHARTED: " if index >= RunState.ZONE_COUNT else ""
@@ -1192,6 +1193,7 @@ func _on_grunt_died(grunt: Node) -> void:
 	if run == null or zone_root == null or not is_instance_valid(grunt):
 		return
 	run.kills += 1
+	Relics.on_kill()
 	relic_fx.on_kill()
 	Loot.drop(zone_root, grunt.global_position, Loot.roll_grunt(loot_rng, run.zone), loot_rng)
 	tutorial.event("loot")
@@ -1712,8 +1714,15 @@ func end_run(title: String, reason: String) -> void:
 		npc_talk.state.save(npc_talk.save_path)
 	tether.stop()
 	relic_fx.stop()
+	if Relics.haul_keep < 1.0:  # Dutch's deck turned on her
+		for m in run.materials:
+			run.materials[m] = int(int(run.materials[m]) * Relics.haul_keep)
 	var haul := Armory.run_haul(run.materials, won)
 	armory.bank(haul)
+	if Relics.scrap_owed > 0:  # Rook's tab
+		armory._spend({"scrap": mini(Relics.scrap_owed, armory.amount("scrap"))})
+		armory.save()
+		Relics.scrap_owed = 0
 	# The meal from Seven Suns was for this run.
 	if TownShops.meal() != "":
 		TownShops.finish_meal()
@@ -1746,21 +1755,21 @@ func end_run(title: String, reason: String) -> void:
 func _take_relic(id: String) -> void:
 	if not Relics.gain(id):
 		return
-	var r: Dictionary = Relics.RELICS[id]
-	hud.toast("RELIC: %s\n%s\n+ %s\n- %s\nWear it at the idol back home." % [r["name"].to_upper(), r["blurb"], r["perk"], r["curse"]], 6.0)
+	hud.toast("RELIC: %s\n%s\n+ %s\n- %s\nWear it at the idol back home." % [Relics.relic_name(id).to_upper(),
+			Relics.text(id, "blurb"), Relics.text(id, "perk"), Relics.text(id, "curse")], 6.0)
 	SFX.play(player, "level_up", -6.0)
 
 
 ## Someone close to her has a keepsake for her (relics.gd GIVERS): the F at
 ## their spot hands it over instead. Returns whether it did.
 func _relic_gift(spot: Dictionary) -> bool:
-	var who := Relics.giver_at(spot)
+	var who := Relics.giver_at(spot, npc_talk.state)
 	if who == "" or (who == "marrow" and Glass.broken):
 		return false
 	var id := Relics.gift_due(who, npc_talk.state)
 	if id == "" or not Relics.gain(id):
 		return false
-	hud.toast("%s\nNEW RELIC: %s. Wear it at the idol." % [Relics.RELICS[id]["gift"], Relics.relic_name(id).to_upper()], HUB_LINE_SECONDS + 3.0)
+	hud.toast("%s\nNEW RELIC: %s. Wear it at the idol." % [Relics.text(id, "gift"), Relics.relic_name(id).to_upper()], HUB_LINE_SECONDS + 3.0)
 	SFX.play(player, "level_up", -6.0)
 	return true
 

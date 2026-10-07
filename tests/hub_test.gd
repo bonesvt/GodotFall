@@ -26,6 +26,7 @@ func _initialize() -> void:
 	run_node.armory_path = "user://test_hub_armory.cfg"
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(run_node.armory_path))
 	DirAccess.remove_absolute(ProjectSettings.globalize_path("user://test_settings.cfg"))
+	DirAccess.remove_absolute(ProjectSettings.globalize_path("user://test_hub_armory_relics.cfg"))
 	# Ophelia is only in the hub once Level 2 has rescued her (run_manager RESCUED_IN).
 	var progress := ConfigFile.new()
 	progress.set_value("progress", "cleared", ["level2"])
@@ -36,6 +37,9 @@ func _initialize() -> void:
 
 func _run() -> void:
 	await _ticks(60)
+	# Every relic already hers, so no keepsake is handed over in place of a spot's own use (relics.gd).
+	var relics = load("res://scripts/hub/relics.gd")
+	relics.owned = relics.ORDER.duplicate()
 	player = run_node.player
 	var info: Dictionary = run_node.zone_info
 	_check("game opens in the hub", run_node.phase == run_node.Phase.HUB and run_node.run == null, run_node.phase)

@@ -959,7 +959,7 @@ func refresh_glass() -> void:
 ## Her steps wander a little off the way she means to go.
 func _drunk(delta: float) -> void:
 	_drunk_t += delta
-	var want := Vices.sway(_drunk_t)
+	var want := Vices.sway(_drunk_t) + Relics.sway(_drunk_t)
 	var step := want - _drunk_sway
 	_drunk_sway = want
 	if step != Vector2.ZERO and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:

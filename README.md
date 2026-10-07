@@ -290,6 +290,26 @@ Space wear or take off). The run HUD lists them; what she owns and wears saves p
     within 45 m come for her.
   - *Phase Harness*: 15% faster; sprinting over 3 s burns her (never below 1 health).
   - *Officer's IFF Tag*: grunts much slower to notice her; their hits do 25% more.
+- **Under Mature** most relics turn darker (`relics.gd` MATURE) and feed her vices:
+  - *Builder's Eye*: the whispers are her dad's voice, and her aim drifts while they talk.
+  - *Heartstone*: she brings a fever home; her next run starts at 85% max health.
+  - *Sunless Mask*: blackouts run 2-3 s, and 30% of them leave her back at her last checkpoint, 8 health down.
+  - *Idol's Tooth*: 30 s without a kill and her aim shakes and the cone opens.
+  - *Mom's Rosary Flask* (the locket): when it keeps her up she takes a pull (+2 buzz), and Mom's bond drops 3.
+  - *Ophelia's Lighter* (the watch): while smoking, a tighter cone and headshot slow-mo; smokes burn
+    twice as fast, and a run without lighting up costs 4 affection.
+  - *Biggie's Hip Flask* (the tags): 35% less damage, every run starts two drinks in.
+  - *Sal's Back-Alley Kit* (the scale): a free stim on her belt each run; crashes hurt 15% more and
+    a run she jabs on adds 1 dependence.
+  - *Imani's Painkillers* (the kit): hits 15% softer too; two runs on them and a run without gives her the shakes.
+  - *Prayer beads*: grunts start every zone half suspicious.
+  - *Target lens*: the colony taunts her over the radio. *IFF tag*: Mom's bond drops 2 a run.
+  - Mature only: the *Precursor Censer* (shrine; grunts much slower to see her, the smoke buzzes her up
+    to 3), *Rook's Lucky Shot Glass* (the Halo, after 2 runs; up to 35% harder hits the drunker she is,
+    never below 1 buzz, 8 scrap tab a run), *Dutch's Marked Deck* (the Halo, after 5 runs; a quarter
+    more materials, every third run she loses half her haul), the *Combat Stim Injector* (cache; auto
+    Ironskin under 30% health once a run, +1 dependence) and the *Glass Core* (cache; a hit gives a
+    second of Glass slow-mo every 45 s, and a step of crystal).
 - The timed effects run in `scripts/run/relic_fx.gd`. Test: `tests/relics_test.gd`.
 
 ### Workbenches and materials
