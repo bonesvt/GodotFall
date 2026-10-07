@@ -143,6 +143,7 @@ func _run() -> void:
 
 	_smokes_and_stims()
 	_hush()
+	_deep_hold()
 
 	Vices.reset()
 	ContentRating.set_rating(old_rating, false)
@@ -330,6 +331,70 @@ func _errands(armory: Armory, talks: ConfigFile) -> void:
 	Vices.hold = 5.0
 	_check("eyes show from the first dose", Vices.eye_swirl() >= 0.35, Vices.eye_swirl())
 	den.free()
+
+
+## Deep in his Hold off the job: her posture, her words, her gear, and the
+## Hush courier suit for reaching full.
+func _deep_hold() -> void:
+	Vices.reset()
+	_check("no Hold: no slump", Vices.slump() == 0.0, Vices.slump())
+	Vices.hold = 60.0
+	var half := Vices.slump()
+	Vices.hold = Vices.MAX_HOLD
+	_check("the slump deepens with his Hold", half > 0.0 and half < 1.0 and Vices.slump() == 1.0, [half, Vices.slump()])
+	# her words drift off
+	var line := "Eco: \"Dad built this bench with his own two hands, you know.\""
+	_check("full Hold: her lines can drift", Vices.confuse_chance() > 0.0, Vices.confuse_chance())
+	var drifted := Vices.confuse(line, 0.0, 2)
+	_check("a drifted line trails off inside the quote", drifted.begins_with("Eco: \"Dad built this") and drifted.ends_with(Vices.DRIFTS[2] + "\"") and drifted != line, drifted)
+	_check("most lines come out whole", Vices.confuse(line, 0.99) == line, "")
+	var plain := Vices.confuse("A workbench, oil stains and all. Dad's.", 0.0, 0)
+	_check("lines with no quote drift too", plain.ends_with(Vices.DRIFTS[0]) and plain.begins_with("A workbench"), plain)
+	Vices.hold = 30.0
+	_check("light Hold: her words stay hers", Vices.confuse_chance() == 0.0 and Vices.confuse(line, 0.0) == line, Vices.confuse_chance())
+	# the wrong gear
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 3
+	var guns := ["smart_pistol", "rivet_cannon"]
+	var knives := Armory.KNIVES.keys()
+	var weights := Armory.SUIT_WEIGHTS.keys()
+	var mixed := 0
+	for i in 200:
+		if not Vices.wrong_gear(rng, guns, "smart_pistol", knives, "needle", 2, "medium", weights).is_empty():
+			mixed += 1
+	_check("light Hold: she always grabs her own gear", mixed == 0, mixed)
+	Vices.hold = Vices.MAX_HOLD
+	var weapon_swaps := 0
+	var right_kit := true
+	for i in 400:
+		var got := Vices.wrong_gear(rng, guns, "smart_pistol", knives, "needle", 2, "medium", weights)
+		if got.is_empty():
+			continue
+		mixed += 1
+		weapon_swaps += 1 if got.has("weapon") else 0
+		if got.get("weapon", "rivet_cannon") != "rivet_cannon" or got.get("knife", "x") == "needle" or got.get("weight", "x") == "medium":
+			right_kit = false
+	_check("full Hold: sometimes the wrong gear", mixed > 120 and mixed < 360, mixed)
+	_check("always something else she owns", right_kit and weapon_swaps > 0, weapon_swaps)
+	var bare := Vices.wrong_gear(rng, ["smart_pistol"], "smart_pistol", ["needle"], "needle", 0, "medium", weights)
+	_check("nothing else to grab: nothing mixed up", bare.is_empty(), bare)
+	ContentRating.set_rating("T", false)
+	_check("Teen: none of it", Vices.slump() == 0.0 and Vices.confuse_chance() == 0.0
+			and Vices.wrong_gear(rng, guns, "smart_pistol", knives, "needle", 2, "medium", weights).is_empty(), Vices.slump())
+	ContentRating.set_rating("M", false)
+	# the Hush courier suit
+	Vices.reset()
+	Vices.hold = Vices.MAX_HOLD - Vices.HOLD_PER_DOSE
+	_check("no suit before his Hold is full", not Vices.hush_suit, Vices.hush_suit)
+	Vices.dose()
+	_check("full Hold: the Hush courier suit is hers", Vices.hush_suit and Vices.hush_suit_new and Vices.hold == Vices.MAX_HOLD, [Vices.hush_suit, Vices.hold])
+	Vices.hush_suit_new = false
+	_check("only once", not Vices.reward_check() and not Vices.hush_suit_new, Vices.hush_suit_new)
+	Vices.hold = 10.0
+	Vices.walk_away()
+	Vices.open(VICES_PATH)
+	_check("saved, and kept after she walks away", Vices.hush_suit and Vices.hold == 0.0, [Vices.hush_suit, Vices.hold])
+	Vices.reset()
 
 
 func _check(label: String, ok: bool, got) -> void:

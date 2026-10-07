@@ -107,6 +107,8 @@ const OPHELIA_NOTICES := [
 	"Ophelia: \"Your eyes are doing that purple thing again. Don't tell me it's nothing.\"",
 	"Ophelia: \"I waited up. Again. Whatever it is, I'm not going anywhere. Just... come back.\"",
 ]
+## When Marrow's Hold is first full: the Hush courier suit (vices.gd hush_suit).
+const HUSH_SUIT_LINE := "A parcel on her bed, wrapped in violet paper. Marrow's courier suit, cut to her size. A card: \"For my best runner. Wear it.\" It's in her wardrobe."
 const MOM_SMELLS := [
 	"Mom: \"You smell like the Halo's back step. Don't lie to me, I can smell it.\"",
 	"Mom: \"Smoke in your hair again. Your father quit for you, you know.\"",
@@ -192,6 +194,12 @@ var armory: Armory
 var bench = null
 ## Marrow's pull at full Hold (hush_pull.gd): walks her to his basement.
 var hush_pull: HushPull
+## What she grabbed by mistake for this run, deep in Marrow's Hold
+## (vices.gd wrong_gear): put right when she gets home.
+var mixed_up := {}
+var gear_rng := RandomNumberGenerator.new()
+## Rolls for her lines drifting off (vices.gd confuse).
+var drift_rng := RandomNumberGenerator.new()
 ## Lays out loot and rolls drops, seeded per zone from the run seed so loot
 ## never shifts the run's own rolls.
 var loot_rng := RandomNumberGenerator.new()
@@ -225,6 +233,8 @@ static func ensure_input_actions() -> void:
 func _ready() -> void:
 	# The manager keeps running while the salvage choice pauses the world.
 	process_mode = Node.PROCESS_MODE_ALWAYS
+	gear_rng.randomize()
+	drift_rng.randomize()
 	add_to_group("loot_collector")
 	ensure_input_actions()
 	# Normally the title screen did these; played straight from the editor, do them here.
@@ -332,14 +342,50 @@ func start_run(seed_value: int, uncharted := 0, level := "") -> void:
 		w.set("softness", Family.softness(npc_talk.state))
 	load_zone(0)
 	Vices.run_started()
+	var line := ""
 	if Vices.hush() > 0.0:
-		hud.toast("The Hush settles in. Everything goes quiet, and sharp, and violet.", HUB_LINE_SECONDS)
+		line = "The Hush settles in. Everything goes quiet, and sharp, and violet."
 	elif Vices.in_withdrawal():
-		hud.toast(Vices.withdrawal_line(), HUB_LINE_SECONDS)
+		line = Vices.withdrawal_line()
 	elif Vices.craving() > 0.0:
-		hud.toast(Vices.craving_line(), HUB_LINE_SECONDS)
+		line = Vices.craving_line()
 	elif Vices.effect() > 0.0:
-		hud.toast(Vices.run_line(), HUB_LINE_SECONDS)
+		line = Vices.run_line()
+	if _mix_up_gear():
+		line = (line + "\n" if line != "" else "") + Vices.WRONG_GEAR_LINE + "\n" + _mixed_up_text()
+	if line != "":
+		hud.toast(line, HUB_LINE_SECONDS + (2.0 if not mixed_up.is_empty() else 0.0))
+
+
+## Deep in Marrow's Hold she can head out with the wrong gun, knife or kit
+## (vices.gd wrong_gear): on her for this run only. Returns whether she did.
+func _mix_up_gear() -> bool:
+	if not mixed_up.is_empty():
+		equip_loadout()
+	var guns: Array = Armory.WEAPONS.keys().filter(func(id): return armory.owns_weapon(id))
+	mixed_up = Vices.wrong_gear(gear_rng, guns, armory.equipped, Armory.KNIVES.keys(), armory.knife,
+			armory.suit_tier, armory.suit_weight, Armory.SUIT_WEIGHTS.keys())
+	if mixed_up.is_empty():
+		return false
+	if mixed_up.has("weapon"):
+		player.get_node("Head/Camera3D/Weapon").equip(armory.weapon_profile(mixed_up["weapon"]))
+	if mixed_up.has("knife"):
+		player.get_node("Head/Camera3D/Knife").set_model(mixed_up["knife"])
+	if mixed_up.has("weight"):
+		player.apply_suit(TownShops.boost(armory.suit_profile(-1, mixed_up["weight"])))
+	return true
+
+
+## What she's got on her by mistake, for the toast.
+func _mixed_up_text() -> String:
+	var bits := []
+	if mixed_up.has("weapon"):
+		bits.append("%s (she picked %s)" % [Armory.WEAPONS[mixed_up["weapon"]]["name"], Armory.WEAPONS[armory.equipped]["name"]])
+	if mixed_up.has("knife"):
+		bits.append("%s knife (she picked %s)" % [Armory.KNIVES[mixed_up["knife"]]["name"], Armory.KNIVES[armory.knife]["name"]])
+	if mixed_up.has("weight"):
+		bits.append("%s kit (she picked %s)" % [Armory.SUIT_WEIGHTS[mixed_up["weight"]]["name"], Armory.SUIT_WEIGHTS[armory.suit_weight]["name"]])
+	return "Wrong gear: " + ", ".join(bits) + "."
 
 
 func _fresh_level(level_name: String) -> void:
@@ -400,6 +446,9 @@ func enter_hub() -> void:
 	place_player(zone_info["spawn"])
 	tutorial.start_level("hub")
 	hush_pull.reset()
+	if not mixed_up.is_empty():  # home: her own gear again
+		mixed_up = {}
+		equip_loadout()
 	if Vices.trance and Vices.allowed() and zone_info.has("hush"):
 		_wake_at_marrows()
 	elif last_result != "":
@@ -524,6 +573,9 @@ func _hub_tick(delta: float) -> void:
 	hush_pull.tick(delta, roaming)
 	if hush_pull.busy():
 		return
+	if Vices.hush_suit_new and Vices.allowed():
+		Vices.hush_suit_new = false
+		hud.toast(HUSH_SUIT_LINE, HUB_LINE_SECONDS + 3.0)
 	if not rest_spot.is_empty():
 		_rest_tick()
 		return
@@ -598,7 +650,7 @@ func _hub_tick(delta: float) -> void:
 	var lines: Array = spot["lines"]
 	var n: int = hub_reads.get(spot["id"], 0)
 	hub_reads[spot["id"]] = n + 1
-	hud.toast(lines[n % lines.size()], HUB_LINE_SECONDS)
+	hud.toast(Vices.confuse(lines[n % lines.size()], drift_rng.randf(), n), HUB_LINE_SECONDS)
 
 
 ## What using a hub spot sounds like (benches make theirs in open_bench).

@@ -31,6 +31,12 @@ extends RefCounted
 ## little scrap. Clean runs loosen his Hold; she can walk away from him for
 ## good while it's under BREAK_AT, or at any Hold if Mom or Ophelia are close
 ## enough to her (STRONG_BOND) to pull her out.
+##
+## The deeper his Hold, the more it shows off the job: her posture slumps
+## (eco_model.gd _slump, slump()), her words drift off mid-line (confuse()),
+## and she can head out on a run with the wrong gun, knife or kit
+## (wrong_gear()). The first time his Hold is full she gets the Hush courier
+## suit (eco_model.gd "suit_hush"): she keeps it even after she walks away.
 
 const ContentRating := preload("res://scripts/radio/content_rating.gd")
 
@@ -119,6 +125,28 @@ const WITHDRAWAL_DAMAGE := 1.35
 const WITHDRAWAL_SPEED := 0.88
 const EPISODE_EVERY := 45.0
 const EPISODE_CHANCE := 0.3
+## His Hold where her posture starts to go, and where it's gone all the way.
+const SLUMP_FROM := 20.0
+## His Hold where her words start drifting off, and the most often they do.
+const CONFUSE_FROM := 50.0
+const CONFUSE_MAX := 0.5
+## His Hold where she can grab the wrong gear for a run, and the chance then
+## (rising to WRONG_GEAR_MAX at full Hold).
+const WRONG_GEAR_FROM := 60.0
+const WRONG_GEAR_MIN := 0.2
+const WRONG_GEAR_MAX := 0.6
+## Where her lines trail off to when his Hold drifts her (confuse()).
+const DRIFTS := [
+	"...sorry. Lost it. What was I saying?",
+	"...wait. Why did I come over here?",
+	"...it's so quiet in my head today. Say that again?",
+	"...hm? No. Nothing. I'm fine. I'm fine.",
+	"...Marrow would know what I mean. He always knows.",
+	"...is it violet in here, or is that me?",
+	"...I had the end of that sentence a second ago.",
+]
+## What she says when she notices the wrong gear on her (wrong_gear()).
+const WRONG_GEAR_LINE := "Eco looks down at what she's carrying. That's not what she picked. When did she pick it?"
 
 static var buzz := 0.0
 ## Drinks bought this session, for Rook's lines.
@@ -159,6 +187,10 @@ static var withdrawal := false
 ## She walked off a run to beg him (saved): he gives her another errand when
 ## she comes to at his place.
 static var begging := false
+## She's earned the Hush courier suit (his Hold was full once): saved, kept.
+static var hush_suit := false
+## It's just been earned: the run manager says so once and clears it.
+static var hush_suit_new := false
 static var save_path := "user://vices.cfg"
 
 
@@ -316,6 +348,7 @@ static func _dose(state: ConfigFile) -> bool:
 	dosed = true
 	hold = minf(hold + HOLD_PER_DOSE, 100.0)
 	walked_away = false
+	reward_check()
 	if state != null:
 		_nudge(state, DOSE_ROMANCE, DOSE_BOND)
 	save()
@@ -351,6 +384,81 @@ static func _nudge(state: ConfigFile, romance: int, bond: int) -> void:
 		state.set_value("ophelia", "affection", clampi(int(state.get_value("ophelia", "affection", 0)) + romance, 0, 100))
 	if state.has_section_key("mom", "bond"):
 		state.set_value("mom", "bond", clampi(int(state.get_value("mom", "bond", 0)) + bond, 0, 100))
+
+
+## His Hold just reached full for the first time: the Hush courier suit is
+## hers (hush_suit_new until the run manager says so). Returns whether it was now.
+static func reward_check() -> bool:
+	if hush_suit or hold < MAX_HOLD or not allowed():
+		return false
+	hush_suit = true
+	hush_suit_new = true
+	save()
+	return true
+
+
+## How far her posture has gone (0..1, eco_model.gd _slump): from SLUMP_FROM
+## to full Hold. 0 under Teen.
+static func slump() -> float:
+	if not allowed():
+		return 0.0
+	return clampf((hold - SLUMP_FROM) / (MAX_HOLD - SLUMP_FROM), 0.0, 1.0)
+
+
+## How often her lines drift off (0..CONFUSE_MAX), deeper in his Hold.
+static func confuse_chance() -> float:
+	if not allowed() or hold < CONFUSE_FROM:
+		return 0.0
+	return CONFUSE_MAX * clampf((hold - CONFUSE_FROM + 10.0) / (MAX_HOLD - CONFUSE_FROM + 10.0), 0.0, 1.0)
+
+
+## One of Eco's lines, maybe drifting off halfway (`roll` 0..1 against
+## confuse_chance(); `pick` chooses where it drifts to). Lines in quotes
+## ("Eco: \"...\"") drift inside the quote.
+static func confuse(text: String, roll: float, pick := 0) -> String:
+	if roll >= confuse_chance() or text.length() < 12:
+		return text
+	var quote := text.find("\"")
+	var head := text.substr(0, quote + 1) if quote >= 0 else ""
+	var said := text.substr(quote + 1).trim_suffix("\"") if quote >= 0 else text
+	var words := said.split(" ", false)
+	var keep := maxi(2, words.size() / 2)
+	var start := " ".join(words.slice(0, keep)).rstrip(".,!?;:")
+	var drifted: String = start + DRIFTS[absi(pick) % DRIFTS.size()]
+	return head + drifted + ("\"" if quote >= 0 else "")
+
+
+## Her mixed-up gear for a run, if she grabs the wrong things (`rng` rolls):
+## {"weapon": id, "knife": id, "weight": kit} with only what she got wrong
+## (empty: she got it right). `guns` are the guns she owns, `tier` her suit
+## tier (no kit to mix up at 0).
+static func wrong_gear(rng: RandomNumberGenerator, guns: Array, gun: String, knives: Array, knife: String,
+		tier: int, weight: String, weights: Array) -> Dictionary:
+	if not allowed() or hold < WRONG_GEAR_FROM:
+		return {}
+	var chance := lerpf(WRONG_GEAR_MIN, WRONG_GEAR_MAX, (hold - WRONG_GEAR_FROM) / (MAX_HOLD - WRONG_GEAR_FROM))
+	if rng.randf() >= chance:
+		return {}
+	var options := {}
+	var other_guns := guns.filter(func(g): return g != gun)
+	if not other_guns.is_empty():
+		options["weapon"] = other_guns
+	var other_knives := knives.filter(func(k): return k != knife)
+	if not other_knives.is_empty():
+		options["knife"] = other_knives
+	var other_weights := weights.filter(func(w): return w != weight)
+	if tier > 0 and not other_weights.is_empty():
+		options["weight"] = other_weights
+	if options.is_empty():
+		return {}
+	var keys := options.keys()
+	var first: String = keys[rng.randi() % keys.size()]
+	var out := {}
+	for key: String in keys:
+		if key == first or rng.randf() < 0.35:  # one thing for sure, maybe more
+			var list: Array = options[key]
+			out[key] = list[rng.randi() % list.size()]
+	return out
 
 
 ## He's done selling: at full Hold a dose is earned with an errand.
@@ -507,8 +615,11 @@ static func open(path: String) -> void:
 	entranced = false
 	withdrawal = false
 	begging = false
+	hush_suit = false
+	hush_suit_new = false
 	var cfg := ConfigFile.new()
 	if cfg.load(path) == OK:
+		hush_suit = cfg.get_value("vices", "hush_suit", false)
 		hold = cfg.get_value("vices", "hold", 0.0)
 		dosed = cfg.get_value("vices", "dosed", false)
 		trance = cfg.get_value("vices", "trance", false)
@@ -535,6 +646,7 @@ static func save() -> void:
 	cfg.set_value("vices", "errand", errand)
 	cfg.set_value("vices", "errand_done", errand_done)
 	cfg.set_value("vices", "begging", begging)
+	cfg.set_value("vices", "hush_suit", hush_suit)
 	cfg.save(save_path)
 
 
@@ -654,3 +766,5 @@ static func reset() -> void:
 	entranced = false
 	withdrawal = false
 	begging = false
+	hush_suit = false
+	hush_suit_new = false

@@ -208,7 +208,19 @@ Under the Mature rating (Settings > Game), **F** at the Rusted Halo on Low Row o
   irises glow softly, breathing.
   Render the trance walk next to her strut: `xvfb-run -a godot --path . --fixed-fps 30
   --rendering-driver opengl3 -s res://tools/eco/trance_shots.gd -- <dir>`.
-- Tests: `godot --headless --path . -s res://tests/vices_test.gd`, `tests/hush_pull_test.gd`
+- **His Hold off the job** (`vices.gd` slump, confuse, wrong_gear): from Hold 20 her posture
+  slowly goes (`eco_model.gd` `_slump`): less strut, chest caved, head low and tipped, shoulders
+  rolled forward, arms close with the hands curled in. From 50 her lines (hub spots and her side
+  of conversations) can trail off mid-sentence into a lost thought, up to half of them at full
+  Hold. From 60 she can head out on a run with the wrong gun, knife or suit kit (20% rising to
+  60% at full Hold, only things she owns): a toast says what she grabbed, and her own gear is back
+  on her at home. Render the posture: `tools/eco/slump_shots.gd` (as the trance shots).
+- **Hush courier suit**: the first time his Hold is full, a parcel from Marrow: his courier suit,
+  the shade catsuit dyed violet-black with violet piping and the same cowl
+  (`tools/eco/build_hush_suit.py` builds its textures). It's in her wardrobe from then on, even
+  after she walks away (Mature only).
+- Tests: `godot --headless --path . -s res://tests/vices_test.gd`, `tests/hush_pull_test.gd`,
+  `tests/hold_effects_test.gd`
 
 ### Cheat box
 A dented ammo crate with a gold trim by the rug in Eco's loft (`scripts/hub/cheat_screen.gd`).
