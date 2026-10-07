@@ -38,10 +38,13 @@ const GiftScreen := preload("res://scripts/hub/gift_screen.gd")
 const GiftShop := preload("res://scripts/hub/gift_shop.gd")
 const SalonScreen := preload("res://scripts/hub/salon_screen.gd")
 const WardrobeScreen := preload("res://scripts/hub/wardrobe_screen.gd")
+const TownShopScreen := preload("res://scripts/hub/town_shop_screen.gd")
+const TownShops := preload("res://scripts/hub/town_shops.gd")
 const Wardrobe := preload("res://scripts/hub/wardrobe.gd")
 const Loot := preload("res://scripts/run/loot.gd")
 const Gifts := preload("res://scripts/run/gifts.gd")
 const NpcIdles := preload("res://scripts/hub/npc_idles.gd")
+const SmokeDate := preload("res://scripts/hub/smoke_date.gd")
 const Escort := preload("res://scripts/run/escort.gd")
 const Weapon := preload("res://scripts/weapon.gd")
 const Knife := preload("res://scripts/knife.gd")
@@ -483,6 +486,8 @@ func _hub_tick(delta: float) -> void:
 		else:
 			hud.toast("Not yet. Clear %s first." % Levels.title(Levels.spec(id)["needs"]), HUB_LINE_SECONDS)
 		return
+	if spot.has("date") and date_at(spot):
+		return
 	if spot.has("screen"):
 		open_bench(spot["screen"])
 		return
@@ -599,6 +604,76 @@ func romance_partners() -> Array:
 	return out
 
 
+## A date spot in Solace (town.gd: a spot with "date", TownShops.DATES):
+## whoever Eco's romancing meets her there, if they're ready (romance.gd
+## can_date) and haven't been out with her since the last run, and she can pay.
+## Returns false to let the spot show its usual lines (nobody to take).
+func date_at(spot: Dictionary) -> bool:
+	var place: String = spot["date"]
+	var who := date_partner()
+	if who == "" or not TownShops.available("dates", place):
+		return false
+	var npc: Node3D = hub_npcs[who]
+	var name := String(NpcTalk.NAMES.get(who, who)).capitalize()
+	if int(npc_talk.state.get_value(who, "date_run", -1)) == runs_ended:
+		hud.toast("One date between runs. %s's still blushing from the last one." % name, HUB_LINE_SECONDS)
+		return true
+	var cost: Dictionary = TownShops.DATES.get(place, {}).get("cost", {})
+	if not armory._spend(cost):
+		hud.toast("Can't cover a date at %s (%s). Not a great look." % [TownShops.DATES[place]["name"], Armory.cost_text(cost)], HUB_LINE_SECONDS)
+		return true
+	armory.save()
+	# They meet her there: in front of her, facing her, no props from their idle spot.
+	var fwd := -player.global_basis.z
+	fwd.y = 0.0
+	fwd = fwd.normalized() if fwd.length() > 0.01 else Vector3.FORWARD
+	for p in npc.find_children("*", "Node3D", true, false):
+		if p.has_meta("idle_prop"):
+			p.get_parent().remove_child(p)
+			p.queue_free()
+	npc.global_position = player.global_position + fwd * 1.3
+	npc.home_yaw = atan2(fwd.x, fwd.z)
+	npc.rotation.y = npc.home_yaw
+	npc.posed = false
+	npc.spot = ""
+	npc.rest_mood = []
+	if npc._anim != null and npc._anim.has_animation("idle"):
+		npc._anim.play("idle", 0.3)
+	npc.calm()
+	var staged: Node3D = null
+	if place == "smoke":
+		staged = _stage_smoke(npc)   # the whole thing acted out (smoke_date.gd)
+	for s in zone_info["interactables"]:
+		if s.get("npc", "") == who:
+			s["pos"] = npc.global_position
+	if not npc_talk.date(npc, place, runs_ended):
+		if staged != null:
+			staged.finish()
+		return false
+	return true
+
+
+## Stages the back step smoke: Eco's stand-in and Ophelia face to face where
+## Eco stands, cued by the date's "@" beats, put away when the talk ends.
+func _stage_smoke(npc: Node3D) -> Node3D:
+	var staged: Node3D = SmokeDate.new()
+	zone_root.add_child(staged)
+	staged.setup(npc, player.global_position, npc.global_position, player.get_node_or_null("EcoBody"))
+	npc_talk.cue.connect(staged.play)
+	npc_talk.finished.connect(func(_who): staged.finish(), CONNECT_ONE_SHOT)
+	staged.done.connect(func(): npc_talk.cue.disconnect(staged.play), CONNECT_ONE_SHOT)
+	return staged
+
+
+## Who Eco can ask out now: the first of the people she's romancing who's
+## ready for a date ("" for nobody).
+func date_partner() -> String:
+	for who in hub_npcs:
+		if npc_talk.romanceable(who) and NpcTalk.Romance.can_date(npc_talk.state, npc_talk.bank(who), who):
+			return who
+	return ""
+
+
 ## Opens Eco's paint shop on the chassis of your last titan, pausing the hub.
 func open_garage() -> void:
 	garage = Garage.new(last_parts.get("chassis", {}).get("id", "atlas"))
@@ -630,6 +705,8 @@ func open_bench(kind: String) -> void:
 		bench = SalonScreen.new()
 	elif kind == "wardrobe":
 		bench = WardrobeScreen.new(runs_ended)
+	elif TownShopScreen.SHOPS.has(kind):
+		bench = TownShopScreen.new(kind, armory)
 	elif kind == "suit":
 		bench = SuitScreen.new(armory)
 	else:
@@ -652,6 +729,10 @@ func close_bench() -> void:
 		for npc in hub_npcs.values():
 			npc.wear_for_run(runs_ended)
 		Wardrobe.dress_eco(player, true)
+	if bench is TownShopScreen:
+		Wardrobe.dress_eco(player, true)  # what she bought or tried on in a shop
+		if bench.kind == "noodles" and TownShops.MEALS.has(TownShops.meal()) and not bench.bought.is_empty():
+			hud.toast("Fed: %s. It lasts the next run." % TownShops.MEALS[TownShops.meal()]["name"], HUB_LINE_SECONDS)
 	bench.queue_free()
 	bench = null
 	get_tree().paused = false
@@ -668,7 +749,7 @@ func close_bench() -> void:
 func equip_loadout() -> void:
 	player.get_node("Head/Camera3D/Weapon").equip(armory.weapon_profile())
 	player.get_node("Head/Camera3D/Knife").set_model(armory.knife)
-	player.apply_suit(armory.suit_profile())
+	player.apply_suit(TownShops.boost(armory.suit_profile()))  # plus her meal and implants from Solace
 
 
 ## Shows whether each level on the mission table is open, turns the marker
@@ -678,6 +759,15 @@ func equip_loadout() -> void:
 ## three knives under the knife case's glass (the one she carries tagged), and
 ## the titan you'd start a run with standing in the workshop's gantry.
 func dress_hub() -> void:
+	# Solace's date spots name whoever Eco can take there.
+	var partner := date_partner()
+	for spot in zone_info.get("interactables", []):
+		if spot.has("date"):
+			if not spot.has("base_prompt"):
+				spot["base_prompt"] = spot["prompt"]
+			var place: Dictionary = TownShops.DATES.get(spot["date"], {})
+			spot["prompt"] = spot["base_prompt"] if partner == "" or not TownShops.available("dates", spot["date"]) else "[F] Take %s on a date at %s (%s)" % [
+					String(NpcTalk.NAMES.get(partner, partner)).capitalize(), place.get("name", "here"), Armory.cost_text(place.get("cost", {}))]
 	var marker: Node3D = zone_info.get("tutorial_marker")
 	if marker != null:
 		marker.visible = not "tutorial" in armory.cleared_levels()
@@ -1275,6 +1365,10 @@ func end_run(title: String, reason: String) -> void:
 		_rescue_bonus(run.level)
 	var haul := Armory.run_haul(run.materials, won)
 	armory.bank(haul)
+	# The meal from Seven Suns was for this run.
+	if TownShops.meal() != "":
+		TownShops.finish_meal()
+		player.apply_suit(TownShops.boost(armory.suit_profile()))
 	Saves.record_run(won)
 	if boss != null:
 		boss.active = false

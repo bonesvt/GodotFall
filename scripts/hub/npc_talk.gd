@@ -32,6 +32,8 @@ extends CanvasLayer
 ## once Eco has softened enough.
 
 signal finished(who: String)
+## A line carried a "@name" mood: a cue for a staged scene (smoke_date.gd).
+signal cue(name: String)
 signal affection_changed(who: String, value: int, delta: int)
 signal bond_changed(who: String, value: int, delta: int)
 
@@ -51,8 +53,9 @@ const GAP := 0.9
 ## Walk this far (m) from whoever you're talking to and the talk ends.
 const LEAVE_RANGE := 5.5
 
-const NAMES := {"mom": "MOM", "ophelia": "OPHELIA", "biggie": "BIGGIE", "eco": "ECO"}
-const COLORS := {"mom": Color(0.6, 0.85, 0.6), "ophelia": Color(0.78, 0.55, 1.0), "biggie": Color(0.95, 0.75, 0.4), "eco": Color(1.0, 0.45, 0.45)}
+const NAMES := {"mom": "MOM", "ophelia": "OPHELIA", "biggie": "BIGGIE", "eco": "ECO", "narrator": ""}
+const COLORS := {"mom": Color(0.6, 0.85, 0.6), "ophelia": Color(0.78, 0.55, 1.0), "biggie": Color(0.95, 0.75, 0.4), "eco": Color(1.0, 0.45, 0.45),
+	"narrator": Color(0.8, 0.8, 0.82)}
 
 var save_path := DEFAULT_PATH
 var state := ConfigFile.new()
@@ -111,11 +114,12 @@ func active() -> bool:
 
 ## Parses dialogue/npc/<who>.txt: {"intro": [...], "won": [...], "lost": [...],
 ## "any": [[...], ...], "together": [[...], ...], "heart": [{at, lines}, ...],
-## "date": {place: [...]}, "gift": {item: [...]}, "romance": [[key, value], ...]},
+## "date": {place: [...]}, "date_m": {place: [...]} (the Mature cut of a date,
+## [date <place> m]), "gift": {item: [...]}, "romance": [[key, value], ...]},
 ## each conversation a list of [speaker, text] lines and {"choice": [{delta,
 ## flag, lines}, ...]} questions.
 static func parse(text: String) -> Dictionary:
-	var bank := {"any": [], "together": [], "flirt": [], "heart": [], "date": {}, "gift": {}, "spot": {},
+	var bank := {"any": [], "together": [], "flirt": [], "heart": [], "date": {}, "date_m": {}, "gift": {}, "spot": {},
 		"bond": [], "close": [], "soft": [], "cuddle": [], "sick": [], "excuse": [], "about": []}
 	var cur: Array = []
 	var choice_re := RegEx.create_from_string("^choice\\s*([+-]?\\d+)?\\s*(?:!(\\w+))?\\s*:\\s*(\\w+(?:\\s*\\([^)]*\\))?)\\s*:\\s*(.+)$")
@@ -139,7 +143,9 @@ static func parse(text: String) -> Dictionary:
 					# else's romance with Eco once it gets that far
 					bank["about"].append({"who": parts[1] if parts.size() > 1 else "", "stage": parts[2] if parts.size() > 2 else "", "lines": cur})
 				"date", "gift":
-					bank[parts[0]][parts[1] if parts.size() > 1 else "any"] = cur
+					# [date cafe m]: the Mature cut of that date
+					var key: String = parts[0] + ("_m" if parts[0] == "date" and parts.size() > 2 and parts[2] == "m" else "")
+					bank[key][parts[1] if parts.size() > 1 else "any"] = cur
 				"spot":
 					# [spot yoga] / [spot yoga flirt]: talks about what they're
 					# doing at that idle spot (npc_idles.gd), flirty ones once
@@ -485,7 +491,8 @@ func _play(p_npc: Node3D, p_lines: Array) -> void:
 
 
 ## A date with them at `place` (a hook for date spots outside the hub). Plays
-## their [date <place>] lines, else [date any], and raises affection once per
+## their [date <place>] lines (the [date <place> m] cut when the content rating
+## is Mature and they have one), else [date any], and raises affection once per
 ## run. False if they won't go yet (see Romance.can_date).
 func date(p_npc: Node3D, place: String, run_id: int) -> bool:
 	stop()
@@ -496,9 +503,16 @@ func date(p_npc: Node3D, place: String, run_id: int) -> bool:
 	if int(state.get_value(who, "date_run", -1)) != run_id:
 		state.set_value(who, "date_run", run_id)
 		_add_affection(who, Romance.DATE_GAIN)
-	_play(p_npc, b["date"].get(place, b["date"].get("any", [])))
+	_play(p_npc, date_lines(b, place))
 	_scene_start()
 	return true
+
+
+## The lines for a date at `place` from a parsed bank, by content rating.
+static func date_lines(b: Dictionary, place: String) -> Array:
+	if ContentRating.current() == "M" and b.get("date_m", {}).has(place):
+		return b["date_m"][place]
+	return b["date"].get(place, b["date"].get("any", []))
 
 
 ## Eco gives them `gift` (an item id; a hook for shops and loot). Their taste
@@ -651,13 +665,17 @@ func _next() -> void:
 		npc.mood(lines[index][2])
 		if "kiss" in lines[index][2]:
 			fade_through_black(1.8)
-	var babble := Babble.make(speaker, text)
+		for w in lines[index][2]:
+			if String(w).begins_with("@"):
+				cue.emit(String(w).substr(1))
+	# "narrator: ..." lines are stage directions: silent, no name
+	var babble := _quiet(text) if speaker == "narrator" else Babble.make(speaker, text)
 	var stream: AudioStream = babble["stream"]
 	_times = babble["times"]
 	_line_t = 0.0
 	var length: float = babble["length"]
 	_eco_voice.stop()
-	if speaker == "eco":
+	if speaker == "eco" or speaker == "narrator":
 		npc.hush()
 		npc.talking = true   # still facing her
 		if stream != null:
@@ -673,6 +691,14 @@ func _next() -> void:
 	_text.visible_characters = 0
 	_hint.text = "[F] next"
 	_panel.visible = true
+
+
+## A silent line's timing (narration): letters at a steady reading pace.
+static func _quiet(text: String) -> Dictionary:
+	var times := PackedFloat32Array()
+	for i in text.length():
+		times.append(i * 0.03)
+	return {"stream": null, "times": times, "length": text.length() * 0.035 + 0.8}
 
 
 ## Called every frame by the run manager while the hub runs. `pilot` is where
