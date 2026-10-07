@@ -57,6 +57,11 @@ var stride_reverse := false
 ## Scales how much they squash (the Press into things setting sets it with
 ## contact_give: follow_jiggle_setting).
 @export_range(0.0, 2.0) var squish_scale := 1.0
+## Her clothes ride her soft parts' swing and squash (eco_cling.gd), so a
+## bouncing glute moves the skirt over it instead of poking through.
+@export var cloth_cling := true
+## Clothing meshes put on the soft weights (for tests).
+var clung := 0
 ## Off duty (the hub and town), standing still with her back to a wall she
 ## eases back and leans on it: her capsule otherwise keeps walls some 27 cm
 ## off her, so this is where walls really press her soft parts.
@@ -266,6 +271,7 @@ const Prefs := preload("res://scripts/game/prefs.gd")
 const Hair := preload("res://scripts/hub/hair.gd")
 const Extras := preload("res://scripts/hub/eco_extras.gd")
 const EcoFlesh := preload("res://scripts/ps2/eco_flesh.gd")
+const EcoCling := preload("res://scripts/ps2/eco_cling.gd")
 ## Her face while she sleeps (blend shape -> weight); the import's fierce look
 ## comes back when she wakes.
 const ASLEEP_FACE := {"Fcl_EYE_Close": 1.0, "Fcl_EYE_Angry": 0.0, "Fcl_BRW_Angry": 0.25, "Fcl_MTH_Down": 0.0}
@@ -367,6 +373,8 @@ func _ready() -> void:
 		_rest = EcoRest.new(skeleton)
 		if not _rest.usable():
 			_rest = null
+	if cloth_cling and springs_enabled and skeleton != null:
+		_cling()
 	if not _style_chosen:
 		follow_jiggle_setting()
 	elif body_jiggle:
@@ -1070,6 +1078,19 @@ func follow_jiggle_setting() -> void:
 	var press := Prefs.press_strength()
 	contact_give = 1.0 + press
 	squish_scale = minf(press, 1.5)
+
+
+## Puts her clothes on the skin's soft weights (eco_cling.gd), so they ride
+## her chest's and glutes' swing and squash. Before the full body jiggle's
+## reweighting, which builds on these.
+func _cling() -> void:
+	for node in skeleton.find_children("*", "MeshInstance3D", false, false):
+		var mi := node as MeshInstance3D
+		var swap := EcoCling.reweight(mi, skeleton)
+		if not swap.is_empty():
+			mi.skin = swap[1]
+			mi.mesh = swap[0]
+			clung += 1
 
 
 ## Turns the soft stomach, thigh, arm and calf springs on or off: on adds
