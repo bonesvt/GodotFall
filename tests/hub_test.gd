@@ -9,6 +9,7 @@ extends SceneTree
 const HubBuilder := preload("res://scripts/hub/hub_builder.gd")
 const Grounds := preload("res://scripts/hub/hub_grounds.gd")
 const TitanStyle := preload("res://scripts/run/titan_style.gd")
+const Vices := preload("res://scripts/hub/vices.gd")
 
 var run_node
 var player
@@ -68,6 +69,22 @@ func _run() -> void:
 		if spot["id"] in ["tutorial_poster", "uncharted_map", "garage", "level_board", "level2_board"]:  # level boards: tests/level1_test.gd, level2_test.gd
 			continue
 		await _stand_at(spot["pos"])
+		if spot.has("teleport") and Vices.allowed():
+			# Marrow's cellar door and basement stairs (hush_den.gd) take her through.
+			await _press("interact")
+			await _ticks(2)
+			var to: Vector3 = spot["teleport"]
+			_check("%s takes her through" % spot["id"], Vector2(player.global_position.x - to.x, player.global_position.z - to.z).length() < 1.0, player.global_position)
+			continue
+		if spot.get("shop", "") in ["bar", "stims", "hush"] and Vices.allowed():
+			# Under Mature the Rusted Halo and Sal's hatch open their screens (tests/vices_test.gd).
+			await _press("interact")
+			await _ticks(2)
+			_check("%s opens" % spot["id"], run_node.bench != null and run_node.bench.kind == spot["shop"] and paused, spot["id"])
+			await _press("interact")
+			await _ticks(2)
+			_check("%s closes" % spot["id"], run_node.bench == null and not paused, spot["id"])
+			continue
 		if spot.has("screen"):
 			# Workbenches open their screen (pausing the hub) and F closes it.
 			await _press("interact")

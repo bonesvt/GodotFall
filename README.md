@@ -55,6 +55,8 @@ The preset keeps `dialogue/*` (plain text the hub people read at runtime) and le
 | Esc | Pause menu (settings, quit) |
 | H | Toggle help |
 | F9 | Change look: Anime (default), PS3, old PS2 |
+| B | Light a smoke (Mature, if she has any) |
+| N | Jab a combat stim (Mature, if she has any) |
 
 ## The temple (hub)
 Pressing Play (`scenes/run.tscn`) opens in the hub: the small abandoned temple Eco hides
@@ -154,6 +156,42 @@ Down the pilgrim road past the front gate, Eco's hometown sells her things for h
 Close-ups: `xvfb-run -a godot --path . --rendering-driver opengl3 -s res://tools/ink/ink_shots.gd
 -- <dir> --pierce=all --ink=all`, and `tools/ink/shop_shots.gd` for the counters. Test:
 `tests/town_shops_test.gd`.
+
+### Vices: the Rusted Halo, smokes, stims and Hush (Mature only)
+Under the Mature rating (Settings > Game), **F** at the Rusted Halo on Low Row opens the bar
+(`scripts/hub/bar_screen.gd`). Under Teen it keeps its old lines and none of this shows.
+
+- **Drinks** (Rook, the bartender) cost scrap: Halo Lager, Rust Bucket, Precursor Shine.
+  Each adds buzz; Rook cuts Eco off near the top and pours free water to sober her up.
+- **Buzz** (`scripts/hub/vices.gd`) wears off about one drink a minute, in the hub and on a
+  run alike, so drinking right before a run carries into it. While buzzed the screen blurs,
+  doubles and closes in (`scripts/ui/drunk_screen.gd`), her aim drifts on its own, the gun's
+  cone opens and her steps wander, but she's numb: hits hurt up to 15% less. The HUD shows
+  TIPSY, BUZZED or HAMMERED.
+- **Scrapjack** (Dutch, at the back table; `scripts/hub/scrapjack.gd`) is blackjack for scrap:
+  Tab switches tabs, **1-4** bet 5/15/30/60, **Space** deals, **H** hit, **S** stand,
+  **D** double down. A natural pays 3:2; Dutch stands on 17.
+- **Smokes**: Rook also sells packs of Night Owls (5 to a pack, up to 20 carried). **B** lights
+  one, in the hub or on a run: for 90 s her aim drifts much less (even drunk) and the gun's cone
+  tightens, but she heals slower. Come home after smoking and Mom smells it.
+- **Stims** from Sal's side hatch (the green-lit door at the plaza end of Sal's Salvage;
+  `scripts/hub/stim_screen.gd`), up to three on her belt. **N** jabs the next one:
+  Redline (faster, 12 s), Ironskin (40% less damage, 12 s), Deadeye (no aim drift, tight cone,
+  10 s). Then a 15 s crash: slower, hurts more, the view swims. A jab during a crash cuts it
+  short. Every jab adds dependence; at 3 and over she gets the shakes (aim drift, haze) on runs
+  until she jabs again, and each clean run wears it down. Smokes, belt and dependence save per slot.
+- **Hush** from Marrow (`scripts/hub/hush_den.gd`, `hush_screen.gd`): he leans in the alley gap
+  between the Glowbox Arcade and Eco's old flat, and lives in the basement under the Holo-Cinema
+  (cellar door by the cinema). A dose (40 scrap, 1 circuit) carries her whole next run: harder
+  hits, faster healing, grunts slower to notice her, all stronger the deeper his **Hold**.
+  Each dose raises his Hold and costs her Ophelia's affection and Mom's bond. After a run on
+  Hush she comes to at his place instead of the temple: while his Hold is under 30 she makes it
+  to her own room off his basement (a store room she welded a lock onto; he can't get in) and wakes
+  up safe, deeper in she wakes in his armchair, short 10 scrap. Once his Hold is 60 or more she
+  ends up there after every run. Clean runs loosen it. **X** in his screen walks
+  away for good while his Hold is under 60, or at any Hold if Ophelia or Mom is at 50 or more,
+  which wins some of their love back. Marrow is a primitive placeholder figure for now.
+- Test: `godot --headless --path . -s res://tests/vices_test.gd`
 
 ### Workbenches and materials
 Out on runs you collect four materials, and the hub's workbenches spend them:

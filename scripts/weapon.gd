@@ -34,6 +34,7 @@ const Pilot := preload("res://scripts/player.gd")
 const FX := preload("res://scripts/fx.gd")
 const Art := preload("res://scripts/ps2/ps2_assets.gd")
 const SFX := preload("res://scripts/sfx.gd")
+const Vices := preload("res://scripts/hub/vices.gd")
 const EcoArms := preload("res://scripts/eco_fp_arms.gd")
 ## Where the gun rests in front of the camera (its own space: right, up, back).
 const VIEW_POS := Vector3(0.17, -0.105, -0.45)
@@ -372,7 +373,7 @@ func _process(delta: float) -> void:
 
 ## Current cone half-angle in degrees.
 func current_spread() -> float:
-	var s := base_spread + bloom
+	var s := (base_spread + bloom + Vices.SPREAD_DEG * Vices.effect()) * Vices.spread_scale()
 	match player.state:
 		Pilot.State.GROUND:
 			s += move_spread * clampf(player.horizontal_speed() / player.sprint_speed, 0.0, 1.0)
@@ -447,7 +448,7 @@ func _trace_shot(from: Vector3, dir: Vector3, fx_parent: Node) -> Vector3:
 			_end_streak(landed)
 			return end
 		var head: bool = target.is_headshot(end)
-		var dmg := damage_at(from.distance_to(end)) * (headshot_multiplier if head else 1.0) * mult
+		var dmg := damage_at(from.distance_to(end)) * (headshot_multiplier if head else 1.0) * mult * Vices.damage_out()
 		var killed: bool = target.take_damage(dmg, end, head)
 		if stagger > 0.0 and not killed and target.has_method("stagger"):
 			target.stagger(stagger)
