@@ -108,6 +108,7 @@ static func build(root: Node3D) -> Dictionary:
 	_armor_bench(root, info)
 	_fathers_titan(root, info)
 	_mission_table(root, info)
+	_glass_panel(root)
 	_tutorial_poster(root, info)
 	_home(root, info)
 	Rooms.build(root, info)
@@ -604,6 +605,37 @@ static func _solid(root: Node3D, center: Vector3, size: Vector3) -> void:
 	body.add_child(shape)
 	body.position = center
 	root.add_child(body)
+
+
+## A pane of precursor glass still standing floor to ceiling in the nave,
+## right of the door, where the rest of its screen fell. Solid to walk into
+## (her chest, glutes and the rest press against it, eco_model.gd _collide)
+## but the third person camera looks straight through it ("camera_clear").
+static func _glass_panel(root: Node3D) -> void:
+	var c := Vector3(3.0, F + WALL_H * 0.5, 1.0)
+	var size := Vector3(3.0, WALL_H, 0.06)
+	var body := StaticBody3D.new()
+	body.name = "GlassPanel"
+	body.add_to_group("camera_clear")
+	var shape := CollisionShape3D.new()
+	shape.shape = BoxShape3D.new()
+	shape.shape.size = size
+	body.add_child(shape)
+	body.position = c
+	root.add_child(body)
+	var glass := StandardMaterial3D.new()
+	glass.albedo_color = Color(0.7, 0.95, 0.92, 0.14)
+	glass.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	glass.metallic_specular = 0.9
+	glass.roughness = 0.05
+	glass.cull_mode = BaseMaterial3D.CULL_DISABLED
+	var pane := K.mesh(root, c, size, glass)
+	pane.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	# its alloy frame: a sill and a lintel, and a thin glowing seam up each side
+	K.metal(root, c + Vector3(0, -WALL_H * 0.5 + 0.06, 0), Vector3(3.2, 0.12, 0.2))
+	K.metal(root, c + Vector3(0, WALL_H * 0.5 - 0.06, 0), Vector3(3.2, 0.12, 0.2))
+	for s: float in [-1.0, 1.0]:
+		K.glow(root, c + Vector3(s * 1.52, 0, 0), Vector3(0.04, WALL_H - 0.2, 0.08), EYE.darkened(0.2))
 
 
 ## Her father's titan, or what came back of it: slumped against the right wall
