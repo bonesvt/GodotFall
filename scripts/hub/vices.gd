@@ -100,6 +100,19 @@ const FREE_ROMANCE := 6
 const FREE_BOND := 5
 ## Scrap Marrow keeps from her pockets each time she comes to at his place.
 const TAB := 10
+## At full Hold he stops selling: she earns each dose with an errand
+## (hush_den.gd ERRANDS), and roaming the hub or town, every PULL_EVERY
+## seconds there's a PULL_CHANCE his pull takes her into a trance and walks
+## her to his basement for one (hush_pull.gd). A run at full Hold without a
+## dose in her is a run in withdrawal.
+const MAX_HOLD := 100.0
+const PULL_EVERY := 40.0
+const PULL_CHANCE := 0.35
+const WITHDRAWAL_SWAY := 0.55
+const WITHDRAWAL_HAZE := 0.4
+const WITHDRAWAL_REGEN := 0.6
+const WITHDRAWAL_DAMAGE := 1.15
+const WITHDRAWAL_SPEED := 0.92
 
 static var buzz := 0.0
 ## Drinks bought this session, for Rook's lines.
@@ -127,6 +140,16 @@ static var trance := false
 static var walked_away := false
 ## Times she's come to at his place (for his lines, in turn).
 static var wakes := 0
+## His errand (a hush_den.gd ERRANDS id, "" none) and whether she's done it
+## and only has to go back to him. Saved.
+static var errand := ""
+static var errand_done := false
+## His pull has taken her once since she got back (one per visit home).
+static var pulled := false
+## In a trance right now, walking to him (hush_pull.gd).
+static var entranced := false
+## This run started at full Hold with no dose in her.
+static var withdrawal := false
 static var save_path := "user://vices.cfg"
 
 
@@ -245,7 +268,11 @@ static func craving() -> float:
 ## A run starts: a dose waiting goes in.
 static func run_started() -> void:
 	hushed = dosed and allowed()
+	withdrawal = allowed() and not hushed and hold >= MAX_HOLD
 	dosed = false
+	errand = ""  # whatever he wanted, she's gone without it
+	errand_done = false
+	entranced = false
 	save()
 
 
@@ -260,6 +287,8 @@ static func run_over() -> void:
 	if not hushed:
 		hold = maxf(hold - HOLD_CLEAN_RUN, 0.0)
 	hushed = false
+	withdrawal = false
+	pulled = false
 	save()
 
 
@@ -270,6 +299,10 @@ static func run_over() -> void:
 static func dose(state: ConfigFile = null) -> bool:
 	if not allowed() or dosed:
 		return false
+	return _dose(state)
+
+
+static func _dose(state: ConfigFile) -> bool:
 	dosed = true
 	hold = minf(hold + HOLD_PER_DOSE, 100.0)
 	walked_away = false
@@ -294,6 +327,8 @@ static func walk_away(state: ConfigFile = null) -> bool:
 	hold = 0.0
 	dosed = false
 	trance = false
+	errand = ""
+	errand_done = false
 	walked_away = true
 	if state != null:
 		_nudge(state, FREE_ROMANCE, FREE_BOND)
@@ -306,6 +341,44 @@ static func _nudge(state: ConfigFile, romance: int, bond: int) -> void:
 		state.set_value("ophelia", "affection", clampi(int(state.get_value("ophelia", "affection", 0)) + romance, 0, 100))
 	if state.has_section_key("mom", "bond"):
 		state.set_value("mom", "bond", clampi(int(state.get_value("mom", "bond", 0)) + bond, 0, 100))
+
+
+## He's done selling: at full Hold a dose is earned with an errand.
+static func earns_only() -> bool:
+	return hold >= MAX_HOLD
+
+
+## His pull can take her now: full Hold, nothing waiting in her, no errand
+## running, not already pulled since she got back.
+static func can_pull() -> bool:
+	return allowed() and hold >= MAX_HOLD and not dosed and errand == "" and not pulled and not entranced
+
+
+## He gives her errand `id` (pulled: it came with a trance).
+static func give_errand(id: String, by_pull := false) -> void:
+	errand = id
+	errand_done = false
+	if by_pull:
+		pulled = true
+	save()
+
+
+## She's at errand spot `id`: true if it's the one he sent her to.
+static func errand_reached(id: String) -> bool:
+	if errand != id or errand_done or not allowed():
+		return false
+	errand_done = true
+	save()
+	return true
+
+
+## Back to him with it done: he pays in Hush. Returns whether he did.
+static func errand_paid(state: ConfigFile = null) -> bool:
+	if errand == "" or not errand_done or dosed or not allowed():
+		return false
+	errand = ""
+	errand_done = false
+	return _dose(state)
 
 
 ## How strong the Hush is in her this run (0 none): stronger the deeper his Hold.
@@ -332,7 +405,9 @@ static func notice_scale() -> float:
 static func eye_swirl() -> float:
 	if not allowed() or hold <= 0.0:
 		return 0.0
-	return clampf(0.15 + 0.85 * hold / 100.0 + (0.2 if hushed else 0.0), 0.0, 1.0)
+	if entranced:
+		return 3.0  # past 1 the spirals only spin faster (eco_toon.gdshaderinc)
+	return clampf(0.35 + 0.65 * hold / 100.0 + (0.2 if hushed else 0.0), 0.0, 1.0)
 
 
 ## His Hold as a word, for Marrow's screen.
@@ -356,12 +431,19 @@ static func _stim_stat(key: String, default: float) -> float:
 static func speed_scale() -> float:
 	if crashing():
 		return CRASH_SPEED
-	return _stim_stat("speed", 1.0)
+	return _stim_stat("speed", 1.0) * (WITHDRAWAL_SPEED if in_withdrawal() else 1.0)
+
+
+## A run at full Hold with no Hush in her (0 under Teen).
+static func in_withdrawal() -> bool:
+	return withdrawal and allowed()
 
 
 ## Health regen multiplier (smoking slows it).
 static func regen_scale() -> float:
 	var k := SMOKE_REGEN if calm() else 1.0
+	if in_withdrawal():
+		k *= WITHDRAWAL_REGEN
 	var h := hush()
 	return k * (1.0 if h == 0.0 else 1.0 + 0.4 * h)
 
@@ -376,6 +458,10 @@ static func haze() -> float:
 	var h := effect()
 	if crashing():
 		h = maxf(h, CRASH_HAZE * crash_left / CRASH_TIME + 0.1)
+	if entranced and allowed():
+		h = maxf(h, 0.35)
+	if in_withdrawal():
+		h = maxf(h, WITHDRAWAL_HAZE)
 	return maxf(h, craving() * CRAVE_HAZE)
 
 
@@ -393,6 +479,11 @@ static func open(path: String) -> void:
 	trance = false
 	walked_away = false
 	wakes = 0
+	errand = ""
+	errand_done = false
+	pulled = false
+	entranced = false
+	withdrawal = false
 	var cfg := ConfigFile.new()
 	if cfg.load(path) == OK:
 		hold = cfg.get_value("vices", "hold", 0.0)
@@ -400,6 +491,8 @@ static func open(path: String) -> void:
 		trance = cfg.get_value("vices", "trance", false)
 		walked_away = cfg.get_value("vices", "walked_away", false)
 		wakes = cfg.get_value("vices", "wakes", 0)
+		errand = cfg.get_value("vices", "errand", "")
+		errand_done = cfg.get_value("vices", "errand_done", false)
 		smokes = cfg.get_value("vices", "smokes", 0)
 		belt = cfg.get_value("vices", "belt", []).filter(func(id): return STIMS.has(id))
 		dependence = cfg.get_value("vices", "dependence", 0.0)
@@ -415,6 +508,8 @@ static func save() -> void:
 	cfg.set_value("vices", "trance", trance)
 	cfg.set_value("vices", "walked_away", walked_away)
 	cfg.set_value("vices", "wakes", wakes)
+	cfg.set_value("vices", "errand", errand)
+	cfg.set_value("vices", "errand_done", errand_done)
 	cfg.save(save_path)
 
 
@@ -432,6 +527,8 @@ static func damage_scale() -> float:
 	var k := 1.0 - NUMB * effect()
 	if crashing():
 		k *= CRASH_DAMAGE
+	if in_withdrawal():
+		k *= WITHDRAWAL_DAMAGE
 	return k * _stim_stat("damage", 1.0)
 
 
@@ -439,6 +536,8 @@ static func damage_scale() -> float:
 ## waves, so it never feels like a metronome.
 static func sway(t: float) -> Vector2:
 	var e := maxf(effect(), craving() * CRAVE_HAZE)
+	if in_withdrawal():
+		e = maxf(e, WITHDRAWAL_SWAY)
 	if calm():
 		e *= SMOKE_SWAY
 	e *= _stim_stat("sway", 1.0)
@@ -469,6 +568,8 @@ static func state_name() -> String:
 		out.append("Crashing")
 	elif craving() > 0.0:
 		out.append("Shakes")
+	if in_withdrawal():
+		out.append("Withdrawal")
 	return "  ".join(out)
 
 
@@ -498,6 +599,11 @@ static func craving_line() -> String:
 	return "Hands won't stop shaking. One Redline. Just one. ...No. Maybe."
 
 
+## What she mutters starting a run in withdrawal.
+static func withdrawal_line() -> String:
+	return "Skin's crawling. Everything's too loud. He said he'd have work for me. I should've gone."
+
+
 ## Clears everything in memory (tests). Doesn't touch the save.
 static func reset() -> void:
 	buzz = 0.0
@@ -516,3 +622,9 @@ static func reset() -> void:
 	hushed = false
 	trance = false
 	walked_away = false
+	wakes = 0
+	errand = ""
+	errand_done = false
+	pulled = false
+	entranced = false
+	withdrawal = false

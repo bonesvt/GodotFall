@@ -68,6 +68,7 @@ const StimScreen := preload("res://scripts/hub/stim_screen.gd")
 const HushScreen := preload("res://scripts/hub/hush_screen.gd")
 const HushDen := preload("res://scripts/hub/hush_den.gd")
 const DrunkScreen := preload("res://scripts/ui/drunk_screen.gd")
+const HushPull := preload("res://scripts/hub/hush_pull.gd")
 const Soundscape := preload("res://scripts/soundscape.gd")
 const SFX := preload("res://scripts/sfx.gd")
 
@@ -188,6 +189,8 @@ var armory: Armory
 ## A BenchScreen, the GunsmithScreen at the gunsmith bench, the SuitScreen at
 ## the suit locker, or the SalonScreen.
 var bench = null
+## Marrow's pull at full Hold (hush_pull.gd): walks her to his basement.
+var hush_pull: HushPull
 ## Lays out loot and rolls drops, seeded per zone from the run seed so loot
 ## never shifts the run's own rolls.
 var loot_rng := RandomNumberGenerator.new()
@@ -228,6 +231,8 @@ func _ready() -> void:
 	_use_save_slot()
 	armory = Armory.open(armory_path)
 	Vices.open(armory_path.get_basename() + "_vices.cfg")
+	hush_pull = HushPull.new(self)
+	add_child(hush_pull)
 	npc_talk = NpcTalk.new()
 	npc_talk.save_path = npc_path
 	add_child(npc_talk)
@@ -328,6 +333,8 @@ func start_run(seed_value: int, uncharted := 0, level := "") -> void:
 	Vices.run_started()
 	if Vices.hush() > 0.0:
 		hud.toast("The Hush settles in. Everything goes quiet, and sharp, and violet.", HUB_LINE_SECONDS)
+	elif Vices.in_withdrawal():
+		hud.toast(Vices.withdrawal_line(), HUB_LINE_SECONDS)
 	elif Vices.craving() > 0.0:
 		hud.toast(Vices.craving_line(), HUB_LINE_SECONDS)
 	elif Vices.effect() > 0.0:
@@ -508,6 +515,11 @@ func _hub_tick(delta: float) -> void:
 	if player.global_position.y < float(zone_info["floor_y"]) - KILL_DEPTH:
 		place_player(zone_info["spawn"])
 		return
+	var roaming := rest_spot.is_empty() and not npc_talk.active() and not course_armed \
+			and player.global_position.y > HushDen.BASEMENT.y + 5.0
+	hush_pull.tick(delta, roaming)
+	if hush_pull.busy():
+		return
 	if not rest_spot.is_empty():
 		_rest_tick()
 		return
@@ -558,6 +570,11 @@ func _hub_tick(delta: float) -> void:
 		return
 	if vice_shop:
 		open_bench(spot["shop"])
+		return
+	if spot.has("errand"):
+		if Vices.errand_reached(spot["errand"]):
+			hud.toast(spot["lines"][0], HUB_LINE_SECONDS)
+			SFX.play(player, "cloth_2", -4.0)
 		return
 	if spot.has("teleport") and Vices.allowed():
 		place_player(spot["teleport"])
@@ -1116,6 +1133,8 @@ func nearest_hub_spot() -> Dictionary:
 	var best_d := INF
 	var pos := player.global_position
 	for spot in zone_info.get("interactables", []):
+		if spot.has("errand") and (spot["errand"] != Vices.errand or Vices.errand_done or not Vices.allowed()):
+			continue  # Marrow's errand spots are only there while she's on one
 		var at: Vector3 = spot["pos"]
 		var d := Vector2(pos.x - at.x, pos.z - at.z).length()
 		if d < float(spot["range"]) and absf(pos.y - at.y) < 2.5 and d < best_d:
@@ -1521,7 +1540,7 @@ func end_run(title: String, reason: String) -> void:
 ## B lights a smoke, N jabs a stim: on foot, in the hub or on a run, with
 ## nothing else open.
 func _vice_keys() -> void:
-	if not Vices.allowed() or bench != null or garage != null or hub_piloting or npc_talk.active():
+	if not Vices.allowed() or bench != null or garage != null or hub_piloting or npc_talk.active() or hush_pull.busy():
 		return
 	if not (phase == Phase.HUB or in_run()) or (titan != null and titan.piloted):
 		return
@@ -1601,6 +1620,8 @@ func _vices_text() -> String:
 		parts.append(Vices.state_name().to_upper())
 	if Vices.pockets_text() != "":
 		parts.append(Vices.pockets_text())
+	if Vices.errand != "" and Vices.allowed():
+		parts.append("MARROW: " + ("go back to him" if Vices.errand_done else HushDen.ERRANDS[Vices.errand]["short"]))
 	return "" if parts.is_empty() else "    " + "    ".join(parts)
 
 
@@ -1660,7 +1681,7 @@ func _update_hud() -> void:
 func _prompt() -> String:
 	match phase:
 		Phase.HUB:
-			if hub_piloting:
+			if hub_piloting or hush_pull.busy():
 				return ""
 			if hub_titan != null and hub_titan.dropping:
 				return "Titanfall inbound"

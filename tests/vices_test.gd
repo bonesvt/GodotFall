@@ -277,9 +277,52 @@ func _hush() -> void:
 	var deep := HushDen.wake(80.0, 1)
 	_check("his: deep lines", deep["his"] and deep["line"] in HushDen.DEEP_LINES, deep)
 
+	_errands(armory, talks)
+
 	ContentRating.set_rating("T", false)
 	_check("teen: no Hush", not Vices.dose(talks) and Vices.hush() == 0.0, Vices.dosed)
 	ContentRating.set_rating("M", false)
+
+
+## Full Hold: no more sales, errands for doses, his pull, withdrawal.
+func _errands(armory: Armory, talks: ConfigFile) -> void:
+	Vices.reset()
+	Vices.hold = Vices.MAX_HOLD
+	var den := HushScreen.new(armory, talks)
+	root.add_child(den)
+	var scrap := armory.amount("scrap")
+	_check("full hold: he won't sell", not den.take() and armory.amount("scrap") == scrap and not Vices.dosed, armory.stash)
+	_check("he hands out an errand", Vices.errand in HushDen.ERRANDS and not Vices.errand_done, Vices.errand)
+	_check("no pull while she's on his errand", not Vices.can_pull(), Vices.errand)
+	_check("not done yet: no dose", not den.take() and not Vices.dosed, Vices.errand)
+	_check("the wrong spot doesn't count", not Vices.errand_reached("nowhere") and not Vices.errand_done, Vices.errand)
+	var id := Vices.errand
+	_check("at the spot: done", Vices.errand_reached(id) and Vices.errand_done and not Vices.errand_reached(id), Vices.errand_done)
+	Vices.open(VICES_PATH)
+	_check("errand saved", Vices.errand == id and Vices.errand_done and Vices.hold == Vices.MAX_HOLD, [Vices.errand, Vices.errand_done])
+	_check("back to him: paid in Hush", den.take() and Vices.dosed and Vices.errand == "", Vices.dosed)
+	Vices.run_started()
+	_check("a dose in her: no withdrawal", Vices.hush() > 0.0 and not Vices.in_withdrawal(), Vices.withdrawal)
+	Vices.run_over()
+	Vices.hold = Vices.MAX_HOLD
+	_check("his pull can take her", Vices.can_pull(), [Vices.pulled, Vices.dosed, Vices.errand])
+	Vices.give_errand("arcade_bin", true)
+	_check("one pull per visit home", Vices.pulled and not Vices.can_pull(), Vices.pulled)
+	var spread := Vices.sway(3.0)
+	Vices.run_started()
+	_check("no dose at full hold: withdrawal", Vices.in_withdrawal() and Vices.state_name().contains("Withdrawal"), Vices.state_name())
+	_check("withdrawal: errand dropped", Vices.errand == "", Vices.errand)
+	_check("withdrawal: shaky, hazy, slow to heal, hurts more", Vices.sway(3.0).length() > spread.length() and Vices.haze() >= Vices.WITHDRAWAL_HAZE
+			and Vices.regen_scale() < 1.0 and Vices.damage_scale() > 1.0 and Vices.speed_scale() < 1.0, [Vices.haze(), Vices.regen_scale(), Vices.damage_scale()])
+	Vices.run_over()
+	_check("a clean run eases it", not Vices.in_withdrawal() and Vices.hold < Vices.MAX_HOLD and not Vices.can_pull() and not Vices.pulled, Vices.hold)
+	Vices.entranced = true
+	Vices.hold = Vices.MAX_HOLD
+	_check("eyes spin fast in the trance", Vices.eye_swirl() > 1.0, Vices.eye_swirl())
+	Vices.entranced = false
+	Vices.hold = 5.0
+	_check("eyes show from the first dose", Vices.eye_swirl() >= 0.35, Vices.eye_swirl())
+	den.free()
 
 
 func _check(label: String, ok: bool, got) -> void:

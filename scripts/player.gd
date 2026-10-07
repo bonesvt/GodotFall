@@ -169,6 +169,11 @@ var strolling := false:
 		spread = 0.0
 		if collision != null:
 			(collision.shape as CapsuleShape3D).radius = STROLL_RADIUS if value else RADIUS
+## In Marrow's trance (vices.gd, hush_pull.gd): the player has no say, she
+## walks slowly along trance_dir (zero: she stands) and her look follows.
+var entranced := false
+var trance_dir := Vector3.ZERO
+const TRANCE_SPEED := 1.2
 var cam_roll := 0.0
 var input_dir := Vector2.ZERO
 var wish_dir := Vector3.ZERO
@@ -270,7 +275,7 @@ func _ready() -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
+	if event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED and not entranced:
 		rotate_y(-Prefs.look_x(event.relative.x) * mouse_sensitivity)
 		head.rotation.x = clampf(head.rotation.x - Prefs.look_y(event.relative.y) * mouse_sensitivity, -1.55, 1.55)
 	elif event.is_action_pressed("ui_cancel"):
@@ -306,12 +311,15 @@ func _physics_process(delta: float) -> void:
 		if wish_dir != Vector3.ZERO:
 			rotation.y = lerp_angle(rotation.y, atan2(-wish_dir.x, -wish_dir.z), 1.0 - exp(-move_turn_rate * delta))
 	_drunk(delta)
-	if Input.is_action_just_pressed("jump"):
-		jump_buffer_timer = jump_buffer
-	if Input.is_action_just_pressed("crouch") and state != State.GROUND and state != State.SLIDE:
-		slide_buffer_timer = slide_land_buffer
-	if Input.is_action_just_pressed("grapple"):
-		_try_grapple()
+	if entranced:
+		_trance(delta)
+	else:
+		if Input.is_action_just_pressed("jump"):
+			jump_buffer_timer = jump_buffer
+		if Input.is_action_just_pressed("crouch") and state != State.GROUND and state != State.SLIDE:
+			slide_buffer_timer = slide_land_buffer
+		if Input.is_action_just_pressed("grapple"):
+			_try_grapple()
 	if Input.is_action_just_pressed("reset") or global_position.y < -40.0:
 		respawn()
 
@@ -338,7 +346,7 @@ func _ground_state(delta: float) -> void:
 	ground_time += delta
 	coyote_timer = coyote_time
 	air_jumps_left = air_jumps
-	var want_crouch := Input.is_action_pressed("crouch")
+	var want_crouch := Input.is_action_pressed("crouch") and not entranced
 	var hvel := Vector3(velocity.x, 0.0, velocity.z)
 
 	if want_crouch and hvel.length() >= slide_min_speed:
@@ -352,6 +360,8 @@ func _ground_state(delta: float) -> void:
 		# auto sprint doesn't apply; under the orbit camera any direction counts
 		var brisk := Input.is_action_pressed("sprint") and (input_dir.y < -0.3 or (not is_nan(move_yaw) and input_dir != Vector2.ZERO))
 		target = minf(crouch_speed, stroll_speed) if crouching else (stroll_brisk_speed if brisk else stroll_speed)
+	if entranced:
+		target = TRANCE_SPEED
 	hvel = _ground_move(hvel, target, delta)
 
 	velocity.x = hvel.x
@@ -785,6 +795,16 @@ func _drunk(delta: float) -> void:
 	var veer := Vices.stagger(_drunk_t)
 	if veer != 0.0 and wish_dir != Vector3.ZERO:
 		wish_dir = wish_dir.rotated(Vector3.UP, veer)
+
+
+## Marrow's trance: whatever the player presses, she walks where it takes her,
+## facing that way, eyes ahead.
+func _trance(delta: float) -> void:
+	wish_dir = Vector3(trance_dir.x, 0.0, trance_dir.z).normalized()
+	input_dir = Vector2(0.0, -1.0) if wish_dir != Vector3.ZERO else Vector2.ZERO
+	if wish_dir != Vector3.ZERO:
+		rotation.y = lerp_angle(rotation.y, atan2(-wish_dir.x, -wish_dir.z), 1.0 - exp(-3.0 * delta))
+	head.rotation.x = lerpf(head.rotation.x, -0.05, 1.0 - exp(-2.0 * delta))
 
 
 # --- Crouch, camera, rope -----------------------------------------------------

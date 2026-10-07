@@ -292,6 +292,8 @@ var _stop_force := 1.0
 var _feet := {}
 var footfalls := {"L": 0, "R": 0}
 var _pose_weight := 0.0
+## How far into the trance walk she is (0..1, _trance_walk).
+var _trance_weight := 0.0
 var _bones := {}
 ## What the strut changed last frame (bone -> [pose before, pose after]), so it
 ## can be undone when nothing re-posed the bone since (a paused animation).
@@ -640,11 +642,15 @@ func _strut(delta: float) -> void:
 		elif skeleton.get_bone_pose_rotation(i).is_equal_approx(undo[1]):
 			skeleton.set_bone_pose_rotation(i, undo[0])
 	_strut_undo.clear()
-	var off_duty := strolling() and strut > 0.0
+	var tranced: bool = _body != null and _body.get("entranced") == true
+	var off_duty := strolling() and strut > 0.0 and not tranced
 	var walking := off_duty and _anim.current_animation == "walk"
 	var standing := off_duty and _anim.current_animation == "idle" and not resting()
 	_strut_weight = move_toward(_strut_weight, 1.0 if walking else 0.0, delta * 4.0)
 	_pose_weight = move_toward(_pose_weight, 1.0 if standing else 0.0, delta * 2.0)
+	_trance_weight = move_toward(_trance_weight, 1.0 if tranced else 0.0, delta * 1.5)
+	if _trance_weight > 0.0:
+		_trance_walk(_trance_weight)
 	if _strut_weight <= 0.0 and _pose_weight <= 0.0:
 		return
 	var w := _strut_weight * strut
@@ -686,6 +692,30 @@ func _strut(delta: float) -> void:
 	_turn("forearm.L", Vector3.RIGHT, 10.0 * w + 6.0 * p)
 	_turn("hand.R", Vector3.BACK, 14.0 * (w + p))
 	_turn("hand.L", Vector3.BACK, -14.0 * (w + p))
+
+
+## Marrow's trance (player.gd entranced): she walks like she's being led, stiff
+## and upright, chin lifted, head tipped a little to one side, arms hanging
+## dead at her sides with hardly any swing, hips quiet. `k` eases it in and out.
+func _trance_walk(k: float) -> void:
+	var t := 0.0
+	if _anim.current_animation == "walk" and _anim.current_animation_length > 0.0:
+		t = _anim.current_animation_position / _anim.current_animation_length * TAU
+	var sw := sin(t)
+	_turn("hips", Vector3.UP, -5.0 * sw * k)  # undo most of the walk's hip twist
+	_turn("spine", Vector3.RIGHT, 3.0 * k)
+	_turn("chest", Vector3.UP, 4.0 * sw * k)
+	_turn("head", Vector3.RIGHT, 7.0 * k)
+	_turn("head", Vector3.BACK, 8.0 * k)
+	# arms: pulled in to her sides, swing held back, elbows straight, hands slack
+	_turn("upperarm.R", Vector3.RIGHT, -8.0 * sw * k)
+	_turn("upperarm.L", Vector3.RIGHT, 8.0 * sw * k)
+	_turn("upperarm.R", Vector3.BACK, 6.0 * k)
+	_turn("upperarm.L", Vector3.BACK, -6.0 * k)
+	_turn("forearm.R", Vector3.RIGHT, -8.0 * k)
+	_turn("forearm.L", Vector3.RIGHT, -8.0 * k)
+	_turn("hand.R", Vector3.RIGHT, -12.0 * k)
+	_turn("hand.L", Vector3.RIGHT, -12.0 * k)
 
 
 ## How long the push-off into a run and the pull-up out of one last (seconds).

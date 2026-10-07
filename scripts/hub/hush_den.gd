@@ -36,6 +36,44 @@ const HER_DOOR_IN := BASEMENT + Vector3(-2.9, 0, -0.6)
 const HER_DOOR_OUT := HER_ROOM + Vector3(1.2, 0, -1.2)
 ## Under this Hold she still makes it to her own room.
 const OWN_ROOM_BELOW := 30.0
+## Where his pull walks her in, at the foot of the stairs facing his table.
+const ARRIVE := BASEMENT + Vector3(0.3, 0, 0.7)
+## How his pull walks her down Solace to the cellar door (hush_pull.gd):
+## street points north to south, round the west side of the Sun Tree.
+const PULL_ROUTE := [
+	Vector3(-3.0, 0, 158.0), Vector3(-3.0, 0, 165.5), Vector3(-9.5, 0, 165.5),
+	Vector3(-9.5, 0, 184.5), Vector3(-3.0, 0, 190.5), Vector3(0.0, 0, 200.0),
+	Vector3(3.5, 0, 210.5), CELLAR,
+]
+## Where she picks up his pull's walk if it takes her outside town.
+const PULL_TOWN_START := Vector3(0.0, 0, 140.0)
+
+## Marrow's errands, earned doses at full Hold (vices.gd): somewhere in Solace
+## he sends her, what he says, the spot's prompt and what she finds there.
+## Small dirty jobs for a dealer; nothing she can't walk away from.
+const ERRANDS := {
+	"arcade_bin": {
+		"pos": Vector3(-6.2, 0, 195.5),
+		"task": "Marrow: \"Before you get another, you work. Take this packet to the bin behind the Glowbox Arcade. Don't open it.\"",
+		"short": "leave his packet in the arcade's bin",
+		"prompt": "[F] Leave Marrow's packet in the bin",
+		"done": "Eco drops the packet in the bin. It's warm. She doesn't want to know why. Back to Marrow.",
+	},
+	"sal_crates": {
+		"pos": Vector3(6.2, 0, 147.5),
+		"task": "Marrow: \"Sal owes me. There's a tin under the crates by his shop. Bring it to me and you'll get yours.\"",
+		"short": "fetch the tin from under Sal's crates",
+		"prompt": "[F] Dig the tin out from under Sal's crates",
+		"done": "Eco finds the tin under Sal's crates. It rattles like loose screws. Sal would kill her. Back to Marrow.",
+	},
+	"gate_watch": {
+		"pos": Vector3(-5.0, 0, 134.0),
+		"task": "Marrow: \"Go and count the soldiers on the town gate for me. Every one. Then come back and tell me.\"",
+		"short": "count the soldiers at the town gate",
+		"prompt": "[F] Count the soldiers on the gate",
+		"done": "Six soldiers. Two asleep. She hates that she's counting them for him. Back to Marrow.",
+	},
+}
 
 ## Coming to in her own locked room (his Hold still shallow).
 const OWN_ROOM_LINES := [
@@ -67,6 +105,9 @@ static func build(root: Node3D, info: Dictionary) -> void:
 	_basement(root, info)
 	_her_room(root, info)
 	info["hush"] = {"wake": WAKE, "own_room": HER_WAKE, "street": CELLAR + Vector3(-1.2, 0, 0)}
+	for id: String in ERRANDS:
+		K.interactable(info, "errand_" + id, ERRANDS[id]["pos"], ERRANDS[id]["prompt"], [ERRANDS[id]["done"]], 2.0)
+		info["interactables"].back()["errand"] = id  # only there while it's her errand (run_manager.gd)
 
 
 ## Which room she comes to in and what she finds, for his Hold `hold` and her

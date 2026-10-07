@@ -12,6 +12,7 @@ shader_type canvas_item;
 uniform sampler2D screen_tex : hint_screen_texture, filter_linear_mipmap;
 uniform float strength = 0.0;
 uniform vec2 ghost = vec2(0.0);
+uniform float violet = 0.0;
 
 vec3 soft(vec2 uv, float lod) {
 	return textureLod(screen_tex, uv, lod).rgb;
@@ -32,7 +33,9 @@ void fragment() {
 	vec3 edge = soft(uv, lod + 2.0);
 	col = mix(col, edge, smoothstep(0.25, 0.7, r) * strength);
 	col *= 1.0 - smoothstep(0.2, 0.65, r) * 0.6 * strength;
-	col = mix(col, col * vec3(1.08, 0.97, 0.88), 0.6 * strength);
+	col = mix(col, col * vec3(1.08, 0.97, 0.88), 0.6 * strength * (1.0 - violet));
+	// Marrow's trance: the world goes violet at the edges, pulsing.
+	col = mix(col, col * vec3(0.9, 0.62, 1.25), violet * (0.45 + 0.35 * smoothstep(0.15, 0.6, r)) * (0.85 + 0.15 * sin(TIME * 2.4)));
 	COLOR = vec4(col, 1.0);
 }
 """
@@ -66,3 +69,4 @@ func _process(delta: float) -> void:
 	var g := Vector2(sin(_t * 0.6) * 0.6 + sin(_t * 1.7) * 0.4, sin(_t * 0.45 + 1.0) * 0.5) * 0.026 * e
 	_mat.set_shader_parameter("strength", e)
 	_mat.set_shader_parameter("ghost", g)
+	_mat.set_shader_parameter("violet", 1.0 if Vices.entranced else 0.0)

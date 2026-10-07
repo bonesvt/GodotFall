@@ -9,6 +9,7 @@ const Armory := preload("res://scripts/hub/armory.gd")
 const Vices := preload("res://scripts/hub/vices.gd")
 const LootArt := preload("res://scripts/run/loot_art.gd")
 const SFX := preload("res://scripts/sfx.gd")
+const HushDen := preload("res://scripts/hub/hush_den.gd")
 
 const INK := Color(0.95, 0.92, 0.98)
 const DIM := Color(0.95, 0.92, 0.98, 0.55)
@@ -27,6 +28,8 @@ const MARROW_SOLD := "Marrow: \"There. Feel how quiet it gets? Go out and be bri
 const MARROW_DOSED := "Marrow: \"You've already got one waiting in you. Greedy. I like that.\""
 const MARROW_BROKE := "Marrow: \"Short? Bring me something nice. Or don't, and come anyway.\""
 const MARROW_LOST := "Marrow: \"Walk, then. You'll be back. They always are.\""
+const MARROW_WAITING := "Marrow: \"Did I say you could come back yet? Go on: %s.\""
+const MARROW_PAID := "Marrow: \"Good. See how easy it is, doing as you're told? Here. You earned it.\""
 const MARROW_LAUGHS := "Marrow: \"Leave? You can't even find the door without me.\""
 
 var armory: Armory
@@ -82,7 +85,7 @@ func _ready() -> void:
 	_buttons = HBoxContainer.new()
 	_buttons.add_theme_constant_override("separation", 8)
 	col.add_child(_buttons)
-	col.add_child(_wrap(_text("Space take a dose   X walk away for good   F or Esc leave", 14, DIM)))
+	col.add_child(_wrap(_text("Space %s   X walk away for good   F or Esc leave" % ("ask for work / hand it over" if Vices.earns_only() else "take a dose"), 14, DIM)))
 	refresh()
 
 
@@ -99,8 +102,11 @@ func _input(event: InputEvent) -> void:
 	get_viewport().set_input_as_handled()
 
 
-## Buys a dose for her next run. Returns whether she took it.
+## Buys a dose for her next run (at full Hold: gets his errand, or hands it
+## over done for one). Returns whether she got a dose.
 func take() -> bool:
+	if Vices.earns_only():
+		return work()
 	var ok := false
 	if Vices.dosed:
 		_talk.text = MARROW_DOSED
@@ -113,6 +119,27 @@ func take() -> bool:
 		_talk.text = MARROW_SOLD
 		ok = true
 	SFX.play(self, "cloth_2" if ok else "ui_error", -4.0)
+	refresh()
+	return ok
+
+
+## At full Hold he doesn't sell: he hands out an errand (hush_den.gd ERRANDS)
+## and pays for it, done, with a dose. Returns whether she got one.
+func work() -> bool:
+	var ok := false
+	if Vices.dosed:
+		_talk.text = MARROW_DOSED
+	elif Vices.errand == "":
+		var ids := HushDen.ERRANDS.keys()
+		var id: String = ids[randi() % ids.size()]
+		Vices.give_errand(id)
+		_talk.text = HushDen.ERRANDS[id]["task"]
+	elif not Vices.errand_done:
+		_talk.text = MARROW_WAITING % HushDen.ERRANDS[Vices.errand]["short"]
+	else:
+		ok = Vices.errand_paid(state)
+		_talk.text = MARROW_PAID
+	SFX.play(self, "cloth_2" if ok else "ui_confirm", -4.0)
 	refresh()
 	return ok
 
@@ -142,7 +169,9 @@ func refresh() -> void:
 	_hold.text = "His hold on you: %s  %s%s" % [Vices.hold_name(), _meter(), "    (a dose is waiting for your next run)" if Vices.dosed else ""]
 	var lines := ["Hush: glowing Precursor resin. One dose carries your whole next run: harder hits, faster healing, and grunts are slow to notice you. The deeper his hold, the stronger it gets.",
 		"After a run on Hush you won't wake up at the temple. You'll wake up here. Ophelia and Mom feel every dose."]
-	if Vices.hold >= Vices.TRANCE_HOLD:
+	if Vices.earns_only():
+		lines.append("He doesn't sell to you anymore. You work for it: run his errand, then come back to him. Go out on a run without a dose in you and it's a run in withdrawal. And some days, walking round town, your feet will just bring you here.")
+	elif Vices.hold >= Vices.TRANCE_HOLD:
 		lines.append("You're his now: you'll end up here after every run, Hush or not, until his hold loosens.")
 	if Vices.can_walk_away(state) and Vices.hold >= Vices.BREAK_AT:
 		lines.append("You think of the people waiting for you at home. You could still walk out of here.")
@@ -151,9 +180,14 @@ func refresh() -> void:
 	_detail.text = "\n".join(lines)
 	for c in _buttons.get_children():
 		c.queue_free()
-	var cost := _text("Dose: %s" % Armory.cost_text(Vices.HUSH_COST), 16, GOOD if armory.can_afford(Vices.HUSH_COST) and not Vices.dosed else BAD)
-	_buttons.add_child(cost)
-	_buttons.add_child(_button("Take a dose [Space]", take))
+	if Vices.earns_only():
+		var job := "Dose: earned. Hand it over" if Vices.errand_done else ("Dose: %s first" % HushDen.ERRANDS[Vices.errand]["short"] if Vices.errand != "" else "Dose: ask him for work")
+		_buttons.add_child(_text(job, 16, GOOD if Vices.errand_done and not Vices.dosed else VIOLET))
+		_buttons.add_child(_button("Hand it over [Space]" if Vices.errand_done else "Ask for work [Space]", take))
+	else:
+		var cost := _text("Dose: %s" % Armory.cost_text(Vices.HUSH_COST), 16, GOOD if armory.can_afford(Vices.HUSH_COST) and not Vices.dosed else BAD)
+		_buttons.add_child(cost)
+		_buttons.add_child(_button("Take a dose [Space]", take))
 	if Vices.hold > 0.0 or Vices.dosed:
 		_buttons.add_child(_button("Walk away for good [X]", walk_away))
 

@@ -191,7 +191,19 @@ Under the Mature rating (Settings > Game), **F** at the Rusted Halo on Low Row o
   ends up there after every run. Clean runs loosen it. **X** in his screen walks
   away for good while his Hold is under 60, or at any Hold if Ophelia or Mom is at 50 or more,
   which wins some of their love back. Marrow is a primitive placeholder figure for now.
-- Test: `godot --headless --path . -s res://tests/vices_test.gd`
+- **Full Hold** (100): Marrow stops selling. Space at his screen asks for work: an errand in
+  town (leave his packet in the arcade's bin, dig a tin out from under Sal's crates, count the
+  soldiers on the gate; the spot only shows while it's hers), and back at his table the errand
+  pays one dose. Roaming the hub or town there's also a chance, every 40 s, that his pull takes her
+  (`scripts/hub/hush_pull.gd`): a close-up as the spirals in her eyes spin up, then the player
+  loses her and she walks in a trance, stiff and slow (`eco_model.gd` `_trance_walk`), down the
+  street, into the cellar and up to his table, where he hands her the errand. Once per trip home.
+  Go out on a run at full Hold without a dose and it's a run in **withdrawal**: shaky aim, a
+  violet haze, slower healing, hits hurt more. Clean runs still loosen his Hold.
+- The violet spirals show in her eyes from the first dose on, deeper as his Hold grows.
+  Render the trance walk next to her strut: `xvfb-run -a godot --path . --fixed-fps 30
+  --rendering-driver opengl3 -s res://tools/eco/trance_shots.gd -- <dir>`.
+- Tests: `godot --headless --path . -s res://tests/vices_test.gd`, `tests/hush_pull_test.gd`
 
 ### Workbenches and materials
 Out on runs you collect four materials, and the hub's workbenches spend them:
