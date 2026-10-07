@@ -398,6 +398,7 @@ func enter_hub() -> void:
 	dress_hub()
 	place_player(zone_info["spawn"])
 	tutorial.start_level("hub")
+	hush_pull.reset()
 	if Vices.trance and Vices.allowed() and zone_info.has("hush"):
 		_wake_at_marrows()
 	elif last_result != "":
@@ -471,6 +472,8 @@ func _physics_process(delta: float) -> void:
 	if not get_tree().paused:
 		Vices.tick(delta)
 		_vice_keys()
+		if phase in [Phase.ZONE, Phase.ARENA, Phase.FIGHT]:
+			hush_pull.run_tick(delta, titan == null or not titan.piloted)
 	player.strolling = phase == Phase.HUB and not on_training_ground()
 	if phase in [Phase.ZONE, Phase.ARENA] and not get_tree().paused:
 		BattleDamage.tick(delta, player)
@@ -1577,6 +1580,14 @@ func _wake_at_marrows() -> void:
 	if tab > 0:
 		armory.stash["scrap"] = armory.amount("scrap") - tab
 		armory.save()
+	if Vices.begging:
+		# she walked off a run in withdrawal to beg him: another chance
+		Vices.begging = false
+		var id := HushDen.pick_errand()
+		Vices.give_errand(id)
+		place_player(HushDen.ARRIVE)
+		hud.toast(HushDen.BEG_LINES[Vices.wakes % HushDen.BEG_LINES.size()] + "\n" + HushDen.ERRANDS[id]["task"], 10.0)
+		return
 	hud.toast(w["line"] + ("  (-%d scrap)" % tab if tab > 0 else ""), 6.0)
 
 

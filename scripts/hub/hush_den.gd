@@ -73,7 +73,56 @@ const ERRANDS := {
 		"prompt": "[F] Count the soldiers on the gate",
 		"done": "Six soldiers. Two asleep. She hates that she's counting them for him. Back to Marrow.",
 	},
+	"okoro_house": {
+		"pos": Vector3(-6.2, 0, 146.3),
+		"task": "Marrow: \"The Okoros, between the tailor and the clinic. They keep a ledger with my name in it. Get in, get it, get out. Nobody home till dark.\"",
+		"short": "break into the Okoro house for the ledger",
+		"prompt": "[F] Pick the Okoros' lock",
+		"done": "The lock gives on the third try. Kids' drawings on the fridge. Eco finds the ledger and doesn't look at anything else. Back to Marrow.",
+	},
+	"clinic_cabinet": {
+		"pos": Vector3(-6.2, 0, 157.5),
+		"task": "Marrow: \"Doc Imani's back room. Second cabinet, the blue vials. She trusts you, so she won't be looking.\"",
+		"short": "steal the blue vials from Mercy Clinic's back room",
+		"prompt": "[F] Slip into the clinic's back room",
+		"done": "Doc Imani is humming out front. Eco pockets the vials. The doc stitched Dad up for free, more than once. Back to Marrow.",
+	},
+	"outfitter_till": {
+		"pos": Vector3(-6.2, 0, 142.6),
+		"task": "Marrow: \"Stitch & Steel empties the till at closing and leaves the tin under the counter. Take the tin.\"",
+		"short": "lift the cash tin from Stitch & Steel",
+		"prompt": "[F] Reach under Stitch & Steel's counter",
+		"done": "The tin's heavier than she thought. The bell over the door doesn't ring. Back to Marrow.",
+	},
+	"recruiter_window": {
+		"pos": Vector3(-16.4, 0, 179.6),
+		"task": "Marrow: \"The recruiters who turned you away keep their duty roster in the back office. Climb in the window and bring it to me. You'll enjoy this one.\"",
+		"short": "climb into the recruitment office for the roster",
+		"prompt": "[F] Jimmy the recruitment office's back window",
+		"done": "In through the window, the roster off the desk, out again. Her old application is still pinned to the corkboard. Back to Marrow.",
+	},
+	"lantern_shelf": {
+		"pos": Vector3(15.5, 0, 188.0),
+		"task": "Marrow: \"The Lucky Lantern has a jade cat on the top shelf. Old. Real. Bring it here. Don't buy it.\"",
+		"short": "pocket the jade cat from the Lucky Lantern",
+		"prompt": "[F] Palm the jade cat off the Lucky Lantern's shelf",
+		"done": "Eco palms the jade cat while the old man wraps someone's gift. He waves at her on the way out. Back to Marrow.",
+	},
 }
+
+## Withdrawal mid-run (vices.gd episode, hush_pull.gd): she walks off the job
+## to beg him for another errand. What she comes to at his place.
+const BEG_LINES := [
+	"Eco: \"I walked off the job. I couldn't think, I... Marrow, please. Give me work. Any errand.\" Marrow: \"Another chance? Fine. Don't waste it.\"",
+	"Marrow: \"You left the fight to come crawling down my stairs. That's how bad it's got. Good. Here's what you'll do.\"",
+	"Eco's hands won't stop shaking. \"One more errand. Please.\" Marrow smiles like he's been waiting all day.",
+]
+
+
+## One of his errands, at random.
+static func pick_errand() -> String:
+	var ids := ERRANDS.keys()
+	return ids[randi() % ids.size()]
 
 ## Coming to in her own locked room (his Hold still shallow).
 const OWN_ROOM_LINES := [

@@ -314,6 +314,13 @@ func _errands(armory: Armory, talks: ConfigFile) -> void:
 	_check("withdrawal: errand dropped", Vices.errand == "", Vices.errand)
 	_check("withdrawal: shaky, hazy, slow to heal, hurts more", Vices.sway(3.0).length() > spread.length() and Vices.haze() >= Vices.WITHDRAWAL_HAZE
 			and Vices.regen_scale() < 1.0 and Vices.damage_scale() > 1.0 and Vices.speed_scale() < 1.0, [Vices.haze(), Vices.regen_scale(), Vices.damage_scale()])
+	_check("withdrawal can take her off the run", Vices.can_episode(), Vices.withdrawal)
+	Vices.walk_off_job()
+	_check("once per run", not Vices.can_episode() and Vices.begging and Vices.trance, Vices.begging)
+	Vices.run_over()
+	_check("begging off a run loosens nothing", Vices.hold == Vices.MAX_HOLD, Vices.hold)
+	Vices.begging = false
+	Vices.run_started()
 	Vices.run_over()
 	_check("a clean run eases it", not Vices.in_withdrawal() and Vices.hold < Vices.MAX_HOLD and not Vices.can_pull() and not Vices.pulled, Vices.hold)
 	Vices.entranced = true

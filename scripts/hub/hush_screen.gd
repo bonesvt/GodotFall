@@ -130,8 +130,7 @@ func work() -> bool:
 	if Vices.dosed:
 		_talk.text = MARROW_DOSED
 	elif Vices.errand == "":
-		var ids := HushDen.ERRANDS.keys()
-		var id: String = ids[randi() % ids.size()]
+		var id := HushDen.pick_errand()
 		Vices.give_errand(id)
 		_talk.text = HushDen.ERRANDS[id]["task"]
 	elif not Vices.errand_done:

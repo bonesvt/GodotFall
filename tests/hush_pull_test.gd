@@ -98,6 +98,42 @@ func _run() -> void:
 	_check("from the temple: she walks in through town", walked_town, player.global_position)
 	_check("and ends up at his table again", player.global_position.distance_to(HushDen.ARRIVE) < 1.5, player.global_position)
 
+	# Every errand's spot is reachable, shows while it's hers, and F does it.
+	for each: String in HushDen.ERRANDS:
+		Vices.give_errand(each)
+		_place(HushDen.ERRANDS[each]["pos"] + Vector3(0, 0.3, 0))
+		await _ticks(30)
+		var at: Dictionary = run_node.nearest_hub_spot()
+		_check("%s: prompt" % each, at.get("errand", "") == each and run_node.hud.prompt_label.text == HushDen.ERRANDS[each]["prompt"], [at.get("id"), player.global_position])
+		await _press("interact")
+		await _ticks(2)
+		_check("%s: done" % each, Vices.errand_done, run_node.hud.toast_label.text)
+	Vices.errand = ""
+	Vices.errand_done = false
+
+	# Withdrawal on a run: an episode takes her off the job, she comes to at his place begging.
+	Vices.hold = Vices.MAX_HOLD
+	Vices.dosed = false
+	run_node.start_run(11)
+	await _ticks(60)
+	_check("a run in withdrawal", Vices.in_withdrawal() and Vices.can_episode(), Vices.state_name())
+	pull.episode()
+	await _ticks(2)
+	_check("the swirls take her mid-run", pull.busy() and player.entranced and Vices.eye_swirl() > 1.0, pull.step)
+	var hp: float = player.health
+	player.take_damage(20.0)
+	_check("nothing hurts her while it has her", player.health == hp, player.health)
+	await _ticks(int(Engine.physics_ticks_per_second * (pull.EPISODE_TIME + 0.5)))
+	_check("she walks off the job: run abandoned", run_node.phase == run_node.Phase.OVER and run_node.result == "RUN ABANDONED", run_node.result)
+	_check("the trance lets go", not pull.busy() and not player.entranced and not Vices.entranced, pull.step)
+	_check("begging doesn't loosen his hold", Vices.hold == Vices.MAX_HOLD and Vices.begging and Vices.trance, [Vices.hold, Vices.begging])
+	run_node.enter_hub()
+	await _ticks(10)
+	_check("she comes to at his table, begging", player.global_position.distance_to(HushDen.ARRIVE) < 1.5 and not Vices.begging, player.global_position)
+	_check("another chance: a new errand", Vices.errand in HushDen.ERRANDS and run_node.hud.toast_label.text.contains(HushDen.ERRANDS[Vices.errand]["task"]), run_node.hud.toast_label.text)
+	Vices.errand = ""
+	Vices.pulled = false
+
 	# The dice: only roaming free, every PULL_EVERY seconds.
 	Vices.errand = ""
 	Vices.pulled = false

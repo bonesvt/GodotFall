@@ -198,7 +198,10 @@ void fragment() {
 		float k = clamp(hypno, 0.0, 1.0);
 		col = mix(col, col * 0.4 + HUSH_VIOLET * 0.7, k * 0.55);
 		col = mix(col, vec3(1.0, 0.8, 1.0), band * k);
-		hypno_emit = HUSH_VIOLET * band * k * 0.9;
+		// the iris glows softly all the time, breathing; the spiral arms brightest
+		float iris = 1.0 - smoothstep(0.85, 1.0, r);
+		float breath = 0.2 + 0.08 * sin(TIME * 1.6);
+		hypno_emit = HUSH_VIOLET * (band * 0.9 + iris * breath) * k;
 	}
 	v_shade = mix(shade_tint, shade_tint_2, mask.g);
 	vec4 tattoo = texture(tattoo_tex, UV);

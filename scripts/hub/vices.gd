@@ -108,11 +108,17 @@ const TAB := 10
 const MAX_HOLD := 100.0
 const PULL_EVERY := 40.0
 const PULL_CHANCE := 0.35
-const WITHDRAWAL_SWAY := 0.55
-const WITHDRAWAL_HAZE := 0.4
-const WITHDRAWAL_REGEN := 0.6
-const WITHDRAWAL_DAMAGE := 1.15
-const WITHDRAWAL_SPEED := 0.92
+## Withdrawal is hard mode: shaky aim, a haze, slow healing, hits hurt more,
+## heavier feet. And every EPISODE_EVERY seconds on the run there's an
+## EPISODE_CHANCE the swirls come back and she walks off the job to beg him
+## for another errand (hush_pull.gd episode): the run ends there.
+const WITHDRAWAL_SWAY := 0.75
+const WITHDRAWAL_HAZE := 0.5
+const WITHDRAWAL_REGEN := 0.45
+const WITHDRAWAL_DAMAGE := 1.35
+const WITHDRAWAL_SPEED := 0.88
+const EPISODE_EVERY := 45.0
+const EPISODE_CHANCE := 0.3
 
 static var buzz := 0.0
 ## Drinks bought this session, for Rook's lines.
@@ -150,6 +156,9 @@ static var pulled := false
 static var entranced := false
 ## This run started at full Hold with no dose in her.
 static var withdrawal := false
+## She walked off a run to beg him (saved): he gives her another errand when
+## she comes to at his place.
+static var begging := false
 static var save_path := "user://vices.cfg"
 
 
@@ -273,6 +282,7 @@ static func run_started() -> void:
 	errand = ""  # whatever he wanted, she's gone without it
 	errand_done = false
 	entranced = false
+	begging = false
 	save()
 
 
@@ -284,7 +294,7 @@ static func run_over() -> void:
 	jabbed = false
 	if allowed() and (hushed or hold >= TRANCE_HOLD):
 		trance = true
-	if not hushed:
+	if not hushed and not begging:  # walking off a job to beg him loosens nothing
 		hold = maxf(hold - HOLD_CLEAN_RUN, 0.0)
 	hushed = false
 	withdrawal = false
@@ -379,6 +389,18 @@ static func errand_paid(state: ConfigFile = null) -> bool:
 	errand = ""
 	errand_done = false
 	return _dose(state)
+
+
+## Withdrawal can take her off this run now (once per run: it ends the run).
+static func can_episode() -> bool:
+	return in_withdrawal() and not begging
+
+
+## The swirls took her off the job: she'll come to at his place, begging.
+static func walk_off_job() -> void:
+	begging = true
+	trance = true
+	save()
 
 
 ## How strong the Hush is in her this run (0 none): stronger the deeper his Hold.
@@ -484,6 +506,7 @@ static func open(path: String) -> void:
 	pulled = false
 	entranced = false
 	withdrawal = false
+	begging = false
 	var cfg := ConfigFile.new()
 	if cfg.load(path) == OK:
 		hold = cfg.get_value("vices", "hold", 0.0)
@@ -493,6 +516,7 @@ static func open(path: String) -> void:
 		wakes = cfg.get_value("vices", "wakes", 0)
 		errand = cfg.get_value("vices", "errand", "")
 		errand_done = cfg.get_value("vices", "errand_done", false)
+		begging = cfg.get_value("vices", "begging", false)
 		smokes = cfg.get_value("vices", "smokes", 0)
 		belt = cfg.get_value("vices", "belt", []).filter(func(id): return STIMS.has(id))
 		dependence = cfg.get_value("vices", "dependence", 0.0)
@@ -510,6 +534,7 @@ static func save() -> void:
 	cfg.set_value("vices", "wakes", wakes)
 	cfg.set_value("vices", "errand", errand)
 	cfg.set_value("vices", "errand_done", errand_done)
+	cfg.set_value("vices", "begging", begging)
 	cfg.save(save_path)
 
 
@@ -628,3 +653,4 @@ static func reset() -> void:
 	pulled = false
 	entranced = false
 	withdrawal = false
+	begging = false

@@ -192,15 +192,20 @@ Under the Mature rating (Settings > Game), **F** at the Rusted Halo on Low Row o
   away for good while his Hold is under 60, or at any Hold if Ophelia or Mom is at 50 or more,
   which wins some of their love back. Marrow is a primitive placeholder figure for now.
 - **Full Hold** (100): Marrow stops selling. Space at his screen asks for work: an errand in
-  town (leave his packet in the arcade's bin, dig a tin out from under Sal's crates, count the
-  soldiers on the gate; the spot only shows while it's hers), and back at his table the errand
-  pays one dose. Roaming the hub or town there's also a chance, every 40 s, that his pull takes her
+  town, eight of them, from leaving a packet in the arcade's bin to breaking into the Okoro house,
+  lifting Stitch & Steel's cash tin, stealing vials from the clinic, jimmying the recruitment
+  office's window or palming a jade cat off the Lucky Lantern's shelf (`hush_den.gd` ERRANDS; the
+  spot only shows while it's hers), and back at his table the errand pays one dose. Roaming the hub or town there's also a chance, every 40 s, that his pull takes her
   (`scripts/hub/hush_pull.gd`): a close-up as the spirals in her eyes spin up, then the player
   loses her and she walks in a trance, stiff and slow (`eco_model.gd` `_trance_walk`), down the
   street, into the cellar and up to his table, where he hands her the errand. Once per trip home.
-  Go out on a run at full Hold without a dose and it's a run in **withdrawal**: shaky aim, a
-  violet haze, slower healing, hits hurt more. Clean runs still loosen his Hold.
-- The violet spirals show in her eyes from the first dose on, deeper as his Hold grows.
+  Go out on a run at full Hold without a dose and it's a run in **withdrawal**, hard mode: shaky
+  aim, a heavy haze, much slower healing, hits hurt 35% more, heavier feet, and every 45 s a chance
+  the swirls take her mid-fight (a close-up, guns down) and she walks off the job: the run ends
+  abandoned and she comes to at his table begging for another errand. Clean runs still loosen his
+  Hold; walking off a job to beg doesn't.
+- The violet spirals show in her eyes from the first dose on, deeper as his Hold grows, and her
+  irises glow softly, breathing.
   Render the trance walk next to her strut: `xvfb-run -a godot --path . --fixed-fps 30
   --rendering-driver opengl3 -s res://tools/eco/trance_shots.gd -- <dir>`.
 - Tests: `godot --headless --path . -s res://tests/vices_test.gd`, `tests/hush_pull_test.gd`
