@@ -12,7 +12,9 @@ Each channel holds the level (0..1, as 0..255) at which that texel turns:
     G  torn   (the suit rips open, showing skin; Mature only)
     B  scuffed (abraded, paler fabric: knees, elbows, hips, shoulders)
     A  scarred (fresh cuts and scratches on skin; Mature only)
-255 means never. The face map uses R and A only.
+255 means never. The face map uses R and A only. A third, one-channel map
+(v_damage_slide.png) is where sliding wears her suit through: the outsides of
+her thighs, the outer parts of her glutes and her hips (SLIDE_TEARS, SLIDE_OK).
 
 Tears and scars can only land where TEAR_OK allows: her arms, legs below
 mid-thigh, shoulders, upper back, flanks and a strip of stomach. Everything
@@ -38,6 +40,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)
 GLB = os.path.join(ROOT, "assets/models/eco/eco.glb")
 OUT_BODY = os.path.join(ROOT, "assets/textures/eco/v_damage.png")
 OUT_FACE = os.path.join(ROOT, "assets/textures/eco/v_damage_face.png")
+OUT_SLIDE = os.path.join(ROOT, "assets/textures/eco/v_damage_slide.png")
 
 # glb metres per rest metre (face_forward_and_scale's k: her bust apex, rest
 # z 1.0468, sits at 1.237 in the glb)
@@ -186,6 +189,21 @@ def tear_ok(P, N):
     return ok
 
 
+def slide_ok(P, N):
+    """Where sliding may wear the suit through: like tear_ok, but her upper
+    thighs and glutes open up wherever they're 7 cm or more from a covered
+    zone (the inside of her thighs and the middle of her glutes stay shut)."""
+    x, z = P[..., 0], P[..., 2]
+    ax = np.abs(x)
+    back = N[..., 1] > 0.3
+    ok = ~zone_mask(P, 0.07)
+    ok &= ~((z > 0.96) & (z < 1.17) & (ax < 0.17) & ~back)        # chest
+    ok &= ~((z > 0.60) & (z < 0.98) & (ax < 0.12) & ~back)        # front of her hips and belly
+    for sx, sz in APEXES:
+        ok &= np.hypot(x - sx, z - sz) > APEX_R + 0.08
+    return ok
+
+
 def zone_mask(P, pad):
     """The always-covered zones (vesper-limits), grown by `pad` metres."""
     x, y, z = P[..., 0], P[..., 1], P[..., 2]
@@ -254,6 +272,16 @@ TEARS = [
     ((0.360, -0.020, 1.135), FRONT, ARM_L, 0.050, 0.022, 0.70, 0.30, 0.40),   # left forearm
     ((0.150, 0.000, 0.700), LEFT, LEG, 0.050, 0.025, 0.76, 0.25, 0.35),       # left flank of her hip (outside only)
     ((0.075, 0.050, 0.300), BACK, LEG, 0.055, 0.028, 0.82, 0.25, 0.40),       # left calf
+]
+
+# worn through by sliding (opened by the slide level, not hits)
+SLIDE_TEARS = [
+    ((0.140, -0.020, 0.690), (1, -0.3, 0), LEG, 0.085, 0.040, 0.10, 0.35, 0.40),     # left outer thigh
+    ((-0.140, -0.020, 0.700), (-1, -0.3, 0), LEG, 0.075, 0.038, 0.22, 0.35, 0.40),   # right outer thigh
+    ((0.115, 0.060, 0.790), (0.45, 1, 0), (1, 0, 0.35), 0.050, 0.034, 0.32, 0.35, 0.40),   # left glute, outer half
+    ((0.155, 0.000, 0.840), LEFT, LEG, 0.050, 0.030, 0.42, 0.30, 0.40),             # left hip
+    ((-0.115, 0.060, 0.780), (-0.45, 1, 0), (-1, 0, 0.35), 0.045, 0.030, 0.52, 0.35, 0.40),  # right glute, outer half
+    ((0.105, -0.060, 0.580), (0.4, -1, 0), LEG, 0.055, 0.032, 0.60, 0.30, 0.40),     # left thigh, front outer
 ]
 
 # scuffs: bigger, earlier, and only pale the fabric
@@ -386,10 +414,21 @@ def pad(img, cover, iters=4):
     return img
 
 
-def check_zones(P, cover, maps):
-    """The bake fails if anything near an always-covered zone could ever tear or scar."""
-    near = zone_mask(P, 0.05) & cover
+def slide_map(P, N, cover, verts):
+    lvl = np.full(P.shape[:2], NEVER)
+    for i, (c, f, a, rl, rs, ap, gr, jag) in enumerate(SLIDE_TEARS):
+        lvl = np.minimum(lvl, spot_level(P, N, snap(verts, c, f), f, a, rl, rs, ap, gr, jag, 120 + i))
+    lvl = np.where(slide_ok(P, N) & (lvl < 0.98) & cover, lvl, NEVER)
+    return lvl
+
+
+def check_zones(P, cover, maps, slide=None):
+    """The bake fails if anything within 6 cm of an always-covered zone could
+    ever tear or scar."""
+    near = zone_mask(P, 0.06) & cover
     bad = near & ((maps[..., 1] < NEVER) | (maps[..., 3] < NEVER))
+    if slide is not None:
+        bad |= near & (slide < NEVER)
     if bad.any():
         raise SystemExit("bake_damage: %d texels near a covered zone could tear" % int(bad.sum()))
     return int(near.sum())
@@ -419,9 +458,13 @@ def main():
     pos, nrm, uv, tris = primitive(j, buf, "Body", "eco_v_body")
     P, N, cover = rasterize(pos, nrm, uv, tris, 1024)
     body = body_maps(P, N, cover, pos)
-    near = check_zones(P, cover, body)
+    slide = slide_map(P, N, cover, pos)
+    near = check_zones(P, cover, body, slide)
     print("body: %d texels, %d near the covered zones (none can tear)" % (int(cover.sum()), near))
     save(pad(body, cover), OUT_BODY)
+    img = np.clip(np.round(pad(slide[..., None], cover)[..., 0] * 255.0), 0, 255).astype(np.uint8)
+    Image.fromarray(img, "L").save(OUT_SLIDE, optimize=True)
+    print("wrote", os.path.relpath(OUT_SLIDE, ROOT))
 
     fpos, fnrm, fuv, ftris = primitive(j, buf, "Face", "eco_v_face")
     eyes = []

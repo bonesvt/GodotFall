@@ -50,6 +50,10 @@ eco_scars={
 "type": "float",
 "value": 0.0
 }
+eco_slide={
+"type": "float",
+"value": 0.0
+}
 
 [rendering]
 

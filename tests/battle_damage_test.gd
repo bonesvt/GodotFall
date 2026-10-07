@@ -1,7 +1,8 @@
 extends SceneTree
 ## Battle damage (scripts/ps2/battle_damage.gd): hits, slides and time out on a
-## run make Eco dirtier, more scuffed, torn and cut; Teen shows only the dirt
-## and scuffs; the setting turns it off; the baked map never lets a tear or cut
+## run make Eco dirtier, more scuffed, torn and cut, and sliding wears her suit
+## through at the outer thighs, glutes and hips; Teen shows only the dirt and
+## scuffs; the setting turns it off; the baked maps never let a tear or cut
 ## near the always-covered zones; her materials read the map; and it all
 ## washes off at the temple.
 ## Run: godot --headless --path . -s res://tests/battle_damage_test.gd
@@ -12,6 +13,7 @@ const ContentRating := preload("res://scripts/radio/content_rating.gd")
 const Prefs := preload("res://scripts/game/prefs.gd")
 const TEST_SETTINGS := "user://test_battle_damage_settings.cfg"
 const MAP := "res://assets/textures/eco/v_damage.png"
+const SLIDE_MAP := "res://assets/textures/eco/v_damage_slide.png"
 ## glb metres per rest metre (tools/eco/bake_damage.py K)
 const K := 1.1817
 
@@ -51,6 +53,12 @@ func _levels() -> void:
 		BattleDamage.on_hit(100.0)
 	_check("levels top out at 1", BattleDamage.tears == 1.0 and BattleDamage.scars == 1.0 and BattleDamage.scuffs == 1.0,
 			[BattleDamage.tears, BattleDamage.scars, BattleDamage.scuffs])
+	_check("hits don't wear through like slides", BattleDamage.slide == 0.0, BattleDamage.slide)
+	var player := SlidingPilot.new()
+	for i in 30:
+		BattleDamage.tick(1.0, player)
+	_check("half a minute of sliding wears her suit through", BattleDamage.slide > 0.3, BattleDamage.slide)
+	player.free()
 	BattleDamage.reset()
 	_check("reset washes it all off", BattleDamage.grime == 0.0 and BattleDamage.tears == 0.0, BattleDamage.grime)
 
@@ -61,12 +69,14 @@ func _rating_and_setting() -> void:
 	var v := BattleDamage.shown()
 	_check("Teen: dirt and scuffs only", v.x > 0.7 and v.y > 0.7 and v.z == 0.0 and v.w == 0.0, v)
 	BattleDamage.apply()
-	_check("Teen: no tears reach the shader", BattleDamage._pushed.z == 0.0, BattleDamage._pushed)
+	_check("Teen: no tears reach the shader", BattleDamage._pushed.z == 0.0 and BattleDamage._pushed_slide == 0.0,
+			[BattleDamage._pushed, BattleDamage._pushed_slide])
 	ContentRating.set_rating("M", false)
 	v = BattleDamage.shown()
 	_check("Mature: torn and cut too", v.z > 0.7 and v.w > 0.7, v)
 	BattleDamage.apply()
-	_check("Mature: tears reach the shader", BattleDamage._pushed.z > 0.7, BattleDamage._pushed)
+	_check("Mature: tears reach the shader", BattleDamage._pushed.z > 0.7 and BattleDamage._pushed_slide > 0.7,
+			[BattleDamage._pushed, BattleDamage._pushed_slide])
 	_check("on by default", Prefs.battle_damage(), Prefs.battle_damage())
 	Prefs.set_battle_damage(false)
 	_check("setting off: nothing shows", BattleDamage.shown() == Vector4.ZERO, BattleDamage.shown())
@@ -74,13 +84,14 @@ func _rating_and_setting() -> void:
 	BattleDamage.reset()
 
 
-## Every vertex of her body near the always-covered zones (memory
-## vesper-limits, grown generously) reads "never" for tears and cuts, and so
-## does all of her chest and everything between her hips and mid-thigh.
+## Every vertex of her body within 6 cm of the always-covered zones (memory
+## vesper-limits), and all of her chest, reads "never" for tears, cuts and
+## sliding wear.
 func _map_keeps_clear() -> void:
 	var img := Image.load_from_file(ProjectSettings.globalize_path(MAP))
-	_check("damage map loads", img != null and img.get_width() == 1024, img)
-	if img == null:
+	var slide := Image.load_from_file(ProjectSettings.globalize_path(SLIDE_MAP))
+	_check("damage maps load", img != null and img.get_width() == 1024 and slide != null and slide.get_width() == 1024, [img, slide])
+	if img == null or slide == null:
 		return
 	var eco = ECO.instantiate()
 	var body := eco.find_child("Body", true, false) as MeshInstance3D
@@ -90,30 +101,46 @@ func _map_keeps_clear() -> void:
 	var near := 0
 	var bad := []
 	var torn_somewhere := 0
+	var slid_thigh := 0
+	var slid_glute := 0
 	for i in verts.size():
 		var v := verts[i]
 		var p := Vector3(-v.x, v.z, v.y) / K   # rest space: z up, she faces -y
-		var px := img.get_pixel(clampi(int(uvs[i].x * 1024), 0, 1023), clampi(int(uvs[i].y * 1024), 0, 1023))
+		var at := Vector2i(clampi(int(uvs[i].x * 1024), 0, 1023), clampi(int(uvs[i].y * 1024), 0, 1023))
+		var px := img.get_pixelv(at)
+		var worn := slide.get_pixelv(at).r < 0.99
 		if px.g < 0.99:
 			torn_somewhere += 1
+		if worn and p.z > 0.6 and p.z < 0.8 and absf(p.x) > 0.11:
+			slid_thigh += 1
+		if worn and p.z > 0.72 and p.z < 0.88 and p.y > 0.02:
+			slid_glute += 1
 		if not _locked(p):
 			continue
 		near += 1
-		if px.g < 0.99 or px.a < 0.99:
+		if px.g < 0.99 or px.a < 0.99 or worn:
 			bad.append(p)
 	_check("map: tears exist", torn_somewhere > 30, torn_somewhere)
+	_check("slide map: wears through her outer upper thighs", slid_thigh > 10, slid_thigh)
+	_check("slide map: and the outer parts of her glutes", slid_glute > 5, slid_glute)
 	_check("map: nothing near the covered zones can tear or scar (%d vertices checked)" % near, near > 200 and bad.is_empty(),
 			bad.slice(0, 5))
 	eco.free()
 
 
+## Within 6 cm of a covered zone (vesper-limits), or on her chest.
 func _locked(p: Vector3) -> bool:
+	const PAD := 0.06
 	var ax := absf(p.x)
 	for sx in [0.057, -0.057]:
-		if Vector2(p.x - sx, p.z - 1.047).length() < 0.022 + 0.07:
+		if Vector2(p.x - sx, p.z - 1.047).length() < 0.022 + PAD + 0.01:
 			return true
-	if p.z > 0.66 and p.z < 0.86 and ax < 0.13:
-		return true   # groin, between the legs, back cleft, all round
+	if p.y < 0.0 and p.z > 0.712 - PAD and p.z < 0.79 + PAD and ax < 0.012 + 0.45 * (p.z - 0.70) + PAD:
+		return true   # groin
+	if p.z > 0.712 - PAD and p.z < 0.74 + PAD and ax < 0.014 + PAD:
+		return true   # between the legs
+	if p.y > 0.0 and p.z > 0.712 - PAD and p.z < 0.81 + PAD and ax < 0.012 + PAD:
+		return true   # back cleft
 	return p.z > 0.98 and p.z < 1.13 and ax < 0.13 and p.y < 0.0   # her chest
 
 
@@ -126,8 +153,10 @@ func _materials() -> void:
 		for s in mi.mesh.get_surface_count():
 			var m := mi.mesh.surface_get_material(s) as ShaderMaterial
 			if m != null:
-				kinds[m.resource_name] = [m.get_shader_parameter("damage_kind"), m.get_shader_parameter("damage_tex")]
+				kinds[m.resource_name] = [m.get_shader_parameter("damage_kind"), m.get_shader_parameter("damage_tex"),
+						m.get_shader_parameter("damage_slide_tex")]
 	_check("her body reads the map", kinds.get("eco_v_body", [0])[0] == 1 and kinds["eco_v_body"][1] != null, kinds.get("eco_v_body"))
+	_check("her body reads the slide map", kinds["eco_v_body"][2] != null, kinds.get("eco_v_body"))
 	_check("her face reads its map", kinds.get("eco_v_face", [0])[0] == 1 and kinds["eco_v_face"][1] != null, kinds.get("eco_v_face"))
 	_check("her boots get dust", kinds.get("eco_v_boots", [0])[0] == 2, kinds.get("eco_v_boots"))
 	_check("her hair stays clean", kinds.get("eco_v_hair", [null])[0] in [null, 0], kinds.get("eco_v_hair"))
@@ -176,3 +205,8 @@ func _check(what: String, ok: bool, got) -> void:
 	else:
 		failures += 1
 		print("  FAIL ", what, "  got: ", got)
+
+
+## A stand-in player sliding along.
+class SlidingPilot extends CharacterBody3D:
+	var state := 2   # eco_model.gd PlayerState.SLIDE

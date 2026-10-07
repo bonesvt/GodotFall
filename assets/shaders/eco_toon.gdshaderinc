@@ -59,16 +59,21 @@ global uniform float eco_grime;
 global uniform float eco_scuffs;
 global uniform float eco_tears;
 global uniform float eco_scars;
+// How far sliding has worn her suit through (her outer thighs, glutes and hips).
+global uniform float eco_slide;
 // 0: none (hair, eyes, glass). 1: her body or face, from damage_tex
 // (tools/eco/bake_damage.py; each channel the level at which a texel turns:
 // R grime, G torn, B scuffed, A scarred; tears only open on her suit's fabric,
 // where the mask's G is). 2: a piece of kit she wears: dust and scuffs only.
 uniform int damage_kind = 0;
 uniform sampler2D damage_tex : hint_default_white, filter_linear, repeat_disable;
+// Where sliding wears through (R: the slide level each texel opens at).
+uniform sampler2D damage_slide_tex : hint_default_white, filter_linear, repeat_disable;
 // Her skin where the suit tears open.
 uniform vec3 skin_tone : source_color = vec3(0.97, 0.86, 0.8);
 const vec3 DIRT = vec3(0.24, 0.2, 0.16);
 const vec3 CUT = vec3(0.62, 0.1, 0.12);
+const vec3 GRAZE = vec3(0.9, 0.58, 0.52);
 
 // Per-object knobs shared with ps2_surface.gdshader (see ps2_model.gd).
 instance uniform float flash : instance_index(0) = 0.0;
@@ -125,13 +130,26 @@ void fragment() {
 		scuffed = smoothstep(d.b, d.b + 0.1, eco_scuffs) * fabric;
 		vec3 worn = mix(col, vec3(dot(col, vec3(0.333))), 0.55) * 1.3 + 0.05;
 		col = mix(col, worn, scuffed * (0.45 + 0.35 * speck));
-		torn = smoothstep(d.g, d.g + 0.012, eco_tears) * fabric;
+		// torn by hits (G, eco_tears) or worn through by sliding (the slide
+		// map, eco_slide): whichever is further past its level here
+		float tl = d.g;
+		float tv = eco_tears;
+		float sl = texture(damage_slide_tex, UV).r;
+		float grazed = 0.0;
+		if (eco_slide - sl > tv - tl) {
+			tl = sl;
+			tv = eco_slide;
+			grazed = 1.0;
+		}
+		torn = smoothstep(tl, tl + 0.012, tv) * fabric;
 		// the fabric round a tear darkens and frays before it opens
-		float fray = smoothstep(d.g - 0.07, d.g, eco_tears) * fabric * (1.0 - torn) * step(d.g, 0.99);
+		float fray = smoothstep(tl - 0.07, tl, tv) * fabric * (1.0 - torn) * step(tl, 0.99);
 		col *= 1.0 - fray * (0.55 + 0.3 * speck);
-		// skin inside, a little shadowed under the torn edge
-		float lip = 1.0 - smoothstep(d.g + 0.012, d.g + 0.08, eco_tears);
-		col = mix(col, skin_tone * albedo.rgb * (1.0 - 0.3 * lip), torn);
+		// skin inside, a little shadowed under the torn edge (and grazed pink
+		// where she slid on it)
+		float lip = 1.0 - smoothstep(tl + 0.012, tl + 0.08, tv);
+		vec3 skin = mix(skin_tone, skin_tone * GRAZE, grazed * smoothstep(0.3, 0.7, damage_noise(UV * 260.0)) * 0.7);
+		col = mix(col, skin * albedo.rgb * (1.0 - 0.3 * lip), torn);
 		mask = mix(mask, vec2(0.0), torn);
 		// fresh cuts, on her skin only (bare, or where the suit tore)
 		float cut = smoothstep(d.a, d.a + 0.02, eco_scars) * max(torn, 1.0 - fabric);
