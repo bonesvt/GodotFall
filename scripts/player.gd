@@ -170,6 +170,8 @@ var untouchable_timer := 0.0
 ## Movement values before the suit's passives scaled them.
 var _armor_regen_mult := 1.0
 var _base_wallrun_time := -1.0
+## max_health before any boost from Solace (town_shops.gd: a meal, implants).
+var _base_max_health := -1.0
 var _base_grapple_cooldown := -1.0
 var step_dist := 0.0
 ## Set by the ViewCam child (scripts/view_camera.gd) while in third person.
@@ -654,6 +656,9 @@ func apply_suit(profile: Dictionary) -> void:
 	if _base_wallrun_time < 0.0:
 		_base_wallrun_time = wallrun_max_time
 		_base_grapple_cooldown = grapple_cooldown
+		_base_max_health = max_health
+	max_health = _base_max_health + profile.get("max_health_bonus", 0.0)
+	health = max_health
 	suit_tier = profile.get("tier", 0)
 	suit_weight = profile.get("weight", "medium")
 	suit_speed = profile.get("speed_mult", 1.0)

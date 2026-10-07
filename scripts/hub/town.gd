@@ -11,13 +11,17 @@ extends RefCounted
 ##   z 96..126   the pilgrim road through the jungle, wooden lamps giving way to solar ones
 ##   z 126..132  the town gate: solar pylons, the SOLACE sign, an army checkpoint
 ##   z 132..160  Lantern Row: the outfitter and the clinic west, noodles and salvage east
-##   z 160..190  Sun Plaza: the Sun Tree, the fountain, the job board, the recruitment
-##               office west, the greenhouse cafe and Cut & Chrome (the hair salon) east
+##   z 160..190  Sun Plaza: the Sun Tree, the fountain, the job board, Ink & Iron (tattoos
+##               and piercings, in a shipping container) and the recruitment office
+##               west, the greenhouse cafe and Cut & Chrome (the hair salon) east
 ##   z 190..214  Low Row: the arcade and Eco's old flat west, the bar and the cinema east
 ##   z 214..244  the rooftop garden up the steps, looking out over the valley
 ##
-## Shops are placeholders for later features: each is an interactable with a
-## "shop" key naming what it will sell (SHOPS), and Eco's lines for now.
+## Every shop is an interactable with a "shop" key (SHOPS). The open ones have
+## a "screen" (the run manager opens it: town_shop_screen.gd for what
+## town_shops.gd sells, salon_screen.gd, gift_screen.gd); date spots have a
+## "date" key (run_manager.gd date_at: whoever Eco's romancing meets her there).
+## Without one of those, F gets Eco's lines.
 
 const K := preload("res://scripts/hub/hub_kit.gd")
 const Kit := preload("res://scripts/run/level_kit.gd")
@@ -46,16 +50,17 @@ const CANOPY_Y := 10.6
 
 ## What each shop will be for once its feature exists.
 const SHOPS := {
-	"outfitter": "outfits",
-	"noodles": "meals (run stat boosts)",
-	"salvage": "parts trading",
-	"clinic": "healing and implants",
+	"outfitter": "accessories and a fitting room (town_shop_screen.gd)",
+	"noodles": "meals for the next run (town_shop_screen.gd), dates at the stall",
+	"salvage": "material trades (town_shop_screen.gd)",
+	"clinic": "implants (town_shop_screen.gd)",
+	"ink": "piercings and tattoos (town_shop_screen.gd)",
 	"jobs": "quests",
 	"cafe": "dates",
 	"arcade": "dates",
-	"bar": "quest givers and rumours",
+	"bar": "quest givers and rumours; Mature-only dates (and the back step: a smoke with Ophelia)",
 	"cinema": "dates",
-	"ice_cream": "dates and treats",
+	"ice_cream": "dates",
 	"gifts": "gifts for romance partners (gift_shop.gd)",
 	"garden": "dates",
 	"salon": "haircuts (salon_screen.gd)",
@@ -102,11 +107,14 @@ static func build(root: Node3D, info: Dictionary) -> void:
 	root.add_child(mood)
 
 
-## Shops and spots in the town (ids from info["interactables"]).
-static func shop(info: Dictionary, id: String, pos: Vector3, prompt: String, lines: Array, kind := "") -> void:
+## Shops and spots in the town (ids from info["interactables"]). `extra` is
+## merged into the spot: {"screen": ...} opens a shop screen, {"date": place}
+## makes it a date spot.
+static func shop(info: Dictionary, id: String, pos: Vector3, prompt: String, lines: Array, kind := "", extra := {}) -> void:
 	K.interactable(info, id, pos, prompt, lines, 2.8)
 	if kind != "":
 		info["interactables"].back()["shop"] = kind
+	info["interactables"].back().merge(extra, true)
 
 
 # --- the road -----------------------------------------------------------------
@@ -240,33 +248,35 @@ static func _lantern_row(root: Node3D, info: Dictionary, rng: RandomNumberGenera
 	var outfitter := _building(root, -1, 139.0, "shop_w13_f3", 13.0, {"wall": Color(0.95, 0.92, 0.9), "shop": MAGENTA, "awning": Color(0.9, 0.4, 0.6)}, "STITCH & STEEL")
 	_blade_sign(root, -1, 134.0, "STITCH\n&\nSTEEL", MAGENTA)
 	_mannequins(root, -1, 139.0)
-	shop(info, "shop_outfitter", outfitter, "[F] Stitch & Steel: outfits (coming soon)", [
+	shop(info, "shop_outfitter", outfitter, "[F] Stitch & Steel: accessories and the fitting room", [
 		"Mara made my first flight suit. Now she asks Mom if I'm eating.",
-		"Still takes my money though. Money doesn't have a reputation.",
-	], "outfitter")
+	], "outfitter", {"screen": "outfitter"})
 
 	var noodles := _building(root, 1, 139.0, "shop_w13_f2", 13.0, {"wall": Color(0.88, 0.94, 0.86), "shop": AMBER, "awning": Color(0.95, 0.6, 0.3)}, "SEVEN SUNS NOODLES")
 	_blade_sign(root, 1, 134.0, "SEVEN\nSUNS", AMBER)
 	TP.spawn(root, "noodle_stall", Vector3(STREET_HALF - 1.4, 0, 141.0), -90.0, {"shop": Color(1.0, 0.35, 0.2) / 0.6})
 	_solid(root, Vector3(STREET_HALF - 1.0, 0.55, 141.0), Vector3(0.8, 1.1, 5.0))
 	_smoke(root, Vector3(STREET_HALF + 1.0, GF + 0.2, 144.0))
-	shop(info, "shop_noodles", noodles, "[F] Seven Suns: a hot meal for the next run (coming soon)", [
+	shop(info, "shop_noodles", noodles, "[F] Seven Suns: a hot meal for the next run", [
 		"Old Hiro still saves me the burnt edges. Only one in town who does.",
+	], "noodles", {"screen": "noodles"})
+	# The stools at the stall out front: a date spot.
+	shop(info, "noodle_stall", Vector3(STREET_HALF - 2.8, 0, 144.6), "[F] Seven Suns stall", [
 		"Spice, salt and grease. Best armour there is.",
-	], "noodles")
+		"Dad and I ate here every Sunday. Same stools. He always took the wobbly one.",
+	], "noodles", {"date": "noodles"})
 
 	var clinic := _building(root, -1, 153.5, "shop_w11_f4", 11.0, {"wall": Color(0.88, 0.95, 0.96), "shop": LIME}, "+ MERCY CLINIC +")
-	shop(info, "shop_clinic", clinic, "[F] Mercy Clinic: patch-ups and implants (coming soon)", [
+	shop(info, "shop_clinic", clinic, "[F] Mercy Clinic: implants", [
 		"Doc Imani stitched up Dad more times than I can count. She doesn't charge me. Yet.",
-	], "clinic")
+	], "clinic", {"screen": "clinic"})
 
 	var salvage := _building(root, 1, 153.5, "shop_w11_f3", 11.0, {"wall": Color(0.72, 0.74, 0.76), "shop": RED, "awning": Color(0.5, 0.5, 0.45)}, "SAL'S SALVAGE")
 	_blade_sign(root, 1, 150.0, "SAL'S\nSALVAGE", RED)
 	_scrap_pile(root, Vector3(STREET_HALF + 1.4, 0, 157.5))
-	shop(info, "shop_salvage", salvage, "[F] Sal's Salvage: trade titan parts (coming soon)", [
+	shop(info, "shop_salvage", salvage, "[F] Sal's Salvage: trade materials", [
 		"Sal buys colony scrap off the scavengers and sells it to me at twice the price. Everybody wins but me.",
-		"Don't ask where the serial numbers went.",
-	], "salvage")
+	], "salvage", {"screen": "salvage"})
 	_street_life(root, 132.0, 160.0, rng)
 
 
@@ -314,6 +324,7 @@ static func _plaza(root: Node3D, info: Dictionary, rng: RandomNumberGenerator) -
 	for d: Vector3 in [Vector3(-6.5, 0, -6.5), Vector3(6.5, 0, -6.5), Vector3(-6.5, 0, 6.5), Vector3(6.5, 0, 6.5)]:
 		_solar_lamp(root, c + d, [LIME, AMBER, CYAN, MAGENTA][int(d.x > 0) + 2 * int(d.z > 0)])
 	_militia_office(root, info)
+	_ink_parlour(root, info)
 	_greenhouse(root, info, rng)
 	_salon(root, info)
 	_plaza_walls(root, rng)
@@ -331,11 +342,11 @@ static func _ice_cream(root: Node3D, info: Dictionary) -> void:
 	_solid(root, at + Vector3(0, 0.42 * k, -0.55 * k), Vector3(2.8, 0.84, 0.6) * k)
 	_neon_text(root, at + Vector3(0, 3.35 * k, -0.12), "SCOOPS", Color(1.0, 0.55, 0.85), 90, 180.0)
 	K.light(root, at + Vector3(0, 2.4, -1.8), Color(1.0, 0.7, 0.85), 1.0, 7.0)
-	shop(info, "shop_icecream", at + Vector3(0, 0, -2.0), "[F] Scoops: ice cream (dates and treats coming soon)", [
+	shop(info, "shop_icecream", at + Vector3(0, 0, -2.0), "[F] Scoops: ice cream", [
 		"Mrs. Tran still gives me a kid's scoop. I think she means it nicely.",
 		"Ophelia orders black sesame every time. Says it's the only flavour that matches her soul.",
 		"Two scoops, one bench, nobody shooting at me. That's a good day in Solace.",
-	], "ice_cream")
+	], "ice_cream", {"date": "ice_cream"})
 
 
 ## Lucky Lantern, the gift shop kiosk on the plaza's corner by the bar
@@ -462,6 +473,68 @@ static func _militia_office(root: Node3D, info: Dictionary) -> void:
 	])
 
 
+## Ink & Iron, Rook's tattoo and piercing parlour: a rusted shipping container
+## on the plaza's west side between the clinic's terrace and the recruitment
+## office, its long side cut open to the Sun Tree under a cyan neon sign.
+## Inside: the tattoo chair, a lamp on an arm, flash sheets on the walls.
+## The counter opens town_shop_screen.gd ("ink").
+const INK_Z := 163.4
+const INK_CYAN := Color(0.25, 0.95, 1.0)
+
+
+static func _ink_parlour(root: Node3D, info: Dictionary) -> void:
+	var front := PLAZA.position.x
+	var c := Vector3(front - 1.25, 0, INK_Z)   # the container's centre: 2.5 deep, 6 long
+	var rust := TP.paint(Color(0.42, 0.2, 0.14), 0.7)
+	var dark := TP.paint(Color(0.08, 0.08, 0.1), 0.6)
+	# floor, roof, back wall and the two ends; ribs down the outside
+	K.mesh(root, c + Vector3(0, 0.08, 0), Vector3(2.5, 0.16, 6.0), Art.material("gunmetal", Color(0.4, 0.38, 0.36)))
+	K.mesh(root, c + Vector3(0, 2.6, 0), Vector3(2.6, 0.12, 6.1), rust)
+	K.mesh(root, c + Vector3(-1.22, 1.3, 0), Vector3(0.08, 2.6, 6.0), rust)
+	for e: float in [-1.0, 1.0]:
+		K.mesh(root, c + Vector3(0, 1.3, e * 3.0), Vector3(2.5, 2.6, 0.08), rust)
+		for k in 6:
+			K.mesh(root, c + Vector3(-1.1 + k * 0.42, 1.3, e * 3.06), Vector3(0.06, 2.5, 0.06), rust)
+	for k in 13:
+		K.mesh(root, c + Vector3(-1.28, 1.3, -2.9 + k * 0.48), Vector3(0.06, 2.5, 0.08), rust)
+	# the cut-open side: a steel frame, the doors swung back flat against the plaza walls
+	K.mesh(root, c + Vector3(1.24, 2.45, 0), Vector3(0.14, 0.3, 6.0), dark)
+	for e: float in [-1.0, 1.0]:
+		K.mesh(root, c + Vector3(1.24, 1.3, e * 2.95), Vector3(0.14, 2.6, 0.14), dark)
+		K.mesh(root, c + Vector3(1.9, 1.25, e * 3.12), Vector3(1.3, 2.4, 0.06), rust, Vector3(0, e * 12.0, 0))
+	# inside: a black floor mat, the tattoo chair, a lamp on an arm, a counter, flash on the walls
+	K.mesh(root, c + Vector3(0, 0.17, -0.8), Vector3(2.2, 0.02, 3.2), dark)
+	var seat := TP.paint(Color(0.1, 0.1, 0.12), 0.8)
+	var chair := c + Vector3(0.1, 0, -1.4)
+	K.mesh(root, chair + Vector3(0, 0.45, 0), Vector3(0.2, 0.6, 0.2), Art.material("gunmetal"))
+	K.mesh(root, chair + Vector3(0, 0.8, 0), Vector3(0.7, 0.14, 1.5), seat, Vector3(-8, 0, 0))
+	K.mesh(root, chair + Vector3(0, 1.15, -0.8), Vector3(0.7, 0.7, 0.14), seat, Vector3(-25, 0, 0))
+	K.mesh(root, chair + Vector3(-0.85, 1.25, 0), Vector3(0.05, 2.2, 0.05), Art.material("gunmetal"))
+	K.mesh(root, chair + Vector3(-0.45, 2.3, 0), Vector3(0.85, 0.05, 0.05), Art.material("gunmetal"))
+	K.glow(root, chair + Vector3(-0.05, 2.18, 0), Vector3(0.3, 0.06, 0.3), Color(1.0, 0.95, 0.85) * 1.4)
+	K.light(root, chair + Vector3(0, 1.9, 0), Color(1.0, 0.95, 0.88), 0.9, 4.0)
+	var counter := c + Vector3(0.2, 0, 1.7)
+	K.mesh(root, counter + Vector3(0, 0.55, 0), Vector3(1.6, 1.1, 0.7), dark)
+	K.glow(root, counter + Vector3(0.81, 0.95, 0), Vector3(0.02, 0.05, 0.7), INK_CYAN * 1.5)
+	var flash := [Color(1.0, 0.3, 0.35), INK_CYAN, Color(1.0, 0.85, 0.3), Color(0.6, 1.0, 0.4), Color(1.0, 0.45, 0.8), Color(0.95, 0.95, 0.9)]
+	for k in 10:
+		var z := -2.6 + k * 0.55
+		K.mesh(root, c + Vector3(-1.16, 1.75 + (k % 2) * 0.45, z), Vector3(0.02, 0.38, 0.32), Art.material("canvas", Color(1.0, 0.96, 0.88)), Vector3(0, 0, (k % 3 - 1) * 4.0))
+		K.glow(root, c + Vector3(-1.15, 1.75 + (k % 2) * 0.45, z), Vector3(0.02, 0.14, 0.12), flash[k % flash.size()] * 0.6)
+	# the sign on the roof, a pink strip under it
+	_neon_text(root, c + Vector3(1.0, 3.05, 0), "INK & IRON", INK_CYAN, 80, 90.0)
+	K.glow(root, c + Vector3(1.3, 2.75, 0), Vector3(0.04, 0.05, 5.8), Color(1.0, 0.3, 0.5) * 1.6)
+	K.light(root, c + Vector3(1.6, 2.2, 0), INK_CYAN, 1.1, 8.0)
+	_solid(root, c + Vector3(-1.2, 1.3, 0), Vector3(0.2, 2.6, 6.0))
+	for e: float in [-1.0, 1.0]:
+		_solid(root, c + Vector3(0, 1.3, e * 3.0), Vector3(2.5, 2.6, 0.2))
+	_solid(root, chair + Vector3(0, 0.6, -0.2), Vector3(0.8, 1.2, 1.8))
+	_solid(root, counter + Vector3(0, 0.55, 0), Vector3(1.6, 1.1, 0.7))
+	shop(info, "shop_ink", c + Vector3(1.9, 0, 0.6), "[F] Ink & Iron: piercings and tattoos", [
+		"Rook did Dad's cog. Said he flinched. Dad said he didn't. I believe Rook.",
+	], "ink", {"screen": "ink"})
+
+
 ## The greenhouse cafe on the plaza's east side: a glass hall on white ribs,
 ## full of plants, tables and string lights. A date spot later.
 static func _greenhouse(root: Node3D, info: Dictionary, _rng: RandomNumberGenerator) -> void:
@@ -480,10 +553,10 @@ static func _greenhouse(root: Node3D, info: Dictionary, _rng: RandomNumberGenera
 		TP.spawn(root, "cafe_table", t, t.z * 37.0, {"awning": Color(0.85, 1.0, 0.8)})
 		_solid(root, t + Vector3(0, 0.4, 0), Vector3(1.0, 0.8, 1.0))
 	_neon_text(root, Vector3(front - 0.1, 4.6, c.z), "greenhouse cafe", LIME, 64, -90.0)
-	shop(info, "shop_cafe", Vector3(front - 1.8, 0, c.z), "[F] Greenhouse Cafe: dates (coming soon)", [
+	shop(info, "shop_cafe", Vector3(front - 1.8, 0, c.z), "[F] Greenhouse Cafe", [
 		"Every couple in Solace has had their first date in there. I've had coffee in there. Alone.",
 		"Someday somebody's going to ask me. And I'm going to make them pay.",
-	], "cafe")
+	], "cafe", {"date": "cafe"})
 
 
 ## Cut & Chrome, Juno's hair salon, on the plaza's east side between Sal's and
@@ -539,10 +612,10 @@ static func _salon(root: Node3D, info: Dictionary) -> void:
 static func _low_row(root: Node3D, info: Dictionary, rng: RandomNumberGenerator) -> void:
 	var arcade := _building(root, -1, 196.5, "shop_w13_f3b", 13.0, {"wall": Color(0.55, 0.52, 0.62), "shop": VIOLET, "neon": CYAN, "awning": Color(0.5, 0.35, 0.8)}, "ARCADE")
 	_blade_sign(root, -1, 191.5, "GLOW\nBOX", VIOLET)
-	shop(info, "shop_arcade", arcade, "[F] Glowbox Arcade: dates (coming soon)", [
+	shop(info, "shop_arcade", arcade, "[F] Glowbox Arcade", [
 		"I hold the record on Titan Brawl III. The machine says 'ECO'. Somebody keeps scratching it off.",
 		"Bring a date, win them a prize. Or bring nobody and win everything.",
-	], "arcade")
+	], "arcade", {"date": "arcade"})
 
 	# Eco's old flat, boarded up.
 	var flat := Vector3(-STREET_HALF, 0, 209.0)
@@ -559,13 +632,20 @@ static func _low_row(root: Node3D, info: Dictionary, rng: RandomNumberGenerator)
 	shop(info, "shop_bar", bar, "[F] The Rusted Halo: jobs and rumours (coming soon)", [
 		"Every bad idea in Solace starts at the Halo. Most of mine did.",
 		"The fixer in the back booth pays in cash and doesn't ask why I can shoot.",
-	], "bar")
+	], "bar", {"date": "bar"})  # a Mature-only date (town_shops.gd DATES)
+	# The back step in the alley by the Halo, where Ophelia smokes: a
+	# Mature-only date (share her last cigarette).
+	K.mesh(root, Vector3(STREET_HALF + 0.5, 0.1, 203.6), Vector3(0.9, 0.2, 0.6), Art.material("concrete"))
+	K.mesh(root, Vector3(STREET_HALF + 0.45, 0.45, 204.55), Vector3(0.6, 0.9, 0.55), Art.material("gunmetal", Color(0.22, 0.3, 0.26)))
+	shop(info, "halo_step", Vector3(STREET_HALF - 0.6, 0, 204.0), "[F] The Halo's back step", [
+		"Ophelia's spot. Bins, a step, one flickering light. She says it's the only quiet place in town.",
+	], "", {"date": "smoke"})
 
 	var cinema := _building(root, 1, 209.5, "shop_w9_f2", 9.0, {"wall": Color(0.84, 0.88, 0.94), "shop": CYAN}, "HOLO-CINEMA")
 	_neon_text(root, Vector3(STREET_HALF - 0.62, GF - 1.6, 209.5), "TONIGHT: TITANFALL ROMANCE", Color(1.0, 0.95, 0.85), 30, -90.0)
-	shop(info, "shop_cinema", cinema, "[F] Holo-Cinema: dates (coming soon)", [
+	shop(info, "shop_cinema", cinema, "[F] Holo-Cinema", [
 		"They only play war films now. The heroes never cry. Not once. Not even when the dog dies.",
-	], "cinema")
+	], "cinema", {"date": "cinema"})
 	_street_life(root, 190.0, 214.0, rng)
 
 
@@ -631,10 +711,10 @@ static func _garden(root: Node3D, info: Dictionary, rng: RandomNumberGenerator) 
 			_solid(root, pergola + Vector3(dx, 1.5, dz), Vector3(0.25, 3.0, 0.25))
 	K.light(root, pergola + Vector3(0, 2.6, 0), WARM, 1.2, 9.0)
 	_bench(root, pergola + Vector3(0, 0, 1.0), 0.0)
-	shop(info, "garden", pergola + Vector3(0, 0, -1.0), "[F] Rooftop garden: dates (coming soon)", [
+	shop(info, "garden", pergola + Vector3(0, 0, -1.0), "[F] Rooftop garden", [
 		"Best view in Solace. You can see the turbines, the jungle, and the city they keep promising us.",
 		"Dad proposed to Mom up here. She said no the first time. Runs in the family.",
-	], "garden")
+	], "garden", {"date": "garden"})
 
 
 # --- overhead: canopy, cables, vines -----------------------------------------
