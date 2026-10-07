@@ -1,6 +1,7 @@
 extends SceneTree
-## Clip of walls pushing Eco's soft parts (eco_model.gd jiggle_collide): seen
-## side on, she backs into a wall (glutes pressed), walks off it (they spring
+## Clip of walls pushing Eco's soft parts (eco_model.gd jiggle_collide): the
+## walls are see-through, and the camera swings round behind her for the
+## first wall and in front of her for the second. She backs into a wall (glutes pressed), walks off it (they spring
 ## loose), walks up to a second wall, leans her chest into it and steps back.
 ## Full body jiggle is on.
 ##   godot --path . --fixed-fps 60 --write-movie <dir>/frame.png -s res://tools/eco/collide_clips.gd
@@ -12,6 +13,9 @@ const FRONT_WALL := -1.45  # the second wall's face (z); the first one's is at 0
 var walker: Walker
 var cam: Camera3D
 var caption: Label
+## Where the camera sits from her (eases towards `cam_goal` each frame).
+var cam_offset := Vector3(1.9, 0.15, 2.0)
+var cam_goal := Vector3(1.9, 0.15, 2.0)
 
 
 class Walker extends CharacterBody3D:
@@ -50,6 +54,7 @@ func _go() -> void:
 	await _glide(-0.25, 12)
 	await _frames(50)
 	_say("Walks to the next wall")
+	cam_goal = Vector3(1.9, 0.0, -2.0)
 	var target := FRONT_WALL + 0.21
 	while walker.position.z > target + 0.02:
 		var left := walker.position.z - target
@@ -77,8 +82,9 @@ func _glide(dz: float, n: int) -> void:
 
 func _frames(n: int) -> void:
 	for i in n:
-		var c := Vector3(0, 1.05, walker.position.z)
-		cam.look_at_from_position(c + Vector3(3.2, 0.1, 0.0), c)
+		cam_offset = cam_offset.lerp(cam_goal, 0.04)
+		var c := Vector3(0, 1.0, walker.position.z)
+		cam.look_at_from_position(c + cam_offset, c)
 		await process_frame
 
 
@@ -92,9 +98,14 @@ func _wall(face_z: float, back: float) -> void:
 	var mesh := MeshInstance3D.new()
 	mesh.mesh = BoxMesh.new()
 	(mesh.mesh as BoxMesh).size = Vector3(0.7, 2.4, 0.2)
+	# see-through, so the camera can look at her from either side of it
 	var mat := StandardMaterial3D.new()
-	mat.albedo_color = Color(0.55, 0.5, 0.42)
+	mat.albedo_color = Color(0.6, 0.85, 1.0, 0.12)
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
 	mesh.material_override = mat
+	mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	body.add_child(mesh)
 	body.position = Vector3(0, 1.2, face_z + 0.1 * back)
 	root.add_child(body)
