@@ -158,6 +158,7 @@ static func _ground(root: Node3D) -> void:
 	K.mesh(root, Vector3(0, 0.06, 176), Vector3(STREET_HALF * 2, 0.04, 88), street)
 	K.mesh(root, Vector3(PLAZA.get_center().x, 0.07, PLAZA.get_center().y), Vector3(PLAZA.size.x, 0.04, PLAZA.size.y),
 			Art.material("temple_stone", Color(1.0, 1.0, 0.96)))
+	K.patch(root, Vector3(PLAZA.get_center().x, 0.0, PLAZA.get_center().y), PLAZA.size, "stone")
 	# Steel grates, drain covers and cable runs down the street.
 	for seg: Vector2 in ROWS:
 		var z := seg.x + 3.0
@@ -284,6 +285,8 @@ static func _lantern_row(root: Node3D, info: Dictionary, rng: RandomNumberGenera
 static func _plaza(root: Node3D, info: Dictionary, rng: RandomNumberGenerator) -> void:
 	var c := Vector3(0, 0, PLAZA.get_center().y)
 	_sun_tree(root, c)
+	K.sound(info, "park_river", c + Vector3(0, 0.8, 0), -12.0, 4.0)  # the fountain
+	K.sound(info, "town_murmur", c + Vector3(0, 2.0, 0), -8.0, 14.0)
 	shop(info, "sun_tree", c + Vector3(0, 0, -6.5), "[F] Look at the Sun Tree", [
 		"The Sun Tree powers half the town. The half that pays.",
 		"Dad brought me here the night they switched it on. Everybody cheered. I was six.",

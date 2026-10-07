@@ -329,7 +329,7 @@ func confirm() -> bool:
 							else "Mara: \"Suits you. Everything does, it's annoying.\"")
 	if ok and purchased:
 		bought.append(id)
-	SFX.play(self, "ui_confirm" if ok else "ui_error", -6.0)
+	SFX.play(self, ("coins" if purchased else "ui_confirm") if ok else "ui_error", -6.0)
 	refresh()
 	return ok
 

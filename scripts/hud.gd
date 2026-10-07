@@ -7,6 +7,7 @@ extends CanvasLayer
 ## module glitches, and it still brackets enemies before failing to lock.
 ## Also hosts the enemy radio chatter popup and Eco's whispers (scripts/radio/).
 
+const SFX := preload("res://scripts/sfx.gd")
 const RadioChatter := preload("res://scripts/radio/radio_chatter.gd")
 const EcoWhispers := preload("res://scripts/radio/eco_whispers.gd")
 
@@ -29,6 +30,8 @@ var hitmarker_timer := 0.0
 var hitmarker_color := Color.WHITE
 var hitmarker_kind := "body"
 var hurt_flash := 0.0
+## Seconds to the next heartbeat while she's badly hurt.
+var _heart := 0.0
 var message_timer := 0.0
 
 const HITMARKER_TIME := 0.18
@@ -174,6 +177,7 @@ func _process(delta: float) -> void:
 	]
 
 	var hp_frac: float = player.health / player.max_health
+	_heartbeat(delta, hp_frac)
 	health_label.text = "HP %d" % ceili(player.health)
 	if player.max_armor > 0.0:
 		health_label.text += "   ARMOUR %d" % ceili(player.armor)
@@ -344,3 +348,15 @@ func _draw_detection(center: Vector2) -> void:
 		col.a = 0.9 if alerted else lerpf(0.4, 0.95, amount)
 		crosshair.draw_arc(center, DETECT_RING, a - span * 0.5, a + span * 0.5, 12, Color(0, 0, 0, col.a * 0.6), width + 3.0)
 		crosshair.draw_arc(center, DETECT_RING, a - span * 0.5, a + span * 0.5, 12, col, width)
+
+
+## Under a third of her health, her heart thumps in her ears, faster the
+## lower it gets.
+func _heartbeat(delta: float, hp_frac: float) -> void:
+	if hp_frac >= 0.33 or player.health <= 0.0:
+		_heart = 0.0
+		return
+	_heart -= delta
+	if _heart <= 0.0:
+		_heart = lerpf(0.8, 1.3, hp_frac / 0.33)
+		SFX.play(self, "heartbeat", lerpf(-6.0, -14.0, hp_frac / 0.33))

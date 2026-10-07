@@ -2,6 +2,7 @@ extends Node3D
 ## Salvage cache: walk up and press F to pick one titan part from its offer.
 ## A guarded cache stays locked until its hold objective completes.
 
+const SFX := preload("res://scripts/sfx.gd")
 const Kit := preload("res://scripts/run/level_kit.gd")
 const Art := preload("res://scripts/ps2/ps2_assets.gd")
 
@@ -32,6 +33,8 @@ func in_range(pos: Vector3) -> bool:
 
 
 func unlock() -> void:
+	if locked and is_inside_tree():
+		SFX.play_at(self, global_position + Vector3(0, 1.0, 0), "cache_unlock", -2.0)
 	locked = false
 	_refresh()
 
@@ -42,6 +45,9 @@ func set_locked(value: bool) -> void:
 
 
 func mark_opened() -> void:
+	if not opened and is_inside_tree():
+		SFX.play_at(self, global_position + Vector3(0, 1.0, 0), "cache_open", -4.0)
+		SFX.play_at(self, global_position + Vector3(0, 1.0, 0), "pickup_part", -6.0)
 	opened = true
 	_refresh()
 

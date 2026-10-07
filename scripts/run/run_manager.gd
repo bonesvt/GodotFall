@@ -62,12 +62,19 @@ const Prefs := preload("res://scripts/game/prefs.gd")
 const BattleDamage := preload("res://scripts/ps2/battle_damage.gd")
 const Saves := preload("res://scripts/game/saves.gd")
 const PauseMenu := preload("res://scripts/ui/pause_menu.gd")
+const Soundscape := preload("res://scripts/soundscape.gd")
+const SFX := preload("res://scripts/sfx.gd")
 
 const FALL_DAMAGE := 25
 ## Integrity lost when grunts take the pilot's health to zero.
 const DOWNED_DAMAGE := 25
 ## How far below the lowest platform counts as a fall.
 const KILL_DEPTH := 15.0
+## Opening and closing each hub screen (open_bench kind -> [open, close]).
+const BENCH_SOUNDS := {
+	"wardrobe": ["wardrobe_open", "wardrobe_close"],
+	"gifts": ["shop_bell", ""], "salon": ["shop_bell", ""],
+}
 const OFFER_SIZE := 3
 const TITAN_DROP_HEIGHT := 80.0
 const EMBARK_RANGE := 6.0
@@ -333,6 +340,7 @@ func enter_hub() -> void:
 		NpcIdles.settle(npc, zone_info, runs_ended)
 		hub_npcs[spec["who"]] = npc
 	Townsfolk.populate(zone_root, player, runs_ended)
+	Soundscape.hub(zone_root, zone_info)
 	family_scene = null
 	if Family.enabled:
 		family_scene = FamilyScene.new()
@@ -391,6 +399,7 @@ func load_zone(index: int) -> void:
 		phase = Phase.ARENA
 		evac_open = false
 		hud.toast("THE FOREST'S EDGE: TITANFALL STANDING BY")
+	Soundscape.battle(zone_root, str(zone_root.get_meta("biome", "")))
 	Wardrobe.dress_eco(player, false)
 	place_player(zone_info["spawn"])
 	player.second_wind_ready = player.second_wind  # Eco's suit: once per zone
@@ -478,6 +487,7 @@ func _hub_tick(delta: float) -> void:
 		return
 	if spot.is_empty() or not Input.is_action_just_pressed("interact"):
 		return
+	_hub_sound(spot)
 	if spot["id"] == "tutorial_poster":
 		start_run(run_seed)
 		return
@@ -513,6 +523,21 @@ func _hub_tick(delta: float) -> void:
 	var n: int = hub_reads.get(spot["id"], 0)
 	hub_reads[spot["id"]] = n + 1
 	hud.toast(lines[n % lines.size()], HUB_LINE_SECONDS)
+
+
+## What using a hub spot sounds like (benches make theirs in open_bench).
+func _hub_sound(spot: Dictionary) -> void:
+	var id := ""
+	if spot["id"] == "tutorial_poster":
+		id = "paper_1"
+	elif spot["id"] == "uncharted_map" or spot.has("level"):
+		id = "map_open"
+	elif spot["id"] == "garage":
+		id = "door_metal_open"
+	elif spot.has("rest"):
+		id = "bed_creak" if spot["rest"].get("pose", "") == "sleep" else "sit_down"
+	if id != "":
+		SFX.play(self, id, -8.0, SFX.vary(0.04))
 
 
 ## Eco sits or lies down at a hub spot with a "rest" entry ({pose, at, seat,
@@ -685,6 +710,7 @@ func date_partner() -> String:
 func open_garage() -> void:
 	garage = Garage.new(last_parts.get("chassis", {}).get("id", "atlas"))
 	add_child(garage)
+	SFX.play(garage, "workbench_tools", -10.0)
 	get_tree().paused = true
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	hud.visible = false
@@ -705,6 +731,13 @@ func close_garage() -> void:
 
 ## Opens a workbench screen ("gunsmith", "rack", "workshop", "knives" or "suit"), or a
 ## town shop's ("salon", "gifts"), pausing the hub.
+## [open, close] sounds for a hub screen: the town's shops ring their door bell.
+static func _bench_sounds(kind: String) -> Array:
+	if BENCH_SOUNDS.has(kind):
+		return BENCH_SOUNDS[kind]
+	return ["shop_bell", ""] if TownShopScreen.SHOPS.has(kind) else ["bench_open", "bench_close"]
+
+
 func open_bench(kind: String) -> void:
 	if kind == "gifts":
 		bench = GiftScreen.new(armory, npc_talk, romance_partners())
@@ -718,7 +751,9 @@ func open_bench(kind: String) -> void:
 		bench = SuitScreen.new(armory)
 	else:
 		bench = GunsmithScreen.new(armory) if kind == "gunsmith" else BenchScreen.new(armory, kind)
+	bench.set_meta("kind", kind)
 	add_child(bench)
+	SFX.play(bench, _bench_sounds(kind)[0], -6.0)
 	get_tree().paused = true
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	hud.visible = false
@@ -740,9 +775,11 @@ func close_bench() -> void:
 		Wardrobe.dress_eco(player, true)  # what she bought or tried on in a shop
 		if bench.kind == "noodles" and TownShops.MEALS.has(TownShops.meal()) and not bench.bought.is_empty():
 			hud.toast("Fed: %s. It lasts the next run." % TownShops.MEALS[TownShops.meal()]["name"], HUB_LINE_SECONDS)
+	var kind: String = bench.get_meta("kind", "")
 	bench.queue_free()
 	bench = null
 	get_tree().paused = false
+	SFX.play(self, _bench_sounds(kind)[1], -8.0)
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 	hud.visible = true
 	pilot_hud.visible = true

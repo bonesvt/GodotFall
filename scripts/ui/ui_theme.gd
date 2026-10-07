@@ -3,6 +3,8 @@ extends RefCounted
 ## accents like the tutorial cards, and a condensed sans font (Bahnschrift on
 ## Windows, falling back to whatever the system has).
 
+const SFX := preload("res://scripts/sfx.gd")
+
 const AMBER := Color(1.0, 0.78, 0.25)
 const AMBER_DIM := Color(1.0, 0.78, 0.25, 0.35)
 const TEXT := Color(0.93, 0.92, 0.88)
@@ -146,7 +148,16 @@ static func button(text: String, on_press: Callable) -> Button:
 	b.focus_mode = Control.FOCUS_ALL
 	b.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 	b.pressed.connect(on_press)
+	sounds(b)
 	return b
+
+
+## A tick when the pointer lands on a button and a click when it's pressed.
+static func sounds(b: BaseButton) -> void:
+	b.mouse_entered.connect(func() -> void:
+		if not b.disabled:
+			SFX.play(b, "ui_hover", -16.0))
+	b.pressed.connect(func() -> void: SFX.play(b, "ui_click", -10.0))
 
 
 ## Focuses a control next frame (for keyboard and pad navigation), if it's
