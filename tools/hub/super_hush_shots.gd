@@ -34,6 +34,11 @@ func _go(run_node: Node) -> void:
 	await _frames(60)
 	Vices.reset()
 	run_node.hud.visible = false
+	# the town is far off and slow to draw in software GL: off for the stills
+	for n in ["Town", "Townsfolk"]:
+		var far: Node = run_node.zone_root.get_node_or_null(n)
+		if far != null:
+			far.queue_free()
 	run_node.open_bench("cheats")
 	await _frames(2)
 	run_node.bench.super_hush()
