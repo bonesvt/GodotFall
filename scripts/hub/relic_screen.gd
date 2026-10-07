@@ -13,6 +13,9 @@ const INK := Color(0.95, 0.93, 0.88)
 const DIM := Color(0.95, 0.93, 0.88, 0.5)
 const SOURCE_COLORS := {"precursor": Color(0.35, 1.0, 0.85), "npc": Color(1.0, 0.75, 0.45), "colony": Color(0.6, 0.75, 1.0)}
 
+## Where the source column starts on a row (px).
+const SOURCE_COLUMN := 420.0
+
 var kind := "relics"
 ## Benches report weapons unlocked by a level up; nothing here does that.
 var unlocked: Array = []
@@ -128,11 +131,16 @@ func _row(i: int, id: String) -> Control:
 	b.alignment = HORIZONTAL_ALIGNMENT_LEFT
 	b.add_theme_font_size_override("font_size", 16)
 	var mark := "[ON] " if Relics.wearing(id) else "     "
-	var label: String = r["name"] if owned else "???"
-	b.text = "%s%-30s %s" % [mark, label, Relics.SOURCES[r["source"]]]
+	b.text = mark + (r["name"] if owned else "???")
 	var c: Color = SOURCE_COLORS[r["source"]] if owned else DIM
 	b.add_theme_color_override("font_color", c)
 	b.add_theme_color_override("font_hover_color", c.lightened(0.2))
+	# the source in its own column, lined up down the list
+	var source := _text(Relics.SOURCES[r["source"]], 16, c)
+	source.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	source.set_anchors_and_offsets_preset(Control.PRESET_TOP_LEFT)
+	source.position = Vector2(SOURCE_COLUMN, 0)
+	b.add_child(source)
 	b.pressed.connect(func():
 		selected = i
 		toggle_selected())

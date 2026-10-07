@@ -35,8 +35,12 @@ static func scatter(root: Node3D, info: Dictionary, rng: RandomNumberGenerator) 
 	for node in info.get("loot", []):
 		if is_instance_valid(node):  # a crate over a drop frees itself
 			taken.append(node.position)
+	# the zone's chasms and buildings, where loot can't go (loot.gd)
+	var keep_out: Array = info.get("loot_keep_out", [])
 	for spot: Vector3 in Loot._candidates(info, rng):
 		if spot.distance_to(spawn) < Loot.SPAWN_CLEAR * 2.0 or taken.any(func(t): return t.distance_to(spot) < 6.0):
+			continue
+		if keep_out.any(func(r): return (r as Rect2).has_point(Vector2(spot.x, spot.z))):
 			continue
 		var s: Node3D = load("res://scripts/run/relic_shrine.gd").new()
 		s.relic = missing[rng.randi() % missing.size()]

@@ -286,13 +286,13 @@ static func run_started() -> void:
 	headshot = false
 
 
-## What she says heading out with them on.
+## What she says heading out with them on: one line (the newest one she put
+## on), so the run's opening toast stays short; the HUD names the rest.
 static func carry_line() -> String:
-	var lines := []
-	for id: String in worn:
-		if allowed(id):
-			lines.append(RELICS[id]["carry"])
-	return "\n".join(lines)
+	for i in range(worn.size() - 1, -1, -1):
+		if allowed(worn[i]):
+			return RELICS[worn[i]]["carry"]
+	return ""
 
 
 ## A run ended (`run_seconds` long). Settles the catches that land at the end
