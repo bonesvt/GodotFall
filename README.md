@@ -255,8 +255,30 @@ Under the Mature rating (Settings > Game), **F** at the Rusted Halo on Low Row o
   like a heartbeat (70 bpm rising to 140), with spiral tendrils curling in past halfway, and a
   CRAVING bar under the clock. A dose or one of his errands clears his; a stim clears the shakes. Render it:
   `godot --path . --resolution 1280x720 -s res://tools/hub/trigger_shots.gd -- <dir>`.
+- **Hymn** (`scripts/hub/hymn.gd`, Mature only): the colony's daily dose. A white **dispensary**
+  kiosk on Lantern Row (`dispensary_screen.gd`) hands one out each time Eco's back in town:
+  **1** take it (Hymn in her +12), **2** palm it (a marker sweeps a bar; Space while it's in the
+  slice where the officer looks away, narrower each time she's done it), **3** refuse. A missed
+  palm or a refusal sets **the Shepherd** on her (`shepherd.gd`): a tall white colony enforcer
+  with a dispensary tank on its back and a loudspeaker, out of the dispensary's back door and up
+  the street after her. It never shoots to kill: Hymn darts (each a step of sedation; full
+  sedation brings her in), a sonic pulse that fires one of the colony's trigger words, and a grab
+  up close. Out of its sight for 14 s it loses her. Brought in, she's **processed**: a white-out,
+  then the **fitting** in the dispensary's back room (`fitting_scene.gd`): she stands in a white
+  frame while an arm comes down from the ceiling with the next piece of its gear and puts it on
+  her in a close-up (the headphones' pins sliding into her ears before the cups clamp shut, the
+  cuff's needles into her wrist before it closes, the visor's prongs into her temples before it
+  lights up and its first orders flash), and she wakes at the dispensary wearing it
+  (`colony_gear.gd`, shown on her; render: `tools/hub/fitting_shots.gd`):
+  **compliance headphones** (trigger words from any Hold, twice as often, a quarter less time to
+  shake them, in the colony's voice), a **dose cuff** (skip the line and it counts down 3:00 on
+  the HUD, then doses her), and the **clarity visor** (`scripts/ui/visor_screen.gd`: her view
+  crowded with flashing orders, turning white rings, spirals from the corners, a fake compliance
+  meter and heart rate, a marker always pointing back to the dispensary, "THREATS NEARBY 0",
+  blinking warnings about her thoughts, scanlines, glitches and white flashes; quieter in third
+  person). Render it: `godot --path . --resolution 1280x720 -s res://tools/hub/shepherd_shots.gd -- <dir>`.
 - Tests: `godot --headless --path . -s res://tests/vices_test.gd`, `tests/hush_pull_test.gd`,
-  `tests/hold_effects_test.gd`, `tests/glass_test.gd`, `tests/trigger_test.gd`
+  `tests/hold_effects_test.gd`, `tests/glass_test.gd`, `tests/trigger_test.gd`, `tests/hymn_test.gd`
 
 ### Cheat box
 A dented ammo crate with a gold trim by the rug in Eco's loft (`scripts/hub/cheat_screen.gd`).

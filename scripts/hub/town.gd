@@ -273,6 +273,20 @@ static func _lantern_row(root: Node3D, info: Dictionary, rng: RandomNumberGenera
 		"Doc Imani stitched up Dad more times than I can count. She doesn't charge me. Yet.",
 	], "clinic", {"screen": "clinic"})
 
+	# The colony dispensary (hymn.gd): a white kiosk against the building line
+	# between the outfitter and the clinic, its screen and seal lit. Its daily
+	# dose is Mature only (dispensary_screen.gd); under Teen it's out of service.
+	var white := Art.material("gunmetal", Color(0.9, 0.92, 0.95))
+	K.mesh(root, Vector3(-6.35, 1.1, 146.8), Vector3(0.8, 2.2, 1.3), white)
+	K.mesh(root, Vector3(-5.93, 0.95, 146.8), Vector3(0.06, 0.1, 0.9), Art.material("gunmetal", Color(0.2, 0.22, 0.26)))
+	K.glow(root, Vector3(-5.94, 1.55, 146.8), Vector3(0.02, 0.55, 0.85), Color(0.8, 0.92, 1.0))
+	K.glow(root, Vector3(-5.94, 2.05, 146.8), Vector3(0.02, 0.16, 0.16), Color(1.0, 1.0, 1.0))
+	K.light(root, Vector3(-5.2, 2.3, 146.8), Color(0.85, 0.93, 1.0), 0.7, 4.0)
+	_solid(root, Vector3(-6.35, 1.1, 146.8), Vector3(0.8, 2.2, 1.3))
+	shop(info, "dispensary", Vector3(-5.1, 0, 146.8), "[F] A colony kiosk", [
+		"A colony kiosk. The screen says OUT OF SERVICE in six languages.",
+	], "dispensary")
+
 	var salvage := _building(root, 1, 153.5, "shop_w11_f3", 11.0, {"wall": Color(0.72, 0.74, 0.76), "shop": RED, "awning": Color(0.5, 0.5, 0.45)}, "SAL'S SALVAGE")
 	_blade_sign(root, 1, 150.0, "SAL'S\nSALVAGE", RED)
 	_scrap_pile(root, Vector3(STREET_HALF + 1.4, 0, 157.5))

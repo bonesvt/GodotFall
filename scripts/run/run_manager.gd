@@ -71,7 +71,15 @@ const DrunkScreen := preload("res://scripts/ui/drunk_screen.gd")
 const CravingScreen := preload("res://scripts/ui/craving_screen.gd")
 const HushPull := preload("res://scripts/hub/hush_pull.gd")
 const SuperHushScene := preload("res://scripts/hub/super_hush_scene.gd")
+const FittingScene := preload("res://scripts/hub/fitting_scene.gd")
 const CheatScreen := preload("res://scripts/hub/cheat_screen.gd")
+const Hymn := preload("res://scripts/hub/hymn.gd")
+const DispensaryScreen := preload("res://scripts/hub/dispensary_screen.gd")
+const Shepherd := preload("res://scripts/hub/shepherd.gd")
+const VisorScreen := preload("res://scripts/ui/visor_screen.gd")
+## Where the Shepherd comes out, from the dispensary's spot (its back door).
+const DISPENSARY_BACK_DOOR := Vector3(-0.5, 0.1, 4.5)
+const CUFF_DOSED := "The cuff hisses. Something cold goes into her wrist, and then the calm comes: white, quiet, everywhere. Hymn."
 const Glass := preload("res://scripts/hub/glass.gd")
 const Tether := preload("res://scripts/run/tether.gd")
 const ChorusScene := preload("res://scripts/hub/chorus_scene.gd")
@@ -215,6 +223,8 @@ var bench = null
 var hush_pull: HushPull
 ## The cheat box's Super Hush, played out (super_hush_scene.gd).
 var super_hush_scene: SuperHushScene
+## The Shepherd's gear going on her in the dispensary's back room (fitting_scene.gd).
+var fitting_scene: FittingScene
 ## Marrow's Glass on runs (focus, his orders: tether.gd) and the Chorus's end (chorus_scene.gd).
 var tether: Tether
 var chorus_scene: ChorusScene
@@ -268,6 +278,7 @@ func _ready() -> void:
 	armory = Armory.open(armory_path)
 	Vices.open(armory_path.get_basename() + "_vices.cfg")
 	Glass.open(Glass.path_for(Vices.save_path))
+	Hymn.open(Hymn.path_for(Vices.save_path))
 	tether = Tether.new(self)
 	add_child(tether)
 	chorus_scene = ChorusScene.new(self)
@@ -276,6 +287,8 @@ func _ready() -> void:
 	add_child(hush_pull)
 	super_hush_scene = SuperHushScene.new(self)
 	add_child(super_hush_scene)
+	fitting_scene = FittingScene.new(self)
+	add_child(fitting_scene)
 	npc_talk = NpcTalk.new()
 	npc_talk.save_path = npc_path
 	add_child(npc_talk)
@@ -304,6 +317,7 @@ func _ready() -> void:
 	var drunk := DrunkScreen.new()
 	drunk.name = "DrunkScreen"
 	add_child(drunk)
+	add_child(VisorScreen.new(self))
 	var craving := CravingScreen.new()
 	craving.name = "CravingScreen"
 	add_child(craving)
@@ -487,8 +501,11 @@ func enter_hub() -> void:
 	tutorial.start_level("hub")
 	hush_pull.reset()
 	super_hush_scene.reset()
+	fitting_scene.reset()
 	chorus_scene.reset()
 	tether.stop()
+	if Hymn.hunted and Hymn.allowed():
+		spawn_shepherd.call_deferred()  # it's still out for her
 	player.refresh_glass()
 	_dress_chorus()
 	if not mixed_up.is_empty():  # home: her own gear again
@@ -571,6 +588,57 @@ func _step_press_strength() -> void:
 	hud.toast("Press into things: %s" % ("Off" if next < 0.05 else "%d%%" % roundi(next * 100)), 2.0)
 
 
+## The Shepherd comes for her (hymn.gd), from the dispensary's back door.
+func spawn_shepherd() -> void:
+	if not Hymn.allowed() or phase != Phase.HUB or not get_tree().get_nodes_in_group("shepherd").is_empty():
+		return
+	var at := _dispensary_spot()
+	if at == Vector3.INF:
+		return
+	zone_root.add_child(Shepherd.create(self, at + DISPENSARY_BACK_DOOR))
+
+
+## Where the dispensary's spot is in this hub (INF: there isn't one).
+func _dispensary_spot() -> Vector3:
+	for spot in zone_info.get("interactables", []):
+		if spot["id"] == "dispensary":
+			return spot["pos"]
+	return Vector3.INF
+
+
+## The Shepherd brought her in (piece: the gear it's putting on her, "" for
+## none left): the fitting in the dispensary's back room, or straight out.
+func processed_by_shepherd(piece: String) -> void:
+	hush_pull.triggers.reset()
+	if piece in Hymn.GEAR:
+		fitting_scene.play(piece)
+	else:
+		fitted(piece)
+
+
+## The fitting's over: she wakes on the bench outside the dispensary, in it.
+func fitted(_piece: String) -> void:
+	player.set("entranced", false)
+	var at := _dispensary_spot()
+	if at != Vector3.INF:
+		place_player(at + Vector3(1.2, 0.1, 0))
+	Wardrobe.dress_eco(player, true)
+
+
+## Hymn in the hub: the dose cuff counting down, and on the HUD.
+func _tick_hymn(delta: float, roaming: bool) -> void:
+	var cuffed := Hymn.has("cuff") and not Hymn.dosed_today
+	hud.cuff_label.visible = cuffed
+	if not cuffed:
+		return
+	if roaming and Hymn.tick_cuff(delta):
+		hud.toast(CUFF_DOSED, HUB_LINE_SECONDS)
+		SFX.play(player, "titan_hiss_short", -6.0, 1.6)
+		return
+	var left := ceili(maxf(Hymn.cuff_left, 0.0))
+	hud.cuff_label.text = "DOSE CUFF  %d:%02d  get to the dispensary" % [left / 60, left % 60]
+
+
 func place_player(pos: Vector3) -> void:
 	checkpoint = pos
 	player.spawn_transform = Transform3D(Basis(), pos)
@@ -579,6 +647,8 @@ func place_player(pos: Vector3) -> void:
 
 func _physics_process(delta: float) -> void:
 	Saves.tick(delta)
+	if phase != Phase.HUB:
+		hud.cuff_label.visible = false
 	if not get_tree().paused:
 		Vices.tick(delta)
 		_vice_keys()
@@ -622,7 +692,7 @@ func _hub_tick(delta: float) -> void:
 		if Input.is_action_just_pressed("interact") or Input.is_action_just_pressed("ui_cancel") or bench.get("close_now") == true:
 			close_bench()
 		return
-	if super_hush_scene.busy() or chorus_scene.busy():
+	if super_hush_scene.busy() or chorus_scene.busy() or fitting_scene.busy():
 		return
 	if garage != null:
 		if Input.is_action_just_pressed("interact") or Input.is_action_just_pressed("ui_cancel"):
@@ -639,6 +709,7 @@ func _hub_tick(delta: float) -> void:
 	var roaming := rest_spot.is_empty() and not npc_talk.active() and not course_armed \
 			and player.global_position.y > HushDen.BASEMENT.y + 5.0
 	hush_pull.tick(delta, roaming)
+	_tick_hymn(delta, roaming)
 	if hush_pull.busy():
 		return
 	if Vices.hush_suit_new and Vices.allowed():
@@ -699,7 +770,7 @@ func _hub_tick(delta: float) -> void:
 	if spot["id"] == "marrow" and Vices.allowed() and Glass.can_confront():
 		chorus_scene.play()
 		return
-	var vice_shop: bool = spot.get("shop", "") in ["bar", "stims", "hush"] and Vices.allowed()
+	var vice_shop: bool = spot.get("shop", "") in ["bar", "stims", "hush", "dispensary"] and Vices.allowed()
 	if spot.has("date") and (not vice_shop or date_ready(spot)) and date_at(spot):
 		return
 	if spot.has("screen"):
@@ -997,6 +1068,8 @@ func open_bench(kind: String) -> void:
 		bench = HushScreen.new(armory, npc_talk.state)
 	elif kind == "cheats":
 		bench = CheatScreen.new(armory, npc_talk)
+	elif kind == "dispensary":
+		bench = DispensaryScreen.new()
 	else:
 		bench = GunsmithScreen.new(armory) if kind == "gunsmith" else BenchScreen.new(armory, kind)
 	bench.set_meta("kind", kind)
@@ -1019,6 +1092,13 @@ func close_bench() -> void:
 		npc_talk.state.save(npc_talk.save_path)
 		if bench.freed:
 			hud.toast("Eco walks out on Marrow. Her hands are shaking, but she's out. She should go and see the people who waited for her.", 5.0)
+	var hunt := false
+	if bench is DispensaryScreen:
+		hunt = bench.hunt
+		if bench.result == "palmed":
+			hud.toast("Palmed it. Nobody saw. (%d palmed so far: the officers watch closer each time.)" % Hymn.fakes, HUB_LINE_SECONDS)
+		elif bench.result == "took":
+			hud.toast("Hymn in her: %d%%. Calm. So calm." % roundi(Hymn.level), HUB_LINE_SECONDS)
 	if bench is BarScreen and bench.net != 0:
 		hud.toast("Scrapjack: %s%d scrap tonight." % ["+" if bench.net > 0 else "", bench.net], HUB_LINE_SECONDS)
 	if bench is WardrobeScreen and not bench.changed.is_empty():
@@ -1042,6 +1122,8 @@ func close_bench() -> void:
 	dress_hub()
 	if inject:
 		super_hush_scene.play()
+	if hunt:
+		spawn_shepherd()
 
 
 ## Puts the gun picked at the weapon rack, upgraded and fitted, in Eco's hand,
@@ -1678,6 +1760,7 @@ func end_run(title: String, reason: String) -> void:
 		_rescue_bonus(run.level)
 	Vices.run_over()
 	Glass.run_over()
+	Hymn.run_over()
 	tether.stop()
 	var haul := Armory.run_haul(run.materials, won)
 	armory.bank(haul)
@@ -1710,7 +1793,7 @@ func end_run(title: String, reason: String) -> void:
 ## nothing else open.
 func _vice_keys() -> void:
 	if not Vices.allowed() or bench != null or garage != null or hub_piloting or npc_talk.active() or hush_pull.busy() \
-			or super_hush_scene.busy() or chorus_scene.busy() or tether.busy():
+			or super_hush_scene.busy() or chorus_scene.busy() or fitting_scene.busy() or tether.busy():
 		return
 	if not (phase == Phase.HUB or in_run()) or (titan != null and titan.piloted):
 		return
@@ -1907,7 +1990,7 @@ func _update_hud() -> void:
 func _prompt() -> String:
 	match phase:
 		Phase.HUB:
-			if hub_piloting or hush_pull.busy() or super_hush_scene.busy() or chorus_scene.busy():
+			if hub_piloting or hush_pull.busy() or super_hush_scene.busy() or chorus_scene.busy() or fitting_scene.busy():
 				return ""
 			if hub_titan != null and hub_titan.dropping:
 				return "Titanfall inbound"
@@ -1927,6 +2010,8 @@ func _prompt() -> String:
 					return family_scene.prompt()
 				if spot.get("shop", "") == "bar" and Vices.allowed() and not date_ready(spot):
 					return "[F] The Rusted Halo: drinks, smokes and Scrapjack"
+				if spot.get("shop", "") == "dispensary" and Vices.allowed():
+					return "[F] Colony dispensary: today's Hymn" + ("  (done today)" if Hymn.dosed_today else "")
 				if spot.get("shop", "") == "stims" and Vices.allowed():
 					return "[F] Sal's side hatch: stims"
 				if spot.has("glass") and Vices.allowed():

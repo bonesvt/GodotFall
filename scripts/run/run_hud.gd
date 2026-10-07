@@ -13,6 +13,7 @@ var fight_label: Label
 var pull_label: Label
 var crave_bar: Control
 var trigger_label: Label
+var cuff_label: Label
 var _crave_fill: ColorRect
 var crosshair: Control
 ## The piloted titan, set on embark; the reticle reads its gun.
@@ -82,6 +83,16 @@ func _ready() -> void:
 	word.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	word.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	crave_bar.add_child(word)
+
+	# The Shepherd's dose cuff counting down (hymn.gd), under the craving bar.
+	cuff_label = _label(20)
+	cuff_label.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
+	cuff_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	cuff_label.offset_left = -300
+	cuff_label.offset_right = 300
+	cuff_label.offset_top = 80
+	cuff_label.add_theme_color_override("font_color", Color(0.85, 0.95, 1.0))
+	cuff_label.visible = false
 
 	# One of Marrow's trigger words, big, and the taps to shake it (trigger_words.gd).
 	trigger_label = _centered(40, 150)

@@ -302,6 +302,7 @@ const ContentRating := preload("res://scripts/radio/content_rating.gd")
 const EcoRest := preload("res://scripts/ps2/eco_rest.gd")
 const Prefs := preload("res://scripts/game/prefs.gd")
 const Hair := preload("res://scripts/hub/hair.gd")
+const ColonyGear := preload("res://scripts/hub/colony_gear.gd")
 const Extras := preload("res://scripts/hub/eco_extras.gd")
 const EcoFlesh := preload("res://scripts/ps2/eco_flesh.gd")
 const EcoCling := preload("res://scripts/ps2/eco_cling.gd")
@@ -512,6 +513,7 @@ func apply_suit() -> void:
 		mi.set_instance_shader_parameter("trim_gold", 1.0 if legacy else 0.0)
 	_style_gear(STYLE_GEAR.get(style(), {}) if suited_ and suit_tier == 0 else {})
 	Extras.apply(self)  # her piercings, tattoos and accessories from Solace
+	ColonyGear.apply(self)  # the Shepherd's gear, if it's put any on her (hymn.gd)
 
 
 ## Shows a suit style's borrowed pieces (STYLE_GEAR) in its colours, hides

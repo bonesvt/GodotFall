@@ -8,9 +8,14 @@ extends Node
 ## minute; on a run she stands there with her guard down a few seconds more.
 ## The deeper his Hold, the more often they come.
 ##
+## The colony's compliance headphones (hymn.gd) bring their own words, from any
+## Hold: twice as often, with less time to shake them, in a calm colony voice.
+## The Shepherd's sonic pulse (shepherd.gd) fires one on the spot.
+##
 ## hush_pull.gd owns one, ticks it while she's free, and counts it in busy().
 
 const Vices := preload("res://scripts/hub/vices.gd")
+const Hymn := preload("res://scripts/hub/hymn.gd")
 
 enum Step { IDLE, LOCKED, DAZED }
 
@@ -38,6 +43,13 @@ const RUN_SOURCES := [
 	"A dead grunt's radio crackles: \"...%s...\"",
 	"Under the gunfire, soft as anything: \"%s.\"",
 ]
+## The colony's words, through the headphones or the Shepherd's pulse.
+const COLONY_PHRASES := ["Obey", "Take your dose", "You are safe", "Comply", "Good citizen", "Stop running"]
+const COLONY_SOURCES := [
+	"The headphones, calm and close, under everything: \"%s.\"",
+	"A soft chime in the headphones, then: \"%s.\"",
+]
+const PULSE_SOURCE := "The Shepherd's pulse goes right through her skull: \"%s.\""
 const SHOOK := ["Eco: \"Not today.\"", "Eco: \"No. You don't get that.\"", "Eco: \"Shut up. Shut up. ...Okay.\"", "Eco shakes her head hard, and the violet goes."]
 const LOST := ["The word sinks all the way in. For a second there's nothing in her but his voice.", "She doesn't fight it. It's easier not to."]
 
@@ -66,13 +78,18 @@ func busy() -> bool:
 
 ## Can his words get to her at all right now.
 static func can_trigger() -> bool:
-	return Vices.allowed() and Vices.hold >= Vices.TRANCE_HOLD and not Vices.entranced
+	return Vices.allowed() and (Vices.hold >= Vices.TRANCE_HOLD or Hymn.has("headphones")) and not Vices.entranced
 
 
 ## Seconds between triggers at his current Hold.
 static func gap() -> float:
 	var deep := clampf((Vices.hold - Vices.TRANCE_HOLD) / (Vices.MAX_HOLD - Vices.TRANCE_HOLD), 0.0, 1.0)
-	return lerpf(GAP_LIGHT, GAP_DEEP, deep)
+	return lerpf(GAP_LIGHT, GAP_DEEP, deep) * (0.5 if Hymn.has("headphones") else 1.0)
+
+
+## Seconds she has to shake one off (less with the headphones on).
+static func window() -> float:
+	return WINDOW * (0.75 if Hymn.has("headphones") else 1.0)
 
 
 ## Each physics tick while she's free (hub or run); `on_run` picks the sources.
@@ -87,16 +104,26 @@ func tick(delta: float, free: bool, on_run: bool) -> void:
 		fire(on_run)
 
 
-## His words reach her, now.
-func fire(on_run: bool) -> void:
+## His words reach her, now (colony: the Shepherd's pulse).
+func fire(on_run: bool, colony := false) -> void:
 	var rm: Node = pull.rm
 	_on_run = on_run
 	step = Step.LOCKED
 	_t = 0.0
 	taps = 0
-	phrase = PHRASES[rng.randi() % PHRASES.size()]
-	var sources: Array = RUN_SOURCES if on_run else HUB_SOURCES
-	rm.hud.toast(sources[rng.randi() % sources.size()] % phrase, WINDOW + 1.0)
+	# the headphones' words win half the time (all the time below his trance Hold)
+	var theirs := Hymn.has("headphones") and (Vices.hold < Vices.TRANCE_HOLD or rng.randf() < 0.5)
+	var list: Array = COLONY_PHRASES if colony or theirs else PHRASES
+	phrase = list[rng.randi() % list.size()]
+	var line: String
+	if colony:
+		line = PULSE_SOURCE % phrase
+	elif theirs:
+		line = COLONY_SOURCES[rng.randi() % COLONY_SOURCES.size()] % phrase
+	else:
+		var sources: Array = RUN_SOURCES if on_run else HUB_SOURCES
+		line = sources[rng.randi() % sources.size()] % phrase
+	rm.hud.toast(line, window() + 1.0)
 	_hold(true)
 	_show()
 
@@ -117,7 +144,7 @@ func _advance(delta: float) -> void:
 		if Input.is_action_just_pressed("interact"):
 			tap()
 			return
-		if _t >= WINDOW:
+		if _t >= window():
 			_lost()
 	elif step == Step.DAZED and _t >= FAIL_DAZE:
 		_release()
@@ -136,6 +163,12 @@ func _lost() -> void:
 		step = Step.DAZED
 		_t = 0.0
 		_show()
+		return
+	if phrase in COLONY_PHRASES:
+		# the colony's word: Hymn sinks in, not Marrow's Hold
+		Hymn.level = minf(Hymn.level + Hymn.DART, Hymn.MAX)
+		Hymn.save()
+		_release()
 		return
 	if Vices.hold >= Vices.MAX_HOLD:
 		pull.roam = minf(pull.roam + Vices.ROLL_EVERY, Vices.PULL_DEADLINE - 1.0)
