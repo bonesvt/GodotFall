@@ -31,7 +31,7 @@ func _run() -> void:
 	player.strolling = true
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	await physics_frame
-	_check("off duty her capsule is her core", is_equal_approx((player.collision.shape as CapsuleShape3D).radius, 0.11), (player.collision.shape as CapsuleShape3D).radius)
+	_check("off duty her capsule is a thin stem (soft_press keeps her off walls)", is_equal_approx((player.collision.shape as CapsuleShape3D).radius, 0.06), (player.collision.shape as CapsuleShape3D).radius)
 
 	var toward := Vector3(0, 0, -1.9)
 	var speeds := []
@@ -63,12 +63,25 @@ func _run() -> void:
 		player.global_position += v / 60.0
 		await physics_frame
 	print("after pushing 2.5 s: middle %.3f m off the wall" % (player.global_position.z + 1.0))
-	var cap := player.collision.shape as CapsuleShape3D
-	_check("pushing on, her soft parts spread and her core gives", player.spread > 0.99 and cap.radius < 0.101, [player.spread, cap.radius])
+	_check("pushing on, her soft parts spread", player.spread > 0.99, player.spread)
 	_check("so she sinks in a little further, but no deeper than her ribs", player.global_position.z + 1.0 < 0.108 and player.global_position.z + 1.0 > 0.099, player.global_position.z + 1.0)
 	for f in 40:
 		player.soft_press(Vector3.ZERO)
-	_check("letting up, it comes back", player.spread < 0.01 and cap.radius > 0.109, [player.spread, cap.radius])
+	_check("letting up, it comes back", player.spread < 0.01, player.spread)
+
+	# the Press into things setting, and soft walls
+	var hard := await _settle(player, 0.0)
+	var normal := await _settle(player, 1.0)
+	var soft := await _settle(player, 2.0)
+	wall.set_meta("softness", 1.0)
+	var cushion := await _settle(player, 1.0)
+	wall.remove_meta("softness")
+	player.press_strength = 1.0
+	print("stops at: off %.3f, 100%% %.3f, 200%% %.3f, cushion %.3f" % [hard, normal, soft, cushion])
+	_check("with pressing off she stops at her soft layer", hard > 0.155, hard)
+	_check("at 100% she stops at her core", absf(normal - 0.11) < 0.006, normal)
+	_check("at 200% she sinks further", soft < normal - 0.015, soft)
+	_check("a cushion lets her sink further than a wall", cushion < normal - 0.02, cushion)
 
 	player.strolling = false
 	_check("on duty her capsule is 0.4 m again", is_equal_approx((player.collision.shape as CapsuleShape3D).radius, 0.4), (player.collision.shape as CapsuleShape3D).radius)
@@ -76,6 +89,20 @@ func _run() -> void:
 
 	print("RESULT: %s (%d failures)" % ["PASS" if failures == 0 else "FAIL", failures])
 	quit(failures)
+
+
+## Walks her into the wall for a second at press strength `strength`: how far
+## her middle ends up from it.
+func _settle(player, strength: float) -> float:
+	player.press_strength = strength
+	player.spread = 0.0
+	player.global_position = Vector3(0, 0, -1.0 + 0.25)
+	await physics_frame
+	for f in 50:
+		var v: Vector3 = player.soft_press(Vector3(0, 0, -1.9))
+		player.global_position += v / 60.0
+		await physics_frame
+	return player.global_position.z + 1.0
 
 
 func _check(what: String, ok: bool, value) -> void:

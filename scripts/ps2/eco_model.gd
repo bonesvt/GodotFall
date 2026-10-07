@@ -54,6 +54,9 @@ var stride_reverse := false
 ## Her chest and glutes flatten against what presses them and bulge out to
 ## the sides (up to "squish" of their size) instead of only swinging away.
 @export var jiggle_squish := true
+## Scales how much they squash (the Press into things setting sets it with
+## contact_give: follow_jiggle_setting).
+@export_range(0.0, 2.0) var squish_scale := 1.0
 ## Off duty (the hub and town), standing still with her back to a wall she
 ## eases back and leans on it: her capsule otherwise keeps walls some 27 cm
 ## off her, so this is where walls really press her soft parts.
@@ -570,7 +573,8 @@ func _animate() -> void:
 		elif anim_name == "idle" and _anim.current_animation == "run":
 			blend = anim_blend * 2.0
 		_anim.play(anim_name, blend)
-	_anim.speed_scale = -pick[1] if stride_reverse and anim_name in ["walk", "run"] else pick[1]
+	var reverse: bool = stride_reverse or (_body != null and _body.get("backpedalling") == true)
+	_anim.speed_scale = -pick[1] if reverse and anim_name in ["walk", "run"] else pick[1]
 
 
 ## Whether she is in (or settling into) a rest pose.
@@ -877,6 +881,9 @@ func follow_jiggle_setting() -> void:
 	_style_chosen = false
 	add_to_group("eco_jiggle")
 	body_jiggle = Prefs.body_jiggle()
+	var press := Prefs.press_strength()
+	contact_give = 1.0 + press
+	squish_scale = minf(press, 1.5)
 
 
 ## Turns the soft stomach, thigh, arm and calf springs on or off: on adds
@@ -1068,7 +1075,7 @@ func _squash(s: Dictionary, i: int, push: Vector3, deep: float, bone_basis: Basi
 		# up to "squish" as contact presses it to its limit, then up to half as
 		# much again as it's pushed on past it (eased, so it never stops dead)
 		var past := maxf(deep - 1.0, 0.0)
-		want = float(s["squish"]) * (clampf(deep, 0.0, 1.0) + 0.5 * tanh(past * 1.5))
+		want = minf(float(s["squish"]) * squish_scale * (clampf(deep, 0.0, 1.0) + 0.5 * tanh(past * 1.5)), 0.6)
 		# the bone axis the push is most along
 		var local := (bone_basis.orthonormalized().inverse() * (to_skel * push)).abs()
 		s["squash_axis"] = 0 if local.x >= local.y and local.x >= local.z else (1 if local.y >= local.z else 2)

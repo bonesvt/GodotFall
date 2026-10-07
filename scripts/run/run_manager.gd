@@ -98,6 +98,8 @@ const TELEPORT_LINES := {
 	"cellar_stairs": "Up into the street. The air tastes clean.",
 	"her_room": "Key, lock, in. She shuts it behind her and checks the weld.",
 	"her_room_door": "Back out into his basement.",
+	"physics_lab": "Down the ladder to the lab. Time to see what gives.",
+	"physics_lab_exit": "Back up into the temple.",
 }
 ## Ophelia notices Eco slipping away while Marrow's Hold is deep (vices.gd).
 const OPHELIA_NOTICES := [
@@ -453,6 +455,20 @@ func load_zone(index: int) -> void:
 		tutorial.start_level("zone%d" % index if index < run.zone_count else "arena")
 
 
+## The physics lab's console: steps the Press into things setting round
+## Off, 50%, 100%, 150%, 200%.
+func _step_press_strength() -> void:
+	var steps := [0.0, 0.5, 1.0, 1.5, 2.0]
+	var now := Prefs.press_strength()
+	var next: float = steps[0]
+	for v: float in steps:
+		if v > now + 0.01:
+			next = v
+			break
+	Prefs.set_press_strength(next)
+	hud.toast("Press into things: %s" % ("Off" if next < 0.05 else "%d%%" % roundi(next * 100)), 2.0)
+
+
 func place_player(pos: Vector3) -> void:
 	checkpoint = pos
 	player.spawn_transform = Transform3D(Basis(), pos)
@@ -559,7 +575,10 @@ func _hub_tick(delta: float) -> void:
 	if vice_shop:
 		open_bench(spot["shop"])
 		return
-	if spot.has("teleport") and Vices.allowed():
+	if spot.get("press_console", false):
+		_step_press_strength()
+		return
+	if spot.has("teleport") and (spot.get("open", false) or Vices.allowed()):
 		place_player(spot["teleport"])
 		hud.toast(TELEPORT_LINES.get(spot["id"], ""), 2.5)
 		return

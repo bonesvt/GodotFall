@@ -115,17 +115,20 @@ const STAND_HEIGHT := 1.8
 const CROUCH_HEIGHT := 1.0
 const STAND_EYE := 1.6
 const CROUCH_EYE := 0.85
-## Her capsule's radius on duty, and off duty (strolling): there it's only her
-## firm core (ribs, spine), and the soft layer out to SOFT_RADIUS (her chest
-## and glutes reach ~14 cm from her middle) gives as she presses into things
-## (_soft_press), so walls really press her soft parts (eco_model.gd jiggle_collide).
+## Her capsule's radius on duty, and off duty (strolling): there it's only a
+## thin stem for floors and ceilings, and soft_press keeps her off walls: her
+## soft layer (out to SOFT_RADIUS; her chest and glutes reach ~14 cm from her
+## middle) gives as she presses into things down to her core (core_at), so
+## walls really press her soft parts (eco_model.gd jiggle_collide).
 const RADIUS := 0.4
-const STROLL_RADIUS := 0.11
+const STROLL_RADIUS := 0.06
 const SOFT_RADIUS := 0.16
 ## Keep pushing at full press and, over SPREAD_TIME, her soft parts spread out
-## of the way and her core gives down to DEEP_RADIUS (just off her ribs).
-const DEEP_RADIUS := 0.1
+## of the way and her core gives a little more (deep_at).
 const SPREAD_TIME := 2.0
+## How much she can press into things (Settings > Game, Prefs press_strength):
+## 0 = not at all (walls stop her at her soft layer), 1 = as tuned, 2 = very soft.
+static var press_strength := 1.0
 ## How fast (m/s) her soft parts ease her back out once she stops pushing.
 const SOFT_PUSH_BACK := 0.3
 
@@ -158,6 +161,7 @@ var speed_mult := 1.0
 ## running. The run manager sets it each tick in the hub and town, and clears
 ## it on the training grounds and on runs. Off duty her capsule slims down
 ## to STROLL_RADIUS.
+
 ## How far she's pressed into something off duty (0 = not touching, 1 = down to
 ## her core); _soft_press sets it each frame.
 var press := 0.0
@@ -167,6 +171,7 @@ var strolling := false:
 	set(value):
 		strolling = value
 		spread = 0.0
+		press = 0.0
 		if collision != null:
 			(collision.shape as CapsuleShape3D).radius = STROLL_RADIUS if value else RADIUS
 var cam_roll := 0.0
@@ -205,6 +210,10 @@ var third_person := false
 ## to this yaw (the camera's) instead of her facing, and she turns to face
 ## where she walks. NAN when off.
 var move_yaw := NAN
+## Off duty under the orbit camera, holding back on its own: she steps
+## backwards (facing away from the camera) at BACKPEDAL_SPEED of her stroll.
+var backpedalling := false
+const BACKPEDAL_SPEED := 0.6
 ## How quickly she turns to face where she walks under the orbit camera.
 var move_turn_rate := 10.0
 ## Eco is sitting or lying down somewhere (the run manager's rest spots): she
@@ -258,6 +267,7 @@ func _ready() -> void:
 	ensure_input_actions()
 	# Own copy of the shape so crouching never edits the shared scene resource.
 	collision.shape = collision.shape.duplicate()
+	press_strength = Prefs.press_strength()
 	strolling = strolling  # sizes the capsule
 	spawn_transform = global_transform
 	air_jumps_left = air_jumps
@@ -301,10 +311,14 @@ func _physics_process(delta: float) -> void:
 
 	input_dir = Input.get_vector("move_left", "move_right", "move_forward", "move_back")
 	wish_dir = (transform.basis * Vector3(input_dir.x, 0.0, input_dir.y)).normalized()
+	backpedalling = false
 	if not is_nan(move_yaw):
 		wish_dir = (Basis(Vector3.UP, move_yaw) * Vector3(input_dir.x, 0.0, input_dir.y)).normalized()
+		# back on its own (toward the camera): she steps backwards, still facing away from it
+		backpedalling = input_dir.y > 0.5 and absf(input_dir.x) < 0.6 and state == State.GROUND
 		if wish_dir != Vector3.ZERO:
-			rotation.y = lerp_angle(rotation.y, atan2(-wish_dir.x, -wish_dir.z), 1.0 - exp(-move_turn_rate * delta))
+			var face := -wish_dir if backpedalling else wish_dir
+			rotation.y = lerp_angle(rotation.y, atan2(-face.x, -face.z), 1.0 - exp(-move_turn_rate * delta))
 	_drunk(delta)
 	if Input.is_action_just_pressed("jump"):
 		jump_buffer_timer = jump_buffer
@@ -352,6 +366,8 @@ func _ground_state(delta: float) -> void:
 		# auto sprint doesn't apply; under the orbit camera any direction counts
 		var brisk := Input.is_action_pressed("sprint") and (input_dir.y < -0.3 or (not is_nan(move_yaw) and input_dir != Vector2.ZERO))
 		target = minf(crouch_speed, stroll_speed) if crouching else (stroll_brisk_speed if brisk else stroll_speed)
+		if backpedalling:
+			target = stroll_speed * BACKPEDAL_SPEED
 	hvel = _ground_move(hvel, target, delta)
 
 	velocity.x = hvel.x
@@ -377,20 +393,33 @@ func soft_press(v: Vector3, delta := 1.0 / 60.0) -> Vector3:
 	if not is_inside_tree():
 		return v
 	var mine := collision.shape as CapsuleShape3D
-	var out := soft_press_at(get_world_3d().direct_space_state, collision.global_transform, mine.height, v, [get_rid()], collision_mask, mine.radius)
+	var out := soft_press_at(get_world_3d().direct_space_state, collision.global_transform, mine.height, v, [get_rid()], collision_mask, spread, press_strength, delta)
 	press = out[1]
-	# still pushing at full press: her core gives a little more as her soft parts spread
+	# still pushing at full press: her soft parts spread and her core gives a little more
 	var pushing: bool = out[2] and press > 0.85
 	spread = move_toward(spread, 1.0 if pushing else 0.0, delta / (SPREAD_TIME if pushing else 0.5))
-	mine.radius = lerpf(STROLL_RADIUS, DEEP_RADIUS, spread)
 	return out[0]
 
 
-## soft_press for a body whose capsule (core radius `core`) sits at `xf`
-## (height `height`): [the velocity it may move at, how far it's pressed in
-## (0..1), whether it's pushing into anything]. Static so
-## clips (tools/eco/collide_clips.gd) can press a stand-in the same way.
-static func soft_press_at(space: PhysicsDirectSpaceState3D, xf: Transform3D, height: float, v: Vector3, exclude: Array[RID], mask: int, core := STROLL_RADIUS) -> Array:
+## How near her middle may come to something with `softness` (0 hard .. 1
+## cushion, a collider's "softness" meta) at press strength `strength`: her
+## core, and how much further once her soft parts have spread.
+static func core_at(strength: float, softness := 0.0) -> float:
+	var p := minf(strength, 1.0)
+	return SOFT_RADIUS - 0.05 * p - 0.02 * maxf(strength - 1.0, 0.0) - 0.04 * softness * p
+
+
+static func deep_at(strength: float, softness := 0.0) -> float:
+	var p := minf(strength, 1.0)
+	return core_at(strength, softness) - 0.01 * p - 0.02 * maxf(strength - 1.0, 0.0) - 0.02 * softness * p
+
+
+## soft_press for a body whose capsule sits at `xf` (height `height`), `spread`
+## (0..1) into its push, at press strength `strength`: [the velocity it may
+## move at, how far it's pressed in (0..1), whether it's pushing into
+## anything]. Static so clips (tools/eco/collide_clips.gd) can press a
+## stand-in the same way.
+static func soft_press_at(space: PhysicsDirectSpaceState3D, xf: Transform3D, height: float, v: Vector3, exclude: Array[RID], mask: int, spread := 0.0, strength := 1.0, delta := 1.0 / 60.0) -> Array:
 	if space == null:
 		return [v, 0.0, false]
 	var query := PhysicsShapeQueryParameters3D.new()
@@ -401,6 +430,13 @@ static func soft_press_at(space: PhysicsDirectSpaceState3D, xf: Transform3D, hei
 	query.exclude = exclude
 	query.collision_mask = mask
 	query.transform = xf
+	# the softest thing she's touching sets how far she can sink
+	var softness := 0.0
+	for hit in space.intersect_shape(query, 8):
+		var c: Object = hit.get("collider")
+		if c != null and c.has_meta("softness"):
+			softness = maxf(softness, float(c.get_meta("softness")))
+	var core := lerpf(core_at(strength, softness), deep_at(strength, softness), spread)
 	var points := space.collide_shape(query, 8)
 	var feet := xf.origin.y - height * 0.5 + 0.25  # the floor and kerbs under her don't press
 	var press := 0.0
@@ -415,15 +451,19 @@ static func soft_press_at(space: PhysicsDirectSpaceState3D, xf: Transform3D, hei
 		if d < 1e-4:
 			continue
 		var n := out / d
-		var t := clampf((SOFT_RADIUS - d) / (SOFT_RADIUS - core), 0.0, 1.0)
+		var t := clampf((SOFT_RADIUS - d) / maxf(SOFT_RADIUS - core, 1e-3), 0.0, 1.0)
 		press = maxf(press, t)
 		var into := -pushing.dot(n)
 		if into > 0.0:
 			into_any = true
-			# the deeper she is, the more of her push the soft layer takes
-			pushing += n * into * (1.0 - pow(1.0 - t, 2.0))
+			# the deeper she is, the more of her push the soft layer takes, and never past her core
+			var allowed := minf(into * pow(1.0 - t, 2.0), maxf(d - core, 0.0) / maxf(delta, 1e-4))
+			pushing += n * (into - allowed)
 		elif t > 0.0 and Vector2(v.x, v.z).length() < 0.05:
 			pushing += n * SOFT_PUSH_BACK * t
+		if d < core:
+			# somehow past her core (the setting changed, a door closed on her): ease out
+			pushing += n * (core - d) * 6.0
 	return [Vector3(pushing.x, v.y, pushing.y), press, into_any]
 
 
@@ -469,6 +509,8 @@ func _air_state(delta: float) -> void:
 			_double_jump()
 
 	fall_speed = -velocity.y
+	if strolling:
+		velocity = soft_press(velocity, delta)  # her capsule is thin off duty
 	move_and_slide()
 
 	if is_on_floor():

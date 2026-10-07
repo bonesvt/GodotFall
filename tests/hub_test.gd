@@ -10,6 +10,7 @@ const HubBuilder := preload("res://scripts/hub/hub_builder.gd")
 const Grounds := preload("res://scripts/hub/hub_grounds.gd")
 const TitanStyle := preload("res://scripts/run/titan_style.gd")
 const Vices := preload("res://scripts/hub/vices.gd")
+const Prefs := preload("res://scripts/game/prefs.gd")
 
 var run_node
 var player
@@ -19,6 +20,7 @@ var failures := 0
 func _initialize() -> void:
 	# Hints go to their own settings file, so these runs never mark them seen on your save.
 	preload("res://scripts/run/tutorial.gd").settings_path = "user://test_settings.cfg"
+	Prefs.path = "user://test_hub_prefs.cfg"
 	run_node = load("res://scenes/run.tscn").instantiate()
 	run_node.run_seed = 99
 	run_node.armory_path = "user://test_hub_armory.cfg"
@@ -66,10 +68,19 @@ func _run() -> void:
 			continue   # people talk instead (tests/npc_test.gd)
 		if spot.has("family"):
 			continue   # Mom's bed: tests/family_test.gd
+		if spot.get("press_console", false):
+			# the physics lab console steps the Press into things setting
+			await _stand_at(spot["pos"])
+			var before: float = Prefs.press_strength()
+			await _press("interact")
+			await _ticks(2)
+			_check("the lab console changes how much she can press", Prefs.press_strength() != before and run_node.hud.toast_label.text.begins_with("Press into things"), [before, Prefs.press_strength()])
+			Prefs.set_press_strength(1.0)
+			continue
 		if spot["id"] in ["tutorial_poster", "uncharted_map", "garage", "level_board", "level2_board"]:  # level boards: tests/level1_test.gd, level2_test.gd
 			continue
 		await _stand_at(spot["pos"])
-		if spot.has("teleport") and Vices.allowed():
+		if spot.has("teleport") and (spot.get("open", false) or Vices.allowed()):
 			# Marrow's cellar door and basement stairs (hush_den.gd) take her through.
 			await _press("interact")
 			await _ticks(2)
