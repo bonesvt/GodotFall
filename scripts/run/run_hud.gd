@@ -8,6 +8,7 @@ var build_label: Label
 var prompt_label: Label
 var toast_label: Label
 var fight_label: Label
+var pull_label: Label
 var crosshair: Control
 ## The piloted titan, set on embark; the reticle reads its gun.
 var titan: Node
@@ -38,6 +39,16 @@ func _ready() -> void:
 	fight_label.offset_left = -500
 	fight_label.offset_right = 500
 	fight_label.offset_top = -200
+
+	# Marrow's pull / withdrawal clock at full Hold (hush_pull.gd writes it).
+	pull_label = _label(24)
+	pull_label.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
+	pull_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	pull_label.offset_left = -300
+	pull_label.offset_right = 300
+	pull_label.offset_top = 16
+	pull_label.add_theme_color_override("font_color", Color(0.82, 0.55, 1.0))
+	pull_label.visible = false
 
 	crosshair = Control.new()
 	crosshair.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)

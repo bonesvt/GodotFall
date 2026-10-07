@@ -109,24 +109,25 @@ const FREE_BOND := 5
 ## Scrap Marrow keeps from her pockets each time she comes to at his place.
 const TAB := 10
 ## At full Hold he stops selling: she earns each dose with an errand
-## (hush_den.gd ERRANDS), and roaming the hub or town, every PULL_EVERY
-## seconds there's a PULL_CHANCE his pull takes her into a trance and walks
-## her to his basement for one (hush_pull.gd). A run at full Hold without a
+## (hush_den.gd ERRANDS), and roaming the hub or town a timer runs on screen:
+## every ROLL_EVERY seconds there's a chance his pull takes her into a trance
+## and walks her to his basement for one (hush_pull.gd), rising each roll until
+## it's certain at PULL_DEADLINE (timer_chance()). A run at full Hold without a
 ## dose in her is a run in withdrawal.
 const MAX_HOLD := 100.0
-const PULL_EVERY := 40.0
-const PULL_CHANCE := 0.35
+const PULL_DEADLINE := 300.0
+const ROLL_EVERY := 60.0
 ## Withdrawal is hard mode: shaky aim, a haze, slow healing, hits hurt more,
-## heavier feet. And every EPISODE_EVERY seconds on the run there's an
-## EPISODE_CHANCE the swirls come back and she walks off the job to beg him
-## for another errand (hush_pull.gd episode): the run ends there.
+## heavier feet. And the same timer runs on the run: every ROLL_EVERY seconds a
+## rising chance the swirls come back and she walks off the job to beg him for
+## another errand (hush_pull.gd episode), certain at EPISODE_DEADLINE: the run
+## ends there.
 const WITHDRAWAL_SWAY := 0.75
 const WITHDRAWAL_HAZE := 0.5
 const WITHDRAWAL_REGEN := 0.45
 const WITHDRAWAL_DAMAGE := 1.35
 const WITHDRAWAL_SPEED := 0.88
-const EPISODE_EVERY := 45.0
-const EPISODE_CHANCE := 0.3
+const EPISODE_DEADLINE := 600.0
 ## His Hold where her posture starts to go, and where it's gone all the way.
 const SLUMP_FROM := 20.0
 ## His Hold where her words start drifting off, and the most often they do.
@@ -476,6 +477,12 @@ static func wrong_gear(rng: RandomNumberGenerator, guns: Array, gun: String, kni
 ## He's done selling: at full Hold a dose is earned with an errand.
 static func earns_only() -> bool:
 	return hold >= MAX_HOLD
+
+
+## The chance on the roll `elapsed` seconds into a timer that's certain at
+## `deadline`: an even share more each roll (20% a minute over five minutes).
+static func timer_chance(elapsed: float, deadline: float) -> float:
+	return clampf(elapsed / deadline, 0.0, 1.0)
 
 
 ## His pull can take her now: full Hold, nothing waiting in her, no errand

@@ -197,13 +197,13 @@ Under the Mature rating (Settings > Game), **F** at the Rusted Halo on Low Row o
   town, eight of them, from leaving a packet in the arcade's bin to breaking into the Okoro house,
   lifting Stitch & Steel's cash tin, stealing vials from the clinic, jimmying the recruitment
   office's window or palming a jade cat off the Lucky Lantern's shelf (`hush_den.gd` ERRANDS; the
-  spot only shows while it's hers), and back at his table the errand pays one dose. Roaming the hub or town there's also a chance, every 40 s, that his pull takes her
+  spot only shows while it's hers), and back at his table the errand pays one dose. Roaming the hub or town a violet clock counts down at the top of the screen: every minute there's a chance his pull takes her, 20% more each minute, certain at 5:00 (the clock starts over once she's dosed or on an errand)
   (`scripts/hub/hush_pull.gd`): a close-up as the spirals in her eyes spin up, then the player
   loses her and she walks in a trance, stiff and slow (`eco_model.gd` `_trance_walk`), down the
   street, into the cellar and up to his table, where he hands her the errand. Once per trip home.
   Go out on a run at full Hold without a dose and it's a run in **withdrawal**, hard mode: shaky
-  aim, a heavy haze, much slower healing, hits hurt 35% more, heavier feet, and every 45 s a chance
-  the swirls take her mid-fight (a close-up, guns down) and she walks off the job: the run ends
+  aim, a heavy haze, much slower healing, hits hurt 35% more, heavier feet, and the same clock on screen: every minute a chance
+  (10% more each minute, certain at 10:00) the swirls take her mid-fight (a close-up, guns down) and she walks off the job: the run ends
   abandoned and she comes to at his table begging for another errand. Clean runs still loosen his
   Hold; walking off a job to beg doesn't.
 - The violet spirals show in her eyes from the first dose on, deeper as his Hold grows, and her
