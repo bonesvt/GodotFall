@@ -4,12 +4,14 @@ extends CanvasLayer
 ## good while she still can. Mature only (the run manager checks the rating).
 ## Opened like a workbench (pausing the hub), closed on F or Esc.
 ##   Space   take a dose     X   walk away for good
+##   L       buy a vial of Glass (glass.gd), once his Hold has been deep
 
 const Armory := preload("res://scripts/hub/armory.gd")
 const Vices := preload("res://scripts/hub/vices.gd")
 const LootArt := preload("res://scripts/run/loot_art.gd")
 const SFX := preload("res://scripts/sfx.gd")
 const HushDen := preload("res://scripts/hub/hush_den.gd")
+const Glass := preload("res://scripts/hub/glass.gd")
 
 const INK := Color(0.95, 0.92, 0.98)
 const DIM := Color(0.95, 0.92, 0.98, 0.55)
@@ -31,6 +33,9 @@ const MARROW_LOST := "Marrow: \"Walk, then. You'll be back. They always are.\""
 const MARROW_WAITING := "Marrow: \"Did I say you could come back yet? Go on: %s.\""
 const MARROW_PAID := "Marrow: \"Good. See how easy it is, doing as you're told? Here. You earned it.\""
 const MARROW_LAUGHS := "Marrow: \"Leave? You can't even find the door without me.\""
+const MARROW_GLASS_FIRST := "Marrow: \"Something new. Hush, cut with what the colony puts in its soldiers. Glass. And an earpiece, so I can keep you company out there.\""
+const MARROW_GLASS := "Marrow: \"Careful with it. It doesn't wash off.\""
+const MARROW_GLASS_FULL := "Marrow: \"You've got enough on you. Use them first.\""
 
 var armory: Armory
 ## The hub talks' ConfigFile (npc_talk.state): Ophelia's romance and Mom's bond.
@@ -85,7 +90,8 @@ func _ready() -> void:
 	_buttons = HBoxContainer.new()
 	_buttons.add_theme_constant_override("separation", 8)
 	col.add_child(_buttons)
-	col.add_child(_wrap(_text("Space %s   X walk away for good   F or Esc leave" % ("ask for work / hand it over" if Vices.earns_only() else "take a dose"), 14, DIM)))
+	col.add_child(_wrap(_text("Space %s   %sX walk away for good   F or Esc leave" % ["ask for work / hand it over" if Vices.earns_only() else "take a dose",
+			"L buy Glass   " if Glass.on_sale() else ""], 14, DIM)))
 	refresh()
 
 
@@ -97,6 +103,8 @@ func _input(event: InputEvent) -> void:
 			take()
 		KEY_X:
 			walk_away()
+		KEY_L:
+			buy_glass()
 		_:
 			return
 	get_viewport().set_input_as_handled()
@@ -143,6 +151,27 @@ func work() -> bool:
 	return ok
 
 
+## Buys a vial of Glass (glass.gd), once he's selling it. Returns whether she did.
+func buy_glass() -> bool:
+	if not Glass.on_sale():
+		return false
+	var ok := false
+	if Glass.vials >= Glass.MAX_VIALS:
+		_talk.text = MARROW_GLASS_FULL
+	elif not armory.can_afford(Glass.VIAL_COST):
+		_talk.text = MARROW_BROKE
+	else:
+		var first := not Glass.earpiece
+		armory._spend(Glass.VIAL_COST)
+		armory.save()
+		Glass.buy()
+		_talk.text = MARROW_GLASS_FIRST if first else MARROW_GLASS
+		ok = true
+	SFX.play(self, "cloth_2" if ok else "ui_error", -4.0)
+	refresh()
+	return ok
+
+
 ## Walks away from him for good, if she can. Returns whether she did.
 func walk_away() -> bool:
 	if not Vices.can_walk_away(state):
@@ -176,6 +205,8 @@ func refresh() -> void:
 		lines.append("You think of the people waiting for you at home. You could still walk out of here.")
 	elif Vices.hold >= Vices.BREAK_AT:
 		lines.append("You can't make yourself leave. Stay clean for a while, or let someone close get through to you.")
+	if Glass.on_sale():
+		lines.append("Glass: Hush cut with colony combat tech. Crack a vial on a run (L) and the world slows down for a few seconds while you hit harder. It crystallises you: violet glass on your skin and less health, a step every vial, easing off a step for every run without it. You carry %d of %d." % [Glass.vials, Glass.MAX_VIALS])
 	_detail.text = "\n".join(lines)
 	for c in _buttons.get_children():
 		c.queue_free()
@@ -187,6 +218,9 @@ func refresh() -> void:
 		var cost := _text("Dose: %s" % Armory.cost_text(Vices.HUSH_COST), 16, GOOD if armory.can_afford(Vices.HUSH_COST) and not Vices.dosed else BAD)
 		_buttons.add_child(cost)
 		_buttons.add_child(_button("Take a dose [Space]", take))
+	if Glass.on_sale():
+		_buttons.add_child(_text("Glass: %s" % Armory.cost_text(Glass.VIAL_COST), 16, GOOD if armory.can_afford(Glass.VIAL_COST) and Glass.vials < Glass.MAX_VIALS else BAD))
+		_buttons.add_child(_button("Buy Glass [L]", buy_glass))
 	if Vices.hold > 0.0 or Vices.dosed:
 		_buttons.add_child(_button("Walk away for good [X]", walk_away))
 

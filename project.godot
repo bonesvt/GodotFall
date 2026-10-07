@@ -54,6 +54,10 @@ eco_slide={
 "type": "float",
 "value": 0.0
 }
+eco_glass={
+"type": "float",
+"value": 0.0
+}
 
 [rendering]
 

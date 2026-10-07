@@ -65,6 +65,9 @@ global uniform float eco_tears;
 global uniform float eco_scars;
 // How far sliding has worn her suit through (her outer thighs, glutes and hips).
 global uniform float eco_slide;
+// Marrow's Glass (scripts/hub/glass.gd): how far violet crystal has crept
+// over her skin, 0..1, spreading in the order dirt does (damage_tex R).
+global uniform float eco_glass;
 // 0: none (hair, eyes, glass). 1: her body or face, from damage_tex
 // (tools/eco/bake_damage.py; each channel the level at which a texel turns:
 // R grime, G torn, B scuffed, A scarred; tears only open on her suit's fabric,
@@ -138,6 +141,7 @@ void fragment() {
 	// torn open, cut, then dirt over all of it
 	float torn = 0.0;
 	float scuffed = 0.0;
+	vec3 glass_emit = vec3(0.0);
 #ifndef OVERLAY
 	if (damage_kind == 1) {
 		vec4 d = texture(damage_tex, UV);
@@ -178,6 +182,34 @@ void fragment() {
 		col = mix(col, CUT, cut * 0.85);
 		float g = smoothstep(d.r, d.r + 0.22, eco_grime);
 		col = mix(col, col * DIRT * 2.2 + DIRT * 0.1, g * (0.4 + 0.25 * damage_noise(UV * 140.0)) * (0.8 + 0.2 * speck));
+		// Glass on her skin: faceted violet crystal, its seams glowing
+		if (eco_glass > 0.0) {
+			float glassed = smoothstep(d.r * 0.85 + 0.08, d.r * 0.85 + 0.14, eco_glass) * max(torn, 1.0 - fabric);
+			vec2 fc = UV * 150.0;
+			vec2 gi = floor(fc);
+			vec2 gf = fract(fc);
+			float d1 = 8.0;
+			float d2 = 8.0;
+			float facet = 0.0;
+			for (int y = -1; y <= 1; y++) {
+				for (int x = -1; x <= 1; x++) {
+					vec2 o = vec2(float(x), float(y));
+					vec2 pt = o + vec2(damage_hash(gi + o), damage_hash(gi + o + 17.3)) - gf;
+					float dd = length(pt);
+					if (dd < d1) {
+						d2 = d1;
+						d1 = dd;
+						facet = damage_hash(gi + o + 5.1);
+					} else if (dd < d2) {
+						d2 = dd;
+					}
+				}
+			}
+			float seam_glow = 1.0 - smoothstep(0.0, 0.09, d2 - d1);
+			vec3 crystal = mix(vec3(0.22, 0.08, 0.36), vec3(0.78, 0.6, 1.0), 0.25 + 0.6 * facet);
+			col = mix(col, crystal, glassed * 0.85);
+			glass_emit = HUSH_VIOLET * (seam_glow * 0.8 + 0.1 + 0.15 * facet) * glassed;
+		}
 	} else if (damage_kind == 2) {
 		float n = damage_noise(UV * 30.0) * 0.6 + damage_noise(UV * 95.0) * 0.4;
 		scuffed = smoothstep(0.35 + n * 0.6, 0.5 + n * 0.6, eco_scuffs);
@@ -224,7 +256,7 @@ void fragment() {
 	if (trim_gold > 0.0) {
 		emit = mix(emit, GOLD * max(emit.r, max(emit.g, emit.b)), trim_gold) + GOLD * gold_edge * trim_gold;
 	}
-	EMISSION = emit * glow * paint.rgb + vec3(flash) + hypno_emit;
+	EMISSION = emit * glow * paint.rgb + vec3(flash) + hypno_emit + glass_emit;
 	v_rim = smoothstep(0.72, 0.9, fres) * rim;
 #ifdef OVERLAY
 	ALPHA = tex.a * albedo.a;

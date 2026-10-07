@@ -14,6 +14,27 @@ const Townsperson := preload("res://scripts/hub/townsperson.gd")
 const DialogueBank := preload("res://scripts/radio/dialogue_bank.gd")
 const RadioLines := preload("res://scripts/radio/radio_lines.gd")
 const ContentRating := preload("res://scripts/radio/content_rating.gd")
+const Glass := preload("res://scripts/hub/glass.gd")
+
+## Marrow's Chorus (glass.gd, Mature only): who he doses first, as it spreads.
+## The dosed walk slower, violet spirals in their eyes, and say his kind of
+## thing in a flat, pleasant voice; the others worry about them.
+const DOSE_ORDER := ["kit", "dez", "harl", "wren", "pell", "bram", "mira", "jun", "tobin", "rosa"]
+const DOSED_SLOW := 0.65
+const CHORUS_LINES := [
+	"Quiet today. Isn't it nice when it's quiet.",
+	"I don't need to worry. Someone's taking care of it.",
+	"Everything's fine. Everything's going to be fine.",
+	"Sleep well, Eco. We all sleep so well now.",
+	"No need to fight. No need to fight anything.",
+	"Have you tried the water lately? It tastes like violets.",
+]
+const WORRY_LINES := [
+	"You've gone quiet lately. You used to never stop talking.",
+	"Your eyes look funny in this light. Are you sleeping?",
+	"Since when do you smile at the soldiers?",
+	"Hey. Hey. Are you even listening to me?",
+]
 
 ## Everyone, where they are and what they're doing. Positions are on the
 ## town's ground (town.gd: the street runs along x = 0, Sun Plaza is z 160..190
@@ -69,6 +90,8 @@ var _chat_rest := 3.0
 var _greet_rest := 2.0
 var _greeted := {}
 var _used := {}            # category -> indices played since it last ran dry
+## The townsfolk Marrow has dosed (short name -> true).
+var dosed := {}
 
 
 ## Spawns the townsfolk under `root` (the hub's zone root) once the hub is
@@ -107,6 +130,42 @@ func _ready() -> void:
 		if spec.has("with"):
 			people[spec["who"]].partner = people[spec["with"]]
 			people[spec["with"]].partner = people[spec["who"]]
+	chorus_refresh()
+
+
+## Doses (or frees) the townsfolk as far as the Chorus has got (glass.gd).
+func chorus_refresh() -> void:
+	var n := Glass.dosed_folk()
+	for i in DOSE_ORDER.size():
+		var who: String = DOSE_ORDER[i]
+		if people.has(who):
+			_set_dosed(who, i < n)
+
+
+func _set_dosed(who: String, on: bool) -> void:
+	if dosed.has(who) == on:
+		return
+	var p: Node3D = people[who]
+	if on:
+		dosed[who] = true
+		p.set_meta("base_speed", p.speed)
+		p.speed *= DOSED_SLOW
+	else:
+		dosed.erase(who)
+		p.speed = p.get_meta("base_speed", p.speed)
+	for mi: MeshInstance3D in p.find_children("*", "MeshInstance3D", true, false):
+		if mi.mesh == null:
+			continue
+		for i in mi.mesh.get_surface_count():
+			var m := mi.mesh.surface_get_material(i) as ShaderMaterial
+			if m == null or not m.resource_name.ends_with("_iris"):
+				continue
+			var mine := mi.get_surface_override_material(i) as ShaderMaterial
+			if mine == null:
+				mine = m.duplicate()
+				mi.set_surface_override_material(i, mine)
+			mine.set_shader_parameter("iris_swirl", on)
+			mi.set_instance_shader_parameter("hypno", 0.85 if on else 0.0)
 
 
 ## {category: [entries]} at the current rating.
@@ -165,6 +224,11 @@ func _try_greet() -> bool:
 		if line == "":
 			return false
 		p.hold(4.0)
+		if dosed.has(n):
+			_chat = [[p, _chorus_line()]]
+			_say_next()
+			_greet_rest = GREET_REST
+			return true
 		_chat = [[p, RadioLines.parse(line)[0][1]]]
 		_say_next()
 		_greet_rest = GREET_REST
@@ -182,6 +246,18 @@ func _try_chat() -> bool:
 	if pairs.is_empty():
 		return false
 	var pair: Array = pairs[_rng.randi() % pairs.size()]
+	var a_dosed := dosed.has(pair[0].short_name())
+	var b_dosed := dosed.has(pair[1].short_name())
+	if a_dosed or b_dosed:
+		# one of them is his: the other worries, or both just agree how quiet it is
+		if a_dosed and b_dosed:
+			_chat = [[pair[0], _chorus_line()], [pair[1], _chorus_line()]]
+		else:
+			var calm: Node3D = pair[0] if a_dosed else pair[1]
+			var other: Node3D = pair[1] if a_dosed else pair[0]
+			_chat = [[other, WORRY_LINES[_rng.randi() % WORRY_LINES.size()]], [calm, _chorus_line()]]
+		_say_next()
+		return true
 	var entry := _pick("chat")
 	if entry == "":
 		return false
@@ -201,12 +277,21 @@ func _try_mutter() -> bool:
 			near.append(p)
 	if near.is_empty():
 		return false
+	var who: Node3D = near[_rng.randi() % near.size()]
+	if dosed.has(who.short_name()):
+		_chat = [[who, _chorus_line()]]
+		_say_next()
+		return true
 	var entry := _pick("mutter")
 	if entry == "":
 		return false
-	_chat = [[near[_rng.randi() % near.size()], RadioLines.parse(entry)[0][1]]]
+	_chat = [[who, RadioLines.parse(entry)[0][1]]]
 	_say_next()
 	return true
+
+
+func _chorus_line() -> String:
+	return CHORUS_LINES[_rng.randi() % CHORUS_LINES.size()]
 
 
 func _say_next() -> void:

@@ -9,6 +9,7 @@ enum State { GROUND, AIR, SLIDE, WALLRUN, GRAPPLE }
 const SFX := preload("res://scripts/sfx.gd")
 const Prefs := preload("res://scripts/game/prefs.gd")
 const Vices := preload("res://scripts/hub/vices.gd")
+const Glass := preload("res://scripts/hub/glass.gd")
 const EcoContactSounds := preload("res://scripts/ps2/eco_contact_sounds.gd")
 ## Metres between footsteps on the ground and when running along a wall.
 const STRIDE := 2.4
@@ -202,6 +203,8 @@ var _armor_regen_mult := 1.0
 var _base_wallrun_time := -1.0
 ## max_health before any boost from Solace (town_shops.gd: a meal, implants).
 var _base_max_health := -1.0
+## max_health from the suit and Solace, before Marrow's Glass takes its share.
+var _suit_max_health := -1.0
 var _base_grapple_cooldown := -1.0
 var step_dist := 0.0
 ## Set by the ViewCam child (scripts/view_camera.gd) while in third person.
@@ -760,7 +763,8 @@ func apply_suit(profile: Dictionary) -> void:
 		_base_wallrun_time = wallrun_max_time
 		_base_grapple_cooldown = grapple_cooldown
 		_base_max_health = max_health
-	max_health = _base_max_health + profile.get("max_health_bonus", 0.0)
+	_suit_max_health = _base_max_health + profile.get("max_health_bonus", 0.0)
+	max_health = _suit_max_health * Glass.health_scale()
 	health = max_health
 	suit_tier = profile.get("tier", 0)
 	suit_weight = profile.get("weight", "medium")
@@ -779,6 +783,15 @@ func apply_suit(profile: Dictionary) -> void:
 	var body := get_node_or_null("EcoBody")
 	if body != null and body.has_method("set_suit"):
 		body.set_suit(suit_tier, suit_weight)
+
+
+## Marrow's Glass (glass.gd) takes some of her max health as it spreads; a
+## vial cracked mid-run takes it there and then.
+func refresh_glass() -> void:
+	if _suit_max_health < 0.0:
+		_suit_max_health = max_health
+	max_health = _suit_max_health * Glass.health_scale()
+	health = minf(health, max_health)
 
 
 ## A few drinks in (vices.gd): her aim drifts on its own, and the change in

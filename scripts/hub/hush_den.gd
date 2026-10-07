@@ -14,6 +14,7 @@ extends RefCounted
 ## Marrow is a primitive placeholder figure until a proper model is built.
 
 const K := preload("res://scripts/hub/hub_kit.gd")
+const Glass := preload("res://scripts/hub/glass.gd")
 const Art := preload("res://scripts/ps2/ps2_assets.gd")
 
 const STREET_HALF := 7.0
@@ -34,6 +35,11 @@ const HER_SIZE := Vector3(3.6, 2.6, 3.6)
 const HER_WAKE := HER_ROOM + Vector3(-0.9, 0, 0.6)
 const HER_DOOR_IN := BASEMENT + Vector3(-2.9, 0, -0.6)
 const HER_DOOR_OUT := HER_ROOM + Vector3(1.2, 0, -1.2)
+## The Chorus (glass.gd): his ledger and his three Glass vats by the east wall.
+const LEDGER := BASEMENT + Vector3(3.0, 0, 1.9)
+const VATS := [BASEMENT + Vector3(3.0, 0, 0.6), BASEMENT + Vector3(3.0, 0, -0.5), BASEMENT + Vector3(-1.2, 0, -2.8)]
+const LEDGER_TEXT := "A ledger under a colony seal. SOLACE TRIAL. Compound H: compliance confirmed in subject E. Compound G: combat yield up, crystallisation within losses. Phase three: the town's water and Seven Suns' stock. Payment on delivery: one town, docile, before the first frost. Marrow's not a dealer. He's a supplier, and Eco was the test."
+const VAT_LOCKED_LINE := "Three tanks of something violet, brewing. Glass, by the smell. She'd like to know what it's for first."
 ## Under this Hold she still makes it to her own room.
 const OWN_ROOM_BELOW := 30.0
 ## Where his pull walks her in, at the foot of the stairs facing his table.
@@ -213,7 +219,7 @@ static func _alley(root: Node3D, info: Dictionary) -> void:
 	# A dim violet lamp over the gap, trash and Marrow leaning in the dark.
 	K.light(root, ALLEY + Vector3(-0.6, 2.6, 0), VIOLET, 0.7, 3.5)
 	K.mesh(root, ALLEY + Vector3(-0.85, 0.35, 0.35), Vector3(0.6, 0.7, 0.5), Art.material("corrugated", Color(0.3, 0.32, 0.3)))
-	figure(root, ALLEY + Vector3(-0.6, 0, -0.2), 90.0)
+	_marrow(info, figure(root, ALLEY + Vector3(-0.6, 0, -0.2), 90.0))
 	K.interactable(info, "hush_alley", ALLEY + Vector3(0.6, 0, 0), "[F] Someone's leaning in the alley", [
 		"Some guy in a long coat in the gap by the arcade. He looks at me like he already knows my name.",
 		"He's still there. He's always there.",
@@ -256,7 +262,7 @@ static func _basement(root: Node3D, info: Dictionary) -> void:
 	K.light(root, b + Vector3(-2.2, 2.6, 2.0), Color(1.0, 0.7, 0.45), 0.35, 4.0)
 	# His chair behind the table, him in it, facing her armchair.
 	K.mesh(root, b + Vector3(0.6, 0.45, -1.5), Vector3(0.6, 0.9, 0.6), Art.material("fabric", Color(0.15, 0.13, 0.16)))
-	figure(root, b + Vector3(0.6, 0.0, -1.45), 0.0, true)
+	_marrow(info, figure(root, b + Vector3(0.6, 0.0, -1.45), 0.0, true))
 	# Her armchair: low, sagging, facing his table.
 	var arm := Art.material("fabric", Color(0.35, 0.3, 0.22))
 	K.mesh(root, WAKE + Vector3(0, 0.25, 0.1), Vector3(1.0, 0.5, 0.9), arm)
@@ -280,6 +286,68 @@ static func _basement(root: Node3D, info: Dictionary) -> void:
 		"Marrow: \"Sit. Stay as long as you like. You always do.\"",
 	], 2.0)
 	info["interactables"].back()["shop"] = "hush"
+	_glass_works(root, info)
+
+
+## Marrow's figures, so the hub can take him away once the Chorus breaks (glass.gd).
+static func _marrow(info: Dictionary, f: Node3D) -> void:
+	if not info.has("marrow_figures"):
+		info["marrow_figures"] = []
+	info["marrow_figures"].append(f)
+
+
+## The Chorus (glass.gd), along the basement's east wall: his ledger on a
+## lectern and three vats of Glass brewing, only there once he's begun dosing
+## the town (the run manager hides them till then: info["glass_nodes"]).
+static func _glass_works(root: Node3D, info: Dictionary) -> void:
+	var nodes := {}
+	var lectern := Node3D.new()
+	lectern.position = LEDGER
+	root.add_child(lectern)
+	K.mesh(lectern, Vector3(0, 0.5, 0), Vector3(0.45, 1.0, 0.4), Art.material("wood", Color(0.35, 0.26, 0.2)))
+	K.mesh(lectern, Vector3(0, 1.04, 0), Vector3(0.5, 0.06, 0.38), Art.material("canvas", Color(0.88, 0.84, 0.72)), Vector3(-15, 0, 0))
+	K.mesh(lectern, Vector3(0.12, 1.08, 0.02), Vector3(0.12, 0.02, 0.08), Art.material("alloy", Color(0.85, 0.3, 0.25)))  # the colony's seal
+	nodes["ledger"] = lectern
+	K.interactable(info, "glass_ledger", LEDGER + Vector3(-0.6, 0, 0), "[F] Marrow's ledger", [LEDGER_TEXT], 1.6)
+	info["interactables"].back()["glass"] = "ledger"
+	for i in VATS.size():
+		var vat := Node3D.new()
+		vat.position = VATS[i]
+		root.add_child(vat)
+		K.mesh(vat, Vector3(0, 0.08, 0), Vector3(0.9, 0.16, 0.9), Art.material("gunmetal", Color(0.2, 0.2, 0.22)))
+		var glow := MeshInstance3D.new()
+		var tank := CylinderMesh.new()
+		tank.top_radius = 0.34
+		tank.bottom_radius = 0.34
+		tank.height = 1.3
+		glow.mesh = tank
+		var mat := StandardMaterial3D.new()
+		mat.albedo_color = Color(0.55, 0.25, 0.85, 0.75)
+		mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		mat.emission_enabled = true
+		mat.emission = VIOLET
+		mat.emission_energy_multiplier = 1.6
+		glow.material_override = mat
+		glow.position.y = 0.81
+		glow.name = "Tank"
+		vat.add_child(glow)
+		K.mesh(vat, Vector3(0, 1.5, 0), Vector3(0.75, 0.08, 0.75), Art.material("gunmetal", Color(0.25, 0.25, 0.27)))
+		var shards := Node3D.new()  # what's left once she's smashed it
+		shards.name = "Shards"
+		shards.visible = false
+		vat.add_child(shards)
+		for k in 6:
+			var a := k * TAU / 6.0
+			K.mesh(shards, Vector3(cos(a) * 0.3, 0.2 + 0.1 * (k % 2), sin(a) * 0.3), Vector3(0.05, 0.3 + 0.1 * (k % 3), 0.12),
+					Art.material("alloy", VIOLET), Vector3(20 * (k % 2), a * 57.0, 15))
+		K.mesh(shards, Vector3(0, 0.17, 0), Vector3(1.2, 0.01, 1.0), Art.material("fabric", Color(0.45, 0.2, 0.65)))
+		var id: String = Glass.VAT_IDS[i]
+		nodes[id] = vat
+		var front: Vector3 = (BASEMENT - VATS[i]) * Vector3(1, 0, 1)
+		K.interactable(info, "glass_" + id, VATS[i] + front.normalized() * 0.8, "[F] Smash the vat", [VAT_LOCKED_LINE], 1.4)
+		info["interactables"].back()["glass"] = id
+	K.light(root, VATS[1] + Vector3(-0.5, 1.8, 0), VIOLET, 0.9, 4.0)
+	info["glass_nodes"] = nodes
 
 
 ## Marrow: a tall figure in a long dark coat and a deep hood, a violet ember at

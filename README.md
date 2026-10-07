@@ -57,6 +57,8 @@ The preset keeps `dialogue/*` (plain text the hub people read at runtime) and le
 | F9 | Change look: Anime (default), PS3, old PS2 |
 | B | Light a smoke (Mature, if she has any) |
 | N | Jab a combat stim (Mature, if she has any) |
+| L | Crack a vial of Glass on a run: a few seconds of slow-mo focus (Mature, if she has any) |
+| K | Tune Marrow out when he gives an order in her ear (Mature) |
 
 ## The temple (hub)
 Pressing Play (`scenes/run.tscn`) opens in the hub: the small abandoned temple Eco hides
@@ -222,16 +224,39 @@ Under the Mature rating (Settings > Game), **F** at the Rusted Halo on Low Row o
   render: `tools/pistol/hush_finish_shots.gd`). At full Hold, a parcel: his **Hush courier suit**,
   the shade catsuit dyed violet-black under a cropped violet hoodie with glowing hems, sneakers and
   a parcel pack (`eco_model.gd` STYLE_GEAR; `tools/eco/build_hush_suit.py` builds its textures).
+- **Glass** (`scripts/hub/glass.gd`, part 2): once his Hold has reached 60, Marrow's screen also
+  sells **Glass** (L, 60 scrap and 2 circuits a vial, three at most): Hush refined with colony combat
+  tech. On a run **L** cracks one: 2.5 real seconds with the world at 35% speed, a violet tint and
+  her shots doing 25% more. Each vial crystallises her a step (six at most): violet crystal facets
+  with glowing seams creep over her skin (`eco_toon.gdshaderinc`, the `eco_glass` global) and every
+  step takes 6% of her max health (`player.gd` refresh_glass). A run without Glass wears a step
+  off. Each vial tightens his Hold by 5.
+- **Tether** (`scripts/run/tether.gd`): the first vial comes with an earpiece. On runs Marrow gives
+  an order every 45 seconds (the first after 20): kill three in 20 s, don't get hit for 15 s, keep
+  moving for 12 s, or crack a vial. Doing it pays 15 scrap and patches her up (his Hold +2);
+  failing, or tuning him out with **K**, gets her 2.5 s frozen in the swirls (his Hold -3).
+- **Chorus**: Marrow is the colony's supplier and Solace is the real customer. After 3, 6 and 10
+  vials he has 3, 6 and then all 10 townsfolk: violet spirals in their eyes, slower steps and
+  flat, pleasant lines while the others worry about them (`townsfolk.gd` chorus_refresh). His
+  basement gets a ledger under a colony seal and three vats of Glass (`hush_den.gd`). Read the
+  ledger, smash the vats, then **Face Marrow** at his table (`scripts/hub/chorus_scene.gd`): he
+  pulls her under three times and **F** in each window holds on (1.6 s, down to 0.9 s at full
+  Hold). Hold on every time and it breaks: his Hold and her glass gone, the town wakes up and
+  Marrow runs for good (his alley is empty). Miss one and she wakes in his chair, Hold +20, the
+  vats brewing again.
 - Tests: `godot --headless --path . -s res://tests/vices_test.gd`, `tests/hush_pull_test.gd`,
-  `tests/hold_effects_test.gd`
+  `tests/hold_effects_test.gd`, `tests/glass_test.gd`
 
 ### Cheat box
 A dented ammo crate with a gold trim by the rug in Eco's loft (`scripts/hub/cheat_screen.gd`).
 **F** opens it: **1** maxes every material (9999), **2** maxes every relationship (Ophelia's
 affection, Mom's and Biggie's bond), **3** unlocks every piercing, tattoo and accessory (they land
 taken off; put them on at Ink & Iron and Stitch & Steel, Mature ones under Mature), **4** is
-Super Hush: Marrow's Hold straight to full (Mature only). Test:
-`tests/cheat_test.gd`.
+Super Hush: Marrow's Hold straight to full (Mature only). Super Hush plays a short scene
+(`scripts/hub/super_hush_scene.gd`): she finds an injector under the crate's false bottom, puts it
+to her neck, the view floods violet, a close-up pushes in on her spiralling eyes while Marrow's
+voice finds her, and she comes to with his Hold full. Test: `tests/cheat_test.gd` (the scene:
+`tests/hold_effects_test.gd`; stills: `tools/hub/super_hush_shots.gd`).
 
 ### Workbenches and materials
 Out on runs you collect four materials, and the hub's workbenches spend them:
