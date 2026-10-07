@@ -61,6 +61,16 @@ instance uniform vec4 paint : source_color, instance_index(2) = vec4(1.0);
 // turns gold and the armour edges light up.
 instance uniform float trim_gold : instance_index(3) = 0.0;
 const vec3 GOLD = vec3(1.0, 0.68, 0.2);
+// Marrow's Hush (vices.gd): violet spirals turning in her irises, stronger
+// the deeper his Hold (eco_model.gd sets `hypno` 0..1). Only on the iris
+// layer (iris_swirl), whose texture holds both irises (centres IRIS_L/R,
+// radius IRIS_R in UV).
+uniform bool iris_swirl = false;
+instance uniform float hypno : instance_index(4) = 0.0;
+const vec2 IRIS_L = vec2(0.252, 0.504);
+const vec2 IRIS_RIGHT = vec2(0.747, 0.504);
+const vec2 IRIS_R = vec2(0.112, 0.225);
+const vec3 HUSH_VIOLET = vec3(0.72, 0.32, 1.0);
 
 varying float v_sheen_mask;
 varying float v_rim;
@@ -84,6 +94,19 @@ void fragment() {
 		col = mix(col, texture(kit_tex, UV).rgb * albedo.rgb * paint.rgb, kit_mask.b);
 		mask = mix(mask, kit_mask.rg, kit_mask.b);
 	}
+	vec3 hypno_emit = vec3(0.0);
+	if (iris_swirl && hypno > 0.0) {
+		bool left = UV.x < 0.5;
+		vec2 d = (UV - (left ? IRIS_L : IRIS_RIGHT)) / IRIS_R;
+		float r = length(d);
+		float turn = (left ? 1.0 : -1.0) * TIME * (1.5 + 2.0 * hypno);
+		float arms = 0.5 + 0.5 * sin(atan(d.y, d.x) * 3.0 + r * 16.0 - turn);
+		float band = smoothstep(0.45, 0.8, arms) * (1.0 - smoothstep(0.8, 1.0, r)) * smoothstep(0.1, 0.3, r);
+		float k = clamp(hypno, 0.0, 1.0);
+		col = mix(col, col * 0.4 + HUSH_VIOLET * 0.7, k * 0.55);
+		col = mix(col, vec3(1.0, 0.8, 1.0), band * k);
+		hypno_emit = HUSH_VIOLET * band * k * 0.9;
+	}
 	v_sheen_mask = sheen * mask.r;
 	v_shade = mix(shade_tint, shade_tint_2, mask.g);
 	ALBEDO = col * exposure;
@@ -101,7 +124,7 @@ void fragment() {
 	if (trim_gold > 0.0) {
 		emit = mix(emit, GOLD * max(emit.r, max(emit.g, emit.b)), trim_gold) + GOLD * gold_edge * trim_gold;
 	}
-	EMISSION = emit * glow * paint.rgb + vec3(flash);
+	EMISSION = emit * glow * paint.rgb + vec3(flash) + hypno_emit;
 	v_rim = smoothstep(0.72, 0.9, fres) * rim;
 #ifdef OVERLAY
 	ALPHA = tex.a * albedo.a;

@@ -327,6 +327,14 @@ static func notice_scale() -> float:
 	return 1.0 if h == 0.0 else 1.0 - 0.2 * h
 
 
+## How strongly the Hush swirls in her eyes, 0..1 (eco_model.gd): faint after
+## the first dose, full when she's his; brighter while it's in her on a run.
+static func eye_swirl() -> float:
+	if not allowed() or hold <= 0.0:
+		return 0.0
+	return clampf(0.15 + 0.85 * hold / 100.0 + (0.2 if hushed else 0.0), 0.0, 1.0)
+
+
 ## His Hold as a word, for Marrow's screen.
 static func hold_name() -> String:
 	if hold <= 0.0:

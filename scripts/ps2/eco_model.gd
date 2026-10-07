@@ -94,6 +94,7 @@ var stride_reverse := false
 ## through the world it feels (1 = all of it: hair streams back when she runs;
 ## low = only her own motion: the jiggle bounces with her steps and landings
 ## without being dragged back by her speed).
+const Vices := preload("res://scripts/hub/vices.gd")
 const HAIR := {"group": "hair", "stiffness": 0.14, "drag": 0.2, "gravity": 0.7, "limit": 30.0, "inertia": 0.6}
 const HAIR_TIP := {"group": "hair", "stiffness": 0.12, "drag": 0.2, "gravity": 0.6, "limit": 20.0, "inertia": 0.6}
 # the fringe hangs over her face: it may lift off it, but swinging far back would go into her head
@@ -225,6 +226,9 @@ var _bones := {}
 var _strut_undo := {}
 var _rest: EcoRest
 var _face: MeshInstance3D
+## Her meshes with the iris layer, and the Hush swirl they show (vices.gd).
+var _iris_meshes: Array = []
+var _hypno := 0.0
 ## The face's weights from before she fell asleep (blend shape index -> weight).
 var _awake_face := {}
 ## The content rating her clothes were last put on for.
@@ -436,6 +440,28 @@ func _process(delta: float) -> void:
 		_rest_layer(delta)
 	if springs_enabled and skeleton != null:
 		_step_springs(delta)
+	_eye_swirl()
+
+
+## Marrow's Hold shows in her eyes: violet spirals in her irises (vices.gd,
+## eco_toon.gdshaderinc iris_swirl).
+func _eye_swirl() -> void:
+	var h := Vices.eye_swirl()
+	if is_equal_approx(h, _hypno):
+		return
+	_hypno = h
+	if _iris_meshes.is_empty():
+		for mi: MeshInstance3D in find_children("*", "MeshInstance3D", true, false):
+			if mi.mesh == null:
+				continue
+			for i in mi.mesh.get_surface_count():
+				var m := mi.mesh.surface_get_material(i)
+				if m != null and m.resource_name == "eco_v_iris":
+					_iris_meshes.append(mi)
+					break
+	for mi: MeshInstance3D in _iris_meshes:
+		if is_instance_valid(mi):
+			mi.set_instance_shader_parameter("hypno", h)
 
 
 func _animate() -> void:
