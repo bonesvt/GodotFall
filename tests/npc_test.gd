@@ -28,6 +28,10 @@ func _initialize() -> void:
 	Wardrobe.save_path = "user://test_npc_wardrobe.cfg"   # not the player's own picks
 	for p in [run_node.armory_path, run_node.npc_path, Wardrobe.save_path]:
 		DirAccess.remove_absolute(ProjectSettings.globalize_path(p))
+	# Ophelia is only in the hub once Level 2 has rescued her (run_manager RESCUED_IN).
+	var progress := ConfigFile.new()
+	progress.set_value("progress", "cleared", ["level2"])
+	progress.save(run_node.armory_path)
 	root.add_child(run_node)
 	_run.call_deferred()
 

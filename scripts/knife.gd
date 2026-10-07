@@ -1,20 +1,36 @@
 extends Node3D
-## Eco's stiletto (Z or the mouse thumb button). A tap is a quick strike from
-## her left hand. Holding the key draws it with a flip-spin and keeps it out
-## with the pistol lowered, and she runs faster; left mouse swings while it's
-## out (alternating slashes, with a light trail off the tip), and I plays an
-## inspect flourish. On a grunt that hasn't noticed her the strike becomes a
-## thrust and a silent takedown that kills outright; on anyone else it's a
-## solid hit that alerts them. Model: assets/models/knife/stiletto.glb
-## (tools/knife/build_stiletto.py).
+## Eco's knife (Z or the mouse thumb button), in her left hand.
+##   tap          a quick strike from the hip; the gun stays in her other hand
+##   hold ~1 s    she draws the knife as her weapon: the gun goes away (can't
+##                fire), she runs faster, left mouse attacks (two alternating
+##                moves), I inspects
+##   tap again, R or the mouse wheel (swap_weapon)   knife away, gun drawn back
+## On a grunt that hasn't noticed her any strike becomes the takedown thrust,
+## a silent kill; on anyone else it's a solid hit that alerts them. She carries
+## the knife picked at the hub's knife case (armory.gd KNIVES; the run
+## manager calls set_model()), and each has its own grip, draw, attacks,
+## takedown and inspect (scripts/knife_moves.gd). Models:
+## assets/models/knife/<id>.glb (tools/knife/build_knives.py).
 
 const FX := preload("res://scripts/fx.gd")
 const SFX := preload("res://scripts/sfx.gd")
-const MODEL := preload("res://assets/models/knife/stiletto.glb")
+const Moves := preload("res://scripts/knife_moves.gd")
+const MODELS := {
+	"needle": preload("res://assets/models/knife/needle.glb"),
+	"kunai": preload("res://assets/models/knife/kunai.glb"),
+	"butterfly": preload("res://assets/models/knife/butterfly.glb"),
+}
+const DEFAULT_MODEL := "needle"
 const MATERIALS := "res://assets/materials/knife/"
+## How much bigger than life the knife is drawn in her hand.
+const VIEW_SCALE := 1.3
+const REST := Moves.REST
+const REST_ROT := Moves.REST_ROT
 
 ## Emitted on every stab: "miss", "hit", "kill" or "takedown".
 signal stabbed(kind: String)
+## Emitted when she draws the knife as her weapon (true) or puts it away (false).
+signal switched(out: bool)
 
 ## Damage to an enemy that already knows she's there.
 @export var damage := 30.0
@@ -26,8 +42,8 @@ signal stabbed(kind: String)
 @export var hit_time := 0.09
 @export var stab_time := 0.42
 @export var cooldown := 0.55
-## Hold the key this long and the knife stays out.
-@export var hold_time := 0.22
+## Hold the key this long and she draws the knife as her weapon.
+@export var hold_time := 1.0
 ## Ground speed multiplier while the knife is out.
 @export var ready_speed := 1.2
 
@@ -36,42 +52,36 @@ var weapon: Node
 var stab_timer := -1.0
 var cooldown_timer := 0.0
 var takedowns := 0
-## True while the key is held and the knife stays out.
-var readied := false
+## True while the knife is her weapon (drawn with a long hold).
+var out := false
 var _held := 0.0
-var _long_hold := false  # this press already brought the knife out
+var _pressing := false  # the melee key is down (from a press we saw)
+var _hold_used := false  # this press already drew the knife
 var _ready_blend := 0.0
 var _struck := false
 var _blade_root: Node3D  # Eco's hand: pose follows the animation
-var _blade: Node3D  # the stiletto in her fingers: spins and tosses on its own
+var _blade: Node3D  # the knife in her fingers: spins and tosses on its own
+var _grip: Node3D  # how this knife sits in her fist (the kunai: reverse grip)
 var _tip: Node3D
+## Which knife she carries (armory.gd KNIVES id) and its model in her hand.
+var model_id := DEFAULT_MODEL
+var model: Node3D
+## This knife's moves (knife_moves.gd).
+var moves: Dictionary = Moves.moves(DEFAULT_MODEL)
+## The Butterfly's handles (null on the fixed blades) and their rest poses.
+var _safe: Node3D
+var _bite: Node3D
+var _safe_rest := Basis.IDENTITY
+var _bite_rest := Basis.IDENTITY
 var _last_tip := Vector3.ZERO
 var _trail_on := false
-## Current knife animation: "", "draw", "thrust", "slash_a", "slash_b", "inspect".
+## Current knife animation: "", "draw", "thrust", "attack_a", "attack_b", "inspect".
 var anim := ""
 var anim_time := 0.0
-var _next_slash := "slash_a"
-var _glint_done := false
+var _next_attack := "attack_a"
+var _events_done := 0
 var _inspect_line := -1
 var rng := RandomNumberGenerator.new()
-
-const DRAW_TIME := 0.5
-const INSPECT_TIME := 2.6
-const INSPECT_LINES := [
-	"Wound the spring from a titan's servo myself.",
-	"Cobalt edge. Sharpens itself on their armour.",
-	"Dad said never bring a knife to a gunfight. I bring both.",
-	"Balanced it twelve times. Thirteen's the charm.",
-]
-
-# Viewmodel poses, relative to the camera: tucked out of sight, then thrust.
-const REST := Vector3(-0.34, -0.46, -0.12)
-const THRUST := Vector3(-0.14, -0.17, -0.4)
-const REST_ROT := Vector3(0.9, 0.5, 0.6)
-const THRUST_ROT := Vector3(0.12, -0.55, -0.35)
-# Held out, low and to the left, point forward, ready to strike.
-const READY := Vector3(-0.2, -0.24, -0.34)
-const READY_ROT := Vector3(0.3, -0.75, -0.7)
 
 
 func _ready() -> void:
@@ -85,10 +95,15 @@ func _ready() -> void:
 
 func _physics_process(delta: float) -> void:
 	cooldown_timer -= delta
-	_held = _held + delta if Input.is_action_pressed("melee") else 0.0
-	_set_readied(_held >= hold_time)
+	if _pressing and not Input.is_action_pressed("melee"):
+		_pressing = false  # released somewhere we didn't hear (focus lost, paused)
+	if _pressing:
+		_held += delta
+		if not out and not _hold_used and _held >= hold_time:
+			_hold_used = true
+			draw_knife()
 	if weapon != null:
-		weapon.holstered = readied or stab_timer >= 0.0 or anim == "inspect"
+		weapon.holstered = out or stab_timer >= 0.0 or anim == "inspect"
 	if stab_timer < 0.0:
 		return
 	stab_timer += delta
@@ -101,159 +116,128 @@ func _physics_process(delta: float) -> void:
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("melee", false, true):
-		_long_hold = false
+		_pressing = true
+		_held = 0.0
+		_hold_used = false
 	elif event.is_action_released("melee", true):
-		# A tap stabs on release; holding past hold_time keeps the knife out instead.
-		if not _long_hold and not readied:
-			stab()
-		_long_hold = false
-	elif readied and event.is_action_pressed("fire", false, true):
+		if _pressing and not _hold_used:
+			# A tap: a quick strike, or with the knife out, put it away.
+			if out:
+				put_away()
+			else:
+				stab()
+		_pressing = false
+	elif out and event.is_action_pressed("fire", false, true):
 		stab()
-	elif readied and event.is_action_pressed("inspect", false, true) and anim == "":
+	elif out and event.is_action_pressed("inspect", false, true) and anim == "":
 		inspect()
+	elif out and (event.is_action_pressed("swap_weapon", false, true) or event.is_action_pressed("reload", false, true)):
+		put_away()
 
 
-func _set_readied(on: bool) -> void:
-	if on == readied:
+## Draws the knife as her weapon: the gun goes away, she runs lighter.
+func draw_knife() -> void:
+	if out:
 		return
-	readied = on
-	if on:
-		_long_hold = true
-	player.speed_mult = ready_speed if on else 1.0
-	if on and stab_timer < 0.0:
+	out = true
+	if player != null:
+		player.speed_mult = ready_speed
+	if weapon != null:
+		weapon.holstered = true
+		if "stowed" in weapon:
+			weapon.stowed = true
+		if weapon.has_method("stop_inspect"):
+			weapon.stop_inspect()
+	if stab_timer < 0.0:
 		_play("draw")
-		SFX.play(self, "knife_draw", -14.0, SFX.vary(0.04))
-	elif not on and anim == "inspect":
+	switched.emit(true)
+
+
+## Puts the knife away and brings the gun back up with its draw.
+func put_away() -> void:
+	if not out:
+		return
+	out = false
+	if player != null:
+		player.speed_mult = 1.0
+	if anim == "inspect" or anim == "draw":
 		_play("")
+	if weapon != null and weapon.has_method("draw"):
+		weapon.draw()
+	switched.emit(false)
 
 
 func _process(delta: float) -> void:
-	_ready_blend = move_toward(_ready_blend, 1.0 if readied else 0.0, delta * 6.0)
+	_ready_blend = move_toward(_ready_blend, 1.0 if out else 0.0, delta * 6.0)
 	var r := smoothstep(0.0, 1.0, _ready_blend)
-	var base := REST.lerp(READY, r)
-	var base_rot := REST_ROT.lerp(READY_ROT, r)
-	if readied and anim == "":
+	var ready: Array = moves["ready"]
+	var base: Vector3 = REST.lerp(ready[0], r)
+	var base_rot: Vector3 = REST_ROT.lerp(ready[1], r)
+	if out and anim == "" and player != null:
 		# A little run bob so it reads as held, not floating.
 		var bob := sin(Time.get_ticks_msec() * 0.012) * 0.006 * clampf(player.horizontal_speed() / 10.0, 0.0, 1.0)
 		base += Vector3(0.0, bob, 0.0)
 
 	var hand := [base, base_rot]
 	var blade := [Vector3.ZERO, Vector3.ZERO]
+	var handles := Vector3.ZERO
+	var pivot := Vector3.ZERO
 	if anim != "":
 		anim_time += delta
-		var length := _anim_length(anim)
-		if anim_time >= length:
+		var a := _anim(anim)
+		if anim_time >= float(a["length"]):
 			_play("")
 		else:
-			var keys := _hand_keys(anim, base, base_rot)
-			hand = _sample(keys, anim_time)
-			var bkeys := _blade_keys(anim)
-			if not bkeys.is_empty():
-				blade = _sample(bkeys, anim_time)
-			_anim_events()
+			hand = _sample(_resolve(a["hand"], base, base_rot), anim_time)
+			if a.has("blade"):
+				blade = _sample(a["blade"], anim_time)
+				pivot = a.get("pivot", Vector3.ZERO)
+			if a.has("handles"):
+				handles = _sample(a["handles"], anim_time)[0]
+			var trail: Array = a.get("trail", [])
+			_trail_on = not trail.is_empty() and anim_time > trail[0] and anim_time < trail[1]
+			_anim_events(a)
 	_blade_root.visible = anim != "" or _ready_blend > 0.01
 	_blade_root.position = hand[0]
 	_blade_root.rotation = hand[1]
-	_blade.position = blade[0]
-	_blade.rotation = blade[1]
+	# The knife turns about the animation's pivot (a ring, the pivot pins).
+	var b := Basis.from_euler(blade[1])
+	_blade.transform = Transform3D(b, blade[0] + pivot - b * pivot)
+	if _safe != null:
+		_safe.basis = _safe_rest * Basis(Vector3.UP, handles.x)
+	if _bite != null:
+		_bite.basis = _bite_rest * Basis(Vector3.UP, -handles.y)
 	_update_trail()
+
+
+## This knife's animation `name` (knife_moves.gd).
+func _anim(name: String) -> Dictionary:
+	return moves["anims"].get(name, moves["anims"]["attack_a"])
+
+
+## Swaps "base" in hand keys for the pose she's holding.
+static func _resolve(keys: Array, base: Vector3, base_rot: Vector3) -> Array:
+	var out_keys := []
+	for k in keys:
+		out_keys.append([k[0], base if k[1] is String else k[1], base_rot if k[2] is String else k[2]])
+	return out_keys
+
+
+## Seconds the animation `name` of the knife in hand lasts.
+func anim_length(name: String) -> float:
+	return float(_anim(name)["length"])
 
 
 ## Starts a knife animation ("" stops it).
 func _play(name: String) -> void:
 	anim = name
 	anim_time = 0.0
-	_glint_done = false
+	_events_done = 0
 	_trail_on = false
 
 
-func _anim_length(name: String) -> float:
-	match name:
-		"draw":
-			return DRAW_TIME
-		"inspect":
-			return INSPECT_TIME
-	return stab_time
-
-
-## Hand keyframes [time, position, rotation] for an animation; ends on `base`.
-func _hand_keys(name: String, base: Vector3, base_rot: Vector3) -> Array:
-	match name:
-		"draw":
-			# Snaps up from the hip, overshoots, settles into the guard.
-			return [
-				[0.0, REST, REST_ROT],
-				[0.2, READY + Vector3(0.03, 0.07, -0.02), READY_ROT + Vector3(-0.35, 0.2, 0.3)],
-				[0.38, READY + Vector3(0.0, -0.01, 0.0), READY_ROT + Vector3(0.08, 0.0, -0.05)],
-				[DRAW_TIME, base, base_rot],
-			]
-		"thrust":
-			return [
-				[0.0, base, base_rot],
-				[hit_time, THRUST, THRUST_ROT],
-				[hit_time + 0.08, THRUST + Vector3(0, 0, -0.02), THRUST_ROT],
-				[stab_time, base, base_rot],
-			]
-		"slash_a":
-			# Backhand from her left across to the right, edge flat.
-			return [
-				[0.0, Vector3(-0.32, -0.12, -0.28), Vector3(0.2, 1.0, -1.5)],
-				[hit_time, Vector3(-0.06, -0.15, -0.42), Vector3(0.05, -0.15, -1.55)],
-				[hit_time + 0.08, Vector3(0.16, -0.22, -0.3), Vector3(-0.15, -1.35, -1.6)],
-				[stab_time, base, base_rot],
-			]
-		"slash_b":
-			# Forehand back: high right down to low left.
-			return [
-				[0.0, Vector3(0.1, -0.03, -0.32), Vector3(0.6, -1.1, -2.3)],
-				[hit_time, Vector3(-0.08, -0.15, -0.42), Vector3(0.05, -0.1, -2.0)],
-				[hit_time + 0.08, Vector3(-0.32, -0.3, -0.26), Vector3(-0.45, 0.95, -1.9)],
-				[stab_time, base, base_rot],
-			]
-		"inspect":
-			var show := Vector3(-0.08, -0.12, -0.32)
-			var show_rot := Vector3(0.1, -0.2, -1.45)  # blade across the view, edge up
-			return [
-				[0.0, base, base_rot],
-				[0.35, show, show_rot],
-				[0.75, show + Vector3(0.01, 0.005, 0.0), show_rot + Vector3(0.0, 0.08, 0.0)],
-				[0.9, READY + Vector3(0.02, 0.02, 0.0), READY_ROT],
-				[1.55, READY + Vector3(0.02, 0.0, 0.0), READY_ROT],
-				[1.7, READY + Vector3(0.0, -0.05, 0.0), READY_ROT + Vector3(0.2, 0.0, 0.0)],
-				[2.05, READY + Vector3(0.0, 0.0, 0.0), READY_ROT],
-				[2.2, READY + Vector3(0.02, 0.01, -0.03), READY_ROT + Vector3(-0.15, -0.1, 0.0)],
-				[INSPECT_TIME, base, base_rot],
-			]
-	return [[0.0, base, base_rot]]
-
-
-## Blade keyframes [time, offset, rotation] relative to her hand (spins, tosses).
-func _blade_keys(name: String) -> Array:
-	match name:
-		"draw":
-			# One and a half end-over-end flips round her fingers as it comes up.
-			return [
-				[0.0, Vector3.ZERO, Vector3(-TAU * 1.5, 0, 0)],
-				[0.36, Vector3.ZERO, Vector3(0.12, 0, 0)],
-				[DRAW_TIME, Vector3.ZERO, Vector3.ZERO],
-			]
-		"inspect":
-			return [
-				[0.0, Vector3.ZERO, Vector3.ZERO],
-				[0.85, Vector3.ZERO, Vector3.ZERO],
-				# fingers spin it twice round the grip
-				[1.5, Vector3.ZERO, Vector3(-TAU * 2.0, 0, 0)],
-				[1.55, Vector3.ZERO, Vector3(-TAU * 2.0, 0, 0)],
-				# toss it up, it flips once, catch
-				[1.8, Vector3(0, 0.16, -0.02), Vector3(-TAU * 2.5, 0, 0)],
-				[2.05, Vector3.ZERO, Vector3(-TAU * 3.0, 0, 0)],
-				[INSPECT_TIME, Vector3.ZERO, Vector3(-TAU * 3.0, 0, 0)],
-			]
-	return []
-
-
-## Smooth interpolation through [time, pos, rot] keys.
-func _sample(keys: Array, t: float) -> Array:
+## Smooth interpolation through [time, a, b] keys.
+static func _sample(keys: Array, t: float) -> Array:
 	if t <= keys[0][0]:
 		return [keys[0][1], keys[0][2]]
 	for i in range(1, keys.size()):
@@ -266,40 +250,33 @@ func _sample(keys: Array, t: float) -> Array:
 	return [last[1], last[2]]
 
 
-## Sounds and sparkle timed to the animations.
-func _anim_events() -> void:
-	match anim:
-		"draw":
-			if not _glint_done and anim_time >= 0.36:
-				_glint_done = true
-				FX.star(_tip, _tip.global_position, Color(0.75, 0.95, 1.0, 0.95), 0.07, 0.12, 4)
-		"slash_a", "slash_b", "thrust":
-			_trail_on = anim_time > 0.02 and anim_time < hit_time + 0.1
-		"inspect":
-			if not _glint_done and anim_time >= 0.4:
-				_glint_done = true
+## Sounds and sparkle timed to the animation.
+func _anim_events(a: Dictionary) -> void:
+	var events: Array = a.get("events", [])
+	while _events_done < events.size() and anim_time >= float(events[_events_done][0]):
+		var e: Array = events[_events_done]
+		_events_done += 1
+		match e[1]:
+			"sound":
+				SFX.play(self, e[2], -14.0 if e[2] == "knife_draw" else -16.0, SFX.vary(0.04))
+			"glint":
 				_edge_glint()
-			if anim_time >= 0.85 and anim_time - get_process_delta_time() < 0.85:
-				SFX.play(self, "knife_spin", -16.0)
-			if anim_time >= 1.55 and anim_time - get_process_delta_time() < 1.55:
-				SFX.play(self, "knife_swish", -16.0, 1.1)
-			if anim_time >= 2.05 and anim_time - get_process_delta_time() < 2.05:
-				SFX.play(self, "knife_catch", -12.0)
-				FX.star(_tip, _tip.global_position, Color(0.75, 0.95, 1.0, 0.9), 0.05, 0.1, 4)
+			"star":
+				FX.star(_tip, _tip.global_position, Color(0.75, 0.95, 1.0, 0.95), 0.06, 0.12, 4)
 
 
 ## A glint that runs from the guard to the point.
 func _edge_glint() -> void:
 	var tw := create_tween()
-	var star := FX.star(_blade, _blade.global_position, Color(0.85, 0.97, 1.0, 1.0), 0.05, 0.4, 4)
+	var star := FX.star(_grip, _grip.global_position, Color(0.85, 0.97, 1.0, 1.0), 0.05, 0.4, 4)
 	star.position = Vector3(0, 0.004, -0.06)
-	tw.tween_property(star, "position", Vector3(0, 0.002, -0.24), 0.32).set_trans(Tween.TRANS_SINE)
+	tw.tween_property(star, "position", _tip.position * 0.95, 0.32).set_trans(Tween.TRANS_SINE)
 
 
 ## Light trail behind the tip while a swing is moving.
 func _update_trail() -> void:
 	var tip := _tip.global_position
-	if _trail_on and _blade_root.visible:
+	if _trail_on and _blade_root.visible and player != null:
 		FX.tracer(player.get_parent(), _last_tip, tip, Color(0.6, 0.95, 1.0, 0.7), 0.012, 0.09)
 	_last_tip = tip
 
@@ -308,15 +285,16 @@ func is_inspecting() -> bool:
 	return anim == "inspect"
 
 
-## Knife inspect: shows off the edge, spins it, tosses it and catches it.
+## The knife's inspect: each knife shows off its own way.
 func inspect() -> void:
 	_play("inspect")
-	var pick := rng.randi_range(0, INSPECT_LINES.size() - 2)
+	var lines: Array = moves["lines"]
+	var pick := rng.randi_range(0, lines.size() - 2)
 	if pick >= _inspect_line:
 		pick += 1
 	_inspect_line = pick
 	if weapon != null and weapon.has_signal("inspected"):
-		weapon.inspected.emit(INSPECT_LINES[pick])
+		weapon.inspected.emit(lines[pick])
 
 
 func is_stabbing() -> bool:
@@ -330,13 +308,13 @@ func stab() -> bool:
 	stab_timer = 0.0
 	cooldown_timer = cooldown
 	_struck = false
-	# Unaware target in reach: a thrust (the takedown). Otherwise alternate slashes.
+	# Unaware target in reach: the takedown thrust. Otherwise alternate attacks.
 	var t := find_target()
 	if t != null and t.has_method("is_unaware") and t.is_unaware():
 		_play("thrust")
 	else:
-		_play(_next_slash)
-		_next_slash = "slash_b" if _next_slash == "slash_a" else "slash_a"
+		_play(_next_attack)
+		_next_attack = "attack_b" if _next_attack == "attack_a" else "attack_a"
 	_last_tip = _tip.global_position
 	SFX.play(self, "knife_swish", -10.0, SFX.vary(0.08))
 	if weapon != null:
@@ -347,7 +325,6 @@ func stab() -> bool:
 	return true
 
 
-## The enemy the blade would hit right now, or null.
 func find_target() -> Node3D:
 	# From her eyes, not the camera: in third person it hangs metres behind her.
 	var from: Vector3 = player.head.global_position
@@ -412,21 +389,12 @@ func _build_blade() -> void:
 	add_child(_blade_root)
 	_blade = Node3D.new()  # pivot at the grip, where her fingers hold it
 	_blade_root.add_child(_blade)
-	var blade: Node3D = MODEL.instantiate()
-	blade.name = "Stiletto"
-	blade.scale = Vector3.ONE * 1.3
-	_blade.add_child(blade)
+	_grip = Node3D.new()
+	_blade.add_child(_grip)
 	_tip = Node3D.new()
 	_tip.name = "Tip"
-	_tip.position = Vector3(0, 0, -0.25 * 1.3)
-	_blade.add_child(_tip)
-	for mi in blade.find_children("*", "MeshInstance3D", true, false):
-		var mesh := (mi as MeshInstance3D).mesh
-		for i in mesh.get_surface_count():
-			var m := mesh.surface_get_material(i)
-			if m != null and ResourceLoader.exists(MATERIALS + m.resource_name + ".tres"):
-				(mi as MeshInstance3D).set_surface_override_material(i, load(MATERIALS + m.resource_name + ".tres"))
-		(mi as MeshInstance3D).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_grip.add_child(_tip)
+	set_model(model_id)
 
 	# Eco's left fist round the grip and her forearm running back off screen.
 	var glove := StandardMaterial3D.new()
@@ -447,6 +415,61 @@ func _build_blade() -> void:
 	arm.material = sleeve
 	var forearm := _part(_blade_root, arm, Vector3(0.0, -0.012, 0.22), Vector3.ONE)
 	forearm.rotation.x = PI / 2.0
+
+
+## Puts the knife `id` (armory.gd KNIVES) in her hand, with its own moves;
+## unknown ids get the Needle.
+func set_model(id: String) -> void:
+	if not MODELS.has(id):
+		id = DEFAULT_MODEL
+	model_id = id
+	moves = Moves.moves(id)
+	if _blade == null:
+		return  # _ready builds it
+	if model != null:
+		model.free()
+	if anim != "" and not moves["anims"].has(anim):
+		_play("")
+	model = knife_model(id)
+	model.name = "Knife_" + id
+	model.scale = Vector3.ONE * VIEW_SCALE
+	_grip.rotation = moves["grip"]
+	_grip.add_child(model)
+	_tip.position = Vector3(0, 0, -blade_length(model) * VIEW_SCALE)
+	_safe = model.find_child("SafeHandle", true, false) as Node3D
+	_bite = model.find_child("BiteHandle", true, false) as Node3D
+	if _safe != null:
+		_safe_rest = _safe.basis
+	if _bite != null:
+		_bite_rest = _bite.basis
+
+
+## A knife's model with the game materials on (for her hand, the knife case and
+## the case's preview screen). The blade points down -z from the grip.
+static func knife_model(id: String) -> Node3D:
+	var node: Node3D = MODELS.get(id, MODELS[DEFAULT_MODEL]).instantiate()
+	for mi in node.find_children("*", "MeshInstance3D", true, false):
+		var mesh := (mi as MeshInstance3D).mesh
+		for i in mesh.get_surface_count():
+			var m := mesh.surface_get_material(i)
+			if m != null and ResourceLoader.exists(MATERIALS + m.resource_name + ".tres"):
+				(mi as MeshInstance3D).set_surface_override_material(i, load(MATERIALS + m.resource_name + ".tres"))
+		(mi as MeshInstance3D).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	return node
+
+
+## How far the point reaches past the middle of the grip, in model metres.
+static func blade_length(node: Node3D) -> float:
+	var reach := 0.0
+	for mi in node.find_children("*", "MeshInstance3D", true, false):
+		var xf: Transform3D = (mi as Node3D).transform
+		var p: Node = mi.get_parent()
+		while p != node and p is Node3D:
+			xf = (p as Node3D).transform * xf
+			p = p.get_parent()
+		var box: AABB = xf * (mi as MeshInstance3D).get_aabb()
+		reach = maxf(reach, -box.position.z)
+	return reach
 
 
 func _part(parent: Node3D, mesh: Mesh, pos: Vector3, scl: Vector3) -> MeshInstance3D:

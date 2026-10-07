@@ -21,7 +21,7 @@ const DEFAULTS := {
 	"controls": {"sensitivity": 1.0, "invert_y": false, "fov": 90.0},
 	"audio": {"Master": 0.9, "Effects": 1.0, "Ambience": 1.0, "Voices": 1.0},
 	"video": {"display": "windowed", "vsync": true, "max_fps": 0, "look": "anime", "film_grain": 0.4, "ps2_look": false},
-	"game": {"third_person": false, "jiggle_style": "classic",
+	"game": {"third_person": false, "jiggle_style": "classic", "body_jiggle": false,
 		"tp_distance": 1.7, "shoulder_swap": true, "hub_nudge": true, "hub_nudge_x": 0.0, "hub_nudge_y": 0.0},
 }
 ## The FOV the cameras were tuned at; the FOV setting shifts every camera by
@@ -36,7 +36,7 @@ const BINDABLE := [
 	["move_left", "Move left"], ["move_right", "Move right"],
 	["jump", "Jump / wall jump"], ["crouch", "Crouch / slide"], ["sprint", "Sprint / titan dash"],
 	["grapple", "Grapple"], ["fire", "Shoot"], ["reload", "Reload"],
-	["melee", "Knife"], ["inspect", "Inspect weapon"], ["interact", "Interact / embark"],
+	["melee", "Knife (tap: strike, hold: draw it)"], ["swap_weapon", "Switch knife / gun"], ["inspect", "Inspect weapon"], ["interact", "Interact / embark"],
 	["titan_core", "Call titan / core"], ["reset", "Respawn"],
 	["toggle_view", "First / third person"], ["swap_shoulder", "Swap shoulder (third person)"],
 	["cam_nudge_up", "Hub camera up"], ["cam_nudge_down", "Hub camera down"],
@@ -194,6 +194,20 @@ static func jiggle_style() -> String:
 ## Saves the style and puts it on every Eco that follows the setting.
 static func set_jiggle_style(style: String) -> void:
 	set_value("game", "jiggle_style", style if style in JIGGLE_STYLES else "classic")
+	save()
+	if Engine.get_main_loop() is SceneTree:
+		(Engine.get_main_loop() as SceneTree).call_group("eco_jiggle", "follow_jiggle_setting")
+
+
+## Full body jiggle (experimental, eco_flesh.gd): her stomach, thighs, upper
+## arms and calves get soft springs too.
+static func body_jiggle() -> bool:
+	return bool(get_value("game", "body_jiggle"))
+
+
+## Saves it and puts it on every Eco that follows the jiggle settings.
+static func set_body_jiggle(on: bool) -> void:
+	set_value("game", "body_jiggle", on)
 	save()
 	if Engine.get_main_loop() is SceneTree:
 		(Engine.get_main_loop() as SceneTree).call_group("eco_jiggle", "follow_jiggle_setting")

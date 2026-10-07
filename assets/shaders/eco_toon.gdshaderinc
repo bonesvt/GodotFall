@@ -48,6 +48,14 @@ uniform float emission_energy = 0.0;
 uniform sampler2D tattoo_tex : source_color, hint_default_transparent, filter_linear_mipmap;
 // Suit upgrade armour edges: how brightly they glow gold once her trims turn gold.
 uniform float gold_edge = 0.0;
+// A suit weight's changes to the suit itself (eco_model.gd body_material), laid
+// over whichever suit style she wears: kit_tex is their colour, kit_glow_tex
+// their glowing trims, and kit_mask_tex R where the sheen shows, G where the
+// suit's shade tint applies, B how much of the kit covers the style.
+uniform bool use_kit = false;
+uniform sampler2D kit_tex : source_color, hint_default_black, filter_linear_mipmap_anisotropic;
+uniform sampler2D kit_mask_tex : hint_default_black, filter_linear_mipmap;
+uniform sampler2D kit_glow_tex : source_color, hint_default_black, filter_linear_mipmap;
 
 // Per-object knobs shared with ps2_surface.gdshader (see ps2_model.gd).
 instance uniform float flash : instance_index(0) = 0.0;
@@ -75,6 +83,11 @@ void fragment() {
 	vec4 tex = texture(albedo_tex, UV);
 	vec3 col = tex.rgb * albedo.rgb * paint.rgb;
 	vec2 mask = use_mask ? texture(mask_tex, UV).rg : vec2(1.0, 0.0);
+	vec3 kit_mask = use_kit ? texture(kit_mask_tex, UV).rgb : vec3(0.0);
+	if (use_kit) {
+		col = mix(col, texture(kit_tex, UV).rgb * albedo.rgb * paint.rgb, kit_mask.b);
+		mask = mix(mask, kit_mask.rg, kit_mask.b);
+	}
 	v_sheen_mask = sheen * mask.r;
 	v_shade = mix(shade_tint, shade_tint_2, mask.g);
 	vec4 tattoo = texture(tattoo_tex, UV);
@@ -90,6 +103,9 @@ void fragment() {
 	SPECULAR = 0.0;
 	float fres = 1.0 - clamp(dot(NORMAL, VIEW), 0.0, 1.0);
 	vec3 emit = texture(glow_tex, UV).rgb * glow_tex_energy + emission.rgb * emission_energy;
+	if (use_kit) {
+		emit = mix(emit, texture(kit_glow_tex, UV).rgb * glow_tex_energy, kit_mask.b);
+	}
 	if (trim_gold > 0.0) {
 		emit = mix(emit, GOLD * max(emit.r, max(emit.g, emit.b)), trim_gold) + GOLD * gold_edge * trim_gold;
 	}

@@ -707,7 +707,7 @@ func _level2() -> Array:
 			"targets": func(): return _route_tags(_info().get("routes", [])),
 			"when": func(): return level_time > 2.0},
 		{"id": "level2_cell", "title": "HOLDING BLOCK", "color": RED, "max": 16.0,
-			"body": "Her cell's behind an energy screen, a guard on it and more round the block. Take him quietly with the stiletto [Z], walk up to the screen and press [F] to short it and break her chains.",
+			"body": "Her cell's behind an energy screen, a guard on it and more round the block. Take him quietly with the stiletto [Z], walk up to the screen and press [F] to short it and overload her stasis column.",
 			"targets": func(): return _cell_tag(),
 			"when": func(): return _cell_tag().size() > 0 and _near(_info()["holding_cell"].global_position, 70.0),
 			"done": func(): return _info()["holding_cell"].opened},
@@ -765,7 +765,7 @@ func _grass_beat() -> Dictionary:
 
 func _knife_beat() -> Dictionary:
 	return {"id": "knife", "title": "STILETTO", "color": RED, "max": 12.0,
-		"body": "Close in from behind and tap [Z]. The stiletto kills an unaware grunt instantly, and quietly. Hold [Z] to keep the blade out and stab with [Left mouse].",
+		"body": "Close in from behind and tap [Z]. The stiletto kills an unaware grunt instantly, and quietly. Hold [Z] for a second to draw the knife as your weapon: the gun goes away and [Left mouse] attacks. Tap [Z] again, press [R] or roll the mouse wheel for the gun.",
 		"targets": func(): return _target_for(_stab_target(14.0), "STAB  Z", RED, false),
 		"when": func(): return _stab_target(12.0) != null,
 		"done": func(): return _stab_target(25.0) == null}

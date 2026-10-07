@@ -1,6 +1,8 @@
 """Models the hub's workbenches in Blender and exports them as glTF.
 
-    blender -b --python tools/hub/build_benches.py
+    blender -b --python tools/hub/build_benches.py [-- <name> ...]
+
+(names pick which to rebuild; all of them by default)
 
 Writes assets/models/hub/<name>.glb, with the conventions of build_props.py
 (whose helpers this reuses): low-poly, flat shaded, objects named
@@ -11,6 +13,8 @@ Empties named "*Marker" mark where the game puts things on the benches.
   gunsmith_bench   Eco's workbench in the temple: upgrades and attachments
   weapon_rack      wall rack by the bench: pick the gun you head out with
   titan_workshop   gantry in the titan yard: titan refits and starting parts
+  knife_case       glass-topped display case by the door: pick the knife
+                   she carries (the game lays her three knives in it)
 """
 import math
 import random
@@ -170,7 +174,56 @@ def titan_workshop():
     bp.export("titan_workshop")
 
 
+def knife_case():
+    """A low display cabinet, 1.4 m long: a timber base with two drawers, and
+    on top a steel-framed case with glass sides and lid over a velvet bed
+    where the game lays her three knives (Knife0..2Marker, blades toward the
+    back). A cyan strip lights the bed from under the lid's front rail."""
+    wood = new_bm()
+    box(wood, (0, 0, 0.41), (1.4, 0.72, 0.78), bevel=0.015)
+    box(wood, (0, 0, 0.03), (1.46, 0.78, 0.06))
+    box(wood, (0, 0, 0.815), (1.46, 0.78, 0.05), bevel=0.01)
+    part(wood, "cabinet", "wood")
+    metal = new_bm()
+    # Drawer fronts and pulls.
+    for x in (-0.35, 0.35):
+        box(metal, (x, -0.365, 0.52), (0.6, 0.02, 0.28), bevel=0.006)
+        box(metal, (x, -0.385, 0.52), (0.16, 0.03, 0.03))
+    # The case's frame: corner posts, top and bottom rails.
+    h0, h1 = 0.84, 1.04
+    for sx in (-0.69, 0.69):
+        for sy in (-0.35, 0.35):
+            box(metal, (sx, sy, (h0 + h1) / 2), (0.03, 0.03, h1 - h0))
+    for z in (h0 + 0.012, h1 - 0.012):
+        for sy in (-0.35, 0.35):
+            box(metal, (0, sy, z), (1.41, 0.03, 0.025))
+        for sx in (-0.69, 0.69):
+            box(metal, (sx, 0, z), (0.03, 0.73, 0.025))
+    # Dividers between the knives.
+    for x in (-0.23, 0.23):
+        box(metal, (x, 0, h0 + 0.02), (0.012, 0.66, 0.02))
+    part(metal, "frame", "gunmetal")
+    velvet = new_bm()
+    box(velvet, (0, 0, h0 + 0.005), (1.36, 0.68, 0.012))
+    part(velvet, "velvet", "fabric")
+    glass = new_bm()
+    box(glass, (0, 0, h1 - 0.004), (1.36, 0.68, 0.006))
+    for sy in (-0.348, 0.348):
+        box(glass, (0, sy, (h0 + h1) / 2), (1.36, 0.006, h1 - h0 - 0.03))
+    for sx in (-0.688, 0.688):
+        box(glass, (sx, 0, (h0 + h1) / 2), (0.006, 0.68, h1 - h0 - 0.03))
+    part(glass, "glass", "glass")
+    strip = new_bm()
+    box(strip, (0, -0.33, h1 - 0.03), (1.3, 0.012, 0.008))
+    part(strip, "strip", "light")
+    for k in range(3):
+        marker("Knife%dMarker" % k, (-0.46 + k * 0.46, -0.07, h0 + 0.014))
+    bp.export("knife_case")
+
+
+BUILDS = {"gunsmith_bench": gunsmith_bench, "weapon_rack": weapon_rack, "titan_workshop": titan_workshop,
+          "knife_case": knife_case}
+
 bp.clear()
-gunsmith_bench()
-weapon_rack()
-titan_workshop()
+for name in (sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else list(BUILDS)):
+    BUILDS[name]()

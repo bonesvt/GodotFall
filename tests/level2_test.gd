@@ -13,6 +13,7 @@ extends SceneTree
 
 const Levels := preload("res://scripts/run/levels.gd")
 const LevelPlan := preload("res://scripts/run/procgen/level_plan.gd")
+const Romance := preload("res://scripts/hub/romance.gd")
 
 var failures := 0
 var run_node
@@ -58,6 +59,8 @@ func _play_checks() -> void:
 	await _ticks(5)
 	player = run_node.player
 	run_node.tutorial.set_enabled(false)
+	_check("no Ophelia in the hub before she's rescued", not run_node.hub_npcs.has("ophelia") and run_node.zone_info["interactables"].filter(func(i): return i.get("npc", "") == "ophelia").is_empty(), run_node.hub_npcs.keys())
+	var affection_before: int = Romance.affection(run_node.npc_talk.state, "ophelia")
 
 	# The mission table's Level 2 pin: locked until Level 1 is cleared.
 	var spot: Dictionary = run_node.zone_info["interactables"].filter(func(i): return i.get("level", "") == "level2")[0]
@@ -90,7 +93,20 @@ func _play_checks() -> void:
 	var cell: Node3D = info["holding_cell"]
 	var oph: Node3D = cell.ophelia
 	await _ticks(3)
-	_check("Ophelia's in the cell in her prison rags, chained", oph != null and oph.who == "ophelia" and oph.outfit == "prison" and oph.posed and cell._chains.size() == 2, [oph.outfit, cell._chains.size()])
+	var ContentRating = preload("res://scripts/radio/content_rating.gd")
+	var was: String = ContentRating.current()
+	ContentRating.set_rating("M", false)
+	await _frames(3)
+	_check("Ophelia's in the stasis column in the Mature intake suit, cuffed and collared", oph != null and oph.who == "ophelia" and oph.outfit == "colony_m" and oph.posed and cell._restraints.size() == 3 and cell._field.visible, [oph.outfit, cell._restraints.size()])
+	_check("she floats off the pad in the stasis pose", oph.position.y > cell.PAD_TOP + 0.1 and oph._anim.current_animation.ends_with("stasis"), [oph.position.y, oph._anim.current_animation])
+	_check("Mature face and messed-up hair", _face_tex(oph).ends_with("face_colony_m.png") and _blend(oph, "mess_colony") > 0.99, [_face_tex(oph), _blend(oph, "mess_colony")])
+	_check("nothing shows through her suit (no chest nubs on a captive)", _hidden(oph, "Piercings"), _hidden(oph, "Piercings"))
+	_check("Mature manifest: item 41 of 60", cell._manifest.text.contains("ITEM 41 OF 60"), cell._manifest.text)
+	ContentRating.set_rating("T", false)
+	await _frames(3)
+	_check("Teen: the intake suit with its ID plate and its own face", oph.outfit == "colony" and _face_tex(oph).ends_with("face_colony.png") and not cell._manifest.text.contains("41"), [oph.outfit, _face_tex(oph), cell._manifest.text])
+	ContentRating.set_rating(was, false)
+	await _frames(3)
 	_check("calm radio gossips about the prisoner", run_node.pilot_hud.radio.extra_rumor == "prisoner", run_node.pilot_hud.radio.extra_rumor)
 	_check("the screen is solid", _screen_blocks(cell), true)
 
@@ -99,9 +115,9 @@ func _play_checks() -> void:
 	await _ticks(3)
 	_check("exfil without her doesn't end the run", run_node.phase == run_node.Phase.ZONE, run_node.phase)
 
-	# Into the cell: chains off, she follows.
+	# Into the cell: the field drops, she follows.
 	await _use_cell(cell)
-	_check("F breaks her out", cell.opened and run_node.rescued and cell._chains.is_empty() and not _screen_blocks(cell), cell.opened)
+	_check("F breaks her out", cell.opened and run_node.rescued and not cell._field.visible and not _screen_blocks(cell), cell.opened)
 	_check("they talk", run_node.hud.toast_label.text.begins_with("OPHELIA"), run_node.hud.toast_label.text)
 	_check("radio stops gossiping about her", run_node.pilot_hud.radio.extra_rumor == "", run_node.pilot_hud.radio.extra_rumor)
 	var escort = run_node.escort
@@ -173,6 +189,11 @@ func _play_checks() -> void:
 	await _press("run_restart")
 	await _ticks(3)
 	_check("back to the temple", run_node.phase == run_node.Phase.HUB, run_node.phase)
+	_check("Ophelia's in the hub once rescued", run_node.hub_npcs.has("ophelia"), run_node.hub_npcs.keys())
+	var gained: int = Romance.affection(run_node.npc_talk.state, "ophelia") - affection_before
+	_check("the rescue starts her romance on +%d" % run_node.RESCUE_AFFECTION, gained == run_node.RESCUE_AFFECTION, gained)
+	run_node._rescue_bonus("level2")
+	_check("the rescue bonus is given only once", Romance.affection(run_node.npc_talk.state, "ophelia") - affection_before == run_node.RESCUE_AFFECTION, Romance.affection(run_node.npc_talk.state, "ophelia"))
 
 
 ## Whether a ray from the street into the cell stops at the screen.
@@ -222,6 +243,39 @@ func _press(action: String) -> void:
 func _ticks(n: int) -> void:
 	for i in n:
 		await physics_frame
+
+
+## Waits out idle frames (the cell re-dresses her in _process).
+func _frames(n: int) -> void:
+	for i in n:
+		await process_frame
+
+
+## The texture on Ophelia's face material now.
+func _face_tex(npc: Node) -> String:
+	for mi in npc.find_children("*", "MeshInstance3D", true, false):
+		for i in mi.mesh.get_surface_count():
+			var mat := mi.mesh.surface_get_material(i) as ShaderMaterial
+			if mat != null and mat.resource_name == "npc_ophelia_face":
+				var mine := mi.get_surface_override_material(i) as ShaderMaterial
+				var tex: Texture2D = (mine if mine != null else mat).get_shader_parameter("albedo_tex")
+				return tex.resource_path if tex != null else ""
+	return ""
+
+
+func _hidden(npc: Node, prefix: String) -> bool:
+	for mi in npc.find_children("*", "MeshInstance3D", true, false):
+		if String(mi.name).begins_with(prefix) and mi.visible:
+			return false
+	return true
+
+
+func _blend(npc: Node, shape: String) -> float:
+	for mi in npc.find_children("*", "MeshInstance3D", true, false):
+		var b: int = mi.find_blend_shape_by_name(shape)
+		if b >= 0:
+			return mi.get_blend_shape_value(b)
+	return -1.0
 
 
 func _check(what: String, ok: bool, value) -> void:

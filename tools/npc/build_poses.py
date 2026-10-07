@@ -32,6 +32,8 @@ rest are struck for her heart scenes):
 Level 2 (the holding cell and getting out of it; scripts/run/escort.gd):
   chained       sitting on the cell floor, knees up, shackled wrists resting
                 on them, head down
+  stasis        hanging limp in the stasis column: arms loose, head tipped,
+                toes pointed, drifting slowly (holding_cell.gd lifts her)
   move_walk     a careful, hunched walking stride (about 1.15 m a cycle)
   move_run      a running stride (about 3.6 m a cycle)
   move_crouch   crouched low, still
@@ -244,6 +246,32 @@ def chained(f, n):
         add(p, "forearm." + s, Z, sgn * 48)
         add(p, "hand." + s, X, -20)
     p["_hips_loc"] = (0.0, 0.0, SIT - HIPS)
+    return p
+
+
+def stasis(f, n):
+    """Held in the stasis column: hanging limp a hand off the floor, arms
+    loose a little out from her sides, head tipped, toes pointed. Time barely
+    moves in the field, so she only drifts, very slowly."""
+    p = base_pose()
+    d = wave(f, n, 1)
+    for s, sgn in (("R", 1), ("L", -1)):
+        add(p, "upperarm." + s, Y, -sgn * (12 + 2 * d))
+        add(p, "upperarm." + s, X, -6)
+        add(p, "forearm." + s, X, 12 + 3 * d)
+        add(p, "hand." + s, X, -10)
+    add(p, "spine", X, 4)
+    add(p, "chest", X, 4)
+    add(p, "neck", X, 6)
+    add(p, "head", X, 8 + 2 * d)
+    add(p, "head", Y, 8)
+    add(p, "thigh.R", X, 6)
+    add(p, "shin.R", X, -18)
+    add(p, "thigh.L", X, -3)
+    add(p, "shin.L", X, -6)
+    add(p, "foot.R", X, 35)
+    add(p, "foot.L", X, 30)
+    p["_hips_loc"] = (0.0, 0.0, 0.012 * d)
     return p
 
 
@@ -487,6 +515,7 @@ POSES = {
     "scene_mirror": (mirror, 120),
     "scene_shy": (shy, 120),
     "chained": (chained, 180),
+    "stasis": (stasis, 240, 20),
     "move_walk": (sneak_walk, 32, 2),
     "move_run": (run, 22, 1),
     "move_crouch": (crouch, 60),

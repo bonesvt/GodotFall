@@ -91,6 +91,10 @@ func _in_hub() -> void:
 	run_node.npc_path = "user://test_smoke_npcs.cfg"
 	for p in [run_node.armory_path, run_node.npc_path]:
 		DirAccess.remove_absolute(ProjectSettings.globalize_path(p))
+	# Ophelia is only in the hub once Level 2 has rescued her (run_manager RESCUED_IN).
+	var progress := ConfigFile.new()
+	progress.set_value("progress", "cleared", ["level2"])
+	progress.save(run_node.armory_path)
 	root.add_child(run_node)
 	for i in 60:
 		await physics_frame

@@ -191,6 +191,7 @@ def hair_ophelia():
             z = 1.268 - (1.268 - z) * 0.3
         return Vector((p.x, p.y - 0.009 * w * smooth(1.32, 1.27, z), z))
     move_verts(hair, long_side)
+    mess_colony(hair)
     streak = len(me.materials)
     me.materials.append(me.materials[1])   # same texture, dyed violet later
     for p in me.polygons:
@@ -198,6 +199,31 @@ def hair_ophelia():
             c = p.center
             if -0.032 < c.x < -0.012:
                 p.material_index = streak
+
+
+def mess_colony(hair):
+    """A "mess_colony" shape key on her hair: frizzed and tangled, flyaways
+    standing off it, the fringe kept out of her eyes. hub_npc.gd turns it on
+    with the colony outfits (Level 2)."""
+    from mathutils import noise
+    me = hair.data
+    if not me.shape_keys:
+        hair.shape_key_add(name="Basis", from_mix=False)
+    kb = hair.shape_key_add(name="mess_colony", from_mix=False)
+    c = Vector((0.0, 0.0, 1.31))
+    amp, f, hi, out = 0.012, 10.0, 0.35, 0.9
+    off = Vector((3.0, 2.1, 3.9))
+    for i, v in enumerate(me.vertices):
+        p = v.co.copy()
+        r = p - c
+        w = smooth(0.05, 0.13, r.length) + 0.6 * smooth(1.28, 1.18, p.z)
+        d = (noise.noise_vector(p * f + off) * (1 - hi) + noise.noise_vector(p * f * 4.5 + off * 2) * hi) * amp * w
+        d += r.normalized() * amp * out * w * (0.5 + 0.5 * noise.noise(p * f * 2 + off))
+        q = p + d
+        if q.y < -0.04 and 1.22 < q.z < 1.33 and abs(q.x) < 0.07:
+            q.y = min(q.y, p.y)
+        kb.data[i].co = q
+    kb.value = 0.0
 
 
 def hair_biggie():
@@ -1047,6 +1073,59 @@ def face_paint(face, img):
     return px
 
 
+def colony_faces(face, px):
+    """Ophelia's face in the colony's hold (Level 2): her emo make-up ruined,
+    the liner smeared round both eyes and cried down her cheeks in runs, the
+    plum lipstick smudged past her lip line, a med-tag patch on her left
+    cheekbone and a bruise under her right eye (face_colony.png). Mature
+    (face_colony_m.png) adds the colony's tracking code etched under her
+    right eye, where her fringe hangs over it: the cradle scanner's alignment
+    mark, and the reason she wears her hair that way."""
+    H, W = px.shape[:2]
+    pos, mask = E["face_position_map"](face, W, H)
+    sx, y, z = pos[..., 0], pos[..., 1], pos[..., 2]
+    x = np.abs(sx)
+    front = (y < -0.02) & mask
+
+    def blob(cx, cz, rx, rz, side=None):
+        qx = x if side is None else sx * side
+        return np.exp(-(((qx - cx) / rx) ** 2 + ((z - cz) / rz) ** 2))
+
+    def put(p, col, a, mode="paint"):
+        a = (np.clip(a, 0, 1) * front)[..., None]
+        if mode == "tint":
+            p[..., :3] = p[..., :3] * (1 - a) + p[..., :3] * np.array(col) * a
+        else:
+            p[..., :3] = p[..., :3] * (1 - a) + np.array(col) * a
+    a = px.copy()
+    dz = z - 1.2397
+    lips = (sx / 0.0098) ** 2 + (dz / np.where(dz < 0, 0.0036, 0.0021)) ** 2
+    ring = np.sqrt(((x - 0.043) / 0.034) ** 2 + ((z - 1.287) / 0.02) ** 2)
+    put(a, (0.18, 0.12, 0.2), 0.5 * (1 - ss(0.7, 1.25, ring)) * (1 - ss(0.0, 0.5, 1.0 - ring)) * (y < -0.015), "tint")
+    put(a, (0.05, 0.03, 0.06), 0.45 * (1 - ss(0.75, 1.15, ring)) * ss(1.292, 1.284, z) * (y < -0.02))
+    for k, (cx, top, bot, wd) in enumerate(((0.03, 1.283, 1.25, 0.0018), (0.042, 1.281, 1.232, 0.0024), (0.054, 1.282, 1.258, 0.0016), (0.063, 1.284, 1.27, 0.0013))):
+        wav = 0.0014 * np.sin(z * 700 + k * 1.7)
+        run = np.exp(-((x - cx - (top - z) * 0.05 - wav) / wd) ** 2) * ss(top + 0.003, top - 0.003, z) * ss(bot, bot + 0.02, z)
+        put(a, (0.07, 0.04, 0.08), 0.65 * run)
+    smear = (sx / 0.0125) ** 2 + ((dz + 0.0007 * np.sin(sx * 500)) / 0.0048) ** 2
+    put(a, (0.2, 0.05, 0.14), 0.55 * (1 - ss(0.5, 1.1, smear)) * (y < -0.04))
+    put(a, (0.16, 0.04, 0.12), 0.85 * (1 - ss(0.35, 1.0, lips)) * (y < -0.04))
+    patch = (np.abs(sx - 0.052) < 0.009) & (np.abs(z - 1.268) < 0.006)
+    put(a, (0.85, 0.87, 0.9), patch.astype(float))
+    put(a, (0.1, 0.9, 1.0), blob(0.056, 1.268, 0.0018, 0.0018, side=1))
+    put(a, (0.8, 0.62, 0.72), 0.45 * blob(0.045, 1.272, 0.012, 0.006, side=-1), "tint")
+    m = a.copy()
+    cx0, cx1, z0, z1 = -0.066, -0.03, 1.2495, 1.2615
+    reg = (sx > cx0) & (sx < cx1) & (z > z0) & (z < z1)
+    width = 0.5 + 0.5 * np.sin((sx - cx0) * 2 * np.pi / 0.011)
+    bars = (0.5 + 0.5 * np.sin((sx - cx0) * 2 * np.pi / 0.0019)) * (0.4 + 0.6 * width) > 0.45
+    ticks = (np.sin((sx - cx0) * 2 * np.pi / 0.0026) > 0.4) & (z > z0 - 0.0035) & (z < z0 - 0.0018) & (sx > cx0) & (sx < cx1)
+    rim = np.exp(-(((sx + 0.048) / 0.023) ** 2 + ((z - 1.255) / 0.01) ** 2))
+    put(m, (0.92, 0.62, 0.6), 0.35 * rim, "tint")
+    put(m, (0.03, 0.025, 0.04), 0.92 * ((reg & bars) | ticks).astype(float))
+    return {"face_colony": a, "face_colony_m": m}
+
+
 def skin_tone(px):
     """The body's skin to match the face."""
     if WHO == "ophelia":
@@ -1062,9 +1141,9 @@ def skin_tone(px):
 # bake to body_<outfit>.png and hub_npc.gd swaps them in.
 # (Mom's and Ophelia's bikini/sheer/tight/lingerie were shelved 2026-10-04;
 # backup: /mnt/project-files/hub-npcs/shelved/npc_outfits.bundle)
-OUTFITS = {"ophelia": ["tee", "hoodie", "night", "prison"], "mom": ["home", "night"]}
+OUTFITS = {"ophelia": ["tee", "hoodie", "night", "prison", "colony", "colony_m"], "mom": ["home", "night"]}
 # Outfits worn barefoot (the boots mesh hidden; hub_npc.gd NO_BOOTS).
-BAREFOOT = ["night", "prison"]
+BAREFOOT = ["night", "prison", "colony", "colony_m"]
 OUTFIT = "tee"
 
 
@@ -1162,6 +1241,8 @@ def ophelia_outfit(g, skin, x, y, z, ax, front, cov, edge, sine, neck_r):
         col = g.mixc(col, BLACK, choker)
         ink = g.mx(g.mx(edge(d_hood), g.mul(edge(open_), hood)), g.mx(edge(d_jeans), g.mul(edge(g.sub(0.075, g.add(ax, g.mul(g.sub(z, 0.78), 0.4)))), g.mul(pocket, 1.0))))
         return pierce(g.mixc(col, INK, ink))
+    if OUTFIT in ("colony", "colony_m"):
+        return colony_outfit(g, skin, x, y, z, ax, front, cov, edge, sine, neck_r)
     if OUTFIT == "prison":
         ORANGE, ORANGE_D, PATCH, GRIME = (0.26, 0.1, 0.04), (0.14, 0.055, 0.025), (0.5, 0.48, 0.44), (0.075, 0.06, 0.045)
         neck_z = g.lerp(g.sub(1.168, g.mul(0.016, front)), 1.4, g.sstep(0.065, 0.09, ax))
@@ -1222,6 +1303,139 @@ def ophelia_outfit(g, skin, x, y, z, ax, front, cov, edge, sine, neck_r):
     col = g.mixc(col, STUD, o_ring)
     col = g.mixc(col, BLACK, choker)
     ink = g.mx(edge(d_crop), g.mul(edge(d_pj), 0.5))
+    return g.mixc(col, INK, ink)
+
+
+def colony_outfit(g, skin, x, y, z, ax, front, cov, edge, sine, neck_r):
+    """colony / colony_m: Ophelia as the colony holds her in Level 2 (Bones
+    picked it 2026-10-05; concepts in the project files' ophelia-captive/).
+    The colony's intake jumpsuit: seamless off-white, a charcoal yoke, side
+    panels, belt and knee plates, cyan light strips, the colony's mark on her
+    back; torn where she fought (right sleeve gone at the shoulder, her left
+    upper arm, elbow and forearm, both knees, her right shin, her left calf,
+    across her shoulder blades), scorch marks, grime, grey grip socks, no
+    boots. Her choker is gone (the inhibitor collar is a prop,
+    holding_cell.gd). Teen ("colony"): an ID plate with a light-strip code on
+    her chest. Mature ("colony_m"): no plate (the code is etched under her
+    eye: face_colony_m.png), her left trouser leg torn away at mid-thigh and a
+    long tear down her back to the waist. Rips stay off her chest, hips and
+    seat in both."""
+    O = OUTFIT
+    right = g.sstep(0.004, -0.004, x)   # 1 on her right side
+
+    def blob(cx, cz, rx, rz, wob=0.15, side=None):
+        """A ragged oval (1 inside); side: front 1 / back 0 / None both."""
+        r = g.add(g.sqrt(g.add(g.sq(g.div(g.sub(x, cx), rx)), g.sq(g.div(g.sub(z, cz), rz)))),
+                  g.mul(wob, sine(g.add(x, g.mul(z, 1.3)), 0.0061)))
+        m = g.sub(1.0, g.sstep(0.9, 1.0, r))
+        if side is not None:
+            m = g.mul(m, front if side else g.sub(1.0, front))
+        return m, r
+
+    def ragged(base, amp, p1, p2, v):
+        return g.add(base, g.add(g.mul(amp, sine(v, p1)), g.mul(amp * 0.4, sine(g.sub(v, g.mul(y, 1.3)), p2))))
+
+    grime_blot = g.sstep(0.3, 0.85, g.mul(sine(g.add(g.mul(x, 1.3), z), 0.21), sine(g.sub(z, g.mul(y, 1.7)), 0.15)))
+    fine_blot = g.sstep(0.45, 0.9, g.mul(sine(g.add(g.mul(x, 1.7), g.mul(z, 0.6)), 0.11), sine(g.sub(z, g.mul(g.add(x, y), 1.9)), 0.083)))
+    back = g.sstep(0.012, 0.04, y)   # clearly on her back
+
+    mature = O == "colony_m"
+    # the colony's intake suit: seamless off-white, charcoal side panels, a
+    # mock neck (the inhibitor collar sits over it), cyan light strips and
+    # an ID plate. Her right sleeve is torn off at the shoulder, a long rip
+    # down her left thigh, scorch marks, grime; grey grip socks, no boots.
+    WHITE, WHITE_D, PANEL, GLOW, SCORCH, GRIME, SOCK = (0.4, 0.43, 0.48), (0.26, 0.28, 0.31), (0.03, 0.034, 0.042), (0.15, 0.95, 1.0), (0.025, 0.02, 0.018), (0.16, 0.13, 0.1), (0.2, 0.21, 0.23)
+    neck_z = g.lerp(1.196, 1.4, g.sstep(0.07, 0.095, ax))
+    cuff_l = ragged(0.452, 0.01, 0.023, 0.0091, g.add(y, z))   # frayed back off her wrist
+    cuff_r = ragged(0.205, 0.012, 0.029, 0.0111, g.add(y, z))
+    cuff = g.lerp(cuff_l, cuff_r, right)
+    d_suit = g.mn(g.mn(g.sub(neck_z, z), g.sub(z, 0.098)), g.sub(cuff, ax))
+    suit = cov(d_suit)
+    if mature:
+        # (round 3) her left trouser leg torn away like her right sleeve,
+        # ragged at mid-thigh: a clear margin below her hip and groin
+        # (Bones asked for as high as possible; held here on purpose)
+        leg_cut = ragged(0.6, 0.012, 0.027, 0.0101, g.add(y, x))
+        d_leg = g.mn(g.mn(g.sub(x, 0.012), g.sub(leg_cut, z)), g.sub(z, 0.105))
+        suit = g.mul(suit, g.sub(1.0, cov(d_leg)))
+    socks = cov(g.sub(0.11, z))
+    # side panels down the torso and the outside of the legs and arm
+    side = g.band(y, -0.017, 0.017)
+    panel = g.mul(side, suit)
+    strip = g.mul(g.mul(g.band(y, -0.0025, 0.0025), suit), g.mx(g.sstep(0.22, 0.24, ax), g.sstep(0.78, 0.76, z)))
+    # ID plate on her left chest: a dark plate, glowing bars
+    plate = g.mul(g.mul(g.band(x, 0.03, 0.085), g.band(z, 1.035, 1.072)), front)
+    bars = g.mul(g.mul(g.band(x, 0.036, 0.079), g.band(z, 1.042, 1.052)), g.sstep(0.0, 0.3, sine(g.add(x, g.mul(g.op("FRACT", g.div(x, 0.017)), 0.003)), 0.0047)))
+    dot = g.mul(g.sub(1.0, g.sstep(0.003, 0.0045, g.sqrt(g.add(g.sq(g.sub(x, 0.075)), g.sq(g.sub(z, 1.062)))))), front)
+    # the colony's mark on her back: a ring round a chevron
+    br = g.sqrt(g.add(g.sq(x), g.sq(g.sub(z, 1.02))))
+    ring = g.mul(g.band(br, 0.04, 0.047), back)
+    chev = g.mul(g.mul(g.band(g.sub(g.sub(z, 1.0), g.mul(ax, 0.8)), 0.0, 0.012), g.sstep(0.035, 0.03, ax)), back)
+    # a dark yoke over her shoulders and upper chest, a belt, knee plates, a front seam
+    yoke = g.mul(g.sstep(1.085, 1.095, g.add(z, g.mul(ax, 0.25))), suit)
+    belt = g.mul(g.band(z, 0.775, 0.805), suit)
+    buckle = g.mul(g.mul(g.band(x, -0.018, 0.018), g.band(z, 0.779, 0.801)), front)
+    kneep = g.mul(g.mul(g.sub(1.0, g.sstep(0.9, 1.0, g.sqrt(g.add(g.sq(g.div(g.sub(ax, 0.07), 0.035)), g.sq(g.div(g.sub(z, 0.48), 0.04)))))), front), suit)
+    seam = g.mul(g.mul(g.band(x, -0.0008, 0.0008), front), g.mul(suit, g.sstep(0.8, 0.81, z)))
+    # collar band of the mock neck
+    mock = g.mul(g.band(g.sub(neck_z, z), 0.0, 0.018), suit)
+    # rips: down her left thigh (front), a small one at her right knee, one on her back
+    r1, rr1 = blob(0.08, 0.6, 0.022, 0.085, 0.2, side=1)
+    if mature:
+        r1 = g.mul(r1, g.sstep(0.645, 0.625, z))
+    r2, rr2 = blob(-0.07, 0.47, 0.022, 0.018, 0.2, side=1)
+    r3, rr3 = blob(0.06, 0.92, 0.02, 0.03, 0.2)
+    r3 = g.mul(r3, back)
+    # she fought: the left shoulder and elbow worn through, a gash up her
+    # left forearm sleeve, both knees scraped open, her right shin and
+    # left calf torn, a slash across her shoulder blades. Nothing near her
+    # chest, hips or seat.
+    r4, rr4 = blob(0.25, 1.135, 0.03, 0.022, 0.25)        # left upper arm (kept off her chest: round 3 fix)
+    r4 = g.mul(r4, g.sstep(0.205, 0.215, ax))
+    r5, rr5 = blob(0.31, 1.12, 0.024, 0.02, 0.25)         # left elbow
+    r6, rr6 = blob(0.395, 1.115, 0.03, 0.008, 0.3)        # left forearm gash
+    r7, rr7 = blob(0.07, 0.47, 0.024, 0.02, 0.2, side=1)  # left knee
+    r8, rr8 = blob(-0.07, 0.31, 0.016, 0.045, 0.25, side=1)  # right shin
+    r9, rr9 = blob(0.065, 0.33, 0.02, 0.05, 0.25)         # left calf (back)
+    r9 = g.mul(r9, back)
+    r10, rr10 = blob(0.0, 1.08, 0.075, 0.009, 0.3)        # across the shoulder blades
+    r10 = g.mul(r10, back)
+    if mature:   # a long tear down her back, ending at her lower back (above the belt)
+        r11, rr11 = blob(-0.035, 0.935, 0.026, 0.09, 0.3)
+        r10 = g.mx(r10, g.mul(r11, back))
+    rip = g.mx(g.mx(g.mx(r1, r2), g.mx(r3, r4)), g.mx(g.mx(g.mx(r5, r6), g.mx(r7, r8)), g.mx(r9, r10)))
+    frays = g.mx(g.mx(g.band(rr1, 1.0, 1.12), g.band(rr2, 1.0, 1.15)), g.band(rr3, 1.0, 1.15))
+    for rr in (rr4, rr5, rr6, rr7, rr8, rr9, rr10):
+        frays = g.mx(frays, g.band(rr, 1.0, 1.14))
+    frays = g.mul(frays, g.sub(1.0, rip))
+    # scorch: dark splashes at her left hip and right shoulder
+    s1, _ = blob(0.12, 0.79, 0.045, 0.035, 0.35)
+    s2, _ = blob(-0.13, 1.12, 0.05, 0.035, 0.35)
+    scorch = g.mul(g.mx(s1, s2), g.sstep(0.1, 0.6, grime_blot))
+    low = g.sstep(0.4, 0.15, z)
+    # the preset paints white stockings into her legs: bare skin there
+    skin = g.mixc(skin, (0.97, 0.845, 0.79), g.sstep(0.745, 0.715, z))
+    col = g.mixc(skin, WHITE, suit)
+    col = g.mixc(col, WHITE_D, g.mul(g.mul(grime_blot, suit), 0.35))
+    col = g.mixc(col, GRIME, g.mul(g.mul(low, suit), 0.55))
+    col = g.mixc(col, PANEL, g.mx(g.mx(panel, mock), g.mx(g.mx(yoke, belt), kneep)))
+    col = g.mixc(col, GLOW, g.mul(buckle, 0.9))
+    col = g.mixc(col, WHITE_D, seam)
+    col = g.mixc(col, GLOW, strip)
+    if not mature:
+        col = g.mixc(col, PANEL, g.mul(plate, suit))
+        col = g.mixc(col, GLOW, g.mul(g.mx(g.mul(bars, plate), g.mul(dot, plate)), suit))
+    col = g.mixc(col, PANEL, g.mul(g.mx(ring, chev), suit))
+    col = g.mixc(col, SCORCH, g.mul(g.mul(scorch, suit), 0.85))
+    col = g.mixc(col, skin, g.mul(rip, suit))
+    col = g.mixc(col, WHITE_D, g.mul(frays, suit))
+    col = g.mixc(col, SOCK, socks)
+    ink = g.mx(g.mx(edge(d_suit), g.mul(g.mx(g.band(rr1, 0.98, 1.02), g.band(rr2, 0.98, 1.02)), 0.7)), g.mul(edge(g.sub(0.11, z)), 0.6))
+    for rr in (rr4, rr5, rr6, rr7, rr8, rr9, rr10):
+        ink = g.mx(ink, g.mul(g.band(rr, 0.98, 1.02), 0.6))
+    if mature:
+        ink = g.mx(ink, g.mul(edge(d_leg), g.sstep(0.11, 0.12, z)))
+        ink = g.mx(ink, g.mul(g.mul(g.band(rr11, 0.98, 1.02), back), 0.6))
     return g.mixc(col, INK, ink)
 
 
@@ -1420,7 +1634,11 @@ def textures(objs, boots):
     for i, m in enumerate(face.data.materials):
         img = tex_of(m)
         if "Face_00_SKIN" in m.name:
-            write_png(face_paint(face, img), "face")
+            px = face_paint(face, img)
+            write_png(px, "face")
+            if WHO == "ophelia":
+                for name, look in colony_faces(face, px).items():
+                    write_png(look, name)
             plan.append((face, i, "face"))
         elif "FaceBrow" in m.name:
             px = read_px(img).copy()

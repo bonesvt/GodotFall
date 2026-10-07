@@ -53,6 +53,9 @@ func _run() -> void:
 	_check("Ink & Iron is on the plaza", screens.get("ink", "") == "shop_ink", screens)
 	var f := FileAccess.open("res://dialogue/npc/ophelia.txt", FileAccess.READ)
 	var bank := NpcTalk.parse(f.get_as_text())
+	# the Mature cuts live in ophelia_M.txt, laid over the Teen file under M
+	var fm := FileAccess.open("res://dialogue/npc/ophelia_M.txt", FileAccess.READ)
+	NpcTalk.overlay(bank, NpcTalk.parse(fm.get_as_text()))
 	for place in Shops.DATES:
 		_check("date spot in town: %s" % place, dates.has(place), dates.keys())
 		var cut := "date_m" if Shops.DATES[place].get("mature", false) else "date"

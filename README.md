@@ -94,7 +94,8 @@ shoulders back, and stands with her weight on one hip. The strut is layered over
   a pipe stand; F opens the suit screen (upgrades and changes).
 - **Workbench and weapon rack** (right of the door): the gunsmith's bench with the gun in
   her hand on the mat, and the rack of the sidearms she owns. An `EcoSpot` marker beside
-  the bench is where her character model stands.
+  the bench is where her character model stands. Between the bench and the door, a
+  glass-topped **knife case** shows her three knives on velvet.
 - **Her father's titan** (right aisle): the wreck sitting slumped against the wall, left
   arm torn off and lying beside it, core dark, wired to a bank of salvaged batteries.
 - **Eco's loft** (up the stairs left of the door): a timber floor 4.5 m up over the left
@@ -169,24 +170,30 @@ enemy titan's salvage when you win); a lost run banks half. The HUD shows what y
 
 - **Gunsmith bench** (the workbench right of the door): click a gun in the list on the left
   and it appears in 3D in the middle. Drag to spin it, scroll to zoom, and click the **+**
-  markers on its parts (barrel, cylinder, mag, grip, frame...) to see that part's
+  markers on its parts (barrel, slide, mag, grip, frame...) to see that part's
   upgrades and attachments on the right. A locked attachment shows on the gun on the first
   click and is bought on the second. **Upgrades** are per gun. Dad's smart pistol has **Smart rounds**, 8 levels paid in lock cores:
   each makes another eighth of every mag smart. Smart rounds fire first (pink pips on the
   HUD); while one is chambered the lock works again, closing on the grunt nearest the
   crosshair, and the shot flies to its chest (never its head, so headshots stay yours).
-  The **Heavy Revolver** gets Rivet heads (damage and headshots), Punch-through (rounds
+  The **Hand Cannon** gets Rivet heads (damage and headshots), Punch-through (rounds
   carry on into the body behind), Stagger coils (hits knock a grunt off their aim) and a
-  Speed loader. The **Auto Handgun** gets Drum feed (more rounds), Recoil buffer, Overclock
+  Speed mag (faster reloads). The **Auto Handgun** gets Drum feed (more rounds), Recoil buffer, Overclock
   (faster fire) and Hot streak (every hit in a row hits harder; a miss or a pause resets
   it, and the tracers run orange as it heats). Three levels each. Every step
   moves the gun's look tier from 0 to 5. The bench also fits **attachments** (muzzle, mag, grip, each a
   trade-off: long barrel, compensator, extended mag, speed base, paracord wrap, skeleton
   grip) plus free paint **finishes** (on the shell or frame). Q/E switches guns, Tab parts.
 - **Weapon rack** (on the wall past the bench): pick your starting sidearm. Dad's smart
-  pistol from the start; the **Heavy Revolver** (six titan rivets in a hand-turned
-  cylinder) at **level 3**; the **Auto Handgun** (a colony machine pistol, full auto,
+  pistol from the start; the **Hand Cannon** (a chrome Desert Eagle-style semi-auto,
+  seven big rounds, a long engraved barrel) at **level 3**; the **Auto Handgun** (a colony machine pistol, full auto,
   fifteen rounds a second) at **level 6**.
+- **Knife case** (against the right wall by the door): pick which of her three knives she
+  carries, free: the **Needle** (the stiletto refined: diamond needle blade, swept guard lit
+  cyan, ring pommel; the default), the **Plate Kunai** (a tanto cut from colony armour plate,
+  its power trace still glowing, cobalt paracord) or the **Butterfly** (a balisong held open,
+  handles shut round the tang; the bite handle flips open as she spins it). They fight the
+  same. The case tags the one she carries.
 - **Eco's level** is 1 plus every upgrade she has bought: weapon upgrades, titan refits and
   suit upgrades. It shows in the hub HUD and on every bench, which also says what unlocks
   next.
@@ -194,32 +201,36 @@ enemy titan's salvage when you win); a lost run banks half. The HUD shows what y
   runs with (Mk I, instead of scrap; salvage can still replace them) and **refit** parts
   (+6% per level to every copy you install, salvaged ones and scrap included). The titan
   in the gantry is the one you'd start with.
-- **Suit locker** (left wall, past the rubble): upgrade Eco's suit, five tiers bought in
-  order. Each tier adds **armour** (a second bar over her health: it takes hits first and
-  comes back after the same pause, once health is full), one **passive**, and armour you
-  can see on her:
+- **Suit locker** (left wall, past the rubble): upgrade Eco's suit, five tiers ("sessions")
+  bought in order. Each tier adds **armour** (a second bar over her health: it takes hits
+  first and comes back after the same pause, once health is full) and one **passive**:
 
-  | Tier | Armour | Passive | Looks |
+  | Tier | Armour | Passive |
+  | --- | --- | --- |
+  | 1 Scav Rig | 20 | Magnet pouches: materials fly to you from twice as far |
+  | 2 Seal Weave | 40 | Auto-seal: health and armour come back after 2 s, not 3 |
+  | 3 Dampers | 60 | Hush dampers: grunts notice you 30% slower (sight and footsteps) |
+  | 4 Jump Kit | 80 | Wallruns last 40% longer, grapple recharges 30% faster |
+  | 5 Dad's Colours | 100 | Second wind: once per zone a downing hit leaves you on 1 HP, untouchable 1.5 s |
+
+  Her suit comes in three **kits**, one per weight, free to switch once she has a tier. A kit
+  changes the suit itself, over whichever suit she picked in her wardrobe, and puts its own
+  gear on her tier by tier (`armory.gd` `SUIT_KIT_LOOKS`):
+
+  | Kit | Armour | Bonus | The suit |
   | --- | --- | --- | --- |
-  | 1 Scav Rig | 20 | Magnet pouches: materials fly to you from twice as far | forearm bracers, belt with hip pouches |
-  | 2 Seal Weave | 40 | Auto-seal: health and armour come back after 2 s, not 3 | layered shoulder plates, seal injector on her thigh |
-  | 3 Dampers | 60 | Hush dampers: grunts notice you 30% slower (sight and footsteps) | shin guards, knee cops, hip plates |
-  | 4 Jump Kit | 80 | Wallruns last 40% longer, grapple recharges 30% faster | jump pack low on her back, armoured collar |
-  | 5 Dad's Colours | 100 | Second wind: once per zone a downing hit leaves you on 1 HP, untouchable 1.5 s | plates in Dad's colours, shoulder crests, every trim gold |
+  | Light (Runner) | half | 10% faster on the ground, grunts notice you 15% slower, wallruns 15% longer | collar cut away, a window over her stomach, glossy compression bands, tight knee-high boots, a brow bar, a sharp wing and dark red lip; black leather and steel gear |
+  | Medium (Mechanic) | as listed | armour refills twice as fast | right sleeve torn off, grease smears, laced work boots, sewn-on patches; mustard canvas, rubber and teal gear |
+  | Heavy (Titan) | +60% | every hit lands 15% softer, but 10% slower on the ground | quilted padding, a padded collar, mag boots, war paint; gunmetal titan plates |
 
-  Once she has a tier, the locker's **Weight** row refits the suit (free, any time):
-
-  | Weight | Armour | Bonus | Looks |
-  | --- | --- | --- | --- |
-  | Light | half | 10% faster on the ground, grunts notice you 15% slower, wallruns 15% longer | cloth and leather: a wrap that supports her chest and covers her sides, choker with Dad's tag, a nose ring, wrapped arms and shins, a leather shoulder guard and knee pads, her stiletto on a thigh garter |
-  | Medium | as listed | armour refills twice as fast | a mechanic's jumpsuit (unzipped in a wide V down past her belly button, a heart window over the top of her glutes, left arm bare with Dad's cog tattoo, right sleeve rolled), a knotted scarf, a cheek plaster, a tool pouch, a canvas yoke, rubber knee caps, a cargo pocket, a wrist computer |
-  | Heavy | +60% | every hit lands 15% softer, but 10% slower on the ground | a quilted padded undersuit under titan-hull armour: a breastplate (Dad's titan's core light from tier 4), a comm earpiece, bracers, pauldrons, shin guards, knee cops, hip, elbow, upper-arm and thigh plates, a back plate, an armoured collar |
-
-  Tier 5 also costs a lock core. The armour pieces are part of `eco.glb` (`suit_t<tier>_*`
-  meshes, modelled by `suit_armor()`, `light_suit()` and `medium_suit()`, `heavy_extras()` in
-  `tools/eco/build_eco_vroid.py`; each weight also bakes its own bodysuit cut,
-  `v_body*_light.png`, `v_body*_medium.png` and `v_body*_heavy.png`); `eco_model.gd` `suit_tier` and
-  `suit_weight` show them.
+  Tier 5 also costs a lock core, repaints the plates in Dad's colours and turns every trim
+  gold. The locker screen (`suit_screen.gd`) has the kits across the top (Q/E or click) and
+  the sessions down the left (W/S or click, Space or a second click buys); picking one swings
+  the camera in on the part of her it changes. The gear is part of `eco.glb` (`suit_t<tier>_*`
+  meshes, modelled by `suit_armor()`, `light_suit()`, `medium_suit()` and `heavy_extras()` in
+  `tools/eco/build_eco_vroid.py`); the suit changes are baked by `kit_graph()` into
+  `v_kit_<weight>*.png` and laid over her suit style's bodysuit by the toon shader, her makeup
+  is `v_face_<weight>.png`; `eco_model.gd` `suit_tier` and `suit_weight` show them.
 
 On the screens: W/S pick a row, A/D browse, Space buy or fit, Tab or Q/E switch section,
 F or Esc to leave. Progress saves to `user://armory.cfg` (`scripts/hub/armory.gd` has every
@@ -493,7 +504,7 @@ late-90s anime finish. **F9** cycles Anime, PS3 and PS2 to compare.
   stripes, green is crates, red is lava.
 - **Models** (`assets/models/*.tscn`): Eco (see below), her smart pistol held in her gloved hand, grunt (legs swing
   as it walks, visor glows on wind-up), four titan chassis (Atlas, Ogre, Stryder, Scrap)
-  and four titan guns (XO-16, 40mm Tracker, Splitter, scrap rifle). Your titan is built
+  and four titan guns (XO-16, 40mm Tracker, Splitter, Obelisk Rail). Your titan is built
   from the chassis and weapon you salvaged. Plus the red enemy titan, salvage cache and
   extract beacon. They are plain scenes made of primitive meshes, so you can edit them
   in the editor or swap in Blender models later. `tools/bake_models.gd` regenerates them (run it without `--headless`).
@@ -593,7 +604,7 @@ Grunts start **unaware** and have to notice you first.
 - **Over each grunt**: a **?** that grows from yellow to orange as it notices you (half full, it turns to look), then a red **!** once alerted. Visible through cover.
 - **Around the crosshair**: an arc points at every grunt noticing you, including ones behind you, and fills toward red.
 - **Sneak attacks**: anything that hits a grunt that hasn't noticed you does double damage, so a pistol headshot on an unaware grunt kills outright.
-- **Stiletto** (Z or the mouse thumb button): tap for a quick stab from Eco's left hand, 2.4 m reach. **Hold** to draw it with a flip-spin and keep it out: the pistol drops, Eco runs 20% faster, left mouse swings alternating slashes (light trail off the tip), and I plays a knife inspect (edge glint, finger spins, toss and catch). Takedowns are always a straight thrust. Let go to put it away. Cobalt-steel model built in Blender by `tools/knife/build_stiletto.py`. On an unaware grunt it's a silent takedown that kills instantly; on one that knows you're there it does 30 damage and alerts it. The pistol can't fire mid-stab.
+- **Knife** (Z or the mouse thumb button): **tap** for a quick strike from Eco's left hand, 2.4 m reach, with the gun still in the other. **Hold for about a second** to draw the knife as her weapon: the gun goes away (it can't fire), Eco runs 20% faster, left mouse attacks (two alternating moves, light trail off the tip) and I plays the knife's inspect. Tap Z again, press R or roll the mouse wheel (`swap_weapon`, rebindable) to put it away; the gun comes back up with its draw. Each knife moves its own way (`scripts/knife_moves.gd`): the **Needle** is held like a foil (a finger-roll draw off its ring pommel, quick straight thrusts, a ring-spin inspect), the **Plate Kunai** in reverse grip (flipped into it on the draw, hooking and hammer slashes, a twirl round her finger in its ring), and the **Butterfly** comes out closed and flips open (snappy wrist flicks, rollovers and an aerial on the inspect). Every knife hits on the same beat. On an unaware grunt any strike becomes that knife's takedown thrust. She carries the knife picked at the hub's knife case (Needle, Plate Kunai or Butterfly), all three built in Blender by `tools/knife/build_knives.py`. On an unaware grunt it's a silent takedown that kills instantly; on one that knows you're there it does 30 damage and alerts it. The pistol can't fire mid-stab.
 - **Alerted** grunts fight exactly as before, and call in every squadmate within 16 m. Getting shot always alerts. Out of sight for 10 s, they lose you and go back to searching.
 
 ## Enemy radio
@@ -647,7 +658,7 @@ select the Player node and tweak values in the Inspector, or change the defaults
   one and otherwise synthesizes the sound at runtime; `SFX.variant("step_grass")` picks a random
   numbered take. Sources and credits: `assets/audio/sfx/README.md`; rebuild specs in `tools/audio/`
 - `scripts/ambience.gd` looping background beds from `assets/audio/ambience/` (forest, temple hub)
-- `scripts/run/titan_gun.gd` titan weapon personalities (XO-16 spin-up, Tracker shells, Splitter beam, jamming scrap rifle)
+- `scripts/run/titan_gun.gd` titan weapon personalities (XO-16 spin-up, Tracker shells, Splitter beam, stuttering Obelisk Rail)
 - `scripts/hud.gd` crosshair, hitmarkers, health, ammo, speedometer, state and cooldown readout
 - `scripts/radio/` enemy radio: `radio_chatter.gd` (listens to grunt awareness and deaths, picks lines),
   `radio_popup.gd` (the intercept box), `radio_lines.gd` (every line, by situation)
@@ -683,6 +694,10 @@ select the Player node and tweak values in the Inspector, or change the defaults
   `godot --headless --path . -s res://tests/suit_test.gd`
 - `tools/hub/bench_shots.gd` screenshots of the benches, their screens, the guns and the loot
   (needs a renderer): `xvfb-run -a godot --path . -s res://tools/hub/bench_shots.gd -- out_dir`
+  (add `knives` for just the knife case, its screen and each knife in her hand)
+- `tools/knife/knife_shots.gd` quick stills of each knife's moves in her hand and the knife
+  case screen, no level loaded: `xvfb-run -a godot --path . -s res://tools/knife/knife_shots.gd -- out_dir [frames|clips]`
+  (`clips` writes 30 fps frames per knife for ffmpeg)
 - `tools/hub/base_shots.gd` screenshots of the temple base: the hall, the stairs and loft
   bedroom, the lore, mission table and armour bench, the poster and its marker, and the tents
   inside and out: `xvfb-run -a godot --path . -s res://tools/hub/base_shots.gd -- out_dir [--only=hall,loft]`

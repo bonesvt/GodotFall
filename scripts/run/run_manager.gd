@@ -33,6 +33,7 @@ const HubBuilder := preload("res://scripts/hub/hub_builder.gd")
 const Armory := preload("res://scripts/hub/armory.gd")
 const BenchScreen := preload("res://scripts/hub/bench_screen.gd")
 const GunsmithScreen := preload("res://scripts/hub/gunsmith_screen.gd")
+const SuitScreen := preload("res://scripts/hub/suit_screen.gd")
 const GiftScreen := preload("res://scripts/hub/gift_screen.gd")
 const GiftShop := preload("res://scripts/hub/gift_shop.gd")
 const SalonScreen := preload("res://scripts/hub/salon_screen.gd")
@@ -46,6 +47,7 @@ const NpcIdles := preload("res://scripts/hub/npc_idles.gd")
 const SmokeDate := preload("res://scripts/hub/smoke_date.gd")
 const Escort := preload("res://scripts/run/escort.gd")
 const Weapon := preload("res://scripts/weapon.gd")
+const Knife := preload("res://scripts/knife.gd")
 const Art := preload("res://scripts/ps2/ps2_assets.gd")
 const Garage := preload("res://scripts/hub/garage.gd")
 const TitanStyle := preload("res://scripts/run/titan_style.gd")
@@ -115,6 +117,12 @@ var escort: Escort
 var _alarm_raised := false
 ## How close they have to be when Eco steps into the exfil (m).
 const EXFIL_TOGETHER := 9.0
+## Who's only in the hub once Eco has got them out (levels.gd "rescue"),
+## by the level that rescues them.
+const RESCUED_IN := {"ophelia": "level2"}
+## Romance affection the rescue starts them on (romance.gd STAGES: "wary"),
+## given once.
+const RESCUE_AFFECTION := 15
 ## How many times each hub interactable has been looked at, so its lines cycle.
 var hub_reads := {}
 var runs_started := 0
@@ -144,7 +152,8 @@ var course_time := -1.0
 var course_best := 0.0
 var armory: Armory
 ## The workbench screen while one is open (the hub is paused under it).
-## A BenchScreen, the GunsmithScreen at the gunsmith bench, or the SalonScreen.
+## A BenchScreen, the GunsmithScreen at the gunsmith bench, the SuitScreen at
+## the suit locker, or the SalonScreen.
 var bench = null
 ## Lays out loot and rolls drops, seeded per zone from the run seed so loot
 ## never shifts the run's own rolls.
@@ -310,6 +319,7 @@ func enter_hub() -> void:
 	course_time = -1.0
 	_fresh_level("Hub")
 	zone_info = HubBuilder.build(zone_root)
+	_hide_unrescued(zone_info)
 	hub_npcs = {}
 	for spec in zone_info.get("npcs", []):
 		var npc := HubNpc.create(spec["who"], spec["pos"], spec["yaw"])
@@ -686,7 +696,7 @@ func close_garage() -> void:
 		hud.toast("Call your titan again (V) to see the new paint.", HUB_LINE_SECONDS)
 
 
-## Opens a workbench screen ("gunsmith", "rack", "workshop" or "suit"), or a
+## Opens a workbench screen ("gunsmith", "rack", "workshop", "knives" or "suit"), or a
 ## town shop's ("salon", "gifts"), pausing the hub.
 func open_bench(kind: String) -> void:
 	if kind == "gifts":
@@ -697,6 +707,8 @@ func open_bench(kind: String) -> void:
 		bench = WardrobeScreen.new(runs_ended)
 	elif TownShopScreen.SHOPS.has(kind):
 		bench = TownShopScreen.new(kind, armory)
+	elif kind == "suit":
+		bench = SuitScreen.new(armory)
 	else:
 		bench = GunsmithScreen.new(armory) if kind == "gunsmith" else BenchScreen.new(armory, kind)
 	add_child(bench)
@@ -732,17 +744,20 @@ func close_bench() -> void:
 
 
 ## Puts the gun picked at the weapon rack, upgraded and fitted, in Eco's hand,
-## and her suit upgrade (suit locker) on her.
+## the knife picked at the knife case in the other, and her suit upgrade
+## (suit locker) on her.
 func equip_loadout() -> void:
 	player.get_node("Head/Camera3D/Weapon").equip(armory.weapon_profile())
+	player.get_node("Head/Camera3D/Knife").set_model(armory.knife)
 	player.apply_suit(TownShops.boost(armory.suit_profile()))  # plus her meal and implants from Solace
 
 
 ## Shows whether each level on the mission table is open, turns the marker
 ## over the tutorial poster off once that run is won, and shows the armory on
 ## the benches: the equipped gun on the gunsmith's mat,
-## the guns you own on the rack (locked slots stay empty under a tag), and the
-## titan you'd start a run with standing in the workshop's gantry.
+## the guns you own on the rack (locked slots stay empty under a tag), her
+## three knives under the knife case's glass (the one she carries tagged), and
+## the titan you'd start a run with standing in the workshop's gantry.
 func dress_hub() -> void:
 	# Solace's date spots name whoever Eco can take there.
 	var partner := date_partner()
@@ -799,6 +814,28 @@ func dress_hub() -> void:
 		else:
 			tag.text = "LEVEL %d" % Armory.unlock_level(id) if armory.level_locked(id) else "LOCKED"
 			tag.modulate = Color(0.6, 0.6, 0.62)
+	var knife_slots: Array = zone_info.get("knife_slots", [])
+	var knife_ids: Array = Armory.KNIVES.keys()
+	for i in mini(knife_slots.size(), knife_ids.size()):
+		var slot: Node3D = knife_slots[i]
+		if slot == null:
+			continue
+		for c in slot.get_children():
+			c.free()
+		var id: String = knife_ids[i]
+		var blade := Knife.knife_model(id)
+		blade.scale = Vector3.ONE * 1.35  # lies flat, point to the back of the case
+		slot.add_child(blade)
+		var tag := Label3D.new()
+		tag.font_size = 40
+		tag.pixel_size = 0.0016
+		tag.shaded = false
+		tag.outline_size = 8
+		tag.rotation_degrees = Vector3(-90, 0, 0)
+		tag.position = Vector3(0, 0.003, 0.2)
+		tag.text = "CARRIED" if id == armory.knife else Armory.KNIVES[id]["short"]
+		tag.modulate = Color(1.0, 0.8, 0.35) if id == armory.knife else Color(0.9, 0.88, 0.82)
+		slot.add_child(tag)
 	var stand: Node3D = zone_info.get("workshop_titan")
 	if stand != null:
 		for c in stand.get_children():
@@ -1015,6 +1052,29 @@ func _enter_finale() -> void:
 	tutorial.start_level("arena")
 
 
+## Whether Eco has got `who` out yet (true for anyone nobody has to rescue).
+func is_rescued(who: String) -> bool:
+	return not RESCUED_IN.has(who) or RESCUED_IN[who] in armory.cleared_levels()
+
+
+## Leaves anyone not rescued yet out of the hub: no one at their spot and no
+## [F] Talk (their tent stays, empty).
+func _hide_unrescued(info: Dictionary) -> void:
+	info["npcs"] = info.get("npcs", []).filter(func(n): return is_rescued(n["who"]))
+	info["interactables"] = info.get("interactables", []).filter(func(i): return is_rescued(i.get("npc", "")))
+
+
+## Winning a rescue level starts the one rescued on some romance affection,
+## the first time only.
+func _rescue_bonus(level: String) -> void:
+	var who := String(Levels.spec(level).get("rescue", ""))
+	if who == "" or npc_talk == null or npc_talk.state.get_value(who, "rescue_bonus", false):
+		return
+	NpcTalk.Romance.add(npc_talk.state, who, RESCUE_AFFECTION)
+	npc_talk.state.set_value(who, "rescue_bonus", true)
+	npc_talk.state.save(npc_talk.save_path)
+
+
 ## Whether this level's prisoner (levels.gd "rescue") is still in the cell.
 func rescue_pending() -> bool:
 	return zone_info.has("holding_cell") and not rescued
@@ -1032,7 +1092,7 @@ func holding_cell_in_reach() -> Node3D:
 	return cell
 
 
-## Drops the cell's screen and breaks the prisoner's chains. They have a
+## Drops the cell's screen and the prisoner's stasis field. They have a
 ## word, then follow Eco out (escort.gd) to the exfil.
 func rescue(cell: Node3D) -> void:
 	if not cell.release():
@@ -1302,6 +1362,7 @@ func end_run(title: String, reason: String) -> void:
 	var won := title == "RUN COMPLETE"
 	if won:
 		armory.mark_cleared(run.level if run.level != "" else "tutorial")
+		_rescue_bonus(run.level)
 	var haul := Armory.run_haul(run.materials, won)
 	armory.bank(haul)
 	# The meal from Seven Suns was for this run.
@@ -1407,7 +1468,7 @@ func _prompt() -> String:
 		Phase.ZONE:
 			var cell := holding_cell_in_reach()
 			if cell != null:
-				return "[F] Short the screen and break her chains"
+				return "[F] Short the screen and overload the pylons"
 			if escort != null and escort.in_reach(player.global_position):
 				return "[F] %s: come on" % _rescue_name() if escort.waiting else "[F] %s: wait here" % _rescue_name()
 			var cache := nearest_cache()

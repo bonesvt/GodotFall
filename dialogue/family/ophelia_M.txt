@@ -1,0 +1,36 @@
+# Motherly Love, Mature cut (scripts/hub/family.gd): read on top of
+# dialogue/family/ophelia.txt under the Mature rating, only while Family is
+# on. Eco's gone soft and notices people now; Ophelia, being Ophelia, takes
+# kindness like it's an attack, and pouts about it. Kind, not romantic.
+
+[soft]
+eco: Hey. I brought you the black sesame from Scoops. It melted a bit.
+ophelia (surprised, angry): W-why? Why would you do that? What do you want?
+eco: Nothing. You order it every time. I notice stuff now. Apparently.
+ophelia (lookaway): ...It's soup now. It's ice cream soup. Thanks. Nobody remembers that.
+eco: I do. Drink it, then.
+
+[soft]
+eco: You can sit with me and Mom at dinner, you know. You don't have to eat in the dark.
+ophelia (plain): I like the dark.
+eco: Bring it with you. Sit in the corner. Mom won't make you talk.
+ophelia (angry, tilt): She'll bring me soup at the table instead of to my door. That's worse. That's soup with witnesses.
+eco: Yeah. That's kind of the point.
+ophelia (lookaway): ...Save me the corner. The dark one. I'm not promising anything.
+
+[soft]
+ophelia (down): Bad night. Couldn't stop thinking about the cage.
+eco: Want me to stay a while? I don't have to say anything.
+ophelia (angry): You always say something.
+eco: I'll be quiet. Promise. Super quiet. Quietest person ever.
+ophelia (smile, lookaway): You're already failing, dummy.
+eco: ...Yeah. Scoot over.
+ophelia (closed): F-fine. Only because the bed's cold. That's the only reason! Hmph.
+
+[soft]
+eco: How are you, actually? Not the joke answer.
+ophelia (surprised, angry): Nobody's ever asked for the real one. It's a trap. What's the trap?
+eco: No trap. I'm asking.
+ophelia (lookaway): ...Tired. A little less empty. I don't know what to do with that. It's really weird.
+eco: You don't have to do anything with it. Just let it be there.
+ophelia (down): Okay. Don't tell anyone I said okay. Shush.

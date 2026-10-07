@@ -23,9 +23,9 @@ const HEAD := "J_Bip_C_Head"
 const NODE := "EcoExtras"
 const TATTOO_DIR := "res://assets/textures/eco/tattoos/"
 const STEEL := preload("res://assets/materials/eco/eco_v_steel.tres")
-const CANVAS := preload("res://assets/materials/eco/eco_v_canvas.tres")
+const CANVAS := preload("res://assets/materials/eco/eco_v_kit_canvas.tres")
 const LENS := preload("res://assets/materials/eco/eco_v_goggle_lens.tres")
-const OUTLINED := preload("res://assets/materials/eco/eco_v_leather.tres")
+const OUTLINED := preload("res://assets/materials/eco/eco_v_kit_leather.tres")
 const TWO_SIDED := preload("res://assets/shaders/eco_toon_2side.gdshader")
 const ContentRating := preload("res://scripts/radio/content_rating.gd")
 

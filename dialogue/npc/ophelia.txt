@@ -2,7 +2,8 @@
 # Solace, same town as Eco, and nobody ever noticed her: not the town, not the
 # orphan house, not even when the colony took her. Her mind always drifted
 # somewhere dark, and her looks went with it. She never let anyone in and
-# brushed everyone off. Eco pulled her out of a colony cage, and now, very slowly, she lets Eco see what she's into:
+# brushed everyone off. Eco pulled her out of a colony stasis column (Level 2: a
+# transit pillar; she lost nineteen days in it and thought it was one night), and now, very slowly, she lets Eco see what she's into:
 # dressing up and doing her makeup emo, dark songs and dark films, smoking in
 # the dark, reading (more than gaming). When she does go out, it's the arcade
 # or the ice cream place. Flat, dry, quietly funny.
@@ -17,7 +18,7 @@
 [intro]
 ophelia (plain): Oh. It's you.
 eco: Wow. Lovely to see you too.
-ophelia: You pulled me out of the cage. I'm supposed to say thanks, I think.
+ophelia: You pulled me out of that light. I'm supposed to say thanks, I think.
 eco: That's usually how it goes, yeah.
 ophelia (tilt): You're from Solace. Lantern Row. Your dad fixed titans.
 eco: Wait. How do you know that?
@@ -44,7 +45,7 @@ eco: I'm looking at you right now.
 ophelia (lookaway): Yeah. I noticed. It's weird.
 
 [any]
-ophelia (down): The colony gave me a number in the cage. Forty-one.
+ophelia (down): The colony gave me a number on their manifest. Forty-one.
 eco: You're not a number.
 ophelia: I know. Numbers get counted.
 eco: Ophelia.
@@ -179,7 +180,7 @@ choice +6: eco: Read me the good part, then. I'll be quiet. Probably.
 > ophelia (surprised): You actually want to hear it?
 > ophelia (smile, lookaway): Fine. Sit on the floor. The bed's mine.
 choice +2: eco: Wouldn't you rather game? I could find you a handheld.
-> ophelia (tilt): I game sometimes. Books don't run out of batteries in a cage.
+> ophelia (tilt): I game sometimes. Books don't run out of batteries in a blackout.
 choice -4: eco: Everybody dies? Sounds like a real page-turner.
 > ophelia (angry, lookaway): Right. Forget I said anything. I always do.
 ophelia (plain): You're the first person who's asked what I'm reading. Don't let it go to your head.
@@ -187,8 +188,8 @@ ophelia (plain): You're the first person who's asked what I'm reading. Don't let
 [heart 25 mirror]
 ophelia (plain): Stop hovering. You'll make me smudge.
 eco: How long does that eyeliner take you, anyway?
-ophelia: Twenty minutes. Thirty if my hands shake. I did it in the cage with soot and spit.
-eco: In the cage? Who were you doing it for?
+ophelia: Twenty minutes. Thirty if my hands shake. I did it once with a burnt match and a shop window.
+eco: With a match? Who were you doing it for?
 ophelia (down): Me. I dress like this so the outside matches the inside. At least then it's honest.
 ophelia (blush, lookaway): I could do yours. If you want. You'd look less like a wrench.
 choice +8: eco: Go on, then. Make me look dangerous.
@@ -216,9 +217,9 @@ choice -5: eco: Can we not do the death music tonight? I'm wiped.
 ophelia (plain): I've never let anyone sit here with me. Just so you know.
 
 [heart 55 sit]
-ophelia (down): Do you know how long I was in that cage before you came?
-eco: A few weeks?
-ophelia: Four months. They took me off the road outside the arcade. In daylight.
+ophelia (down): Do you know how long I was in that pillar before you came?
+eco: Nineteen days.
+ophelia: It felt like one night. They took me off the road outside the arcade. In daylight.
 ophelia (sad): Nobody looked for me. My mom told the neighbours I'd moved away. She didn't know. She guessed.
 ophelia (sad, lookaway): Nobody in Solace ever saw me. Not school. Not home. I was furniture.
 choice +9: eco: I see you. I'm looking right at you, and I'm not going anywhere.
@@ -358,120 +359,8 @@ choice +2: eco: Don't let it go to your head. It's just egg.
 > ophelia (smile): It's the best egg I've ever had and you'll never take that from me.
 ophelia (plain): Twenty-three years in this town and nobody ever bought me noodles.
 
-# Mature cuts ([date <place> m]): played instead when the content rating is Mature
-# (npc_talk.gd date_lines). Flirtier, a little swearing, a kiss, a drink; the night
-# fades out before anything more. The Rusted Halo is a Mature-only date.
-[date arcade m]
-ophelia (smile, tilt): Third cabinet from the back. Loser buys the drinks after.
-eco: You've played this machine a thousand times. That's a scam.
-ophelia (smile): Twenty-two years of practice. Insert a token, mechanic.
-choice +6: eco: If I win, you kiss me in front of the whole arcade.
-> ophelia (fluster, lookaway): You won't win. ...Play badly on purpose and I'll know.
-> ophelia (blush, smile): You lost. Come here anyway.
-choice +3: eco: Bet you can't beat me with your eyes shut.
-> ophelia (smile, closed): Watch me. Actually, don't. Watch the screen. Stop watching me.
-choice -4: eco: Arcades are for kids, Ophelia.
-> ophelia (angry, lookaway): Then go home, grown-up. I'll be here. Winning.
-ophelia (blush): O-P-H. And under it, for the first time ever, E-C-O. Don't make it weird.
-
-[date ice_cream m]
-ophelia (blush, down): Black sesame. Two scoops. And you've got cream on your lip. No, other side.
-eco: Get it for me, then.
-ophelia (fluster, closed): In Scoops? In front of the twins? You're impossible.
-choice +6: eco: Impossible and sticky. Your move, gloom girl.
-> ophelia (blush, smile, lookaway): ...Fine. There. Gone. Don't look at me like that, I'll melt.
-choice +3: eco: Kidding. Eat your ice cream before it's soup.
-> ophelia (smile): Coward. Cute coward.
-ophelia (smile, tilt): This is a date. I kissed you in Scoops. With the lights on.
-
-[date cafe m]
-ophelia (closed, lookaway): Everyone in here is looking at us.
-eco: Good. Let them. Mrs. Okafor needs something to talk about besides scones.
-ophelia (down): I ordered the black coffee to look mysterious. It tastes like a burnt tyre.
-choice +6: eco: Swap. Then I'll be mysterious and you can stop scowling at your cup.
-> ophelia (blush, smile): Three sugars and a heart in the foam. You're so damn sweet it hurts my teeth.
-choice +4: eco: Hiro puts a shot of firewater in it if you wink at him.
-> ophelia (smile, tilt): It's ten in the morning, Eco. ...Wink at him for me.
-choice -4: eco: Then why the hell'd you order it?
-> ophelia (angry, lookaway): Wow. Okay. Mysterious people don't get interrogated.
-ophelia (blush): Your knee's been against mine under the table for ten minutes. I noticed. Keep it there.
-
-[date cinema m]
-ophelia (smile): Back row this time. Nobody watches the back row.
-eco: It's a war film again. Aren't you going to watch the guy who cries?
-ophelia (blush, lookaway): Not tonight.
-choice +7: eco: Then what are you watching?
-> ophelia (fluster, closed): You. Obviously. Shut up and come here.
-> ophelia (blush, smile): We missed the whole second reel. Did anybody cry? Don't answer.
-choice +3: eco: Shh. Somebody's about to explode.
-> ophelia (smile, tilt): Somebody's always about to explode. Mostly me, sitting this close to you.
-choice -4: eco: Can we leave halfway? I've seen enough war.
-> ophelia (sad, lookaway): Yeah. Okay. I picked the back row for nothing, then.
-ophelia (plain): The usher shone his torch on us. Twice. Worth it.
-
-[date garden m]
-ophelia (closed): It's so high up. You can see the turbines. And the city they keep promising.
-eco: Dad proposed to Mom up here. She said no the first time.
-ophelia (surprised, tilt): And the second time?
-eco: Second time he brought noodles. And a bottle of Biggie's plum wine.
-choice +7: eco: I brought both.
-> ophelia (fluster, closed): You can't just... Give me the bottle. And the noodles. And you.
-> ophelia (blush, smile, lookaway): Stay till the lights come on in the valley. Then stay a bit longer.
-choice +4: eco: Relax. Nobody's proposing. Just drink and look at the view.
-> ophelia (smile, nod): I'm looking. The view's mostly you, if I'm honest. That's the wine talking. It isn't.
-choice -5: eco: Don't get any ideas.
-> ophelia (sad, down): Too late. I had them all the way up the stairs.
-ophelia (plain): We should go down before it's dark. ...We're not going down, are we.
-
-[date noodles m]
-ophelia (down): Hiro gave me extra egg. And a shot of his firewater. He winked.
-eco: Regulars get egg. Regulars' girlfriends get firewater.
-ophelia (surprised, blush): Girlfriend. You just said it. In front of Hiro.
-choice +6: eco: I did. Drink up, girlfriend.
-> ophelia (blush, smile): Oh, that burns. That's the drink. That's not you. It's a bit you.
-choice +2: eco: Slip of the tongue. Don't let it go to your head.
-> ophelia (smile, tilt): Too late, mechanic. It's already there. With the firewater.
-ophelia (plain): Walk me home the long way. The one past the temple. No reason.
-
-[date bar m]
-ophelia (closed, lookaway): The Rusted Halo. Every bad idea in Solace starts in here.
-eco: You've never been inside, have you?
-ophelia (down): I've stood outside. Smoking. Watching everybody else have bad ideas.
-choice +7: eco: Then let's have one. Two of whatever's cheapest, barkeep.
-> ophelia (smile, tilt): It's terrible. It's the worst thing I've ever tasted. Get another one.
-> ophelia (blush, smile): Dance with me. Nobody dances in here. That's why.
-choice +4: eco: The fixer in the back booth owes me. Drinks are on him.
-> ophelia (smile, nod): Look at you. Solace's little gangster. ...It's working on me, don't stop.
-choice -5: eco: Maybe you should stick to soda.
-> ophelia (angry, lookaway): I'm twenty-three, Eco. Not twelve. Buy your own soda.
-ophelia (blush, lookaway): Last orders. Your place or the temple? ...Don't answer. Just walk.
-
-[date smoke m]
-ophelia (plain, lookaway, @arrive): The back step of the Halo. Bins, one bad light, nobody. Best spot in Solace.
-eco: It smells like old beer.
-ophelia (smile, tilt, @pack): It smells like peace and quiet. Last Night Owl in the pack. We're sharing it.
-narrator (@light): She lights it, takes a slow drag, and holds it out between two fingers.
-choice +5: eco: You're a terrible influence, gloom girl.
-> ophelia (smile): You stole a titan. You were influenced already. Small drags.
-choice +3: eco: Mom's going to smell it on me.
-> ophelia (smile, lookaway): Tell her you were standing next to me. It's true.
-choice -3: eco: Those things will kill you, you know.
-> ophelia (sad, down): So will the colony. At least this one I picked. ...Just one drag. For me.
-narrator (@first): Eco coughs. Ophelia laughs, really laughs, and fixes her grip. They pass it back and forth while the light flickers.
-ophelia (blush, lookaway): You hold it like a spanner. It's cute. Don't fix it.
-narrator (@short): The ember's nearly at the filter.
-ophelia (plain, tilt, @hand_last): Last drag's yours. Make it count.
-eco: Watch and learn.
-narrator (@last_drag): Eco draws the last of it in and grinds the stub out on the step. Before she can breathe out...
-ophelia (blush, @kiss): Mine.
-narrator (@kiss_hold): Ophelia leans in and kisses her, and steals the smoke right out of her mouth.
-ophelia (smile, lookaway, @exhale): That was the best part of the whole cigarette.
-choice +7: eco: Thief.
-> ophelia (blush, smile): You'll get it back. Next pack's on you.
-choice +4: eco: I'm buying a carton. Fifty of those. Minimum.
-> ophelia (fluster, closed): Slow down, mechanic. ...Fine. Forty.
-ophelia (blush, plain, @after): Don't tell your mom. About any of it.
-
+# The Mature cuts of these dates, and the Mature-only Rusted Halo and back step
+# dates, are [date <place> m] in ophelia_M.txt.
 [date any]
 ophelia (blush, down): So this is a date.
 eco: This is a date. You're allowed to smile on dates, you know.
@@ -500,7 +389,7 @@ ophelia (smile, nod): Huh. Thanks. I'll find somewhere dark to put it.
 eco: Are you... doing yoga?
 ophelia (plain): No. I'm summoning something. Slowly. With my hamstrings.
 eco: Since when do you stretch?
-ophelia (smile, lookaway): Since a cage that was too small to stand up in. My back still remembers it.
+ophelia (smile, lookaway): Since I spent nineteen days hanging in a pillar of light. My back still remembers it.
 eco: ...Want company sometime?
 ophelia (tilt): You'd have to be quiet. You can't be quiet.
 

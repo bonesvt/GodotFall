@@ -6,8 +6,10 @@ extends Node
 ##   40mm Tracker     slow, heavy shells that land as explosions.
 ##   Splitter Rifle   a humming beam that heats from cyan to white-hot as
 ##                    its ramp builds.
-##   Scrap Rifle      Eco's own junk build: uneven rate of fire, and it jams
-##                    every so often until she kicks it back to life.
+##   Obelisk Rail     Precursor tech Eco found at the temple: a teal beam
+##                    thread between two hovering obelisks. The old relic
+##                    stutters (uneven rate of fire) and every so often
+##                    stalls until she kicks it back to life.
 ##
 ## Each shot is worth damage-per-second times the time it took to fire, so a
 ## spin-up or an uneven rhythm keeps the part's damage per second. Only jams
@@ -27,7 +29,7 @@ const PROFILES := {
 		"color": Color(0.35, 0.9, 1.0), "width": 0.16, "flash": 0.35, "shake": 0.035,
 		"kick": 0.03, "sound": "splitter", "volume": -9.0, "sound_every": 3, "muzzle": -3.0},
 	"scrap": {"rate": 7.0, "jitter": 0.45, "spread": 1.4, "jam_after": Vector2i(16, 26), "jam_time": 0.7,
-		"color": Color(1.0, 0.65, 0.3), "width": 0.11, "flash": 0.55, "shake": 0.16,
+		"color": Color(0.35, 1.0, 0.9), "width": 0.11, "flash": 0.55, "shake": 0.16,
 		"kick": 0.2, "sound": "scrap", "volume": -3.0, "muzzle": -2.6},
 }
 
@@ -41,7 +43,7 @@ var rng := RandomNumberGenerator.new()
 var cooldown := 0.0
 ## 0..1 how far the chaingun barrels have wound up.
 var spin := 0.0
-## Seconds of jam left (scrap rifle).
+## Seconds of jam left (the Obelisk Rail's stutter).
 var jam_timer := 0.0
 var shots := 0
 var _until_jam := 0

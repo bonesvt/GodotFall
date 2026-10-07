@@ -553,7 +553,7 @@ func take_damage(amount: float, _pos: Vector3, _head := false) -> bool:
 	return true
 
 
-## Knocked off their aim by a heavy hit (the heavy revolver's Stagger coils):
+## Knocked off their aim by a heavy hit (the hand cannon's Stagger coils):
 ## a shot they were winding up is lost and the next waits `seconds` more.
 func stagger(seconds: float) -> void:
 	if dead:

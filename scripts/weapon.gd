@@ -75,7 +75,13 @@ const LED_RED := Color(1.0, 0.18, 0.12)
 ## (every gun shares the smart pistol's grip so Eco's glove fits), and how far
 ## down the grip each gun's magazine ends.
 const GRIP_XFORM := Transform3D(Basis(Vector3.RIGHT, deg_to_rad(-16.0)), Vector3(0.0, -0.088, 0.072))
-const MAG_BOTTOM := {"pistol": -0.07, "rivet_cannon": -0.07, "machine_pistol": -0.11}
+const MAG_BOTTOM := {"pistol": -0.07, "rivet_cannon": -0.074, "machine_pistol": -0.11}
+## How far each gun's slide cycles back on a shot (default 0.035), how fast
+## it runs home (per second, default 14), and how hard the viewmodel kicks
+## (a multiplier): the hand cannon's heavy slide slams back a long way.
+const SLIDE_TRAVEL := {"rivet_cannon": 0.05}
+const SLIDE_RETURN := {"rivet_cannon": 9.0}
+const VIEW_KICK := {"rivet_cannon": 1.5}
 ## How much further down the smart pistol's mag reaches from upgrade tier 3.
 const PISTOL_LONG_MAG := -0.03
 const ATTACHMENT_MODELS := {
@@ -86,8 +92,12 @@ const ATTACHMENT_MODELS := {
 	"wrap": preload("res://assets/models/sidearms/att_grip_wrap.glb"),
 	"skeleton": preload("res://assets/models/sidearms/att_grip_skeleton.glb"),
 }
-## Paint slots a finish recolours, by material file name.
-const FINISH_SLOTS := {"pistol_shell": "shell", "pistol_blue": "blue", "pistol_stripe": "stripe"}
+## Paint slots a finish recolours, by material file name. "black" is the smart
+## pistol's black slide and can: a finish without its own black paints it in
+## its shell colour. The auto handgun's polymer takes the shell colour too, and
+## so does the hand cannon's chrome, unless the finish has a "chrome" of its own.
+const FINISH_SLOTS := {"pistol_shell": "shell", "pistol_polymer": "shell", "pistol_blue": "blue", "pistol_stripe": "stripe",
+		"pistol_black": "black", "pistol_chrome": "chrome"}
 const INSPECT_LINES := [
 	"Dad's. The lock-on died with him.",
 	"Tracker screen's smashed. Holo sight it is.",
@@ -211,9 +221,6 @@ var _ammo_pop := 0.0
 var _boot := -1.0  # seconds into the ammo screen booting after a reload
 # Dog tag pendulum (angles in radians around the charm pivot's x and z)
 var _charm: Node3D
-var _drum: Node3D
-var _drum_turn := 0.0
-var _hammer: Node3D
 var _charm_angle := Vector2.ZERO
 var _charm_vel := Vector2.ZERO
 var _charm_last_pos := Vector3.ZERO
@@ -225,7 +232,7 @@ var smart_fraction := 0.0
 var smart_left := 0
 
 ## Gun-specific upgrades (armory.gd UPGRADES), 0 on a stock gun.
-## Heavy revolver: bodies a round goes through after the first, and how long
+## Hand cannon: bodies a round goes through after the first, and how long
 ## a hit knocks a grunt off their aim (seconds).
 var pierce := 0.0
 var stagger := 0.0
@@ -252,6 +259,11 @@ const SHOT_MASK := 0xFFFFFFFF & ~16
 ## can't fire.
 var holstered := false
 var _holster := 0.0
+## Seconds left of the draw when she brings the gun back after the knife.
+var _drawing := 0.0
+## True while the knife is her weapon (knife.gd): the gun is put away entirely.
+var stowed := false
+const DRAW_TIME := 0.4
 
 var lock_target: Node3D
 ## Seconds spent trying to lock the current target.
@@ -330,7 +342,7 @@ func _physics_process(delta: float) -> void:
 	if Input.is_action_just_pressed("fire") or (automatic and Input.is_action_pressed("fire") and ammo > 0):
 		buffer_timer = fire_buffer
 		stop_inspect()  # shooting always wins over showing off
-	if buffer_timer > 0.0 and cooldown <= 0.0 and reload_timer <= 0.0 and not holstered:
+	if buffer_timer > 0.0 and cooldown <= 0.0 and reload_timer <= 0.0 and not holstered and _drawing < DRAW_TIME * 0.5:
 		buffer_timer = 0.0
 		if ammo > 0:
 			fire()
@@ -466,8 +478,9 @@ func _shot_feel(fx_parent: Node) -> void:
 	var last := ammo == 0
 	SFX.play(self, shot_sound_last if last else shot_sound, 1.0, SFX.vary(0.04))
 	# Viewmodel: snaps back and up, rolls a little to a random side.
-	_kick_vel += Vector3(rng.randf_range(-0.15, 0.15), 0.25, 1.6)
-	_kick_rot_vel += Vector3(14.0, rng.randf_range(-3.0, 3.0), rng.randf_range(-6.0, 6.0))
+	var vk: float = VIEW_KICK.get(model_id, 1.0)
+	_kick_vel += Vector3(rng.randf_range(-0.15, 0.15), 0.25, 1.6) * vk
+	_kick_rot_vel += Vector3(14.0, rng.randf_range(-3.0, 3.0), rng.randf_range(-6.0, 6.0)) * vk
 	_slide_back = 1.0
 	# Camera: a punch that springs back on its own, plus a FOV dip.
 	_punch += Vector2(deg_to_rad(camera_punch), deg_to_rad(rng.randf_range(-0.5, 0.5) * camera_punch))
@@ -479,10 +492,6 @@ func _shot_feel(fx_parent: Node) -> void:
 		# An open muzzle: a proper fireball and a flash that lights the room.
 		FX.star(muzzle, muzzle.global_position, Color(1.0, 0.75, 0.35, 0.95), 0.09, 0.05, 8)
 		FX.light(fx_parent, muzzle.global_position, Color(1.0, 0.7, 0.35), 2.0, 5.0, 0.05)
-	if _drum != null:
-		_drum_turn += TAU / 6.0
-	if _hammer != null:
-		_hammer.rotation.x = deg_to_rad(-40.0)
 	FX.star(muzzle, muzzle.global_position, Color(0.85, 0.97, 1.0, 0.9), 0.045, 0.04, 6)
 	FX.shock_ring(fx_parent, muzzle.global_position + forward * 0.01, forward, Color(0.6, 0.95, 1.0, 0.9), 0.06, 0.1)
 	FX.light(fx_parent, muzzle.global_position, Color(0.55, 0.9, 1.0), 0.9, 3.0, 0.05)
@@ -702,6 +711,20 @@ func inspect() -> void:
 	inspected.emit(inspect_lines[pick])
 
 
+## Brings the gun back up after the knife was her weapon: it comes up from
+## below with a roll, and can fire once it's halfway up.
+func draw() -> void:
+	holstered = false
+	stowed = false
+	_holster = 1.0
+	_drawing = DRAW_TIME
+	SFX.play(self, "reload_in", -14.0, 1.15)
+
+
+func is_drawing() -> bool:
+	return _drawing > 0.0
+
+
 func stop_inspect() -> void:
 	inspect_time = -1.0
 	if _twirl >= 0.0 and not is_reloading():
@@ -756,14 +779,8 @@ func _reload_choreography() -> void:
 		_reload_events = 1
 		SFX.play(self, "reload_out", -3.0, SFX.vary())
 		var down: Vector3 = -viewmodel.global_basis.y
-		if _drum != null:
-			# A revolver: the spent rivets tip out of the cylinder.
-			var at: Vector3 = _drum.global_position
-			for i in magazine_size - ammo:
-				FX.casing(fx_parent, at, player.velocity + down * 1.5 + player.head.global_basis.x * randf_range(-0.6, 0.6))
-		else:
-			var mag_at: Vector3 = _parts["MagBase"][0].global_position if _parts.has("MagBase") else viewmodel.global_transform * Vector3(0.0, -0.09, 0.06)
-			FX.chunk(fx_parent, mag_at, Vector3(0.034, 0.1, 0.048), Color(0.82, 0.85, 0.9), player.velocity + down * 2.5 + player.head.global_basis.x * 0.6, 0.6)
+		var mag_at: Vector3 = _parts["MagBase"][0].global_position if _parts.has("MagBase") else viewmodel.global_transform * Vector3(0.0, -0.09, 0.06)
+		FX.chunk(fx_parent, mag_at, Vector3(0.034, 0.1, 0.048), Color(0.82, 0.85, 0.9), player.velocity + down * 2.5 + player.head.global_basis.x * 0.6, 0.6)
 		_set_part_visible("MagBase", false)
 		_kick_vel += Vector3(0.0, 0.8, 0.0)
 		_kick_rot_vel += Vector3(-10.0, 0.0, 0.0)
@@ -941,9 +958,6 @@ func _build_viewmodel() -> void:
 	_charm = pistol.find_child("Charm", true, false) as Node3D
 	if _charm != null:
 		_charm_last_pos = _charm.global_position
-	_drum = pistol.find_child("Drum", true, false) as Node3D
-	_hammer = pistol.find_child("Hammer", true, false) as Node3D
-	_drum_turn = 0.0
 	_build_ammo_screen()
 
 	var mat := StandardMaterial3D.new()
@@ -1046,7 +1060,7 @@ static func _apply_finish(model: Node3D, p_finish: Dictionary) -> void:
 			var key := "%s/%s" % [p_finish.get("id", ""), slot_name]
 			if not _finish_cache.has(key):
 				var painted: ShaderMaterial = mat.duplicate()
-				painted.set_shader_parameter("albedo", p_finish[FINISH_SLOTS[slot_name]])
+				painted.set_shader_parameter("albedo", p_finish.get(FINISH_SLOTS[slot_name], p_finish.get("shell", Color.WHITE)))
 				_finish_cache[key] = painted
 			(mi as MeshInstance3D).set_surface_override_material(i, _finish_cache[key])
 
@@ -1130,8 +1144,12 @@ func _animate_viewmodel(delta: float) -> void:
 	var p := reload_progress()
 	var r := smoothstep(0.0, 0.14, p) * (1.0 - smoothstep(0.86, 1.0, p))
 
-	_holster = move_toward(_holster, 1.0 if holstered else 0.0, delta * 7.0)
+	_drawing = maxf(_drawing - delta, 0.0)
+	_holster = move_toward(_holster, 1.0 if holstered else 0.0, delta * (1.0 / DRAW_TIME if _drawing > 0.0 else 7.0))
 	var h := smoothstep(0.0, 1.0, _holster)
+	# All the way down (the knife is her weapon): out of sight.
+	viewmodel.visible = not (stowed and _holster > 0.98)
+	var draw_roll := 0.9 * h if _drawing > 0.0 else 0.0
 
 	var pos := VIEW_POS
 	pos += Vector3(0.05, -0.2, 0.08) * h
@@ -1146,19 +1164,14 @@ func _animate_viewmodel(delta: float) -> void:
 	viewmodel.rotation = Vector3(
 		deg_to_rad(_kick_rot.x + ir.x) + _sway.y * 0.02 + 0.35 * r - 0.5 * h,
 		deg_to_rad(_kick_rot.y + ir.y) + _sway.x * 0.025 - 0.25 * r,
-		deg_to_rad(_kick_rot.z + ir.z) + _move_pose.x + _sway.x * 0.02 + 0.7 * r)
+		deg_to_rad(_kick_rot.z + ir.z) + _move_pose.x + _sway.x * 0.02 + 0.7 * r + draw_roll)
 
 	# Slide cycles back on each shot and locks open on an empty mag.
-	_slide_back = maxf(_slide_back - delta * 14.0, 0.0)
+	_slide_back = maxf(_slide_back - delta * SLIDE_RETURN.get(model_id, 14.0), 0.0)
 	var slide := 1.0 if ammo == 0 and not is_reloading() else _slide_back
 	for part in ["Slide"]:
 		if _parts.has(part):
-			_parts[part][0].position = _parts[part][1] + Vector3(0, 0, 0.035 * slide)
-	# The rivet cannon's drum indexes round a chamber per shot; its hammer falls and resets.
-	if _drum != null:
-		_drum.rotation.z = lerp_angle(_drum.rotation.z, _drum_turn, 1.0 - exp(-30.0 * delta))
-	if _hammer != null:
-		_hammer.rotation.x = lerpf(_hammer.rotation.x, 0.0, 1.0 - exp(-12.0 * delta))
+			_parts[part][0].position = _parts[part][1] + Vector3(0, 0, SLIDE_TRAVEL.get(model_id, 0.035) * slide)
 
 
 ## Camera punch: a visual kick on the camera that springs back to zero.

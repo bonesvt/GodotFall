@@ -40,6 +40,13 @@ var stride_reverse := false
 		_apply_jiggle_style()
 ## How far her chest and glutes may bounce (1 = as tuned, 0 = not at all).
 @export_range(0.0, 2.0) var jiggle := 1.0
+## Full body jiggle (experimental): soft springs in her stomach, thighs, upper
+## arms and calves as well (scripts/ps2/eco_flesh.gd). Left unset, she follows
+## the Full body jiggle setting (Game tab) with her jiggle style.
+@export var body_jiggle := false:
+	set(value):
+		body_jiggle = value
+		_set_flesh(value)
 ## Her suit upgrade (scripts/hub/armory.gd SUIT_TIERS): 0 is the bare pilot
 ## suit; each tier shows its armour pieces (the glb's suit_t<tier>_* meshes,
 ## from tools/eco/build_eco_vroid.py) on top of the tiers before it. Tier 5
@@ -49,11 +56,11 @@ var stride_reverse := false
 		suit_tier = clampi(value, 0, SUIT_TIERS)
 		if is_inside_tree():
 			apply_suit()
-## The suit's weight (armory.gd SUIT_WEIGHTS). Pieces are marked after their
-## tier: "l" light only (the cloth-and-leather light suit), "m" medium and
-## heavy, "h" heavy only, unmarked for all three. The light suit also swaps
-## her bodysuit for its own cut (eco_v_body_light: no side cutouts, open
-## across the top of her chest) once she has a suit tier.
+## The suit's weight (armory.gd SUIT_WEIGHTS), once she has a suit tier. Its
+## kit's pieces are marked after their tier: "l" light only, "m" medium only,
+## "h" heavy only, unmarked for all three. Each weight also changes the suit
+## itself, whichever style she wears (body_material: KIT_TEX), and her makeup
+## (KIT_FACE).
 @export_enum("light", "medium", "heavy") var suit_weight := "medium":
 	set(value):
 		suit_weight = value
@@ -62,8 +69,8 @@ var stride_reverse := false
 ## What she has on (wear() by name; picked in her wardrobe,
 ## scripts/hub/wardrobe.gd). "suit" is her own pilot suit (gwen), the other
 ## suit_* are the other looks baked by tools/eco/build_eco_vroid.py
-## BASE_STYLES: each shows with no suit upgrade, and the upgrades' cuts go over
-## any of them. "skater", "y2k" and "date" are her clothes off duty (outfit_graph),
+## BASE_STYLES: each shows its own pieces with no suit upgrade, and the
+## upgrades go over any of them. "skater", "y2k" and "date" are her clothes off duty (outfit_graph),
 ## every suit piece hidden; each comes in a Teen and a Mature version, picked
 ## by the content rating (scripts/radio/content_rating.gd, O key) as it changes.
 @export_enum("suit", "suit_ghost", "suit_racer", "suit_harness", "suit_techwear", "suit_shade", "suit_homemade",
@@ -112,7 +119,7 @@ const SPRINGS := {
 }
 
 ## Jiggle styles: per spring group, values that replace the group's own
-## (bust, glute) or scale them (hair: "<key>_scale"). Extra keys:
+## (bust, glute) or scale them (hair, flesh: "<key>_scale"). Extra keys:
 ## "soft" eases the swing into its limit instead of stopping it dead;
 ## "lateral" is how much side-to-side swing is kept (1 = all).
 const JIGGLE_STYLES := {
@@ -122,20 +129,38 @@ const JIGGLE_STYLES := {
 		"bust": {"stiffness": 0.07, "drag": 0.065, "gravity": 0.08, "limit": 30.0, "inertia": 0.25, "soft": true},
 		"glute": {"stiffness": 0.08, "drag": 0.07, "gravity": 0.08, "limit": 22.0, "inertia": 0.25, "soft": true},
 		"hair": {"stiffness_scale": 0.8, "drag_scale": 0.7, "gravity_scale": 0.6},
+		"flesh": {"stiffness_scale": 0.7, "drag_scale": 0.8, "reach_scale": 1.25, "soft": true},
 	},
 	# about 5 bounces a second, one small rebound and still within a quarter second
 	"realistic": {
 		"bust": {"stiffness": 0.28, "drag": 0.22, "gravity": 0.3, "limit": 12.0, "inertia": 0.2, "lateral": 0.45},
 		"glute": {"stiffness": 0.32, "drag": 0.25, "gravity": 0.3, "limit": 9.0, "inertia": 0.2, "lateral": 0.45},
 		"hair": {"stiffness_scale": 1.15, "drag_scale": 1.4, "gravity_scale": 1.3},
+		"flesh": {"stiffness_scale": 1.3, "drag_scale": 1.5, "reach_scale": 0.7, "lateral": 0.6},
 	},
 }
 
 const SUIT_TIERS := 5
 const LEGACY_PLATE := preload("res://assets/materials/eco/eco_v_armor_legacy.tres")
-const LIGHT_BODY := preload("res://assets/materials/eco/eco_v_body_light.tres")
-const MEDIUM_BODY := preload("res://assets/materials/eco/eco_v_body_medium.tres")
-const HEAVY_BODY := preload("res://assets/materials/eco/eco_v_body_heavy.tres")
+## Her own suit's bodysuit (the glb's eco_v_body; STYLE_BODY has the others).
+const GWEN_BODY := preload("res://assets/materials/eco/eco_v_body.tres")
+## What each suit weight changes on the suit itself, laid over her style's
+## bodysuit (tools/eco/build_eco_vroid.py kit_graph): [colour, mask, glow].
+const KIT_TEX := {
+	"light": [preload("res://assets/textures/eco/v_kit_light.png"), preload("res://assets/textures/eco/v_kit_light_mask.png"),
+		preload("res://assets/textures/eco/v_kit_light_glow.png")],
+	"medium": [preload("res://assets/textures/eco/v_kit_medium.png"), preload("res://assets/textures/eco/v_kit_medium_mask.png"),
+		preload("res://assets/textures/eco/v_kit_medium_glow.png")],
+	"heavy": [preload("res://assets/textures/eco/v_kit_heavy.png"), preload("res://assets/textures/eco/v_kit_heavy_mask.png"),
+		preload("res://assets/textures/eco/v_kit_heavy_glow.png")],
+}
+## Her makeup with each suit weight on: a sharp wing and dark red lips (light),
+## a grease smear (medium), war paint under her eyes (heavy).
+const KIT_FACE := {
+	"light": preload("res://assets/materials/eco/eco_v_face_light.tres"),
+	"medium": preload("res://assets/materials/eco/eco_v_face_medium.tres"),
+	"heavy": preload("res://assets/materials/eco/eco_v_face_heavy.tres"),
+}
 ## Everything she can wear (outfit): her pilot suits, then her clothes. Each
 ## suit but her own has its bodysuit material, and its own pieces in the glb as
 ## base_<style>_* (a jacket, cowl, vest or skirt; harness and the vesper looks
@@ -177,6 +202,7 @@ const EcoRest := preload("res://scripts/ps2/eco_rest.gd")
 const Prefs := preload("res://scripts/game/prefs.gd")
 const Hair := preload("res://scripts/hub/hair.gd")
 const Extras := preload("res://scripts/hub/eco_extras.gd")
+const EcoFlesh := preload("res://scripts/ps2/eco_flesh.gd")
 ## Her face while she sleeps (blend shape -> weight); the import's fierce look
 ## comes back when she wakes.
 const ASLEEP_FACE := {"Fcl_EYE_Close": 1.0, "Fcl_EYE_Angry": 0.0, "Fcl_BRW_Angry": 0.25, "Fcl_MTH_Down": 0.0}
@@ -204,6 +230,12 @@ var _face: MeshInstance3D
 var _awake_face := {}
 ## The content rating her clothes were last put on for.
 var _dressed_rating := ""
+## Her bodysuit with her suit weight's changes laid over it, by "<outfit>/<weight>" (body_material).
+var _kit_bodies := {}
+# the heavy breastplate is on (apply_suit): her chest's springs stay at rest under it
+var _plated := false
+## Meshes swapped for full body jiggle ones (MeshInstance3D -> [mesh, skin] it had).
+var _flesh_swapped := {}
 
 
 func _ready() -> void:
@@ -237,6 +269,8 @@ func _ready() -> void:
 			_rest = null
 	if not _style_chosen:
 		follow_jiggle_setting()
+	elif body_jiggle:
+		_set_flesh(true)
 	_face = find_child("Face", true, false) as MeshInstance3D
 	Hair.apply(self, "eco")  # her haircut from the salon in Solace
 	set_process(_anim != null or not _springs.is_empty())
@@ -297,11 +331,17 @@ func look() -> String:
 func apply_suit() -> void:
 	var suited_ := suited()
 	var legacy := suited_ and suit_tier >= SUIT_TIERS
+	var squeeze := 1.0 if suited_ and suit_tier > 0 and suit_weight == "light" else 0.0
+	# the heavy kit's breastplate is one stiff plate strapped over her chest: it holds her still
+	_plated = suited_ and suit_tier > 0 and suit_weight == "heavy"
 	var rating := look().right(1)
 	_dressed_rating = ContentRating.current()
 	for node in find_children("*", "MeshInstance3D", true, false):
 		var mi := node as MeshInstance3D
 		var tier := piece_tier(String(mi.name))
+		var squeeze_shape := mi.find_blend_shape_by_name(&"kit_squeeze") if mi.mesh != null else -1
+		if squeeze_shape >= 0:   # the light kit's compression bands pull her thighs in
+			mi.set_blend_shape_value(squeeze_shape, squeeze)
 		var mesh_name := String(mi.name)
 		if mesh_name.begins_with("Goggles"):
 			mi.visible = not outfit in NO_GOGGLES
@@ -323,26 +363,36 @@ func apply_suit() -> void:
 				if m != null and m.resource_name == "eco_v_body":
 					mi.set_surface_override_material(i, body_material())
 				elif m != null and m.resource_name == "eco_v_face":
-					mi.set_surface_override_material(i, DATE_FACE if outfit == "date" else null)
+					mi.set_surface_override_material(i, face_material())
 		mi.set_instance_shader_parameter("trim_gold", 1.0 if legacy else 0.0)
 	Extras.apply(self)  # her piercings, tattoos and accessories from Solace
 
 
-## Her clothes' body texture, or the bodysuit for her weight: each weight has
-## its own cut (tools/eco/build_eco_vroid.py suit_graph); the bare suit uses
-## the base one (her style's).
+## Her clothes' body texture, or her suit style's bodysuit (null: the glb's
+## own, her gwen suit), with her suit weight's changes laid over it once she
+## has a suit tier (one material per style and weight, made once).
 func body_material() -> Material:
 	if not suited():
 		return OUTFIT_BODY[look()]
-	if suit_tier <= 0:
+	if suit_tier <= 0 or not KIT_TEX.has(suit_weight):
 		return STYLE_BODY.get(outfit)
-	match suit_weight:
-		"light":
-			return LIGHT_BODY
-		"medium":
-			return MEDIUM_BODY
-		"heavy":
-			return HEAVY_BODY
+	var key := outfit + "/" + suit_weight
+	if not _kit_bodies.has(key):
+		var m: ShaderMaterial = STYLE_BODY.get(outfit, GWEN_BODY).duplicate()
+		m.set_shader_parameter("use_kit", true)
+		m.set_shader_parameter("kit_tex", KIT_TEX[suit_weight][0])
+		m.set_shader_parameter("kit_mask_tex", KIT_TEX[suit_weight][1])
+		m.set_shader_parameter("kit_glow_tex", KIT_TEX[suit_weight][2])
+		_kit_bodies[key] = m
+	return _kit_bodies[key]
+
+
+## Her makeup: her date-night face, her suit weight's, or null (the glb's own).
+func face_material() -> Material:
+	if outfit == "date":
+		return DATE_FACE
+	if suited() and suit_tier > 0:
+		return KIT_FACE.get(suit_weight)
 	return null
 
 
@@ -550,6 +600,49 @@ func follow_jiggle_setting() -> void:
 	jiggle_style = Prefs.jiggle_style()
 	_style_chosen = false
 	add_to_group("eco_jiggle")
+	body_jiggle = Prefs.body_jiggle()
+
+
+## Turns the soft stomach, thigh, arm and calf springs on or off: on adds
+## their bones (once) and swaps her meshes for ones weighted to them; off puts
+## the original meshes back and lets the bones rest.
+func _set_flesh(on: bool) -> void:
+	if skeleton == null or (on and not springs_enabled):
+		return  # not ready yet (_ready turns it on), or posed by hand (first-person arm)
+	var had := _springs.any(func(s: Dictionary) -> bool: return s.get("flesh", false))
+	if on == had:
+		return
+	if not on:
+		_springs.assign(_springs.filter(func(s: Dictionary) -> bool: return not s.get("flesh", false)))
+		for mi: MeshInstance3D in _flesh_swapped:
+			if is_instance_valid(mi):
+				mi.mesh = _flesh_swapped[mi][0]
+				mi.skin = _flesh_swapped[mi][1]
+		_flesh_swapped.clear()
+		for bone_name: String in EcoFlesh.bone_names():
+			var i := skeleton.find_bone(bone_name)
+			if i >= 0:
+				skeleton.reset_bone_pose(i)
+		return
+	for spring: Dictionary in EcoFlesh.add_bones(skeleton):
+		var base: Dictionary = spring["base"]
+		var s: Dictionary = base.duplicate()
+		s["bone"] = spring["bone"]
+		s["parent"] = skeleton.get_bone_parent(spring["bone"])
+		s["aim"] = spring["aim"]
+		s["ready"] = false
+		s["base"] = base
+		s["flesh"] = true
+		_springs.append(s)
+	_springs.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return a["bone"] < b["bone"])
+	_apply_jiggle_style()
+	for node in skeleton.find_children("*", "MeshInstance3D", true, false):
+		var mi := node as MeshInstance3D
+		var swap := EcoFlesh.reweight(mi, skeleton)
+		if not swap.is_empty():
+			_flesh_swapped[mi] = [mi.mesh, mi.skin]
+			mi.mesh = swap[0]
+			mi.skin = swap[1]
 
 
 ## Sets every spring's settings from its group's own and jiggle_style's.
@@ -557,8 +650,9 @@ func _apply_jiggle_style() -> void:
 	var style: Dictionary = JIGGLE_STYLES.get(jiggle_style, {})
 	for s in _springs:
 		var base: Dictionary = s["base"]
-		for key: String in ["stiffness", "drag", "gravity", "limit", "inertia"]:
-			s[key] = base[key]
+		for key: String in ["stiffness", "drag", "gravity", "limit", "inertia", "reach"]:
+			if base.has(key):
+				s[key] = base[key]
 		s.erase("soft")
 		s.erase("lateral")
 		var tune: Dictionary = style.get(base.get("group", ""), {})
@@ -597,22 +691,61 @@ func _step_springs(delta: float) -> void:
 		var length := maxf(aim_world.length(), 0.02)
 		var origin := to_world * rest_xf.origin
 		var rest_dir := aim_world / length
-		var limit: float = deg_to_rad(s["limit"]) * (jiggle if s.get("jiggle", false) else 1.0)
+		# soft-body springs (eco_flesh.gd) slide their bone up to `reach` metres instead of turning it
+		var slide: bool = s.has("reach")
+		var limit: float = (float(s["reach"]) if slide else deg_to_rad(s["limit"])) * (jiggle if s.get("jiggle", false) else 1.0)
+		if _plated and s["base"].get("group", "") == "bust":
+			limit = 0.0
 		var target := origin + rest_dir * length
 		if limit <= 0.0 or not s["ready"] or (s["tip"] as Vector3).distance_to(target) > 1.0:
 			s["tip"] = target
 			s["prev"] = target
+			s["prev_target"] = target
 			s["ready"] = true
 			if limit <= 0.0:
-				skeleton.set_bone_pose_rotation(i, skeleton.get_bone_rest(i).basis.get_rotation_quaternion())
+				if slide:
+					skeleton.set_bone_pose_position(i, skeleton.get_bone_rest(i).origin)
+				else:
+					skeleton.set_bone_pose_rotation(i, skeleton.get_bone_rest(i).basis.get_rotation_quaternion())
 				continue
-		elif moved.length() < 1.0:
+		elif moved.length() < 1.0 and not slide:
 			# carry the spring along with the part of her movement it shouldn't feel
 			var carry := moved * (1.0 - float(s["inertia"]))
 			s["tip"] += carry
 			s["prev"] += carry
 		var tip: Vector3 = s["tip"]
 		var prev: Vector3 = s["prev"]
+		if slide:
+			# damp the flesh's speed relative to her body, not to the world: moving
+			# steadily (running, a swinging leg) leaves it in place, speeding up,
+			# slowing down and landing set it wobbling. Stepped a frame (at 60 fps)
+			# at a time, so a slow frame doesn't kick it.
+			var from_target: Vector3 = s["prev_target"]
+			s["prev_target"] = target
+			var count := ceili(steps)
+			var sub := steps / count
+			var next: Vector3 = tip
+			for n in count:
+				# where her body held it at the start of this step, and how far that moves
+				var goal := from_target.lerp(target, float(n) / count)
+				var moving := (target - from_target) / count
+				next = tip + moving + ((tip - prev) - moving) * pow(1.0 - s["drag"], sub)
+				next += (goal - tip) * minf(s["stiffness"] * sub, 1.0)
+				prev = tip
+				tip = next
+			if s.has("lateral"):
+				var across := to_world.basis.x.normalized()
+				next -= across * (next - target).dot(across) * (1.0 - float(s["lateral"]))
+			var off: Vector3 = next - target
+			var d := off.length()
+			if s.get("soft", false) and d > limit * 0.6:
+				off *= (limit * 0.6 + limit * 0.4 * tanh((d - limit * 0.6) / (limit * 0.4))) / d
+			elif d > limit:
+				off *= limit / d
+			s["prev"] = prev
+			s["tip"] = target + off
+			skeleton.set_bone_pose_position(i, skeleton.get_bone_rest(i).origin + parent_pose.basis.inverse() * (to_skel.basis * off))
+			continue
 		var next: Vector3 = tip + (tip - prev) * (1.0 - s["drag"])
 		next += (target - tip) * minf(s["stiffness"] * steps, 1.0)
 		next += Vector3.DOWN * s["gravity"] * 0.01 * steps * length
