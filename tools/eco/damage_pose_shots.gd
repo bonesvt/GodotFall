@@ -1,10 +1,11 @@
 extends SceneTree
 ## Stills of Eco's battle damage at full (every rip open, Mature) in the poses
-## that stretch her suit the most: mid-slide, crouched, and at the widest point
-## of her running stride, from behind, the side, low behind and the front. The
-## check by eye before the slide tears were allowed nearer the covered zones
-## (tools/eco/bake_damage.py SLIDE_GAP).
-##   xvfb-run -a godot --path . -s res://tools/eco/damage_pose_shots.gd -- [out_dir] [--damage=1.0] [--only=slide,crouch]
+## that stretch her suit the most: mid-slide, crouched, at the widest point of
+## her running stride and in the air, from behind, the side, low behind, the
+## front and close on her chest. The check by eye before the slide and chest
+## tears were allowed nearer the covered zones (tools/eco/bake_damage.py
+## SLIDE_GAP, CHEST_GAP).
+##   xvfb-run -a godot --path . -s res://tools/eco/damage_pose_shots.gd -- [out_dir] [--damage=1.0] [--only=slide,crouch] [--views=chest,chest_34]
 ## Needs a renderer (not --headless). Writes <pose>_<view>.png.
 
 const ECO := preload("res://assets/models/eco.tscn")
@@ -13,16 +14,21 @@ const ContentRating := preload("res://scripts/radio/content_rating.gd")
 
 var out := "user://damage_pose_shots"
 var only: Array = []
+var views: Array = []
 var damage := 1.0
 
 ## pose name, animation, how far through it (0..1)
-const POSES := [["slide", "slide", 0.5], ["crouch", "crouch", 0.5], ["stride", "run", 0.25], ["stride2", "run", 0.75]]
+const POSES := [["slide", "slide", 0.5], ["crouch", "crouch", 0.5], ["stride", "run", 0.25], ["stride2", "run", 0.75],
+		["idle", "idle", 0.0], ["fall", "fall", 0.5]]
 ## view name, camera position, look at (she faces -Z, her origin at her feet)
 const VIEWS := [
 	["back", Vector3(0, 0.95, 2.2), Vector3(0, 0.75, 0)],
 	["low_back", Vector3(0.0, 0.35, 1.5), Vector3(0, 0.75, 0)],
 	["side", Vector3(2.2, 0.85, 0), Vector3(0, 0.7, 0)],
 	["front", Vector3(0, 0.95, -2.2), Vector3(0, 0.75, 0)],
+	["chest", Vector3(0, 1.2, -1.1), Vector3(0, 1.05, 0)],
+	["chest_34", Vector3(0.8, 1.25, -0.8), Vector3(0, 1.05, 0)],
+	["chest_high", Vector3(0, 1.75, -0.7), Vector3(0, 1.0, 0)],
 ]
 
 
@@ -30,6 +36,8 @@ func _initialize() -> void:
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("--only="):
 			only = a.get_slice("=", 1).split(",")
+		elif a.begins_with("--views="):
+			views = a.get_slice("=", 1).split(",")
 		elif a.begins_with("--damage="):
 			damage = float(a.get_slice("=", 1))
 		elif not a.begins_with("--"):
@@ -75,6 +83,8 @@ func _go() -> void:
 		anim.seek(anim.current_animation_length * float(pose[2]), true)
 		anim.pause()
 		for view: Array in VIEWS:
+			if not views.is_empty() and not views.has(view[0]):
+				continue
 			cam.look_at_from_position(view[1], view[2])
 			await _frames(4)
 			var path := out.path_join("%s_%s.png" % [pose[0], view[0]])

@@ -85,8 +85,8 @@ func _rating_and_setting() -> void:
 
 
 ## Every vertex of her body within 6 cm of the always-covered zones (memory
-## vesper-limits), and all of her chest, reads "never" for tears and cuts;
-## sliding wear (checked by eye at full size in poses) stays 3.5 cm clear.
+## vesper-limits) reads "never" for tears and cuts; the chest tears and sliding
+## wear (both checked by eye at full size in poses) stay 3.5 cm clear.
 func _map_keeps_clear() -> void:
 	var img := Image.load_from_file(ProjectSettings.globalize_path(MAP))
 	var slide := Image.load_from_file(ProjectSettings.globalize_path(SLIDE_MAP))
@@ -103,6 +103,7 @@ func _map_keeps_clear() -> void:
 	var torn_somewhere := 0
 	var slid_thigh := 0
 	var slid_glute := 0
+	var torn_chest := 0
 	for i in verts.size():
 		var v := verts[i]
 		var p := Vector3(-v.x, v.z, v.y) / K   # rest space: z up, she faces -y
@@ -111,18 +112,21 @@ func _map_keeps_clear() -> void:
 		var worn := slide.get_pixelv(at).r < 0.99
 		if px.g < 0.99:
 			torn_somewhere += 1
+			if p.z > 0.95 and p.z < 1.17 and p.y < 0.0 and absf(p.x) < 0.15:
+				torn_chest += 1
 		if worn and p.z > 0.6 and p.z < 0.8 and absf(p.x) > 0.11:
 			slid_thigh += 1
 		if worn and p.z > 0.72 and p.z < 0.88 and p.y > 0.02:
 			slid_glute += 1
 		if worn and _locked(p, 0.035):
 			bad.append(p)
-		if not _locked(p):
+		if not _locked(p, 0.06, 0.035):
 			continue
 		near += 1
 		if px.g < 0.99 or px.a < 0.99:
 			bad.append(p)
 	_check("map: tears exist", torn_somewhere > 30, torn_somewhere)
+	_check("map: hits tear her chest too, clear of her bust", torn_chest > 10, torn_chest)
 	_check("slide map: wears through her outer upper thighs", slid_thigh > 10, slid_thigh)
 	_check("slide map: and the outer parts of her glutes", slid_glute > 5, slid_glute)
 	_check("map: nothing near the covered zones can tear or scar (%d vertices checked)" % near, near > 200 and bad.is_empty(),
@@ -130,11 +134,11 @@ func _map_keeps_clear() -> void:
 	eco.free()
 
 
-## Within `pad` of a covered zone (vesper-limits), or on her chest.
-func _locked(p: Vector3, pad := 0.06) -> bool:
+## Within `pad` of a covered zone (vesper-limits), or `bust_pad` of a bust disc.
+func _locked(p: Vector3, pad: float, bust_pad := -1.0) -> bool:
 	var ax := absf(p.x)
 	for sx in [0.057, -0.057]:
-		if Vector2(p.x - sx, p.z - 1.047).length() < 0.022 + pad + 0.01:
+		if p.y < 0.02 and Vector2(p.x - sx, p.z - 1.047).length() < 0.022 + (pad if bust_pad < 0.0 else bust_pad):
 			return true
 	if p.y < 0.0 and p.z > 0.712 - pad and p.z < 0.79 + pad and ax < 0.012 + 0.45 * (p.z - 0.70) + pad:
 		return true   # groin
@@ -142,7 +146,7 @@ func _locked(p: Vector3, pad := 0.06) -> bool:
 		return true   # between the legs
 	if p.y > 0.0 and p.z > 0.712 - pad and p.z < 0.81 + pad and ax < 0.012 + pad:
 		return true   # back cleft
-	return p.z > 0.98 and p.z < 1.13 and ax < 0.13 and p.y < 0.0   # her chest
+	return false
 
 
 func _materials() -> void:

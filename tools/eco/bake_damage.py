@@ -18,10 +18,12 @@ her thighs, the outer parts of her glutes and her hips (SLIDE_TEARS, SLIDE_OK).
 
 Tears and scars can only land where TEAR_OK allows: her arms, legs below
 mid-thigh, shoulders, upper back, flanks and a strip of stomach. Everything
-round her chest and between her hips and thighs is locked out, a long way
-clear of the always-covered zones (memory vesper-limits: a 2.2 cm disc round
-each bust apex, the groin, between the legs, the back cleft). check_zones()
-fails the bake if any texel near those zones could ever tear.
+between her hips and thighs is locked out, a long way clear of the
+always-covered zones (memory vesper-limits: a 2.2 cm disc round each bust
+apex, the groin, between the legs, the back cleft). The chest tears
+(CHEST_TEARS, CHEST_OK) may come within 4 cm of the bust discs, checked by eye
+in poses. check_zones() fails the bake if any texel near those zones could
+ever tear.
 
 Rest space is the build's (tools/eco/build_eco_vroid.py): metres before she
 was scaled to her height, z up, she faces -y, +x her left. The glb is that
@@ -204,13 +206,23 @@ def slide_ok(P, N):
     return ok
 
 
-def zone_mask(P, pad):
-    """The always-covered zones (vesper-limits), grown by `pad` metres."""
+def chest_ok(P, N):
+    """Where the chest tears (CHEST_TEARS) may open: the front of her chest
+    from the top of her stomach to her collarbones, wherever it's CHEST_GAP or
+    more from the disc round either bust apex."""
+    x, z = P[..., 0], P[..., 2]
+    chest = (z > 0.90) & (z < 1.17) & (np.abs(x) < 0.17) & (N[..., 1] < 0.3)
+    return chest & ~zone_mask(P, CHEST_GAP)
+
+
+def zone_mask(P, pad, bust_pad=None):
+    """The always-covered zones (vesper-limits), grown by `pad` metres (the
+    bust discs by `bust_pad`, if given)."""
     x, y, z = P[..., 0], P[..., 1], P[..., 2]
     ax = np.abs(x)
     m = np.zeros(x.shape, bool)
     for sx, sz in APEXES:
-        m |= (np.hypot(x - sx, z - sz) < APEX_R + pad) & (y < 0.02)
+        m |= (np.hypot(x - sx, z - sz) < APEX_R + (pad if bust_pad is None else bust_pad)) & (y < 0.02)
     m |= (ax < 0.012 + 0.45 * (z - 0.70) + pad) & (z > 0.712 - pad) & (z < 0.79 + pad) & (y < 0.0)
     m |= (ax < 0.014 + pad) & (z > 0.712 - pad) & (z < 0.74 + pad)
     m |= (ax < 0.012 + pad) & (z > 0.712 - pad) & (z < 0.81 + pad) & (y > 0.0)
@@ -270,6 +282,19 @@ TEARS = [
     ((-0.050, -0.095, 0.905), FRONT, (1, 0, -0.25), 0.040, 0.016, 0.66, 0.25, 0.30),  # stomach slash, right of her navel
     ((0.360, -0.020, 1.135), FRONT, ARM_L, 0.050, 0.022, 0.70, 0.30, 0.40),   # left forearm
     ((0.075, 0.050, 0.300), BACK, LEG, 0.055, 0.028, 0.82, 0.25, 0.40),       # left calf
+]
+
+# torn open across her chest by hits (Bones, 2026-10-07): like the slide
+# tears, their full extent is fixed here and was checked by eye at full size
+# in poses (tools/eco/damage_pose_shots.gd), so they may come within
+# CHEST_GAP of the disc round either bust apex, never nearer. Sized to stay
+# inside chest_ok, so the gap never cuts a straight edge across one.
+CHEST_GAP = 0.04
+CHEST_TEARS = [
+    ((0.065, -0.060, 1.140), (0, -1, 0.5), (1, 0, 0.25), 0.032, 0.014, 0.40, 0.30, 0.35),     # under her left collarbone
+    ((-0.015, -0.100, 0.966), FRONT, (1, 0, -0.15), 0.030, 0.012, 0.58, 0.30, 0.35),          # top of her stomach, under her bust
+    ((-0.075, -0.050, 1.142), (-0.3, -1, 0.5), (-1, 0, 0.3), 0.028, 0.012, 0.72, 0.25, 0.35),  # under her right collarbone
+    ((0.000, -0.066, 1.135), (0, -1, 0.4), (0.3, 0, 1), 0.018, 0.010, 0.86, 0.20, 0.35),       # her breastbone, between the collarbones
 ]
 
 # worn through by sliding (opened by the slide level, not hits). Their full
@@ -349,7 +374,12 @@ def body_maps(P, N, cover, verts, normals):
     tear = np.full(x.shape, NEVER)
     for i, (c, f, a, rl, rs, ap, gr, jag) in enumerate(TEARS):
         tear = np.minimum(tear, spot_level(P, N, snap(verts, c, f, normals), f, a, rl, rs, ap, gr, jag, 40 + i))
-    tear = np.where(ok & (tear < 0.98), tear, NEVER)   # the shader reads 0.99+ as never
+    tear = np.where(ok, tear, NEVER)
+    chest = np.full(x.shape, NEVER)
+    for i, (c, f, a, rl, rs, ap, gr, jag) in enumerate(CHEST_TEARS):
+        chest = np.minimum(chest, spot_level(P, N, snap(verts, c, f, normals), f, a, rl, rs, ap, gr, jag, 140 + i))
+    tear = np.minimum(tear, np.where(chest_ok(P, N), chest, NEVER))
+    tear = np.where(tear < 0.98, tear, NEVER)   # the shader reads 0.99+ as never
 
     scuff = np.full(x.shape, NEVER)
     for i, (c, f, a, rl, rs, ap, gr, jag) in enumerate(SCUFFS):
@@ -424,10 +454,10 @@ def slide_map(P, N, cover, verts, normals):
 
 
 def check_zones(P, cover, maps, slide=None):
-    """The bake fails if anything within 6 cm of an always-covered zone could
-    ever tear or scar, or sliding wear through within 3.5 cm (SLIDE_GAP less
-    half a centimetre of slack)."""
-    near = zone_mask(P, 0.06) & cover
+    """The bake fails if anything within 6 cm of an always-covered zone (3.5 cm
+    of a bust disc: CHEST_GAP less half a centimetre of slack) could ever tear
+    or scar, or sliding wear through within 3.5 cm (SLIDE_GAP less the same)."""
+    near = zone_mask(P, 0.06, CHEST_GAP - 0.005) & cover
     bad = near & ((maps[..., 1] < NEVER) | (maps[..., 3] < NEVER))
     if slide is not None:
         bad |= zone_mask(P, SLIDE_GAP - 0.005) & cover & (slide < NEVER)
