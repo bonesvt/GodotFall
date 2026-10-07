@@ -28,6 +28,9 @@ var kind := "cheats"
 var unlocked: Array = []
 ## What the box did, for the toast after.
 var done: Array = []
+## Super Hush was picked: the box closes and its scene plays (super_hush_scene.gd).
+var inject := false
+var close_now := false
 
 var _status: Label
 
@@ -138,10 +141,10 @@ func super_hush() -> bool:
 	Vices.hold = Vices.MAX_HOLD
 	Vices.walked_away = false
 	Vices.save()
-	var reward := " The Hush courier suit is in her wardrobe and the Hush finish is at the gunsmith's bench." if Vices.reward_check() else ""
-	Vices.hush_suit_new = false  # said here
-	Vices.hush_finish_new = false
-	_did("Super Hush: Marrow's Hold is full. He stops selling, his pull can take her, and a run without a dose is withdrawal." + reward)
+	Vices.reward_check()  # his gifts: told after the scene
+	inject = true
+	close_now = true
+	_did("Super Hush: Marrow's Hold is full. He stops selling, his pull can take her, and a run without a dose is withdrawal.")
 	return true
 
 

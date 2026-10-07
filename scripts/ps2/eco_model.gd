@@ -22,6 +22,9 @@ extends "res://scripts/ps2/ps2_model.gd"
 ## How far her posture has slumped (0..1, _slump): below 0 it follows Marrow's
 ## Hold (vices.gd slump()) on the player's own Eco; tools set it directly.
 @export_range(-1.0, 1.0) var slump := -1.0
+## Her right hand up at the side of her neck, head tipped away (0..1, _inject):
+## the cheat box's Super Hush injector (super_hush_scene.gd) sets it.
+@export_range(0.0, 1.0) var inject := 0.0
 ## Seconds to blend from one animation into the next (slides and falls take half).
 @export var anim_blend := 0.25
 ## Play the walk and run strides backwards (she's backpedalling; set by
@@ -586,6 +589,8 @@ func _process(delta: float) -> void:
 	if _anim != null:
 		_animate()
 		_strut(delta)
+		if inject > 0.0:
+			_inject(inject)
 		_run_moves(delta)
 		_wall_lean(delta)
 		_rest_layer(delta)
@@ -759,6 +764,18 @@ func _strut(delta: float) -> void:
 	_turn("hand.L", Vector3.BACK, -14.0 * (w + p))
 	if _slump_weight > 0.0:
 		_slump(_slump_weight, _strut_weight)
+
+
+## The injector at her neck: right arm raised and bent so the hand sits under
+## her jaw, head tipped to her left, shoulders braced. Laid over whatever she's
+## doing (the strut's undo takes it off again next frame).
+func _inject(k: float) -> void:
+	_turn("upperarm.R", Vector3.RIGHT, 22.0 * k)
+	_turn("upperarm.R", Vector3.BACK, -40.0 * k)
+	_turn("forearm.R", Vector3.RIGHT, 128.0 * k)
+	_turn("hand.R", Vector3.RIGHT, 20.0 * k)
+	_turn("head", Vector3.BACK, 14.0 * k)
+	_turn("chest", Vector3.RIGHT, -3.0 * k)
 
 
 ## Marrow's Hold in her body off duty (vices.gd slump): her chest caves and

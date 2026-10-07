@@ -69,6 +69,7 @@ const HushScreen := preload("res://scripts/hub/hush_screen.gd")
 const HushDen := preload("res://scripts/hub/hush_den.gd")
 const DrunkScreen := preload("res://scripts/ui/drunk_screen.gd")
 const HushPull := preload("res://scripts/hub/hush_pull.gd")
+const SuperHushScene := preload("res://scripts/hub/super_hush_scene.gd")
 const CheatScreen := preload("res://scripts/hub/cheat_screen.gd")
 const Soundscape := preload("res://scripts/soundscape.gd")
 const SFX := preload("res://scripts/sfx.gd")
@@ -196,6 +197,8 @@ var armory: Armory
 var bench = null
 ## Marrow's pull at full Hold (hush_pull.gd): walks her to his basement.
 var hush_pull: HushPull
+## The cheat box's Super Hush, played out (super_hush_scene.gd).
+var super_hush_scene: SuperHushScene
 ## What she grabbed by mistake for this run, deep in Marrow's Hold
 ## (vices.gd wrong_gear): put right when she gets home.
 var mixed_up := {}
@@ -246,6 +249,8 @@ func _ready() -> void:
 	Vices.open(armory_path.get_basename() + "_vices.cfg")
 	hush_pull = HushPull.new(self)
 	add_child(hush_pull)
+	super_hush_scene = SuperHushScene.new(self)
+	add_child(super_hush_scene)
 	npc_talk = NpcTalk.new()
 	npc_talk.save_path = npc_path
 	add_child(npc_talk)
@@ -448,6 +453,7 @@ func enter_hub() -> void:
 	place_player(zone_info["spawn"])
 	tutorial.start_level("hub")
 	hush_pull.reset()
+	super_hush_scene.reset()
 	if not mixed_up.is_empty():  # home: her own gear again
 		mixed_up = {}
 		equip_loadout()
@@ -555,8 +561,10 @@ func _physics_process(delta: float) -> void:
 
 func _hub_tick(delta: float) -> void:
 	if bench != null:
-		if Input.is_action_just_pressed("interact") or Input.is_action_just_pressed("ui_cancel"):
+		if Input.is_action_just_pressed("interact") or Input.is_action_just_pressed("ui_cancel") or bench.get("close_now") == true:
 			close_bench()
+		return
+	if super_hush_scene.busy():
 		return
 	if garage != null:
 		if Input.is_action_just_pressed("interact") or Input.is_action_just_pressed("ui_cancel"):
@@ -932,6 +940,7 @@ func close_bench() -> void:
 		if bench.kind == "noodles" and TownShops.MEALS.has(TownShops.meal()) and not bench.bought.is_empty():
 			hud.toast("Fed: %s. It lasts the next run." % TownShops.MEALS[TownShops.meal()]["name"], HUB_LINE_SECONDS)
 	var kind: String = bench.get_meta("kind", "")
+	var inject: bool = bench.get("inject") == true
 	bench.queue_free()
 	bench = null
 	get_tree().paused = false
@@ -941,6 +950,8 @@ func close_bench() -> void:
 	pilot_hud.visible = true
 	equip_loadout()
 	dress_hub()
+	if inject:
+		super_hush_scene.play()
 
 
 ## Puts the gun picked at the weapon rack, upgraded and fitted, in Eco's hand,
@@ -1604,7 +1615,8 @@ func end_run(title: String, reason: String) -> void:
 ## B lights a smoke, N jabs a stim: on foot, in the hub or on a run, with
 ## nothing else open.
 func _vice_keys() -> void:
-	if not Vices.allowed() or bench != null or garage != null or hub_piloting or npc_talk.active() or hush_pull.busy():
+	if not Vices.allowed() or bench != null or garage != null or hub_piloting or npc_talk.active() or hush_pull.busy() \
+			or super_hush_scene.busy():
 		return
 	if not (phase == Phase.HUB or in_run()) or (titan != null and titan.piloted):
 		return
@@ -1753,7 +1765,7 @@ func _update_hud() -> void:
 func _prompt() -> String:
 	match phase:
 		Phase.HUB:
-			if hub_piloting or hush_pull.busy():
+			if hub_piloting or hush_pull.busy() or super_hush_scene.busy():
 				return ""
 			if hub_titan != null and hub_titan.dropping:
 				return "Titanfall inbound"

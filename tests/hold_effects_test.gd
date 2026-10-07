@@ -112,6 +112,27 @@ func _run() -> void:
 	_check("Teen: not in the wardrobe", not "suit_hush" in Wardrobe.options("eco"), Wardrobe.options("eco"))
 	ContentRating.set_rating("M", false)
 
+	# The cheat box's Super Hush plays its scene: injector, swirls, Marrow, back.
+	Vices.reset()
+	run_node.open_bench("cheats")
+	await _ticks(2)
+	run_node.bench.super_hush()
+	await _ticks(3)
+	var scene: Node = run_node.super_hush_scene
+	_check("the box closes and the scene starts", run_node.bench == null and scene.busy() and player.entranced, scene.t)
+	await _seconds(scene.HISS - 0.2)
+	_check("the injector at her neck", model.inject > 0.8 and scene._prop != null, model.inject)
+	await _seconds(0.6)
+	_check("it goes in: her eyes spin up", Vices.eye_swirl() > 1.0 and Vices.hold == Vices.MAX_HOLD, Vices.eye_swirl())
+	await _seconds(scene.EYES - scene.HISS + 0.2)
+	_check("a close-up on her eyes", get_root().get_camera_3d() == scene._cam and scene._cam != null, get_root().get_camera_3d())
+	_check("no prompts, no moving", run_node._prompt() == "", run_node._prompt())
+	await _seconds(scene.END - scene.EYES + 0.3)
+	_check("over: she's hers to move again", not scene.busy() and not player.entranced and model.inject == 0.0 and not Vices.entranced, scene.t)
+	_check("her own camera back", get_root().get_camera_3d() == player.camera, get_root().get_camera_3d())
+	_check("his gifts told after", run_node.hud.toast_label.text.contains("Hold is full") and run_node.hud.toast_label.text.contains("courier suit")
+			and not Vices.hush_suit_new and not Vices.hush_finish_new, run_node.hud.toast_label.text)
+
 	Vices.reset()
 	print("hold_effects_test: %s (%d failures)" % ["PASS" if failures == 0 else "FAIL", failures])
 	quit(1 if failures > 0 else 0)
@@ -123,6 +144,10 @@ func _find_model(p: Node) -> Node:
 		if n.get_script() != null and String(n.get_script().resource_path).ends_with("eco_model.gd"):
 			return n
 	return null
+
+
+func _seconds(s: float) -> void:
+	await _ticks(int(s * Engine.physics_ticks_per_second))
 
 
 func _ticks(n: int) -> void:
