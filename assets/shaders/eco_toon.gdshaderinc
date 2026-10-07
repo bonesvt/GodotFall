@@ -118,8 +118,11 @@ float damage_noise(vec2 p) {
 }
 varying float v_rim;
 varying vec3 v_shade;
+// her model-space position (feet at 0, head at about 1.6 m), for the Glass's spread
+varying vec3 v_obj;
 
 void vertex() {
+	v_obj = VERTEX;
 	vec4 clip = PROJECTION_MATRIX * MODELVIEW_MATRIX * vec4(VERTEX, 1.0);
 	if (ps2_vertex_snap > 0.0) {
 		vec2 grid = vec2(ps2_vertex_snap, ps2_vertex_snap * VIEWPORT_SIZE.y / VIEWPORT_SIZE.x) * 0.5;
@@ -184,8 +187,13 @@ void fragment() {
 		col = mix(col, col * DIRT * 2.2 + DIRT * 0.1, g * (0.4 + 0.25 * damage_noise(UV * 140.0)) * (0.8 + 0.2 * speck));
 		// Glass on her skin: faceted violet crystal, its seams glowing
 		if (eco_glass > 0.0) {
-			float glassed = smoothstep(d.r * 0.85 + 0.08, d.r * 0.85 + 0.14, eco_glass) * max(torn, 1.0 - fabric);
-			vec2 fc = UV * 150.0;
+			// it creeps up from her limbs, round the sides of her neck and jaw
+			// and up her cheeks, the middle of her face last; never quite all of it
+			float reach = smoothstep(1.66, 1.15, v_obj.y) * 0.7 + clamp(abs(v_obj.x) / 0.08, 0.0, 1.0) * 0.3
+					+ (damage_noise(v_obj.xy * 38.0) - 0.5) * 0.3;
+			float front = 1.0 - eco_glass * 0.82;
+			float glassed = smoothstep(front, front + 0.03, reach) * max(torn, 1.0 - fabric);
+			vec2 fc = UV * 70.0;
 			vec2 gi = floor(fc);
 			vec2 gf = fract(fc);
 			float d1 = 8.0;
@@ -205,10 +213,14 @@ void fragment() {
 					}
 				}
 			}
-			float seam_glow = 1.0 - smoothstep(0.0, 0.09, d2 - d1);
-			vec3 crystal = mix(vec3(0.22, 0.08, 0.36), vec3(0.78, 0.6, 1.0), 0.25 + 0.6 * facet);
-			col = mix(col, crystal, glassed * 0.85);
-			glass_emit = HUSH_VIOLET * (seam_glow * 0.8 + 0.1 + 0.15 * facet) * glassed;
+			float seam_glow = 1.0 - smoothstep(0.0, 0.06, d2 - d1);
+			// each facet a flat plane of glass: a light and a dark side, a pale glint
+			float plane = step(0.5, fract(facet * 7.0));
+			vec3 crystal = mix(vec3(0.3, 0.12, 0.48), vec3(0.82, 0.66, 1.0), 0.2 + 0.5 * facet + 0.2 * plane);
+			// a soft edge where it meets her skin, glassy right through further in
+			float rim_in = smoothstep(front + 0.03, front + 0.1, reach);
+			col = mix(col, crystal, glassed * (0.55 + 0.4 * rim_in));
+			glass_emit = HUSH_VIOLET * (seam_glow * 1.2 + 0.08 + 0.12 * facet) * glassed;
 		}
 	} else if (damage_kind == 2) {
 		float n = damage_noise(UV * 30.0) * 0.6 + damage_noise(UV * 95.0) * 0.4;

@@ -68,6 +68,8 @@ func _run() -> void:
 			continue   # Mom's bed: tests/family_test.gd
 		if spot.has("errand"):
 			continue   # Marrow's errand spots: tests/hush_pull_test.gd
+		if spot.has("glass"):
+			continue   # the Chorus's ledger and vats: tests/glass_test.gd
 		if spot["id"] in ["tutorial_poster", "uncharted_map", "garage", "level_board", "level2_board"]:  # level boards: tests/level1_test.gd, level2_test.gd
 			continue
 		await _stand_at(spot["pos"])
