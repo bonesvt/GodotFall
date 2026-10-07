@@ -210,6 +210,13 @@ Under the Mature rating (Settings > Game), **F** at the Rusted Halo on Low Row o
   --rendering-driver opengl3 -s res://tools/eco/trance_shots.gd -- <dir>`.
 - Tests: `godot --headless --path . -s res://tests/vices_test.gd`, `tests/hush_pull_test.gd`
 
+### Cheat box
+A dented ammo crate with a gold trim by the rug in Eco's loft (`scripts/hub/cheat_screen.gd`).
+**F** opens it: **1** maxes every material (9999), **2** maxes every relationship (Ophelia's
+affection, Mom's and Biggie's bond), **3** unlocks every piercing, tattoo and accessory (they land
+taken off; put them on at Ink & Iron and Stitch & Steel, Mature ones under Mature). Test:
+`tests/cheat_test.gd`.
+
 ### Workbenches and materials
 Out on runs you collect four materials, and the hub's workbenches spend them:
 - **Scrap**: grunts drop it when they die; small **supply crates** beside the routes hold

@@ -69,6 +69,7 @@ const HushScreen := preload("res://scripts/hub/hush_screen.gd")
 const HushDen := preload("res://scripts/hub/hush_den.gd")
 const DrunkScreen := preload("res://scripts/ui/drunk_screen.gd")
 const HushPull := preload("res://scripts/hub/hush_pull.gd")
+const CheatScreen := preload("res://scripts/hub/cheat_screen.gd")
 const Soundscape := preload("res://scripts/soundscape.gd")
 const SFX := preload("res://scripts/sfx.gd")
 
@@ -838,6 +839,8 @@ func open_bench(kind: String) -> void:
 		bench = StimScreen.new(armory)
 	elif kind == "hush":
 		bench = HushScreen.new(armory, npc_talk.state)
+	elif kind == "cheats":
+		bench = CheatScreen.new(armory, npc_talk)
 	else:
 		bench = GunsmithScreen.new(armory) if kind == "gunsmith" else BenchScreen.new(armory, kind)
 	bench.set_meta("kind", kind)

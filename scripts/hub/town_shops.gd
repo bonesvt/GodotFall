@@ -197,6 +197,26 @@ static func buy(armory: Armory, kind: String, id: String) -> bool:
 	return true
 
 
+## The cheat box (cheat_screen.gd): she owns every piercing, tattoo and
+## accessory, Mature ones included (they still only show under Mature). New
+## ones go in the wardrobe taken off, so she isn't wearing everything at once.
+## Returns how many were new.
+static func unlock_all() -> int:
+	var catalogs := {"piercings": Extras.PIERCINGS, "tattoos": Extras.TATTOOS, "accessories": Extras.ACCESSORIES}
+	var added := 0
+	for kind: String in catalogs:
+		var list := owned(kind)
+		var off := _list(kind + "_off")
+		for id: String in catalogs[kind]:
+			if not list.has(id):
+				list.append(id)
+				off.append(id)
+				added += 1
+		_set_list(kind, list)
+		_set_list(kind + "_off", off)
+	return added
+
+
 ## Puts something she owns on or takes it off (free).
 static func set_worn(kind: String, id: String, on: bool) -> void:
 	var off := _list(kind + "_off")
