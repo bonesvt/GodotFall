@@ -43,8 +43,10 @@ var stride_reverse := false
 ## How big her glutes' swing shows, over what their springs simulate (1 = as
 ## tuned; Bones picked half as much again, 2026-10-07).
 @export_range(0.0, 3.0) var glute_swing := 1.5
-## Walls, corners and other bodies push her soft parts (chest, glutes and,
-## with full body jiggle, the rest) out of them; moving clear lets them spring back.
+## Walls, corners and other bodies push her soft parts (chest, glutes, hair
+## and, with full body jiggle, the rest) out of them, and her soft parts and
+## limbs press on each other (SELF_PAIRS, SELF_BODIES); moving clear lets them
+## spring back.
 @export var jiggle_collide := true
 ## Full body jiggle (experimental): soft springs in her stomach, thighs, upper
 ## arms and calves as well (scripts/ps2/eco_flesh.gd). Left unset, she follows
@@ -101,15 +103,55 @@ var stride_reverse := false
 ## through the world it feels (1 = all of it: hair streams back when she runs;
 ## low = only her own motion: the jiggle bounces with her steps and landings
 ## without being dragged back by her speed).
-const HAIR := {"group": "hair", "stiffness": 0.14, "drag": 0.2, "gravity": 0.7, "limit": 30.0, "inertia": 0.6}
-const HAIR_TIP := {"group": "hair", "stiffness": 0.12, "drag": 0.2, "gravity": 0.6, "limit": 20.0, "inertia": 0.6}
+const HAIR := {"group": "hair", "stiffness": 0.14, "drag": 0.2, "gravity": 0.7, "limit": 30.0, "inertia": 0.6, "touch": 0.015}
+const HAIR_TIP := {"group": "hair", "stiffness": 0.12, "drag": 0.2, "gravity": 0.6, "limit": 20.0, "inertia": 0.6, "touch": 0.015}
 # the fringe hangs over her face: it may lift off it, but swinging far back would go into her head
-const FRINGE := {"group": "hair", "stiffness": 0.16, "drag": 0.22, "gravity": 0.5, "limit": 12.0, "inertia": 0.35}
-const FRINGE_TIP := {"group": "hair", "stiffness": 0.14, "drag": 0.22, "gravity": 0.5, "limit": 10.0, "inertia": 0.35}
+const FRINGE := {"group": "hair", "stiffness": 0.16, "drag": 0.22, "gravity": 0.5, "limit": 12.0, "inertia": 0.35, "touch": 0.015}
+const FRINGE_TIP := {"group": "hair", "stiffness": 0.14, "drag": 0.22, "gravity": 0.5, "limit": 10.0, "inertia": 0.35, "touch": 0.015}
 const BUST := {"group": "bust", "stiffness": 0.14, "drag": 0.08, "gravity": 0.15, "limit": 24.0, "inertia": 0.2, "jiggle": true, "touch": 0.045}
 # the back hair chains below the nape: only the salon's long cuts (braids, ponytail; scripts/hub/hair.gd) hang from them
-const BRAID := {"group": "hair", "stiffness": 0.1, "drag": 0.16, "gravity": 0.9, "limit": 28.0, "inertia": 0.5}
+const BRAID := {"group": "hair", "stiffness": 0.1, "drag": 0.16, "gravity": 0.9, "limit": 28.0, "inertia": 0.5, "touch": 0.015}
 const GLUTE := {"group": "glute", "stiffness": 0.18, "drag": 0.09, "gravity": 0.15, "limit": 18.0, "inertia": 0.2, "jiggle": true, "touch": 0.045}
+## Her own soft parts pressing on each other: [spring, spring, resting]. A
+## pair never gets closer than their touch radii, or than her pose holds them
+## if that's closer already, so one pressing in pushes the other away and hands
+## it its swing. Resting pairs (her cheeks) touch already, so any squeeze
+## between them passes across.
+const SELF_PAIRS := [
+	["J_Sec_L_Glute1", "J_Sec_R_Glute1", true],
+	["J_Sec_L_Bust1", "J_Sec_R_Bust1", false],
+	["J_Sec_L_Thigh", "J_Sec_R_Thigh", false],
+	["J_Sec_L_Calf", "J_Sec_R_Calf", false],
+	["J_Sec_L_Thigh", "J_Sec_L_Calf", false],
+	["J_Sec_R_Thigh", "J_Sec_R_Calf", false],
+	["J_Sec_C_Belly", "J_Sec_L_Thigh", false],
+	["J_Sec_C_Belly", "J_Sec_R_Thigh", false],
+	["J_Sec_L_Bust1", "J_Sec_L_UpperArmSoft", false],
+	["J_Sec_R_Bust1", "J_Sec_R_UpperArmSoft", false],
+]
+## Her limbs and body as capsules her soft parts can't swing into: [from bone,
+## to bone ("" = up her from bone's own axis by `up`), up, radius]. Same rule
+## as SELF_PAIRS, so where her pose already has them closer it holds them there.
+const TORSO := ["J_Bip_C_Spine", "J_Bip_C_UpperChest", 0.0, 0.1]
+const NECK := ["J_Bip_C_UpperChest", "J_Bip_C_Neck", 0.0, 0.06]
+const SKULL := ["J_Bip_C_Head", "", 0.1, 0.085]
+const L_UPPER_ARM := ["J_Bip_L_UpperArm", "J_Bip_L_LowerArm", 0.0, 0.045]
+const R_UPPER_ARM := ["J_Bip_R_UpperArm", "J_Bip_R_LowerArm", 0.0, 0.045]
+const L_FOREARM := ["J_Bip_L_LowerArm", "J_Bip_L_Hand", 0.0, 0.035]
+const R_FOREARM := ["J_Bip_R_LowerArm", "J_Bip_R_Hand", 0.0, 0.035]
+const L_UPPER_LEG := ["J_Bip_L_UpperLeg", "J_Bip_L_LowerLeg", 0.0, 0.065]
+const R_UPPER_LEG := ["J_Bip_R_UpperLeg", "J_Bip_R_LowerLeg", 0.0, 0.065]
+## By spring bone, or by group: which of those each soft part keeps out of.
+const SELF_BODIES := {
+	"J_Sec_L_Bust1": [L_UPPER_ARM, L_FOREARM, R_FOREARM],
+	"J_Sec_R_Bust1": [R_UPPER_ARM, L_FOREARM, R_FOREARM],
+	"J_Sec_L_Glute1": [L_UPPER_LEG],
+	"J_Sec_R_Glute1": [R_UPPER_LEG],
+	"J_Sec_C_Belly": [L_UPPER_LEG, R_UPPER_LEG, L_FOREARM, R_FOREARM],
+	"J_Sec_L_UpperArmSoft": [TORSO],
+	"J_Sec_R_UpperArmSoft": [TORSO],
+	"hair": [TORSO, NECK, SKULL, L_UPPER_ARM, R_UPPER_ARM],
+}
 const SPRINGS := {
 	# locks 01-02 hang at the back, 03-04 at the sides, 05-09 are the fringe;
 	# the side and fringe locks bend once more at their second joint
@@ -281,6 +323,7 @@ func _ready() -> void:
 		# parents before children, so a lock's second joint follows its root
 		_springs.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return a["bone"] < b["bone"])
 		_apply_jiggle_style()
+		_link_touches()
 		_last_origin = skeleton.global_position
 		for bone_name: String in STRUT_BONES:
 			_bones[bone_name] = skeleton.find_bone(STRUT_BONES[bone_name])
@@ -755,6 +798,7 @@ func _set_flesh(on: bool) -> void:
 		return
 	if not on:
 		_springs.assign(_springs.filter(func(s: Dictionary) -> bool: return not s.get("flesh", false)))
+		_link_touches()
 		for mi: MeshInstance3D in _flesh_swapped:
 			if is_instance_valid(mi):
 				# mesh first: the original mesh fits either skin, the soft one only its own
@@ -778,6 +822,7 @@ func _set_flesh(on: bool) -> void:
 		_springs.append(s)
 	_springs.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return a["bone"] < b["bone"])
 	_apply_jiggle_style()
+	_link_touches()
 	for node in skeleton.find_children("*", "MeshInstance3D", true, false):
 		var mi := node as MeshInstance3D
 		var swap := EcoFlesh.reweight(mi, skeleton)
@@ -840,6 +885,76 @@ func _collide(s: Dictionary, tip: Vector3) -> Vector3:
 	return tip + normal * depth if depth > 0.0 else tip
 
 
+## Wires up SELF_PAIRS and SELF_BODIES for the springs she has now. A pair
+## lives on its later spring, so the earlier one has already moved this frame.
+func _link_touches() -> void:
+	var by_name := {}
+	for s in _springs:
+		s["pairs"] = []
+		s["bodies"] = []
+		by_name[skeleton.get_bone_name(s["bone"])] = s
+	for pair: Array in SELF_PAIRS:
+		if by_name.has(pair[0]) and by_name.has(pair[1]):
+			var a: Dictionary = by_name[pair[0]]
+			var b: Dictionary = by_name[pair[1]]
+			if _springs.find(a) > _springs.find(b):
+				var swap := a
+				a = b
+				b = swap
+			b["pairs"].append([a, pair[2]])
+	for bone_name: String in by_name:
+		var s: Dictionary = by_name[bone_name]
+		for body: Array in SELF_BODIES.get(bone_name, SELF_BODIES.get(s["base"].get("group", ""), [])):
+			var from := skeleton.find_bone(body[0])
+			var to := skeleton.find_bone(body[1]) if body[1] != "" else -1
+			if from >= 0 and (to >= 0 or body[1] == ""):
+				s["bodies"].append([from, to, body[2], body[3]])
+
+
+## Keeps a spring's tip (world space) off her own body and her other soft
+## parts (SELF_PAIRS, SELF_BODIES): never closer than their radii, or than her
+## pose holds it if that's closer. The other part of a pair is pushed too, and
+## its spring carries that on as its own swing.
+func _touch_self(s: Dictionary, tip: Vector3, target: Vector3) -> Vector3:
+	if not jiggle_collide:
+		return tip
+	var r: float = s.get("touch", 0.0)
+	for pair: Array in s.get("pairs", []):
+		var o: Dictionary = pair[0]
+		if not o["ready"] or not o.has("target"):
+			continue
+		var held: Vector3 = o["target"] - target
+		var gap := held.length()
+		if gap < 1e-4:
+			continue
+		var n := held / gap
+		var closest: float = gap if pair[1] else minf(gap, r + float(o.get("touch", 0.0)))
+		var press := closest - ((o["tip"] as Vector3) - tip).dot(n)
+		if press > 0.0:
+			tip -= n * press * 0.5
+			o["tip"] += n * press * 0.5
+	if s.get("bodies", []).is_empty():
+		return tip
+	var to_world := skeleton.global_transform
+	for body: Array in s["bodies"]:
+		var from_xf := skeleton.get_bone_global_pose(body[0])
+		var a := to_world * from_xf.origin
+		var b := to_world * (skeleton.get_bone_global_pose(body[1]).origin if body[1] >= 0 else from_xf.origin + from_xf.basis.y.normalized() * float(body[2]))
+		var closest := minf(_to_segment(target, a, b).length(), r + float(body[3]))
+		var away := _to_segment(tip, a, b)
+		var d := away.length()
+		if d < closest and d > 1e-5:
+			tip += away / d * (closest - d)
+	return tip
+
+
+## From the nearest point of the segment a-b to p.
+static func _to_segment(p: Vector3, a: Vector3, b: Vector3) -> Vector3:
+	var ab := b - a
+	var t := clampf((p - a).dot(ab) / maxf(ab.length_squared(), 1e-8), 0.0, 1.0)
+	return p - (a + ab * t)
+
+
 ## Shoves her chest and glute springs by a world-space offset (metres at the
 ## spring's tip), as if her body had jolted the other way: they swing out and
 ## bounce back. The first-person body (scripts/eco_fp_body.gd) uses it so jumps,
@@ -873,6 +988,7 @@ func _step_springs(delta: float) -> void:
 		if _plated and s["base"].get("group", "") == "bust":
 			limit = 0.0
 		var target := origin + rest_dir * length
+		s["target"] = target
 		if limit <= 0.0 or not s["ready"] or (s["tip"] as Vector3).distance_to(target) > 1.0:
 			s["tip"] = target
 			s["prev"] = target
@@ -912,7 +1028,7 @@ func _step_springs(delta: float) -> void:
 			if s.has("lateral"):
 				var across := to_world.basis.x.normalized()
 				next -= across * (next - target).dot(across) * (1.0 - float(s["lateral"]))
-			next = _collide(s, next)
+			next = _collide(s, _touch_self(s, next, target))
 			var off: Vector3 = next - target
 			var d := off.length()
 			if s.get("soft", false) and d > limit * 0.6:
@@ -930,7 +1046,7 @@ func _step_springs(delta: float) -> void:
 			# keep only part of the swing across her body
 			var side := to_world.basis.x.normalized()
 			next -= side * (next - target).dot(side) * (1.0 - float(s["lateral"]))
-		next = _collide(s, next)
+		next = _collide(s, _touch_self(s, next, target))
 		var dir: Vector3 = (next - origin).normalized()
 		var angle: float = dir.angle_to(rest_dir)
 		var knee := limit * 0.6
