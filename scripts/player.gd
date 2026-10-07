@@ -113,6 +113,11 @@ const STAND_HEIGHT := 1.8
 const CROUCH_HEIGHT := 1.0
 const STAND_EYE := 1.6
 const CROUCH_EYE := 0.85
+## Her capsule's radius on duty, and off duty (strolling): slim enough there
+## that walls can reach her body (her back and chest are ~14 cm from her
+## middle), so they press her soft parts (eco_model.gd jiggle_collide).
+const RADIUS := 0.4
+const STROLL_RADIUS := 0.15
 
 @onready var head: Node3D = $Head
 @onready var camera: Camera3D = $Head/Camera3D
@@ -141,8 +146,13 @@ var crouching := false
 var speed_mult := 1.0
 ## Off duty: she walks at stroll_speed with a strut (eco_model.gd) instead of
 ## running. The run manager sets it each tick in the hub and town, and clears
-## it on the training grounds and on runs.
-var strolling := false
+## it on the training grounds and on runs. Off duty her capsule slims down
+## to STROLL_RADIUS.
+var strolling := false:
+	set(value):
+		strolling = value
+		if collision != null:
+			(collision.shape as CapsuleShape3D).radius = STROLL_RADIUS if value else RADIUS
 var cam_roll := 0.0
 var input_dir := Vector2.ZERO
 var wish_dir := Vector3.ZERO
@@ -226,6 +236,7 @@ func _ready() -> void:
 	ensure_input_actions()
 	# Own copy of the shape so crouching never edits the shared scene resource.
 	collision.shape = collision.shape.duplicate()
+	strolling = strolling  # sizes the capsule
 	spawn_transform = global_transform
 	air_jumps_left = air_jumps
 	health = max_health

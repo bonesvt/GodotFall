@@ -4,7 +4,8 @@ extends SceneTree
 ## first wall and in front of her for the second. She backs into a wall (glutes pressed), walks off it (they spring
 ## loose), walks up to a second wall, leans her chest into it and steps back.
 ## Full body jiggle is on. --deep=2 presses her twice as far in (to show
-## contact_give and jiggle_squish).
+## contact_give and jiggle_squish). --lean instead shows her off duty: she
+## stops where her capsule meets the wall, then leans back on it (wall_lean).
 ##   godot --path . --fixed-fps 60 --write-movie <dir>/frame.png -s res://tools/eco/collide_clips.gd [-- --deep=2]
 ## Needs a renderer (not --headless).
 
@@ -18,12 +19,14 @@ var caption: Label
 var cam_offset := Vector3(1.9, 0.15, 2.0)
 var cam_goal := Vector3(1.9, 0.15, 2.0)
 var deep := 1.0
+var lean := false
 
 
 class Walker extends CharacterBody3D:
 	var state := 0
 	var crouching := false
 	var strolling := false
+	var third_person := true
 
 
 func _initialize() -> void:
@@ -31,6 +34,8 @@ func _initialize() -> void:
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("--deep="):
 			deep = a.trim_prefix("--deep=").to_float()
+		elif a == "--lean":
+			lean = true
 	_go.call_deferred()
 
 
@@ -48,6 +53,10 @@ func _go() -> void:
 	cam.fov = 38
 	root.add_child(cam)
 	_caption()
+	if lean:
+		await _lean_scene()
+		quit()
+		return
 
 	walker.position.z = -0.06
 	_say("Standing by a wall")
@@ -69,12 +78,38 @@ func _go() -> void:
 	walker.velocity = Vector3.ZERO
 	await _frames(30)
 	_say("Leans into it")
-	await _glide(-0.07 * deep, 30)
+	await _glide(-0.09 * deep, 30)
 	await _frames(40)
 	_say("Steps back")
-	await _glide(0.25 + 0.07 * (deep - 1.0), 12)
+	await _glide(0.27 + 0.09 * (deep - 1.0), 12)
 	await _frames(60)
 	quit()
+
+
+## Off duty: she stands with her back to the wall where her slim capsule
+## (0.15 m, player.gd STROLL_RADIUS) stops her, leans back on it, and walks off.
+func _lean_scene() -> void:
+	walker.strolling = true
+	cam_offset = Vector3(2.2, 0.1, 0.6)
+	cam_goal = cam_offset
+	walker.position.z = 0.1 - 0.15
+	_say("Off duty, her slim capsule lets her stand right by the wall")
+	await _frames(40)
+	_say("Standing still, she leans back on it")
+	await _frames(120)
+	cam_goal = Vector3(1.6, 0.1, 1.9)
+	_say("From behind (the wall is see-through)")
+	await _frames(150)
+	cam_goal = Vector3(2.2, 0.1, -1.0)
+	_say("Leaning")
+	await _frames(110)
+	_say("Walks off")
+	for f in 55:
+		walker.velocity = Vector3(0, 0, -minf(1.0, f / 20.0))
+		walker.position += walker.velocity / 60.0
+		await _frames(1)
+	walker.velocity = Vector3.ZERO
+	await _frames(50)
 
 
 ## Moves her `dz` metres along z over `n` frames, slowly enough that she stays in her idle.

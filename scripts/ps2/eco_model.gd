@@ -54,6 +54,10 @@ var stride_reverse := false
 ## Her chest and glutes flatten against what presses them and bulge out to
 ## the sides (up to "squish" of their size) instead of only swinging away.
 @export var jiggle_squish := true
+## Off duty (the hub and town), standing still with her back to a wall she
+## eases back and leans on it: her capsule otherwise keeps walls some 27 cm
+## off her, so this is where walls really press her soft parts.
+@export var wall_lean := true
 ## Full body jiggle (experimental): soft springs in her stomach, thighs, upper
 ## arms and calves as well (scripts/ps2/eco_flesh.gd). Left unset, she follows
 ## the Full body jiggle setting (Game tab) with her jiggle style.
@@ -290,6 +294,16 @@ var _bones := {}
 ## What the strut changed last frame (bone -> [pose before, pose after]), so it
 ## can be undone when nothing re-posed the bone since (a paused animation).
 var _strut_undo := {}
+## _wall_lean: how far (m) she has eased back onto a wall, how long she's been
+## standing still, and the ray's exclusions (her own bodies).
+var _lean := 0.0
+var _still_for := 0.0
+var _lean_exclude: Array[RID] = []
+## How far behind her middle her backside reaches, how far behind that a wall
+## may be for her to lean on it, and how far she settles into it.
+const LEAN_BACK := 0.13
+const LEAN_REACH := 0.5
+const LEAN_PRESS := 0.015
 var _rest: EcoRest
 var _face: MeshInstance3D
 ## The face's weights from before she fell asleep (blend shape index -> weight).
@@ -505,6 +519,7 @@ func _process(delta: float) -> void:
 		_animate()
 		_strut(delta)
 		_run_moves(delta)
+		_wall_lean(delta)
 		_rest_layer(delta)
 	if springs_enabled and skeleton != null:
 		_footfalls(delta)
@@ -769,6 +784,49 @@ func _turn(bone: String, axis: Vector3, deg: float) -> void:
 	var turned := (parent_basis.inverse() * Basis(axis, deg_to_rad(deg)) * parent_basis * Basis(before)).get_rotation_quaternion()
 	skeleton.set_bone_pose_rotation(i, turned)
 	_strut_undo[bone] = [_strut_undo[bone][0] if _strut_undo.has(bone) else before, turned]
+
+
+## Off duty and standing still with a wall just behind her, she eases back
+## until her backside settles into it, tilting a little so her shoulders meet
+## it too; she comes off it as soon as she moves.
+func _wall_lean(delta: float) -> void:
+	if skeleton == null or _bones.is_empty() or _body == null:
+		return
+	var speed := Vector2(_body.velocity.x, _body.velocity.z).length()
+	_still_for = _still_for + delta if speed < 0.1 else 0.0
+	var want := 0.0
+	if wall_lean and strolling() and _body.get("third_person") == true and not resting() \
+			and _anim.current_animation == "idle" and _still_for > 0.6:
+		want = _wall_behind()
+	_lean = move_toward(_lean, want, delta * (0.35 if want > _lean else 1.2))
+	if _lean < 0.001:
+		return
+	# her shoulders sit about 3 cm shallower than her backside, 40 cm higher
+	var tilt := rad_to_deg(atan2(0.03, 0.4)) * clampf(_lean / 0.1, 0.0, 1.0)
+	_offset_hips(Vector3.BACK * _lean)
+	_turn("hips", Vector3.RIGHT, tilt)
+	_turn("thigh.L", Vector3.RIGHT, -tilt)  # feet stay flat under her
+	_turn("thigh.R", Vector3.RIGHT, -tilt)
+
+
+## How far she'd ease back to settle into a wall behind her (0 = none in reach).
+func _wall_behind() -> float:
+	var space := get_world_3d().direct_space_state if is_inside_tree() else null
+	if space == null:
+		return 0.0
+	if _lean_exclude.is_empty():
+		var n: Node = self
+		while n != null:
+			if n is CollisionObject3D:
+				_lean_exclude.append((n as CollisionObject3D).get_rid())
+			n = n.get_parent()
+	var back := global_basis.z.normalized()
+	var from := global_position + Vector3.UP * 0.9
+	var ray := PhysicsRayQueryParameters3D.create(from, from + back * (LEAN_BACK + LEAN_REACH), 0xFFFFFFFF, _lean_exclude)
+	var hit := space.intersect_ray(ray)
+	if hit.is_empty() or (hit["normal"] as Vector3).dot(-back) < 0.7:
+		return 0.0
+	return maxf(from.distance_to(hit["position"]) - LEAN_BACK + LEAN_PRESS, 0.0)
 
 
 ## Moves her hips (and everything on them) by a skeleton-space offset.
