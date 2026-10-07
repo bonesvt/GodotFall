@@ -59,6 +59,7 @@ const Townsfolk := preload("res://scripts/hub/townsfolk.gd")
 const Tutorial := preload("res://scripts/run/tutorial.gd")
 const ViewCamera := preload("res://scripts/view_camera.gd")
 const Prefs := preload("res://scripts/game/prefs.gd")
+const BattleDamage := preload("res://scripts/ps2/battle_damage.gd")
 const Saves := preload("res://scripts/game/saves.gd")
 const PauseMenu := preload("res://scripts/ui/pause_menu.gd")
 
@@ -202,6 +203,7 @@ func _ready() -> void:
 	player.process_mode = Node.PROCESS_MODE_PAUSABLE
 	add_child(player)
 	player.died.connect(_on_pilot_downed)
+	player.damaged.connect(_on_pilot_hit)
 	pilot_hud = CanvasLayer.new()
 	pilot_hud.set_script(PILOT_HUD)
 	pilot_hud.name = "PilotHUD"
@@ -274,6 +276,7 @@ func start_run(seed_value: int, uncharted := 0, level := "") -> void:
 	run.refits = armory.refit_bonus()
 	runs_started += 1
 	result = ""
+	BattleDamage.reset()  # a clean suit for every run
 	titan = null
 	boss = null
 	evac_open = false
@@ -307,6 +310,7 @@ func _fresh_level(level_name: String) -> void:
 
 ## Back to the temple: no run in progress, walk around, start one at the poster or the mission table.
 func enter_hub() -> void:
+	BattleDamage.reset()  # home: she washes up and patches her suit
 	titan = null
 	boss = null
 	get_tree().paused = false
@@ -405,6 +409,9 @@ func place_player(pos: Vector3) -> void:
 func _physics_process(delta: float) -> void:
 	Saves.tick(delta)
 	player.strolling = phase == Phase.HUB and not on_training_ground()
+	if phase in [Phase.ZONE, Phase.ARENA] and not get_tree().paused:
+		BattleDamage.tick(delta, player)
+	BattleDamage.apply()
 	match phase:
 		Phase.ZONE:
 			_zone_tick(delta)
@@ -1159,6 +1166,7 @@ func _check_fall() -> bool:
 		return false
 	run.pilot_hp -= FALL_DAMAGE
 	run.falls += 1
+	BattleDamage.on_fall()
 	if run.pilot_hp <= 0:
 		run.pilot_hp = 0
 		end_run("PILOT KIA", "Too many falls.")
@@ -1167,6 +1175,12 @@ func _check_fall() -> bool:
 		hud.toast("FELL: -%d INTEGRITY" % FALL_DAMAGE)
 		tutorial.event("fell")
 	return true
+
+
+## Every hit she takes on a run wears her suit (and her) down a little more.
+func _on_pilot_hit(amount: float, _from: Vector3) -> void:
+	if in_run():
+		BattleDamage.on_hit(amount)
 
 
 ## Grunts emptied the pilot's health: lose integrity, back to the checkpoint.
@@ -1179,6 +1193,7 @@ func _on_pilot_downed() -> void:
 		return
 	run.pilot_hp -= DOWNED_DAMAGE
 	run.downs += 1
+	BattleDamage.on_down()
 	if run.pilot_hp <= 0:
 		run.pilot_hp = 0
 		end_run("PILOT KIA", "Gunned down.")

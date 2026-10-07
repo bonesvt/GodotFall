@@ -11,3 +11,4 @@ shader_parameter/albedo_tex = ExtResource("2_v_boots")
 shader_parameter/shade_tint = Vector3(0.55, 0.55, 0.7)
 shader_parameter/sheen = 0.3
 shader_parameter/alpha_cut = 0.5
+shader_parameter/damage_kind = 2

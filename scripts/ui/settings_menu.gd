@@ -302,6 +302,8 @@ func _game_tab() -> void:
 	box.add_child(UI.label("How Eco's hair and body bounce as she moves.", 18, UI.MUTED))
 	_toggle(box, "Full body jiggle (experimental)", Prefs.body_jiggle(), Prefs.set_body_jiggle)
 	box.add_child(UI.label("A little softness in her stomach, thighs, arms and calves too.", 18, UI.MUTED))
+	_toggle(box, "Battle damage", Prefs.battle_damage(), Prefs.set_battle_damage)
+	box.add_child(UI.label("Eco gets dirty and scuffed over a run (Mature: her suit tears and she picks up cuts). Washes off at the temple.", 18, UI.MUTED))
 	_third_person_rows(box)
 
 
