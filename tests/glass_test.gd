@@ -69,8 +69,9 @@ func _run() -> void:
 	_check("her shots hit harder", Glass.damage_out() == Glass.FOCUS_DAMAGE, Glass.damage_out())
 	_check("it costs her max health", is_equal_approx(player.max_health, full_health * (1.0 - Glass.HEALTH_PER_GLASS)), [player.max_health, full_health])
 	_check("his Hold tightens", Vices.hold > hold_before, Vices.hold)
-	_check("violet glass in her shader", is_equal_approx(float(RenderingServer.global_shader_parameter_get("eco_glass")), 1.0 / Glass.MAX_GLASS),
-			RenderingServer.global_shader_parameter_get("eco_glass"))
+	var shader_glass = RenderingServer.global_shader_parameter_get("eco_glass")  # null with no renderer (headless)
+	_check("violet glass in her shader", is_equal_approx(Glass.look(), 1.0 / Glass.MAX_GLASS) and (shader_glass == null or is_equal_approx(float(shader_glass), Glass.look())),
+			[Glass.look(), shader_glass])
 	_check("HUD shows it", run_node._vices_text().contains("FOCUS") and run_node._vices_text().contains("[L] Glass x2"), run_node._vices_text())
 	await _ticks(int(Glass.FOCUS_TIME * Engine.physics_ticks_per_second) + 10)
 	_check("focus wears off in real seconds", not Glass.focusing() and Engine.time_scale == 1.0, Engine.time_scale)
