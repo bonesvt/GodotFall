@@ -38,6 +38,10 @@ var _veil_layer: CanvasLayer
 var _veil: ColorRect
 var _prop: Node3D
 var _said := {}
+## Her third-person layers (gun stance, reactions) and the gun in her hand,
+## off while the scene has her: they'd take her arm back.
+var _layers: Array = []
+var _gun: Node3D
 
 
 func _init(run_manager: Node) -> void:
@@ -68,6 +72,8 @@ func play() -> void:
 	player.set("entranced", true)
 	player.set("trance_dir", Vector3.ZERO)
 	_set_view(true)
+	_hold_layers(true)
+	_show_hud(false)
 	_prop = _injector()
 	_shot("wide")
 	_say("find", 4.0)
@@ -77,9 +83,8 @@ func _process(delta: float) -> void:
 	if t < 0.0:
 		return
 	t += delta
-	var body := _body()
-	if body != null:
-		var lift := smoothstep(LIFT, LIFT + 1.1, t) * (1.0 - smoothstep(BACK - 0.6, BACK + 0.4, t))
+	var lift := smoothstep(LIFT, LIFT + 1.1, t) * (1.0 - smoothstep(BACK - 0.6, BACK + 0.4, t))
+	for body in _bodies():
 		body.set("inject", lift)
 	if t >= HISS and not _said.has("hiss"):
 		_say("hiss", 2.0)
@@ -118,11 +123,7 @@ func _process(delta: float) -> void:
 func _finish() -> void:
 	t = -1.0
 	_veil.color.a = 0.0
-	var body := _body()
-	if body != null:
-		body.set("inject", 0.0)
-	rm.player.set("entranced", false)
-	_set_view(false)
+	_let_go()
 	var gifts := []
 	if Vices.hush_finish_new:
 		gifts.append("the Hush finish is at the gunsmith's bench")
@@ -145,9 +146,15 @@ func reset() -> void:
 		_prop = null
 	t = -1.0
 	_veil.color.a = 0.0
-	var body := _body()
-	if body != null:
+	_let_go()
+
+
+## Gives her back to the player: her pose, her layers, her view, the HUD.
+func _let_go() -> void:
+	for body in _bodies():
 		body.set("inject", 0.0)
+	_hold_layers(false)
+	_show_hud(true)
 	rm.player.set("entranced", false)
 	_set_view(false)
 
@@ -157,10 +164,52 @@ func _say(key: String, seconds: float) -> void:
 	rm.hud.toast(LINES[key], seconds)
 
 
-## Her full-body model (eco_model.gd).
+## The full-body model you see (eco_model.gd): in third person that's
+## EcoBody's "Shadow" copy (eco_fp_body.gd), its "Body" otherwise.
 func _body() -> Node:
 	var eco: Node = rm.player.get_node_or_null("EcoBody")
-	return eco.get_node_or_null("Body") if eco != null else null
+	if eco == null:
+		return null
+	var shadow := eco.get_node_or_null("Shadow")
+	return shadow if shadow != null else eco.get_node_or_null("Body")
+
+
+## Both copies of her (they pose together).
+func _bodies() -> Array:
+	var eco: Node = rm.player.get_node_or_null("EcoBody")
+	if eco == null:
+		return []
+	return ["Body", "Shadow"].map(func(n): return eco.get_node_or_null(n)).filter(func(b): return b != null)
+
+
+func _hold_layers(on: bool) -> void:
+	if on:
+		_layers = []
+		var body := _body()
+		var skeleton: Skeleton3D = body.get("skeleton") if body != null else null
+		if skeleton != null:
+			for c in skeleton.get_children():
+				if c is SkeletonModifier3D and c.active:
+					c.active = false
+					_layers.append(c)
+			_gun = skeleton.find_child("GunHold", true, false) as Node3D
+			if _gun != null:
+				_gun.visible = false
+		return
+	for c in _layers:
+		if is_instance_valid(c):
+			c.active = true
+	_layers = []
+	if _gun != null and is_instance_valid(_gun):
+		_gun.visible = true
+	_gun = null
+
+
+## The run HUD (controls, health, ammo) off while it plays; her lines stay.
+func _show_hud(on: bool) -> void:
+	if rm.get("pilot_hud") != null:
+		rm.pilot_hud.visible = on
+	rm.hud.status_label.visible = on
 
 
 ## The injector in her right hand: a glass barrel of glowing violet resin
