@@ -265,12 +265,10 @@ TEARS = [
     ((-0.300, 0.000, 1.185), UP, ARM_R, 0.040, 0.026, 0.26, 0.30, 0.35),      # right elbow, outside
     ((-0.075, -0.040, 0.230), FRONT, LEG, 0.045, 0.026, 0.36, 0.30, 0.40),    # right shin
     ((-0.110, 0.000, 0.520), RIGHT, LEG, 0.065, 0.032, 0.42, 0.35, 0.40),     # right outer thigh, low
-    ((0.200, 0.000, 1.185), UP, ARM_L, 0.045, 0.028, 0.48, 0.30, 0.35),       # left upper arm, top
+    ((0.225, 0.000, 1.185), UP, ARM_L, 0.045, 0.028, 0.48, 0.30, 0.35),       # left upper arm, top
     ((-0.069, -0.055, 0.455), FRONT, LEG, 0.040, 0.030, 0.55, 0.30, 0.35),    # right knee
-    ((0.130, 0.060, 1.135), BACK, (1, 0, 0.3), 0.045, 0.026, 0.58, 0.30, 0.40),  # left shoulder blade
     ((-0.050, -0.095, 0.905), FRONT, (1, 0, -0.25), 0.040, 0.016, 0.66, 0.25, 0.30),  # stomach slash, right of her navel
     ((0.360, -0.020, 1.135), FRONT, ARM_L, 0.050, 0.022, 0.70, 0.30, 0.40),   # left forearm
-    ((0.150, 0.000, 0.700), LEFT, LEG, 0.050, 0.025, 0.76, 0.25, 0.35),       # left flank of her hip (outside only)
     ((0.075, 0.050, 0.300), BACK, LEG, 0.055, 0.028, 0.82, 0.25, 0.40),       # left calf
 ]
 
@@ -278,10 +276,12 @@ TEARS = [
 SLIDE_TEARS = [
     ((0.140, -0.020, 0.690), (1, -0.3, 0), LEG, 0.085, 0.040, 0.10, 0.35, 0.40),     # left outer thigh
     ((-0.140, -0.020, 0.700), (-1, -0.3, 0), LEG, 0.075, 0.038, 0.22, 0.35, 0.40),   # right outer thigh
-    ((0.115, 0.060, 0.790), (0.45, 1, 0), (1, 0, 0.35), 0.050, 0.034, 0.32, 0.35, 0.40),   # left glute, outer half
-    ((0.155, 0.000, 0.840), LEFT, LEG, 0.050, 0.030, 0.42, 0.30, 0.40),             # left hip
-    ((-0.115, 0.060, 0.780), (-0.45, 1, 0), (-1, 0, 0.35), 0.045, 0.030, 0.52, 0.35, 0.40),  # right glute, outer half
-    ((0.105, -0.060, 0.580), (0.4, -1, 0), LEG, 0.055, 0.032, 0.60, 0.30, 0.40),     # left thigh, front outer
+    ((0.125, 0.060, 0.790), (0.45, 1, 0), LEG, 0.055, 0.028, 0.32, 0.35, 0.40),   # left glute, outer half
+    ((-0.125, 0.060, 0.780), (-0.45, 1, 0), LEG, 0.050, 0.026, 0.52, 0.35, 0.40),  # right glute, outer half
+    ((0.130, -0.050, 0.540), (0.5, -1, 0), LEG, 0.050, 0.030, 0.60, 0.30, 0.40),     # left thigh, front outer
+    ((0.140, 0.070, 0.735), (0.5, 0.8, -0.32), (1, 0, 0.2), 0.034, 0.026, 0.45, 0.30, 0.40),   # under her left glute, outer half of the fold
+    ((-0.140, 0.070, 0.735), (-0.5, 0.8, -0.32), (-1, 0, 0.2), 0.032, 0.024, 0.66, 0.30, 0.40),  # under her right glute, outer half
+    ((0.000, 0.070, 0.930), BACK, (1, 0, 0), 0.050, 0.022, 0.55, 0.30, 0.40),        # low on her back, well above the top of the crease
 ]
 
 # scuffs: bigger, earlier, and only pale the fabric
@@ -312,26 +312,22 @@ SCARS = [
     ((0.190, 0.010, 1.190), (0.215, 0.005, 1.180), UP, 0.0018, 0.60),          # left upper arm
     ((-0.400, -0.010, 1.150), (-0.430, -0.015, 1.140), FRONT, 0.0018, 0.55),   # right forearm (bare in the mechanic kit)
     ((-0.405, -0.012, 1.160), (-0.432, -0.016, 1.152), FRONT, 0.0014, 0.68),
-    ((0.118, 0.068, 1.142), (0.145, 0.064, 1.126), BACK, 0.0020, 0.66),        # left shoulder blade
 ]
 
 
-def snap(verts, centre, facing):
-    """The point on her surface seen at `centre` when looking along -facing:
-    the outermost vertex within 1.5 cm of that line of sight."""
+def snap(verts, centre, facing, normals=None):
+    """The point on her surface nearest `centre` that faces `facing`."""
     f = np.asarray(facing, float)
     f /= np.linalg.norm(f)
-    rel = verts - np.asarray(centre, float)
-    out = rel @ f
-    side = np.linalg.norm(rel - out[:, None] * f, axis=1)
-    near = side < 0.015
-    if not near.any():
-        raise SystemExit("bake_damage: nothing of her at %s" % (centre,))
-    i = np.where(near)[0][np.argmax(out[near])]
-    return verts[i]
+    ok = np.ones(len(verts), bool) if normals is None else (normals @ f) > 0.3
+    if not ok.any():
+        raise SystemExit("bake_damage: nothing of her faces %s at %s" % (facing, centre))
+    d = np.linalg.norm(verts - np.asarray(centre, float), axis=1)
+    d[~ok] = np.inf
+    return verts[np.argmin(d)]
 
 
-def body_maps(P, N, cover, verts):
+def body_maps(P, N, cover, verts, normals):
     x, y, z = P[..., 0], P[..., 1], P[..., 2]
     ax = np.abs(x)
     # grime: from the boots up, then her hands and forearms, elbows and knees,
@@ -347,12 +343,12 @@ def body_maps(P, N, cover, verts):
     ok = tear_ok(P, N)
     tear = np.full(x.shape, NEVER)
     for i, (c, f, a, rl, rs, ap, gr, jag) in enumerate(TEARS):
-        tear = np.minimum(tear, spot_level(P, N, snap(verts, c, f), f, a, rl, rs, ap, gr, jag, 40 + i))
+        tear = np.minimum(tear, spot_level(P, N, snap(verts, c, f, normals), f, a, rl, rs, ap, gr, jag, 40 + i))
     tear = np.where(ok & (tear < 0.98), tear, NEVER)   # the shader reads 0.99+ as never
 
     scuff = np.full(x.shape, NEVER)
     for i, (c, f, a, rl, rs, ap, gr, jag) in enumerate(SCUFFS):
-        scuff = np.minimum(scuff, spot_level(P, N, snap(verts, c, f), f, a, rl, rs, ap, gr, jag, 80 + i))
+        scuff = np.minimum(scuff, spot_level(P, N, snap(verts, c, f, normals), f, a, rl, rs, ap, gr, jag, 80 + i))
     # scratchy streaks through each scuff
     streak = fbm(P * np.array([90.0, 90.0, 12.0]), 2, 9)
     scuff = np.where(scuff < NEVER, np.clip(scuff + 0.25 * (streak - 0.5), 0.0, 0.99), NEVER)
@@ -414,10 +410,10 @@ def pad(img, cover, iters=4):
     return img
 
 
-def slide_map(P, N, cover, verts):
+def slide_map(P, N, cover, verts, normals):
     lvl = np.full(P.shape[:2], NEVER)
     for i, (c, f, a, rl, rs, ap, gr, jag) in enumerate(SLIDE_TEARS):
-        lvl = np.minimum(lvl, spot_level(P, N, snap(verts, c, f), f, a, rl, rs, ap, gr, jag, 120 + i))
+        lvl = np.minimum(lvl, spot_level(P, N, snap(verts, c, f, normals), f, a, rl, rs, ap, gr, jag, 120 + i))
     lvl = np.where(slide_ok(P, N) & (lvl < 0.98) & cover, lvl, NEVER)
     return lvl
 
@@ -457,8 +453,8 @@ def main():
     j, buf = load_glb(GLB)
     pos, nrm, uv, tris = primitive(j, buf, "Body", "eco_v_body")
     P, N, cover = rasterize(pos, nrm, uv, tris, 1024)
-    body = body_maps(P, N, cover, pos)
-    slide = slide_map(P, N, cover, pos)
+    body = body_maps(P, N, cover, pos, nrm)
+    slide = slide_map(P, N, cover, pos, nrm)
     near = check_zones(P, cover, body, slide)
     print("body: %d texels, %d near the covered zones (none can tear)" % (int(cover.sum()), near))
     save(pad(body, cover), OUT_BODY)
