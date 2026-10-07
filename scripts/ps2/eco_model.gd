@@ -48,6 +48,12 @@ var stride_reverse := false
 ## limbs press on each other (SELF_PAIRS, SELF_BODIES); moving clear lets them
 ## spring back.
 @export var jiggle_collide := true
+## While something presses them, how much further than their own swing her
+## soft parts may be pushed (1 = no further); it eases back once they're free.
+@export_range(1.0, 3.0) var contact_give := 2.0
+## Her chest and glutes flatten against what presses them and bulge out to
+## the sides (up to "squish" of their size) instead of only swinging away.
+@export var jiggle_squish := true
 ## Full body jiggle (experimental): soft springs in her stomach, thighs, upper
 ## arms and calves as well (scripts/ps2/eco_flesh.gd). Left unset, she follows
 ## the Full body jiggle setting (Game tab) with her jiggle style.
@@ -108,10 +114,10 @@ const HAIR_TIP := {"group": "hair", "stiffness": 0.12, "drag": 0.2, "gravity": 0
 # the fringe hangs over her face: it may lift off it, but swinging far back would go into her head
 const FRINGE := {"group": "hair", "stiffness": 0.16, "drag": 0.22, "gravity": 0.5, "limit": 12.0, "inertia": 0.35, "touch": 0.015}
 const FRINGE_TIP := {"group": "hair", "stiffness": 0.14, "drag": 0.22, "gravity": 0.5, "limit": 10.0, "inertia": 0.35, "touch": 0.015}
-const BUST := {"group": "bust", "stiffness": 0.14, "drag": 0.08, "gravity": 0.15, "limit": 24.0, "inertia": 0.2, "jiggle": true, "touch": 0.045}
+const BUST := {"group": "bust", "stiffness": 0.14, "drag": 0.08, "gravity": 0.15, "limit": 24.0, "inertia": 0.2, "jiggle": true, "touch": 0.045, "squish": 0.3}
 # the back hair chains below the nape: only the salon's long cuts (braids, ponytail; scripts/hub/hair.gd) hang from them
 const BRAID := {"group": "hair", "stiffness": 0.1, "drag": 0.16, "gravity": 0.9, "limit": 28.0, "inertia": 0.5, "touch": 0.015}
-const GLUTE := {"group": "glute", "stiffness": 0.18, "drag": 0.09, "gravity": 0.15, "limit": 18.0, "inertia": 0.2, "jiggle": true, "touch": 0.045}
+const GLUTE := {"group": "glute", "stiffness": 0.18, "drag": 0.09, "gravity": 0.15, "limit": 18.0, "inertia": 0.2, "jiggle": true, "touch": 0.045, "squish": 0.3}
 ## Her own soft parts pressing on each other: [spring, spring, resting]. A
 ## pair never gets closer than their touch radii, or than her pose holds them
 ## if that's closer already, so one pressing in pushes the other away and hands
@@ -933,6 +939,7 @@ func _touch_self(s: Dictionary, tip: Vector3, target: Vector3) -> Vector3:
 		if press > 0.0:
 			tip -= n * press * 0.5
 			o["tip"] += n * press * 0.5
+			o["shoved"] = o.get("shoved", Vector3.ZERO) + n * press * 0.5
 	if s.get("bodies", []).is_empty():
 		return tip
 	var to_world := skeleton.global_transform
@@ -946,6 +953,45 @@ func _touch_self(s: Dictionary, tip: Vector3, target: Vector3) -> Vector3:
 		if d < closest and d > 1e-5:
 			tip += away / d * (closest - d)
 	return tip
+
+
+## How far a spring may swing (or slide) this step: as far as contact has just
+## pushed it, up to contact_give times its own limit, never less than its own
+## limit; once free that extra room shrinks back over a few frames so it
+## springs back instead of snapping. Its own swing never uses the extra room
+## unless something is pushing it there. `was` and `now` are how far out it
+## was before and after contact this step.
+func _give(s: Dictionary, limit: float, was: float, now: float, steps: float) -> float:
+	var shoved: Vector3 = s.get("shoved", Vector3.ZERO)
+	s["shoved"] = Vector3.ZERO
+	var room: float = s.get("room", limit)
+	room = move_toward(room, limit, limit * 0.06 * steps)
+	if now > was + 1e-5 or shoved.length() > 0.0005:
+		room = maxf(room, minf(now, limit * contact_give))
+	s["room"] = room
+	return maxf(limit, room)
+
+
+## Flattens a pressed spring's bone along the push (world space) and bulges it
+## out the other ways, keeping its volume; `deep` is how far it's pressed
+## (1 = as far as contact lets it go). Eases in and out.
+func _squash(s: Dictionary, i: int, push: Vector3, deep: float, bone_basis: Basis, to_skel: Basis, steps: float) -> void:
+	var want := 0.0
+	if jiggle_squish and jiggle_collide and push.length() > 0.0005:
+		want = float(s["squish"]) * clampf(deep, 0.0, 1.0)
+		# the bone axis the push is most along
+		var local := (bone_basis.orthonormalized().inverse() * (to_skel * push)).abs()
+		s["squash_axis"] = 0 if local.x >= local.y and local.x >= local.z else (1 if local.y >= local.z else 2)
+	var was: float = s.get("squash", 0.0)
+	var now := lerpf(was, want, minf((0.35 if want > was else 0.12) * steps, 1.0))
+	if now < 0.002:
+		now = 0.0
+	s["squash"] = now
+	if now == 0.0 and was == 0.0:
+		return
+	var scale := Vector3.ONE / sqrt(1.0 - now)
+	scale[s.get("squash_axis", 1)] = 1.0 - now
+	skeleton.set_bone_pose_scale(i, scale)
 
 
 ## From the nearest point of the segment a-b to p.
@@ -999,6 +1045,9 @@ func _step_springs(delta: float) -> void:
 					skeleton.set_bone_pose_position(i, skeleton.get_bone_rest(i).origin)
 				else:
 					skeleton.set_bone_pose_rotation(i, skeleton.get_bone_rest(i).basis.get_rotation_quaternion())
+					if s.get("squash", 0.0) > 0.0:
+						s["squash"] = 0.0
+						skeleton.set_bone_pose_scale(i, Vector3.ONE)
 				continue
 		elif moved.length() < 1.0 and not slide:
 			# carry the spring along with the part of her movement it shouldn't feel
@@ -1028,7 +1077,9 @@ func _step_springs(delta: float) -> void:
 			if s.has("lateral"):
 				var across := to_world.basis.x.normalized()
 				next -= across * (next - target).dot(across) * (1.0 - float(s["lateral"]))
+			var free_at := next
 			next = _collide(s, _touch_self(s, next, target))
+			limit = _give(s, limit, (free_at - target).length(), (next - target).length(), steps)
 			var off: Vector3 = next - target
 			var d := off.length()
 			if s.get("soft", false) and d > limit * 0.6:
@@ -1046,9 +1097,15 @@ func _step_springs(delta: float) -> void:
 			# keep only part of the swing across her body
 			var side := to_world.basis.x.normalized()
 			next -= side * (next - target).dot(side) * (1.0 - float(s["lateral"]))
+		var free_at := next
 		next = _collide(s, _touch_self(s, next, target))
+		var push: Vector3 = next - free_at + s.get("shoved", Vector3.ZERO)
+		var normal_limit := limit
+		limit = _give(s, limit, (free_at - origin).angle_to(rest_dir), (next - origin).angle_to(rest_dir), steps)
 		var dir: Vector3 = (next - origin).normalized()
 		var angle: float = dir.angle_to(rest_dir)
+		if s.has("squish"):
+			_squash(s, i, push, angle / maxf(normal_limit * contact_give, 1e-3), rest_xf.basis, to_skel.basis, steps)
 		var knee := limit * 0.6
 		if s.get("soft", false) and angle > knee:
 			# ease into the limit: swings up to 60% of it stay as they are, bigger ones round off

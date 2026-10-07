@@ -3,8 +3,9 @@ extends SceneTree
 ## walls are see-through, and the camera swings round behind her for the
 ## first wall and in front of her for the second. She backs into a wall (glutes pressed), walks off it (they spring
 ## loose), walks up to a second wall, leans her chest into it and steps back.
-## Full body jiggle is on.
-##   godot --path . --fixed-fps 60 --write-movie <dir>/frame.png -s res://tools/eco/collide_clips.gd
+## Full body jiggle is on. --deep=2 presses her twice as far in (to show
+## contact_give and jiggle_squish).
+##   godot --path . --fixed-fps 60 --write-movie <dir>/frame.png -s res://tools/eco/collide_clips.gd [-- --deep=2]
 ## Needs a renderer (not --headless).
 
 const ECO := preload("res://assets/models/eco.tscn")
@@ -16,6 +17,7 @@ var caption: Label
 ## Where the camera sits from her (eases towards `cam_goal` each frame).
 var cam_offset := Vector3(1.9, 0.15, 2.0)
 var cam_goal := Vector3(1.9, 0.15, 2.0)
+var deep := 1.0
 
 
 class Walker extends CharacterBody3D:
@@ -26,6 +28,9 @@ class Walker extends CharacterBody3D:
 
 func _initialize() -> void:
 	root.size = Vector2i(1280, 900)
+	for a in OS.get_cmdline_user_args():
+		if a.begins_with("--deep="):
+			deep = a.trim_prefix("--deep=").to_float()
 	_go.call_deferred()
 
 
@@ -48,10 +53,10 @@ func _go() -> void:
 	_say("Standing by a wall")
 	await _frames(40)
 	_say("Backs into it")
-	await _glide(0.06, 24)
+	await _glide(0.06 * deep, 24)
 	await _frames(40)
 	_say("Steps away")
-	await _glide(-0.25, 12)
+	await _glide(-0.25 - 0.06 * (deep - 1.0), 12)
 	await _frames(50)
 	_say("Walks to the next wall")
 	cam_goal = Vector3(1.9, 0.0, -2.0)
@@ -64,10 +69,10 @@ func _go() -> void:
 	walker.velocity = Vector3.ZERO
 	await _frames(30)
 	_say("Leans into it")
-	await _glide(-0.07, 30)
+	await _glide(-0.07 * deep, 30)
 	await _frames(40)
 	_say("Steps back")
-	await _glide(0.25, 12)
+	await _glide(0.25 + 0.07 * (deep - 1.0), 12)
 	await _frames(60)
 	quit()
 
