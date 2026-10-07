@@ -49,6 +49,8 @@ func _unit() -> void:
 		ok = ok and Relics.HINTS.has(r.get("giver", r["source"]))
 		ok = ok and (r["source"] != "npc" or (r.has("gift") and Relics.GIVERS.has(r["giver"]) and Relics.GIVERS[r["giver"]]["relic"] == id))
 		_check("%s is complete" % id, ok, r.keys())
+		var carries := [r["carry"]] + ([Relics.MATURE[id]["carry"]] if Relics.MATURE.has(id) and Relics.MATURE[id].has("carry") else [])
+		_check("%s's carry lines fit one toast line" % id, carries.all(func(c): return c.length() <= Relics.CARRY_MAX), carries)
 	for source in ["precursor", "npc", "colony"]:
 		_check("there are %s relics" % source, Relics.ORDER.any(func(id): return Relics.RELICS[id]["source"] == source), source)
 
