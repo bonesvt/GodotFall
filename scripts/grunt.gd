@@ -10,6 +10,7 @@ extends CharacterBody3D
 ## the pilot moves, so wallrunning and sliding are your best armour.
 
 const Vices := preload("res://scripts/hub/vices.gd")
+const Relics := preload("res://scripts/hub/relics.gd")
 const Pilot := preload("res://scripts/player.gd")
 const FX := preload("res://scripts/fx.gd")
 const Art := preload("res://scripts/ps2/ps2_assets.gd")
@@ -261,7 +262,7 @@ func _update_sight(delta: float) -> void:
 	var gain := _sight_gain(from) + _hearing_gain()
 	var mult = target.get("notice_mult")  # Eco's suit dampers (player.gd)
 	if mult != null:
-		gain *= mult * Vices.notice_scale()  # and Hush (vices.gd)
+		gain *= mult * Vices.notice_scale() * Relics.notice_scale()  # and Hush (vices.gd), relics
 	if gain > 0.0:
 		detection += gain * SIGHT_TICK
 		since_stimulus = 0.0

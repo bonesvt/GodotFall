@@ -257,6 +257,40 @@ Super Hush: Marrow's Hold straight to full (Mature only). Super Hush plays a sho
 to her neck, the view floods violet, a close-up pushes in on her spiralling eyes while Marrow's
 voice finds her, and she comes to with his Hold full. Test: `tests/cheat_test.gd` (the scene:
 `tests/hold_effects_test.gd`; stills: `tools/hub/super_hush_shots.gd`).
+**5** puts every relic on the idol (Marrow's coin only under Mature).
+
+### Relics
+Each relic is a big perk with a nasty side effect (`scripts/hub/relics.gd`). **F** at the idol
+opens the reliquary (`scripts/hub/relic_screen.gd`): everything she's found, what it does and what
+it costs, and a hint for the ones she hasn't got. She wears up to **two** on a run (Up/Down pick,
+Space wear or take off). The run HUD lists them; what she owns and wears saves per slot.
+
+- **Precursor relics**: sometimes a zone has a glowing reliquary shrine (30% a zone while she's
+  missing one; `scripts/run/relic_shrine.gd`). **F** takes the relic, kept even if the run is lost.
+  - *Eye of the Builder*: grunts within 30 m marked through walls; whispers and false markers.
+  - *Heartstone*: heals twice as fast; her max health drains to half over eight minutes.
+  - *Sunless Mask*: grunts take twice as long to notice her; every 35-70 s a blackout.
+  - *Idol's Tooth*: 40% harder shots; every kill costs her 4 health.
+- **Keepsakes**, from the people in her life once they're close to her. The **F** at their spot
+  hands it over instead of the usual:
+  - *Mom's Locket* (Mom's bond 40): once a run a killing blow leaves her on half health; Mom
+    calls on the radio every minute or so and grunts within 25 m hear it.
+  - *Ophelia's Pocket Watch* (affection 40): headshots slow the world for a second; a run over
+    12 minutes costs 5 affection.
+  - *Biggie's Dog Tags* (bond 40): grunts' shots hurt 30% less; shorter wallruns and slides.
+  - *Sal's Lucky Scale* (Sal's Salvage, after 3 runs): half again as many materials; the gun
+    jams on 5% of shots.
+  - *Imani's Stitch Kit* (Mercy Clinic, after 3 runs): every kill heals 12; no health readout.
+  - *Tobin & Rosa's Prayer Beads* (the job board, after 4 runs): 15% less damage; each run worn
+    moves the town's suspicion a run further on.
+  - *Marrow's Violet Coin* (Mature only, his alley once his Hold is 30): Hush's perks without a
+    dose; each run carrying it adds 5 to his Hold.
+- **Colony tech**, sometimes (25%) in a salvage cache after the part pick:
+  - *Colony Target Lens*: a much tighter cone; every minute or so the colony pings her and grunts
+    within 45 m come for her.
+  - *Phase Harness*: 15% faster; sprinting over 3 s burns her (never below 1 health).
+  - *Officer's IFF Tag*: grunts much slower to notice her; their hits do 25% more.
+- The timed effects run in `scripts/run/relic_fx.gd`. Test: `tests/relics_test.gd`.
 
 ### Workbenches and materials
 Out on runs you collect four materials, and the hub's workbenches spend them:

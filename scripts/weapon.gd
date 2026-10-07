@@ -35,6 +35,7 @@ const FX := preload("res://scripts/fx.gd")
 const Art := preload("res://scripts/ps2/ps2_assets.gd")
 const SFX := preload("res://scripts/sfx.gd")
 const Vices := preload("res://scripts/hub/vices.gd")
+const Relics := preload("res://scripts/hub/relics.gd")
 const Glass := preload("res://scripts/hub/glass.gd")
 const EcoArms := preload("res://scripts/eco_fp_arms.gd")
 ## Where the gun rests in front of the camera (its own space: right, up, back).
@@ -376,7 +377,7 @@ func _process(delta: float) -> void:
 
 ## Current cone half-angle in degrees.
 func current_spread() -> float:
-	var s := (base_spread + bloom + Vices.SPREAD_DEG * Vices.effect()) * Vices.spread_scale()
+	var s := (base_spread + bloom + Vices.SPREAD_DEG * Vices.effect()) * Vices.spread_scale() * Relics.spread_scale()
 	match player.state:
 		Pilot.State.GROUND:
 			s += move_spread * clampf(player.horizontal_speed() / player.sprint_speed, 0.0, 1.0)
@@ -386,6 +387,10 @@ func current_spread() -> float:
 
 
 func fire() -> void:
+	if Relics.jams(randf()):
+		# Sal's cheap parts (relics.gd): the round doesn't go
+		cooldown = Relics.JAM_TIME
+		return
 	var homing := is_locked()
 	var smart_shot := smart_left > 0
 	ammo -= 1
@@ -453,10 +458,12 @@ func _trace_shot(from: Vector3, dir: Vector3, fx_parent: Node) -> Vector3:
 			_end_streak(landed)
 			return end
 		var head: bool = target.is_headshot(end)
-		var dmg := damage_at(from.distance_to(end)) * (headshot_multiplier if head else 1.0) * mult * Vices.damage_out() * Glass.damage_out()
+		var dmg := damage_at(from.distance_to(end)) * (headshot_multiplier if head else 1.0) * mult * Vices.damage_out() * Glass.damage_out() * Relics.damage_out()
 		var killed: bool = target.take_damage(dmg, end, head)
 		if stagger > 0.0 and not killed and target.has_method("stagger"):
 			target.stagger(stagger)
+		if head:
+			Relics.note_headshot()  # Ophelia's watch slows the world (relic_fx.gd)
 		var kind := "kill" if killed else ("head" if head else "body")
 		hit_confirmed.emit(kind)
 		_hit_fx(fx_parent, end, hit.normal, dir, kind)

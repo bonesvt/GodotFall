@@ -8,6 +8,7 @@ extends CanvasLayer
 ## Also hosts the enemy radio chatter popup and Eco's whispers (scripts/radio/).
 
 const SFX := preload("res://scripts/sfx.gd")
+const Relics := preload("res://scripts/hub/relics.gd")
 const RadioChatter := preload("res://scripts/radio/radio_chatter.gd")
 const EcoWhispers := preload("res://scripts/radio/eco_whispers.gd")
 
@@ -181,8 +182,11 @@ func _process(delta: float) -> void:
 	health_label.text = "HP %d" % ceili(player.health)
 	if player.max_armor > 0.0:
 		health_label.text += "   ARMOUR %d" % ceili(player.armor)
-	health_label.add_theme_color_override("font_color", Color.WHITE.lerp(Color(1, 0.25, 0.2), 1.0 - hp_frac))
-	hurt_rect.color.a = (1.0 - hp_frac) * 0.3 + hurt_flash * 0.5
+	var numb := Relics.numb()  # Imani's patch: she can't feel how hurt she is
+	if numb:
+		health_label.text = "HP ??"
+	health_label.add_theme_color_override("font_color", Color.WHITE if numb else Color.WHITE.lerp(Color(1, 0.25, 0.2), 1.0 - hp_frac))
+	hurt_rect.color.a = hurt_flash * 0.5 if numb else (1.0 - hp_frac) * 0.3 + hurt_flash * 0.5
 
 	if weapon != null:
 		ammo_label.text = "RELOADING" if weapon.is_reloading() else "%d / %d" % [weapon.ammo, weapon.magazine_size]

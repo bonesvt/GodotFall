@@ -359,11 +359,12 @@ static func _idol(root: Node3D, info: Dictionary) -> void:
 		K.glow(root, bowl + Vector3(0, 1.9, 0), Vector3(0.35, 0.4, 0.35), Color(1.0, 0.85, 0.4), Vector3(0, 60, 0))
 		K.light(root, bowl + Vector3(0, 2.2, 0), FIRE, 1.8, 9.0)
 		K.sound(info, "campfire", bowl + Vector3(0, 1.6, 0), -16.0, 2.0)
-	K.interactable(info, "idol", Vector3(0, F + 1.0, z0 + 8.0), "[F] Look at the idol", [
+	K.interactable(info, "idol", Vector3(0, F + 1.0, z0 + 8.0), "[F] The idol: relics", [
 		"Whoever built this place prayed to something with one big eye.",
 		"The eye still glows. No wiring, no power cell. I checked.",
 		"Some nights I swear it's watching the scrap pile.",
 	], 3.5)
+	info["interactables"].back()["screen"] = "relics"  # its open hands keep her relics (relic_screen.gd)
 
 
 ## What's known of the Precursors: two carved reliefs on the back wall either

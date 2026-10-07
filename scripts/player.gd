@@ -10,6 +10,7 @@ const SFX := preload("res://scripts/sfx.gd")
 const Prefs := preload("res://scripts/game/prefs.gd")
 const Vices := preload("res://scripts/hub/vices.gd")
 const Glass := preload("res://scripts/hub/glass.gd")
+const Relics := preload("res://scripts/hub/relics.gd")
 const EcoContactSounds := preload("res://scripts/ps2/eco_contact_sounds.gd")
 ## Metres between footsteps on the ground and when running along a wall.
 const STRIDE := 2.4
@@ -347,7 +348,7 @@ func _physics_process(delta: float) -> void:
 	regen_timer -= delta
 	untouchable_timer -= delta
 	if regen_timer <= 0.0 and health < max_health:
-		health = minf(health + regen_rate * Vices.regen_scale() * delta, max_health)
+		health = minf(health + regen_rate * Vices.regen_scale() * Relics.regen_scale() * delta, max_health)
 	elif regen_timer <= 0.0 and armor < max_armor:
 		armor = minf(armor + armor_regen_rate * _armor_regen_mult * delta, max_armor)
 	if resting:
@@ -417,7 +418,7 @@ func _ground_state(delta: float) -> void:
 	_set_crouch(want_crouch)
 
 	var sprinting := (auto_sprint or Input.is_action_pressed("sprint")) and input_dir.y < -0.3
-	var target := (crouch_speed if crouching else (sprint_speed if sprinting else run_speed)) * speed_mult * suit_speed * Vices.speed_scale()
+	var target := (crouch_speed if crouching else (sprint_speed if sprinting else run_speed)) * speed_mult * suit_speed * Vices.speed_scale() * Relics.speed_scale()
 	if strolling:
 		# auto sprint doesn't apply; under the orbit camera any direction counts
 		var brisk := Input.is_action_pressed("sprint") and (input_dir.y < -0.3 or (not is_nan(move_yaw) and input_dir != Vector2.ZERO))
@@ -651,7 +652,7 @@ func _slide_state(delta: float) -> void:
 	# Accelerate down slopes: the floor normal's horizontal part points downhill.
 	var n := get_floor_normal()
 	hvel += Vector3(n.x, 0.0, n.z) * gravity * delta
-	hvel = hvel.move_toward(Vector3.ZERO, slide_friction * delta)
+	hvel = hvel.move_toward(Vector3.ZERO, slide_friction * Relics.slide_friction_scale() * delta)
 	# Light steering that keeps the current speed.
 	if wish_dir != Vector3.ZERO and speed > 0.1:
 		speed = hvel.length()
@@ -701,7 +702,7 @@ func _wallrun_state(delta: float) -> void:
 		_wall_jump()
 		move_and_slide()
 		return
-	var give_up := wallrun_timer > wallrun_max_time \
+	var give_up := wallrun_timer > wallrun_max_time * Relics.wallrun_scale() \
 		or input_dir.y > -0.1 \
 		or Input.is_action_pressed("crouch")
 	if give_up:
@@ -895,7 +896,7 @@ func respawn() -> void:
 func take_damage(amount: float, from := Vector3.ZERO) -> void:
 	if health <= 0.0 or untouchable_timer > 0.0:
 		return
-	amount *= damage_mult * Vices.damage_scale()
+	amount *= damage_mult * Vices.damage_scale() * Relics.damage_in()
 	var soaked := minf(armor, amount)
 	armor -= soaked
 	health -= amount - soaked
@@ -907,6 +908,10 @@ func take_damage(amount: float, from := Vector3.ZERO) -> void:
 		health = 1.0
 		untouchable_timer = SECOND_WIND_TIME
 		second_winded.emit()
+	elif health <= 0.0 and Relics.cheat_death():
+		# Mom's locket (relics.gd): once a run she stays up on half health
+		health = max_health * 0.5
+		untouchable_timer = SECOND_WIND_TIME
 	elif health <= 0.0:
 		health = 0.0
 		died.emit()
@@ -919,7 +924,7 @@ func apply_suit(profile: Dictionary) -> void:
 		_base_grapple_cooldown = grapple_cooldown
 		_base_max_health = max_health
 	_suit_max_health = _base_max_health + profile.get("max_health_bonus", 0.0)
-	max_health = _suit_max_health * Glass.health_scale()
+	max_health = _suit_max_health * Glass.health_scale() * Relics.health_scale()
 	health = max_health
 	suit_tier = profile.get("tier", 0)
 	suit_weight = profile.get("weight", "medium")
@@ -945,7 +950,7 @@ func apply_suit(profile: Dictionary) -> void:
 func refresh_glass() -> void:
 	if _suit_max_health < 0.0:
 		_suit_max_health = max_health
-	max_health = _suit_max_health * Glass.health_scale()
+	max_health = _suit_max_health * Glass.health_scale() * Relics.health_scale()
 	health = minf(health, max_health)
 
 

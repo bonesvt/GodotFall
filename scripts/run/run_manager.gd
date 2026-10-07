@@ -72,6 +72,10 @@ const HushPull := preload("res://scripts/hub/hush_pull.gd")
 const SuperHushScene := preload("res://scripts/hub/super_hush_scene.gd")
 const CheatScreen := preload("res://scripts/hub/cheat_screen.gd")
 const Glass := preload("res://scripts/hub/glass.gd")
+const Relics := preload("res://scripts/hub/relics.gd")
+const RelicFx := preload("res://scripts/run/relic_fx.gd")
+const RelicShrine := preload("res://scripts/run/relic_shrine.gd")
+const RelicScreen := preload("res://scripts/hub/relic_screen.gd")
 const Tether := preload("res://scripts/run/tether.gd")
 const ChorusScene := preload("res://scripts/hub/chorus_scene.gd")
 const Soundscape := preload("res://scripts/soundscape.gd")
@@ -87,6 +91,7 @@ const KILL_DEPTH := 15.0
 const BENCH_SOUNDS := {
 	"wardrobe": ["wardrobe_open", "wardrobe_close"],
 	"gifts": ["shop_bell", ""], "salon": ["shop_bell", ""],
+	"relics": ["titan_hiss_short", ""],
 }
 const OFFER_SIZE := 3
 const TITAN_DROP_HEIGHT := 80.0
@@ -216,6 +221,8 @@ var hush_pull: HushPull
 var super_hush_scene: SuperHushScene
 ## Marrow's Glass on runs (focus, his orders: tether.gd) and the Chorus's end (chorus_scene.gd).
 var tether: Tether
+## The relics' side effects on a run (relic_fx.gd).
+var relic_fx: RelicFx
 var chorus_scene: ChorusScene
 ## What she grabbed by mistake for this run, deep in Marrow's Hold
 ## (vices.gd wrong_gear): put right when she gets home.
@@ -267,8 +274,11 @@ func _ready() -> void:
 	armory = Armory.open(armory_path)
 	Vices.open(armory_path.get_basename() + "_vices.cfg")
 	Glass.open(Glass.path_for(Vices.save_path))
+	Relics.open(armory_path.get_basename() + "_relics.cfg")
 	tether = Tether.new(self)
 	add_child(tether)
+	relic_fx = RelicFx.new(self)
+	add_child(relic_fx)
 	chorus_scene = ChorusScene.new(self)
 	add_child(chorus_scene)
 	hush_pull = HushPull.new(self)
@@ -373,7 +383,9 @@ func start_run(seed_value: int, uncharted := 0, level := "") -> void:
 		w.set("softness", Family.softness(npc_talk.state))
 	load_zone(0)
 	Vices.run_started()
+	Relics.run_started()
 	tether.stop()
+	relic_fx.stop()
 	player.refresh_glass()
 	var line := ""
 	if Vices.hush() > 0.0:
@@ -388,6 +400,8 @@ func start_run(seed_value: int, uncharted := 0, level := "") -> void:
 		line = (line + "\n" if line != "" else "") + Vices.WRONG_GEAR_LINE + "\n" + _mixed_up_text()
 	if Glass.tethered():
 		line = (line + "\n" if line != "" else "") + "The earpiece clicks on. Marrow: \"I'm here. Do as I say out there.\""
+	if Relics.carry_line() != "":
+		line = (line + "\n" if line != "" else "") + Relics.carry_line()
 	if line != "":
 		hud.toast(line, HUB_LINE_SECONDS + (2.0 if not mixed_up.is_empty() else 0.0))
 
@@ -443,6 +457,7 @@ func _fresh_level(level_name: String) -> void:
 ## Back to the temple: no run in progress, walk around, start one at the poster or the mission table.
 func enter_hub() -> void:
 	BattleDamage.reset()  # home: she washes up and patches her suit
+	Relics.on_run = false
 	titan = null
 	boss = null
 	get_tree().paused = false
@@ -465,7 +480,7 @@ func enter_hub() -> void:
 		npc.wear_for_run(runs_ended)
 		NpcIdles.settle(npc, zone_info, runs_ended)
 		hub_npcs[spec["who"]] = npc
-	Townsfolk.populate(zone_root, player, runs_ended)
+	Townsfolk.populate(zone_root, player, runs_ended + Relics.town_talk)  # the prayer beads get them talking
 	Soundscape.hub(zone_root, zone_info)
 	family_scene = null
 	if Family.enabled:
@@ -519,6 +534,10 @@ func load_zone(index: int) -> void:
 		var gift_rng := RandomNumberGenerator.new()
 		gift_rng.seed = run.run_seed * 104729 + index
 		Gifts.scatter(zone_root, zone_info, gift_rng)
+		# A Precursor shrine, sometimes (relics.gd), on its own generator too.
+		var relic_rng := RandomNumberGenerator.new()
+		relic_rng.seed = run.run_seed * 15485863 + index
+		RelicShrine.scatter(zone_root, zone_info, relic_rng)
 		for grunt in zone_info["grunts"]:
 			grunt.target = player
 			grunt.died.connect(_on_grunt_died)
@@ -581,8 +600,11 @@ func _physics_process(delta: float) -> void:
 		if phase in [Phase.ZONE, Phase.ARENA, Phase.FIGHT]:
 			hush_pull.run_tick(delta, titan == null or not titan.piloted)
 			tether.run_tick(delta, (titan == null or not titan.piloted) and not hush_pull.busy())
+			relic_fx.run_tick(delta, (titan == null or not titan.piloted) and not hush_pull.busy())
 		elif tether.active():
 			tether.stop()
+		if phase not in [Phase.ZONE, Phase.ARENA, Phase.FIGHT, Phase.CHOOSING] and relic_fx.active():
+			relic_fx.stop()
 	elif tether.active():
 		tether.stop()  # the world paused: no slow-mo, no order running
 	player.strolling = phase == Phase.HUB and not on_training_ground()
@@ -669,6 +691,8 @@ func _hub_tick(delta: float) -> void:
 		npc_talk.offer_gifts(hub_npcs[spot["npc"]], runs_ended)
 		return
 	if spot.is_empty() or not Input.is_action_just_pressed("interact"):
+		return
+	if _relic_gift(spot):
 		return
 	_hub_sound(spot)
 	if spot["id"] == "tutorial_poster":
@@ -993,6 +1017,8 @@ func open_bench(kind: String) -> void:
 		bench = HushScreen.new(armory, npc_talk.state)
 	elif kind == "cheats":
 		bench = CheatScreen.new(armory, npc_talk)
+	elif kind == "relics":
+		bench = RelicScreen.new()
 	else:
 		bench = GunsmithScreen.new(armory) if kind == "gunsmith" else BenchScreen.new(armory, kind)
 	bench.set_meta("kind", kind)
@@ -1149,7 +1175,7 @@ func dress_hub() -> void:
 func collect_material(kind: String, amount: int) -> void:
 	if run == null or phase == Phase.HUB:
 		return
-	run.materials[kind] = int(run.materials.get(kind, 0)) + amount
+	run.materials[kind] = int(run.materials.get(kind, 0)) + Relics.loot_amount(amount)
 
 
 ## Eco walked into a gift (gifts.gd): into the bag for the hub, kept even if
@@ -1166,6 +1192,7 @@ func _on_grunt_died(grunt: Node) -> void:
 	if run == null or zone_root == null or not is_instance_valid(grunt):
 		return
 	run.kills += 1
+	relic_fx.on_kill()
 	Loot.drop(zone_root, grunt.global_position, Loot.roll_grunt(loot_rng, run.zone), loot_rng)
 	tutorial.event("loot")
 
@@ -1187,6 +1214,8 @@ func _loot_tick(delta: float) -> void:
 	if node.has_method("open"):
 		if Input.is_action_just_pressed("interact"):
 			got = node.open()
+			if node is RelicShrine:
+				_take_relic(node.relic)
 	elif Input.is_action_pressed("interact"):
 		got = node.mine(delta)
 	if not got.is_empty():
@@ -1556,6 +1585,10 @@ func choose(index: int) -> void:
 		_whisper("part_installed", 1.0)
 	open_cache.mark_opened()
 	run.caches_opened += 1
+	# Colony tech in among the salvage, sometimes (relics.gd).
+	var colony := Relics.missing("colony")
+	if not colony.is_empty() and run.rng.randf() < Relics.COLONY_CHANCE:
+		_take_relic(colony[run.rng.randi() % colony.size()])
 	open_cache = null
 	offer = []
 	hud.choice_panel.visible = false
@@ -1674,7 +1707,11 @@ func end_run(title: String, reason: String) -> void:
 		_rescue_bonus(run.level)
 	Vices.run_over()
 	Glass.run_over()
+	var relic_notes := Relics.run_over(npc_talk.state, run.time)
+	if not relic_notes.is_empty():
+		npc_talk.state.save(npc_talk.save_path)
 	tether.stop()
+	relic_fx.stop()
 	var haul := Armory.run_haul(run.materials, won)
 	armory.bank(haul)
 	# The meal from Seven Suns was for this run.
@@ -1695,9 +1732,37 @@ func end_run(title: String, reason: String) -> void:
 	lines.append("")
 	lines.append("BANKED: %s%s" % [_materials_text(haul), "  (titan salvage included)" if won else "  (half of what you carried, lock cores kept)"])
 	lines.append("")
+	if not relic_notes.is_empty():
+		lines.append_array(relic_notes)
+		lines.append("")
 	lines.append("[Enter] back to the temple" if start_in_hub else "[Enter] new run")
 	hud.summary_label.text = "\n".join(lines)
 	hud.summary_panel.visible = true
+
+
+# --- relics (relics.gd) ---------------------------------------------------------
+
+## A relic found on a run (a shrine, a cache): she keeps it, won or lost.
+func _take_relic(id: String) -> void:
+	if not Relics.gain(id):
+		return
+	var r: Dictionary = Relics.RELICS[id]
+	hud.toast("RELIC: %s\n%s\n+ %s\n- %s\nWear it at the idol back home." % [r["name"].to_upper(), r["blurb"], r["perk"], r["curse"]], 6.0)
+	SFX.play(player, "level_up", -6.0)
+
+
+## Someone close to her has a keepsake for her (relics.gd GIVERS): the F at
+## their spot hands it over instead. Returns whether it did.
+func _relic_gift(spot: Dictionary) -> bool:
+	var who := Relics.giver_at(spot)
+	if who == "" or (who == "marrow" and Glass.broken):
+		return false
+	var id := Relics.gift_due(who, npc_talk.state)
+	if id == "" or not Relics.gain(id):
+		return false
+	hud.toast("%s\nNEW RELIC: %s. Wear it at the idol." % [Relics.RELICS[id]["gift"], Relics.relic_name(id).to_upper()], HUB_LINE_SECONDS + 3.0)
+	SFX.play(player, "level_up", -6.0)
+	return true
 
 
 # --- vices (vices.gd) -----------------------------------------------------------
@@ -1838,6 +1903,8 @@ func _vices_text() -> String:
 		parts.append(Glass.pockets_text())
 	if tether.hud_text() != "":
 		parts.append(tether.hud_text())
+	if Relics.hud_text() != "":
+		parts.append(Relics.hud_text())
 	if Vices.errand != "" and Vices.allowed():
 		parts.append("MARROW: " + ("go back to him" if Vices.errand_done else HushDen.ERRANDS[Vices.errand]["short"]))
 	return "" if parts.is_empty() else "    " + "    ".join(parts)
