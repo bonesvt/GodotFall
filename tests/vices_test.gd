@@ -11,7 +11,9 @@ const Scrapjack := preload("res://scripts/hub/scrapjack.gd")
 const BarScreen := preload("res://scripts/hub/bar_screen.gd")
 const Armory := preload("res://scripts/hub/armory.gd")
 const ContentRating := preload("res://scripts/radio/content_rating.gd")
+const StimScreen := preload("res://scripts/hub/stim_screen.gd")
 const ARMORY_PATH := "user://test_vices_armory.cfg"
+const VICES_PATH := "user://test_vices.cfg"
 
 var failures := 0
 
@@ -21,7 +23,9 @@ func _initialize() -> void:
 
 
 func _run() -> void:
-	DirAccess.remove_absolute(ProjectSettings.globalize_path(ARMORY_PATH))
+	for p in [ARMORY_PATH, VICES_PATH]:
+		DirAccess.remove_absolute(ProjectSettings.globalize_path(p))
+	Vices.open(VICES_PATH)
 	var old_rating := ContentRating.current()
 	ContentRating.set_rating("M", false)
 	Vices.reset()
@@ -135,11 +139,78 @@ func _run() -> void:
 	_check("water's still free", bar.order("water"), 0)
 	bar.free()
 
+	_smokes_and_stims()
+
 	Vices.reset()
 	ContentRating.set_rating(old_rating, false)
-	DirAccess.remove_absolute(ProjectSettings.globalize_path(ARMORY_PATH))
+	for p in [ARMORY_PATH, VICES_PATH]:
+		DirAccess.remove_absolute(ProjectSettings.globalize_path(p))
 	print("vices_test: %s" % ("PASS" if failures == 0 else "%d FAILURES" % failures))
 	quit(1 if failures > 0 else 0)
+
+
+## Smokes from the bar, stims from Sal's hatch: effects, crash, cravings, saving.
+func _smokes_and_stims() -> void:
+	Vices.reset()
+	var armory: Armory = Armory.open(ARMORY_PATH)
+	armory.stash = {"scrap": 200, "alloy": 20, "circuits": 2, "lock_cores": 0}
+	var bar := BarScreen.new(armory, 3)
+	root.add_child(bar)
+	_check("no smokes, can't light", not Vices.light_up(), Vices.smokes)
+	_check("buy a pack", bar.order("smokes") and Vices.smokes == 5 and armory.amount("scrap") == 190, [Vices.smokes, armory.amount("scrap")])
+	bar.free()
+	_check("light up", Vices.light_up() and Vices.calm() and Vices.smokes == 4, Vices.smokes)
+	_check("one at a time", not Vices.light_up(), Vices.smokes)
+	_check("smoking slows healing", Vices.regen_scale() < 1.0, Vices.regen_scale())
+	_check("smoking tightens the cone", Vices.spread_scale() < 1.0, Vices.spread_scale())
+	_check("Mom will smell it", Vices.smoked, Vices.smoked)
+	Vices.buzz = 3.0
+	var calm_sway := 0.0
+	for i in 100:
+		calm_sway = maxf(calm_sway, Vices.sway(i * 0.1).length())
+	Vices.smoke_left = 0.0
+	var raw_sway := 0.0
+	for i in 100:
+		raw_sway = maxf(raw_sway, Vices.sway(i * 0.1).length())
+	_check("a smoke steadies drunk aim", calm_sway < raw_sway * 0.6, [calm_sway, raw_sway])
+	Vices.buzz = 0.0
+
+	var hatch := StimScreen.new(armory)
+	root.add_child(hatch)
+	_check("buy redline", hatch.buy("redline") and Vices.belt == ["redline"], Vices.belt)
+	_check("buy ironskin", hatch.buy("ironskin") and armory.amount("alloy") == 15, armory.amount("alloy"))
+	_check("buy deadeye", hatch.buy("deadeye"), Vices.belt)
+	_check("belt holds three", not hatch.buy("redline") and Vices.belt.size() == Vices.BELT_SIZE, Vices.belt)
+	hatch.free()
+
+	Vices.open(VICES_PATH)
+	_check("smokes and belt saved", Vices.smokes == 4 and Vices.belt == ["redline", "ironskin", "deadeye"], [Vices.smokes, Vices.belt])
+
+	_check("jab redline", Vices.jab() == "redline" and Vices.speed_scale() > 1.2, Vices.speed_scale())
+	_check("one stim at a time", Vices.jab() == "", Vices.stim)
+	Vices.tick(Vices.STIMS["redline"]["time"] + 0.1)
+	_check("crash after", Vices.crashing() and Vices.speed_scale() < 1.0 and Vices.damage_scale() > 1.0, [Vices.speed_scale(), Vices.damage_scale()])
+	_check("crash hazes the view", Vices.haze() > 0.0, Vices.haze())
+	_check("jab ironskin through the crash", Vices.jab() == "ironskin" and not Vices.crashing() and Vices.damage_scale() < 0.7, Vices.damage_scale())
+	Vices.tick(20.0)
+	_check("deadeye steadies everything", Vices.jab() == "deadeye" and Vices.sway(1.0) == Vector2.ZERO and Vices.spread_scale() < 0.5, Vices.spread_scale())
+	Vices.tick(40.0)
+	_check("crash wears off", not Vices.crashing() and Vices.stim == "", Vices.crash_left)
+	_check("three jabs, three dependence", is_equal_approx(Vices.dependence, 3.0), Vices.dependence)
+	_check("the shakes", Vices.craving() > 0.0 and Vices.haze() > 0.0 and Vices.state_name().contains("Shakes"), Vices.state_name())
+	Vices.run_over()
+	_check("no clean-run credit for a jabbed run", is_equal_approx(Vices.dependence, 3.0), Vices.dependence)
+	Vices.run_over()
+	_check("a clean run wears it down", Vices.dependence < 3.0 and Vices.craving() == 0.0, Vices.dependence)
+
+	ContentRating.set_rating("T", false)
+	Vices.belt = ["redline"]
+	Vices.smoke_left = 0.0
+	_check("teen: no jabs", Vices.jab() == "", Vices.stim)
+	_check("teen: no smokes", not Vices.light_up(), Vices.smokes)
+	_check("teen: nothing on the HUD", Vices.pockets_text() == "" and Vices.state_name() == "", Vices.pockets_text())
+	ContentRating.set_rating("M", false)
+	_check("mature: pockets on the HUD", Vices.pockets_text().contains("[B]") and Vices.pockets_text().contains("[N]"), Vices.pockets_text())
 
 
 func _check(label: String, ok: bool, got) -> void:

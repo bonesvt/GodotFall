@@ -22,6 +22,8 @@ const GOOD := Color(0.55, 1.0, 0.6)
 const BAD := Color(1.0, 0.45, 0.4)
 const BETS := [5, 15, 30, 60]
 const TABS := ["drinks", "cards"]
+## The bar menu: Rook's drinks, then a pack of smokes.
+const MENU := Vices.ORDER + ["smokes"]
 
 const ROOK_HELLO := [
 	"Rook: \"Eco. You look like hell. Sit.\"",
@@ -36,6 +38,8 @@ const ROOK_POUR := {
 	"water": ["Rook: \"Water. Smartest thing you've ordered all night.\"", "Rook: \"Drink it all. Slowly.\""],
 }
 const ROOK_CUT_OFF := "Rook: \"No. Hell no. You can barely find your own face. Water or the door.\""
+const ROOK_SMOKES := "Rook: \"Night Owls. Your mother would kill me. B to light one, kid.\""
+const ROOK_SMOKES_FULL := "Rook: \"You've got enough on you to smoke out a titan bay. Come back when you're low.\""
 const ROOK_BROKE := "Rook: \"Scrap first, kid. This isn't a charity, it's a bar.\""
 const DUTCH := {
 	"deal": "Dutch: \"Cards are honest. People aren't. Place your bet.\"",
@@ -159,7 +163,7 @@ func _input(event: InputEvent) -> void:
 			KEY_S, KEY_DOWN:
 				select(selected + 1)
 			KEY_SPACE, KEY_ENTER, KEY_KP_ENTER:
-				order(Vices.ORDER[selected])
+				order(MENU[selected])
 			_:
 				return
 	else:
@@ -186,7 +190,7 @@ func set_tab(t: String) -> void:
 
 
 func select(index: int) -> void:
-	selected = posmod(index, Vices.ORDER.size())
+	selected = posmod(index, MENU.size())
 	SFX.play(self, "ui_hover", -10.0)
 	refresh()
 
@@ -195,6 +199,8 @@ func select(index: int) -> void:
 
 ## Orders a drink: pays for it and pours it. Returns whether it went down.
 func order(id: String) -> bool:
+	if id == "smokes":
+		return buy_smokes()
 	var ok := false
 	if Vices.DRINKS[id]["buzz"] > 0.0 and Vices.cut_off():
 		_say(ROOK_CUT_OFF)
@@ -206,6 +212,24 @@ func order(id: String) -> bool:
 		Vices.drink(id)
 		var lines: Array = ROOK_POUR[id]
 		_say(lines[Vices.drinks_had % lines.size()])
+		ok = true
+	SFX.play(self, "cloth_2" if ok else "ui_error", -4.0)
+	refresh()
+	return ok
+
+
+## A pack of Night Owls. Returns whether she bought one.
+func buy_smokes() -> bool:
+	var ok := false
+	if Vices.smokes >= Vices.MAX_SMOKES:
+		_say(ROOK_SMOKES_FULL)
+	elif not armory.can_afford(Vices.PACK["cost"]):
+		_say(ROOK_BROKE)
+	else:
+		armory._spend(Vices.PACK["cost"])
+		armory.save()
+		Vices.buy_pack()
+		_say(ROOK_SMOKES)
 		ok = true
 	SFX.play(self, "cloth_2" if ok else "ui_error", -4.0)
 	refresh()
@@ -313,28 +337,29 @@ func refresh() -> void:
 func _refresh_drinks() -> void:
 	for c in _drinks.get_children():
 		c.queue_free()
-	for i in Vices.ORDER.size():
+	for i in MENU.size():
 		_drinks.add_child(_drink_row(i))
-	var id: String = Vices.ORDER[selected]
-	_detail.text = Vices.DRINKS[id]["blurb"]
+	var id: String = MENU[selected]
+	_detail.text = Vices.PACK["blurb"] if id == "smokes" else Vices.DRINKS[id]["blurb"]
 
 
 func _drink_row(i: int) -> PanelContainer:
-	var id: String = Vices.ORDER[i]
+	var id: String = MENU[i]
 	var on := i == selected
 	var panel := PanelContainer.new()
 	panel.add_theme_stylebox_override("panel", _box(Color(1.0, 0.72, 0.35, 0.2) if on else Color(0, 0, 0, 0), 10, 5))
 	var line := HBoxContainer.new()
 	line.add_theme_constant_override("separation", 10)
 	panel.add_child(line)
-	var label := _text(Vices.drink_name(id), 17, AMBER if on else INK)
+	var smokes := id == "smokes"
+	var label := _text(Vices.PACK["name"] if smokes else Vices.drink_name(id), 17, AMBER if on else INK)
 	label.custom_minimum_size = Vector2(260, 0)
 	line.add_child(label)
-	var b: float = Vices.DRINKS[id]["buzz"]
-	var kick := _text(("+" if b > 0 else "") + "%.1f buzz" % b if b != 0.0 else "", 15, MAGENTA if b > 0 else GOOD)
+	var b: float = 0.0 if smokes else Vices.DRINKS[id]["buzz"]
+	var kick := _text("have %d" % Vices.smokes if smokes else (("+" if b > 0 else "") + "%.1f buzz" % b), 15, DIM if smokes else (MAGENTA if b > 0 else GOOD))
 	kick.custom_minimum_size = Vector2(110, 0)
 	line.add_child(kick)
-	var cost := Vices.cost(id)
+	var cost: Dictionary = Vices.PACK["cost"] if smokes else Vices.cost(id)
 	var r := _text("on the house" if cost.is_empty() else Armory.cost_text(cost), 15, GOOD if armory.can_afford(cost) else BAD)
 	r.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	r.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
@@ -346,7 +371,7 @@ func _drink_row(i: int) -> PanelContainer:
 func _on_drink_input(event: InputEvent, index: int) -> void:
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
 		if index == selected:
-			order(Vices.ORDER[index])
+			order(MENU[index])
 		else:
 			select(index)
 

@@ -266,6 +266,14 @@ static func _lantern_row(root: Node3D, info: Dictionary, rng: RandomNumberGenera
 		"Sal buys colony scrap off the scavengers and sells it to me at twice the price. Everybody wins but me.",
 		"Don't ask where the serial numbers went.",
 	], "salvage")
+	# Sal's side hatch at the plaza end of the shop: stims under the counter,
+	# Mature only (vices.gd). Under Teen it stays shut.
+	K.mesh(root, Vector3(STREET_HALF + 0.02, 1.05, 158.4), Vector3(0.12, 2.1, 1.0), Art.material("gunmetal", Color(0.24, 0.3, 0.26)))
+	K.mesh(root, Vector3(STREET_HALF - 0.05, 1.35, 158.4), Vector3(0.06, 0.25, 0.7), Art.material("gunmetal", Color(0.1, 0.1, 0.1)))
+	K.light(root, Vector3(STREET_HALF - 0.4, 2.4, 158.4), Color(0.6, 1.0, 0.35), 0.6, 3.5)
+	shop(info, "sal_hatch", Vector3(STREET_HALF - 1.0, 0, 158.4), "[F] A hatch round Sal's side", [
+		"Sal's back hatch. Locked. He only opens it for people he trusts, and he doesn't trust anybody.",
+	], "stims")
 	_street_life(root, 132.0, 160.0, rng)
 
 

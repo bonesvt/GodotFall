@@ -258,7 +258,7 @@ func _physics_process(delta: float) -> void:
 	regen_timer -= delta
 	untouchable_timer -= delta
 	if regen_timer <= 0.0 and health < max_health:
-		health = minf(health + regen_rate * delta, max_health)
+		health = minf(health + regen_rate * Vices.regen_scale() * delta, max_health)
 	elif regen_timer <= 0.0 and armor < max_armor:
 		armor = minf(armor + armor_regen_rate * _armor_regen_mult * delta, max_armor)
 	if resting:
@@ -316,7 +316,7 @@ func _ground_state(delta: float) -> void:
 	_set_crouch(want_crouch)
 
 	var sprinting := (auto_sprint or Input.is_action_pressed("sprint")) and input_dir.y < -0.3
-	var target := (crouch_speed if crouching else (sprint_speed if sprinting else run_speed)) * speed_mult * suit_speed
+	var target := (crouch_speed if crouching else (sprint_speed if sprinting else run_speed)) * speed_mult * suit_speed * Vices.speed_scale()
 	if strolling:
 		# auto sprint doesn't apply; under the orbit camera any direction counts
 		var brisk := Input.is_action_pressed("sprint") and (input_dir.y < -0.3 or (not is_nan(move_yaw) and input_dir != Vector2.ZERO))

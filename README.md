@@ -55,6 +55,8 @@ The preset keeps `dialogue/*` (plain text the hub people read at runtime) and le
 | Esc | Pause menu (settings, quit) |
 | H | Toggle help |
 | F9 | Change look: Anime (default), PS3, old PS2 |
+| B | Light a smoke (Mature, if she has any) |
+| N | Jab a combat stim (Mature, if she has any) |
 
 ## The temple (hub)
 Pressing Play (`scenes/run.tscn`) opens in the hub: the small abandoned temple Eco hides
@@ -123,7 +125,7 @@ shoulders back, and stands with her weight on one hip. The strut is layered over
     round titan-sized cover, dash, and shoot the four scrap titan dummies; they topple
     and get propped back up.
 
-### The Rusted Halo: drinks and Scrapjack (Mature only)
+### Vices: the Rusted Halo, smokes and stims (Mature only)
 Under the Mature rating (Settings > Game), **F** at the Rusted Halo on Low Row opens the bar
 (`scripts/hub/bar_screen.gd`). Under Teen it keeps its old lines and none of this shows.
 
@@ -137,6 +139,15 @@ Under the Mature rating (Settings > Game), **F** at the Rusted Halo on Low Row o
 - **Scrapjack** (Dutch, at the back table; `scripts/hub/scrapjack.gd`) is blackjack for scrap:
   Tab switches tabs, **1-4** bet 5/15/30/60, **Space** deals, **H** hit, **S** stand,
   **D** double down. A natural pays 3:2; Dutch stands on 17.
+- **Smokes**: Rook also sells packs of Night Owls (5 to a pack, up to 20 carried). **B** lights
+  one, in the hub or on a run: for 90 s her aim drifts much less (even drunk) and the gun's cone
+  tightens, but she heals slower. Come home after smoking and Mom smells it.
+- **Stims** from Sal's side hatch (the green-lit door at the plaza end of Sal's Salvage;
+  `scripts/hub/stim_screen.gd`), up to three on her belt. **N** jabs the next one:
+  Redline (faster, 12 s), Ironskin (40% less damage, 12 s), Deadeye (no aim drift, tight cone,
+  10 s). Then a 15 s crash: slower, hurts more, the view swims. A jab during a crash cuts it
+  short. Every jab adds dependence; at 3 and over she gets the shakes (aim drift, haze) on runs
+  until she jabs again, and each clean run wears it down. Smokes, belt and dependence save per slot.
 - Test: `godot --headless --path . -s res://tests/vices_test.gd`
 
 ### Workbenches and materials

@@ -60,6 +60,8 @@ const Saves := preload("res://scripts/game/saves.gd")
 const PauseMenu := preload("res://scripts/ui/pause_menu.gd")
 const Vices := preload("res://scripts/hub/vices.gd")
 const BarScreen := preload("res://scripts/hub/bar_screen.gd")
+const StimScreen := preload("res://scripts/hub/stim_screen.gd")
+const SFX := preload("res://scripts/sfx.gd")
 const DrunkScreen := preload("res://scripts/ui/drunk_screen.gd")
 
 const FALL_DAMAGE := 25
@@ -77,6 +79,12 @@ const CHECKPOINT_RADIUS := 10.0
 const CONTROLS := "F salvage / embark    V call titan / core    Shift titan dash    Left mouse titan fire"
 ## How long a line Eco says about something in the hub stays up.
 const HUB_LINE_SECONDS := 4.5
+## Mom smells smoke on Eco when she gets home (vices.gd).
+const MOM_SMELLS := [
+	"Mom: \"You smell like the Halo's back step. Don't lie to me, I can smell it.\"",
+	"Mom: \"Smoke in your hair again. Your father quit for you, you know.\"",
+	"Mom: \"Open a window up there. And wash that jacket.\"",
+]
 
 ## Start in the hub. Off, the scene drops straight into a run (the run loop test does this).
 @export var start_in_hub := true
@@ -168,7 +176,7 @@ static func ensure_input_actions() -> void:
 	var keys := {
 		"interact": [KEY_F], "choice_1": [KEY_1], "choice_2": [KEY_2], "choice_3": [KEY_3],
 		"choice_skip": [KEY_X], "titan_core": [KEY_V], "titan_dash": [KEY_SHIFT],
-		"run_restart": [KEY_ENTER], "give_gift": [KEY_G],
+		"run_restart": [KEY_ENTER], "give_gift": [KEY_G], "smoke": [KEY_B], "stim": [KEY_N],
 	}
 	for action in keys:
 		if InputMap.has_action(action):
@@ -194,6 +202,7 @@ func _ready() -> void:
 	Prefs.apply_all()
 	_use_save_slot()
 	armory = Armory.open(armory_path)
+	Vices.open(armory_path.get_basename() + "_vices.cfg")
 	npc_talk = NpcTalk.new()
 	npc_talk.save_path = npc_path
 	add_child(npc_talk)
@@ -289,7 +298,9 @@ func start_run(seed_value: int, uncharted := 0, level := "") -> void:
 	if w != null:
 		w.set("softness", Family.softness(npc_talk.state))
 	load_zone(0)
-	if Vices.effect() > 0.0:
+	if Vices.craving() > 0.0:
+		hud.toast(Vices.craving_line(), HUB_LINE_SECONDS)
+	elif Vices.effect() > 0.0:
 		hud.toast(Vices.run_line(), HUB_LINE_SECONDS)
 
 
@@ -349,7 +360,11 @@ func enter_hub() -> void:
 	place_player(zone_info["spawn"])
 	tutorial.start_level("hub")
 	if last_result != "":
-		hud.toast("Back at the temple." + ("  You're burning up. Go find Mom." if sick else ""), HUB_LINE_SECONDS)
+		var mom := ""
+		if Vices.smoked and Vices.allowed() and hub_npcs.has("mom") and not sick:
+			mom = "  " + MOM_SMELLS[runs_ended % MOM_SMELLS.size()]
+		Vices.smoked = false
+		hud.toast("Back at the temple." + ("  You're burning up. Go find Mom." if sick else "") + mom, HUB_LINE_SECONDS + (2.0 if mom != "" else 0.0))
 		_whisper("home", 2.0)
 
 
@@ -411,6 +426,7 @@ func _physics_process(delta: float) -> void:
 	Saves.tick(delta)
 	if not get_tree().paused:
 		Vices.tick(delta)
+		_vice_keys()
 	player.strolling = phase == Phase.HUB and not on_training_ground()
 	match phase:
 		Phase.ZONE:
@@ -496,8 +512,8 @@ func _hub_tick(delta: float) -> void:
 	if spot.has("screen"):
 		open_bench(spot["screen"])
 		return
-	if spot.get("shop", "") == "bar" and Vices.allowed():
-		open_bench("bar")
+	if spot.get("shop", "") in ["bar", "stims"] and Vices.allowed():
+		open_bench(spot["shop"])
 		return
 	if spot["id"] == "garage":
 		open_garage()
@@ -647,6 +663,8 @@ func open_bench(kind: String) -> void:
 		bench = SuitScreen.new(armory)
 	elif kind == "bar":
 		bench = BarScreen.new(armory)
+	elif kind == "stims":
+		bench = StimScreen.new(armory)
 	else:
 		bench = GunsmithScreen.new(armory) if kind == "gunsmith" else BenchScreen.new(armory, kind)
 	add_child(bench)
@@ -1290,6 +1308,7 @@ func end_run(title: String, reason: String) -> void:
 	if won:
 		armory.mark_cleared(run.level if run.level != "" else "tutorial")
 		_rescue_bonus(run.level)
+	Vices.run_over()
 	var haul := Armory.run_haul(run.materials, won)
 	armory.bank(haul)
 	Saves.record_run(won)
@@ -1309,6 +1328,77 @@ func end_run(title: String, reason: String) -> void:
 	lines.append("[Enter] back to the temple" if start_in_hub else "[Enter] new run")
 	hud.summary_label.text = "\n".join(lines)
 	hud.summary_panel.visible = true
+
+
+# --- vices (vices.gd) -----------------------------------------------------------
+
+## B lights a smoke, N jabs a stim: on foot, in the hub or on a run, with
+## nothing else open.
+func _vice_keys() -> void:
+	if not Vices.allowed() or bench != null or garage != null or hub_piloting or npc_talk.active():
+		return
+	if not (phase == Phase.HUB or in_run()) or (titan != null and titan.piloted):
+		return
+	if Input.is_action_just_pressed("smoke"):
+		if Vices.light_up():
+			hud.toast("Eco lights a Night Owl. Steady hands for a while; slower healing.", 3.0)
+			_puff()
+		elif Vices.smoke_left > 0.0:
+			hud.toast("Still got one going.", 2.0)
+		else:
+			hud.toast("Out of smokes. Rook sells them at the Halo.", 2.5)
+	if Input.is_action_just_pressed("stim"):
+		var id := Vices.jab()
+		if id != "":
+			hud.toast("%s. Here it comes..." % Vices.stim_name(id), 2.5)
+			SFX.play(player, "cloth_2", -2.0)
+		elif Vices.stim != "":
+			hud.toast("One at a time. Your heart's already going like a titan's.", 2.5)
+		else:
+			hud.toast("No stims on your belt. Sal's side hatch, in town.", 2.5)
+
+
+## A breath of smoke drifting up in front of the camera.
+func _puff() -> void:
+	var cam: Camera3D = player.camera
+	var p := CPUParticles3D.new()
+	p.amount = 18
+	p.lifetime = 2.6
+	p.one_shot = true
+	p.explosiveness = 0.15
+	p.direction = Vector3(0, 0.6, -1)
+	p.spread = 25.0
+	p.initial_velocity_min = 0.25
+	p.initial_velocity_max = 0.6
+	p.gravity = Vector3(0, 0.25, 0)
+	p.scale_amount_min = 0.12
+	p.scale_amount_max = 0.3
+	var quad := QuadMesh.new()
+	quad.size = Vector2.ONE
+	var mat := StandardMaterial3D.new()
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
+	mat.vertex_color_use_as_albedo = true
+	quad.material = mat
+	p.mesh = quad
+	var fade := Gradient.new()
+	fade.set_color(0, Color(0.7, 0.7, 0.72, 0.45))
+	fade.set_color(1, Color(0.7, 0.7, 0.72, 0.0))
+	p.color_ramp = fade
+	cam.add_child(p)
+	p.position = Vector3(0.05, -0.12, -0.45)
+	p.emitting = true
+	p.finished.connect(p.queue_free)
+
+
+func _vices_text() -> String:
+	var parts := []
+	if Vices.state_name() != "":
+		parts.append(Vices.state_name().to_upper())
+	if Vices.pockets_text() != "":
+		parts.append(Vices.pockets_text())
+	return "" if parts.is_empty() else "    " + "    ".join(parts)
 
 
 # --- HUD ----------------------------------------------------------------------
@@ -1332,6 +1422,8 @@ func _update_hud() -> void:
 			status += "    Course best %.2f s" % course_best
 		if Vices.state_name() != "":
 			status += "    %s" % Vices.state_name().to_upper()
+		if Vices.pockets_text() != "":
+			status += "    %s" % Vices.pockets_text()
 		hud.status_label.text = status + "\nHead out from the poster outside or the mission table in the hall. F looks at things and works the benches."
 		hud.prompt_label.text = _prompt()
 		hud.crosshair.visible = hub_piloting
@@ -1345,7 +1437,7 @@ func _update_hud() -> void:
 		where = "LEVEL %d" % Levels.spec(run.level)["number"] + ("  FINAL" if phase in [Phase.ARENA, Phase.FIGHT] else "")
 	hud.status_label.text = "RUN %d    %s    PILOT %d    %s    %s%s\n%s" % [
 		run.run_seed, where, run.pilot_hp, _clock(run.time), _materials_text(run.materials),
-		"    " + Vices.state_name().to_upper() if Vices.state_name() != "" else "", CONTROLS]
+		_vices_text(), CONTROLS]
 
 	var build := ["TITAN BUILD"]
 	for slot in TitanParts.SLOTS:
@@ -1382,7 +1474,9 @@ func _prompt() -> String:
 				if spot.has("family"):
 					return family_scene.prompt()
 				if spot.get("shop", "") == "bar" and Vices.allowed():
-					return "[F] The Rusted Halo: drinks and Scrapjack"
+					return "[F] The Rusted Halo: drinks, smokes and Scrapjack"
+				if spot.get("shop", "") == "stims" and Vices.allowed():
+					return "[F] Sal's side hatch: stims"
 				if spot.get("npc", "") == "mom" and Family.sick(npc_talk.state, runs_ended):
 					return spot["prompt"] + "  (you're burning up)"
 				var text: String = spot["prompt"]
