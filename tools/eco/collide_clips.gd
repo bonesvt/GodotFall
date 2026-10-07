@@ -6,10 +6,14 @@ extends SceneTree
 ## Full body jiggle is on. --deep=2 presses her twice as far in (to show
 ## contact_give and jiggle_squish). --lean instead shows her off duty: she
 ## stops where her capsule meets the wall, then leans back on it (wall_lean).
+## --press: off duty she walks chest first into a wall and keeps pushing; her
+## soft layer slows her as she sinks in (player.gd soft_press), then she lets
+## up and it eases her back out.
 ##   godot --path . --fixed-fps 60 --write-movie <dir>/frame.png -s res://tools/eco/collide_clips.gd [-- --deep=2]
 ## Needs a renderer (not --headless).
 
 const ECO := preload("res://assets/models/eco.tscn")
+const Player := preload("res://scripts/player.gd")
 const FRONT_WALL := -1.45  # the second wall's face (z); the first one's is at 0.1
 
 var walker: Walker
@@ -20,6 +24,7 @@ var cam_offset := Vector3(1.9, 0.15, 2.0)
 var cam_goal := Vector3(1.9, 0.15, 2.0)
 var deep := 1.0
 var lean := false
+var pressing := false
 
 
 class Walker extends CharacterBody3D:
@@ -36,6 +41,8 @@ func _initialize() -> void:
 			deep = a.trim_prefix("--deep=").to_float()
 		elif a == "--lean":
 			lean = true
+		elif a == "--press":
+			pressing = true
 	_go.call_deferred()
 
 
@@ -55,6 +62,10 @@ func _go() -> void:
 	_caption()
 	if lean:
 		await _lean_scene()
+		quit()
+		return
+	if pressing:
+		await _press_scene()
 		quit()
 		return
 
@@ -84,6 +95,38 @@ func _go() -> void:
 	await _glide(0.27 + 0.09 * (deep - 1.0), 12)
 	await _frames(60)
 	quit()
+
+
+## Off duty: she walks chest first into the far wall at a stroll and keeps
+## pushing into it, then lets up.
+func _press_scene() -> void:
+	walker.strolling = true
+	var shape := CollisionShape3D.new()
+	shape.shape = CapsuleShape3D.new()
+	(shape.shape as CapsuleShape3D).radius = Player.STROLL_RADIUS
+	(shape.shape as CapsuleShape3D).height = 1.8
+	shape.position.y = 0.9
+	walker.add_child(shape)
+	walker.position.z = FRONT_WALL + 1.3
+	cam_offset = Vector3(2.0, 0.1, -0.4)
+	cam_goal = Vector3(1.6, 0.1, -2.0)
+	_say("Off duty, walking into a wall")
+	var pressed := 0.0
+	for f in 330:
+		if f == 70:
+			_say("She slows as her soft parts meet it")
+		elif f == 150:
+			_say("Still pushing: she sinks in further")
+		elif f == 250:
+			_say("Lets up: it eases her back out")
+		var want := Vector3(0, 0, -1.9) if f < 250 else Vector3.ZERO
+		var out := Player.soft_press_at(walker.get_world_3d().direct_space_state, shape.global_transform, 1.8, want, [walker.get_rid()], walker.collision_mask)
+		walker.velocity = out[0]
+		pressed = out[1]
+		walker.move_and_slide()
+		await _frames(1)
+	print("last press %.2f, at z %.3f" % [pressed, walker.position.z])
+	await _frames(30)
 
 
 ## Off duty: she stands with her back to the wall where her slim capsule

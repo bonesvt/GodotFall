@@ -113,11 +113,15 @@ const STAND_HEIGHT := 1.8
 const CROUCH_HEIGHT := 1.0
 const STAND_EYE := 1.6
 const CROUCH_EYE := 0.85
-## Her capsule's radius on duty, and off duty (strolling): slim enough there
-## that walls can reach her body (her back and chest are ~14 cm from her
-## middle), so they press her soft parts (eco_model.gd jiggle_collide).
+## Her capsule's radius on duty, and off duty (strolling): there it's only her
+## firm core (ribs, spine), and the soft layer out to SOFT_RADIUS (her chest
+## and glutes reach ~14 cm from her middle) gives as she presses into things
+## (_soft_press), so walls really press her soft parts (eco_model.gd jiggle_collide).
 const RADIUS := 0.4
-const STROLL_RADIUS := 0.15
+const STROLL_RADIUS := 0.11
+const SOFT_RADIUS := 0.16
+## How fast (m/s) her soft parts ease her back out once she stops pushing.
+const SOFT_PUSH_BACK := 0.3
 
 @onready var head: Node3D = $Head
 @onready var camera: Camera3D = $Head/Camera3D
@@ -148,6 +152,9 @@ var speed_mult := 1.0
 ## running. The run manager sets it each tick in the hub and town, and clears
 ## it on the training grounds and on runs. Off duty her capsule slims down
 ## to STROLL_RADIUS.
+## How far she's pressed into something off duty (0 = not touching, 1 = down to
+## her core); _soft_press sets it each frame.
+var press := 0.0
 var strolling := false:
 	set(value):
 		strolling = value
@@ -334,9 +341,64 @@ func _ground_state(delta: float) -> void:
 
 	if jump_buffer_timer > 0.0:
 		_jump()
+	if strolling:
+		velocity = soft_press(velocity)
 	move_and_slide()
 	if not is_on_floor() and state == State.GROUND:
 		state = State.AIR
+
+
+## Off duty, pressing into a wall or anything solid: the closer her middle
+## gets to it past SOFT_RADIUS, the more of her speed into it the soft layer
+## soaks up (none at first touch, all of it at her core), so she slows as she
+## presses and the harder she keeps pushing the further she sinks in; once she
+## stops pushing, her soft parts ease her back out. Sets `press` (0..1).
+func soft_press(v: Vector3) -> Vector3:
+	press = 0.0
+	if not is_inside_tree():
+		return v
+	var mine := collision.shape as CapsuleShape3D
+	var out := soft_press_at(get_world_3d().direct_space_state, collision.global_transform, mine.height, v, [get_rid()], collision_mask)
+	press = out[1]
+	return out[0]
+
+
+## soft_press for a body whose capsule sits at `xf` (height `height`):
+## [the velocity it may move at, how far it's pressed in (0..1)]. Static so
+## clips (tools/eco/collide_clips.gd) can press a stand-in the same way.
+static func soft_press_at(space: PhysicsDirectSpaceState3D, xf: Transform3D, height: float, v: Vector3, exclude: Array[RID], mask: int) -> Array:
+	if space == null:
+		return [v, 0.0]
+	var query := PhysicsShapeQueryParameters3D.new()
+	var shape := CapsuleShape3D.new()
+	shape.radius = SOFT_RADIUS
+	shape.height = maxf(height, SOFT_RADIUS * 2.0)
+	query.shape = shape
+	query.exclude = exclude
+	query.collision_mask = mask
+	query.transform = xf
+	var points := space.collide_shape(query, 8)
+	var feet := xf.origin.y - height * 0.5 + 0.25  # the floor and kerbs under her don't press
+	var press := 0.0
+	var pushing := Vector2(v.x, v.z)
+	for k in range(1, points.size(), 2):
+		var p: Vector3 = points[k]
+		if p.y < feet:
+			continue
+		var out := Vector2(xf.origin.x - p.x, xf.origin.z - p.z)
+		var d := out.length()
+		if d < 1e-4:
+			continue
+		var n := out / d
+		var t := clampf((SOFT_RADIUS - d) / (SOFT_RADIUS - STROLL_RADIUS), 0.0, 1.0)
+		press = maxf(press, t)
+		var into := -pushing.dot(n)
+		if into > 0.0:
+			# the deeper she is, the more of her push the soft layer takes
+			pushing += n * into * (1.0 - pow(1.0 - t, 2.0))
+		elif t > 0.0 and Vector2(v.x, v.z).length() < 0.05:
+			pushing += n * SOFT_PUSH_BACK * t
+	return [Vector3(pushing.x, v.y, pushing.y), press]
 
 
 ## Responsive running: the part of your velocity along the keys you hold

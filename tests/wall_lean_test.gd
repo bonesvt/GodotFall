@@ -53,7 +53,7 @@ func _run() -> void:
 	var cap := player.collision.shape as CapsuleShape3D
 	_check("on duty her capsule is 0.4 m", is_equal_approx(cap.radius, 0.4), cap.radius)
 	player.strolling = true
-	_check("off duty it slims to 0.15 m", is_equal_approx(cap.radius, 0.15), cap.radius)
+	_check("off duty it slims to her core", is_equal_approx(cap.radius, 0.11), cap.radius)
 	player.strolling = false
 	_check("and back on a run", is_equal_approx(cap.radius, 0.4), cap.radius)
 	player.queue_free()
