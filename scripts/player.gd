@@ -292,6 +292,7 @@ static func ensure_input_actions() -> void:
 
 func _ready() -> void:
 	ensure_input_actions()
+	add_to_group("eco_player")  # people's soft parts give way to her (npc_springs.gd)
 	# Own copy of the shape so crouching never edits the shared scene resource.
 	collision.shape = collision.shape.duplicate()
 	press_strength = Prefs.press_strength()
@@ -427,6 +428,11 @@ func soft_press(v: Vector3, delta := 1.0 / 60.0) -> Vector3:
 	var out := soft_press_at(get_world_3d().direct_space_state, collision.global_transform, mine.height, v, [get_rid()], collision_mask, spread, press_strength, delta, squeeze)
 	press = out[1]
 	pinch = out[4]
+	# brushing past people: they notice
+	for body: Node in out[5]:
+		var person := body.get_parent()
+		if person != null and person.has_method("bumped") and person.bumped(global_position):
+			SFX.play(self, SFX.variant("cloth"), -14.0, SFX.vary())
 	if out[3] != Vector3.ZERO:
 		press_normal = out[3]
 	# still pushing at full press: her soft parts spread and her core gives a little more
@@ -476,11 +482,11 @@ static func deep_at(strength: float, softness := 0.0) -> float:
 ## (0..1) into its push, at press strength `strength`: [the velocity it may
 ## move at, how far it's pressed in (0..1), whether it's pushing into
 ## anything, the flat normal out of what it's pressed deepest into, how hard
-## it's pinched from both sides]. `squeeze` (0..1) lets her core give more. Static so clips (tools/eco/collide_clips.gd) can press a
+## it's pinched from both sides, the people (npc_body) it's brushing]. `squeeze` (0..1) lets her core give more. Static so clips (tools/eco/collide_clips.gd) can press a
 ## stand-in the same way.
 static func soft_press_at(space: PhysicsDirectSpaceState3D, xf: Transform3D, height: float, v: Vector3, exclude: Array[RID], mask: int, spread := 0.0, strength := 1.0, delta := 1.0 / 60.0, squeeze := 0.0) -> Array:
 	if space == null:
-		return [v, 0.0, false, Vector3.ZERO, 0.0]
+		return [v, 0.0, false, Vector3.ZERO, 0.0, []]
 	var query := PhysicsShapeQueryParameters3D.new()
 	var shape := CapsuleShape3D.new()
 	shape.radius = SOFT_RADIUS
@@ -491,10 +497,13 @@ static func soft_press_at(space: PhysicsDirectSpaceState3D, xf: Transform3D, hei
 	query.transform = xf
 	# the softest thing she's touching sets how far she can sink
 	var softness := 0.0
+	var people: Array = []  # people (npc_body) she's touching
 	for hit in space.intersect_shape(query, 8):
 		var c: Object = hit.get("collider")
 		if c != null and c.has_meta("softness"):
 			softness = maxf(softness, float(c.get_meta("softness")))
+		if c is Node and (c as Node).is_in_group("npc_body"):
+			people.append(c)
 	var core := lerpf(core_at(strength, softness), deep_at(strength, softness), spread) - SQUEEZE_GIVE * squeeze * minf(strength, 1.0)
 	var points := space.collide_shape(query, 8)
 	var feet := xf.origin.y - height * 0.5 + 0.25  # the floor and kerbs under her don't press
@@ -535,7 +544,7 @@ static func soft_press_at(space: PhysicsDirectSpaceState3D, xf: Transform3D, hei
 		for b in range(a + 1, touches.size()):
 			if (touches[a][0] as Vector2).dot(touches[b][0]) < -0.2:
 				pinch = maxf(pinch, minf(touches[a][1], touches[b][1]))
-	return [Vector3(pushing.x, v.y, pushing.y), press, into_any, normal, pinch]
+	return [Vector3(pushing.x, v.y, pushing.y), press, into_any, normal, pinch, people]
 
 
 ## Responsive running: the part of your velocity along the keys you hold
