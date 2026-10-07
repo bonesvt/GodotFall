@@ -2,7 +2,8 @@ extends SceneTree
 ## Clips of the physics experiments, one scene each, captioned:
 ##   rest     on a bench: sits, lies on her back, face down, on her side (_support_y squash)
 ##   brace    walks into a wall, braces her hands on it, pushes off; then a wall at her side
-##   squeeze  a 30 cm gap, then a 19 cm one she gets stuck in and wriggles through
+##   squeeze  side-on through a 30 cm gap, then a 27 cm one with a snag jutting
+##            out that she gets stuck on and wriggles past
 ##   crowd    brushes past Mom, then bumps into her (soft bodies, bumped(), npc_springs)
 ##   jolt     a blast goes off nearby, then a hit from the front (eco_model.gd jolt)
 ##   weather  a fan's wind streams her hair, then she wades into chest-deep water
@@ -43,6 +44,9 @@ class Walker extends CharacterBody3D:
 	var squeeze := 0.0
 	var spread := 0.0
 	var pinch := 0.0
+	var sidling := false
+	var sidle_face := Vector3.ZERO
+	var sidle_clear := 0.0
 
 
 func _initialize() -> void:
@@ -121,24 +125,32 @@ func _brace() -> void:
 
 
 func _squeeze() -> void:
-	for gap: float in [0.30, 0.19]:
+	for snag: float in [0.0, 0.06]:
+		var gap := 0.30 if snag == 0.0 else 0.27
 		for side in [-1.0, 1.0]:
 			_box(Vector3(side * (gap * 0.5 + 0.45), 1.2, -1.1), Vector3(0.9, 2.4, 1.2), Color(0.6, 0.85, 1.0, 0.14), true)
+		if snag > 0.0:
+			# a knob jutting out of the left wall, as in the lab
+			_box(Vector3(-(gap * 0.5 - snag * 0.5), 1.2, -1.1), Vector3(snag, 0.22, 0.16), Color(0.85, 0.45, 0.2), false)
 		walker.position = Vector3.ZERO
+		walker.rotation.y = 0.0
+		walker.sidling = false
 		_aim(Vector3(1.6, 0.6, 0.9))
-		_say("A %d cm gap: snug, she presses through" % roundi(gap * 100) if gap > 0.25 else "A 19 cm gap: she gets stuck...")
+		_say("A 30 cm gap: she turns side-on and shuffles through" if snag == 0.0 else "A 27 cm gap with a snag jutting out...")
 		var stuck_for := 0
-		for f in 420:
-			var stuck := walker.pinch > 0.6
+		for f in 480:
+			var stuck := walker.pinch > Player.STUCK_PINCH
 			stuck_for = stuck_for + 1 if stuck else 0
 			if stuck and stuck_for > 70 and f % 12 == 0:
 				walker.squeeze = minf(walker.squeeze + Player.SQUEEZE_MASH, 1.0)
 				if stuck_for == 72:
-					_say("...mash jump to wriggle through")
+					_say("...stuck on it: mash jump to wriggle past")
 			walker.squeeze = move_toward(walker.squeeze, 0.0, Player.SQUEEZE_FADE * STEP)
 			_press(Vector3(0, 0, -1.2), 1)
+			var face := walker.sidle_face if walker.sidling and walker.sidle_face != Vector3.ZERO else Vector3(0, 0, -1)
+			walker.rotation.y = lerp_angle(walker.rotation.y, atan2(-face.x, -face.z), 1.0 - exp(-10.0 * STEP))
 			await _frames(1)
-			if walker.position.z < -2.0:
+			if walker.position.z < -2.2:
 				break
 		await _frames(40)
 		for c in set_piece.get_children():
@@ -266,7 +278,17 @@ func _press(want: Vector3, _sub: int) -> void:
 		walker.press_normal = out[3]
 	var on: bool = out[2] and press > 0.85
 	walker.spread = move_toward(walker.spread, 1.0 if on else 0.0, STEP / (Player.SPREAD_TIME if on else 0.5))
-	if on and walker.pinch < 0.3:
+	# in a gap she turns side-on to a wall (player.gd soft_press)
+	if walker.pinch > 0.02:
+		walker.sidle_clear = Player.SIDLE_HOLD
+		if not walker.sidling:
+			var n: Vector3 = out[6]
+			walker.sidle_face = n if n.dot(walker.global_basis.x) > 0.0 else -n
+			walker.sidling = true
+	elif walker.sidling:
+		walker.sidle_clear -= STEP
+		walker.sidling = walker.sidle_clear > 0.0
+	if on and walker.pinch < 0.3 and not walker.sidling:
 		walker.brace = move_toward(walker.brace, 1.0, STEP / Player.BRACE_TIME)
 	else:
 		walker.brace = move_toward(walker.brace, 0.0, STEP / 0.3)

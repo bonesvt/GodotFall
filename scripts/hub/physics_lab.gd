@@ -32,8 +32,13 @@ const WALLS := [
 	["Cushion", Color(0.85, 0.75, 0.6), 1.0, false],
 ]
 const WALL_W := 2.4
-## Squeeze gaps on the east side: their widths (m), each a passage 1.2 m long.
-const GAPS := [0.30, 0.24, 0.19]
+## How far a snag juts out into its gap (m).
+const JUT := 0.06
+## Squeeze gaps on the east side, each a passage 1.2 m long she shuffles
+## through side-on: [width (m), how many spots jut out into it]. The gap
+## itself only drags on her; the jutting spots are where she gets stuck and
+## has to wriggle (mash jump) past.
+const GAPS := [[0.30, 0], [0.27, 2], [0.25, 3]]
 
 
 static func build(root: Node3D, info: Dictionary) -> void:
@@ -115,17 +120,28 @@ static func _shapes(root: Node3D) -> void:
 	_label(root, LAB + Vector3(-1.0, 2.4, -0.8), "Thin post", 0.0)
 
 
-## Squeeze gaps on the east side: pairs of walls with a narrow passage between.
+## Squeeze gaps on the east side: pairs of walls with a narrow passage
+## between, and knobs of rock jutting into some of them at chest and hip height.
 static func _gaps(root: Node3D, info: Dictionary) -> void:
 	info["lab_gaps"] = []
 	for i in GAPS.size():
-		var w: float = GAPS[i]
+		var w: float = GAPS[i][0]
+		var juts: int = GAPS[i][1]
 		var c := LAB + Vector3(2.5 + i * 2.6, 0, -0.5)
 		for side in [-1.0, 1.0]:
 			var b := _box(root, c + Vector3(side * (w * 0.5 + 0.45), ROOM.y * 0.5, 0), Vector3(0.9, ROOM.y, 1.2), Color(0.5, 0.5, 0.48))
 			b.add_to_group("squeeze_gap")
-		_label(root, c + Vector3(0, 2.4, 0.7), "Gap %d cm" % roundi(w * 100), 0.0)
-		info["lab_gaps"].append({"centre": c, "width": w})
+		var spots := []
+		for j in juts:
+			# alternate sides along the passage, at chest then hip height
+			var side := -1.0 if j % 2 == 0 else 1.0
+			var z := -0.45 + 0.9 * (j + 0.5) / juts
+			var at := c + Vector3(side * (w * 0.5 - JUT * 0.5), 1.25 if j % 2 == 0 else 0.95, z)
+			var knob := _box(root, at, Vector3(JUT, 0.22, 0.16), Color(0.42, 0.4, 0.38))
+			knob.add_to_group("squeeze_snag")
+			spots.append(at)
+		_label(root, c + Vector3(0, 2.4, 0.7), "Gap %d cm%s" % [roundi(w * 100), "" if juts == 0 else "\n%d snags" % juts], 0.0)
+		info["lab_gaps"].append({"centre": c, "width": w, "snags": spots})
 
 
 ## A wading tank (waist-deep water: her soft parts and hair float in it) and a

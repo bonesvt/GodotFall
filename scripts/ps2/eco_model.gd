@@ -520,6 +520,8 @@ func pick_animation() -> Array:
 				return ["run", maxf(speed / run_speed, 0.8)]
 		if _body.get("crouching"):
 			return ["crouch", 1.0]
+		if _body.get("sidling") == true:
+			return ["idle", 1.0]  # side-on in a gap: _sidle shuffles her feet
 	elif not _body.is_on_floor():
 		return ["fall", 1.0]
 	if speed > run_threshold:
@@ -547,6 +549,7 @@ func _process(delta: float) -> void:
 		_wall_lean(delta)
 		_brace_layer(delta)
 		_wriggle(delta)
+		_sidle(delta)
 		_rest_layer(delta)
 	if springs_enabled and skeleton != null:
 		_footfalls(delta)
@@ -1011,6 +1014,44 @@ func _wriggle(delta: float) -> void:
 	_turn("chest", Vector3.UP, -7.0 * shimmy)
 	_turn("hips", Vector3.BACK, 3.0 * shimmy)
 	_turn("head", Vector3.UP, 4.0 * shimmy)
+
+
+## Side-on in a gap (player.gd sidling): she shuffles sideways, the leading
+## foot stepping out and the other closing up to it, her hips swaying over
+## them, her arms tucked in to her sides.
+var _sidle_w := 0.0
+var _sidle_phase := 0.0
+
+
+func _sidle(delta: float) -> void:
+	var on: bool = _body != null and strolling() and _body.get("sidling") == true and not resting()
+	_sidle_w = move_toward(_sidle_w, 1.0 if on else 0.0, delta * 4.0)
+	if _sidle_w < 0.001:
+		_sidle_phase = 0.0
+		return
+	# how fast she's moving to her own right (+) or left (-)
+	var right := global_basis.x.normalized()
+	var lateral: float = Vector3(_body.velocity.x, 0, _body.velocity.z).dot(right)
+	_sidle_phase = fmod(_sidle_phase + absf(lateral) * delta / SIDLE_STEP * TAU, TAU)
+	var lead := "R" if lateral >= 0.0 else "L"
+	var trail := "L" if lead == "R" else "R"
+	var out := 1.0 if lead == "R" else -1.0
+	var moving := clampf(absf(lateral) / 0.15, 0.0, 1.0) * _sidle_w
+	var step := sin(_sidle_phase)
+	# first half the lead foot reaches out, second half the trailing one follows in
+	_turn("thigh." + lead, Vector3.FORWARD, -out * 12.0 * maxf(step, 0.0) * moving)
+	_turn("thigh." + trail, Vector3.FORWARD, -out * 9.0 * maxf(-step, 0.0) * moving)
+	_offset_hips(Vector3.RIGHT * out * 0.015 * sin(_sidle_phase - 0.6) * moving)
+	_turn("hips", Vector3.BACK, out * 2.5 * step * moving)
+	# arms in close, hands in front of her hips, out of the walls' way
+	_turn("upperarm.R", Vector3.BACK, -8.0 * _sidle_w)
+	_turn("upperarm.L", Vector3.BACK, 8.0 * _sidle_w)
+	_turn("forearm.R", Vector3.RIGHT, 25.0 * _sidle_w)
+	_turn("forearm.L", Vector3.RIGHT, 25.0 * _sidle_w)
+
+
+## Metres of sideways shuffle per step (one foot out and the other in).
+const SIDLE_STEP := 0.35
 
 
 ## Turns one arm (`side` "R" or "L") `w` of the way from its pose now to `spec`
