@@ -57,7 +57,8 @@ func _run() -> void:
 			peak[b] = maxf(peak[b], _angle(sk, b))
 	_check("chest bounces on a hop", peak["J_Sec_L_Bust1"] > 12.0, peak["J_Sec_L_Bust1"])
 	_check("glutes bounce on a hop", peak["J_Sec_L_Glute1"] > 8.0, peak["J_Sec_L_Glute1"])
-	_check("bounce stays within its limit", peak["J_Sec_L_Bust1"] <= 24.5 and peak["J_Sec_L_Glute1"] <= 18.5, peak)
+	# the glutes show their swing glute_swing times as big (1.5) as their 18 degree limit
+	_check("bounce stays within its limit", peak["J_Sec_L_Bust1"] <= 24.5 and peak["J_Sec_L_Glute1"] <= 18.0 * eco.glute_swing + 0.5, peak)
 	await _frames(90)
 	_check("chest settles after the hop", _angle(sk, "J_Sec_L_Bust1") < 3.0, _angle(sk, "J_Sec_L_Bust1"))
 

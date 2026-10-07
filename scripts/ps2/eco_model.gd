@@ -40,8 +40,12 @@ var stride_reverse := false
 		_apply_jiggle_style()
 ## How far her chest and glutes may bounce (1 = as tuned, 0 = not at all).
 @export_range(0.0, 2.0) var jiggle := 1.0
-## How big her glutes' swing shows, over what their springs simulate (1 = as tuned).
-@export_range(0.0, 3.0) var glute_swing := 1.0
+## How big her glutes' swing shows, over what their springs simulate (1 = as
+## tuned; Bones picked half as much again, 2026-10-07).
+@export_range(0.0, 3.0) var glute_swing := 1.5
+## Walls, corners and other bodies push her soft parts (chest, glutes and,
+## with full body jiggle, the rest) out of them; moving clear lets them spring back.
+@export var jiggle_collide := true
 ## Full body jiggle (experimental): soft springs in her stomach, thighs, upper
 ## arms and calves as well (scripts/ps2/eco_flesh.gd). Left unset, she follows
 ## the Full body jiggle setting (Game tab) with her jiggle style.
@@ -92,7 +96,8 @@ var stride_reverse := false
 ## Spring bones (the VRoid rig's J_Sec_* bones; the glute ones are added by
 ## tools/eco/build_eco_vroid.py): how hard each pulls back to its pose, how
 ## much speed it keeps per frame (1 - drag), how much gravity pulls its tip,
-## the most it may swing away from its pose, and how much of her movement
+## the most it may swing away from its pose, how far round its tip her skin
+## reaches ("touch", metres: what walls push on, _collide), and how much of her movement
 ## through the world it feels (1 = all of it: hair streams back when she runs;
 ## low = only her own motion: the jiggle bounces with her steps and landings
 ## without being dragged back by her speed).
@@ -101,10 +106,10 @@ const HAIR_TIP := {"group": "hair", "stiffness": 0.12, "drag": 0.2, "gravity": 0
 # the fringe hangs over her face: it may lift off it, but swinging far back would go into her head
 const FRINGE := {"group": "hair", "stiffness": 0.16, "drag": 0.22, "gravity": 0.5, "limit": 12.0, "inertia": 0.35}
 const FRINGE_TIP := {"group": "hair", "stiffness": 0.14, "drag": 0.22, "gravity": 0.5, "limit": 10.0, "inertia": 0.35}
-const BUST := {"group": "bust", "stiffness": 0.14, "drag": 0.08, "gravity": 0.15, "limit": 24.0, "inertia": 0.2, "jiggle": true}
+const BUST := {"group": "bust", "stiffness": 0.14, "drag": 0.08, "gravity": 0.15, "limit": 24.0, "inertia": 0.2, "jiggle": true, "touch": 0.045}
 # the back hair chains below the nape: only the salon's long cuts (braids, ponytail; scripts/hub/hair.gd) hang from them
 const BRAID := {"group": "hair", "stiffness": 0.1, "drag": 0.16, "gravity": 0.9, "limit": 28.0, "inertia": 0.5}
-const GLUTE := {"group": "glute", "stiffness": 0.18, "drag": 0.09, "gravity": 0.15, "limit": 18.0, "inertia": 0.2, "jiggle": true}
+const GLUTE := {"group": "glute", "stiffness": 0.18, "drag": 0.09, "gravity": 0.15, "limit": 18.0, "inertia": 0.2, "jiggle": true, "touch": 0.045}
 const SPRINGS := {
 	# locks 01-02 hang at the back, 03-04 at the sides, 05-09 are the fringe;
 	# the side and fringe locks bend once more at their second joint
@@ -249,6 +254,9 @@ var _kit_bodies := {}
 var _plated := false
 ## Meshes swapped for full body jiggle ones (MeshInstance3D -> [mesh, skin] it had).
 var _flesh_swapped := {}
+## _collide's query (her own bodies excluded) and a ball per touch radius.
+var _touch_query: PhysicsShapeQueryParameters3D
+var _touch_shapes := {}
 
 
 func _ready() -> void:
@@ -798,6 +806,40 @@ func _apply_jiggle_style() -> void:
 				s[key] = tune[key]
 
 
+## Pushes a spring's tip (world space) out of anything solid within its
+## "touch" radius: brushing a corner presses that part back, and once she moves
+## clear the spring lets it go.
+func _collide(s: Dictionary, tip: Vector3) -> Vector3:
+	var r: float = s.get("touch", 0.0)
+	if not jiggle_collide or r <= 0.0 or not is_inside_tree():
+		return tip
+	var space := skeleton.get_world_3d().direct_space_state
+	if space == null:
+		return tip
+	if _touch_query == null:
+		_touch_query = PhysicsShapeQueryParameters3D.new()
+		_touch_query.collide_with_areas = false
+		var mine: Array[RID] = []
+		var n: Node = self
+		while n != null:
+			if n is CollisionObject3D:
+				mine.append((n as CollisionObject3D).get_rid())
+			n = n.get_parent()
+		_touch_query.exclude = mine
+	if not _touch_shapes.has(r):
+		var ball := SphereShape3D.new()
+		ball.radius = r
+		_touch_shapes[r] = ball
+	_touch_query.shape = _touch_shapes[r]
+	_touch_query.transform = Transform3D(Basis(), tip)
+	var hit := space.get_rest_info(_touch_query)
+	if hit.is_empty():
+		return tip
+	var normal: Vector3 = hit["normal"]
+	var depth := r - (tip - (hit["point"] as Vector3)).dot(normal)
+	return tip + normal * depth if depth > 0.0 else tip
+
+
 ## Shoves her chest and glute springs by a world-space offset (metres at the
 ## spring's tip), as if her body had jolted the other way: they swing out and
 ## bounce back. The first-person body (scripts/eco_fp_body.gd) uses it so jumps,
@@ -870,6 +912,7 @@ func _step_springs(delta: float) -> void:
 			if s.has("lateral"):
 				var across := to_world.basis.x.normalized()
 				next -= across * (next - target).dot(across) * (1.0 - float(s["lateral"]))
+			next = _collide(s, next)
 			var off: Vector3 = next - target
 			var d := off.length()
 			if s.get("soft", false) and d > limit * 0.6:
@@ -887,6 +930,7 @@ func _step_springs(delta: float) -> void:
 			# keep only part of the swing across her body
 			var side := to_world.basis.x.normalized()
 			next -= side * (next - target).dot(side) * (1.0 - float(s["lateral"]))
+		next = _collide(s, next)
 		var dir: Vector3 = (next - origin).normalized()
 		var angle: float = dir.angle_to(rest_dir)
 		var knee := limit * 0.6
