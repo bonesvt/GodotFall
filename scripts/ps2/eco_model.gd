@@ -535,6 +535,7 @@ func _process(delta: float) -> void:
 		_run_moves(delta)
 		_wall_lean(delta)
 		_brace_layer(delta)
+		_wriggle(delta)
 		_rest_layer(delta)
 	if springs_enabled and skeleton != null:
 		_footfalls(delta)
@@ -893,6 +894,26 @@ func _brace_layer(delta: float) -> void:
 		_turn("head", Vector3.UP, (20.0 if _brace_dir.x > 0.0 else -20.0) * w)
 
 
+## Wriggling through a tight gap (player.gd squeeze): her hips and shoulders
+## twist against each other in quick shimmies, and her soft parts give more
+## (contact_give, squish_scale) while she does.
+var _squeeze := 0.0
+var _wriggle_time := 0.0
+
+
+func _wriggle(delta: float) -> void:
+	_squeeze = float(_body.get("squeeze")) if _body != null and strolling() and _body.get("squeeze") != null else 0.0
+	if _squeeze < 0.001:
+		_wriggle_time = 0.0
+		return
+	_wriggle_time += delta
+	var shimmy := sin(_wriggle_time * TAU * 2.6) * _squeeze
+	_turn("hips", Vector3.UP, 9.0 * shimmy)
+	_turn("chest", Vector3.UP, -7.0 * shimmy)
+	_turn("hips", Vector3.BACK, 3.0 * shimmy)
+	_turn("head", Vector3.UP, 4.0 * shimmy)
+
+
 ## Turns one arm (`side` "R" or "L") `w` of the way from its pose now to `spec`
 ## (turns from her T-pose, given for the right arm).
 func _reach(side: String, spec: Dictionary, w: float) -> void:
@@ -1136,7 +1157,7 @@ func _give(s: Dictionary, limit: float, was: float, now: float, steps: float) ->
 	var room: float = s.get("room", limit)
 	room = move_toward(room, limit, limit * 0.06 * steps)
 	if now > was + 1e-5 or shoved.length() > 0.0005:
-		room = maxf(room, minf(now, limit * contact_give))
+		room = maxf(room, minf(now, limit * (contact_give + _squeeze)))
 	s["room"] = room
 	return maxf(limit, room)
 
@@ -1151,7 +1172,7 @@ func _squash(s: Dictionary, i: int, push: Vector3, deep: float, bone_basis: Basi
 		# up to "squish" as contact presses it to its limit, then up to half as
 		# much again as it's pushed on past it (eased, so it never stops dead)
 		var past := maxf(deep - 1.0, 0.0)
-		want = minf(float(s["squish"]) * squish_scale * (clampf(deep, 0.0, 1.0) + 0.5 * tanh(past * 1.5)), 0.6)
+		want = minf(float(s["squish"]) * (squish_scale + 0.8 * _squeeze) * (clampf(deep, 0.0, 1.0) + 0.5 * tanh(past * 1.5)), 0.6)
 		# the bone axis the push is most along
 		var local := (bone_basis.orthonormalized().inverse() * (to_skel * push)).abs()
 		s["squash_axis"] = 0 if local.x >= local.y and local.x >= local.z else (1 if local.y >= local.z else 2)
@@ -1278,7 +1299,7 @@ func _step_springs(delta: float) -> void:
 		var dir: Vector3 = (next - origin).normalized()
 		var angle: float = dir.angle_to(rest_dir)
 		if s.has("squish"):
-			var deep := angle / maxf(normal_limit * contact_give, 1e-3)
+			var deep := angle / maxf(normal_limit * (contact_give + _squeeze), 1e-3)
 			# pushed past even the extra room: the part spreads instead of going through
 			var held := origin + rest_dir.slerp(dir, minf(limit / maxf(angle, 1e-5), 1.0)).normalized() * length
 			deep += (_collide(s, held) - held).length() / maxf(float(s.get("touch", 0.05)), 1e-3)

@@ -31,7 +31,7 @@ const WALLS := [
 ]
 const WALL_W := 2.4
 ## Squeeze gaps on the east side: their widths (m), each a passage 1.2 m long.
-const GAPS := [0.42, 0.34, 0.28]
+const GAPS := [0.30, 0.24, 0.19]
 
 
 static func build(root: Node3D, info: Dictionary) -> void:

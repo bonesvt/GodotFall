@@ -135,6 +135,13 @@ const SOFT_PUSH_BACK := 0.3
 ## (m/s at full brace) she gives herself pushing back off it.
 const BRACE_TIME := 0.35
 const BRACE_PUSH_OFF := 1.6
+## Squeezing: how much a mash adds, how fast it fades (per second), how much
+## further her core gives at full squeeze, and how much of her walking a full
+## pinch holds back.
+const SQUEEZE_MASH := 0.3
+const SQUEEZE_FADE := 0.55
+const SQUEEZE_GIVE := 0.035
+const PINCH_DRAG := 0.95
 
 @onready var head: Node3D = $Head
 @onready var camera: Camera3D = $Head/Camera3D
@@ -176,12 +183,21 @@ var spread := 0.0
 ## it, flat, toward her.
 var brace := 0.0
 var press_normal := Vector3.ZERO
+## Squeezing through a gap: `pinch` is how hard it presses her from both sides
+## at once (0..1), `stuck` is set while it's too tight to walk on, and
+## `squeeze` (0..1) is how hard she's wriggling (jump, mashed, adds to it):
+## it lets her soft parts give more and eases the drag, so she inches through.
+var pinch := 0.0
+var stuck := false
+var squeeze := 0.0
 var strolling := false:
 	set(value):
 		if value != strolling:
 			spread = 0.0
 			press = 0.0
 			brace = 0.0
+			squeeze = 0.0
+			stuck = false
 		strolling = value
 		if collision != null:
 			(collision.shape as CapsuleShape3D).radius = STROLL_RADIUS if value else RADIUS
@@ -332,7 +348,10 @@ func _physics_process(delta: float) -> void:
 			rotation.y = lerp_angle(rotation.y, atan2(-face.x, -face.z), 1.0 - exp(-move_turn_rate * delta))
 	_drunk(delta)
 	if Input.is_action_just_pressed("jump"):
-		jump_buffer_timer = jump_buffer
+		if stuck:
+			wriggle()
+		else:
+			jump_buffer_timer = jump_buffer
 	if Input.is_action_just_pressed("crouch") and state != State.GROUND and state != State.SLIDE:
 		slide_buffer_timer = slide_land_buffer
 	if Input.is_action_just_pressed("grapple"):
@@ -404,27 +423,40 @@ func soft_press(v: Vector3, delta := 1.0 / 60.0) -> Vector3:
 	if not is_inside_tree():
 		return v
 	var mine := collision.shape as CapsuleShape3D
-	var out := soft_press_at(get_world_3d().direct_space_state, collision.global_transform, mine.height, v, [get_rid()], collision_mask, spread, press_strength, delta)
+	squeeze = move_toward(squeeze, 0.0, delta * SQUEEZE_FADE)
+	var out := soft_press_at(get_world_3d().direct_space_state, collision.global_transform, mine.height, v, [get_rid()], collision_mask, spread, press_strength, delta, squeeze)
 	press = out[1]
+	pinch = out[4]
 	if out[3] != Vector3.ZERO:
 		press_normal = out[3]
 	# still pushing at full press: her soft parts spread and her core gives a little more
 	var pushing: bool = out[2] and press > 0.85
 	spread = move_toward(spread, 1.0 if pushing else 0.0, delta / (SPREAD_TIME if pushing else 0.5))
 	var v_out: Vector3 = out[0]
+	# pinched from both sides the walls drag on her: wriggling eases it
+	var drag := clampf((pinch - 0.3) / 0.6, 0.0, 1.0) * (1.0 - 0.85 * squeeze)
+	v_out.x *= 1.0 - PINCH_DRAG * drag
+	v_out.z *= 1.0 - PINCH_DRAG * drag
+	stuck = pinch > 0.6 and Vector2(v.x, v.z).length() > 0.1
 	# held there, she braces her hands on it; turning away she pushes off it
 	var away := Vector2(wish_dir.x, wish_dir.z).dot(Vector2(press_normal.x, press_normal.z)) > 0.3
 	if away and brace > 0.5:
 		v_out += press_normal * BRACE_PUSH_OFF * brace
 		SFX.play(self, SFX.variant("contact_wall"), -14.0, SFX.vary())
 		brace = 0.0
-	elif pushing:
+	elif pushing and pinch < 0.3:
 		if brace == 0.0:
 			SFX.play(self, SFX.variant("cloth"), -18.0, SFX.vary())
 		brace = move_toward(brace, 1.0, delta / BRACE_TIME)
 	else:
 		brace = move_toward(brace, 0.0, delta / 0.3)
 	return v_out
+
+
+## One wriggle while stuck in a gap (jump, mashed): squeezes her a bit harder.
+func wriggle() -> void:
+	squeeze = minf(squeeze + SQUEEZE_MASH, 1.0)
+	SFX.play(self, SFX.variant("cloth"), -16.0, SFX.vary(0.15))
 
 
 ## How near her middle may come to something with `softness` (0 hard .. 1
@@ -443,11 +475,12 @@ static func deep_at(strength: float, softness := 0.0) -> float:
 ## soft_press for a body whose capsule sits at `xf` (height `height`), `spread`
 ## (0..1) into its push, at press strength `strength`: [the velocity it may
 ## move at, how far it's pressed in (0..1), whether it's pushing into
-## anything, the flat normal out of what it's pressed deepest into]. Static so clips (tools/eco/collide_clips.gd) can press a
+## anything, the flat normal out of what it's pressed deepest into, how hard
+## it's pinched from both sides]. `squeeze` (0..1) lets her core give more. Static so clips (tools/eco/collide_clips.gd) can press a
 ## stand-in the same way.
-static func soft_press_at(space: PhysicsDirectSpaceState3D, xf: Transform3D, height: float, v: Vector3, exclude: Array[RID], mask: int, spread := 0.0, strength := 1.0, delta := 1.0 / 60.0) -> Array:
+static func soft_press_at(space: PhysicsDirectSpaceState3D, xf: Transform3D, height: float, v: Vector3, exclude: Array[RID], mask: int, spread := 0.0, strength := 1.0, delta := 1.0 / 60.0, squeeze := 0.0) -> Array:
 	if space == null:
-		return [v, 0.0, false, Vector3.ZERO]
+		return [v, 0.0, false, Vector3.ZERO, 0.0]
 	var query := PhysicsShapeQueryParameters3D.new()
 	var shape := CapsuleShape3D.new()
 	shape.radius = SOFT_RADIUS
@@ -462,12 +495,13 @@ static func soft_press_at(space: PhysicsDirectSpaceState3D, xf: Transform3D, hei
 		var c: Object = hit.get("collider")
 		if c != null and c.has_meta("softness"):
 			softness = maxf(softness, float(c.get_meta("softness")))
-	var core := lerpf(core_at(strength, softness), deep_at(strength, softness), spread)
+	var core := lerpf(core_at(strength, softness), deep_at(strength, softness), spread) - SQUEEZE_GIVE * squeeze * minf(strength, 1.0)
 	var points := space.collide_shape(query, 8)
 	var feet := xf.origin.y - height * 0.5 + 0.25  # the floor and kerbs under her don't press
 	var press := 0.0
 	var into_any := false
 	var normal := Vector3.ZERO
+	var touches := []  # [flat normal, how far in] for each contact, for pinches
 	var pushing := Vector2(v.x, v.z)
 	for k in range(1, points.size(), 2):
 		var p: Vector3 = points[k]
@@ -482,6 +516,8 @@ static func soft_press_at(space: PhysicsDirectSpaceState3D, xf: Transform3D, hei
 		if t >= press:
 			normal = Vector3(n.x, 0.0, n.y)
 		press = maxf(press, t)
+		if t > 0.0:
+			touches.append([n, t])
 		var into := -pushing.dot(n)
 		if into > 0.0:
 			into_any = true
@@ -493,7 +529,13 @@ static func soft_press_at(space: PhysicsDirectSpaceState3D, xf: Transform3D, hei
 		if d < core:
 			# somehow past her core (the setting changed, a door closed on her): ease out
 			pushing += n * (core - d) * 6.0
-	return [Vector3(pushing.x, v.y, pushing.y), press, into_any, normal]
+	# pressed from opposite sides at once: a pinch, as deep as the shallower side
+	var pinch := 0.0
+	for a in touches.size():
+		for b in range(a + 1, touches.size()):
+			if (touches[a][0] as Vector2).dot(touches[b][0]) < -0.2:
+				pinch = maxf(pinch, minf(touches[a][1], touches[b][1]))
+	return [Vector3(pushing.x, v.y, pushing.y), press, into_any, normal, pinch]
 
 
 ## Responsive running: the part of your velocity along the keys you hold

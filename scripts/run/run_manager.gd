@@ -1704,6 +1704,8 @@ func _prompt() -> String:
 				return ""
 			if not rest_spot.is_empty():
 				return _rest_prompt()
+			if player.stuck:
+				return "Stuck! Mash [Space] to wriggle through"
 			if course_armed:
 				return "Leave the pad to start the clock"
 			var spot := nearest_hub_spot()
