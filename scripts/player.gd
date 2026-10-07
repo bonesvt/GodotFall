@@ -131,6 +131,10 @@ const SPREAD_TIME := 2.0
 static var press_strength := 1.0
 ## How fast (m/s) her soft parts ease her back out once she stops pushing.
 const SOFT_PUSH_BACK := 0.3
+## Bracing: how long at full press before her hands are up, and the shove
+## (m/s at full brace) she gives herself pushing back off it.
+const BRACE_TIME := 0.35
+const BRACE_PUSH_OFF := 1.6
 
 @onready var head: Node3D = $Head
 @onready var camera: Camera3D = $Head/Camera3D
@@ -167,11 +171,18 @@ var speed_mult := 1.0
 var press := 0.0
 ## How far she's pushed on past full press (0..1, see SPREAD_TIME).
 var spread := 0.0
+## Braced against what she's pressing into (0..1): held at full press, she
+## gets her hands up on it (eco_model.gd _brace). `press_normal` points out of
+## it, flat, toward her.
+var brace := 0.0
+var press_normal := Vector3.ZERO
 var strolling := false:
 	set(value):
+		if value != strolling:
+			spread = 0.0
+			press = 0.0
+			brace = 0.0
 		strolling = value
-		spread = 0.0
-		press = 0.0
 		if collision != null:
 			(collision.shape as CapsuleShape3D).radius = STROLL_RADIUS if value else RADIUS
 var cam_roll := 0.0
@@ -395,10 +406,25 @@ func soft_press(v: Vector3, delta := 1.0 / 60.0) -> Vector3:
 	var mine := collision.shape as CapsuleShape3D
 	var out := soft_press_at(get_world_3d().direct_space_state, collision.global_transform, mine.height, v, [get_rid()], collision_mask, spread, press_strength, delta)
 	press = out[1]
+	if out[3] != Vector3.ZERO:
+		press_normal = out[3]
 	# still pushing at full press: her soft parts spread and her core gives a little more
 	var pushing: bool = out[2] and press > 0.85
 	spread = move_toward(spread, 1.0 if pushing else 0.0, delta / (SPREAD_TIME if pushing else 0.5))
-	return out[0]
+	var v_out: Vector3 = out[0]
+	# held there, she braces her hands on it; turning away she pushes off it
+	var away := Vector2(wish_dir.x, wish_dir.z).dot(Vector2(press_normal.x, press_normal.z)) > 0.3
+	if away and brace > 0.5:
+		v_out += press_normal * BRACE_PUSH_OFF * brace
+		SFX.play(self, SFX.variant("contact_wall"), -14.0, SFX.vary())
+		brace = 0.0
+	elif pushing:
+		if brace == 0.0:
+			SFX.play(self, SFX.variant("cloth"), -18.0, SFX.vary())
+		brace = move_toward(brace, 1.0, delta / BRACE_TIME)
+	else:
+		brace = move_toward(brace, 0.0, delta / 0.3)
+	return v_out
 
 
 ## How near her middle may come to something with `softness` (0 hard .. 1
@@ -417,11 +443,11 @@ static func deep_at(strength: float, softness := 0.0) -> float:
 ## soft_press for a body whose capsule sits at `xf` (height `height`), `spread`
 ## (0..1) into its push, at press strength `strength`: [the velocity it may
 ## move at, how far it's pressed in (0..1), whether it's pushing into
-## anything]. Static so clips (tools/eco/collide_clips.gd) can press a
+## anything, the flat normal out of what it's pressed deepest into]. Static so clips (tools/eco/collide_clips.gd) can press a
 ## stand-in the same way.
 static func soft_press_at(space: PhysicsDirectSpaceState3D, xf: Transform3D, height: float, v: Vector3, exclude: Array[RID], mask: int, spread := 0.0, strength := 1.0, delta := 1.0 / 60.0) -> Array:
 	if space == null:
-		return [v, 0.0, false]
+		return [v, 0.0, false, Vector3.ZERO]
 	var query := PhysicsShapeQueryParameters3D.new()
 	var shape := CapsuleShape3D.new()
 	shape.radius = SOFT_RADIUS
@@ -441,6 +467,7 @@ static func soft_press_at(space: PhysicsDirectSpaceState3D, xf: Transform3D, hei
 	var feet := xf.origin.y - height * 0.5 + 0.25  # the floor and kerbs under her don't press
 	var press := 0.0
 	var into_any := false
+	var normal := Vector3.ZERO
 	var pushing := Vector2(v.x, v.z)
 	for k in range(1, points.size(), 2):
 		var p: Vector3 = points[k]
@@ -452,6 +479,8 @@ static func soft_press_at(space: PhysicsDirectSpaceState3D, xf: Transform3D, hei
 			continue
 		var n := out / d
 		var t := clampf((SOFT_RADIUS - d) / maxf(SOFT_RADIUS - core, 1e-3), 0.0, 1.0)
+		if t >= press:
+			normal = Vector3(n.x, 0.0, n.y)
 		press = maxf(press, t)
 		var into := -pushing.dot(n)
 		if into > 0.0:
@@ -464,7 +493,7 @@ static func soft_press_at(space: PhysicsDirectSpaceState3D, xf: Transform3D, hei
 		if d < core:
 			# somehow past her core (the setting changed, a door closed on her): ease out
 			pushing += n * (core - d) * 6.0
-	return [Vector3(pushing.x, v.y, pushing.y), press, into_any]
+	return [Vector3(pushing.x, v.y, pushing.y), press, into_any, normal]
 
 
 ## Responsive running: the part of your velocity along the keys you hold

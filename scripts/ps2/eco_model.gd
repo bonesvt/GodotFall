@@ -534,6 +534,7 @@ func _process(delta: float) -> void:
 		_strut(delta)
 		_run_moves(delta)
 		_wall_lean(delta)
+		_brace_layer(delta)
 		_rest_layer(delta)
 	if springs_enabled and skeleton != null:
 		_footfalls(delta)
@@ -849,6 +850,69 @@ func _wall_lean(delta: float) -> void:
 	_turn("hips", Vector3.RIGHT, tilt)
 	_turn("thigh.L", Vector3.RIGHT, -tilt)  # feet stay flat under her
 	_turn("thigh.R", Vector3.RIGHT, -tilt)
+
+
+## Bracing (player.gd brace): held at full press into something in front of
+## her, she gets both hands up flat on it, elbows down, and turns her cheek
+## aside; into something at her side, the near hand goes up on it and she
+## looks away from it. Arm turns are from her T-pose (right arm; the left
+## mirrors), found to put her palms on a wall at her core distance.
+const BRACE_FRONT := {"upperarm": [[Vector3.FORWARD, 35.0], [Vector3.UP, -25.0]], "forearm": [[Vector3.UP, 125.0], [Vector3.RIGHT, 90.0]]}
+const BRACE_SIDE := {"upperarm": [[Vector3.FORWARD, 20.0], [Vector3.UP, 85.0]], "forearm": [[Vector3.UP, 10.0], [Vector3.RIGHT, 90.0]]}
+var _brace := 0.0
+## Toward what she braces on, in her own space (-Z ahead, +X her right).
+var _brace_dir := Vector3.FORWARD
+
+
+func _brace_layer(delta: float) -> void:
+	if skeleton == null or _bones.is_empty() or _body == null:
+		return
+	var want := 0.0
+	if strolling() and not resting() and _body.get("brace") != null:
+		want = float(_body.get("brace"))
+		var n: Vector3 = _body.get("press_normal")
+		if want > 0.0 and n != Vector3.ZERO:
+			_brace_dir = global_basis.orthonormalized().inverse() * -n
+			if _brace_dir.z > 0.4:
+				want = 0.0  # behind her: that's a lean, not a brace
+	_brace = move_toward(_brace, want, delta * (4.0 if want > _brace else 2.5))
+	if _brace < 0.001:
+		return
+	var w := smoothstep(0.0, 1.0, _brace)
+	var front := _brace_dir.z < -0.4 or absf(_brace_dir.x) < 0.6
+	for side: String in ["R", "L"]:
+		var near: bool = (_brace_dir.x > 0.0) == (side == "R")
+		if front:
+			_reach(side, BRACE_FRONT, w)
+		elif near:
+			_reach(side, BRACE_SIDE, w)
+	if front:
+		_turn("head", Vector3.UP, 45.0 * w)
+		_turn("spine", Vector3.RIGHT, -4.0 * w)
+	else:
+		_turn("head", Vector3.UP, (20.0 if _brace_dir.x > 0.0 else -20.0) * w)
+
+
+## Turns one arm (`side` "R" or "L") `w` of the way from its pose now to `spec`
+## (turns from her T-pose, given for the right arm).
+func _reach(side: String, spec: Dictionary, w: float) -> void:
+	var mirror := -1.0 if side == "L" else 1.0
+	for part: String in ["upperarm", "forearm"]:
+		var key := part + "." + side
+		var i: int = _bones.get(key, -1)
+		if i < 0:
+			continue
+		var parent := skeleton.get_bone_parent(i)
+		var pb := skeleton.get_bone_global_pose(parent).basis.orthonormalized() if parent >= 0 else Basis()
+		var before := skeleton.get_bone_pose_rotation(i)
+		var q := skeleton.get_bone_rest(i).basis.get_rotation_quaternion()
+		for t: Array in spec[part]:
+			var axis: Vector3 = t[0]
+			var deg: float = t[1] * (mirror if axis != Vector3.RIGHT else 1.0)
+			q = (pb.inverse() * Basis(axis, deg_to_rad(deg)) * pb * Basis(q)).get_rotation_quaternion()
+		var turned := before.slerp(q, w)
+		skeleton.set_bone_pose_rotation(i, turned)
+		_strut_undo[key] = [_strut_undo[key][0] if _strut_undo.has(key) else before, turned]
 
 
 ## How far she'd ease back to settle into a wall behind her (0 = none in reach).
