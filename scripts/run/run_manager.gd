@@ -61,6 +61,7 @@ const ViewCamera := preload("res://scripts/view_camera.gd")
 const Prefs := preload("res://scripts/game/prefs.gd")
 const BattleDamage := preload("res://scripts/ps2/battle_damage.gd")
 const Saves := preload("res://scripts/game/saves.gd")
+const PhysicsLab := preload("res://scripts/hub/physics_lab.gd")
 const PauseMenu := preload("res://scripts/ui/pause_menu.gd")
 const Vices := preload("res://scripts/hub/vices.gd")
 const BarScreen := preload("res://scripts/hub/bar_screen.gd")
@@ -1197,8 +1198,11 @@ func _loot_tick(delta: float) -> void:
 ## Whether Eco is on the hub's training grounds (zone_info["training_areas"]:
 ## the range, the movement course, the titan yard), where she moves at full
 ## speed instead of strolling. A builder adds a Rect2 (x, z) there to make
-## another area one.
+## another area one. They're on the surface: the physics lab is sealed
+## underground beneath the titan yard, and off duty like the rest of the hub.
 func on_training_ground() -> bool:
+	if player.global_position.y < PhysicsLab.LAB.y + PhysicsLab.ROOM.y:
+		return false
 	var at := Vector2(player.global_position.x, player.global_position.z)
 	for area: Rect2 in zone_info.get("training_areas", []):
 		if area.has_point(at):

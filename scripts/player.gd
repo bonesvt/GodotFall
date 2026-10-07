@@ -148,6 +148,9 @@ const PINCH_DRAG := 0.95
 ## gap lets go she stays side-on.
 const STUCK_PINCH := 0.9
 const SIDLE_HOLD := 0.4
+## A spot jutting into a gap (group "squeeze_snag") holds her up till she
+## wriggles this hard (squeeze), and stays passed while she's still on it.
+const SNAG_PASS := 0.5
 
 @onready var head: Node3D = $Head
 @onready var camera: Camera3D = $Head/Camera3D
@@ -195,6 +198,7 @@ var press_normal := Vector3.ZERO
 ## it lets her soft parts give more and eases the drag, so she inches through.
 var pinch := 0.0
 var stuck := false
+var _passing_snag := Vector3.INF
 var squeeze := 0.0
 ## In a gap she turns side-on and shuffles through it (eco_model.gd _sidle):
 ## `sidling` while she's pinched (and a moment after), facing `sidle_face`
@@ -470,7 +474,22 @@ func soft_press(v: Vector3, delta := 1.0 / 60.0) -> Vector3:
 	var drag := clampf((pinch - 0.3) / 0.6, 0.0, 1.0) * (1.0 - 0.85 * squeeze)
 	v_out.x *= 1.0 - PINCH_DRAG * drag
 	v_out.z *= 1.0 - PINCH_DRAG * drag
-	stuck = pinch > STUCK_PINCH and Vector2(v.x, v.z).length() > 0.1
+	# a snag jutting into the gap stops her going on past it till she wriggles hard enough
+	var snag: Vector3 = out[7]
+	var snagged := false
+	if snag == Vector3.INF:
+		_passing_snag = Vector3.INF
+	elif snag != _passing_snag and pinch > 0.2 and out[6] != Vector3.ZERO:
+		if squeeze >= SNAG_PASS:
+			_passing_snag = snag
+		else:
+			var along := Vector3(-out[6].z, 0.0, out[6].x)
+			var ahead := signf(along.dot(snag - global_position))
+			var on := v_out.dot(along) * ahead
+			if on > 0.0:
+				v_out -= along * ahead * on
+				snagged = true
+	stuck = (pinch > STUCK_PINCH or snagged) and Vector2(v.x, v.z).length() > 0.1
 	# a gap: she turns to face one wall (the one nearer her right, so she turns
 	# the least) and shuffles along it till it lets go of her
 	if pinch > 0.02:
@@ -523,11 +542,13 @@ static func deep_at(strength: float, softness := 0.0) -> float:
 ## move at, how far it's pressed in (0..1), whether it's pushing into
 ## anything, the flat normal out of what it's pressed deepest into, how hard
 ## it's pinched from both sides, the people (npc_body) it's brushing, the
-## flat direction across that pinch (from one side to the other)]. `squeeze` (0..1) lets her core give more. Static so clips (tools/eco/collide_clips.gd) can press a
+## flat direction across that pinch (from one side to the other), where the
+## nearest spot jutting into a gap it's touching is (squeeze_snag, or INF)].
+## `squeeze` (0..1) lets her core give more. Static so clips (tools/eco/collide_clips.gd) can press a
 ## stand-in the same way.
 static func soft_press_at(space: PhysicsDirectSpaceState3D, xf: Transform3D, height: float, v: Vector3, exclude: Array[RID], mask: int, spread := 0.0, strength := 1.0, delta := 1.0 / 60.0, squeeze := 0.0) -> Array:
 	if space == null:
-		return [v, 0.0, false, Vector3.ZERO, 0.0, [], Vector3.ZERO]
+		return [v, 0.0, false, Vector3.ZERO, 0.0, [], Vector3.ZERO, Vector3.INF]
 	var query := PhysicsShapeQueryParameters3D.new()
 	var shape := CapsuleShape3D.new()
 	shape.radius = SOFT_RADIUS
@@ -539,12 +560,17 @@ static func soft_press_at(space: PhysicsDirectSpaceState3D, xf: Transform3D, hei
 	# the softest thing she's touching sets how far she can sink
 	var softness := 0.0
 	var people: Array = []  # people (npc_body) she's touching
+	var snag := Vector3.INF  # the nearest spot jutting into a gap she's touching (squeeze_snag)
 	for hit in space.intersect_shape(query, 8):
 		var c: Object = hit.get("collider")
 		if c != null and c.has_meta("softness"):
 			softness = maxf(softness, float(c.get_meta("softness")))
 		if c is Node and (c as Node).is_in_group("npc_body"):
 			people.append(c)
+		if c is Node3D and (c as Node).is_in_group("squeeze_snag"):
+			var at := (c as Node3D).global_position
+			if snag == Vector3.INF or xf.origin.distance_to(at) < xf.origin.distance_to(snag):
+				snag = at
 	var core := lerpf(core_at(strength, softness), deep_at(strength, softness), spread) - SQUEEZE_GIVE * squeeze * minf(strength, 1.0)
 	var points := space.collide_shape(query, 8)
 	var feet := xf.origin.y - height * 0.5 + 0.25  # the floor and kerbs under her don't press
@@ -590,7 +616,7 @@ static func soft_press_at(space: PhysicsDirectSpaceState3D, xf: Transform3D, hei
 					pinch = deep
 					var span: Vector2 = ((touches[a][0] as Vector2) - (touches[b][0] as Vector2)).normalized()
 					across = Vector3(span.x, 0.0, span.y)
-	return [Vector3(pushing.x, v.y, pushing.y), press, into_any, normal, pinch, people, across]
+	return [Vector3(pushing.x, v.y, pushing.y), press, into_any, normal, pinch, people, across, snag]
 
 
 ## Responsive running: the part of your velocity along the keys you hold
