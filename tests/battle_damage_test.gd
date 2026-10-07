@@ -85,12 +85,13 @@ func _rating_and_setting() -> void:
 
 
 ## Every vertex of her body within 6 cm of the always-covered zones (memory
-## vesper-limits) reads "never" for tears and cuts; the chest tears and sliding
-## wear (both checked by eye at full size in poses) stay 3.5 cm clear.
+## vesper-limits, 3.5 cm of the bust discs) reads "never" for cuts; no rip
+## comes within 8 mm (the hemmed rips stop at a seam 1 cm out, checked by eye
+## at full size in poses), and the seams are there.
 func _map_keeps_clear() -> void:
 	var img := Image.load_from_file(ProjectSettings.globalize_path(MAP))
 	var slide := Image.load_from_file(ProjectSettings.globalize_path(SLIDE_MAP))
-	_check("damage maps load", img != null and img.get_width() == 1024 and slide != null and slide.get_width() == 1024, [img, slide])
+	_check("damage maps load", img != null and img.get_width() == 2048 and slide != null and slide.get_width() == 2048, [img, slide])
 	if img == null or slide == null:
 		return
 	var eco = ECO.instantiate()
@@ -104,12 +105,16 @@ func _map_keeps_clear() -> void:
 	var slid_thigh := 0
 	var slid_glute := 0
 	var torn_chest := 0
+	var seamed := 0
 	for i in verts.size():
 		var v := verts[i]
 		var p := Vector3(-v.x, v.z, v.y) / K   # rest space: z up, she faces -y
-		var at := Vector2i(clampi(int(uvs[i].x * 1024), 0, 1023), clampi(int(uvs[i].y * 1024), 0, 1023))
+		var at := Vector2i(clampi(int(uvs[i].x * 2048), 0, 2047), clampi(int(uvs[i].y * 2048), 0, 2047))
 		var px := img.get_pixelv(at)
-		var worn := slide.get_pixelv(at).r < 0.99
+		var sp := slide.get_pixelv(at)
+		var worn := sp.r < 0.99
+		if sp.g < 0.99 or sp.b < 0.99:
+			seamed += 1
 		if px.g < 0.99:
 			torn_somewhere += 1
 			if p.z > 0.95 and p.z < 1.17 and p.y < 0.0 and absf(p.x) < 0.15:
@@ -118,17 +123,18 @@ func _map_keeps_clear() -> void:
 			slid_thigh += 1
 		if worn and p.z > 0.72 and p.z < 0.88 and p.y > 0.02:
 			slid_glute += 1
-		if worn and _locked(p, 0.035):
+		if (worn or px.g < 0.99) and _locked(p, 0.008):
 			bad.append(p)
 		if not _locked(p, 0.06, 0.035):
 			continue
 		near += 1
-		if px.g < 0.99 or px.a < 0.99:
+		if px.a < 0.99:
 			bad.append(p)
 	_check("map: tears exist", torn_somewhere > 30, torn_somewhere)
 	_check("map: hits tear her chest too, clear of her bust", torn_chest > 10, torn_chest)
 	_check("slide map: wears through her outer upper thighs", slid_thigh > 10, slid_thigh)
 	_check("slide map: and the outer parts of her glutes", slid_glute > 5, slid_glute)
+	_check("hemmed rips: a stitched seam along their edge by the zones", seamed > 8, seamed)
 	_check("map: nothing near the covered zones can tear or scar (%d vertices checked)" % near, near > 200 and bad.is_empty(),
 			bad.slice(0, 5))
 	eco.free()

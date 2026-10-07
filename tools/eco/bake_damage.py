@@ -48,6 +48,8 @@ OUT_SLIDE = os.path.join(ROOT, "assets/textures/eco/v_damage_slide.png")
 # z 1.0468, sits at 1.237 in the glb)
 K = 1.1817
 NEVER = 1.0
+# the body maps' size (2048: crisp rip and seam edges up close)
+BODY_RES = 2048
 
 # the always-covered zones (vesper-limits), rest space
 APEXES = [(0.057, 1.047), (-0.057, 1.047)]
@@ -302,9 +304,9 @@ CHEST_TEARS = [
 # outfit's edge does, so the edge nearest the zone is a clean line and not
 # the jagged edge of a rip. The seam (HEM_W wide, on the zone side of the
 # rip) shows once the rip beside it opens; the fabric between it and the zone
-# never tears. Concepts for now, baked in only with --hem-concepts.
-HEM_GAP = 0.015
-HEM_W = 0.006
+# never tears. 1 cm, the margin the Vesper cups keep round the bust discs.
+HEM_GAP = 0.010
+HEM_W = 0.005
 # torn by hits (eco_tears)
 HEM_HIT = [
     ((0.100, -0.060, 1.050), (1, -0.6, 0), (0, 0, 1), 0.040, 0.020, 0.30, 0.30, 0.35),        # side of her left breast
@@ -541,7 +543,7 @@ def preview(maps, P, cover, out_dir, name):
 def main():
     j, buf = load_glb(GLB)
     pos, nrm, uv, tris = primitive(j, buf, "Body", "eco_v_body")
-    P, N, cover = rasterize(pos, nrm, uv, tris, 1024)
+    P, N, cover = rasterize(pos, nrm, uv, tris, BODY_RES)
     body = body_maps(P, N, cover, pos, nrm)
     slide = slide_map(P, N, cover, pos, nrm)
     near = check_zones(P, cover, body, slide)
@@ -550,20 +552,19 @@ def main():
     # hem seam shows, B the same for eco_slide, A its stitches
     hem_hit = np.full(P.shape[:2], NEVER)
     hem_slide = np.full(P.shape[:2], NEVER)
-    if "--hem-concepts" in sys.argv:
-        rip, hem_hit = hem_maps(P, N, cover, pos, nrm, HEM_HIT, 160)
-        body[..., 1] = np.minimum(body[..., 1], rip)
-        rip, hem_slide = hem_maps(P, N, cover, pos, nrm, HEM_SLIDE, 180)
-        slide = np.minimum(slide, rip)
+    rip, hem_hit = hem_maps(P, N, cover, pos, nrm, HEM_HIT, 160)
+    body[..., 1] = np.minimum(body[..., 1], rip)
+    rip, hem_slide = hem_maps(P, N, cover, pos, nrm, HEM_SLIDE, 180)
+    slide = np.minimum(slide, rip)
     # nothing ever tears inside a seam's gap (less 3 mm of slack)
     inside = zone_mask(P, HEM_GAP - 0.003) & cover
     bad = inside & ((body[..., 1] < NEVER) | (body[..., 3] < NEVER) | (slide < NEVER))
     if bad.any():
         raise SystemExit("bake_damage: %d texels inside a hem could tear" % int(bad.sum()))
     stitch = np.where(stitches(P, cover), 1.0, 0.0)
-    save(pad(body, cover), OUT_BODY)
+    save(pad(body, cover, 8), OUT_BODY)
     extra = np.stack([slide, hem_hit, hem_slide, stitch], axis=-1)
-    save(pad(extra, cover), OUT_SLIDE)
+    save(pad(extra, cover, 8), OUT_SLIDE)
 
     fpos, fnrm, fuv, ftris = primitive(j, buf, "Face", "eco_v_face")
     eyes = []
