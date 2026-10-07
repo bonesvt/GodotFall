@@ -49,6 +49,15 @@ func _run() -> void:
 	_check("walk down the nave", start.z - player.global_position.z > 3.0 and player.is_on_floor(), player.global_position)
 	_check("she struts in the hub", player.strolling and absf(strut_speed - player.stroll_speed) < 0.1, [player.strolling, strut_speed])
 
+	# The precursor glass panel: solid, but the third person camera sees through it.
+	var panel: Node = run_node.find_child("GlassPanel", true, false)
+	_check("glass panel stands in the nave", panel is StaticBody3D, panel)
+	var view_cam = run_node.find_child("ViewCam", true, false)
+	if panel != null and view_cam != null and view_cam.has_method("_ray"):
+		var p: Vector3 = (panel as Node3D).global_position
+		var through: Dictionary = view_cam._ray(p + Vector3(0, 0, 2), p - Vector3(0, 0, 2))
+		_check("the camera looks through it", through.is_empty() or through["collider"] != panel, through)
+
 	# Every interactable answers, and lines cycle.
 	var ids := []
 	for spot in info["interactables"]:

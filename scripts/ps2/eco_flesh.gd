@@ -18,11 +18,13 @@ extends RefCounted
 ## springs slide instead of swing: "reach" is the most the soft part may move
 ## off its pose (metres, at full weight), in any direction, so a landing
 ## bounces the flesh up and down as well as side to side. Small, quick and
-## well damped: a ripple after a step or landing, not a bounce.
-const BELLY := {"group": "flesh", "stiffness": 0.2, "drag": 0.12, "gravity": 0.0, "limit": 0.0, "reach": 0.015, "inertia": 0.3, "jiggle": true}
-const THIGH := {"group": "flesh", "stiffness": 0.26, "drag": 0.14, "gravity": 0.0, "limit": 0.0, "reach": 0.012, "inertia": 0.3, "jiggle": true}
-const ARM := {"group": "flesh", "stiffness": 0.3, "drag": 0.15, "gravity": 0.0, "limit": 0.0, "reach": 0.008, "inertia": 0.3, "jiggle": true}
-const CALF := {"group": "flesh", "stiffness": 0.5, "drag": 0.2, "gravity": 0.0, "limit": 0.0, "reach": 0.007, "inertia": 0.3, "jiggle": true}
+## well damped: a ripple after a step or landing, not a bounce. "touch": how
+## far round the spring's tip (on the limb's axis, or just off the belly) her
+## skin reaches, for walls to push on.
+const BELLY := {"group": "flesh", "stiffness": 0.2, "drag": 0.12, "gravity": 0.0, "limit": 0.0, "reach": 0.015, "inertia": 0.3, "jiggle": true, "touch": 0.025}
+const THIGH := {"group": "flesh", "stiffness": 0.26, "drag": 0.14, "gravity": 0.0, "limit": 0.0, "reach": 0.012, "inertia": 0.3, "jiggle": true, "touch": 0.075}
+const ARM := {"group": "flesh", "stiffness": 0.3, "drag": 0.15, "gravity": 0.0, "limit": 0.0, "reach": 0.008, "inertia": 0.3, "jiggle": true, "touch": 0.04}
+const CALF := {"group": "flesh", "stiffness": 0.5, "drag": 0.2, "gravity": 0.0, "limit": 0.0, "reach": 0.007, "inertia": 0.3, "jiggle": true, "touch": 0.05}
 
 ## name: the new bone; parent: the bone it hangs off (and takes weight from,
 ## with `from`); a/b: the bones whose heads run along the limb (the spring's

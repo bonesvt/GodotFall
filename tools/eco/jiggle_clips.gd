@@ -3,15 +3,24 @@ extends SceneTree
 ## same run, jump, landing and quick turn played by three copies of her, left
 ## to right classic, anime, realistic (labelled on screen). She really moves through the world, so
 ## her speed and landings drive the springs as in game.
-##   godot --path . --fixed-fps 60 --write-movie <dir>/frame.png -s res://tools/eco/jiggle_clips.gd -- [--view=front|back] [--styles=anime,realistic]
+##   godot --path . --fixed-fps 60 --write-movie <dir>/frame.png -s res://tools/eco/jiggle_clips.gd -- [--view=front|back|side] [--styles=anime,realistic]
+## A style ending "+body" also turns on full body jiggle (eco_flesh.gd), so
+## --styles=classic,classic+body compares it off and on; "@1.25" after a
+## style shows her glutes swinging 25% further (eco_model.gd glute_swing), and
+## "-touch" turns her soft parts' contact off (jiggle_collide), so
+## --styles=classic+body-touch,classic+body compares it. --close frames them
+## nearer.
 ## --write-movie writes numbered PNGs (or an .avi); join them with ffmpeg at 60
 ## fps for real time, 30 for half speed. Needs a renderer (not --headless).
 
 const ECO := preload("res://assets/models/eco.tscn")
 const SPACING := 1.9  # wide enough that each copy sits under her label column
-const LABEL := {"classic": "Classic (now)", "anime": "Smooth anime", "realistic": "Realistic"}
+const LABEL := {"classic": "Classic (now)", "anime": "Smooth anime", "realistic": "Realistic",
+	"classic+body": "Full body jiggle", "classic+body@1": "Glutes now", "classic+body@1.25": "Glutes +25%", "classic+body@1.5": "Glutes +50%",
+	"classic+body-touch": "No contact", "classic+body+touch": "With contact"}
 
 var view := "front"
+var close := false  # --close: nearer, following her up into the jump
 var styles: PackedStringArray = ["classic", "anime", "realistic"]
 var walkers: Array[Walker] = []
 var cam: Camera3D
@@ -29,6 +38,8 @@ func _initialize() -> void:
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("--view="):
 			view = a.get_slice("=", 1)
+		elif a == "--close":
+			close = true
 		elif a.begins_with("--styles="):
 			styles = a.get_slice("=", 1).split(",", false)
 	root.size = Vector2i(400 * styles.size() + 200, 900)
@@ -50,7 +61,14 @@ func _go() -> void:
 		w.position = Vector3(side * (i - (styles.size() - 1) * 0.5) * SPACING, 0, 0)
 		root.add_child(w)
 		var eco = ECO.instantiate()
-		eco.jiggle_style = styles[i]
+		# "<style>[+body][-touch|+touch][@<glute swing>]", e.g. classic+body@1.25
+		var spec := styles[i].get_slice("@", 0)
+		eco.jiggle_collide = not spec.ends_with("-touch")
+		spec = spec.trim_suffix("-touch").trim_suffix("+touch")
+		eco.jiggle_style = spec.trim_suffix("+body")
+		eco.body_jiggle = spec.ends_with("+body")
+		if "@" in styles[i]:
+			eco.glute_swing = styles[i].get_slice("@", 1).to_float()
 		w.add_child(eco)
 		walkers.append(w)
 	_labels()
@@ -118,10 +136,17 @@ func _follow() -> void:
 	var centre := Vector3(0, 1.2, walkers[0].position.z)
 	var width := SPACING * styles.size()
 	var dist := 2.4 + width * 0.5
+	if close:
+		centre.y = 1.0 + walkers[0].position.y * 0.8
+		dist = 1.0 + width * 0.42
+		if view == "side":
+			dist = maxf(dist, 2.9)  # one copy side on: wide enough for her whole stride
 	var offset: Vector3
 	match view:
 		"back":
 			offset = Vector3(0.0, 0.45, dist)
+		"side":
+			offset = Vector3(dist * 1.1, 0.2, dist * 0.15)
 		_:
 			offset = Vector3(dist * 0.18, 0.25, -dist)
 	cam.look_at_from_position(centre + offset, centre)

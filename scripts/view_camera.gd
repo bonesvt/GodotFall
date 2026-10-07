@@ -324,10 +324,21 @@ func _pick_shoulder() -> void:
 		_swap_cooldown = 0.8
 
 
+## The first thing between `from` and `to` the camera should stay clear of
+## (see-through things in the "camera_clear" group, like the hub's glass
+## panel, don't count).
 func _ray(from: Vector3, to: Vector3) -> Dictionary:
 	var q := PhysicsRayQueryParameters3D.create(from, to)
-	q.exclude = [player.get_rid()]
-	return player.get_world_3d().direct_space_state.intersect_ray(q)
+	var skip: Array[RID] = [player.get_rid()]
+	q.exclude = skip
+	var space := player.get_world_3d().direct_space_state
+	for i in 4:
+		var hit := space.intersect_ray(q)
+		if hit.is_empty() or not (hit["collider"] is Node and (hit["collider"] as Node).is_in_group("camera_clear")):
+			return hit
+		skip.append(hit["rid"])
+		q.exclude = skip
+	return {}
 
 
 ## A copy of the equipped gun in her right hand while in third person (the
