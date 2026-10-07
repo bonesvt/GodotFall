@@ -57,6 +57,15 @@ static func build(root: Node3D, info: Dictionary) -> void:
 	K.glow(root, CONSOLE + Vector3(0, 0.95, -0.18), Vector3(0.45, 0.25, 0.02), Color(0.3, 0.9, 1.0))
 	K.interactable(info, "press_console", CONSOLE + Vector3(0, 0, -0.6), "[F] Change how much she can press", ["The lab console."], 1.4)
 	info["interactables"].back()["press_console"] = true
+	# a button that sets off a charge in a blast pit by the west wall, to feel its shock
+	var button := LAB + Vector3(-8.0, 0, 5.6)
+	K.mesh(root, button + Vector3(0, 0.5, 0), Vector3(0.4, 1.0, 0.4), Art.material("gunmetal", Color(0.3, 0.32, 0.35)))
+	K.glow(root, button + Vector3(0, 1.02, 0), Vector3(0.2, 0.04, 0.2), Color(1.0, 0.3, 0.2))
+	K.interactable(info, "lab_blast", button + Vector3(0.5, 0, 0), "[F] Set off a blast", ["Fire in the hole!"], 1.3)
+	info["interactables"].back()["lab_blast"] = true
+	info["interactables"].back()["blast_at"] = LAB + Vector3(-8.0, 0.5, 2.6)
+	K.glow(root, LAB + Vector3(-8.0, 0.01, 2.6), Vector3(1.4, 0.01, 1.4), Color(0.6, 0.2, 0.1, 0.6))
+	_label(root, button + Vector3(0, 1.6, 0), "Blast", 0.0)
 	info["lab"] = {"arrive": ARRIVE, "floor": LAB}
 	_label(root, LAB + Vector3(0, 3.3, ROOM.z * 0.5 - 0.2), "PHYSICS LAB", 0.0)
 

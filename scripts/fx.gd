@@ -105,6 +105,10 @@ static func casing(parent: Node, pos: Vector3, velocity: Vector3) -> void:
 
 ## An expanding fireball with a shock ring: titan shells, kill pops.
 static func blast(parent: Node, pos: Vector3, color: Color, radius := 2.0, life := 0.35) -> void:
+	# its shock wave jolts Eco's soft parts (eco_model.gd blast_at)
+	if parent != null and parent.is_inside_tree():
+		for e in parent.get_tree().get_nodes_in_group("eco_jolt"):
+			e.blast_at(pos, radius)
 	var core := _blob(parent, pos, Color(1.0, 0.95, 0.75), radius * 0.35)
 	var core_mat: StandardMaterial3D = core.mesh.material
 	var t1 := core.create_tween().set_parallel()

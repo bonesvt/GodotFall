@@ -577,6 +577,13 @@ func _hub_tick(delta: float) -> void:
 	if vice_shop:
 		open_bench(spot["shop"])
 		return
+	if spot.get("lab_blast", false):
+		# the lab's blast button: a charge goes off down the room, its shock reaching her
+		var at: Vector3 = spot["blast_at"]
+		load("res://scripts/fx.gd").blast(player.get_parent(), at, Color(1.0, 0.55, 0.2), 2.0, 0.4)
+		hud.toast(spot["lines"][0], 1.5)
+		SFX.play_at(self, at, "explosion_small", -4.0)
+		return
 	if spot.get("press_console", false):
 		_step_press_strength()
 		return

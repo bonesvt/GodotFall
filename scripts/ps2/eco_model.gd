@@ -358,6 +358,9 @@ func _ready() -> void:
 		_apply_jiggle_style()
 		_link_touches()
 		_last_origin = skeleton.global_position
+		if _body != null and _body.has_signal("damaged"):
+			_body.damaged.connect(_on_damaged)
+		add_to_group("eco_jolt")
 		for bone_name: String in STRUT_BONES:
 			_bones[bone_name] = skeleton.find_bone(STRUT_BONES[bone_name])
 		_bones["hips_at"] = _bones["hips"]
@@ -814,6 +817,47 @@ func footfall(side: String, impact: float) -> void:
 		if s["base"].get("group", "") == "bust":
 			amount *= 0.4
 		s["tip"] += down * amount * impact * jiggle
+
+
+## A jolt through her whole body (a hit, a blast's shock wave): every soft
+## part is flung along `dir` (world space, its length the strength, about 1
+## for a solid hit), then springs back and wobbles. Flesh moves a little less,
+## the chest and glutes most.
+func jolt(dir: Vector3) -> void:
+	if dir.length() < 0.001:
+		return
+	for s in _springs:
+		if not s["ready"]:
+			continue
+		var group: String = s["base"].get("group", "")
+		var amount: float = 0.012 if s.has("reach") else JOLT.get(group, 0.008)
+		# moving `prev` back gives the tip that much speed this step
+		s["prev"] -= dir * amount * jiggle
+	jolts += 1
+
+
+## How far a jolt of strength 1 flings each group's tips in one step (m).
+const JOLT := {"bust": 0.02, "glute": 0.022, "hair": 0.03}
+## Jolts taken (for tests).
+var jolts := 0
+
+
+## Hit: the jolt pushes away from where it came from (straight back if unknown).
+func _on_damaged(amount: float, from: Vector3) -> void:
+	var push := global_position - from if from != Vector3.ZERO else global_basis.z
+	push.y = 0.0
+	jolt(push.normalized() * clampf(amount / 25.0, 0.4, 1.6))
+
+
+## A blast at `pos` reaching `radius`: within four radii its shock jolts her,
+## harder the nearer it is (fx.gd blast calls this on everyone in "eco_jolt").
+func blast_at(pos: Vector3, radius: float) -> void:
+	var away := global_position + Vector3.UP * 1.0 - pos
+	var reach := radius * 4.0
+	var d := away.length()
+	if d > reach or d < 0.001:
+		return
+	jolt(away / d * 1.8 * pow(1.0 - d / reach, 1.5))
 
 
 ## Rotates a bone about a skeleton-space axis through its joint, on top of its
