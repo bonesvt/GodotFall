@@ -65,6 +65,9 @@ global uniform float eco_tears;
 global uniform float eco_scars;
 // How far sliding has worn her suit through (her outer thighs, glutes and hips).
 global uniform float eco_slide;
+// Marrow's Glass (scripts/hub/glass.gd): how far violet crystal has crept
+// over her skin, 0..1, spreading in the order dirt does (damage_tex R).
+global uniform float eco_glass;
 // 0: none (hair, eyes, glass). 1: her body or face, from damage_tex
 // (tools/eco/bake_damage.py; each channel the level at which a texel turns:
 // R grime, G torn, B scuffed, A scarred; tears only open on her suit's fabric,
@@ -117,8 +120,11 @@ float damage_noise(vec2 p) {
 }
 varying float v_rim;
 varying vec3 v_shade;
+// her model-space position (feet at 0, head at about 1.6 m), for the Glass's spread
+varying vec3 v_obj;
 
 void vertex() {
+	v_obj = VERTEX;
 	vec4 clip = PROJECTION_MATRIX * MODELVIEW_MATRIX * vec4(VERTEX, 1.0);
 	if (ps2_vertex_snap > 0.0) {
 		vec2 grid = vec2(ps2_vertex_snap, ps2_vertex_snap * VIEWPORT_SIZE.y / VIEWPORT_SIZE.x) * 0.5;
@@ -140,6 +146,7 @@ void fragment() {
 	// torn open, cut, then dirt over all of it
 	float torn = 0.0;
 	float scuffed = 0.0;
+	vec3 glass_emit = vec3(0.0);
 #ifndef OVERLAY
 	if (damage_kind == 1) {
 		vec4 d = texture(damage_tex, UV);
@@ -180,6 +187,43 @@ void fragment() {
 		col = mix(col, CUT, cut * 0.85);
 		float g = smoothstep(d.r, d.r + 0.22, eco_grime);
 		col = mix(col, col * DIRT * 2.2 + DIRT * 0.1, g * (0.4 + 0.25 * damage_noise(UV * 140.0)) * (0.8 + 0.2 * speck));
+		// Glass on her skin: faceted violet crystal, its seams glowing
+		if (eco_glass > 0.0) {
+			// it creeps up from her limbs, round the sides of her neck and jaw
+			// and up her cheeks, the middle of her face last; never quite all of it
+			float reach = smoothstep(1.66, 1.15, v_obj.y) * 0.7 + clamp(abs(v_obj.x) / 0.08, 0.0, 1.0) * 0.3
+					+ (damage_noise(v_obj.xy * 38.0) - 0.5) * 0.3;
+			float front = 1.0 - eco_glass * 0.82;
+			float glassed = smoothstep(front, front + 0.03, reach) * max(torn, 1.0 - fabric);
+			vec2 fc = UV * 70.0;
+			vec2 gi = floor(fc);
+			vec2 gf = fract(fc);
+			float d1 = 8.0;
+			float d2 = 8.0;
+			float facet = 0.0;
+			for (int y = -1; y <= 1; y++) {
+				for (int x = -1; x <= 1; x++) {
+					vec2 o = vec2(float(x), float(y));
+					vec2 pt = o + vec2(damage_hash(gi + o), damage_hash(gi + o + 17.3)) - gf;
+					float dd = length(pt);
+					if (dd < d1) {
+						d2 = d1;
+						d1 = dd;
+						facet = damage_hash(gi + o + 5.1);
+					} else if (dd < d2) {
+						d2 = dd;
+					}
+				}
+			}
+			float seam_glow = 1.0 - smoothstep(0.0, 0.06, d2 - d1);
+			// each facet a flat plane of glass: a light and a dark side, a pale glint
+			float plane = step(0.5, fract(facet * 7.0));
+			vec3 crystal = mix(vec3(0.3, 0.12, 0.48), vec3(0.82, 0.66, 1.0), 0.2 + 0.5 * facet + 0.2 * plane);
+			// a soft edge where it meets her skin, glassy right through further in
+			float rim_in = smoothstep(front + 0.03, front + 0.1, reach);
+			col = mix(col, crystal, glassed * (0.55 + 0.4 * rim_in));
+			glass_emit = HUSH_VIOLET * (seam_glow * 1.2 + 0.08 + 0.12 * facet) * glassed;
+		}
 	} else if (damage_kind == 3) {
 		vec4 d = texture(damage_tex, UV);
 		float speck = damage_noise(UV * 900.0);
@@ -218,7 +262,10 @@ void fragment() {
 		float k = clamp(hypno, 0.0, 1.0);
 		col = mix(col, col * 0.4 + HUSH_VIOLET * 0.7, k * 0.55);
 		col = mix(col, vec3(1.0, 0.8, 1.0), band * k);
-		hypno_emit = HUSH_VIOLET * band * k * 0.9;
+		// the iris glows softly all the time, breathing; the spiral arms brightest
+		float iris = 1.0 - smoothstep(0.85, 1.0, r);
+		float breath = 0.2 + 0.08 * sin(TIME * 1.6);
+		hypno_emit = HUSH_VIOLET * (band * 0.9 + iris * breath) * k;
 	}
 	v_shade = mix(shade_tint, shade_tint_2, mask.g);
 	vec4 tattoo = texture(tattoo_tex, UV);
@@ -241,7 +288,7 @@ void fragment() {
 	if (trim_gold > 0.0) {
 		emit = mix(emit, GOLD * max(emit.r, max(emit.g, emit.b)), trim_gold) + GOLD * gold_edge * trim_gold;
 	}
-	EMISSION = emit * glow * paint.rgb + vec3(flash) + hypno_emit;
+	EMISSION = emit * glow * paint.rgb + vec3(flash) + hypno_emit + glass_emit;
 	v_rim = smoothstep(0.72, 0.9, fres) * rim;
 #ifdef OVERLAY
 	ALPHA = tex.a * albedo.a;

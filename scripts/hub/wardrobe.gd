@@ -11,6 +11,7 @@ const Art := preload("res://scripts/ps2/ps2_assets.gd")
 const ECO_MODEL := "res://scripts/ps2/eco_model.gd"
 const HUB_NPC := "res://scripts/hub/hub_npc.gd"
 const ContentRating := preload("res://scripts/radio/content_rating.gd")
+const Vices := preload("res://scripts/hub/vices.gd")
 
 ## Whose clothes can be in it, in tab order, with their tab names (people()
 ## leaves out anyone with only the one outfit for now).
@@ -20,7 +21,7 @@ const NAMES := {
 	"suit": "Pilot suit", "suit_ghost": "Ghost suit", "suit_racer": "Racer suit",
 	"suit_harness": "Harness suit", "suit_techwear": "Techwear suit", "suit_shade": "Shade catsuit",
 	"suit_homemade": "Mom's handmade suit", "suit_ophelia": "Ophelia's suit",
-	"suit_vesper": "Gunslinger (Vesper)", "suit_vesper_open": "Gunslinger, unzipped (Vesper)", "sleep": "Sleepwear", "work": "Work clothes", "date": "Date night",
+	"suit_vesper": "Gunslinger (Vesper)", "suit_vesper_open": "Gunslinger, unzipped (Vesper)", "suit_hush": "Hush courier", "sleep": "Sleepwear", "work": "Work clothes", "date": "Date night",
 	"skater": "Skater brat", "y2k": "Y2K pop", "casual": "Casual", "swim": "Bikini", "bikini": "Bikini", "sheer": "Sheer layers",
 	"tight": "Tight and daring", "lingerie": "Lingerie", "home": "Home clothes",
 	"tee": "Band tee", "hoodie": "Hoodie", "night": "Nightwear",
@@ -38,7 +39,8 @@ static var eco_now := "suit"
 
 ## The outfits someone has. Eco's come from her model (eco_model.gd OUTFITS:
 ## her pilot suits and her clothes), less its MATURE_OUTFITS under the Teen
-## content rating.
+## content rating, and less the Hush courier suit until she's earned it
+## (vices.gd hush_suit).
 static func outfits(who: String) -> Array:
 	if who == "eco":
 		var consts: Dictionary = (load(ECO_MODEL) as Script).get_script_constant_map()
@@ -46,6 +48,8 @@ static func outfits(who: String) -> Array:
 		if ContentRating.current() != "M":
 			var mature: Array = consts.get("MATURE_OUTFITS", [])
 			list = list.filter(func(o): return not o in mature)
+		if not Vices.hush_suit:
+			list.erase("suit_hush")
 		return list
 	var npc: Script = load(HUB_NPC)
 	return npc.get_script_constant_map().get("OUTFITS", {}).get(who, []).duplicate()

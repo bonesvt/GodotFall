@@ -77,6 +77,12 @@ uniform float blend_sharpness = 6.0;
 // Anime look: how much the brightness is posterised (0 for high-contrast
 // patterns that would break into blotches, like the wallrun panels).
 uniform float anime_posterize : hint_range(0.0, 1.0) = 1.0;
+// The Hush finish (armory.gd FINISHES "hush"): spirals of violet light on the
+// gun's sides (its local X faces), turning with hypno_phase (weapon.gd spins
+// it, faster the deeper Marrow's Hold). hypno_density: spirals per metre.
+uniform float hypno_swirl : hint_range(0.0, 1.0) = 0.0;
+uniform float hypno_phase = 0.0;
+uniform float hypno_density = 22.0;
 
 // Per-object knobs, set with set_instance_shader_parameter (see ps2_model.gd).
 instance uniform float flash : instance_index(0) = 0.0;          // white hit flash, 0..1
@@ -209,6 +215,20 @@ void fragment() {
 		col *= mix(1.0 - ao_strength, 1.0, smoothstep(0.0, ao_height, v_height));
 	}
 	vec3 emit = emission.rgb * emission_energy * glow * paint.rgb + vec3(flash);
+	if (hypno_swirl > 0.0) {
+		vec2 q = v_pos.zy * hypno_density;
+		vec2 cell = fract(q) - 0.5;
+		vec2 id = floor(q);
+		float turn = mod(id.x + id.y, 2.0) * 2.0 - 1.0;  // neighbours spin opposite ways
+		float r = length(cell);
+		float a = atan(cell.y, cell.x);
+		float arms = sin(2.0 * a + 10.0 * log(r + 0.03) - hypno_phase * turn);
+		float band = smoothstep(0.35, 0.85, arms) * (1.0 - smoothstep(0.36, 0.48, r));
+		float side = smoothstep(0.55, 0.9, abs(v_normal.x));
+		float k = band * side * hypno_swirl;
+		col = mix(col, col * 0.5, side * hypno_swirl * 0.35);
+		emit += vec3(0.72, 0.32, 1.0) * k * (0.9 + 0.3 * sin(TIME * 1.6));
+	}
 #ifdef PS2_UNSHADED
 	ALBEDO = col + emit;
 #else

@@ -9,6 +9,7 @@ enum State { GROUND, AIR, SLIDE, WALLRUN, GRAPPLE }
 const SFX := preload("res://scripts/sfx.gd")
 const Prefs := preload("res://scripts/game/prefs.gd")
 const Vices := preload("res://scripts/hub/vices.gd")
+const Glass := preload("res://scripts/hub/glass.gd")
 const EcoContactSounds := preload("res://scripts/ps2/eco_contact_sounds.gd")
 ## Metres between footsteps on the ground and when running along a wall.
 const STRIDE := 2.4
@@ -213,6 +214,11 @@ var strolling := false:
 		strolling = value
 		if collision != null:
 			(collision.shape as CapsuleShape3D).radius = STROLL_RADIUS if value else RADIUS
+## In Marrow's trance (vices.gd, hush_pull.gd): the player has no say, she
+## walks slowly along trance_dir (zero: she stands) and her look follows.
+var entranced := false
+var trance_dir := Vector3.ZERO
+const TRANCE_SPEED := 1.5
 var cam_roll := 0.0
 var input_dir := Vector2.ZERO
 var wish_dir := Vector3.ZERO
@@ -241,6 +247,8 @@ var _armor_regen_mult := 1.0
 var _base_wallrun_time := -1.0
 ## max_health before any boost from Solace (town_shops.gd: a meal, implants).
 var _base_max_health := -1.0
+## max_health from the suit and Solace, before Marrow's Glass takes its share.
+var _suit_max_health := -1.0
 var _base_grapple_cooldown := -1.0
 var step_dist := 0.0
 ## Set by the ViewCam child (scripts/view_camera.gd) while in third person.
@@ -320,7 +328,7 @@ func _ready() -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
+	if event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED and not entranced:
 		rotate_y(-Prefs.look_x(event.relative.x) * mouse_sensitivity)
 		head.rotation.x = clampf(head.rotation.x - Prefs.look_y(event.relative.y) * mouse_sensitivity, -1.55, 1.55)
 	elif event.is_action_pressed("ui_cancel"):
@@ -362,15 +370,18 @@ func _physics_process(delta: float) -> void:
 				face = sidle_face  # side-on in a gap, whichever way she shuffles
 			rotation.y = lerp_angle(rotation.y, atan2(-face.x, -face.z), 1.0 - exp(-move_turn_rate * delta))
 	_drunk(delta)
-	if Input.is_action_just_pressed("jump"):
-		if stuck:
-			wriggle()
-		else:
-			jump_buffer_timer = jump_buffer
-	if Input.is_action_just_pressed("crouch") and state != State.GROUND and state != State.SLIDE:
-		slide_buffer_timer = slide_land_buffer
-	if Input.is_action_just_pressed("grapple"):
-		_try_grapple()
+	if entranced:
+		_trance(delta)
+	else:
+		if Input.is_action_just_pressed("jump"):
+			if stuck:
+				wriggle()
+			else:
+				jump_buffer_timer = jump_buffer
+		if Input.is_action_just_pressed("crouch") and state != State.GROUND and state != State.SLIDE:
+			slide_buffer_timer = slide_land_buffer
+		if Input.is_action_just_pressed("grapple"):
+			_try_grapple()
 	if Input.is_action_just_pressed("reset") or global_position.y < -40.0:
 		respawn()
 
@@ -397,7 +408,7 @@ func _ground_state(delta: float) -> void:
 	ground_time += delta
 	coyote_timer = coyote_time
 	air_jumps_left = air_jumps
-	var want_crouch := Input.is_action_pressed("crouch")
+	var want_crouch := Input.is_action_pressed("crouch") and not entranced
 	var hvel := Vector3(velocity.x, 0.0, velocity.z)
 
 	if want_crouch and hvel.length() >= slide_min_speed:
@@ -413,6 +424,8 @@ func _ground_state(delta: float) -> void:
 		target = minf(crouch_speed, stroll_speed) if crouching else (stroll_brisk_speed if brisk else stroll_speed)
 		if backpedalling:
 			target = stroll_speed * BACKPEDAL_SPEED
+	if entranced:
+		target = TRANCE_SPEED
 	hvel = _ground_move(hvel, target, delta)
 
 	velocity.x = hvel.x
@@ -905,7 +918,8 @@ func apply_suit(profile: Dictionary) -> void:
 		_base_wallrun_time = wallrun_max_time
 		_base_grapple_cooldown = grapple_cooldown
 		_base_max_health = max_health
-	max_health = _base_max_health + profile.get("max_health_bonus", 0.0)
+	_suit_max_health = _base_max_health + profile.get("max_health_bonus", 0.0)
+	max_health = _suit_max_health * Glass.health_scale()
 	health = max_health
 	suit_tier = profile.get("tier", 0)
 	suit_weight = profile.get("weight", "medium")
@@ -926,6 +940,15 @@ func apply_suit(profile: Dictionary) -> void:
 		body.set_suit(suit_tier, suit_weight)
 
 
+## Marrow's Glass (glass.gd) takes some of her max health as it spreads; a
+## vial cracked mid-run takes it there and then.
+func refresh_glass() -> void:
+	if _suit_max_health < 0.0:
+		_suit_max_health = max_health
+	max_health = _suit_max_health * Glass.health_scale()
+	health = minf(health, max_health)
+
+
 ## A few drinks in (vices.gd): her aim drifts on its own, and the change in
 ## drift goes onto her look so the shot drifts with it and the mouse fights it.
 ## Her steps wander a little off the way she means to go.
@@ -940,6 +963,16 @@ func _drunk(delta: float) -> void:
 	var veer := Vices.stagger(_drunk_t)
 	if veer != 0.0 and wish_dir != Vector3.ZERO:
 		wish_dir = wish_dir.rotated(Vector3.UP, veer)
+
+
+## Marrow's trance: whatever the player presses, she walks where it takes her,
+## facing that way, eyes ahead.
+func _trance(delta: float) -> void:
+	wish_dir = Vector3(trance_dir.x, 0.0, trance_dir.z).normalized()
+	input_dir = Vector2(0.0, -1.0) if wish_dir != Vector3.ZERO else Vector2.ZERO
+	if wish_dir != Vector3.ZERO:
+		rotation.y = lerp_angle(rotation.y, atan2(-wish_dir.x, -wish_dir.z), 1.0 - exp(-3.0 * delta))
+	head.rotation.x = lerpf(head.rotation.x, -0.05, 1.0 - exp(-2.0 * delta))
 
 
 # --- Crouch, camera, rope -----------------------------------------------------

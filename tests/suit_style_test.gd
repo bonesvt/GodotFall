@@ -8,6 +8,7 @@ extends SceneTree
 
 const Wardrobe := preload("res://scripts/hub/wardrobe.gd")
 const ContentRating := preload("res://scripts/radio/content_rating.gd")
+const Vices := preload("res://scripts/hub/vices.gd")
 const ECO := preload("res://assets/models/eco.tscn")
 
 const PATH := "user://test_suit_style.cfg"
@@ -58,12 +59,30 @@ func _pieces(style: String) -> Array:
 			return []
 		"ophelia":
 			return ["base_ophelia_skirt"]
+		"hush":  # no jacket: her skater hoodie and some kit gear instead (eco_model.gd STYLE_GEAR)
+			return []
 	return ["base_%s_jacket" % style]
+
+
+func _mesh(eco, mesh_name: String) -> MeshInstance3D:
+	return eco.find_child(mesh_name, true, false)
+
+
+func _shown(eco, names: Array) -> Array:
+	return names.filter(func(n): return _mesh(eco, n).visible)
+
+
+func _overrides(eco, mesh_name: String) -> Array:
+	var mi := _mesh(eco, mesh_name)
+	var out := []
+	for i in mi.mesh.get_surface_count():
+		out.append(mi.get_surface_override_material(i))
+	return out
 
 
 func _model(eco) -> void:
 	var suits: Array = eco.OUTFITS.filter(func(o): return o.begins_with("suit"))
-	_check("ten pilot suits", suits.size() == 10 and eco.OUTFITS[0] == "suit", suits)
+	_check("eleven pilot suits", suits.size() == 11 and eco.OUTFITS[0] == "suit", suits)
 	_check("starts in her own suit", eco.outfit == "suit" and eco.style() == "gwen" and _body(eco) == null, eco.outfit)
 	for outfit in suits:
 		_check("wears " + outfit, eco.wear(outfit) and eco.outfit == outfit, eco.outfit)
@@ -75,6 +94,21 @@ func _model(eco) -> void:
 		if style != "gwen":
 			var tex: Texture2D = eco.STYLE_BODY[outfit].get_shader_parameter("albedo_tex")
 			_check(outfit + " has its own texture", tex != null and tex.resource_path.ends_with("v_body_%s.png" % style), tex)
+	eco.wear("suit_hush")
+	var gear: Array = eco.STYLE_GEAR["hush"]["pieces"]
+	_check("the Hush courier wears her hoodie, sneakers and gear", gear.all(func(n): return _mesh(eco, n).visible), _shown(eco, gear))
+	var dyed := _overrides(eco, "outfit_skater_t_hoodie") + _overrides(eco, "outfit_skater_any_shoes")
+	_check("all dyed Hush violet", dyed.all(func(m): return m != null and String(m.resource_name).contains("hush")), dyed)
+	_check("no boots or goggles with it", not _mesh(eco, "Boots").visible and not _mesh(eco, "Goggles").visible, "")
+	eco.suit_tier = 2
+	_check("a suit upgrade's kit goes on instead", not _mesh(eco, "outfit_skater_t_hoodie").visible, "")
+	eco.suit_tier = 0
+	eco.wear("suit_shade")
+	_check("and the shade catsuit is its own again", not _mesh(eco, "outfit_skater_t_hoodie").visible and _mesh(eco, "Boots").visible
+			and _overrides(eco, "outfit_skater_t_hoodie").all(func(m): return m == null), _overrides(eco, "outfit_skater_t_hoodie"))
+	eco.wear("skater")
+	_check("her own skater hoodie keeps its colours", _mesh(eco, "outfit_skater_t_hoodie").visible == (ContentRating.current() != "M")
+			and _overrides(eco, "outfit_skater_t_hoodie").all(func(m): return m == null), "")
 	eco.wear("suit_racer")
 	eco.suit_tier = 2
 	var kit: Material = _body(eco)
@@ -93,10 +127,13 @@ func _model(eco) -> void:
 func _wardrobe(eco) -> void:
 	ContentRating.set_rating("T", false)
 	var teen := Wardrobe.options("eco")
-	_check("Teen: no Vesper looks", teen == eco.OUTFITS.filter(func(o): return not o in eco.MATURE_OUTFITS), teen)
+	_check("Teen: no Vesper looks", teen == eco.OUTFITS.filter(func(o): return not o in eco.MATURE_OUTFITS and o != "suit_hush"), teen)
 	Wardrobe.choose("eco", "suit_vesper")
 	_check("Teen: a Vesper pick isn't saved", Wardrobe.choice("eco") == "suit", Wardrobe.choice("eco"))
 	ContentRating.set_rating("M", false)
+	Vices.hush_suit = false
+	_check("no Hush courier suit until she's earned it", not "suit_hush" in Wardrobe.options("eco"), Wardrobe.options("eco"))
+	Vices.hush_suit = true
 	var options := Wardrobe.options("eco")
 	_check("the wardrobe has all her suits", options == eco.OUTFITS, options)
 	Wardrobe.choose("eco", "suit_vesper_open")

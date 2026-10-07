@@ -14,6 +14,7 @@ extends RefCounted
 ## Marrow is a primitive placeholder figure until a proper model is built.
 
 const K := preload("res://scripts/hub/hub_kit.gd")
+const Glass := preload("res://scripts/hub/glass.gd")
 const Art := preload("res://scripts/ps2/ps2_assets.gd")
 
 const STREET_HALF := 7.0
@@ -34,8 +35,100 @@ const HER_SIZE := Vector3(3.6, 2.6, 3.6)
 const HER_WAKE := HER_ROOM + Vector3(-0.9, 0, 0.6)
 const HER_DOOR_IN := BASEMENT + Vector3(-2.9, 0, -0.6)
 const HER_DOOR_OUT := HER_ROOM + Vector3(1.2, 0, -1.2)
+## The Chorus (glass.gd): his ledger and his three Glass vats by the east wall.
+const LEDGER := BASEMENT + Vector3(3.0, 0, 1.9)
+const VATS := [BASEMENT + Vector3(3.0, 0, 0.6), BASEMENT + Vector3(3.0, 0, -0.5), BASEMENT + Vector3(-1.2, 0, -2.8)]
+const LEDGER_TEXT := "A ledger under a colony seal. SOLACE TRIAL. Compound H: compliance confirmed in subject E. Compound G: combat yield up, crystallisation within losses. Phase three: the town's water and Seven Suns' stock. Payment on delivery: one town, docile, before the first frost. Marrow's not a dealer. He's a supplier, and Eco was the test."
+const VAT_LOCKED_LINE := "Three tanks of something violet, brewing. Glass, by the smell. She'd like to know what it's for first."
 ## Under this Hold she still makes it to her own room.
 const OWN_ROOM_BELOW := 30.0
+## Where his pull walks her in, at the foot of the stairs facing his table.
+const ARRIVE := BASEMENT + Vector3(0.3, 0, 0.7)
+## How his pull walks her down Solace to the cellar door (hush_pull.gd):
+## street points north to south, round the west side of the Sun Tree.
+const PULL_ROUTE := [
+	Vector3(-3.0, 0, 158.0), Vector3(-3.0, 0, 165.5), Vector3(-9.5, 0, 165.5),
+	Vector3(-9.5, 0, 184.5), Vector3(-3.0, 0, 190.5), Vector3(0.0, 0, 200.0),
+	Vector3(3.5, 0, 210.5), CELLAR,
+]
+## Where she picks up his pull's walk if it takes her outside town.
+const PULL_TOWN_START := Vector3(0.0, 0, 140.0)
+
+## Marrow's errands, earned doses at full Hold (vices.gd): somewhere in Solace
+## he sends her, what he says, the spot's prompt and what she finds there.
+## Small dirty jobs for a dealer; nothing she can't walk away from.
+const ERRANDS := {
+	"arcade_bin": {
+		"pos": Vector3(-6.2, 0, 195.5),
+		"task": "Marrow: \"Before you get another, you work. Take this packet to the bin behind the Glowbox Arcade. Don't open it.\"",
+		"short": "leave his packet in the arcade's bin",
+		"prompt": "[F] Leave Marrow's packet in the bin",
+		"done": "Eco drops the packet in the bin. It's warm. She doesn't want to know why. Back to Marrow.",
+	},
+	"sal_crates": {
+		"pos": Vector3(6.2, 0, 147.5),
+		"task": "Marrow: \"Sal owes me. There's a tin under the crates by his shop. Bring it to me and you'll get yours.\"",
+		"short": "fetch the tin from under Sal's crates",
+		"prompt": "[F] Dig the tin out from under Sal's crates",
+		"done": "Eco finds the tin under Sal's crates. It rattles like loose screws. Sal would kill her. Back to Marrow.",
+	},
+	"gate_watch": {
+		"pos": Vector3(-5.0, 0, 134.0),
+		"task": "Marrow: \"Go and count the soldiers on the town gate for me. Every one. Then come back and tell me.\"",
+		"short": "count the soldiers at the town gate",
+		"prompt": "[F] Count the soldiers on the gate",
+		"done": "Six soldiers. Two asleep. She hates that she's counting them for him. Back to Marrow.",
+	},
+	"okoro_house": {
+		"pos": Vector3(-6.2, 0, 146.3),
+		"task": "Marrow: \"The Okoros, between the tailor and the clinic. They keep a ledger with my name in it. Get in, get it, get out. Nobody home till dark.\"",
+		"short": "break into the Okoro house for the ledger",
+		"prompt": "[F] Pick the Okoros' lock",
+		"done": "The lock gives on the third try. Kids' drawings on the fridge. Eco finds the ledger and doesn't look at anything else. Back to Marrow.",
+	},
+	"clinic_cabinet": {
+		"pos": Vector3(-6.2, 0, 157.5),
+		"task": "Marrow: \"Doc Imani's back room. Second cabinet, the blue vials. She trusts you, so she won't be looking.\"",
+		"short": "steal the blue vials from Mercy Clinic's back room",
+		"prompt": "[F] Slip into the clinic's back room",
+		"done": "Doc Imani is humming out front. Eco pockets the vials. The doc stitched Dad up for free, more than once. Back to Marrow.",
+	},
+	"outfitter_till": {
+		"pos": Vector3(-6.2, 0, 142.6),
+		"task": "Marrow: \"Stitch & Steel empties the till at closing and leaves the tin under the counter. Take the tin.\"",
+		"short": "lift the cash tin from Stitch & Steel",
+		"prompt": "[F] Reach under Stitch & Steel's counter",
+		"done": "The tin's heavier than she thought. The bell over the door doesn't ring. Back to Marrow.",
+	},
+	"recruiter_window": {
+		"pos": Vector3(-16.4, 0, 179.6),
+		"task": "Marrow: \"The recruiters who turned you away keep their duty roster in the back office. Climb in the window and bring it to me. You'll enjoy this one.\"",
+		"short": "climb into the recruitment office for the roster",
+		"prompt": "[F] Jimmy the recruitment office's back window",
+		"done": "In through the window, the roster off the desk, out again. Her old application is still pinned to the corkboard. Back to Marrow.",
+	},
+	"lantern_shelf": {
+		"pos": Vector3(15.5, 0, 188.0),
+		"task": "Marrow: \"The Lucky Lantern has a jade cat on the top shelf. Old. Real. Bring it here. Don't buy it.\"",
+		"short": "pocket the jade cat from the Lucky Lantern",
+		"prompt": "[F] Palm the jade cat off the Lucky Lantern's shelf",
+		"done": "Eco palms the jade cat while the old man wraps someone's gift. He waves at her on the way out. Back to Marrow.",
+	},
+}
+
+## Withdrawal mid-run (vices.gd episode, hush_pull.gd): she walks off the job
+## to beg him for another errand. What she comes to at his place.
+const BEG_LINES := [
+	"Eco: \"I walked off the job. I couldn't think, I... Marrow, please. Give me work. Any errand.\" Marrow: \"Another chance? Fine. Don't waste it.\"",
+	"Marrow: \"You left the fight to come crawling down my stairs. That's how bad it's got. Good. Here's what you'll do.\"",
+	"Eco's hands won't stop shaking. \"One more errand. Please.\" Marrow smiles like he's been waiting all day.",
+]
+
+
+## One of his errands, at random.
+static func pick_errand() -> String:
+	var ids := ERRANDS.keys()
+	return ids[randi() % ids.size()]
 
 ## Coming to in her own locked room (his Hold still shallow).
 const OWN_ROOM_LINES := [
@@ -67,6 +160,9 @@ static func build(root: Node3D, info: Dictionary) -> void:
 	_basement(root, info)
 	_her_room(root, info)
 	info["hush"] = {"wake": WAKE, "own_room": HER_WAKE, "street": CELLAR + Vector3(-1.2, 0, 0)}
+	for id: String in ERRANDS:
+		K.interactable(info, "errand_" + id, ERRANDS[id]["pos"], ERRANDS[id]["prompt"], [ERRANDS[id]["done"]], 2.0)
+		info["interactables"].back()["errand"] = id  # only there while it's her errand (run_manager.gd)
 
 
 ## Which room she comes to in and what she finds, for his Hold `hold` and her
@@ -123,7 +219,7 @@ static func _alley(root: Node3D, info: Dictionary) -> void:
 	# A dim violet lamp over the gap, trash and Marrow leaning in the dark.
 	K.light(root, ALLEY + Vector3(-0.6, 2.6, 0), VIOLET, 0.7, 3.5)
 	K.mesh(root, ALLEY + Vector3(-0.85, 0.35, 0.35), Vector3(0.6, 0.7, 0.5), Art.material("corrugated", Color(0.3, 0.32, 0.3)))
-	figure(root, ALLEY + Vector3(-0.6, 0, -0.2), 90.0)
+	_marrow(info, figure(root, ALLEY + Vector3(-0.6, 0, -0.2), 90.0))
 	K.interactable(info, "hush_alley", ALLEY + Vector3(0.6, 0, 0), "[F] Someone's leaning in the alley", [
 		"Some guy in a long coat in the gap by the arcade. He looks at me like he already knows my name.",
 		"He's still there. He's always there.",
@@ -166,7 +262,7 @@ static func _basement(root: Node3D, info: Dictionary) -> void:
 	K.light(root, b + Vector3(-2.2, 2.6, 2.0), Color(1.0, 0.7, 0.45), 0.35, 4.0)
 	# His chair behind the table, him in it, facing her armchair.
 	K.mesh(root, b + Vector3(0.6, 0.45, -1.5), Vector3(0.6, 0.9, 0.6), Art.material("fabric", Color(0.15, 0.13, 0.16)))
-	figure(root, b + Vector3(0.6, 0.0, -1.45), 0.0, true)
+	_marrow(info, figure(root, b + Vector3(0.6, 0.0, -1.45), 0.0, true))
 	# Her armchair: low, sagging, facing his table.
 	var arm := Art.material("fabric", Color(0.35, 0.3, 0.22))
 	K.mesh(root, WAKE + Vector3(0, 0.25, 0.1), Vector3(1.0, 0.5, 0.9), arm)
@@ -190,6 +286,68 @@ static func _basement(root: Node3D, info: Dictionary) -> void:
 		"Marrow: \"Sit. Stay as long as you like. You always do.\"",
 	], 2.0)
 	info["interactables"].back()["shop"] = "hush"
+	_glass_works(root, info)
+
+
+## Marrow's figures, so the hub can take him away once the Chorus breaks (glass.gd).
+static func _marrow(info: Dictionary, f: Node3D) -> void:
+	if not info.has("marrow_figures"):
+		info["marrow_figures"] = []
+	info["marrow_figures"].append(f)
+
+
+## The Chorus (glass.gd), along the basement's east wall: his ledger on a
+## lectern and three vats of Glass brewing, only there once he's begun dosing
+## the town (the run manager hides them till then: info["glass_nodes"]).
+static func _glass_works(root: Node3D, info: Dictionary) -> void:
+	var nodes := {}
+	var lectern := Node3D.new()
+	lectern.position = LEDGER
+	root.add_child(lectern)
+	K.mesh(lectern, Vector3(0, 0.5, 0), Vector3(0.45, 1.0, 0.4), Art.material("wood", Color(0.35, 0.26, 0.2)))
+	K.mesh(lectern, Vector3(0, 1.04, 0), Vector3(0.5, 0.06, 0.38), Art.material("canvas", Color(0.88, 0.84, 0.72)), Vector3(-15, 0, 0))
+	K.mesh(lectern, Vector3(0.12, 1.08, 0.02), Vector3(0.12, 0.02, 0.08), Art.material("alloy", Color(0.85, 0.3, 0.25)))  # the colony's seal
+	nodes["ledger"] = lectern
+	K.interactable(info, "glass_ledger", LEDGER + Vector3(-0.6, 0, 0), "[F] Marrow's ledger", [LEDGER_TEXT], 1.6)
+	info["interactables"].back()["glass"] = "ledger"
+	for i in VATS.size():
+		var vat := Node3D.new()
+		vat.position = VATS[i]
+		root.add_child(vat)
+		K.mesh(vat, Vector3(0, 0.08, 0), Vector3(0.9, 0.16, 0.9), Art.material("gunmetal", Color(0.2, 0.2, 0.22)))
+		var glow := MeshInstance3D.new()
+		var tank := CylinderMesh.new()
+		tank.top_radius = 0.34
+		tank.bottom_radius = 0.34
+		tank.height = 1.3
+		glow.mesh = tank
+		var mat := StandardMaterial3D.new()
+		mat.albedo_color = Color(0.55, 0.25, 0.85, 0.75)
+		mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		mat.emission_enabled = true
+		mat.emission = VIOLET
+		mat.emission_energy_multiplier = 1.6
+		glow.material_override = mat
+		glow.position.y = 0.81
+		glow.name = "Tank"
+		vat.add_child(glow)
+		K.mesh(vat, Vector3(0, 1.5, 0), Vector3(0.75, 0.08, 0.75), Art.material("gunmetal", Color(0.25, 0.25, 0.27)))
+		var shards := Node3D.new()  # what's left once she's smashed it
+		shards.name = "Shards"
+		shards.visible = false
+		vat.add_child(shards)
+		for k in 6:
+			var a := k * TAU / 6.0
+			K.mesh(shards, Vector3(cos(a) * 0.3, 0.2 + 0.1 * (k % 2), sin(a) * 0.3), Vector3(0.05, 0.3 + 0.1 * (k % 3), 0.12),
+					Art.material("alloy", VIOLET), Vector3(20 * (k % 2), a * 57.0, 15))
+		K.mesh(shards, Vector3(0, 0.17, 0), Vector3(1.2, 0.01, 1.0), Art.material("fabric", Color(0.45, 0.2, 0.65)))
+		var id: String = Glass.VAT_IDS[i]
+		nodes[id] = vat
+		var front: Vector3 = (BASEMENT - VATS[i]) * Vector3(1, 0, 1)
+		K.interactable(info, "glass_" + id, VATS[i] + front.normalized() * 0.8, "[F] Smash the vat", [VAT_LOCKED_LINE], 1.4)
+		info["interactables"].back()["glass"] = id
+	K.light(root, VATS[1] + Vector3(-0.5, 1.8, 0), VIOLET, 0.9, 4.0)
+	info["glass_nodes"] = nodes
 
 
 ## Marrow: a tall figure in a long dark coat and a deep hood, a violet ember at

@@ -495,6 +495,12 @@ static func _bedroom(root: Node3D, info: Dictionary) -> void:
 		"They watched me cry about Dad and decided I was weak.",
 		"Fine. I'll build my own titan and win their war anyway.",
 	], 2.0)
+	# The cheat box (cheat_screen.gd): a dented ammo crate by the rug, gold trim.
+	var cheat := Vector3(-10.6, y, -10.6)
+	K.metal(root, cheat + Vector3(0, 0.3, 0), Vector3(0.9, 0.6, 0.55))
+	K.glow(root, cheat + Vector3(0, 0.61, 0), Vector3(0.92, 0.03, 0.57), Color(1.0, 0.8, 0.3))
+	K.interactable(info, "cheat_box", cheat + Vector3(0.9, 0.1, 0), "[F] Open the cheat box", [], 1.8)
+	info["interactables"].back()["screen"] = "cheats"
 	# The wardrobe at the top of the stairs, its back to the hall.
 	Wardrobe.build(root, info, y, LOFT.end.y, -8.0)
 	# A rug, and a beanbag by the rail.

@@ -46,6 +46,7 @@ const FAMILY_DIR := "res://dialogue/family/"
 const Gifts := preload("res://scripts/run/gifts.gd")
 const NpcIdles := preload("res://scripts/hub/npc_idles.gd")
 const ContentRating := preload("res://scripts/radio/content_rating.gd")
+const Vices := preload("res://scripts/hub/vices.gd")
 ## Where the gift bag lives in the save file.
 const BAG := "_bag"
 ## How long a line stays up after it's all been said.
@@ -661,6 +662,8 @@ func _next() -> void:
 		return
 	var speaker: String = lines[index][0]
 	var text: String = lines[index][1]
+	if speaker == "eco":  # deep in Marrow's Hold her words drift off (vices.gd)
+		text = Vices.confuse(text, randf(), randi())
 	if lines[index].size() > 2 and npc.has_method("mood"):
 		npc.mood(lines[index][2])
 		if "kiss" in lines[index][2]:

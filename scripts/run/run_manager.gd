@@ -68,6 +68,12 @@ const StimScreen := preload("res://scripts/hub/stim_screen.gd")
 const HushScreen := preload("res://scripts/hub/hush_screen.gd")
 const HushDen := preload("res://scripts/hub/hush_den.gd")
 const DrunkScreen := preload("res://scripts/ui/drunk_screen.gd")
+const HushPull := preload("res://scripts/hub/hush_pull.gd")
+const SuperHushScene := preload("res://scripts/hub/super_hush_scene.gd")
+const CheatScreen := preload("res://scripts/hub/cheat_screen.gd")
+const Glass := preload("res://scripts/hub/glass.gd")
+const Tether := preload("res://scripts/run/tether.gd")
+const ChorusScene := preload("res://scripts/hub/chorus_scene.gd")
 const Soundscape := preload("res://scripts/soundscape.gd")
 const SFX := preload("res://scripts/sfx.gd")
 const Weather := preload("res://scripts/game/weather.gd")
@@ -108,6 +114,17 @@ const OPHELIA_NOTICES := [
 	"Ophelia: \"Your eyes are doing that purple thing again. Don't tell me it's nothing.\"",
 	"Ophelia: \"I waited up. Again. Whatever it is, I'm not going anywhere. Just... come back.\"",
 ]
+## When Marrow's Hold is first full: the Hush courier suit (vices.gd hush_suit).
+## When Marrow's Hold reaches 60: the Hush gun finish (vices.gd hush_finish).
+## The Chorus (glass.gd): smashing his vats, and the alley once he's gone.
+const VAT_LINES := [
+	"Eco brings her wrench down on the vat. Glass everywhere, violet and steaming. Two to go.",
+	"Another one bursts across the floor. Her eyes sting. One to go.",
+	"The last vat splits open. Somewhere upstairs a door bangs. He's coming down. Face him at his table.",
+]
+const MARROW_GONE := "The gap by the arcade is empty. Just a violet lamp, and a coat he left behind."
+const HUSH_FINISH_LINE := "Marrow presses a tin of violet resin lacquer into her hand. Marrow: \"For your little gun. So you think of me every time you pull the trigger.\" New finish at the gunsmith's bench: Hush."
+const HUSH_SUIT_LINE := "A parcel on her bed, wrapped in violet paper. Marrow's courier suit, cut to her size. A card: \"For my best runner. Wear it.\" It's in her wardrobe."
 const MOM_SMELLS := [
 	"Mom: \"You smell like the Halo's back step. Don't lie to me, I can smell it.\"",
 	"Mom: \"Smoke in your hair again. Your father quit for you, you know.\"",
@@ -193,6 +210,19 @@ var armory: Armory
 ## A BenchScreen, the GunsmithScreen at the gunsmith bench, the SuitScreen at
 ## the suit locker, or the SalonScreen.
 var bench = null
+## Marrow's pull at full Hold (hush_pull.gd): walks her to his basement.
+var hush_pull: HushPull
+## The cheat box's Super Hush, played out (super_hush_scene.gd).
+var super_hush_scene: SuperHushScene
+## Marrow's Glass on runs (focus, his orders: tether.gd) and the Chorus's end (chorus_scene.gd).
+var tether: Tether
+var chorus_scene: ChorusScene
+## What she grabbed by mistake for this run, deep in Marrow's Hold
+## (vices.gd wrong_gear): put right when she gets home.
+var mixed_up := {}
+var gear_rng := RandomNumberGenerator.new()
+## Rolls for her lines drifting off (vices.gd confuse).
+var drift_rng := RandomNumberGenerator.new()
 ## Lays out loot and rolls drops, seeded per zone from the run seed so loot
 ## never shifts the run's own rolls.
 var loot_rng := RandomNumberGenerator.new()
@@ -207,6 +237,7 @@ static func ensure_input_actions() -> void:
 		"interact": [KEY_F], "choice_1": [KEY_1], "choice_2": [KEY_2], "choice_3": [KEY_3],
 		"choice_skip": [KEY_X], "titan_core": [KEY_V], "titan_dash": [KEY_SHIFT],
 		"run_restart": [KEY_ENTER], "give_gift": [KEY_G], "smoke": [KEY_B], "stim": [KEY_N],
+		"focus": [KEY_L], "tune_out": [KEY_K],
 	}
 	for action in keys:
 		if InputMap.has_action(action):
@@ -226,6 +257,8 @@ static func ensure_input_actions() -> void:
 func _ready() -> void:
 	# The manager keeps running while the salvage choice pauses the world.
 	process_mode = Node.PROCESS_MODE_ALWAYS
+	gear_rng.randomize()
+	drift_rng.randomize()
 	add_to_group("loot_collector")
 	ensure_input_actions()
 	# Normally the title screen did these; played straight from the editor, do them here.
@@ -233,6 +266,15 @@ func _ready() -> void:
 	_use_save_slot()
 	armory = Armory.open(armory_path)
 	Vices.open(armory_path.get_basename() + "_vices.cfg")
+	Glass.open(Glass.path_for(Vices.save_path))
+	tether = Tether.new(self)
+	add_child(tether)
+	chorus_scene = ChorusScene.new(self)
+	add_child(chorus_scene)
+	hush_pull = HushPull.new(self)
+	add_child(hush_pull)
+	super_hush_scene = SuperHushScene.new(self)
+	add_child(super_hush_scene)
 	npc_talk = NpcTalk.new()
 	npc_talk.save_path = npc_path
 	add_child(npc_talk)
@@ -331,12 +373,54 @@ func start_run(seed_value: int, uncharted := 0, level := "") -> void:
 		w.set("softness", Family.softness(npc_talk.state))
 	load_zone(0)
 	Vices.run_started()
+	tether.stop()
+	player.refresh_glass()
+	var line := ""
 	if Vices.hush() > 0.0:
-		hud.toast("The Hush settles in. Everything goes quiet, and sharp, and violet.", HUB_LINE_SECONDS)
+		line = "The Hush settles in. Everything goes quiet, and sharp, and violet."
+	elif Vices.in_withdrawal():
+		line = Vices.withdrawal_line()
 	elif Vices.craving() > 0.0:
-		hud.toast(Vices.craving_line(), HUB_LINE_SECONDS)
+		line = Vices.craving_line()
 	elif Vices.effect() > 0.0:
-		hud.toast(Vices.run_line(), HUB_LINE_SECONDS)
+		line = Vices.run_line()
+	if _mix_up_gear():
+		line = (line + "\n" if line != "" else "") + Vices.WRONG_GEAR_LINE + "\n" + _mixed_up_text()
+	if Glass.tethered():
+		line = (line + "\n" if line != "" else "") + "The earpiece clicks on. Marrow: \"I'm here. Do as I say out there.\""
+	if line != "":
+		hud.toast(line, HUB_LINE_SECONDS + (2.0 if not mixed_up.is_empty() else 0.0))
+
+
+## Deep in Marrow's Hold she can head out with the wrong gun, knife or kit
+## (vices.gd wrong_gear): on her for this run only. Returns whether she did.
+func _mix_up_gear() -> bool:
+	if not mixed_up.is_empty():
+		equip_loadout()
+	var guns: Array = Armory.WEAPONS.keys().filter(func(id): return armory.owns_weapon(id))
+	mixed_up = Vices.wrong_gear(gear_rng, guns, armory.equipped, Armory.KNIVES.keys(), armory.knife,
+			armory.suit_tier, armory.suit_weight, Armory.SUIT_WEIGHTS.keys())
+	if mixed_up.is_empty():
+		return false
+	if mixed_up.has("weapon"):
+		player.get_node("Head/Camera3D/Weapon").equip(armory.weapon_profile(mixed_up["weapon"]))
+	if mixed_up.has("knife"):
+		player.get_node("Head/Camera3D/Knife").set_model(mixed_up["knife"])
+	if mixed_up.has("weight"):
+		player.apply_suit(TownShops.boost(armory.suit_profile(-1, mixed_up["weight"])))
+	return true
+
+
+## What she's got on her by mistake, for the toast.
+func _mixed_up_text() -> String:
+	var bits := []
+	if mixed_up.has("weapon"):
+		bits.append("%s (she picked %s)" % [Armory.WEAPONS[mixed_up["weapon"]]["name"], Armory.WEAPONS[armory.equipped]["name"]])
+	if mixed_up.has("knife"):
+		bits.append("%s knife (she picked %s)" % [Armory.KNIVES[mixed_up["knife"]]["name"], Armory.KNIVES[armory.knife]["name"]])
+	if mixed_up.has("weight"):
+		bits.append("%s kit (she picked %s)" % [Armory.SUIT_WEIGHTS[mixed_up["weight"]]["name"], Armory.SUIT_WEIGHTS[armory.suit_weight]["name"]])
+	return "Wrong gear: " + ", ".join(bits) + "."
 
 
 func _fresh_level(level_name: String) -> void:
@@ -397,6 +481,15 @@ func enter_hub() -> void:
 	dress_hub()
 	place_player(zone_info["spawn"])
 	tutorial.start_level("hub")
+	hush_pull.reset()
+	super_hush_scene.reset()
+	chorus_scene.reset()
+	tether.stop()
+	player.refresh_glass()
+	_dress_chorus()
+	if not mixed_up.is_empty():  # home: her own gear again
+		mixed_up = {}
+		equip_loadout()
 	if Vices.trance and Vices.allowed() and zone_info.has("hush"):
 		_wake_at_marrows()
 	elif last_result != "":
@@ -485,10 +578,18 @@ func _physics_process(delta: float) -> void:
 	if not get_tree().paused:
 		Vices.tick(delta)
 		_vice_keys()
+		if phase in [Phase.ZONE, Phase.ARENA, Phase.FIGHT]:
+			hush_pull.run_tick(delta, titan == null or not titan.piloted)
+			tether.run_tick(delta, (titan == null or not titan.piloted) and not hush_pull.busy())
+		elif tether.active():
+			tether.stop()
+	elif tether.active():
+		tether.stop()  # the world paused: no slow-mo, no order running
 	player.strolling = phase == Phase.HUB and not on_training_ground()
 	if phase in [Phase.ZONE, Phase.ARENA] and not get_tree().paused:
 		BattleDamage.tick(delta, player)
 	BattleDamage.apply()
+	RenderingServer.global_shader_parameter_set("eco_glass", Glass.look())
 	match phase:
 		Phase.ZONE:
 			_zone_tick(delta)
@@ -514,8 +615,10 @@ func _physics_process(delta: float) -> void:
 
 func _hub_tick(delta: float) -> void:
 	if bench != null:
-		if Input.is_action_just_pressed("interact") or Input.is_action_just_pressed("ui_cancel"):
+		if Input.is_action_just_pressed("interact") or Input.is_action_just_pressed("ui_cancel") or bench.get("close_now") == true:
 			close_bench()
+		return
+	if super_hush_scene.busy() or chorus_scene.busy():
 		return
 	if garage != null:
 		if Input.is_action_just_pressed("interact") or Input.is_action_just_pressed("ui_cancel"):
@@ -529,6 +632,18 @@ func _hub_tick(delta: float) -> void:
 	if player.global_position.y < float(zone_info["floor_y"]) - KILL_DEPTH:
 		place_player(zone_info["spawn"])
 		return
+	var roaming := rest_spot.is_empty() and not npc_talk.active() and not course_armed \
+			and player.global_position.y > HushDen.BASEMENT.y + 5.0
+	hush_pull.tick(delta, roaming)
+	if hush_pull.busy():
+		return
+	if Vices.hush_suit_new and Vices.allowed():
+		Vices.hush_suit_new = false
+		Vices.hush_finish_new = false
+		hud.toast(HUSH_SUIT_LINE, HUB_LINE_SECONDS + 3.0)
+	elif Vices.hush_finish_new and Vices.allowed():
+		Vices.hush_finish_new = false
+		hud.toast(HUSH_FINISH_LINE, HUB_LINE_SECONDS + 3.0)
 	if not rest_spot.is_empty():
 		_rest_tick()
 		return
@@ -571,6 +686,15 @@ func _hub_tick(delta: float) -> void:
 		else:
 			hud.toast("Not yet. Clear %s first." % Levels.title(Levels.spec(id)["needs"]), HUB_LINE_SECONDS)
 		return
+	if spot.has("glass"):
+		_glass_spot(spot)
+		return
+	if spot.get("shop", "") == "hush" and Vices.allowed() and Glass.broken:
+		hud.toast(MARROW_GONE, HUB_LINE_SECONDS)
+		return
+	if spot["id"] == "marrow" and Vices.allowed() and Glass.can_confront():
+		chorus_scene.play()
+		return
 	var vice_shop: bool = spot.get("shop", "") in ["bar", "stims", "hush"] and Vices.allowed()
 	if spot.has("date") and (not vice_shop or date_ready(spot)) and date_at(spot):
 		return
@@ -579,6 +703,11 @@ func _hub_tick(delta: float) -> void:
 		return
 	if vice_shop:
 		open_bench(spot["shop"])
+		return
+	if spot.has("errand"):
+		if Vices.errand_reached(spot["errand"]):
+			hud.toast(spot["lines"][0], HUB_LINE_SECONDS)
+			SFX.play(player, "cloth_2", -4.0)
 		return
 	if spot.get("lab_blast", false):
 		# the lab's blast button: a charge goes off down the room, its shock reaching her
@@ -608,7 +737,7 @@ func _hub_tick(delta: float) -> void:
 	var lines: Array = spot["lines"]
 	var n: int = hub_reads.get(spot["id"], 0)
 	hub_reads[spot["id"]] = n + 1
-	hud.toast(lines[n % lines.size()], HUB_LINE_SECONDS)
+	hud.toast(Vices.confuse(lines[n % lines.size()], drift_rng.randf(), n), HUB_LINE_SECONDS)
 
 
 ## What using a hub spot sounds like (benches make theirs in open_bench).
@@ -862,6 +991,8 @@ func open_bench(kind: String) -> void:
 		bench = StimScreen.new(armory)
 	elif kind == "hush":
 		bench = HushScreen.new(armory, npc_talk.state)
+	elif kind == "cheats":
+		bench = CheatScreen.new(armory, npc_talk)
 	else:
 		bench = GunsmithScreen.new(armory) if kind == "gunsmith" else BenchScreen.new(armory, kind)
 	bench.set_meta("kind", kind)
@@ -895,6 +1026,7 @@ func close_bench() -> void:
 		if bench.kind == "noodles" and TownShops.MEALS.has(TownShops.meal()) and not bench.bought.is_empty():
 			hud.toast("Fed: %s. It lasts the next run." % TownShops.MEALS[TownShops.meal()]["name"], HUB_LINE_SECONDS)
 	var kind: String = bench.get_meta("kind", "")
+	var inject: bool = bench.get("inject") == true
 	bench.queue_free()
 	bench = null
 	get_tree().paused = false
@@ -904,6 +1036,8 @@ func close_bench() -> void:
 	pilot_hud.visible = true
 	equip_loadout()
 	dress_hub()
+	if inject:
+		super_hush_scene.play()
 
 
 ## Puts the gun picked at the weapon rack, upgraded and fitted, in Eco's hand,
@@ -1160,6 +1294,10 @@ func nearest_hub_spot() -> Dictionary:
 	var best_d := INF
 	var pos := player.global_position
 	for spot in zone_info.get("interactables", []):
+		if spot.has("errand") and (spot["errand"] != Vices.errand or Vices.errand_done or not Vices.allowed()):
+			continue  # Marrow's errand spots are only there while she's on one
+		if spot.has("glass") and (not Glass.ledger_there() or spot["glass"] in Glass.vats):
+			continue  # the Chorus's ledger and vats (glass.gd)
 		var at: Vector3 = spot["pos"]
 		var d := Vector2(pos.x - at.x, pos.z - at.z).length()
 		if d < float(spot["range"]) and absf(pos.y - at.y) < 2.5 and d < best_d:
@@ -1535,6 +1673,8 @@ func end_run(title: String, reason: String) -> void:
 		armory.mark_cleared(run.level if run.level != "" else "tutorial")
 		_rescue_bonus(run.level)
 	Vices.run_over()
+	Glass.run_over()
+	tether.stop()
 	var haul := Armory.run_haul(run.materials, won)
 	armory.bank(haul)
 	# The meal from Seven Suns was for this run.
@@ -1565,7 +1705,8 @@ func end_run(title: String, reason: String) -> void:
 ## B lights a smoke, N jabs a stim: on foot, in the hub or on a run, with
 ## nothing else open.
 func _vice_keys() -> void:
-	if not Vices.allowed() or bench != null or garage != null or hub_piloting or npc_talk.active():
+	if not Vices.allowed() or bench != null or garage != null or hub_piloting or npc_talk.active() or hush_pull.busy() \
+			or super_hush_scene.busy() or chorus_scene.busy() or tether.busy():
 		return
 	if not (phase == Phase.HUB or in_run()) or (titan != null and titan.piloted):
 		return
@@ -1588,6 +1729,44 @@ func _vice_keys() -> void:
 			hud.toast("No stims on your belt. Sal's side hatch, in town.", 2.5)
 
 
+## His ledger or one of his vats in the basement (glass.gd, hush_den.gd).
+func _glass_spot(spot: Dictionary) -> void:
+	var id: String = spot["glass"]
+	if id == "ledger":
+		Glass.read_ledger()
+		hud.toast(spot["lines"][0], HUB_LINE_SECONDS + 7.0)
+		SFX.play(player, "paper_1", -6.0)
+	elif not Glass.ledger:
+		hud.toast(spot["lines"][0], HUB_LINE_SECONDS)
+	elif Glass.smash(id):
+		hud.toast(VAT_LINES[Glass.VAT_IDS.size() - Glass.vats_left() - 1], HUB_LINE_SECONDS + 1.5)
+		SFX.play(player, "glass_break", -2.0)
+		_dress_chorus()
+
+
+## Shows the Chorus as far as it's got: his ledger and vats (smashed or not),
+## Marrow himself (gone once it's broken) and which townsfolk are his.
+func _dress_chorus() -> void:
+	var nodes: Dictionary = zone_info.get("glass_nodes", {})
+	for id: String in nodes:
+		var n: Node3D = nodes[id]
+		n.visible = Glass.ledger_there()
+		if id != "ledger":
+			n.get_node("Tank").visible = not id in Glass.vats
+			n.get_node("Shards").visible = id in Glass.vats
+	for f: Node3D in zone_info.get("marrow_figures", []):
+		f.visible = not (Glass.broken and Glass.allowed())
+	var folk := zone_root.get_node_or_null("Townsfolk") if zone_root != null else null
+	if folk != null:
+		folk.chorus_refresh()
+
+
+## The Chorus scene ended (free or not): the hub catches up.
+func chorus_changed() -> void:
+	player.refresh_glass()
+	_dress_chorus()
+
+
 ## After a run on Hush (or with his Hold deep): she comes to at Marrow's
 ## instead of at the temple: locked in her own room while his Hold is shallow,
 ## in his armchair (short his tab) once it's deeper (hush_den.gd wake()).
@@ -1602,6 +1781,14 @@ func _wake_at_marrows() -> void:
 	if tab > 0:
 		armory.stash["scrap"] = armory.amount("scrap") - tab
 		armory.save()
+	if Vices.begging:
+		# she walked off a run in withdrawal to beg him: another chance
+		Vices.begging = false
+		var id := HushDen.pick_errand()
+		Vices.give_errand(id)
+		place_player(HushDen.ARRIVE)
+		hud.toast(HushDen.BEG_LINES[Vices.wakes % HushDen.BEG_LINES.size()] + "\n" + HushDen.ERRANDS[id]["task"], 10.0)
+		return
 	hud.toast(w["line"] + ("  (-%d scrap)" % tab if tab > 0 else ""), 6.0)
 
 
@@ -1643,8 +1830,16 @@ func _vices_text() -> String:
 	var parts := []
 	if Vices.state_name() != "":
 		parts.append(Vices.state_name().to_upper())
+	if Glass.state_name() != "":
+		parts.append(Glass.state_name().to_upper())
 	if Vices.pockets_text() != "":
 		parts.append(Vices.pockets_text())
+	if Glass.pockets_text() != "":
+		parts.append(Glass.pockets_text())
+	if tether.hud_text() != "":
+		parts.append(tether.hud_text())
+	if Vices.errand != "" and Vices.allowed():
+		parts.append("MARROW: " + ("go back to him" if Vices.errand_done else HushDen.ERRANDS[Vices.errand]["short"]))
 	return "" if parts.is_empty() else "    " + "    ".join(parts)
 
 
@@ -1671,6 +1866,10 @@ func _update_hud() -> void:
 			status += "    %s" % Vices.state_name().to_upper()
 		if Vices.pockets_text() != "":
 			status += "    %s" % Vices.pockets_text()
+		if Glass.state_name() != "":
+			status += "    %s" % Glass.state_name().to_upper()
+		if Glass.pockets_text() != "":
+			status += "    %s" % Glass.pockets_text()
 		hud.status_label.text = status + "\nHead out from the poster outside or the mission table in the hall. F looks at things and works the benches."
 		hud.prompt_label.text = _prompt()
 		hud.crosshair.visible = hub_piloting
@@ -1704,7 +1903,7 @@ func _update_hud() -> void:
 func _prompt() -> String:
 	match phase:
 		Phase.HUB:
-			if hub_piloting:
+			if hub_piloting or hush_pull.busy() or super_hush_scene.busy() or chorus_scene.busy():
 				return ""
 			if hub_titan != null and hub_titan.dropping:
 				return "Titanfall inbound"
@@ -1726,6 +1925,12 @@ func _prompt() -> String:
 					return "[F] The Rusted Halo: drinks, smokes and Scrapjack"
 				if spot.get("shop", "") == "stims" and Vices.allowed():
 					return "[F] Sal's side hatch: stims"
+				if spot.has("glass") and Vices.allowed():
+					return "[F] Marrow's ledger" if spot["glass"] == "ledger" else ("[F] Smash the vat" if Glass.ledger else "[F] Violet vats, bubbling")
+				if spot.get("shop", "") == "hush" and Vices.allowed() and Glass.broken:
+					return "Nobody here anymore"
+				if spot["id"] == "marrow" and Vices.allowed() and Glass.can_confront():
+					return "[F] Face Marrow"
 				if spot["id"] == "hush_alley" and Vices.allowed():
 					return "[F] Marrow: Hush"
 				if spot["id"] == "cinema_cellar" and Vices.allowed():

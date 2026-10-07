@@ -19,6 +19,12 @@ extends "res://scripts/ps2/ps2_model.gd"
 @export var strut_speed := 1.55
 ## How much strut to layer on the walk (1 = as tuned, 0 = a plain walk).
 @export_range(0.0, 2.0) var strut := 1.0
+## How far her posture has slumped (0..1, _slump): below 0 it follows Marrow's
+## Hold (vices.gd slump()) on the player's own Eco; tools set it directly.
+@export_range(-1.0, 1.0) var slump := -1.0
+## Her right hand up at the side of her neck, head tipped away (0..1, _inject):
+## the cheat box's Super Hush injector (super_hush_scene.gd) sets it.
+@export_range(0.0, 1.0) var inject := 0.0
 ## Seconds to blend from one animation into the next (slides and falls take half).
 @export var anim_blend := 0.25
 ## Play the walk and run strides backwards (she's backpedalling; set by
@@ -100,7 +106,7 @@ var clung := 0
 ## every suit piece hidden; each comes in a Teen and a Mature version, picked
 ## by the content rating (scripts/radio/content_rating.gd, O key) as it changes.
 @export_enum("suit", "suit_ghost", "suit_racer", "suit_harness", "suit_techwear", "suit_shade", "suit_homemade",
-		"suit_ophelia", "suit_vesper", "suit_vesper_open", "skater", "y2k", "date") var outfit := "suit":
+		"suit_ophelia", "suit_vesper", "suit_vesper_open", "suit_hush", "skater", "y2k", "date") var outfit := "suit":
 	set(value):
 		outfit = value if value in OUTFITS else "suit"
 		if is_inside_tree():
@@ -233,11 +239,15 @@ const KIT_FACE := {
 ## suit but her own has its bodysuit material, and its own pieces in the glb as
 ## base_<style>_* (a jacket, cowl, vest or skirt; harness and the vesper looks
 ## have none). The vesper looks are Vesper Kane's clothes (a concept character,
-## Eco wears them for now): Mature rating only (MATURE_OUTFITS).
+## Eco wears them for now): Mature rating only (MATURE_OUTFITS). The Hush
+## courier suit (Marrow's runner) is the shade catsuit dyed violet under her
+## skater hoodie, sneakers and some of the mechanic kit's gear, all re-dyed
+## (STYLE_GEAR): it's her reward for Marrow's Hold reaching full (vices.gd
+## hush_suit), and only in her wardrobe once she's earned it (wardrobe.gd).
 const OUTFITS := ["suit", "suit_ghost", "suit_racer", "suit_harness", "suit_techwear", "suit_shade", "suit_homemade",
-		"suit_ophelia", "suit_vesper", "suit_vesper_open", "skater", "y2k", "date"]
+		"suit_ophelia", "suit_vesper", "suit_vesper_open", "suit_hush", "skater", "y2k", "date"]
 ## Outfits only offered under the Mature content rating (wardrobe.gd).
-const MATURE_OUTFITS := ["suit_vesper", "suit_vesper_open"]
+const MATURE_OUTFITS := ["suit_vesper", "suit_vesper_open", "suit_hush"]
 const STYLE_BODY := {
 	"suit_ghost": preload("res://assets/materials/eco/eco_v_body_ghost.tres"),
 	"suit_racer": preload("res://assets/materials/eco/eco_v_body_racer.tres"),
@@ -248,6 +258,29 @@ const STYLE_BODY := {
 	"suit_ophelia": preload("res://assets/materials/eco/eco_v_body_ophelia.tres"),
 	"suit_vesper": preload("res://assets/materials/eco/eco_v_body_vesper.tres"),
 	"suit_vesper_open": preload("res://assets/materials/eco/eco_v_body_vesper_open.tres"),
+	"suit_hush": preload("res://assets/materials/eco/eco_v_body_hush.tres"),
+}
+## Suit styles that wear pieces from elsewhere in the glb (her clothes, the
+## kits' gear) with no suit upgrade, re-dyed: style -> {"pieces": mesh names,
+## "hide": mesh name prefixes, "mats": {glb material name: its stand-in}}.
+const STYLE_GEAR := {
+	"hush": {
+		"pieces": ["outfit_skater_t_hoodie", "outfit_skater_any_hood", "outfit_skater_any_shoes",
+				"suit_t1m_toolpouch", "suit_t1m_wristcomp", "suit_t1m_belt"],
+		"hide": ["Boots", "Goggles"],
+		"mats": {
+			"eco_v_hoodie_skater": preload("res://assets/materials/eco/eco_v_hoodie_hush.tres"),
+			"eco_v_hoodie_skater_edge": preload("res://assets/materials/eco/eco_v_hoodie_hush_edge.tres"),
+			"eco_v_hoodie_skater_hood": preload("res://assets/materials/eco/eco_v_hoodie_hush_hood.tres"),
+			"eco_v_sneaker_skater": preload("res://assets/materials/eco/eco_v_sneaker_hush.tres"),
+			"eco_v_sneaker_skater_sole": preload("res://assets/materials/eco/eco_v_sneaker_hush_sole.tres"),
+			"eco_v_kit_canvas": preload("res://assets/materials/eco/eco_v_kit_canvas_hush.tres"),
+			"eco_v_kit_rubber": preload("res://assets/materials/eco/eco_v_kit_rubber_hush.tres"),
+			"eco_v_armor_glow": preload("res://assets/materials/eco/eco_v_armor_glow_hush.tres"),
+			"eco_v_armor_strap": preload("res://assets/materials/eco/eco_v_armor_strap_hush.tres"),
+			"eco_v_armor_edge": preload("res://assets/materials/eco/eco_v_armor_edge_hush.tres"),
+		},
+	},
 }
 ## Her clothes' body textures, by look() (<outfit>_t Teen, <outfit>_m Mature);
 ## their loose parts are the glb's outfit_<outfit>_<t|m|any>_* meshes.
@@ -301,6 +334,10 @@ var _stop_force := 1.0
 var _feet := {}
 var footfalls := {"L": 0, "R": 0}
 var _pose_weight := 0.0
+## How far into the trance walk she is (0..1, _trance_walk).
+var _trance_weight := 0.0
+## Her slump off duty, eased in (0..1, _slump).
+var _slump_weight := 0.0
 var _bones := {}
 ## What the strut changed last frame (bone -> [pose before, pose after]), so it
 ## can be undone when nothing re-posed the bone since (a paused animation).
@@ -473,7 +510,35 @@ func apply_suit() -> void:
 				elif m != null and m.resource_name == "eco_v_face":
 					mi.set_surface_override_material(i, face_material())
 		mi.set_instance_shader_parameter("trim_gold", 1.0 if legacy else 0.0)
+	_style_gear(STYLE_GEAR.get(style(), {}) if suited_ and suit_tier == 0 else {})
 	Extras.apply(self)  # her piercings, tattoos and accessories from Solace
+
+
+## Shows a suit style's borrowed pieces (STYLE_GEAR) in its colours, hides
+## what it leaves off, and puts every other style's borrowed pieces back as
+## they were.
+func _style_gear(gear: Dictionary) -> void:
+	var borrowed := []
+	for each: Dictionary in STYLE_GEAR.values():
+		borrowed.append_array(each["pieces"])
+	var mats: Dictionary = gear.get("mats", {})
+	for node in find_children("*", "MeshInstance3D", true, false):
+		var mi := node as MeshInstance3D
+		var mesh_name := String(mi.name)
+		for prefix: String in gear.get("hide", []):
+			if mesh_name.begins_with(prefix):
+				mi.visible = false
+		if not mesh_name in borrowed or mi.mesh == null:
+			continue
+		var worn: bool = mesh_name in gear.get("pieces", [])
+		if worn:
+			mi.visible = true
+		for i in mi.mesh.get_surface_count():
+			var m := mi.mesh.surface_get_material(i)
+			if worn and m != null and mats.has(m.resource_name):
+				mi.set_surface_override_material(i, mats[m.resource_name])
+			elif not mesh_name.begins_with("suit_t") or m == null or m.resource_name != "eco_v_armor":
+				mi.set_surface_override_material(i, null)
 
 
 ## Her clothes' body texture, or her suit style's bodysuit (null: the glb's
@@ -545,6 +610,8 @@ func _process(delta: float) -> void:
 	if _anim != null:
 		_animate()
 		_strut(delta)
+		if inject > 0.0:
+			_inject(inject)
 		_run_moves(delta)
 		_wall_lean(delta)
 		_brace_layer(delta)
@@ -670,15 +737,24 @@ func _strut(delta: float) -> void:
 		elif skeleton.get_bone_pose_rotation(i).is_equal_approx(undo[1]):
 			skeleton.set_bone_pose_rotation(i, undo[0])
 	_strut_undo.clear()
-	var off_duty := strolling() and strut > 0.0
+	var tranced: bool = _body != null and _body.get("entranced") == true
+	var off_duty := strolling() and strut > 0.0 and not tranced
 	var walking := off_duty and _anim.current_animation == "walk"
 	var standing := off_duty and _anim.current_animation == "idle" and not resting()
 	_strut_weight = move_toward(_strut_weight, 1.0 if walking else 0.0, delta * 4.0)
 	_pose_weight = move_toward(_pose_weight, 1.0 if standing else 0.0, delta * 2.0)
+	_trance_weight = move_toward(_trance_weight, 1.0 if tranced else 0.0, delta * 1.5)
+	if _trance_weight > 0.0:
+		_trance_walk(_trance_weight)
+	var slumped := slump if slump >= 0.0 else (Vices.slump() if _body != null else 0.0)
+	_slump_weight = move_toward(_slump_weight, slumped if off_duty and not resting() else 0.0, delta * 0.5)
 	if _strut_weight <= 0.0 and _pose_weight <= 0.0:
+		if _slump_weight > 0.0:
+			_slump(_slump_weight, 0.0)
 		return
-	var w := _strut_weight * strut
-	var p := _pose_weight * strut
+	# the deeper his Hold, the less of her old strut is left
+	var w := _strut_weight * strut * (1.0 - 0.65 * _slump_weight)
+	var p := _pose_weight * strut * (1.0 - 0.65 * _slump_weight)
 	# the walk's own phase: its right thigh swings forward with sin(t)
 	var t := 0.0
 	if _anim.current_animation == "walk" and _anim.current_animation_length > 0.0:
@@ -716,6 +792,64 @@ func _strut(delta: float) -> void:
 	_turn("forearm.L", Vector3.RIGHT, 10.0 * w + 6.0 * p)
 	_turn("hand.R", Vector3.BACK, 14.0 * (w + p))
 	_turn("hand.L", Vector3.BACK, -14.0 * (w + p))
+	if _slump_weight > 0.0:
+		_slump(_slump_weight, _strut_weight)
+
+
+## The injector at her neck: right arm raised and bent so the hand sits under
+## her jaw, head tipped to her left, shoulders braced. Laid over whatever she's
+## doing (the strut's undo takes it off again next frame).
+func _inject(k: float) -> void:
+	_turn("upperarm.R", Vector3.RIGHT, 22.0 * k)
+	_turn("upperarm.R", Vector3.BACK, -40.0 * k)
+	_turn("forearm.R", Vector3.RIGHT, 128.0 * k)
+	_turn("hand.R", Vector3.RIGHT, 20.0 * k)
+	_turn("head", Vector3.BACK, 14.0 * k)
+	_turn("chest", Vector3.RIGHT, -3.0 * k)
+
+
+## Marrow's Hold in her body off duty (vices.gd slump): her chest caves and
+## her shoulders round in, her head hangs low and a little to one side, her
+## arms hang close with the elbows soft and the hands curled in toward her,
+## like she's cold. `k` how far it's gone (0..1), `walking` how much she's
+## walking (the arms still swing a little).
+func _slump(k: float, walking: float) -> void:
+	_turn("spine", Vector3.RIGHT, -5.0 * k)
+	_turn("chest", Vector3.RIGHT, -7.0 * k)
+	_turn("head", Vector3.RIGHT, -9.0 * k)
+	_turn("head", Vector3.BACK, 5.0 * k)
+	_turn("upperarm.R", Vector3.BACK, 7.0 * k)
+	_turn("upperarm.L", Vector3.BACK, -7.0 * k)
+	_turn("upperarm.R", Vector3.RIGHT, 5.0 * k)  # shoulders rolled forward
+	_turn("upperarm.L", Vector3.RIGHT, 5.0 * k)
+	_turn("forearm.R", Vector3.RIGHT, (14.0 - 4.0 * walking) * k)
+	_turn("forearm.L", Vector3.RIGHT, (14.0 - 4.0 * walking) * k)
+	_turn("hand.R", Vector3.BACK, -8.0 * k)
+	_turn("hand.L", Vector3.BACK, 8.0 * k)
+
+
+## Marrow's trance (player.gd entranced): she walks like she's being led, stiff
+## and upright, chin lifted, head tipped a little to one side, arms hanging
+## dead at her sides with hardly any swing, hips quiet. `k` eases it in and out.
+func _trance_walk(k: float) -> void:
+	var t := 0.0
+	if _anim.current_animation == "walk" and _anim.current_animation_length > 0.0:
+		t = _anim.current_animation_position / _anim.current_animation_length * TAU
+	var sw := sin(t)
+	_turn("hips", Vector3.UP, -5.0 * sw * k)  # undo most of the walk's hip twist
+	_turn("chest", Vector3.UP, 4.0 * sw * k)
+	_turn("head", Vector3.RIGHT, 1.5 * k)
+	_turn("head", Vector3.BACK, 11.0 * k)
+	# arms: pulled in to her sides, the walk's swing (right arm forward with
+	# -sin t) mostly cancelled, elbows straight, hands slack
+	_turn("upperarm.R", Vector3.RIGHT, 14.0 * sw * k)
+	_turn("upperarm.L", Vector3.RIGHT, -14.0 * sw * k)
+	_turn("upperarm.R", Vector3.BACK, 6.0 * k)
+	_turn("upperarm.L", Vector3.BACK, -6.0 * k)
+	_turn("forearm.R", Vector3.RIGHT, -8.0 * k)
+	_turn("forearm.L", Vector3.RIGHT, -8.0 * k)
+	_turn("hand.R", Vector3.RIGHT, -12.0 * k)
+	_turn("hand.L", Vector3.RIGHT, -12.0 * k)
 
 
 ## How long the push-off into a run and the pull-up out of one last (seconds).

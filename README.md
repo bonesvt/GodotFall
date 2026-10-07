@@ -57,6 +57,8 @@ The preset keeps `dialogue/*` (plain text the hub people read at runtime) and le
 | F9 | Change look: Anime (default), PS3, old PS2 |
 | B | Light a smoke (Mature, if she has any) |
 | N | Jab a combat stim (Mature, if she has any) |
+| L | Crack a vial of Glass on a run: a few seconds of slow-mo focus (Mature, if she has any) |
+| K | Tune Marrow out when he gives an order in her ear (Mature) |
 
 ## The temple (hub)
 Pressing Play (`scenes/run.tscn`) opens in the hub: the small abandoned temple Eco hides
@@ -191,7 +193,70 @@ Under the Mature rating (Settings > Game), **F** at the Rusted Halo on Low Row o
   ends up there after every run. Clean runs loosen it. **X** in his screen walks
   away for good while his Hold is under 60, or at any Hold if Ophelia or Mom is at 50 or more,
   which wins some of their love back. Marrow is a primitive placeholder figure for now.
-- Test: `godot --headless --path . -s res://tests/vices_test.gd`
+- **Full Hold** (100): Marrow stops selling. Space at his screen asks for work: an errand in
+  town, eight of them, from leaving a packet in the arcade's bin to breaking into the Okoro house,
+  lifting Stitch & Steel's cash tin, stealing vials from the clinic, jimmying the recruitment
+  office's window or palming a jade cat off the Lucky Lantern's shelf (`hush_den.gd` ERRANDS; the
+  spot only shows while it's hers), and back at his table the errand pays one dose. Roaming the hub or town there's also a chance, every 40 s, that his pull takes her
+  (`scripts/hub/hush_pull.gd`): a close-up as the spirals in her eyes spin up, then the player
+  loses her and she walks in a trance, stiff and slow (`eco_model.gd` `_trance_walk`), down the
+  street, into the cellar and up to his table, where he hands her the errand. Once per trip home.
+  Go out on a run at full Hold without a dose and it's a run in **withdrawal**, hard mode: shaky
+  aim, a heavy haze, much slower healing, hits hurt 35% more, heavier feet, and every 45 s a chance
+  the swirls take her mid-fight (a close-up, guns down) and she walks off the job: the run ends
+  abandoned and she comes to at his table begging for another errand. Clean runs still loosen his
+  Hold; walking off a job to beg doesn't.
+- The violet spirals show in her eyes from the first dose on, deeper as his Hold grows, and her
+  irises glow softly, breathing.
+  Render the trance walk next to her strut: `xvfb-run -a godot --path . --fixed-fps 30
+  --rendering-driver opengl3 -s res://tools/eco/trance_shots.gd -- <dir>`.
+- **His Hold off the job** (`vices.gd` slump, confuse, wrong_gear): from Hold 20 her posture
+  slowly goes (`eco_model.gd` `_slump`): less strut, chest caved, head low and tipped, shoulders
+  rolled forward, arms close with the hands curled in. From 50 her lines (hub spots and her side
+  of conversations) can trail off mid-sentence into a lost thought, up to half of them at full
+  Hold. From 60 she can head out on a run with the wrong gun, knife or suit kit (20% rising to
+  60% at full Hold, only things she owns): a toast says what she grabbed, and her own gear is back
+  on her at home. Render the posture: `tools/eco/slump_shots.gd` (as the trance shots).
+- **Marrow's gifts** (Mature only, kept even after she walks away): at Hold 60 the **Hush
+  finish** for her guns at the gunsmith's bench: violet-black, violet glow in the seams and violet
+  tracers, with spirals of violet light on its sides that turn slowly, faster the deeper his Hold,
+  and jolt round with every shot (`ps2_surface.gdshaderinc` hypno_swirl, `weapon.gd` spin_hush;
+  render: `tools/pistol/hush_finish_shots.gd`). At full Hold, a parcel: his **Hush courier suit**,
+  the shade catsuit dyed violet-black under a cropped violet hoodie with glowing hems, sneakers and
+  a parcel pack (`eco_model.gd` STYLE_GEAR; `tools/eco/build_hush_suit.py` builds its textures).
+- **Glass** (`scripts/hub/glass.gd`, part 2): once his Hold has reached 60, Marrow's screen also
+  sells **Glass** (L, 60 scrap and 2 circuits a vial, three at most): Hush refined with colony combat
+  tech. On a run **L** cracks one: 2.5 real seconds with the world at 35% speed, a violet tint and
+  her shots doing 25% more. Each vial crystallises her a step (six at most): violet crystal facets
+  with glowing seams creep over her skin (`eco_toon.gdshaderinc`, the `eco_glass` global) and every
+  step takes 6% of her max health (`player.gd` refresh_glass). A run without Glass wears a step
+  off. Each vial tightens his Hold by 5.
+- **Tether** (`scripts/run/tether.gd`): the first vial comes with an earpiece. On runs Marrow gives
+  an order every 45 seconds (the first after 20): kill three in 20 s, don't get hit for 15 s, keep
+  moving for 12 s, or crack a vial. Doing it pays 15 scrap and patches her up (his Hold +2);
+  failing, or tuning him out with **K**, gets her 2.5 s frozen in the swirls (his Hold -3).
+- **Chorus**: Marrow is the colony's supplier and Solace is the real customer. After 3, 6 and 10
+  vials he has 3, 6 and then all 10 townsfolk: violet spirals in their eyes, slower steps and
+  flat, pleasant lines while the others worry about them (`townsfolk.gd` chorus_refresh). His
+  basement gets a ledger under a colony seal and three vats of Glass (`hush_den.gd`). Read the
+  ledger, smash the vats, then **Face Marrow** at his table (`scripts/hub/chorus_scene.gd`): he
+  pulls her under three times and **F** in each window holds on (1.6 s, down to 0.9 s at full
+  Hold). Hold on every time and it breaks: his Hold and her glass gone, the town wakes up and
+  Marrow runs for good (his alley is empty). Miss one and she wakes in his chair, Hold +20, the
+  vats brewing again.
+- Tests: `godot --headless --path . -s res://tests/vices_test.gd`, `tests/hush_pull_test.gd`,
+  `tests/hold_effects_test.gd`, `tests/glass_test.gd`
+
+### Cheat box
+A dented ammo crate with a gold trim by the rug in Eco's loft (`scripts/hub/cheat_screen.gd`).
+**F** opens it: **1** maxes every material (9999), **2** maxes every relationship (Ophelia's
+affection, Mom's and Biggie's bond), **3** unlocks every piercing, tattoo and accessory (they land
+taken off; put them on at Ink & Iron and Stitch & Steel, Mature ones under Mature), **4** is
+Super Hush: Marrow's Hold straight to full (Mature only). Super Hush plays a short scene
+(`scripts/hub/super_hush_scene.gd`): she finds an injector under the crate's false bottom, puts it
+to her neck, the view floods violet, a close-up pushes in on her spiralling eyes while Marrow's
+voice finds her, and she comes to with his Hold full. Test: `tests/cheat_test.gd` (the scene:
+`tests/hold_effects_test.gd`; stills: `tools/hub/super_hush_shots.gd`).
 
 ### Workbenches and materials
 Out on runs you collect four materials, and the hub's workbenches spend them:

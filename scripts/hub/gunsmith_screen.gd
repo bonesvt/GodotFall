@@ -290,7 +290,7 @@ func _options_for(p: Dictionary) -> Array:
 				"state": "FITTED" if fitted else ("OWNED" if owned else ""),
 				"note": "%s\n%s" % [a["desc"], BenchScreen._stat_diff(now, _with_attachment(slot, a["id"]))]})
 	if p.get("finish", false):
-		for f in Armory.FINISHES:
+		for f in Armory.open_finishes():
 			out.append({"kind": "finish", "id": f["id"], "label": f["name"], "value": "", "cost": null,
 				"state": "PAINTED" if armory.finish_of(weapon) == f["id"] else "",
 				"note": "Paint. Free, and it doesn't change how it shoots.", "swatch": f["shell"]})
