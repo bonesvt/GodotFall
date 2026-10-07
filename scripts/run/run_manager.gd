@@ -400,8 +400,14 @@ func start_run(seed_value: int, uncharted := 0, level := "") -> void:
 		line = (line + "\n" if line != "" else "") + Vices.WRONG_GEAR_LINE + "\n" + _mixed_up_text()
 	if Glass.tethered():
 		line = (line + "\n" if line != "" else "") + "The earpiece clicks on. Marrow: \"I'm here. Do as I say out there.\""
-	if Relics.carry_line() != "":
-		line = (line + "\n" if line != "" else "") + Relics.carry_line()
+	var carry := Relics.carry_line()
+	if carry != "" and line == "":
+		line = carry
+	elif carry != "":
+		# after the first toast, so the two never stack over the HUD
+		get_tree().create_timer(HUB_LINE_SECONDS, false).timeout.connect(func():
+			if in_run():
+				hud.toast(carry, HUB_LINE_SECONDS))
 	if line != "":
 		hud.toast(line, HUB_LINE_SECONDS + (2.0 if not mixed_up.is_empty() else 0.0))
 
@@ -1912,8 +1918,6 @@ func _vices_text() -> String:
 		parts.append(Glass.pockets_text())
 	if tether.hud_text() != "":
 		parts.append(tether.hud_text())
-	if Relics.hud_text() != "":
-		parts.append(Relics.hud_text())
 	if Vices.errand != "" and Vices.allowed():
 		parts.append("MARROW: " + ("go back to him" if Vices.errand_done else HushDen.ERRANDS[Vices.errand]["short"]))
 	return "" if parts.is_empty() else "    " + "    ".join(parts)
@@ -1964,6 +1968,9 @@ func _update_hud() -> void:
 	var build := ["TITAN BUILD"]
 	for slot in TitanParts.SLOTS:
 		build.append("%s: %s" % [TitanParts.SLOT_NAMES[slot], TitanParts.display_name(run.parts, slot)])
+	if Relics.hud_text() != "":  # under the build, so the status line stays short
+		build.append("")
+		build.append_array(Relics.hud_text().split("\n"))
 	hud.build_label.text = "\n".join(build)
 
 	hud.prompt_label.text = _prompt()

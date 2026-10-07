@@ -729,7 +729,7 @@ static func hud_text() -> String:
 	for id: String in worn:
 		if allowed(id):
 			names.append(relic_name(id).to_upper())
-	return "" if names.is_empty() else "RELICS: " + ", ".join(names)
+	return "" if names.is_empty() else "RELICS\n" + "\n".join(names)
 
 
 # --- saving -----------------------------------------------------------------------

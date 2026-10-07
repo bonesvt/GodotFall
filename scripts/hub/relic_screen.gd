@@ -15,12 +15,15 @@ const SOURCE_COLORS := {"precursor": Color(0.35, 1.0, 0.85), "npc": Color(1.0, 0
 
 ## Where the source column starts on a row (px).
 const SOURCE_COLUMN := 420.0
+## Height of the scrolling list (px): about eleven rows.
+const LIST_HEIGHT := 340.0
 
 var kind := "relics"
 ## Benches report weapons unlocked by a level up; nothing here does that.
 var unlocked: Array = []
 var selected := 0
 var _rows: VBoxContainer
+var _scroll: ScrollContainer
 var _detail: Label
 var _slots: Label
 
@@ -57,9 +60,15 @@ func _ready() -> void:
 	col.add_child(_text("The idol's open hands. Eco keeps what she's found here, and takes up to %d on a run." % Relics.SLOTS, 15, DIM))
 	_slots = _text("", 17, INK)
 	col.add_child(_slots)
+	# the list scrolls, so every relic fits on screen under Mature too
+	_scroll = ScrollContainer.new()
+	_scroll.custom_minimum_size = Vector2(716, LIST_HEIGHT)
+	_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	col.add_child(_scroll)
 	_rows = VBoxContainer.new()
-	_rows.add_theme_constant_override("separation", 2)
-	col.add_child(_rows)
+	_rows.add_theme_constant_override("separation", 0)
+	_rows.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_scroll.add_child(_rows)
 	_detail = _text("", 16, INK)
 	_detail.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_detail.custom_minimum_size = Vector2(716, 96)
@@ -112,6 +121,7 @@ func _refresh() -> void:
 		c.queue_free()
 	for i in ids.size():
 		_rows.add_child(_row(i, ids[i]))
+	_keep_in_view.call_deferred()
 	var id: String = ids[selected]
 	var r: Dictionary = Relics.RELICS[id]
 	if Relics.owns(id):
@@ -119,6 +129,11 @@ func _refresh() -> void:
 	else:
 		var hint: String = Relics.HINTS[r.get("giver", r["source"])]
 		_detail.text = "Not found yet. %s" % hint
+
+
+func _keep_in_view() -> void:
+	if is_instance_valid(_scroll) and selected < _rows.get_child_count():
+		_scroll.ensure_control_visible(_rows.get_child(selected))
 
 
 func _row(i: int, id: String) -> Control:

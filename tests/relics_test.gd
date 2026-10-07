@@ -372,7 +372,8 @@ func _game() -> void:
 	run_node.start_run(4321)
 	await _ticks(4)
 	_check("on a run", Relics.on_run and Relics.active("moms_locket") and Relics.active("idols_tooth"), Relics.worn)
-	_check("HUD names them", run_node._vices_text().contains("MOM'S LOCKET"), run_node._vices_text())
+	await _ticks(1)
+	_check("HUD names them", run_node.hud.build_label.text.contains("MOM'S LOCKET"), run_node.hud.build_label.text)
 	var player = run_node.player
 	player.health = 5.0
 	player.untouchable_timer = 0.0
