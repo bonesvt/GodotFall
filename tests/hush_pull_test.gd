@@ -29,6 +29,7 @@ func _run() -> void:
 	await _ticks(60)
 	player = run_node.player
 	var pull: Node = run_node.hush_pull
+	pull.triggers._next = INF  # his trigger words have their own test (trigger_test.gd)
 	Vices.hold = Vices.MAX_HOLD
 	_check("full hold: the pull can take her", Vices.can_pull(), Vices.hold)
 

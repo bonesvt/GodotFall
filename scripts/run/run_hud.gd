@@ -3,12 +3,17 @@ extends CanvasLayer
 ## The run manager writes the text; this only lays it out. The titan reticle
 ## is drawn per weapon (see titan_gun.gd) so each gun reads differently.
 
+const Vices := preload("res://scripts/hub/vices.gd")
+
 var status_label: Label
 var build_label: Label
 var prompt_label: Label
 var toast_label: Label
 var fight_label: Label
 var pull_label: Label
+var crave_bar: Control
+var trigger_label: Label
+var _crave_fill: ColorRect
 var crosshair: Control
 ## The piloted titan, set on embark; the reticle reads its gun.
 var titan: Node
@@ -50,6 +55,42 @@ func _ready() -> void:
 	pull_label.add_theme_color_override("font_color", Color(0.82, 0.55, 1.0))
 	pull_label.visible = false
 
+	# How bad the craving is (Vices.crave_level()), a bar under the clock.
+	crave_bar = Control.new()
+	crave_bar.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
+	crave_bar.offset_left = -130
+	crave_bar.offset_right = 130
+	crave_bar.offset_top = 52
+	crave_bar.offset_bottom = 74
+	crave_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	crave_bar.visible = false
+	add_child(crave_bar)
+	var back := ColorRect.new()
+	back.color = Color(0.06, 0.02, 0.1, 0.75)
+	back.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	crave_bar.add_child(back)
+	_crave_fill = ColorRect.new()
+	_crave_fill.color = Color(0.7, 0.3, 1.0)
+	_crave_fill.position = Vector2(2, 2)
+	crave_bar.add_child(_crave_fill)
+	var word := Label.new()
+	word.text = "CRAVING"
+	word.add_theme_font_size_override("font_size", 14)
+	word.add_theme_color_override("font_outline_color", Color.BLACK)
+	word.add_theme_constant_override("outline_size", 4)
+	word.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	word.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	word.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	crave_bar.add_child(word)
+
+	# One of Marrow's trigger words, big, and the taps to shake it (trigger_words.gd).
+	trigger_label = _centered(40, 150)
+	trigger_label.offset_top = 80
+	trigger_label.offset_bottom = 220
+	trigger_label.add_theme_color_override("font_color", Color(0.85, 0.6, 1.0))
+	trigger_label.add_theme_constant_override("outline_size", 10)
+	trigger_label.visible = false
+
 	crosshair = Control.new()
 	crosshair.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	crosshair.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -74,6 +115,12 @@ func toast(text: String, seconds := 2.5) -> void:
 func _process(delta: float) -> void:
 	_toast_time -= delta
 	toast_label.visible = _toast_time > 0.0
+	var crave := Vices.crave_level()
+	crave_bar.visible = crave > 0.01
+	if crave_bar.visible:
+		_crave_fill.size = Vector2((crave_bar.size.x - 4.0) * crave, crave_bar.size.y - 4.0)
+		# it throbs once it's bad
+		_crave_fill.color.a = 1.0 if crave < 0.6 else 0.75 + 0.25 * sin(Time.get_ticks_msec() / 1000.0 * TAU * 1.8)
 	if crosshair.visible:
 		crosshair.queue_redraw()
 

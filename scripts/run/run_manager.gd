@@ -68,6 +68,7 @@ const StimScreen := preload("res://scripts/hub/stim_screen.gd")
 const HushScreen := preload("res://scripts/hub/hush_screen.gd")
 const HushDen := preload("res://scripts/hub/hush_den.gd")
 const DrunkScreen := preload("res://scripts/ui/drunk_screen.gd")
+const CravingScreen := preload("res://scripts/ui/craving_screen.gd")
 const HushPull := preload("res://scripts/hub/hush_pull.gd")
 const SuperHushScene := preload("res://scripts/hub/super_hush_scene.gd")
 const CheatScreen := preload("res://scripts/hub/cheat_screen.gd")
@@ -303,6 +304,9 @@ func _ready() -> void:
 	var drunk := DrunkScreen.new()
 	drunk.name = "DrunkScreen"
 	add_child(drunk)
+	var craving := CravingScreen.new()
+	craving.name = "CravingScreen"
+	add_child(craving)
 	equip_loadout()
 	if start_in_hub:
 		enter_hub()

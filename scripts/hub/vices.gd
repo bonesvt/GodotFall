@@ -185,6 +185,8 @@ static var errand_done := false
 static var pulled := false
 ## In a trance right now, walking to him (hush_pull.gd).
 static var entranced := false
+## How far Marrow's clock has run on her, 0..1 (hush_pull.gd writes it; not saved).
+static var hush_crave := 0.0
 ## This run started at full Hold with no dose in her.
 static var withdrawal := false
 ## She walked off a run to beg him (saved): he gives her another errand when
@@ -312,6 +314,14 @@ static func craving() -> float:
 	return clampf((dependence - CRAVE_AT + 1.0) / 3.0, 0.0, 1.0)
 
 
+## The craving the player sees (craving_screen.gd, the HUD bar), 0..1: the
+## stim shakes or Marrow's clock running on her (hush_crave), whichever's worse.
+static func crave_level() -> float:
+	if not allowed():
+		return 0.0
+	return clampf(maxf(craving(), hush_crave), 0.0, 1.0)
+
+
 ## A run starts: a dose waiting goes in.
 static func run_started() -> void:
 	hushed = dosed and allowed()
@@ -320,6 +330,7 @@ static func run_started() -> void:
 	errand = ""  # whatever he wanted, she's gone without it
 	errand_done = false
 	entranced = false
+	hush_crave = 0.0
 	begging = false
 	save()
 
@@ -632,6 +643,7 @@ static func open(path: String) -> void:
 	errand_done = false
 	pulled = false
 	entranced = false
+	hush_crave = 0.0
 	withdrawal = false
 	begging = false
 	hush_suit = false
@@ -789,6 +801,7 @@ static func reset() -> void:
 	errand_done = false
 	pulled = false
 	entranced = false
+	hush_crave = 0.0
 	withdrawal = false
 	begging = false
 	hush_suit = false

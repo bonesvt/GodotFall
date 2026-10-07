@@ -244,8 +244,19 @@ Under the Mature rating (Settings > Game), **F** at the Rusted Halo on Low Row o
   Hold). Hold on every time and it breaks: his Hold and her glass gone, the town wakes up and
   Marrow runs for good (his alley is empty). Miss one and she wakes in his chair, Hold +20, the
   vats brewing again.
+- **Trigger words** (`scripts/hub/trigger_words.gd`): from Hold 60 his phrases turn up in the world
+  ("Come home, Eco", "Hush now", "Right on time"...): on the radio, from a passing townsperson,
+  chalked on a wall, and on runs in her ear or a dead grunt's radio. One locks her up: the phrase
+  big and violet, the screen flaring, and **F** five times in 3 s shakes it off. Miss it and in the
+  hub his Hold goes up 2 (and at full Hold the pull clock jumps a minute); on a run she stands
+  there guard down 2.5 s more. One every 2.5 minutes at Hold 60, every minute at full Hold.
+- **Craving** (`scripts/ui/craving_screen.gd`, `vices.gd` crave_level): the stim shakes or
+  Marrow's clock running on her show as a violet dark closing in from the screen edges, thumping
+  like a heartbeat (70 bpm rising to 140), with spiral tendrils curling in past halfway, and a
+  CRAVING bar under the clock. A dose or one of his errands clears his; a stim clears the shakes. Render it:
+  `godot --path . --resolution 1280x720 -s res://tools/hub/trigger_shots.gd -- <dir>`.
 - Tests: `godot --headless --path . -s res://tests/vices_test.gd`, `tests/hush_pull_test.gd`,
-  `tests/hold_effects_test.gd`, `tests/glass_test.gd`
+  `tests/hold_effects_test.gd`, `tests/glass_test.gd`, `tests/trigger_test.gd`
 
 ### Cheat box
 A dented ammo crate with a gold trim by the rug in Eco's loft (`scripts/hub/cheat_screen.gd`).
