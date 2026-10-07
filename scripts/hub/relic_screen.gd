@@ -138,8 +138,9 @@ func _row(i: int, id: String) -> Control:
 	# the source in its own column, lined up down the list
 	var source := _text(Relics.SOURCES[r["source"]], 16, c)
 	source.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	source.set_anchors_and_offsets_preset(Control.PRESET_TOP_LEFT)
-	source.position = Vector2(SOURCE_COLUMN, 0)
+	source.set_anchors_and_offsets_preset(Control.PRESET_LEFT_WIDE)
+	source.offset_left = SOURCE_COLUMN
+	source.vertical_alignment = VERTICAL_ALIGNMENT_CENTER  # level with the name
 	b.add_child(source)
 	b.pressed.connect(func():
 		selected = i
