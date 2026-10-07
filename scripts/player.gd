@@ -8,6 +8,7 @@ enum State { GROUND, AIR, SLIDE, WALLRUN, GRAPPLE }
 
 const SFX := preload("res://scripts/sfx.gd")
 const Prefs := preload("res://scripts/game/prefs.gd")
+const EcoContactSounds := preload("res://scripts/ps2/eco_contact_sounds.gd")
 ## Metres between footsteps on the ground and when running along a wall.
 const STRIDE := 2.4
 const WALL_STRIDE := 1.9
@@ -231,6 +232,9 @@ func _ready() -> void:
 	health = max_health
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 	_build_rope()
+	var contact := EcoContactSounds.new()
+	contact.name = "ContactSounds"
+	add_child(contact)
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -521,6 +525,7 @@ func _land() -> void:
 	if fall_speed > 3.0:
 		var hard := fall_speed > 14.0
 		SFX.play(self, "land_heavy" if hard else "land", -16.0 + minf(fall_speed, 20.0) * 0.4, SFX.vary(0.06))
+		SFX.play(self, _step_sound(), -14.0 + minf(fall_speed, 20.0) * 0.3, SFX.vary(0.06) * 0.92)
 	step_dist = STRIDE * 0.5
 	# Camera dips on hard landings so falls have weight.
 	land_dip = minf(maxf(fall_speed - 4.0, 0.0) * land_dip_per_speed, land_dip_max)
@@ -745,18 +750,41 @@ func _footsteps(delta: float) -> void:
 	var stride := WALL_STRIDE if on_wall else STRIDE
 	if step_dist >= stride:
 		step_dist -= stride
-		SFX.play(self, SFX.variant("step_" + _surface()), -17.0 + minf(speed / sprint_speed, 1.0) * 4.0, SFX.vary(0.08))
+		SFX.play(self, _step_sound(), -17.0 + minf(speed / sprint_speed, 1.0) * 4.0, SFX.vary(0.08))
 
 
-## What Eco is standing or running on: "grass", "wood" and "metal" come from a
-## `surface` meta on the body (terrain, hub props); anything else is stone.
+## A footstep for what she's on (step_<surface>_N), concrete when that surface
+## has no recordings.
+func _step_sound() -> String:
+	var id := SFX.variant("step_" + _surface())
+	return id if id != "" else SFX.variant("step_concrete")
+
+
+## What Eco is standing or running on: wading in water (laid_out.gd water()),
+## a rug or path (hub_kit.gd patch()), then the `surface` meta on the body she
+## touched (terrain: grass, mud, gravel; hub props: wood, metal, stone);
+## anything else is concrete.
 func _surface() -> String:
+	var feet := global_position
+	for w: Node3D in get_tree().get_nodes_in_group("water"):
+		if feet.y < w.global_position.y + 0.05 and _inside(w, feet):
+			return "water"
+	for p: Node3D in get_tree().get_nodes_in_group("surface_patch"):
+		if absf(feet.y - p.global_position.y) < 0.35 and _inside(p, feet):
+			return str(p.get_meta("surface"))
 	var hit := get_last_slide_collision()
 	if hit != null:
 		var body := hit.get_collider()
 		if body != null and body.has_meta("surface"):
 			return str(body.get_meta("surface"))
 	return "concrete"
+
+
+## True when `at` is over a node's flat area (its "half" meta, x/z half sizes).
+static func _inside(node: Node3D, at: Vector3) -> bool:
+	var half: Vector2 = node.get_meta("half", Vector2.ZERO)
+	var local := node.global_transform.affine_inverse() * at
+	return absf(local.x) <= half.x and absf(local.z) <= half.y
 
 
 # --- Info for the HUD ---------------------------------------------------------

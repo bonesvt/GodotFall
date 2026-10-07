@@ -146,6 +146,7 @@ func _toggle(box: VBoxContainer, title: String, on: bool, on_change: Callable) -
 	c.toggled.connect(func(v: bool) -> void:
 		c.text = "On" if v else "Off"
 		on_change.call(v))
+	UI.sounds(c)
 	_row(box, title, c)
 	return c
 
@@ -156,6 +157,7 @@ func _options(box: VBoxContainer, title: String, labels: Array, selected: int, o
 		o.add_item(l)
 	o.select(maxi(selected, 0))
 	o.item_selected.connect(on_change)
+	UI.sounds(o)
 	_row(box, title, o)
 	return o
 

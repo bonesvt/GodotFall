@@ -151,7 +151,7 @@ func confirm() -> bool:
 		return false
 	Wardrobe.choose(who(), outfit)
 	changed.append([who(), outfit])
-	SFX.play(self, "ui_confirm", -4.0)
+	SFX.play(self, "outfit_change", -4.0, SFX.vary(0.04))
 	refresh()
 	return true
 

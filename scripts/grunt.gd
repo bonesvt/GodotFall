@@ -461,6 +461,9 @@ func _set_awareness(a: Awareness) -> void:
 	_path = PackedVector3Array()
 	if a > awareness:
 		indicator_pop = 1.0
+		# a "hey?" when something's off, a shout when he's sure
+		var call := "grunt_hey" if a == Awareness.SUSPICIOUS else SFX.variant("grunt_yell")
+		SFX.play_at(get_parent(), global_position + Vector3.UP * 1.6, call, -8.0 if a == Awareness.SUSPICIOUS else -4.0, SFX.vary(0.07))
 	awareness = a
 	awareness_changed.emit(self, a)
 

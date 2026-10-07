@@ -13,7 +13,7 @@ const STONE := Color(0.62, 0.55, 0.45)
 ## it builds itself; the grounds stay stone.
 static var style := "stone"
 const STYLES := {
-	"stone": ["temple_stone", "temple_carving", ""],
+	"stone": ["temple_stone", "temple_carving", "stone"],
 	"timber": ["timber", "timber_carving", "wood"],
 	"alloy": ["alloy", "alloy_inlay", "metal"],
 }
@@ -43,6 +43,19 @@ static func metal(parent: Node, pos: Vector3, size: Vector3, rot := Vector3.ZERO
 	var body := Kit.box(parent, pos, size, STONE, rot, Art.material("gunmetal"))
 	body.set_meta("surface", "metal")
 	return body
+
+
+## A patch of floor that sounds different underfoot (a rug, a dirt path)
+## without being its own collider: player.gd checks the "surface_patch" group.
+static func patch(parent: Node, pos: Vector3, size: Vector2, surface: String, yaw := 0.0) -> Node3D:
+	var p := Node3D.new()
+	p.position = pos
+	p.rotation_degrees = Vector3(0, yaw, 0)
+	p.set_meta("surface", surface)
+	p.set_meta("half", size * 0.5)
+	p.add_to_group("surface_patch")
+	parent.add_child(p)
+	return p
 
 
 ## Decoration with no collision.
@@ -79,3 +92,11 @@ static func light(parent: Node, pos: Vector3, color: Color, energy: float, light
 
 static func interactable(info: Dictionary, id: String, pos: Vector3, prompt: String, lines: Array, reach := 3.0) -> void:
 	info["interactables"].append({"id": id, "pos": pos, "range": reach, "prompt": prompt, "lines": lines})
+
+
+## A looping sound that comes from here, loudest within `size` metres
+## (an ambience bed's id; soundscape.gd spot() plays it).
+static func sound(info: Dictionary, id: String, pos: Vector3, db := -6.0, size := 4.0) -> void:
+	if not info.has("sound_spots"):
+		info["sound_spots"] = []
+	info["sound_spots"].append({"id": id, "pos": pos, "db": db, "size": size})

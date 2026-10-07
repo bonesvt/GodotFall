@@ -80,7 +80,7 @@ static func build(root: Node3D, info: Dictionary) -> void:
 # --- ground and boundary ----------------------------------------------------------
 
 static func _ground(root: Node3D) -> void:
-	Kit.box(root, Vector3(0, -1.0, 0), Vector3(600, 2.0, 600), K.STONE, Vector3.ZERO, Art.material("grass"))
+	Kit.box(root, Vector3(0, -1.0, 0), Vector3(600, 2.0, 600), K.STONE, Vector3.ZERO, Art.material("grass")).set_meta("surface", "grass")
 	# Grass on out to the far turbines and the city past the town (no collision, nobody walks there).
 	K.mesh(root, Vector3(0, -0.02, 600), Vector3(900, 0.02, 600), Art.material("grass"))
 	var dirt := Art.material("dirt")
@@ -90,6 +90,7 @@ static func _ground(root: Node3D) -> void:
 			[Vector3(-18, 0.02, -18), Vector3(4, 0.04, 54)], [Vector3(-28, 0.02, -44), Vector3(22, 0.04, 4)],
 			[Vector3(30, 0.02, -2), Vector3(4, 0.04, 10)]]:
 		K.mesh(root, spec[0], spec[1], dirt)
+		K.patch(root, Vector3(spec[0].x, 0.0, spec[0].z), Vector2(spec[1].x, spec[1].z), "gravel")
 
 
 ## Ruined boundary wall with crenellations and a blocked gate, jungle crowding in
@@ -229,6 +230,7 @@ static func _camp(root: Node3D, info: Dictionary) -> void:
 	var fire_light := K.light(root, fire + Vector3(0, 1.6, 0), FIRE, 2.2, 12.0)
 	_animated(fire_light, Vector3.ZERO, Ambient.Mode.FLICKER, 1.0, 1.0)
 	_smoke(root, fire + Vector3(0, 1.2, 0))
+	K.sound(info, "fireplace", fire + Vector3(0, 0.5, 0), -3.0, 3.0)
 	for spec in [[Vector3(-2.6, 0, 0.4), 80.0], [Vector3(2.5, 0, -0.6), 100.0], [Vector3(0.3, 0, 2.6), 10.0], [Vector3(-0.6, 0, -2.6), -15.0]]:
 		K.wood(root, fire + spec[0] + Vector3(0, 0.3, 0), Vector3(0.5, 0.5, 2.0), Vector3(0, spec[1], 0))
 	# A log bench between the spokes, facing the fire, where she sits.
@@ -282,6 +284,7 @@ static func _camp(root: Node3D, info: Dictionary) -> void:
 		K.wood(root, spec[0] + Vector3(0, s * 0.5, 0), Vector3(s, s, s), Vector3(0, spec[0].x * 13.0, 0))
 	# Pond with reeds and stepping stones.
 	var pond := Vector3(58, 0, 30)
+	K.sound(info, "park_river", pond + Vector3(0, 0.3, 0), -12.0, 5.0)
 	var water := StandardMaterial3D.new()
 	water.albedo_color = Color(0.25, 0.55, 0.6, 0.75)
 	water.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA

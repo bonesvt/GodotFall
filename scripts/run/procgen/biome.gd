@@ -141,7 +141,7 @@ static func _street_lamp(root: Node3D, at: Vector3) -> void:
 static func ground_style(biome: String) -> Array:
 	match biome:
 		"marsh":
-			return [Color(0.62, 0.66, 0.42), Color(0.7, 0.68, 0.6), "grass", "grass"]
+			return [Color(0.62, 0.66, 0.42), Color(0.7, 0.68, 0.6), "grass", "mud"]
 		"boneyard":
 			return [Color(0.6, 0.6, 0.64), Color(0.66, 0.64, 0.64), "dirt", "gravel"]
 		"city":
