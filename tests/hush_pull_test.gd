@@ -41,12 +41,12 @@ func _run() -> void:
 	_check("eyes spin up", Vices.eye_swirl() > 1.0, Vices.eye_swirl())
 	_check("no prompts while it has her", run_node.hud.prompt_label.text == "" or not run_node.hud.prompt_label.visible, run_node.hud.prompt_label.text)
 	Input.action_press("move_back")
-	await _ticks(240)
+	await _ticks(Engine.physics_ticks_per_second * 5)
 	Input.action_release("move_back")
 	_check("the player can't turn her round", player.global_position.z > 141.5, player.global_position)
 	var faded := false
 	var lowest_z := 999.0
-	for i in 60 * 120:
+	for i in Engine.physics_ticks_per_second * 150:
 		await physics_frame
 		if pull.step == pull.Step.FADE and player.global_position.y > 0.0 and player.global_position.distance_to(HushDen.CELLAR) > 2.0:
 			faded = true  # a fade before the cellar door: something blocked her
@@ -89,7 +89,7 @@ func _run() -> void:
 	await _ticks(30)
 	pull.start()
 	var walked_town := false
-	for i in 60 * 120:
+	for i in Engine.physics_ticks_per_second * 150:
 		await physics_frame
 		if pull.step == pull.Step.WALK and player.global_position.z > 150.0:
 			walked_town = true

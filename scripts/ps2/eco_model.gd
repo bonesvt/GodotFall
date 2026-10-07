@@ -703,13 +703,13 @@ func _trance_walk(k: float) -> void:
 		t = _anim.current_animation_position / _anim.current_animation_length * TAU
 	var sw := sin(t)
 	_turn("hips", Vector3.UP, -5.0 * sw * k)  # undo most of the walk's hip twist
-	_turn("spine", Vector3.RIGHT, 3.0 * k)
 	_turn("chest", Vector3.UP, 4.0 * sw * k)
-	_turn("head", Vector3.RIGHT, 7.0 * k)
-	_turn("head", Vector3.BACK, 8.0 * k)
-	# arms: pulled in to her sides, swing held back, elbows straight, hands slack
-	_turn("upperarm.R", Vector3.RIGHT, -8.0 * sw * k)
-	_turn("upperarm.L", Vector3.RIGHT, 8.0 * sw * k)
+	_turn("head", Vector3.RIGHT, 1.5 * k)
+	_turn("head", Vector3.BACK, 11.0 * k)
+	# arms: pulled in to her sides, the walk's swing (right arm forward with
+	# -sin t) mostly cancelled, elbows straight, hands slack
+	_turn("upperarm.R", Vector3.RIGHT, 14.0 * sw * k)
+	_turn("upperarm.L", Vector3.RIGHT, -14.0 * sw * k)
 	_turn("upperarm.R", Vector3.BACK, 6.0 * k)
 	_turn("upperarm.L", Vector3.BACK, -6.0 * k)
 	_turn("forearm.R", Vector3.RIGHT, -8.0 * k)

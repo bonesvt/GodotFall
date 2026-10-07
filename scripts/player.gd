@@ -173,7 +173,7 @@ var strolling := false:
 ## walks slowly along trance_dir (zero: she stands) and her look follows.
 var entranced := false
 var trance_dir := Vector3.ZERO
-const TRANCE_SPEED := 1.2
+const TRANCE_SPEED := 1.5
 var cam_roll := 0.0
 var input_dir := Vector2.ZERO
 var wish_dir := Vector3.ZERO
