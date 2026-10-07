@@ -1,4 +1,4 @@
-"""Builds Eco's Hush courier suit (eco_model.gd "suit_hush", her reward for
+"""Builds the textures of Eco's Hush courier suit (eco_model.gd "suit_hush", her reward for
 Marrow's Hold reaching full: vices.gd) from her shade catsuit's textures
 (numpy + pillow, no Blender): the same cut and cowl, the black fabric dyed a
 deep violet-black with a faint plum sheen, and the crimson piping turned to
@@ -7,7 +7,9 @@ the Hush's violet glow. Her skin (outside the mask's green) is left alone.
     python3 tools/eco/build_hush_suit.py
 
 Reads  assets/textures/eco/v_body_shade.png, v_body_mask_shade.png, v_body_glow_shade.png
-Writes assets/textures/eco/v_body_hush.png, v_body_glow_hush.png
+       assets/textures/eco/v_body_skater_hoodie.png
+Writes assets/textures/eco/v_body_hush.png, v_body_glow_hush.png, v_body_hush_hoodie.png
+(the courier's cropped hoodie, her skater hoodie dyed violet-black)
 """
 from pathlib import Path
 
@@ -36,7 +38,11 @@ def main() -> None:
     strength = glow.max(axis=2, keepdims=True)
     Image.fromarray((np.clip(strength * GLOW, 0.0, 1.0) * 255.0 + 0.5).astype(np.uint8)).save(
         TEX / "v_body_glow_hush.png", optimize=True)
-    print("wrote v_body_hush.png, v_body_glow_hush.png")
+    hoodie = np.asarray(Image.open(TEX / "v_body_skater_hoodie.png").convert("RGB")).astype(np.float32) / 255.0
+    h_lum = hoodie @ np.array([0.299, 0.587, 0.114], dtype=np.float32)
+    dyed_hoodie = np.clip(h_lum[..., None] * np.array([0.30, 0.16, 0.42]) * 1.1 + np.array([0.02, 0.01, 0.035]), 0.0, 1.0)
+    Image.fromarray((dyed_hoodie * 255.0 + 0.5).astype(np.uint8)).save(TEX / "v_body_hush_hoodie.png", optimize=True)
+    print("wrote v_body_hush.png, v_body_glow_hush.png, v_body_hush_hoodie.png")
 
 
 if __name__ == "__main__":

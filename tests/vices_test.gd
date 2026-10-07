@@ -382,8 +382,26 @@ func _deep_hold() -> void:
 	_check("Teen: none of it", Vices.slump() == 0.0 and Vices.confuse_chance() == 0.0
 			and Vices.wrong_gear(rng, guns, "smart_pistol", knives, "needle", 2, "medium", weights).is_empty(), Vices.slump())
 	ContentRating.set_rating("M", false)
-	# the Hush courier suit
+	# the Hush gun finish at TRANCE_HOLD, then the Hush courier suit at full
 	Vices.reset()
+	var armory := Armory.open(ARMORY_PATH)
+	Vices.hold = Vices.TRANCE_HOLD - 2.0 * Vices.HOLD_PER_DOSE
+	Vices.dose()
+	Vices.dosed = false
+	_check("no Hush finish yet", not Vices.hush_finish and not Armory.finish_open("hush")
+			and not Armory.open_finishes().any(func(f): return f["id"] == "hush"), Vices.hold)
+	armory.set_finish("smart_pistol", "hush")
+	_check("can't paint it on before he gives it", armory.finish_of("smart_pistol") == "dads", armory.finish_of("smart_pistol"))
+	Vices.dose()
+	Vices.dosed = false
+	_check("Hold 60: the Hush finish is hers", Vices.hush_finish and Vices.hush_finish_new and Armory.finish_open("hush")
+			and Armory.open_finishes().any(func(f): return f["id"] == "hush"), Vices.hold)
+	armory.set_finish("smart_pistol", "hush")
+	var profile: Dictionary = armory.weapon_profile("smart_pistol")
+	_check("painted: hypnotic, violet tracers", profile["finish"].get("hypno", false) and profile["tracer"] == Armory.finish("hush")["tracer"], profile["tracer"])
+	ContentRating.set_rating("T", false)
+	_check("Teen: back to Dad's colours", armory.finish_of("smart_pistol") == "dads" and not armory.weapon_profile("smart_pistol")["finish"].get("hypno", false), armory.finish_of("smart_pistol"))
+	ContentRating.set_rating("M", false)
 	Vices.hold = Vices.MAX_HOLD - Vices.HOLD_PER_DOSE
 	_check("no suit before his Hold is full", not Vices.hush_suit, Vices.hush_suit)
 	Vices.dose()
@@ -393,7 +411,7 @@ func _deep_hold() -> void:
 	Vices.hold = 10.0
 	Vices.walk_away()
 	Vices.open(VICES_PATH)
-	_check("saved, and kept after she walks away", Vices.hush_suit and Vices.hold == 0.0, [Vices.hush_suit, Vices.hold])
+	_check("saved, and kept after she walks away", Vices.hush_suit and Vices.hush_finish and Vices.hold == 0.0, [Vices.hush_suit, Vices.hold])
 	Vices.reset()
 
 

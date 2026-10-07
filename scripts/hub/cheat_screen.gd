@@ -138,8 +138,9 @@ func super_hush() -> bool:
 	Vices.hold = Vices.MAX_HOLD
 	Vices.walked_away = false
 	Vices.save()
-	var reward := " The Hush courier suit is in her wardrobe." if Vices.reward_check() else ""
+	var reward := " The Hush courier suit is in her wardrobe and the Hush finish is at the gunsmith's bench." if Vices.reward_check() else ""
 	Vices.hush_suit_new = false  # said here
+	Vices.hush_finish_new = false
 	_did("Super Hush: Marrow's Hold is full. He stops selling, his pull can take her, and a run without a dose is withdrawal." + reward)
 	return true
 

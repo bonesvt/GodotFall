@@ -59,18 +59,24 @@ func _pieces(style: String) -> Array:
 			return []
 		"ophelia":
 			return ["base_ophelia_skirt"]
-		"hush":  # the shade catsuit's cowl, dyed (eco_model.gd STYLE_PIECES)
-			return ["base_shade_jacket"]
+		"hush":  # no jacket: her skater hoodie and some kit gear instead (eco_model.gd STYLE_GEAR)
+			return []
 	return ["base_%s_jacket" % style]
 
 
-## The override materials on her shown base_ pieces.
-func _piece_materials(eco) -> Array:
+func _mesh(eco, mesh_name: String) -> MeshInstance3D:
+	return eco.find_child(mesh_name, true, false)
+
+
+func _shown(eco, names: Array) -> Array:
+	return names.filter(func(n): return _mesh(eco, n).visible)
+
+
+func _overrides(eco, mesh_name: String) -> Array:
+	var mi := _mesh(eco, mesh_name)
 	var out := []
-	for node in eco.find_children("base_*", "MeshInstance3D", true, false):
-		if node.visible:
-			for i in node.mesh.get_surface_count():
-				out.append(node.get_surface_override_material(i))
+	for i in mi.mesh.get_surface_count():
+		out.append(mi.get_surface_override_material(i))
 	return out
 
 
@@ -89,10 +95,20 @@ func _model(eco) -> void:
 			var tex: Texture2D = eco.STYLE_BODY[outfit].get_shader_parameter("albedo_tex")
 			_check(outfit + " has its own texture", tex != null and tex.resource_path.ends_with("v_body_%s.png" % style), tex)
 	eco.wear("suit_hush")
-	var dyed := _piece_materials(eco)
-	_check("the Hush courier's cowl is dyed violet", not dyed.is_empty() and dyed.all(func(m): return m != null and String(m.resource_name).contains("hush")), dyed)
+	var gear: Array = eco.STYLE_GEAR["hush"]["pieces"]
+	_check("the Hush courier wears her hoodie, sneakers and gear", gear.all(func(n): return _mesh(eco, n).visible), _shown(eco, gear))
+	var dyed := _overrides(eco, "outfit_skater_t_hoodie") + _overrides(eco, "outfit_skater_any_shoes")
+	_check("all dyed Hush violet", dyed.all(func(m): return m != null and String(m.resource_name).contains("hush")), dyed)
+	_check("no boots or goggles with it", not _mesh(eco, "Boots").visible and not _mesh(eco, "Goggles").visible, "")
+	eco.suit_tier = 2
+	_check("a suit upgrade's kit goes on instead", not _mesh(eco, "outfit_skater_t_hoodie").visible, "")
+	eco.suit_tier = 0
 	eco.wear("suit_shade")
-	_check("and the shade catsuit's is its own again", _piece_materials(eco).all(func(m): return m == null), _piece_materials(eco))
+	_check("and the shade catsuit is its own again", not _mesh(eco, "outfit_skater_t_hoodie").visible and _mesh(eco, "Boots").visible
+			and _overrides(eco, "outfit_skater_t_hoodie").all(func(m): return m == null), _overrides(eco, "outfit_skater_t_hoodie"))
+	eco.wear("skater")
+	_check("her own skater hoodie keeps its colours", _mesh(eco, "outfit_skater_t_hoodie").visible == (ContentRating.current() != "M")
+			and _overrides(eco, "outfit_skater_t_hoodie").all(func(m): return m == null), "")
 	eco.wear("suit_racer")
 	eco.suit_tier = 2
 	var kit: Material = _body(eco)

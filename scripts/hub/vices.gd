@@ -35,8 +35,10 @@ extends RefCounted
 ## The deeper his Hold, the more it shows off the job: her posture slumps
 ## (eco_model.gd _slump, slump()), her words drift off mid-line (confuse()),
 ## and she can head out on a run with the wrong gun, knife or kit
-## (wrong_gear()). The first time his Hold is full she gets the Hush courier
-## suit (eco_model.gd "suit_hush"): she keeps it even after she walks away.
+## (wrong_gear()). The first time his Hold reaches TRANCE_HOLD he gives her
+## the Hush finish for her guns (armory.gd FINISHES "hush"), and the first time
+## it's full the Hush courier suit (eco_model.gd "suit_hush"): she keeps both
+## even after she walks away.
 
 const ContentRating := preload("res://scripts/radio/content_rating.gd")
 
@@ -191,6 +193,9 @@ static var begging := false
 static var hush_suit := false
 ## It's just been earned: the run manager says so once and clears it.
 static var hush_suit_new := false
+## She's been given the Hush gun finish (his Hold reached TRANCE_HOLD once): saved, kept.
+static var hush_finish := false
+static var hush_finish_new := false
 static var save_path := "user://vices.cfg"
 
 
@@ -386,15 +391,22 @@ static func _nudge(state: ConfigFile, romance: int, bond: int) -> void:
 		state.set_value("mom", "bond", clampi(int(state.get_value("mom", "bond", 0)) + bond, 0, 100))
 
 
-## His Hold just reached full for the first time: the Hush courier suit is
-## hers (hush_suit_new until the run manager says so). Returns whether it was now.
+## His gifts as his Hold deepens: the Hush gun finish at TRANCE_HOLD, the
+## Hush courier suit at full (each *_new until the run manager says so).
+## Returns whether the suit was given now.
 static func reward_check() -> bool:
-	if hush_suit or hold < MAX_HOLD or not allowed():
+	if not allowed():
 		return false
-	hush_suit = true
-	hush_suit_new = true
+	var suit := false
+	if not hush_finish and hold >= TRANCE_HOLD:
+		hush_finish = true
+		hush_finish_new = true
+	if not hush_suit and hold >= MAX_HOLD:
+		hush_suit = true
+		hush_suit_new = true
+		suit = true
 	save()
-	return true
+	return suit
 
 
 ## How far her posture has gone (0..1, eco_model.gd _slump): from SLUMP_FROM
@@ -617,9 +629,12 @@ static func open(path: String) -> void:
 	begging = false
 	hush_suit = false
 	hush_suit_new = false
+	hush_finish = false
+	hush_finish_new = false
 	var cfg := ConfigFile.new()
 	if cfg.load(path) == OK:
 		hush_suit = cfg.get_value("vices", "hush_suit", false)
+		hush_finish = cfg.get_value("vices", "hush_finish", false)
 		hold = cfg.get_value("vices", "hold", 0.0)
 		dosed = cfg.get_value("vices", "dosed", false)
 		trance = cfg.get_value("vices", "trance", false)
@@ -631,6 +646,8 @@ static func open(path: String) -> void:
 		smokes = cfg.get_value("vices", "smokes", 0)
 		belt = cfg.get_value("vices", "belt", []).filter(func(id): return STIMS.has(id))
 		dependence = cfg.get_value("vices", "dependence", 0.0)
+		if allowed() and ((hold >= TRANCE_HOLD and not hush_finish) or (hold >= MAX_HOLD and not hush_suit)):
+			reward_check()  # a save from before his gifts
 
 
 static func save() -> void:
@@ -647,6 +664,7 @@ static func save() -> void:
 	cfg.set_value("vices", "errand_done", errand_done)
 	cfg.set_value("vices", "begging", begging)
 	cfg.set_value("vices", "hush_suit", hush_suit)
+	cfg.set_value("vices", "hush_finish", hush_finish)
 	cfg.save(save_path)
 
 
@@ -768,3 +786,5 @@ static func reset() -> void:
 	begging = false
 	hush_suit = false
 	hush_suit_new = false
+	hush_finish = false
+	hush_finish_new = false

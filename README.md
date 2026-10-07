@@ -215,10 +215,13 @@ Under the Mature rating (Settings > Game), **F** at the Rusted Halo on Low Row o
   Hold. From 60 she can head out on a run with the wrong gun, knife or suit kit (20% rising to
   60% at full Hold, only things she owns): a toast says what she grabbed, and her own gear is back
   on her at home. Render the posture: `tools/eco/slump_shots.gd` (as the trance shots).
-- **Hush courier suit**: the first time his Hold is full, a parcel from Marrow: his courier suit,
-  the shade catsuit dyed violet-black with violet piping and the same cowl
-  (`tools/eco/build_hush_suit.py` builds its textures). It's in her wardrobe from then on, even
-  after she walks away (Mature only).
+- **Marrow's gifts** (Mature only, kept even after she walks away): at Hold 60 the **Hush
+  finish** for her guns at the gunsmith's bench: violet-black, violet glow in the seams and violet
+  tracers, with spirals of violet light on its sides that turn slowly, faster the deeper his Hold,
+  and jolt round with every shot (`ps2_surface.gdshaderinc` hypno_swirl, `weapon.gd` spin_hush;
+  render: `tools/pistol/hush_finish_shots.gd`). At full Hold, a parcel: his **Hush courier suit**,
+  the shade catsuit dyed violet-black under a cropped violet hoodie with glowing hems, sneakers and
+  a parcel pack (`eco_model.gd` STYLE_GEAR; `tools/eco/build_hush_suit.py` builds its textures).
 - Tests: `godot --headless --path . -s res://tests/vices_test.gd`, `tests/hush_pull_test.gd`,
   `tests/hold_effects_test.gd`
 

@@ -229,9 +229,10 @@ const KIT_FACE := {
 ## base_<style>_* (a jacket, cowl, vest or skirt; harness and the vesper looks
 ## have none). The vesper looks are Vesper Kane's clothes (a concept character,
 ## Eco wears them for now): Mature rating only (MATURE_OUTFITS). The Hush
-## courier suit is the shade catsuit dyed violet (STYLE_PIECES): it's her
-## reward for Marrow's Hold reaching full (vices.gd hush_suit), and only in her
-## wardrobe once she's earned it (wardrobe.gd).
+## courier suit (Marrow's runner) is the shade catsuit dyed violet under her
+## skater hoodie, sneakers and some of the mechanic kit's gear, all re-dyed
+## (STYLE_GEAR): it's her reward for Marrow's Hold reaching full (vices.gd
+## hush_suit), and only in her wardrobe once she's earned it (wardrobe.gd).
 const OUTFITS := ["suit", "suit_ghost", "suit_racer", "suit_harness", "suit_techwear", "suit_shade", "suit_homemade",
 		"suit_ophelia", "suit_vesper", "suit_vesper_open", "suit_hush", "skater", "y2k", "date"]
 ## Outfits only offered under the Mature content rating (wardrobe.gd).
@@ -248,13 +249,27 @@ const STYLE_BODY := {
 	"suit_vesper_open": preload("res://assets/materials/eco/eco_v_body_vesper_open.tres"),
 	"suit_hush": preload("res://assets/materials/eco/eco_v_body_hush.tres"),
 }
-## Styles that wear another style's pieces (its cowl, its jacket) in their own
-## colours: style -> [the pieces' style, {glb material name: its stand-in}].
-const STYLE_PIECES := {
-	"hush": ["shade", {
-		"eco_v_jacket_shade": preload("res://assets/materials/eco/eco_v_jacket_hush.tres"),
-		"eco_v_jacket_shade_edge": preload("res://assets/materials/eco/eco_v_jacket_hush_edge.tres"),
-	}],
+## Suit styles that wear pieces from elsewhere in the glb (her clothes, the
+## kits' gear) with no suit upgrade, re-dyed: style -> {"pieces": mesh names,
+## "hide": mesh name prefixes, "mats": {glb material name: its stand-in}}.
+const STYLE_GEAR := {
+	"hush": {
+		"pieces": ["outfit_skater_t_hoodie", "outfit_skater_any_hood", "outfit_skater_any_shoes",
+				"suit_t1m_toolpouch", "suit_t1m_wristcomp", "suit_t1m_belt"],
+		"hide": ["Boots", "Goggles"],
+		"mats": {
+			"eco_v_hoodie_skater": preload("res://assets/materials/eco/eco_v_hoodie_hush.tres"),
+			"eco_v_hoodie_skater_edge": preload("res://assets/materials/eco/eco_v_hoodie_hush_edge.tres"),
+			"eco_v_hoodie_skater_hood": preload("res://assets/materials/eco/eco_v_hoodie_hush_hood.tres"),
+			"eco_v_sneaker_skater": preload("res://assets/materials/eco/eco_v_sneaker_hush.tres"),
+			"eco_v_sneaker_skater_sole": preload("res://assets/materials/eco/eco_v_sneaker_hush_sole.tres"),
+			"eco_v_kit_canvas": preload("res://assets/materials/eco/eco_v_kit_canvas_hush.tres"),
+			"eco_v_kit_rubber": preload("res://assets/materials/eco/eco_v_kit_rubber_hush.tres"),
+			"eco_v_armor_glow": preload("res://assets/materials/eco/eco_v_armor_glow_hush.tres"),
+			"eco_v_armor_strap": preload("res://assets/materials/eco/eco_v_armor_strap_hush.tres"),
+			"eco_v_armor_edge": preload("res://assets/materials/eco/eco_v_armor_edge_hush.tres"),
+		},
+	},
 }
 ## Her clothes' body textures, by look() (<outfit>_t Teen, <outfit>_m Mature);
 ## their loose parts are the glb's outfit_<outfit>_<t|m|any>_* meshes.
@@ -458,12 +473,7 @@ func apply_suit() -> void:
 		if mesh_name.begins_with("outfit_"):  # her clothes' loose parts, for her rating or any
 			mi.visible = mesh_name.begins_with("outfit_%s_" % outfit) and mesh_name.get_slice("_", 2) in [rating, "any"]
 		elif mesh_name.begins_with("base_"):  # the bare suit's own pieces (its jacket)
-			var pieces: Array = STYLE_PIECES.get(style(), [style(), {}])
-			mi.visible = suited_ and suit_tier == 0 and mesh_name.begins_with("base_%s_" % pieces[0])
-			if mi.mesh != null:
-				for i in mi.mesh.get_surface_count():
-					var m := mi.mesh.surface_get_material(i)
-					mi.set_surface_override_material(i, pieces[1].get(m.resource_name) if m != null else null)
+			mi.visible = suited_ and suit_tier == 0 and mesh_name.begins_with("base_%s_" % style())
 		elif tier > 0 and mi.mesh != null:
 			mi.visible = suited_ and tier <= suit_tier and piece_worn(mesh_name, suit_weight)
 			for i in mi.mesh.get_surface_count():
@@ -478,7 +488,35 @@ func apply_suit() -> void:
 				elif m != null and m.resource_name == "eco_v_face":
 					mi.set_surface_override_material(i, face_material())
 		mi.set_instance_shader_parameter("trim_gold", 1.0 if legacy else 0.0)
+	_style_gear(STYLE_GEAR.get(style(), {}) if suited_ and suit_tier == 0 else {})
 	Extras.apply(self)  # her piercings, tattoos and accessories from Solace
+
+
+## Shows a suit style's borrowed pieces (STYLE_GEAR) in its colours, hides
+## what it leaves off, and puts every other style's borrowed pieces back as
+## they were.
+func _style_gear(gear: Dictionary) -> void:
+	var borrowed := []
+	for each: Dictionary in STYLE_GEAR.values():
+		borrowed.append_array(each["pieces"])
+	var mats: Dictionary = gear.get("mats", {})
+	for node in find_children("*", "MeshInstance3D", true, false):
+		var mi := node as MeshInstance3D
+		var mesh_name := String(mi.name)
+		for prefix: String in gear.get("hide", []):
+			if mesh_name.begins_with(prefix):
+				mi.visible = false
+		if not mesh_name in borrowed or mi.mesh == null:
+			continue
+		var worn: bool = mesh_name in gear.get("pieces", [])
+		if worn:
+			mi.visible = true
+		for i in mi.mesh.get_surface_count():
+			var m := mi.mesh.surface_get_material(i)
+			if worn and m != null and mats.has(m.resource_name):
+				mi.set_surface_override_material(i, mats[m.resource_name])
+			elif not mesh_name.begins_with("suit_t") or m == null or m.resource_name != "eco_v_armor":
+				mi.set_surface_override_material(i, null)
 
 
 ## Her clothes' body texture, or her suit style's bodysuit (null: the glb's

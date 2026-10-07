@@ -108,6 +108,8 @@ const OPHELIA_NOTICES := [
 	"Ophelia: \"I waited up. Again. Whatever it is, I'm not going anywhere. Just... come back.\"",
 ]
 ## When Marrow's Hold is first full: the Hush courier suit (vices.gd hush_suit).
+## When Marrow's Hold reaches 60: the Hush gun finish (vices.gd hush_finish).
+const HUSH_FINISH_LINE := "Marrow presses a tin of violet resin lacquer into her hand. Marrow: \"For your little gun. So you think of me every time you pull the trigger.\" New finish at the gunsmith's bench: Hush."
 const HUSH_SUIT_LINE := "A parcel on her bed, wrapped in violet paper. Marrow's courier suit, cut to her size. A card: \"For my best runner. Wear it.\" It's in her wardrobe."
 const MOM_SMELLS := [
 	"Mom: \"You smell like the Halo's back step. Don't lie to me, I can smell it.\"",
@@ -575,7 +577,11 @@ func _hub_tick(delta: float) -> void:
 		return
 	if Vices.hush_suit_new and Vices.allowed():
 		Vices.hush_suit_new = false
+		Vices.hush_finish_new = false
 		hud.toast(HUSH_SUIT_LINE, HUB_LINE_SECONDS + 3.0)
+	elif Vices.hush_finish_new and Vices.allowed():
+		Vices.hush_finish_new = false
+		hud.toast(HUSH_FINISH_LINE, HUB_LINE_SECONDS + 3.0)
 	if not rest_spot.is_empty():
 		_rest_tick()
 		return

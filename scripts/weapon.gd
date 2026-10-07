@@ -353,6 +353,8 @@ func _physics_process(delta: float) -> void:
 
 
 func _process(delta: float) -> void:
+	if finish.get("hypno", false):
+		spin_hush(delta)
 	_animate_viewmodel(delta)
 	_apply_punch(delta)
 	flash_timer -= delta
@@ -391,6 +393,8 @@ func fire() -> void:
 	shots_fired += 1
 	cooldown = fire_interval
 	since_shot = 0.0
+	if finish.get("hypno", false):
+		spin_hush(0.0, 1.4)  # the spirals jolt round with the shot
 	var cam: Camera3D = player.camera
 	# Aim comes from the head, so the visual camera punch never moves the shot.
 	var basis: Basis = player.head.global_basis
@@ -1048,6 +1052,20 @@ static func _fit_attachments(model: Node3D, p_model_id: String, p_attachments: D
 
 
 static var _finish_cache := {}
+## The Hush finish's spirals: how far they've turned (ps2_surface hypno_phase).
+static var hush_phase := 0.0
+## Slots the Hush finish's spirals turn on, and slots its violet glows in.
+const HYPNO_SLOTS := ["pistol_shell", "pistol_polymer", "pistol_black", "pistol_chrome"]
+const HYPNO_GLOW_SLOTS := ["pistol_blue", "pistol_stripe"]
+
+
+## Turns the Hush finish's spirals: a slow drift that quickens the deeper
+## Marrow's Hold, and a jolt with every shot (`kick` radians).
+static func spin_hush(delta: float, kick := 0.0) -> void:
+	hush_phase += delta * (0.8 + 2.4 * Vices.hold / 100.0) + kick
+	for key: String in _finish_cache:
+		if key.begins_with("hush/"):
+			(_finish_cache[key] as ShaderMaterial).set_shader_parameter("hypno_phase", hush_phase)
 
 
 ## Repaints the gun's shell, accent and stripe in the finish's colours.
@@ -1069,6 +1087,12 @@ static func _apply_finish(model: Node3D, p_finish: Dictionary) -> void:
 			if not _finish_cache.has(key):
 				var painted: ShaderMaterial = mat.duplicate()
 				painted.set_shader_parameter("albedo", p_finish.get(FINISH_SLOTS[slot_name], p_finish.get("shell", Color.WHITE)))
+				if p_finish.get("hypno", false):
+					if slot_name in HYPNO_SLOTS:
+						painted.set_shader_parameter("hypno_swirl", 1.0)
+					elif slot_name in HYPNO_GLOW_SLOTS:
+						painted.set_shader_parameter("emission", Color(0.72, 0.32, 1.0))
+						painted.set_shader_parameter("emission_energy", 0.9)
 				_finish_cache[key] = painted
 			(mi as MeshInstance3D).set_surface_override_material(i, _finish_cache[key])
 

@@ -29,6 +29,7 @@ extends RefCounted
 ## matters; refits apply to salvaged parts too.
 
 const TitanParts := preload("res://scripts/run/titan_parts.gd")
+const Vices := preload("res://scripts/hub/vices.gd")
 
 const DEFAULT_PATH := "user://armory.cfg"
 const MATERIALS := ["scrap", "alloy", "circuits", "lock_cores"]
@@ -206,6 +207,12 @@ const FINISHES := [
 	{"id": "midnight", "name": "Midnight", "shell": Color(0.22, 0.22, 0.28), "blue": Color(0.45, 0.3, 0.8), "stripe": Color(1.2, 0.3, 0.6)},
 	{"id": "bone", "name": "Bone white", "shell": Color(1.1, 1.05, 0.92), "blue": Color(0.3, 0.3, 0.32), "stripe": Color(0.95, 0.2, 0.15)},
 	{"id": "ember", "name": "Ember", "shell": Color(0.3, 0.26, 0.24), "blue": Color(1.1, 0.4, 0.15), "stripe": Color(1.3, 0.85, 0.3)},
+	# Marrow's gift once his Hold is deep (vices.gd hush_finish, Mature only):
+	# violet-black with Hush resin in the seams, spirals of violet light turning
+	# on its sides (ps2_surface hypno_swirl), and violet tracers
+	{"id": "hush", "name": "Hush (from Marrow)", "shell": Color(0.2, 0.13, 0.3), "blue": Color(0.85, 0.45, 1.3),
+		"stripe": Color(1.0, 0.45, 1.4), "black": Color(0.08, 0.06, 0.11), "chrome": Color(0.55, 0.42, 0.8),
+		"hypno": true, "tracer": Color(0.8, 0.45, 1.0, 0.9), "locked": "hush"},
 ]
 
 ## Eco's suit upgrades, bought in order at the suit locker. Each tier keeps
@@ -609,11 +616,26 @@ static func finish(id: String) -> Dictionary:
 	return FINISHES[0]
 
 
+## Whether finish `id` is on offer: the Hush finish only once Marrow's given it
+## to her (vices.gd hush_finish), under Mature.
+static func finish_open(id: String) -> bool:
+	return finish(id).get("locked", "") != "hush" or (Vices.hush_finish and Vices.allowed())
+
+
+## The finishes on offer at the gunsmith's bench.
+static func open_finishes() -> Array:
+	return FINISHES.filter(func(f): return finish_open(f["id"]))
+
+
+## The finish on `weapon` (Dad's colours if its pick isn't on offer now).
 func finish_of(weapon: String) -> String:
-	return finishes.get(weapon, "dads")
+	var id: String = finishes.get(weapon, "dads")
+	return id if finish_open(id) else "dads"
 
 
 func set_finish(weapon: String, id: String) -> void:
+	if not finish_open(id):
+		return
 	finishes[weapon] = id
 	save()
 
@@ -647,6 +669,8 @@ func weapon_profile(id := "") -> Dictionary:
 	profile["stats"] = stats
 	profile["attachments"] = parts
 	profile["finish"] = finish(finish_of(id))
+	if profile["finish"].has("tracer"):
+		profile["tracer"] = profile["finish"]["tracer"]
 	return profile
 
 
