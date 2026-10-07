@@ -5,6 +5,7 @@ extends CanvasLayer
 ##   2   max relationships: Ophelia's affection and Mom's bond to full
 ##   3   unlock every cosmetic: piercings, tattoos and accessories (put on
 ##       at Ink & Iron and Stitch & Steel; Mature ones show under Mature)
+##   4   super Hush: Marrow's Hold to full at once (vices.gd, Mature only)
 
 const Armory := preload("res://scripts/hub/armory.gd")
 const TownShops := preload("res://scripts/hub/town_shops.gd")
@@ -12,6 +13,7 @@ const Romance := preload("res://scripts/hub/romance.gd")
 const Family := preload("res://scripts/hub/family.gd")
 const SFX := preload("res://scripts/sfx.gd")
 const NpcTalk := preload("res://scripts/hub/npc_talk.gd")
+const Vices := preload("res://scripts/hub/vices.gd")
 
 const MAX_MATERIAL := 9999
 const GOLD := Color(1.0, 0.82, 0.3)
@@ -65,11 +67,12 @@ func _ready() -> void:
 	col.add_child(_button("1   Max materials (9999 of everything)", max_materials))
 	col.add_child(_button("2   Max relationships (Ophelia, Mom and Biggie to full)", max_relationships))
 	col.add_child(_button("3   Unlock all cosmetics (piercings, tattoos, accessories)", unlock_cosmetics))
+	col.add_child(_button("4   Super Hush (Marrow's Hold to full, Mature only)", super_hush))
 	_status = _text("", 16, INK)
 	_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_status.custom_minimum_size = Vector2(512, 0)
 	col.add_child(_status)
-	col.add_child(_text("1-3 pick   F or Esc close", 14, DIM))
+	col.add_child(_text("1-4 pick   F or Esc close", 14, DIM))
 
 
 func _input(event: InputEvent) -> void:
@@ -82,6 +85,8 @@ func _input(event: InputEvent) -> void:
 			max_relationships()
 		KEY_3, KEY_KP_3:
 			unlock_cosmetics()
+		KEY_4, KEY_KP_4:
+			super_hush()
 		_:
 			return
 	get_viewport().set_input_as_handled()
@@ -122,6 +127,19 @@ func unlock_cosmetics_count() -> int:
 	var n := TownShops.unlock_all()
 	_did("Unlocked %d cosmetics. Put them on at Ink & Iron and Stitch & Steel in town." % n if n > 0 else "Every cosmetic is already yours.")
 	return n
+
+
+## A vial of glowing violet resin, three times the usual: his Hold goes to
+## full, so his pull, his errands and withdrawal all start now.
+func super_hush() -> bool:
+	if not Vices.allowed():
+		_did("Super Hush is Mature only (Settings > Game > rating).")
+		return false
+	Vices.hold = Vices.MAX_HOLD
+	Vices.walked_away = false
+	Vices.save()
+	_did("Super Hush: Marrow's Hold is full. He stops selling, his pull can take her, and a run without a dose is withdrawal.")
+	return true
 
 
 func _did(line: String) -> void:

@@ -10,6 +10,8 @@ const Extras := preload("res://scripts/hub/eco_extras.gd")
 const Romance := preload("res://scripts/hub/romance.gd")
 const Family := preload("res://scripts/hub/family.gd")
 const CheatScreen := preload("res://scripts/hub/cheat_screen.gd")
+const Vices := preload("res://scripts/hub/vices.gd")
+const ContentRating := preload("res://scripts/radio/content_rating.gd")
 
 const ARMORY_PATH := "user://test_cheat_armory.cfg"
 const TALK_PATH := "user://test_cheat_npcs.cfg"
@@ -55,6 +57,15 @@ func _run() -> void:
 	_check("new ones aren't put on", TownShops.worn_of("piercings").is_empty() and TownShops.worn_of("tattoos").is_empty(), TownShops.worn())
 	_check("what she had on stays on", TownShops.worn_of("accessories") == ["shades"], TownShops.worn_of("accessories"))
 	_check("twice: nothing new", TownShops.unlock_all() == 0, "")
+
+	Vices.open("user://test_cheat_vices.cfg")
+	ContentRating.set_rating("T", false)
+	_check("super Hush: Mature only", not box.super_hush() and Vices.hold == 0.0, Vices.hold)
+	ContentRating.set_rating("M", false)
+	_check("super Hush: his Hold to full", box.super_hush() and Vices.hold == Vices.MAX_HOLD and Vices.can_pull(), Vices.hold)
+	Vices.open("user://test_cheat_vices.cfg")
+	_check("super Hush saved", Vices.hold == Vices.MAX_HOLD, Vices.hold)
+	DirAccess.remove_absolute(ProjectSettings.globalize_path("user://test_cheat_vices.cfg"))
 
 	print("cheat_test: %s (%d failures)" % ["PASS" if failures == 0 else "FAIL", failures])
 	quit(1 if failures > 0 else 0)

@@ -214,7 +214,8 @@ Under the Mature rating (Settings > Game), **F** at the Rusted Halo on Low Row o
 A dented ammo crate with a gold trim by the rug in Eco's loft (`scripts/hub/cheat_screen.gd`).
 **F** opens it: **1** maxes every material (9999), **2** maxes every relationship (Ophelia's
 affection, Mom's and Biggie's bond), **3** unlocks every piercing, tattoo and accessory (they land
-taken off; put them on at Ink & Iron and Stitch & Steel, Mature ones under Mature). Test:
+taken off; put them on at Ink & Iron and Stitch & Steel, Mature ones under Mature), **4** is
+Super Hush: Marrow's Hold straight to full (Mature only). Test:
 `tests/cheat_test.gd`.
 
 ### Workbenches and materials
