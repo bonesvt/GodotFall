@@ -191,12 +191,12 @@ def tear_ok(P, N):
 
 def slide_ok(P, N):
     """Where sliding may wear the suit through: like tear_ok, but her upper
-    thighs and glutes open up wherever they're 7 cm or more from a covered
+    thighs and glutes open up wherever they're 4 cm or more from a covered
     zone (the inside of her thighs and the middle of her glutes stay shut)."""
     x, z = P[..., 0], P[..., 2]
     ax = np.abs(x)
     back = N[..., 1] > 0.3
-    ok = ~zone_mask(P, 0.07)
+    ok = ~zone_mask(P, SLIDE_GAP)
     ok &= ~((z > 0.96) & (z < 1.17) & (ax < 0.17) & ~back)        # chest
     ok &= ~((z > 0.60) & (z < 0.98) & (ax < 0.12) & ~back)        # front of her hips and belly
     for sx, sz in APEXES:
@@ -272,16 +272,21 @@ TEARS = [
     ((0.075, 0.050, 0.300), BACK, LEG, 0.055, 0.028, 0.82, 0.25, 0.40),       # left calf
 ]
 
-# worn through by sliding (opened by the slide level, not hits)
+# worn through by sliding (opened by the slide level, not hits). Their full
+# extent is fixed here (every earlier stage is a smaller part of it) and was
+# checked by eye at full size in slide, crouch and stride poses
+# (tools/eco/damage_pose_shots.gd), so they may come within SLIDE_GAP of a
+# covered zone (Bones, 2026-10-07).
+SLIDE_GAP = 0.04
 SLIDE_TEARS = [
     ((0.140, -0.020, 0.690), (1, -0.3, 0), LEG, 0.085, 0.040, 0.10, 0.35, 0.40),     # left outer thigh
     ((-0.140, -0.020, 0.700), (-1, -0.3, 0), LEG, 0.075, 0.038, 0.22, 0.35, 0.40),   # right outer thigh
-    ((0.125, 0.060, 0.790), (0.45, 1, 0), LEG, 0.055, 0.028, 0.32, 0.35, 0.40),   # left glute, outer half
-    ((-0.125, 0.060, 0.780), (-0.45, 1, 0), LEG, 0.050, 0.026, 0.52, 0.35, 0.40),  # right glute, outer half
+    ((0.100, 0.075, 0.790), (0.35, 1, 0), LEG, 0.060, 0.032, 0.32, 0.35, 0.40),   # left glute, outer half
+    ((-0.100, 0.075, 0.780), (-0.35, 1, 0), LEG, 0.055, 0.030, 0.52, 0.35, 0.40),  # right glute, outer half
     ((0.130, -0.050, 0.540), (0.5, -1, 0), LEG, 0.050, 0.030, 0.60, 0.30, 0.40),     # left thigh, front outer
-    ((0.140, 0.070, 0.735), (0.5, 0.8, -0.32), (1, 0, 0.2), 0.034, 0.026, 0.45, 0.30, 0.40),   # under her left glute, outer half of the fold
-    ((-0.140, 0.070, 0.735), (-0.5, 0.8, -0.32), (-1, 0, 0.2), 0.032, 0.024, 0.66, 0.30, 0.40),  # under her right glute, outer half
-    ((0.000, 0.070, 0.930), BACK, (1, 0, 0), 0.050, 0.022, 0.55, 0.30, 0.40),        # low on her back, well above the top of the crease
+    ((0.105, 0.075, 0.735), (0.4, 0.85, -0.32), (1, 0, 0.2), 0.040, 0.026, 0.45, 0.30, 0.40),   # under her left glute, outer half of the fold
+    ((-0.105, 0.075, 0.735), (-0.4, 0.85, -0.32), (-1, 0, 0.2), 0.038, 0.024, 0.66, 0.30, 0.40),  # under her right glute, outer half
+    ((0.000, 0.070, 0.905), BACK, (1, 0, 0), 0.050, 0.022, 0.55, 0.30, 0.40),        # low on her back, above the top of the crease
 ]
 
 # scuffs: bigger, earlier, and only pale the fabric
@@ -420,11 +425,12 @@ def slide_map(P, N, cover, verts, normals):
 
 def check_zones(P, cover, maps, slide=None):
     """The bake fails if anything within 6 cm of an always-covered zone could
-    ever tear or scar."""
+    ever tear or scar, or sliding wear through within 3.5 cm (SLIDE_GAP less
+    half a centimetre of slack)."""
     near = zone_mask(P, 0.06) & cover
     bad = near & ((maps[..., 1] < NEVER) | (maps[..., 3] < NEVER))
     if slide is not None:
-        bad |= near & (slide < NEVER)
+        bad |= zone_mask(P, SLIDE_GAP - 0.005) & cover & (slide < NEVER)
     if bad.any():
         raise SystemExit("bake_damage: %d texels near a covered zone could tear" % int(bad.sum()))
     return int(near.sum())

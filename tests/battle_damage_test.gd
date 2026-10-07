@@ -85,8 +85,8 @@ func _rating_and_setting() -> void:
 
 
 ## Every vertex of her body within 6 cm of the always-covered zones (memory
-## vesper-limits), and all of her chest, reads "never" for tears, cuts and
-## sliding wear.
+## vesper-limits), and all of her chest, reads "never" for tears and cuts;
+## sliding wear (checked by eye at full size in poses) stays 3.5 cm clear.
 func _map_keeps_clear() -> void:
 	var img := Image.load_from_file(ProjectSettings.globalize_path(MAP))
 	var slide := Image.load_from_file(ProjectSettings.globalize_path(SLIDE_MAP))
@@ -115,10 +115,12 @@ func _map_keeps_clear() -> void:
 			slid_thigh += 1
 		if worn and p.z > 0.72 and p.z < 0.88 and p.y > 0.02:
 			slid_glute += 1
+		if worn and _locked(p, 0.035):
+			bad.append(p)
 		if not _locked(p):
 			continue
 		near += 1
-		if px.g < 0.99 or px.a < 0.99 or worn:
+		if px.g < 0.99 or px.a < 0.99:
 			bad.append(p)
 	_check("map: tears exist", torn_somewhere > 30, torn_somewhere)
 	_check("slide map: wears through her outer upper thighs", slid_thigh > 10, slid_thigh)
@@ -128,18 +130,17 @@ func _map_keeps_clear() -> void:
 	eco.free()
 
 
-## Within 6 cm of a covered zone (vesper-limits), or on her chest.
-func _locked(p: Vector3) -> bool:
-	const PAD := 0.06
+## Within `pad` of a covered zone (vesper-limits), or on her chest.
+func _locked(p: Vector3, pad := 0.06) -> bool:
 	var ax := absf(p.x)
 	for sx in [0.057, -0.057]:
-		if Vector2(p.x - sx, p.z - 1.047).length() < 0.022 + PAD + 0.01:
+		if Vector2(p.x - sx, p.z - 1.047).length() < 0.022 + pad + 0.01:
 			return true
-	if p.y < 0.0 and p.z > 0.712 - PAD and p.z < 0.79 + PAD and ax < 0.012 + 0.45 * (p.z - 0.70) + PAD:
+	if p.y < 0.0 and p.z > 0.712 - pad and p.z < 0.79 + pad and ax < 0.012 + 0.45 * (p.z - 0.70) + pad:
 		return true   # groin
-	if p.z > 0.712 - PAD and p.z < 0.74 + PAD and ax < 0.014 + PAD:
+	if p.z > 0.712 - pad and p.z < 0.74 + pad and ax < 0.014 + pad:
 		return true   # between the legs
-	if p.y > 0.0 and p.z > 0.712 - PAD and p.z < 0.81 + PAD and ax < 0.012 + PAD:
+	if p.y > 0.0 and p.z > 0.712 - pad and p.z < 0.81 + pad and ax < 0.012 + pad:
 		return true   # back cleft
 	return p.z > 0.98 and p.z < 1.13 and ax < 0.13 and p.y < 0.0   # her chest
 
