@@ -32,6 +32,8 @@ class Walker extends CharacterBody3D:
 	var crouching := false
 	var strolling := false
 	var third_person := true
+	var brace := 0.0
+	var press_normal := Vector3.ZERO
 
 
 func _initialize() -> void:
@@ -113,22 +115,33 @@ func _press_scene() -> void:
 	_say("Off duty, walking into a wall")
 	var pressed := 0.0
 	var spread := 0.0
+	var drift := Vector3.ZERO
 	for f in 450:
 		if f == 70:
 			_say("She slows as her soft parts meet it")
 		elif f == 130:
-			_say("Still pushing: she spreads against it and sinks in further")
+			_say("Still pushing: she braces her hands on it, spreads and sinks in further")
 		elif f == 370:
-			_say("Lets up: it eases her back out")
+			_say("Turns away: pushes herself off it")
 		var want := Vector3(0, 0, -1.9) if f < 370 else Vector3.ZERO
-		var cap := shape.shape as CapsuleShape3D
-		var out := Player.soft_press_at(walker.get_world_3d().direct_space_state, shape.global_transform, 1.8, want, [walker.get_rid()], walker.collision_mask, cap.radius)
+		var out := Player.soft_press_at(walker.get_world_3d().direct_space_state, shape.global_transform, 1.8, want, [walker.get_rid()], walker.collision_mask, spread, 1.0)
 		walker.velocity = out[0]
 		pressed = out[1]
-		# as player.gd soft_press: pushing on at full press, her core gives a little more
+		if out[3] != Vector3.ZERO:
+			walker.press_normal = out[3]
+		# as player.gd soft_press: pushing on at full press she spreads and braces;
+		# turning away she shoves off
 		var on: bool = out[2] and pressed > 0.85
 		spread = move_toward(spread, 1.0 if on else 0.0, (1.0 / 60.0) / (Player.SPREAD_TIME if on else 0.5))
-		cap.radius = lerpf(Player.STROLL_RADIUS, Player.DEEP_RADIUS, spread)
+		if f == 370 and walker.brace > 0.5:
+			drift = walker.press_normal * Player.BRACE_PUSH_OFF * walker.brace
+			walker.brace = 0.0
+		elif on:
+			walker.brace = move_toward(walker.brace, 1.0, (1.0 / 60.0) / Player.BRACE_TIME)
+		else:
+			walker.brace = move_toward(walker.brace, 0.0, (1.0 / 60.0) / 0.3)
+		walker.velocity += drift
+		drift = drift.move_toward(Vector3.ZERO, 4.0 / 60.0)
 		walker.move_and_slide()
 		await _frames(1)
 	print("last press %.2f, at z %.3f" % [pressed, walker.position.z])

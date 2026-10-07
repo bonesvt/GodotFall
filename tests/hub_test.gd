@@ -10,6 +10,7 @@ const HubBuilder := preload("res://scripts/hub/hub_builder.gd")
 const Grounds := preload("res://scripts/hub/hub_grounds.gd")
 const TitanStyle := preload("res://scripts/run/titan_style.gd")
 const Vices := preload("res://scripts/hub/vices.gd")
+const Prefs := preload("res://scripts/game/prefs.gd")
 
 var run_node
 var player
@@ -19,6 +20,7 @@ var failures := 0
 func _initialize() -> void:
 	# Hints go to their own settings file, so these runs never mark them seen on your save.
 	preload("res://scripts/run/tutorial.gd").settings_path = "user://test_settings.cfg"
+	Prefs.path = "user://test_hub_prefs.cfg"
 	run_node = load("res://scenes/run.tscn").instantiate()
 	run_node.run_seed = 99
 	run_node.armory_path = "user://test_hub_armory.cfg"
@@ -70,10 +72,19 @@ func _run() -> void:
 			continue   # Marrow's errand spots: tests/hush_pull_test.gd
 		if spot.has("glass"):
 			continue   # the Chorus's ledger and vats: tests/glass_test.gd
+		if spot.get("press_console", false):
+			# the physics lab console steps the Press into things setting
+			await _stand_at(spot["pos"])
+			var before: float = Prefs.press_strength()
+			await _press("interact")
+			await _ticks(2)
+			_check("the lab console changes how much she can press", Prefs.press_strength() != before and run_node.hud.toast_label.text.begins_with("Press into things"), [before, Prefs.press_strength()])
+			Prefs.set_press_strength(1.0)
+			continue
 		if spot["id"] in ["tutorial_poster", "uncharted_map", "garage", "level_board", "level2_board"]:  # level boards: tests/level1_test.gd, level2_test.gd
 			continue
 		await _stand_at(spot["pos"])
-		if spot.has("teleport") and Vices.allowed():
+		if spot.has("teleport") and (spot.get("open", false) or Vices.allowed()):
 			# Marrow's cellar door and basement stairs (hush_den.gd) take her through.
 			await _press("interact")
 			await _ticks(2)
@@ -314,7 +325,21 @@ func _rest_checks(info: Dictionary) -> void:
 	_check("lying flat, head toward the pillow", absf(head_at.y - hips_at.y) < 0.3 and head_at.x < hips_at.x - 0.3, head_at)
 	var face := eco.find_child("Face", true, false) as MeshInstance3D
 	_check("eyes closed asleep", face.get_blend_shape_value(face.find_blend_shape_by_name("Fcl_EYE_Close")) == 1.0, face)
-	_check("resting shows her in third person, gun away", view.third_person and run_node.hud.prompt_label.text == "[F] Get up", run_node.hud.prompt_label.text)
+	_check("resting shows her in third person, gun away", view.third_person and run_node.hud.prompt_label.text.begins_with("[F] Lie on your back"), run_node.hud.prompt_label.text)
+	await _press("interact")
+	await _ticks(150)
+	hips_at = eco.skeleton.global_transform * eco.skeleton.get_bone_global_pose(hips).origin
+	head_at = eco.skeleton.global_transform * eco.skeleton.get_bone_global_pose(head).origin
+	_check("F rolls her onto her back, head on the pillow", eco.rest_pose == "back" and absf(head_at.y - hips_at.y) < 0.2 and head_at.x < hips_at.x - 0.3, [hips_at, head_at])
+	_check("then offers lying face down", run_node.hud.prompt_label.text.begins_with("[F] Lie face down"), run_node.hud.prompt_label.text)
+	await _press("interact")
+	await _ticks(150)
+	hips_at = eco.skeleton.global_transform * eco.skeleton.get_bone_global_pose(hips).origin
+	head_at = eco.skeleton.global_transform * eco.skeleton.get_bone_global_pose(head).origin
+	_check("F again: face down, head on the pillow", eco.rest_pose == "prone" and absf(head_at.y - hips_at.y) < 0.2 and head_at.x < hips_at.x - 0.3, [hips_at, head_at])
+	await _press("interact")
+	await _ticks(150)
+	_check("and round to her side again", eco.rest_pose == "sleep" and player.resting, eco.rest_pose)
 	var stood: Vector3 = player.global_position
 	Input.action_press("move_forward")
 	await _ticks(10)

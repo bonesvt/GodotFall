@@ -1,7 +1,8 @@
 extends SceneTree
 ## Battle damage (scripts/ps2/battle_damage.gd): hits, slides and time out on a
 ## run make Eco dirtier, more scuffed, torn and cut, and sliding wears her suit
-## through at the outer thighs, glutes and hips; Teen shows only the dirt and
+## through at the outer thighs, glutes and hips; her clothes over the suit rip
+## too; Teen shows only the dirt and
 ## scuffs; the setting turns it off; the baked maps never let a tear or cut
 ## near the always-covered zones; her materials read the map; and it all
 ## washes off at the temple.
@@ -33,6 +34,7 @@ func _run() -> void:
 	_rating_and_setting()
 	_map_keeps_clear()
 	_materials()
+	_clothes()
 	await _in_a_run()
 	ContentRating.set_rating(rating, false)
 	print("battle damage test: %s" % ("PASS" if failures == 0 else "%d FAILED" % failures))
@@ -180,6 +182,48 @@ func _materials() -> void:
 	var kit: ShaderMaterial = eco.body_material()
 	_check("a suit kit's bodysuit reads the map", kit.get_shader_parameter("damage_kind") == 1, kit.get_shader_parameter("damage_kind"))
 	eco.queue_free()
+
+
+## Her clothes over the suit (jackets, hoodie, skirts, leg warmers) read their
+## own rip maps, rip somewhere, and never near the covered zones.
+func _clothes() -> void:
+	var eco = ECO.instantiate()
+	var maps := {}
+	var torn := {}
+	var bad := []
+	for node in eco.find_children("*", "MeshInstance3D", true, false):
+		var mi := node as MeshInstance3D
+		for s in mi.mesh.get_surface_count():
+			var m := mi.mesh.surface_get_material(s) as ShaderMaterial
+			if m == null or m.get_shader_parameter("damage_kind") != 3:
+				continue
+			var tex: Texture2D = m.get_shader_parameter("damage_tex")
+			if tex == null:
+				bad.append(m.resource_name)
+				continue
+			if not maps.has(tex.resource_path):
+				maps[tex.resource_path] = Image.load_from_file(ProjectSettings.globalize_path(tex.resource_path))
+			var img: Image = maps[tex.resource_path]
+			var ink := m.next_pass as ShaderMaterial
+			if ink == null or ink.get_shader_parameter("damage_tex") != tex:
+				bad.append(m.resource_name + " ink")
+			var arrays := mi.mesh.surface_get_arrays(s)
+			var verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+			var uvs: PackedVector2Array = arrays[Mesh.ARRAY_TEX_UV]
+			var w := img.get_width()
+			for i in verts.size():
+				var v := verts[i]
+				var p := Vector3(-v.x, v.z, v.y) / K
+				var px := img.get_pixelv(Vector2i(clampi(int(uvs[i].x * w), 0, w - 1), clampi(int(uvs[i].y * w), 0, w - 1)))
+				if px.g < 0.99 or px.a < 0.99:
+					torn[m.resource_name] = true
+					if _locked(p, 0.035):
+						bad.append([m.resource_name, p])
+	_check("her clothes read their rip maps (%d)" % maps.size(), maps.size() >= 10, maps.keys())
+	for cloth in ["eco_v_jacket", "eco_v_hoodie_skater", "eco_v_cargo", "eco_v_tartan"]:
+		_check("%s rips" % cloth, torn.has(cloth), torn.keys())
+	_check("her clothes never rip near the covered zones", bad.is_empty(), bad.slice(0, 5))
+	eco.free()
 
 
 func _in_a_run() -> void:

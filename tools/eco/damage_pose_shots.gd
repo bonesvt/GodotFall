@@ -5,8 +5,8 @@ extends SceneTree
 ## front and close on her chest. The check by eye before the slide and chest
 ## tears were allowed nearer the covered zones (tools/eco/bake_damage.py
 ## SLIDE_GAP, CHEST_GAP).
-##   xvfb-run -a godot --path . -s res://tools/eco/damage_pose_shots.gd -- [out_dir] [--damage=1.0] [--only=slide,crouch] [--views=chest,chest_34]
-## Needs a renderer (not --headless). Writes <pose>_<view>.png.
+##   xvfb-run -a godot --path . -s res://tools/eco/damage_pose_shots.gd -- [out_dir] [--damage=1.0] [--only=slide,crouch] [--views=chest,chest_34] [--outfits=skater,y2k]
+## Needs a renderer (not --headless). Writes [<outfit>_]<pose>_<view>.png.
 
 const ECO := preload("res://assets/models/eco.tscn")
 const BattleDamage := preload("res://scripts/ps2/battle_damage.gd")
@@ -15,6 +15,9 @@ const ContentRating := preload("res://scripts/radio/content_rating.gd")
 var out := "user://damage_pose_shots"
 var only: Array = []
 var views: Array = []
+## outfits to dress her in, one after another (eco_model.gd OUTFITS); [""]
+## leaves her in her own suit and names the shots without one
+var outfits: Array = [""]
 var damage := 1.0
 
 ## pose name, animation, how far through it (0..1)
@@ -40,6 +43,8 @@ func _initialize() -> void:
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("--only="):
 			only = a.get_slice("=", 1).split(",")
+		elif a.begins_with("--outfits="):
+			outfits = a.get_slice("=", 1).split(",")
 		elif a.begins_with("--views="):
 			views = a.get_slice("=", 1).split(",")
 		elif a.begins_with("--damage="):
@@ -80,18 +85,22 @@ func _go() -> void:
 	await _frames(2)
 	eco.set_process(false)  # hold the pose set below
 	var anim := eco.find_child("AnimationPlayer", true, false) as AnimationPlayer
-	for pose: Array in POSES:
-		if not only.is_empty() and not only.has(pose[0]):
-			continue
-		anim.play(pose[1])
-		anim.seek(anim.current_animation_length * float(pose[2]), true)
-		anim.pause()
-		for view: Array in VIEWS:
-			if not views.is_empty() and not views.has(view[0]):
+	for dress: String in outfits:
+		if dress != "":
+			eco.wear(dress)
+			eco.apply_suit()
+		for pose: Array in POSES:
+			if not only.is_empty() and not only.has(pose[0]):
 				continue
-			cam.look_at_from_position(view[1], view[2])
-			await _frames(4)
-			var path := out.path_join("%s_%s.png" % [pose[0], view[0]])
-			root.get_texture().get_image().save_png(path)
-			print("shot ", path)
+			anim.play(pose[1])
+			anim.seek(anim.current_animation_length * float(pose[2]), true)
+			anim.pause()
+			for view: Array in VIEWS:
+				if not views.is_empty() and not views.has(view[0]):
+					continue
+				cam.look_at_from_position(view[1], view[2])
+				await _frames(4)
+				var path := out.path_join(("%s_" % dress if dress != "" else "") + "%s_%s.png" % [pose[0], view[0]])
+				root.get_texture().get_image().save_png(path)
+				print("shot ", path)
 	quit()

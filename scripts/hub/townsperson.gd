@@ -39,7 +39,6 @@ var _say_t := 0.0
 var _say_times := PackedFloat32Array()
 var _say_text := ""
 var _say_left := 0.0
-var _body: AnimatableBody3D
 
 
 static func create_town(p_who: String, pos: Vector3, yaw_deg: float, p_mode := "stand") -> Node3D:
@@ -57,18 +56,6 @@ func _ready() -> void:
 	super._ready()
 	posed = mode == "sit"   # hub_npc: no turning on the spot, no switching to its talk loop
 	_play(_rest_anim())
-	# Something for Eco to bump into rather than walk through.
-	_body = AnimatableBody3D.new()
-	_body.name = "Body"
-	_body.sync_to_physics = false
-	var col := CollisionShape3D.new()
-	var cap := CapsuleShape3D.new()
-	cap.radius = 0.3
-	cap.height = 1.6
-	col.shape = cap
-	col.position = Vector3(0, 0.8, 0)
-	_body.add_child(col)
-	add_child(_body)
 	_caption = Label3D.new()
 	_caption.name = "Caption"
 	_caption.billboard = BaseMaterial3D.BILLBOARD_ENABLED

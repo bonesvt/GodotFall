@@ -163,7 +163,8 @@ func set_third_person(on: bool) -> void:
 ## `at` is the floor under her hips, facing the way she faces, and
 ## `seat_height` the top of the seat or bed. She walks over from where she
 ## stands, and from one rest pose to another moves over without standing up.
-func rest(pose: String, at: Transform3D, seat_height: float) -> void:
+## `nightwear` changes her into her sleep clothes (in her own bed).
+func rest(pose: String, at: Transform3D, seat_height: float, nightwear := false) -> void:
 	if shadow == null:
 		return
 	if not shadow.resting():
@@ -178,7 +179,7 @@ func rest(pose: String, at: Transform3D, seat_height: float) -> void:
 	shadow.rest_pose = pose
 	_show_gun(false)
 	if shadow.has_method("wear"):
-		shadow.wear("sleep" if pose == "sleep" else Wardrobe.eco_now)
+		shadow.wear("sleep" if nightwear else Wardrobe.eco_now)
 
 
 ## Gets her up from her rest pose, back to where the player stands now.

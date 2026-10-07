@@ -304,6 +304,10 @@ func _game_tab() -> void:
 	box.add_child(UI.label("How Eco's hair and body bounce as she moves.", 18, UI.MUTED))
 	_toggle(box, "Full body jiggle (experimental)", Prefs.body_jiggle(), Prefs.set_body_jiggle)
 	box.add_child(UI.label("A little softness in her stomach, thighs, arms and calves too.", 18, UI.MUTED))
+	_slider(box, "Press into things", 0.0, 2.0, 0.1, Prefs.press_strength(),
+		func(v): return "Off" if v < 0.05 else ("%d%%" % roundi(v * 100)),
+		Prefs.set_press_strength)
+	box.add_child(UI.label("How far Eco sinks into walls and her soft parts give off duty (100% as tuned, Off stops her at the surface). Try it in the physics lab under the temple.", 18, UI.MUTED))
 	_toggle(box, "Battle damage", Prefs.battle_damage(), Prefs.set_battle_damage)
 	box.add_child(UI.label("Eco gets dirty and scuffed over a run (Mature: her suit tears and she picks up cuts). Washes off at the temple.", 18, UI.MUTED))
 	_third_person_rows(box)

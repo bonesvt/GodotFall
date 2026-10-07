@@ -72,6 +72,8 @@ global uniform float eco_glass;
 // (tools/eco/bake_damage.py; each channel the level at which a texel turns:
 // R grime, G torn, B scuffed, A scarred; tears only open on her suit's fabric,
 // where the mask's G is). 2: a piece of kit she wears: dust and scuffs only.
+// 3: cloth over her suit (jackets, hoodie, skirts), from damage_tex (R grime,
+// G torn by hits, B scuffed, A worn through by sliding): torn cloth is cut away.
 uniform int damage_kind = 0;
 uniform sampler2D damage_tex : hint_default_white, filter_linear, repeat_disable;
 // Where sliding wears through (R: the slide level each texel opens at), and
@@ -222,6 +224,24 @@ void fragment() {
 			col = mix(col, crystal, glassed * (0.55 + 0.4 * rim_in));
 			glass_emit = HUSH_VIOLET * (seam_glow * 1.2 + 0.08 + 0.12 * facet) * glassed;
 		}
+	} else if (damage_kind == 3) {
+		vec4 d = texture(damage_tex, UV);
+		float speck = damage_noise(UV * 900.0);
+		scuffed = smoothstep(d.b, d.b + 0.1, eco_scuffs);
+		col = mix(col, mix(col, vec3(dot(col, vec3(0.333))), 0.55) * 1.3 + 0.05, scuffed * (0.45 + 0.35 * speck));
+		float tl = d.g;
+		float tv = eco_tears;
+		if (eco_slide - d.a > tv - tl) {
+			tl = d.a;
+			tv = eco_slide;
+		}
+		if (tv > tl + 0.006 && tl < 0.99) {
+			discard;
+		}
+		float fray = smoothstep(tl - 0.07, tl, tv) * step(tl, 0.99);
+		col *= 1.0 - fray * (0.55 + 0.3 * speck);
+		float g = smoothstep(d.r, d.r + 0.22, eco_grime);
+		col = mix(col, col * DIRT * 2.2 + DIRT * 0.1, g * (0.4 + 0.25 * damage_noise(UV * 140.0)) * (0.8 + 0.2 * speck));
 	} else if (damage_kind == 2) {
 		float n = damage_noise(UV * 30.0) * 0.6 + damage_noise(UV * 95.0) * 0.4;
 		scuffed = smoothstep(0.35 + n * 0.6, 0.5 + n * 0.6, eco_scuffs);

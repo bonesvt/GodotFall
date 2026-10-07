@@ -22,7 +22,8 @@ const DEFAULTS := {
 	"audio": {"Master": 0.9, "Effects": 1.0, "Ambience": 1.0, "Voices": 1.0},
 	"video": {"display": "windowed", "vsync": true, "max_fps": 0, "look": "anime", "film_grain": 0.4, "ps2_look": false},
 	"game": {"third_person": false, "jiggle_style": "classic", "body_jiggle": false, "battle_damage": true,
-		"tp_distance": 1.7, "shoulder_swap": true, "hub_nudge": true, "hub_nudge_x": 0.0, "hub_nudge_y": 0.0},
+		"tp_distance": 1.7, "shoulder_swap": true, "hub_nudge": true, "hub_nudge_x": 0.0, "hub_nudge_y": 0.0,
+		"press_strength": 1.0},
 }
 ## The FOV the cameras were tuned at; the FOV setting shifts every camera by
 ## its difference from this.
@@ -195,6 +196,22 @@ static func jiggle_style() -> String:
 static func set_jiggle_style(style: String) -> void:
 	set_value("game", "jiggle_style", style if style in JIGGLE_STYLES else "classic")
 	save()
+	if Engine.get_main_loop() is SceneTree:
+		(Engine.get_main_loop() as SceneTree).call_group("eco_jiggle", "follow_jiggle_setting")
+
+
+## How much Eco can press into things off duty (player.gd soft_press, and how
+## far contact pushes and squashes her soft parts): 0 = not at all, 1 = as
+## tuned, 2 = very soft.
+static func press_strength() -> float:
+	return float(get_value("game", "press_strength"))
+
+
+## Saves it and puts it on the player and every Eco that follows the jiggle settings.
+static func set_press_strength(v: float) -> void:
+	set_value("game", "press_strength", clampf(v, 0.0, 2.0))
+	save()
+	load("res://scripts/player.gd").press_strength = press_strength()
 	if Engine.get_main_loop() is SceneTree:
 		(Engine.get_main_loop() as SceneTree).call_group("eco_jiggle", "follow_jiggle_setting")
 

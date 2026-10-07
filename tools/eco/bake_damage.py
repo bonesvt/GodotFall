@@ -382,6 +382,20 @@ def snap(verts, centre, facing, normals=None):
     return verts[np.argmin(d)]
 
 
+def grime_level(P):
+    """Grime: from the boots up, then her hands and forearms, elbows and knees,
+    in blotches; sweat and soot last on her chest and back."""
+    x, z = P[..., 0], P[..., 2]
+    ax = np.abs(x)
+    n1 = fbm(P * 9.0, 4, 1)
+    n2 = fbm(P * 28.0, 3, 5)
+    rise = ss(0.05, 1.25, z)
+    hands = ss(0.30, 0.47, ax) * (z > 1.0)
+    joints = np.exp(-((ax - 0.069) ** 2 + (z - 0.455) ** 2) / 0.004) + np.exp(-((ax - 0.286) ** 2 + (z - 1.145) ** 2) / 0.003)
+    grime = 0.12 + 0.62 * rise - 0.30 * hands - 0.18 * joints + 0.55 * (n1 - 0.5) + 0.22 * (n2 - 0.5)
+    return np.clip(grime, 0.02, 0.97)
+
+
 def body_maps(P, N, cover, verts, normals):
     x, y, z = P[..., 0], P[..., 1], P[..., 2]
     ax = np.abs(x)
@@ -508,6 +522,99 @@ def stitches(P, cover):
     return cover & line & dash
 
 
+# --- clothes over her suit -------------------------------------------------------
+
+# Her clothes' cloth (jackets, hoodie, skirts, leg warmers): each gets a map of
+# its own (R grime, G torn by hits, B scuffed, A worn through by sliding) and
+# rips where her suit does, the same spots at the same levels, landed on the
+# cloth. A torn texel is cut away (the shader discards it), showing her suit
+# or skin under it. A spot whose rip would reach within GARMENT_GAP of a
+# covered zone is left off that piece altogether (no hemmed seams on clothes),
+# so a piece never rips near one and no rip gets a straight, clipped edge.
+GARMENT_GAP = 0.04
+GARMENT_RES = 1024
+GARMENTS = ["eco_v_jacket", "eco_v_jacket_ghost", "eco_v_jacket_homemade", "eco_v_jacket_racer", "eco_v_jacket_shade",
+            "eco_v_jacket_techwear", "eco_v_jacket_date", "eco_v_tartan", "eco_v_hoodie_skater", "eco_v_cargo",
+            "eco_v_warmers"]
+
+
+def garment_out(material):
+    return os.path.join(ROOT, "assets/textures/eco/v_damage_%s.png" % material[len("eco_v_"):])
+
+
+def surfaces(j, buf, material):
+    """Every surface in the glb drawn with `material` that has UVs, as
+    (positions, normals, uvs, triangles), rest space."""
+    names = [m["name"] for m in j["materials"]]
+    out = []
+    for nd in j["nodes"]:
+        if "mesh" not in nd:
+            continue
+        for p in j["meshes"][nd["mesh"]]["primitives"]:
+            if names[p.get("material", -1)] != material or "TEXCOORD_0" not in p["attributes"]:
+                continue
+            at = p["attributes"]
+            out.append((to_rest(accessor(j, buf, at["POSITION"]).astype(np.float64)) / K,
+                        to_rest(accessor(j, buf, at["NORMAL"]).astype(np.float64)),
+                        accessor(j, buf, at["TEXCOORD_0"]).astype(np.float64),
+                        accessor(j, buf, p["indices"]).reshape(-1, 3).astype(np.int64)))
+    return out
+
+
+def garment_map(j, buf, material, body_verts, body_normals):
+    P = np.zeros((GARMENT_RES, GARMENT_RES, 3))
+    N = np.zeros_like(P)
+    cover = np.zeros((GARMENT_RES, GARMENT_RES), bool)
+    verts, normals = [], []
+    for pos, nrm, uv, tris in surfaces(j, buf, material):
+        # cloth with a lining shares its UVs between the outer face and the
+        # lining: draw the lining (facing her) first, so the outer face wins
+        near_body = np.empty(len(pos), int)
+        for k in range(0, len(pos), 512):
+            near_body[k:k + 512] = np.argmin(((pos[k:k + 512, None] - body_verts[None]) ** 2).sum(-1), axis=1)
+        outward = ((pos - body_verts[near_body]) * nrm).sum(-1) > 0.0
+        out_tri = outward[tris].mean(1) > 0.5
+        for part in (tris[~out_tri], tris[out_tri]):
+            p, n, c = rasterize(pos, nrm, uv, part, GARMENT_RES)
+            P[c], N[c] = p[c], n[c]
+            cover |= c
+        verts.append(pos[outward])
+        normals.append(nrm[outward])
+    if not verts:
+        raise SystemExit("bake_damage: no %s with UVs in %s" % (material, GLB))
+    verts, normals = np.concatenate(verts), np.concatenate(normals)
+    near = zone_mask(P, GARMENT_GAP) & cover
+
+    def rips(spots, seed):
+        lvl = np.full(P.shape[:2], NEVER)
+        for i, (c, f, a, rl, rs, ap, gr, jag) in enumerate(spots):
+            on_body = snap(body_verts, c, f, body_normals)
+            fv = np.asarray(f, float) / np.linalg.norm(f)
+            ok = (normals @ fv) > 0.3
+            d = np.linalg.norm(verts - on_body, axis=1)
+            d[~ok] = np.inf
+            if d.min() > 0.04:   # this piece doesn't cover that spot
+                continue
+            spot = spot_level(P, N, verts[np.argmin(d)], f, a, rl, rs, ap, gr, jag, seed + i)
+            spot = np.where(cover & (spot < 0.98), spot, NEVER)
+            if (near & (spot < NEVER)).any():
+                continue
+            lvl = np.minimum(lvl, spot)
+        return lvl
+
+    hit = rips(TEARS + CHEST_TEARS + HEM_HIT, 200)
+    slide = rips(SLIDE_TEARS + HEM_SLIDE, 240)
+    scuff = np.full(P.shape[:2], NEVER)
+    for i, (c, f, a, rl, rs, ap, gr, jag) in enumerate(SCUFFS):
+        scuff = np.minimum(scuff, spot_level(P, N, snap(body_verts, c, f, body_normals), f, a, rl * 1.2, rs * 1.2,
+                                             ap, gr, jag, 80 + i))
+    out = np.stack([grime_level(P), hit, scuff, slide], axis=-1)
+    out[~cover] = NEVER
+    if (near & ((hit < NEVER) | (slide < NEVER))).any():
+        raise SystemExit("bake_damage: %s could tear near a covered zone" % material)
+    return pad(out, cover, 6)
+
+
 def check_zones(P, cover, maps, slide=None):
     """The bake fails if anything within 6 cm of an always-covered zone (3.5 cm
     of a bust disc: CHEST_GAP less half a centimetre of slack) could ever tear
@@ -543,6 +650,10 @@ def preview(maps, P, cover, out_dir, name):
 def main():
     j, buf = load_glb(GLB)
     pos, nrm, uv, tris = primitive(j, buf, "Body", "eco_v_body")
+    for material in GARMENTS:
+        save(garment_map(j, buf, material, pos, nrm), garment_out(material))
+    if "--clothes-only" in sys.argv:
+        return
     P, N, cover = rasterize(pos, nrm, uv, tris, BODY_RES)
     body = body_maps(P, N, cover, pos, nrm)
     slide = slide_map(P, N, cover, pos, nrm)

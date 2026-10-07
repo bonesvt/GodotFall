@@ -7,6 +7,8 @@ shader_type spatial;
 render_mode unshaded, cull_front, shadows_disabled;
 
 global uniform float ps2_vertex_snap;
+global uniform float eco_tears;
+global uniform float eco_slide;
 
 uniform vec4 ink : source_color = vec4(0.25, 0.19, 0.23, 1.0);
 // Line width in pixels at 1080p (scaled with the screen height).
@@ -17,6 +19,9 @@ uniform sampler2D albedo_tex : source_color, hint_default_white, filter_linear_m
 // Tints the ink toward the surface colour underneath (0 plain ink).
 uniform float tint : hint_range(0.0, 1.0) = 0.35;
 uniform float alpha_cut : hint_range(0.0, 1.0) = 0.0;
+// Cloth over her suit: the same rips as its toon pass (eco_toon.gdshaderinc
+// damage_kind 3), so the line doesn't draw over a hole.
+uniform sampler2D damage_tex : hint_default_white, filter_linear, repeat_disable;
 
 instance uniform vec4 paint : source_color, instance_index(2) = vec4(1.0);
 
@@ -37,6 +42,10 @@ void vertex() {
 }
 
 void fragment() {
+	vec4 d = texture(damage_tex, UV);
+	if ((eco_tears > d.g + 0.006 && d.g < 0.99) || (eco_slide > d.a + 0.006 && d.a < 0.99)) {
+		discard;
+	}
 	vec4 tex = texture(albedo_tex, UV);
 	ALBEDO = ink.rgb * mix(vec3(1.0), tex.rgb * paint.rgb, tint);
 	ALPHA = tex.a;
