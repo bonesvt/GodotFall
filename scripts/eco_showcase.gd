@@ -6,12 +6,16 @@ extends Node3D
 ##   3              first-person pistol and glove
 ##   S              next suit upgrade tier (0-5)    W   next suit weight (light, medium, heavy)
 ##   C              next suit or outfit (eco_model.gd OUTFITS)    O   content rating (Teen, Mature)
+##   D              battle damage: none, a little, a lot, the end of a hard run (battle_damage.gd)
 ## Also renders the character sheet shots when run with
 ##   godot res://scenes/eco_showcase.tscn -- --shots=<folder> [--clean] [--suit=<tier>] [--weight=light|medium|heavy]
-##       [--outfit=<name>] [--rating=T|M] [--only=front,back]
+##       [--outfit=<name>] [--rating=T|M] [--only=front,back] [--damage=0..1]
 
 const Art := preload("res://scripts/ps2/ps2_assets.gd")
 const ContentRating := preload("res://scripts/radio/content_rating.gd")
+const BattleDamage := preload("res://scripts/ps2/battle_damage.gd")
+## Battle damage levels D steps through.
+const DAMAGE_STEPS := [0.0, 0.35, 0.7, 1.0]
 
 ## [name, eco yaw (deg), camera position, look-at point, fov]
 const SHOTS := [
@@ -77,6 +81,8 @@ func _ready() -> void:
 			eco.wear(arg.trim_prefix("--outfit="))
 		if arg.begins_with("--only="):
 			_only = arg.trim_prefix("--only=").split(",")
+		if arg.begins_with("--damage="):
+			BattleDamage.set_all(float(arg.trim_prefix("--damage=")))
 	for arg in OS.get_cmdline_user_args():
 		if arg.begins_with("--shots="):
 			_render_shots(arg.trim_prefix("--shots="))
@@ -97,6 +103,7 @@ func _set_view(i: int) -> void:
 
 
 func _process(delta: float) -> void:
+	BattleDamage.apply()  # the rating may have changed (O)
 	if turntable and _view != 2:
 		eco.rotation.y += delta * 0.5
 
@@ -120,6 +127,9 @@ func _unhandled_input(event: InputEvent) -> void:
 			eco.wear(eco.OUTFITS[(eco.OUTFITS.find(eco.outfit) + 1) % eco.OUTFITS.size()])
 		KEY_O:
 			ContentRating.cycle()
+		KEY_D:
+			var i := DAMAGE_STEPS.find(BattleDamage.grime)
+			BattleDamage.set_all(DAMAGE_STEPS[(i + 1) % DAMAGE_STEPS.size()])
 		KEY_1, KEY_2, KEY_3:
 			_set_view(event.keycode - KEY_1)
 

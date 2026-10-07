@@ -173,7 +173,7 @@ static func build_zone(root: Node3D, rng: RandomNumberGenerator) -> Dictionary:
 	var dress := RandomNumberGenerator.new()
 	dress.seed = rng.randi()
 
-	L.terrain(root, ground, GRID_X, GRID_Z, CELL, Color(0.62, 0.66, 0.42), Color(0.7, 0.68, 0.6))
+	L.terrain(root, ground, GRID_X, GRID_Z, CELL, Color(0.62, 0.66, 0.42), Color(0.7, 0.68, 0.6), "grass", "mud")
 	L.water(root, Vector3(0, WATER_Y, (GRID_Z.x + GRID_Z.y) * 0.5), Vector2(GRID_X.y - GRID_X.x + 200.0, GRID_Z.y - GRID_Z.x + 120.0),
 			Color(0.09, 0.12, 0.08, 0.93))
 	L.fences(root, func(z): return Vector2(trail_x(z) - half_width(z) - 6.0, trail_x(z) + half_width(z) + 6.0), 30.0, -268.0)

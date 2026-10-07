@@ -158,6 +158,7 @@ func put_away() -> void:
 	if not out:
 		return
 	out = false
+	SFX.play(self, "knife_sheathe", -14.0, SFX.vary(0.05))
 	if player != null:
 		player.speed_mult = 1.0
 	if anim == "inspect" or anim == "draw":

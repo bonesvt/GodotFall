@@ -70,7 +70,7 @@ const STRING_LIGHT := Color(1.0, 0.72, 0.38)
 ## Marker3D by her workbench for her model.
 static func build(root: Node3D) -> Dictionary:
 	Kit.environment(root, SKY_TOP, SKY_HORIZON)
-	Ambience.start(root, {"temple_interior": -15.0, "temple_drips": -20.0, "wind_soft": -20.0, "forest_birds": -24.0})
+	Ambience.start(root, {"temple_interior": -15.0, "temple_drips": -20.0, "wind_soft": -20.0, "forest_birds": -26.0, "park_birds": -24.0})
 	# Darker ambient than the zones, so the roofed hall falls into shadow and
 	# the sun shaft, fire bowls and lamps carry the light.
 	for node in root.get_children():
@@ -356,6 +356,7 @@ static func _idol(root: Node3D, info: Dictionary) -> void:
 		K.glow(root, bowl + Vector3(0, 1.55, 0), Vector3(0.7, 0.5, 0.7), FIRE, Vector3(0, 20, 0))
 		K.glow(root, bowl + Vector3(0, 1.9, 0), Vector3(0.35, 0.4, 0.35), Color(1.0, 0.85, 0.4), Vector3(0, 60, 0))
 		K.light(root, bowl + Vector3(0, 2.2, 0), FIRE, 1.8, 9.0)
+		K.sound(info, "campfire", bowl + Vector3(0, 1.6, 0), -16.0, 2.0)
 	K.interactable(info, "idol", Vector3(0, F + 1.0, z0 + 8.0), "[F] Look at the idol", [
 		"Whoever built this place prayed to something with one big eye.",
 		"The eye still glows. No wiring, no power cell. I checked.",
@@ -490,6 +491,7 @@ static func _bedroom(root: Node3D, info: Dictionary) -> void:
 	# A rug, and a beanbag by the rail.
 	K.mesh(root, Vector3(-8.9, y + 0.015, -12.6), Vector3(3.2, 0.03, 3.8), Art.material("fabric", Color(0.42, 0.62, 0.72)), Vector3(0, 4, 0))
 	K.mesh(root, Vector3(-8.9, y + 0.02, -12.6), Vector3(2.6, 0.03, 3.2), Art.material("fabric", Color(0.42, 0.62, 0.72).lightened(0.25)), Vector3(0, 4, 0))
+	K.patch(root, Vector3(-8.9, y, -12.6), Vector2(3.2, 3.8), "rug", 4.0)
 	K.mesh(root, Vector3(-7.7, y + 0.25, -7.0), Vector3(0.9, 0.5, 0.9), Art.material("fabric", Color(0.9, 0.45, 0.55)), Vector3(8, 25, 0))
 	# Fairy lights along the rail, and a warm fill over the room.
 	var rail_x := LOFT.end.x - 0.12
@@ -892,6 +894,7 @@ static func _home(root: Node3D, info: Dictionary) -> void:
 		K.mesh(root, Vector3(pos.x, F + 0.015, pos.z), Vector3(size.x, 0.03, size.y), Art.material("fabric", tint), Vector3(0, yaw, 0))
 		K.mesh(root, Vector3(pos.x, F + 0.02, pos.z), Vector3(size.x - 0.4, 0.03, size.y - 0.4), Art.material("fabric", tint.lightened(0.25)), Vector3(0, yaw, 0))
 		K.mesh(root, Vector3(pos.x, F + 0.025, pos.z), Vector3(size.x - 0.8, 0.03, size.y - 0.8), Art.material("fabric", tint), Vector3(0, yaw, 0))
+		K.patch(root, Vector3(pos.x, F, pos.z), size, "rug", yaw)
 	# A long runner from the door down the nave, a rug by the couch.
 	rug.call(Vector3(0, 0, 0.0), Vector2(2.4, 11.0), Color(0.9, 0.42, 0.3))
 	rug.call(Vector3(2.9, 0, -5.6), Vector2(3.6, 3.0), Color(1.0, 0.75, 0.35), -6.0)

@@ -14,6 +14,7 @@ extends Node3D
 
 signal freed
 
+const SFX := preload("res://scripts/sfx.gd")
 const Kit := preload("res://scripts/run/level_kit.gd")
 const Art := preload("res://scripts/ps2/ps2_assets.gd")
 const K := preload("res://scripts/hub/hub_kit.gd")
@@ -321,6 +322,8 @@ func in_range(pos: Vector3) -> bool:
 
 
 func unlock() -> void:
+	if locked and is_inside_tree():
+		SFX.play_at(self, global_position + Vector3(0, 1.5, 0), "cache_unlock", -4.0)
 	locked = false
 	_refresh()
 
@@ -337,6 +340,10 @@ func release() -> bool:
 	if not can_open():
 		return false
 	opened = true
+	# the screen shorts out with a crack, the pylons die, the field sighs off
+	SFX.play_at(self, global_position + Vector3(0, 1.5, 0), "spark", 0.0, 0.8)
+	SFX.play_at(self, global_position + Vector3(0, 1.5, 0), "titan_powerdown", -4.0, 1.2)
+	SFX.play_at(self, global_position + Vector3(0, 0.5, 0), "titan_hiss_short", -8.0, 1.3)
 	_screen.queue_free()
 	_screen = null
 	var dead := Art.material("gunmetal", Color(0.35, 0.36, 0.38))

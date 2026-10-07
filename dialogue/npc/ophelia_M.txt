@@ -453,30 +453,30 @@ choice -5: eco: Maybe you should stick to soda.
 ophelia (blush, lookaway): Last orders. Your place or the temple? ...Don't answer. You'll say something silly and I'll like it. Just walk.
 
 [date smoke m]
-ophelia (plain, lookaway): The back step of the Halo. Bins, one bad light, nobody. Best spot in Solace. Don't tell anyone, they'll ruin it.
+ophelia (plain, lookaway, @arrive): The back step of the Halo. Bins, one bad light, nobody. Best spot in Solace. Don't tell anyone, they'll ruin it.
 eco: It smells like old beer.
-ophelia (tilt): It smells like peace and quiet. Last Night Owl in the pack. We're sharing it. N-not because I want to. It's my last one.
-narrator: She lights it, takes a slow drag, and holds it out between two fingers.
+ophelia (tilt, @pack): It smells like peace and quiet. Last Night Owl in the pack. We're sharing it. N-not because I want to. It's my last one.
+narrator (@light): She lights it, takes a slow drag, and holds it out between two fingers.
 choice +5: eco: You're a terrible influence, gloom girl.
 > ophelia (smile): You stole a titan. You were influenced already. Small drags, dummy.
 choice +3: eco: Mom's going to smell it on me.
 > ophelia (smile, lookaway): Tell her you were standing next to me. It's true. Annoyingly close.
 choice -3: eco: Those things will kill you, you know.
 > ophelia (sad, down): So will the colony. At least this one I picked. ...Just one drag. For me. Pretty please. Don't tell anyone I said please.
-narrator: Eco coughs. Ophelia laughs, really laughs, then catches herself, pouts, and fixes Eco's grip.
+narrator (@first): Eco coughs. Ophelia laughs, really laughs, then catches herself, pouts, and fixes Eco's grip.
 ophelia (blush, lookaway): You hold it like a spanner. It's pathetic. ...It's cute. Don't fix it.
-narrator: The ember's nearly at the filter.
-ophelia (plain, tilt): Last drag's yours. Make it count. Don't waste my cigarette.
+narrator (@short): The ember's nearly at the filter.
+ophelia (plain, tilt, @hand_last): Last drag's yours. Make it count. Don't waste my cigarette.
 eco: Watch and learn.
-narrator: Eco draws the last of it in and grinds the stub out on the step. Before she can breathe out...
-ophelia (kiss, blush): Mine.
-narrator: Ophelia leans in and kisses her, and steals the smoke right out of her mouth.
-ophelia (exhale, fluster, lookaway): That was MY cigarette! I was just taking it back! That's all that was!
+narrator (@last_drag): Eco draws the last of it in and grinds the stub out on the step. Before she can breathe out...
+ophelia (blush, @kiss): Mine.
+narrator (@kiss_hold): Ophelia leans in and kisses her, and steals the smoke right out of her mouth.
+ophelia (fluster, lookaway, @exhale): That was MY cigarette! I was just taking it back! That's all that was!
 choice +7: eco: Thief.
 > ophelia (blush, smile): You'll get it back. Next pack's on you. And the one after.
 choice +4: eco: I'm buying a carton. Fifty of those. Minimum.
 > ophelia (fluster, closed): Slow down, mechanic. ...Fine. Forty. Shush.
-ophelia (blush, plain): Don't tell your mom. About any of it. Especially the part where I laughed.
+ophelia (blush, plain, @after): Don't tell your mom. About any of it. Especially the part where I laughed.
 
 [date any m]
 ophelia (angry, down): So this is a date. Fine. Whatever. I've been on loads. I haven't been on any.

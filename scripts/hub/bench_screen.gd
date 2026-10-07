@@ -38,7 +38,7 @@ const SPIN_SPEED := 0.4
 var armory: Armory
 var kind := "rack"
 ## What a purchase sounds like at each bench (recordings in assets/audio/sfx).
-const CONFIRM_SOUND := {"rack": "reload_in", "workshop": "workbench_ratchet", "knives": "knife_draw"}
+const CONFIRM_SOUND := {"rack": "upgrade_rack", "workshop": "upgrade_titan", "knives": "upgrade_knife"}
 var tab := 0
 var selected := 0
 ## The gun in hand (the rack's preview falls back to it).
@@ -187,7 +187,7 @@ func confirm() -> bool:
 	var after: int = armory.pilot_level()
 	if after > before:
 		_level_flash = 1.6
-		SFX.play(self, "ui_confirm", -2.0)
+		SFX.play(self, "level_up", -4.0)
 		unlocked.append_array(Armory.unlocks_between(before, after))
 	refresh()
 	return ok

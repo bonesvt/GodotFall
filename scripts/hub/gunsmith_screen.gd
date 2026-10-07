@@ -216,7 +216,7 @@ func choose(index: int) -> bool:
 	var o: Dictionary = options[index]
 	var before: int = armory.pilot_level()
 	var ok := false
-	var sound := "workbench_tools"
+	var sound := "upgrade_gun"
 	match o["kind"]:
 		"track":
 			ok = armory.buy_upgrade(weapon, o["id"])
@@ -238,7 +238,7 @@ func choose(index: int) -> bool:
 	var after: int = armory.pilot_level()
 	if after > before:
 		_level_flash = 1.6
-		SFX.play(self, "ui_confirm", -2.0)
+		SFX.play(self, "level_up", -4.0)
 		unlocked.append_array(Armory.unlocks_between(before, after))
 	refresh()
 	return ok

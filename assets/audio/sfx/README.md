@@ -30,20 +30,22 @@ every file from the original downloads.
 | Loot | `cache_open` (supply crate), `whack` + `debris_metal` (mining an alloy node), `ui_click` (picking up materials) | loot_crate.gd, resource_node.gd, material_pickup.gd |
 | The Choir | `choir_chord` (the attack tell), `choir_needle` (Hush rifle), `choir_hurt_*`, `choir_die`, `seraph_song`, `cantor_blast`, `hound_screech` | scripts/threats/ |
 | Wildlife | `glassback_low` `glassback_stampede` `lampjaw_snap` `quillcat_hiss` `quillcat_yowl` `picker_chitter` `veilray_call` | scripts/threats/ |
+| Eco's feet, more floors | `step_stone_*` (the temple, the plaza), `step_water_*` (wading: any water() plane she's below the surface of), `step_mud_*` (the marsh), `step_rug_*` (rugs), `step_gravel_*` (dirt paths, the Boneyard and the bases); a landing also plays the floor's step | player.gd, hub_kit.gd patch() |
+| Upgrades | `upgrade_gun` (gunsmith), `upgrade_rack` (weapon rack), `upgrade_knife` (knife case), `upgrade_titan` (titan workshop), `upgrade_suit` (suit locker), `level_up` (pilot level goes up) | bench_screen.gd, gunsmith_screen.gd, suit_screen.gd |
+| Home interactions | `bench_open` / `bench_close`, `wardrobe_open` / `wardrobe_close`, `shop_bell` (gift shop, salon), `outfit_change`, `haircut`, `coins` + `paper_2` (buying a gift), `map_open` (mission table, uncharted map), `paper_1` (tutorial poster), `sit_down` / `bed_creak` (resting), `door_metal_open` + `workbench_tools` (paint shop) | run_manager.gd, the hub screens |
+| Run interactions | `spark` + `titan_powerdown` + `titan_hiss_short` (shorting Ophelia's stasis screen), `cache_unlock` (a guarded cache or cell unlocks), `cache_open` + `pickup_part` (salvage taken), `mag_drop` (reload), `shell_casing` (each shot), `knife_sheathe` (knife away), `heartbeat` (under a third of her health), `grunt_hey` (a grunt gets suspicious), `grunt_yell_*` (a grunt is sure) | holding_cell.gd, salvage_cache.gd, weapon.gd, knife.gd, hud.gd, grunt.gd |
+| Menus | `ui_hover` + `ui_click` on every menu button, toggle and dropdown | ui_theme.gd |
+| The war in the distance (runs) | `grunt_shot` and `far_shot_*` bursts trading fire, `grunt_shot` machine gun runs, `explosion_far` / `explosion_muffled` / `far_shell` shelling, `titan_step_*` + `xo16` (a titan), `far_dropship` (flies overhead), `far_siren`; all through the Distant bus | soundscape.gd battle() |
+| Home soundscape | `chime_*` (wind chimes), `bird_*`, `tree_creak`, a very far `explosion_far` (the colony's range); beds from a spot: `fireplace` (the campfire), `campfire` (the fire bowls), `park_river` (the pond, the plaza fountain), `town_murmur` (the plaza); `park_birds` everywhere | soundscape.gd hub(), hub_kit.gd sound() |
+| Body contact | `contact_wall_*` (her suit patting a wall a soft part swings into), `contact_self_*` (fabric swish where her legs, bust or arms swing together) | eco_contact_sounds.gd (listens to eco_model.gd's body collision) |
 | Ambience | forest zone: `forest_day` `forest_wind` `forest_birds`; forest's edge: `forest_wind` `forest_night`; temple hub: `temple_interior` `temple_drips` `wind_soft` `forest_birds` | forest_builder.gd, hub_builder.gd |
 
-Recorded but not wired in yet, ready for later: `step_gravel_*`,
-`cloth_*`, `knife_sheathe`, `shell_casing`, `mag_drop`, `heartbeat`, `flare`,
-`titan_powerdown`, `titan_core_drain`, `titan_rocket`, `titan_metal_creak`,
-`titan_hiss`, `splitter_beam_loop`, `explosion_small` `explosion_far`
-`explosion_muffled` `explosion_metal`, `debris_metal`, `glass_break`,
-`grunt_yell_*` `grunt_effort_*` `grunt_hey` `grunt_kill_you`,
-`radio_squelch_off` `radio_static_burst` `radio_dead`, `door_iron`
-`door_stone` `door_metal_open` `door_metal_close`, `cache_unlock`,
-`pickup_part`, `workbench_drill` `workbench_hammer` `workbench_squeeze`, `tree_creak`,
-`ui_confirm` `ui_terminal`, and the
-beds `forest_morning` `swamp_creek` `rain` `temple_eerie` `campfire`
-`machine_hum` `radio_static_loop`.
+Recorded but not wired in yet, ready for later:
+`cloth_*` (one plays in the gift shop), `flare`, `titan_core_drain`, `titan_rocket`, `titan_metal_creak`,
+`splitter_beam_loop`, `explosion_small` `explosion_metal`, `glass_break`,
+`grunt_effort_*` `grunt_kill_you`, `radio_squelch_off` `radio_static_burst` `radio_dead`,
+`door_iron` `door_stone` `door_metal_close`, `workbench_drill` `workbench_hammer` `workbench_squeeze`,
+`ui_terminal`, `map_close`, `paper_3`, and the beds `forest_morning` `temple_eerie`.
 
 ## Sources
 
@@ -118,6 +120,41 @@ beds `forest_morning` `swamp_creek` `rain` `temple_eerie` `campfire`
 | [The Free Firearm Sound Library](https://opengameart.org/content/the-free-firearm-sound-library) | bart | CC0 | `grunt_shot`, `scrap`, `xo16` |
 | [Tree Creaking](https://opengameart.org/content/tree-creaking) | AntumDeluge | CC0 | `tree_creak` |
 | [wind1](https://opengameart.org/content/wind1) | Luke.RUSTLTD | CC0 | `forest_wind` |
+
+## Sources, second pass (2026-10-07)
+
+Cut by `tools/audio/more.py` (specs `more.json` and `more_ambience.json`).
+All CC0 on OpenGameArt or kenney.nl.
+
+| Pack | Uploaded by | Licence used | Files made from it |
+| ---- | ----------- | ------------ | ------------------ |
+| [Fantozzi's Footsteps (Grass/Sand & Stone)](https://opengameart.org/content/fantozzis-footsteps-grasssand-stone) | qubodup | CC0 | `step_stone_*` |
+| [6 short water splashes](https://opengameart.org/content/6-short-water-splashes) | qubodup | CC0 | `step_water_*`, `step_mud_*` |
+| [Water splash and sand footsteps](https://opengameart.org/content/water-splash-and-sand-footsteps) | peludo | CC0 | `step_water_5` |
+| [Different steps on wood, stone, leaves, gravel and mud](https://opengameart.org/content/different-steps-on-wood-stone-leaves-gravel-and-mud) | tinyworlds | CC0 | `step_water_*`, `step_mud_*` |
+| [Impact Sounds](https://kenney.nl/assets/impact-sounds) | Kenney | CC0 | `step_mud_*` (snow steps), `step_rug_*` (carpet steps) |
+| [RPG Audio](https://kenney.nl/assets/rpg-audio) | Kenney | CC0 | `bench_open`, `bench_close`, `upgrade_rack`, `upgrade_suit`, `wardrobe_open`, `wardrobe_close`, `coins`, `sit_down`, `bed_creak` |
+| [Random gunfire SFX](https://opengameart.org/content/random-gunfire-sfx) | iamoneabe | CC0 | `far_shot_1`, `far_shot_2` |
+| [Gunshots](https://opengameart.org/content/gunshots) | kurt | CC0 | `far_shot_3` |
+| [Battle at sea](https://opengameart.org/content/battle-at-sea) | thimras | CC0 | `far_shell` |
+| [Low rumbling](https://opengameart.org/content/low-rumbling) | Musheran | CC0 | `far_shell`, `far_dropship` |
+| [Helicopter SFX](https://opengameart.org/content/helicopter-sfx) | WuxiaScrub | CC0 | `far_dropship` |
+| [Storm siren](https://opengameart.org/content/storm-siren) | TinyWorlds | CC0 | `far_siren` |
+| [Bell dings/chimes](https://opengameart.org/content/bell-dingschimes) | pwl | CC0 | `chime_*`, `level_up`, `shop_bell` |
+| [Park ambiences](https://opengameart.org/content/park-ambiences) | thimras | CC0 | `bird_*`, `park_birds`, `park_river` |
+| [Fireplace sound loop](https://opengameart.org/content/fireplace-sound-loop) | PagDev | CC0 | `fireplace` |
+| [Crowd shouting/speaking ambience](https://opengameart.org/content/crowd-shoutingspeaking-ambience) | starninjas | CC0 | `town_murmur` (low-passed to a murmur) |
+| [68 Workshop Sounds](https://opengameart.org/content/68-workshop-sounds) | bart | CC0 | `bench_open`, `bench_close`, `upgrade_gun`, `upgrade_rack`, `upgrade_knife`, `upgrade_titan` |
+| [Hammer on anvil](https://opengameart.org/content/hammer-on-anvil) | themightyglider | CC0 | `upgrade_titan` |
+| [Zipper](https://opengameart.org/content/zipper) | AntumDeluge | CC0 | `upgrade_suit`, `outfit_change` |
+| [Fabric rustling](https://opengameart.org/content/fabric-rustling) | iochi-glaucus | CC0 | `outfit_change`, `contact_wall_*`, `contact_self_*` |
+| [Thwack sounds](https://opengameart.org/content/thwack-sounds) | AntumDeluge | CC0 | `contact_wall_*` |
+| [Scissors](https://opengameart.org/content/scissors) | themightyglider | CC0 | `haircut` |
+| [Opening and closing a map](https://opengameart.org/content/opening-and-closing-a-map-sounds) | Spring Spring | CC0 | `map_open`, `map_close` |
+| [Various paper sound effects](https://opengameart.org/content/various-paper-sound-effects) | luckius | CC0 | `paper_*` |
+
+Some of the game's own recordings are layered back in (`reload_in`,
+`titan_hiss_short`).
 
 ## Synthesized
 

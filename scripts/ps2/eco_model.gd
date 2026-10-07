@@ -260,6 +260,7 @@ const ContentRating := preload("res://scripts/radio/content_rating.gd")
 const EcoRest := preload("res://scripts/ps2/eco_rest.gd")
 const Prefs := preload("res://scripts/game/prefs.gd")
 const Hair := preload("res://scripts/hub/hair.gd")
+const Extras := preload("res://scripts/hub/eco_extras.gd")
 const EcoFlesh := preload("res://scripts/ps2/eco_flesh.gd")
 ## Her face while she sleeps (blend shape -> weight); the import's fierce look
 ## comes back when she wakes.
@@ -449,6 +450,7 @@ func apply_suit() -> void:
 				elif m != null and m.resource_name == "eco_v_face":
 					mi.set_surface_override_material(i, face_material())
 		mi.set_instance_shader_parameter("trim_gold", 1.0 if legacy else 0.0)
+	Extras.apply(self)  # her piercings, tattoos and accessories from Solace
 
 
 ## Her clothes' body texture, or her suit style's bodysuit (null: the glb's

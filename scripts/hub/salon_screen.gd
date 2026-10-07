@@ -159,7 +159,7 @@ func confirm() -> bool:
 		return false
 	Hair.choose(get_tree(), who(), style)
 	cut.append([who(), style])
-	SFX.play(self, "ui_confirm", -4.0)
+	SFX.play(self, "haircut", -4.0, SFX.vary(0.04))
 	refresh()
 	_detail.text = DONE_LINES[0 if who() == "eco" else 1]
 	return true

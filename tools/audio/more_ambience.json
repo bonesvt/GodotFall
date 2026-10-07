@@ -1,0 +1,67 @@
+{
+ "park_river": {
+  "stereo": true,
+  "loop": true,
+  "xfade": 2.0,
+  "rms": -22,
+  "q": 0,
+  "layers": [
+   {
+    "src": "park_ambience_river.wav",
+    "start": 30,
+    "dur": 30.0,
+    "fadein": 0.01,
+    "fadeout": 0.001
+   }
+  ]
+ },
+ "park_birds": {
+  "stereo": true,
+  "loop": true,
+  "xfade": 2.0,
+  "rms": -26,
+  "q": 0,
+  "layers": [
+   {
+    "src": "park_ambience_birds.wav",
+    "start": 60,
+    "dur": 40.0,
+    "fadein": 0.01,
+    "fadeout": 0.001
+   }
+  ]
+ },
+ "fireplace": {
+  "stereo": true,
+  "loop": true,
+  "xfade": 2.0,
+  "rms": -22,
+  "q": 0,
+  "layers": [
+   {
+    "src": "fireplace-sound-loop/fire.wav",
+    "start": 0,
+    "dur": 28.0,
+    "fadein": 0.01,
+    "fadeout": 0.001
+   }
+  ]
+ },
+ "town_murmur": {
+  "stereo": true,
+  "loop": true,
+  "xfade": 2.0,
+  "rms": -30,
+  "q": 0,
+  "layers": [
+   {
+    "src": "crowd_shouting.ogg",
+    "start": 0.5,
+    "dur": 26.0,
+    "fadein": 0.01,
+    "fadeout": 0.001,
+    "lp": 900
+   }
+  ]
+ }
+}
