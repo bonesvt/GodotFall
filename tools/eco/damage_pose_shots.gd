@@ -29,6 +29,10 @@ const VIEWS := [
 	["chest", Vector3(0, 1.2, -1.1), Vector3(0, 1.05, 0)],
 	["chest_34", Vector3(0.8, 1.25, -0.8), Vector3(0, 1.05, 0)],
 	["chest_high", Vector3(0, 1.75, -0.7), Vector3(0, 1.0, 0)],
+	["bust_side", Vector3(0.75, 1.05, -0.55), Vector3(0, 1.0, 0)],
+	["bust_low", Vector3(0.15, 0.7, -0.75), Vector3(0, 1.0, 0)],
+	["glute_close", Vector3(0, 0.8, 1.0), Vector3(0, 0.72, 0)],
+	["glute_low", Vector3(0.2, 0.4, 0.9), Vector3(0, 0.72, 0)],
 ]
 
 

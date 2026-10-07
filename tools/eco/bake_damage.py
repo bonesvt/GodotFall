@@ -297,6 +297,29 @@ CHEST_TEARS = [
     ((0.000, -0.066, 1.135), (0, -1, 0.4), (0.3, 0, 1), 0.018, 0.010, 0.86, 0.20, 0.35),       # her breastbone, between the collarbones
 ]
 
+# hemmed rips (Bones, 2026-10-07): rips that run right up to a covered zone
+# but stop at a reinforced, stitched seam HEM_GAP from it, the way an
+# outfit's edge does, so the edge nearest the zone is a clean line and not
+# the jagged edge of a rip. The seam (HEM_W wide, on the zone side of the
+# rip) shows once the rip beside it opens; the fabric between it and the zone
+# never tears. Concepts for now, baked in only with --hem-concepts.
+HEM_GAP = 0.015
+HEM_W = 0.006
+# torn by hits (eco_tears)
+HEM_HIT = [
+    ((0.100, -0.060, 1.050), (1, -0.6, 0), (0, 0, 1), 0.040, 0.020, 0.30, 0.30, 0.35),        # side of her left breast
+    ((-0.057, -0.090, 1.000), (0, -1, -0.6), (1, 0, 0), 0.040, 0.022, 0.40, 0.30, 0.35),      # under her right breast
+    ((0.050, -0.080, 1.090), (0, -1, 0.25), (1, 0, 0.2), 0.040, 0.027, 0.50, 0.30, 0.35),      # top of her left breast
+    ((0.000, -0.100, 1.040), FRONT, (0, 0, 1), 0.035, 0.028, 0.60, 0.25, 0.35),               # between her breasts
+]
+# worn through by sliding (eco_slide)
+HEM_SLIDE = [
+    ((0.045, 0.085, 0.770), BACK, (0, 0, 1), 0.040, 0.026, 0.30, 0.30, 0.40),                 # inner half of her left glute, along the crease
+    ((-0.075, 0.090, 0.780), (-0.3, 1, 0), (0, 0, 1), 0.055, 0.055, 0.40, 0.35, 0.40),        # most of her right glute
+    ((-0.040, 0.070, 0.725), (0, 0.9, -0.4), (1, 0, 0), 0.045, 0.018, 0.50, 0.30, 0.40),      # under her right glute, inner half of the fold
+    ((0.000, 0.080, 0.845), BACK, (1, 0, 0), 0.040, 0.016, 0.60, 0.30, 0.40),                 # just above the top of the crease
+]
+
 # worn through by sliding (opened by the slide level, not hits). Their full
 # extent is fixed here (every earlier stage is a smaller part of it) and was
 # checked by eye at full size in slide, crouch and stride poses
@@ -453,6 +476,36 @@ def slide_map(P, N, cover, verts, normals):
     return lvl
 
 
+def hem_maps(P, N, cover, verts, normals, spots, seed):
+    """The rip levels of hemmed spots (open from HEM_GAP out), and the level
+    at which the seam inside each shows (once the rip beside it opens; a
+    little wider than the rip so it reads as running along)."""
+    rip = np.full(P.shape[:2], NEVER)
+    seam = np.full(P.shape[:2], NEVER)
+    for i, (c, f, a, rl, rs, ap, gr, jag) in enumerate(spots):
+        at = snap(verts, c, f, normals)
+        rip = np.minimum(rip, spot_level(P, N, at, f, a, rl, rs, ap, gr, jag, seed + i))
+        seam = np.minimum(seam, spot_level(P, N, at, f, a, rl * 1.25, rs * 1.25, ap, gr, jag * 0.5, seed + i))
+    open_ = cover & ~zone_mask(P, HEM_GAP)
+    band = cover & zone_mask(P, HEM_GAP) & ~zone_mask(P, HEM_GAP - HEM_W)
+    rip = np.where(open_ & (rip < 0.98), rip, NEVER)
+    seam = np.where(band & (seam < 0.98), np.minimum(seam, 0.97), NEVER)
+    return rip, seam
+
+
+def stitches(P, cover):
+    """Dashes of thread along the middle of every seam: round each bust disc,
+    and up and down along the creases."""
+    x, z = P[..., 0], P[..., 2]
+    along = z.copy()
+    for sx, sz in APEXES:
+        near = np.hypot(x - sx, z - sz) < APEX_R + HEM_GAP + 0.01
+        along = np.where(near, np.arctan2(z - sz, x - sx) * (APEX_R + HEM_GAP), along)
+    line = zone_mask(P, HEM_GAP - HEM_W * 0.3) & ~zone_mask(P, HEM_GAP - HEM_W * 0.7)
+    dash = np.mod(along / 0.005, 1.0) < 0.55
+    return cover & line & dash
+
+
 def check_zones(P, cover, maps, slide=None):
     """The bake fails if anything within 6 cm of an always-covered zone (3.5 cm
     of a bust disc: CHEST_GAP less half a centimetre of slack) could ever tear
@@ -493,10 +546,24 @@ def main():
     slide = slide_map(P, N, cover, pos, nrm)
     near = check_zones(P, cover, body, slide)
     print("body: %d texels, %d near the covered zones (none can tear)" % (int(cover.sum()), near))
+    # the slide map's other channels: G the level (of eco_tears) at which a
+    # hem seam shows, B the same for eco_slide, A its stitches
+    hem_hit = np.full(P.shape[:2], NEVER)
+    hem_slide = np.full(P.shape[:2], NEVER)
+    if "--hem-concepts" in sys.argv:
+        rip, hem_hit = hem_maps(P, N, cover, pos, nrm, HEM_HIT, 160)
+        body[..., 1] = np.minimum(body[..., 1], rip)
+        rip, hem_slide = hem_maps(P, N, cover, pos, nrm, HEM_SLIDE, 180)
+        slide = np.minimum(slide, rip)
+    # nothing ever tears inside a seam's gap (less 3 mm of slack)
+    inside = zone_mask(P, HEM_GAP - 0.003) & cover
+    bad = inside & ((body[..., 1] < NEVER) | (body[..., 3] < NEVER) | (slide < NEVER))
+    if bad.any():
+        raise SystemExit("bake_damage: %d texels inside a hem could tear" % int(bad.sum()))
+    stitch = np.where(stitches(P, cover), 1.0, 0.0)
     save(pad(body, cover), OUT_BODY)
-    img = np.clip(np.round(pad(slide[..., None], cover)[..., 0] * 255.0), 0, 255).astype(np.uint8)
-    Image.fromarray(img, "L").save(OUT_SLIDE, optimize=True)
-    print("wrote", os.path.relpath(OUT_SLIDE, ROOT))
+    extra = np.stack([slide, hem_hit, hem_slide, stitch], axis=-1)
+    save(pad(extra, cover), OUT_SLIDE)
 
     fpos, fnrm, fuv, ftris = primitive(j, buf, "Face", "eco_v_face")
     eyes = []

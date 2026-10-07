@@ -67,7 +67,9 @@ global uniform float eco_slide;
 // where the mask's G is). 2: a piece of kit she wears: dust and scuffs only.
 uniform int damage_kind = 0;
 uniform sampler2D damage_tex : hint_default_white, filter_linear, repeat_disable;
-// Where sliding wears through (R: the slide level each texel opens at).
+// Where sliding wears through (R: the slide level each texel opens at), and
+// the stitched seams that hem a rip running up to a covered zone (G: the
+// eco_tears level a seam shows at, B: the eco_slide level, A: its stitches).
 uniform sampler2D damage_slide_tex : hint_default_white, filter_linear, repeat_disable;
 // Her skin where the suit tears open.
 uniform vec3 skin_tone : source_color = vec3(0.97, 0.86, 0.8);
@@ -134,7 +136,8 @@ void fragment() {
 		// map, eco_slide): whichever is further past its level here
 		float tl = d.g;
 		float tv = eco_tears;
-		float sl = texture(damage_slide_tex, UV).r;
+		vec4 sm = texture(damage_slide_tex, UV);
+		float sl = sm.r;
 		float grazed = 0.0;
 		if (eco_slide - sl > tv - tl) {
 			tl = sl;
@@ -151,6 +154,11 @@ void fragment() {
 		vec3 skin = mix(skin_tone, skin_tone * GRAZE, grazed * smoothstep(0.3, 0.7, damage_noise(UV * 260.0)) * 0.7);
 		col = mix(col, skin * albedo.rgb * (1.0 - 0.3 * lip), torn);
 		mask = mix(mask, vec2(0.0), torn);
+		// a rip's hem: a darker, doubled-over band of fabric, stitched down
+		float seam = max(smoothstep(sm.g, sm.g + 0.012, eco_tears), smoothstep(sm.b, sm.b + 0.012, eco_slide))
+				* fabric * step(min(sm.g, sm.b), 0.99);
+		col = mix(col, col * 0.45, seam);
+		col = mix(col, vec3(0.86, 0.82, 0.74) * albedo.rgb, seam * sm.a * 0.9);
 		// fresh cuts, on her skin only (bare, or where the suit tore)
 		float cut = smoothstep(d.a, d.a + 0.02, eco_scars) * max(torn, 1.0 - fabric);
 		col = mix(col, CUT, cut * 0.85);
