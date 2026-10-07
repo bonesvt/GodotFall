@@ -67,6 +67,9 @@ static func water(root: Node3D, center: Vector3, size: Vector2, color: Color) ->
 	mi.mesh = plane
 	mi.position = center
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	# wading sounds (player.gd _surface)
+	mi.add_to_group("water")
+	mi.set_meta("half", size * 0.5)
 	root.add_child(mi)
 	return mi
 

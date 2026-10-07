@@ -1,4 +1,16 @@
-[gd_resource type="AudioBusLayout" format=3]
+[gd_resource type="AudioBusLayout" load_steps=3 format=3]
+
+[sub_resource type="AudioEffectLowPassFilter" id="AudioEffectLowPassFilter_far"]
+resource_name = "LowPassFilter"
+cutoff_hz = 1600.0
+
+[sub_resource type="AudioEffectReverb" id="AudioEffectReverb_far"]
+resource_name = "Reverb"
+room_size = 0.9
+damping = 0.7
+spread = 1.0
+dry = 0.75
+wet = 0.45
 
 [resource]
 bus/1/name = &"Effects"
@@ -19,3 +31,13 @@ bus/3/mute = false
 bus/3/bypass_fx = false
 bus/3/volume_db = 0.0
 bus/3/send = &"Master"
+bus/4/name = &"Distant"
+bus/4/solo = false
+bus/4/mute = false
+bus/4/bypass_fx = false
+bus/4/volume_db = 0.0
+bus/4/send = &"Ambience"
+bus/4/effect/0/effect = SubResource("AudioEffectLowPassFilter_far")
+bus/4/effect/0/enabled = true
+bus/4/effect/1/effect = SubResource("AudioEffectReverb_far")
+bus/4/effect/1/enabled = true

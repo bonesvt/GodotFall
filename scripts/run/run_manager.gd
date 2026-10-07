@@ -38,10 +38,13 @@ const GiftScreen := preload("res://scripts/hub/gift_screen.gd")
 const GiftShop := preload("res://scripts/hub/gift_shop.gd")
 const SalonScreen := preload("res://scripts/hub/salon_screen.gd")
 const WardrobeScreen := preload("res://scripts/hub/wardrobe_screen.gd")
+const TownShopScreen := preload("res://scripts/hub/town_shop_screen.gd")
+const TownShops := preload("res://scripts/hub/town_shops.gd")
 const Wardrobe := preload("res://scripts/hub/wardrobe.gd")
 const Loot := preload("res://scripts/run/loot.gd")
 const Gifts := preload("res://scripts/run/gifts.gd")
 const NpcIdles := preload("res://scripts/hub/npc_idles.gd")
+const SmokeDate := preload("res://scripts/hub/smoke_date.gd")
 const Escort := preload("res://scripts/run/escort.gd")
 const Weapon := preload("res://scripts/weapon.gd")
 const Knife := preload("res://scripts/knife.gd")
@@ -56,6 +59,7 @@ const Townsfolk := preload("res://scripts/hub/townsfolk.gd")
 const Tutorial := preload("res://scripts/run/tutorial.gd")
 const ViewCamera := preload("res://scripts/view_camera.gd")
 const Prefs := preload("res://scripts/game/prefs.gd")
+const BattleDamage := preload("res://scripts/ps2/battle_damage.gd")
 const Saves := preload("res://scripts/game/saves.gd")
 const PauseMenu := preload("res://scripts/ui/pause_menu.gd")
 const Vices := preload("res://scripts/hub/vices.gd")
@@ -63,14 +67,20 @@ const BarScreen := preload("res://scripts/hub/bar_screen.gd")
 const StimScreen := preload("res://scripts/hub/stim_screen.gd")
 const HushScreen := preload("res://scripts/hub/hush_screen.gd")
 const HushDen := preload("res://scripts/hub/hush_den.gd")
-const SFX := preload("res://scripts/sfx.gd")
 const DrunkScreen := preload("res://scripts/ui/drunk_screen.gd")
+const Soundscape := preload("res://scripts/soundscape.gd")
+const SFX := preload("res://scripts/sfx.gd")
 
 const FALL_DAMAGE := 25
 ## Integrity lost when grunts take the pilot's health to zero.
 const DOWNED_DAMAGE := 25
 ## How far below the lowest platform counts as a fall.
 const KILL_DEPTH := 15.0
+## Opening and closing each hub screen (open_bench kind -> [open, close]).
+const BENCH_SOUNDS := {
+	"wardrobe": ["wardrobe_open", "wardrobe_close"],
+	"gifts": ["shop_bell", ""], "salon": ["shop_bell", ""],
+}
 const OFFER_SIZE := 3
 const TITAN_DROP_HEIGHT := 80.0
 const EMBARK_RANGE := 6.0
@@ -226,6 +236,7 @@ func _ready() -> void:
 	player.process_mode = Node.PROCESS_MODE_PAUSABLE
 	add_child(player)
 	player.died.connect(_on_pilot_downed)
+	player.damaged.connect(_on_pilot_hit)
 	pilot_hud = CanvasLayer.new()
 	pilot_hud.set_script(PILOT_HUD)
 	pilot_hud.name = "PilotHUD"
@@ -301,6 +312,7 @@ func start_run(seed_value: int, uncharted := 0, level := "") -> void:
 	run.refits = armory.refit_bonus()
 	runs_started += 1
 	result = ""
+	BattleDamage.reset()  # a clean suit for every run
 	titan = null
 	boss = null
 	evac_open = false
@@ -341,6 +353,7 @@ func _fresh_level(level_name: String) -> void:
 
 ## Back to the temple: no run in progress, walk around, start one at the poster or the mission table.
 func enter_hub() -> void:
+	BattleDamage.reset()  # home: she washes up and patches her suit
 	titan = null
 	boss = null
 	get_tree().paused = false
@@ -363,6 +376,7 @@ func enter_hub() -> void:
 		NpcIdles.settle(npc, zone_info, runs_ended)
 		hub_npcs[spec["who"]] = npc
 	Townsfolk.populate(zone_root, player, runs_ended)
+	Soundscape.hub(zone_root, zone_info)
 	family_scene = null
 	if Family.enabled:
 		family_scene = FamilyScene.new()
@@ -429,6 +443,7 @@ func load_zone(index: int) -> void:
 		phase = Phase.ARENA
 		evac_open = false
 		hud.toast("THE FOREST'S EDGE: TITANFALL STANDING BY")
+	Soundscape.battle(zone_root, str(zone_root.get_meta("biome", "")))
 	Wardrobe.dress_eco(player, false)
 	place_player(zone_info["spawn"])
 	player.second_wind_ready = player.second_wind  # Eco's suit: once per zone
@@ -450,6 +465,9 @@ func _physics_process(delta: float) -> void:
 		Vices.tick(delta)
 		_vice_keys()
 	player.strolling = phase == Phase.HUB and not on_training_ground()
+	if phase in [Phase.ZONE, Phase.ARENA] and not get_tree().paused:
+		BattleDamage.tick(delta, player)
+	BattleDamage.apply()
 	match phase:
 		Phase.ZONE:
 			_zone_tick(delta)
@@ -516,6 +534,7 @@ func _hub_tick(delta: float) -> void:
 		return
 	if spot.is_empty() or not Input.is_action_just_pressed("interact"):
 		return
+	_hub_sound(spot)
 	if spot["id"] == "tutorial_poster":
 		start_run(run_seed)
 		return
@@ -531,10 +550,13 @@ func _hub_tick(delta: float) -> void:
 		else:
 			hud.toast("Not yet. Clear %s first." % Levels.title(Levels.spec(id)["needs"]), HUB_LINE_SECONDS)
 		return
+	var vice_shop: bool = spot.get("shop", "") in ["bar", "stims", "hush"] and Vices.allowed()
+	if spot.has("date") and (not vice_shop or date_ready(spot)) and date_at(spot):
+		return
 	if spot.has("screen"):
 		open_bench(spot["screen"])
 		return
-	if spot.get("shop", "") in ["bar", "stims", "hush"] and Vices.allowed():
+	if vice_shop:
 		open_bench(spot["shop"])
 		return
 	if spot.has("teleport") and Vices.allowed():
@@ -556,6 +578,21 @@ func _hub_tick(delta: float) -> void:
 	var n: int = hub_reads.get(spot["id"], 0)
 	hub_reads[spot["id"]] = n + 1
 	hud.toast(lines[n % lines.size()], HUB_LINE_SECONDS)
+
+
+## What using a hub spot sounds like (benches make theirs in open_bench).
+func _hub_sound(spot: Dictionary) -> void:
+	var id := ""
+	if spot["id"] == "tutorial_poster":
+		id = "paper_1"
+	elif spot["id"] == "uncharted_map" or spot.has("level"):
+		id = "map_open"
+	elif spot["id"] == "garage":
+		id = "door_metal_open"
+	elif spot.has("rest"):
+		id = "bed_creak" if spot["rest"].get("pose", "") == "sleep" else "sit_down"
+	if id != "":
+		SFX.play(self, id, -8.0, SFX.vary(0.04))
 
 
 ## Eco sits or lies down at a hub spot with a "rest" entry ({pose, at, seat,
@@ -654,10 +691,89 @@ func romance_partners() -> Array:
 	return out
 
 
+## A date spot in Solace (town.gd: a spot with "date", TownShops.DATES):
+## whoever Eco's romancing meets her there, if they're ready (romance.gd
+## can_date) and haven't been out with her since the last run, and she can pay.
+## Returns false to let the spot show its usual lines (nobody to take).
+func date_at(spot: Dictionary) -> bool:
+	var place: String = spot["date"]
+	var who := date_partner()
+	if who == "" or not TownShops.available("dates", place):
+		return false
+	var npc: Node3D = hub_npcs[who]
+	var name := String(NpcTalk.NAMES.get(who, who)).capitalize()
+	if int(npc_talk.state.get_value(who, "date_run", -1)) == runs_ended:
+		hud.toast("One date between runs. %s's still blushing from the last one." % name, HUB_LINE_SECONDS)
+		return true
+	var cost: Dictionary = TownShops.DATES.get(place, {}).get("cost", {})
+	if not armory._spend(cost):
+		hud.toast("Can't cover a date at %s (%s). Not a great look." % [TownShops.DATES[place]["name"], Armory.cost_text(cost)], HUB_LINE_SECONDS)
+		return true
+	armory.save()
+	# They meet her there: in front of her, facing her, no props from their idle spot.
+	var fwd := -player.global_basis.z
+	fwd.y = 0.0
+	fwd = fwd.normalized() if fwd.length() > 0.01 else Vector3.FORWARD
+	for p in npc.find_children("*", "Node3D", true, false):
+		if p.has_meta("idle_prop"):
+			p.get_parent().remove_child(p)
+			p.queue_free()
+	npc.global_position = player.global_position + fwd * 1.3
+	npc.home_yaw = atan2(fwd.x, fwd.z)
+	npc.rotation.y = npc.home_yaw
+	npc.posed = false
+	npc.spot = ""
+	npc.rest_mood = []
+	if npc._anim != null and npc._anim.has_animation("idle"):
+		npc._anim.play("idle", 0.3)
+	npc.calm()
+	var staged: Node3D = null
+	if place == "smoke":
+		staged = _stage_smoke(npc)   # the whole thing acted out (smoke_date.gd)
+	for s in zone_info["interactables"]:
+		if s.get("npc", "") == who:
+			s["pos"] = npc.global_position
+	if not npc_talk.date(npc, place, runs_ended):
+		if staged != null:
+			staged.finish()
+		return false
+	return true
+
+
+## Stages the back step smoke: Eco's stand-in and Ophelia face to face where
+## Eco stands, cued by the date's "@" beats, put away when the talk ends.
+func _stage_smoke(npc: Node3D) -> Node3D:
+	var staged: Node3D = SmokeDate.new()
+	zone_root.add_child(staged)
+	staged.setup(npc, player.global_position, npc.global_position, player.get_node_or_null("EcoBody"))
+	npc_talk.cue.connect(staged.play)
+	npc_talk.finished.connect(func(_who): staged.finish(), CONNECT_ONE_SHOT)
+	staged.done.connect(func(): npc_talk.cue.disconnect(staged.play), CONNECT_ONE_SHOT)
+	return staged
+
+
+## Who Eco can ask out now: the first of the people she's romancing who's
+## ready for a date ("" for nobody).
+## True when a date spot has someone ready to go out with Eco who hasn't
+## been on one since the last run (the Rusted Halo opens the bar otherwise).
+func date_ready(spot: Dictionary) -> bool:
+	var who := date_partner()
+	return who != "" and TownShops.available("dates", spot["date"]) \
+			and int(npc_talk.state.get_value(who, "date_run", -1)) != runs_ended
+
+
+func date_partner() -> String:
+	for who in hub_npcs:
+		if npc_talk.romanceable(who) and NpcTalk.Romance.can_date(npc_talk.state, npc_talk.bank(who), who):
+			return who
+	return ""
+
+
 ## Opens Eco's paint shop on the chassis of your last titan, pausing the hub.
 func open_garage() -> void:
 	garage = Garage.new(last_parts.get("chassis", {}).get("id", "atlas"))
 	add_child(garage)
+	SFX.play(garage, "workbench_tools", -10.0)
 	get_tree().paused = true
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	hud.visible = false
@@ -676,6 +792,13 @@ func close_garage() -> void:
 		hud.toast("Call your titan again (V) to see the new paint.", HUB_LINE_SECONDS)
 
 
+## [open, close] sounds for a hub screen: the town's shops ring their door bell.
+static func _bench_sounds(kind: String) -> Array:
+	if BENCH_SOUNDS.has(kind):
+		return BENCH_SOUNDS[kind]
+	return ["shop_bell", ""] if TownShopScreen.SHOPS.has(kind) else ["bench_open", "bench_close"]
+
+
 ## Opens a workbench screen ("gunsmith", "rack", "workshop", "knives" or "suit"), or a
 ## town shop's ("salon", "gifts", the Rusted Halo's "bar"), pausing the hub.
 func open_bench(kind: String) -> void:
@@ -685,6 +808,8 @@ func open_bench(kind: String) -> void:
 		bench = SalonScreen.new()
 	elif kind == "wardrobe":
 		bench = WardrobeScreen.new(runs_ended)
+	elif TownShopScreen.SHOPS.has(kind):
+		bench = TownShopScreen.new(kind, armory)
 	elif kind == "suit":
 		bench = SuitScreen.new(armory)
 	elif kind == "bar":
@@ -695,7 +820,9 @@ func open_bench(kind: String) -> void:
 		bench = HushScreen.new(armory, npc_talk.state)
 	else:
 		bench = GunsmithScreen.new(armory) if kind == "gunsmith" else BenchScreen.new(armory, kind)
+	bench.set_meta("kind", kind)
 	add_child(bench)
+	SFX.play(bench, _bench_sounds(kind)[0], -6.0)
 	get_tree().paused = true
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	hud.visible = false
@@ -719,9 +846,15 @@ func close_bench() -> void:
 		for npc in hub_npcs.values():
 			npc.wear_for_run(runs_ended)
 		Wardrobe.dress_eco(player, true)
+	if bench is TownShopScreen:
+		Wardrobe.dress_eco(player, true)  # what she bought or tried on in a shop
+		if bench.kind == "noodles" and TownShops.MEALS.has(TownShops.meal()) and not bench.bought.is_empty():
+			hud.toast("Fed: %s. It lasts the next run." % TownShops.MEALS[TownShops.meal()]["name"], HUB_LINE_SECONDS)
+	var kind: String = bench.get_meta("kind", "")
 	bench.queue_free()
 	bench = null
 	get_tree().paused = false
+	SFX.play(self, _bench_sounds(kind)[1], -8.0)
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 	hud.visible = true
 	pilot_hud.visible = true
@@ -735,7 +868,7 @@ func close_bench() -> void:
 func equip_loadout() -> void:
 	player.get_node("Head/Camera3D/Weapon").equip(armory.weapon_profile())
 	player.get_node("Head/Camera3D/Knife").set_model(armory.knife)
-	player.apply_suit(armory.suit_profile())
+	player.apply_suit(TownShops.boost(armory.suit_profile()))  # plus her meal and implants from Solace
 
 
 ## Shows whether each level on the mission table is open, turns the marker
@@ -745,6 +878,15 @@ func equip_loadout() -> void:
 ## three knives under the knife case's glass (the one she carries tagged), and
 ## the titan you'd start a run with standing in the workshop's gantry.
 func dress_hub() -> void:
+	# Solace's date spots name whoever Eco can take there.
+	var partner := date_partner()
+	for spot in zone_info.get("interactables", []):
+		if spot.has("date"):
+			if not spot.has("base_prompt"):
+				spot["base_prompt"] = spot["prompt"]
+			var place: Dictionary = TownShops.DATES.get(spot["date"], {})
+			spot["prompt"] = spot["base_prompt"] if partner == "" or not TownShops.available("dates", spot["date"]) else "[F] Take %s on a date at %s (%s)" % [
+					String(NpcTalk.NAMES.get(partner, partner)).capitalize(), place.get("name", "here"), Armory.cost_text(place.get("cost", {}))]
 	var marker: Node3D = zone_info.get("tutorial_marker")
 	if marker != null:
 		marker.visible = not "tutorial" in armory.cleared_levels()
@@ -1136,6 +1278,7 @@ func _check_fall() -> bool:
 		return false
 	run.pilot_hp -= FALL_DAMAGE
 	run.falls += 1
+	BattleDamage.on_fall()
 	if run.pilot_hp <= 0:
 		run.pilot_hp = 0
 		end_run("PILOT KIA", "Too many falls.")
@@ -1144,6 +1287,12 @@ func _check_fall() -> bool:
 		hud.toast("FELL: -%d INTEGRITY" % FALL_DAMAGE)
 		tutorial.event("fell")
 	return true
+
+
+## Every hit she takes on a run wears her suit (and her) down a little more.
+func _on_pilot_hit(amount: float, _from: Vector3) -> void:
+	if in_run():
+		BattleDamage.on_hit(amount)
 
 
 ## Grunts emptied the pilot's health: lose integrity, back to the checkpoint.
@@ -1156,6 +1305,7 @@ func _on_pilot_downed() -> void:
 		return
 	run.pilot_hp -= DOWNED_DAMAGE
 	run.downs += 1
+	BattleDamage.on_down()
 	if run.pilot_hp <= 0:
 		run.pilot_hp = 0
 		end_run("PILOT KIA", "Gunned down.")
@@ -1343,6 +1493,10 @@ func end_run(title: String, reason: String) -> void:
 	Vices.run_over()
 	var haul := Armory.run_haul(run.materials, won)
 	armory.bank(haul)
+	# The meal from Seven Suns was for this run.
+	if TownShops.meal() != "":
+		TownShops.finish_meal()
+		player.apply_suit(TownShops.boost(armory.suit_profile()))
 	Saves.record_run(won)
 	if boss != null:
 		boss.active = false
@@ -1522,7 +1676,7 @@ func _prompt() -> String:
 			if not spot.is_empty():
 				if spot.has("family"):
 					return family_scene.prompt()
-				if spot.get("shop", "") == "bar" and Vices.allowed():
+				if spot.get("shop", "") == "bar" and Vices.allowed() and not date_ready(spot):
 					return "[F] The Rusted Halo: drinks, smokes and Scrapjack"
 				if spot.get("shop", "") == "stims" and Vices.allowed():
 					return "[F] Sal's side hatch: stims"

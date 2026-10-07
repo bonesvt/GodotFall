@@ -146,6 +146,7 @@ func _toggle(box: VBoxContainer, title: String, on: bool, on_change: Callable) -
 	c.toggled.connect(func(v: bool) -> void:
 		c.text = "On" if v else "Off"
 		on_change.call(v))
+	UI.sounds(c)
 	_row(box, title, c)
 	return c
 
@@ -156,6 +157,7 @@ func _options(box: VBoxContainer, title: String, labels: Array, selected: int, o
 		o.add_item(l)
 	o.select(maxi(selected, 0))
 	o.item_selected.connect(on_change)
+	UI.sounds(o)
 	_row(box, title, o)
 	return o
 
@@ -302,6 +304,8 @@ func _game_tab() -> void:
 	box.add_child(UI.label("How Eco's hair and body bounce as she moves.", 18, UI.MUTED))
 	_toggle(box, "Full body jiggle (experimental)", Prefs.body_jiggle(), Prefs.set_body_jiggle)
 	box.add_child(UI.label("A little softness in her stomach, thighs, arms and calves too.", 18, UI.MUTED))
+	_toggle(box, "Battle damage", Prefs.battle_damage(), Prefs.set_battle_damage)
+	box.add_child(UI.label("Eco gets dirty and scuffed over a run (Mature: her suit tears and she picks up cuts). Washes off at the temple.", 18, UI.MUTED))
 	_third_person_rows(box)
 
 

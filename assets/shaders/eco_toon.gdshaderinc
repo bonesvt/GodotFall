@@ -42,6 +42,10 @@ uniform sampler2D glow_tex : source_color, hint_default_black, filter_linear_mip
 uniform float glow_tex_energy = 1.6;
 uniform vec4 emission : source_color = vec4(0.0, 0.0, 0.0, 1.0);
 uniform float emission_energy = 0.0;
+// Tattoos from Ink & Iron in Solace (scripts/hub/eco_extras.gd), baked into her
+// body's UVs by tools/ink/build_tattoos.py: laid over the colour wherever the
+// body texture is skin (the mask's green is low), so clothes cover them.
+uniform sampler2D tattoo_tex : source_color, hint_default_transparent, filter_linear_mipmap;
 // Suit upgrade armour edges: how brightly they glow gold once her trims turn gold.
 uniform float gold_edge = 0.0;
 // A suit weight's changes to the suit itself (eco_model.gd body_material), laid
@@ -52,6 +56,30 @@ uniform bool use_kit = false;
 uniform sampler2D kit_tex : source_color, hint_default_black, filter_linear_mipmap_anisotropic;
 uniform sampler2D kit_mask_tex : hint_default_black, filter_linear_mipmap;
 uniform sampler2D kit_glow_tex : source_color, hint_default_black, filter_linear_mipmap;
+
+// Battle damage (scripts/ps2/battle_damage.gd): how dirty, scuffed, torn and
+// scarred she has got this run, 0..1, the same for every copy of her.
+global uniform float eco_grime;
+global uniform float eco_scuffs;
+global uniform float eco_tears;
+global uniform float eco_scars;
+// How far sliding has worn her suit through (her outer thighs, glutes and hips).
+global uniform float eco_slide;
+// 0: none (hair, eyes, glass). 1: her body or face, from damage_tex
+// (tools/eco/bake_damage.py; each channel the level at which a texel turns:
+// R grime, G torn, B scuffed, A scarred; tears only open on her suit's fabric,
+// where the mask's G is). 2: a piece of kit she wears: dust and scuffs only.
+uniform int damage_kind = 0;
+uniform sampler2D damage_tex : hint_default_white, filter_linear, repeat_disable;
+// Where sliding wears through (R: the slide level each texel opens at), and
+// the stitched seams that hem a rip running up to a covered zone (G: the
+// eco_tears level a seam shows at, B: the eco_slide level, A: its stitches).
+uniform sampler2D damage_slide_tex : hint_default_white, filter_linear, repeat_disable;
+// Her skin where the suit tears open.
+uniform vec3 skin_tone : source_color = vec3(0.97, 0.86, 0.8);
+const vec3 DIRT = vec3(0.24, 0.2, 0.16);
+const vec3 CUT = vec3(0.62, 0.1, 0.12);
+const vec3 GRAZE = vec3(0.9, 0.58, 0.52);
 
 // Per-object knobs shared with ps2_surface.gdshader (see ps2_model.gd).
 instance uniform float flash : instance_index(0) = 0.0;
@@ -73,6 +101,18 @@ const vec2 IRIS_R = vec2(0.112, 0.225);
 const vec3 HUSH_VIOLET = vec3(0.72, 0.32, 1.0);
 
 varying float v_sheen_mask;
+
+float damage_hash(vec2 p) {
+	return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
+}
+
+float damage_noise(vec2 p) {
+	vec2 i = floor(p);
+	vec2 f = fract(p);
+	f = f * f * (3.0 - 2.0 * f);
+	return mix(mix(damage_hash(i), damage_hash(i + vec2(1.0, 0.0)), f.x),
+			mix(damage_hash(i + vec2(0.0, 1.0)), damage_hash(i + vec2(1.0, 1.0)), f.x), f.y);
+}
 varying float v_rim;
 varying vec3 v_shade;
 
@@ -94,6 +134,59 @@ void fragment() {
 		col = mix(col, texture(kit_tex, UV).rgb * albedo.rgb * paint.rgb, kit_mask.b);
 		mask = mix(mask, kit_mask.rg, kit_mask.b);
 	}
+	// battle damage, laid on in the order it happens to her: scuffed fabric,
+	// torn open, cut, then dirt over all of it
+	float torn = 0.0;
+	float scuffed = 0.0;
+#ifndef OVERLAY
+	if (damage_kind == 1) {
+		vec4 d = texture(damage_tex, UV);
+		float fabric = step(0.5, mask.g);
+		float speck = damage_noise(UV * 900.0);
+		scuffed = smoothstep(d.b, d.b + 0.1, eco_scuffs) * fabric;
+		vec3 worn = mix(col, vec3(dot(col, vec3(0.333))), 0.55) * 1.3 + 0.05;
+		col = mix(col, worn, scuffed * (0.45 + 0.35 * speck));
+		// torn by hits (G, eco_tears) or worn through by sliding (the slide
+		// map, eco_slide): whichever is further past its level here
+		float tl = d.g;
+		float tv = eco_tears;
+		vec4 sm = texture(damage_slide_tex, UV);
+		float sl = sm.r;
+		float grazed = 0.0;
+		if (eco_slide - sl > tv - tl) {
+			tl = sl;
+			tv = eco_slide;
+			grazed = 1.0;
+		}
+		torn = smoothstep(tl, tl + 0.012, tv) * fabric;
+		// the fabric round a tear darkens and frays before it opens
+		float fray = smoothstep(tl - 0.07, tl, tv) * fabric * (1.0 - torn) * step(tl, 0.99);
+		col *= 1.0 - fray * (0.55 + 0.3 * speck);
+		// skin inside, a little shadowed under the torn edge (and grazed pink
+		// where she slid on it)
+		float lip = 1.0 - smoothstep(tl + 0.012, tl + 0.08, tv);
+		vec3 skin = mix(skin_tone, skin_tone * GRAZE, grazed * smoothstep(0.3, 0.7, damage_noise(UV * 260.0)) * 0.7);
+		col = mix(col, skin * albedo.rgb * (1.0 - 0.3 * lip), torn);
+		mask = mix(mask, vec2(0.0), torn);
+		// a rip's hem: a darker, doubled-over band of fabric, stitched down
+		float seam = max(smoothstep(sm.g, sm.g + 0.012, eco_tears), smoothstep(sm.b, sm.b + 0.012, eco_slide))
+				* fabric * step(min(sm.g, sm.b), 0.99);
+		col = mix(col, col * 0.45, seam);
+		col = mix(col, vec3(0.86, 0.82, 0.74) * albedo.rgb, seam * sm.a * 0.9);
+		// fresh cuts, on her skin only (bare, or where the suit tore)
+		float cut = smoothstep(d.a, d.a + 0.02, eco_scars) * max(torn, 1.0 - fabric);
+		col = mix(col, CUT, cut * 0.85);
+		float g = smoothstep(d.r, d.r + 0.22, eco_grime);
+		col = mix(col, col * DIRT * 2.2 + DIRT * 0.1, g * (0.4 + 0.25 * damage_noise(UV * 140.0)) * (0.8 + 0.2 * speck));
+	} else if (damage_kind == 2) {
+		float n = damage_noise(UV * 30.0) * 0.6 + damage_noise(UV * 95.0) * 0.4;
+		scuffed = smoothstep(0.35 + n * 0.6, 0.5 + n * 0.6, eco_scuffs);
+		col = mix(col, mix(col, vec3(dot(col, vec3(0.333))), 0.5) * 1.25 + 0.04, scuffed * 0.4);
+		float g = smoothstep(n * 0.7, n * 0.7 + 0.35, eco_grime);
+		col = mix(col, col * DIRT * 2.2 + DIRT * 0.1, g * 0.55);
+	}
+#endif
+	v_sheen_mask = sheen * mask.r * (1.0 - scuffed * 0.8);
 	vec3 hypno_emit = vec3(0.0);
 	if (iris_swirl && hypno > 0.0) {
 		bool left = UV.x < 0.5;
@@ -107,11 +200,14 @@ void fragment() {
 		col = mix(col, vec3(1.0, 0.8, 1.0), band * k);
 		hypno_emit = HUSH_VIOLET * band * k * 0.9;
 	}
-	v_sheen_mask = sheen * mask.r;
 	v_shade = mix(shade_tint, shade_tint_2, mask.g);
+	vec4 tattoo = texture(tattoo_tex, UV);
+	if (use_mask && tattoo.a > 0.0) {
+		col = mix(col, tattoo.rgb, tattoo.a * 0.9 * (1.0 - smoothstep(0.3, 0.6, mask.g)));
+	}
 	ALBEDO = col * exposure;
 	if (use_normal) {
-		NORMAL_MAP = texture(normal_tex, UV).rgb;
+		NORMAL_MAP = mix(texture(normal_tex, UV).rgb, vec3(0.5, 0.5, 1.0), torn);
 		NORMAL_MAP_DEPTH = normal_depth;
 	}
 	ROUGHNESS = 1.0;
@@ -121,6 +217,7 @@ void fragment() {
 	if (use_kit) {
 		emit = mix(emit, texture(kit_glow_tex, UV).rgb * glow_tex_energy, kit_mask.b);
 	}
+	emit *= 1.0 - torn;
 	if (trim_gold > 0.0) {
 		emit = mix(emit, GOLD * max(emit.r, max(emit.g, emit.b)), trim_gold) + GOLD * gold_edge * trim_gold;
 	}

@@ -1,0 +1,902 @@
+{
+ "step_stone_1": {
+  "layers": [
+   {
+    "src": "ogg/Fantozzi-StoneL1.ogg",
+    "fadeout": 0.06
+   }
+  ],
+  "norm": -3
+ },
+ "step_stone_2": {
+  "layers": [
+   {
+    "src": "ogg/Fantozzi-StoneL2.ogg",
+    "fadeout": 0.06
+   }
+  ],
+  "norm": -3
+ },
+ "step_stone_3": {
+  "layers": [
+   {
+    "src": "ogg/Fantozzi-StoneL3.ogg",
+    "fadeout": 0.06
+   }
+  ],
+  "norm": -3
+ },
+ "step_stone_4": {
+  "layers": [
+   {
+    "src": "ogg/Fantozzi-StoneR1.ogg",
+    "fadeout": 0.06
+   }
+  ],
+  "norm": -3
+ },
+ "step_stone_5": {
+  "layers": [
+   {
+    "src": "ogg/Fantozzi-StoneR2.ogg",
+    "fadeout": 0.06
+   }
+  ],
+  "norm": -3
+ },
+ "step_stone_6": {
+  "layers": [
+   {
+    "src": "ogg/Fantozzi-StoneR3.ogg",
+    "fadeout": 0.06
+   }
+  ],
+  "norm": -3
+ },
+ "step_water_1": {
+  "layers": [
+   {
+    "src": "water_splash-05.flac",
+    "start": 0,
+    "dur": 0.18,
+    "pitch": 1.0,
+    "fadeout": 0.12
+   },
+   {
+    "src": "x/mud02.ogg",
+    "gain": -4,
+    "lp": 1600
+   }
+  ],
+  "norm": -3
+ },
+ "step_water_2": {
+  "layers": [
+   {
+    "src": "water_splash-02.flac",
+    "start": 0.02,
+    "dur": 0.32,
+    "pitch": 1.05,
+    "fadeout": 0.12
+   },
+   {
+    "src": "x/mud02.ogg",
+    "gain": -4,
+    "lp": 1600
+   }
+  ],
+  "norm": -3
+ },
+ "step_water_3": {
+  "layers": [
+   {
+    "src": "water_splash-01.flac",
+    "start": 0.02,
+    "dur": 0.36,
+    "pitch": 0.95,
+    "fadeout": 0.12
+   },
+   {
+    "src": "x/mud02.ogg",
+    "gain": -4,
+    "lp": 1600
+   }
+  ],
+  "norm": -3
+ },
+ "step_water_4": {
+  "layers": [
+   {
+    "src": "water_splash-04.flac",
+    "start": 0.02,
+    "dur": 0.34,
+    "pitch": 1.12,
+    "fadeout": 0.12
+   },
+   {
+    "src": "x/mud02.ogg",
+    "gain": -4,
+    "lp": 1600
+   }
+  ],
+  "norm": -3
+ },
+ "step_water_5": {
+  "layers": [
+   {
+    "src": "splash2_0.wav",
+    "start": 0.62,
+    "dur": 0.38,
+    "pitch": 1.0,
+    "fadeout": 0.12
+   },
+   {
+    "src": "x/mud02.ogg",
+    "gain": -4,
+    "lp": 1600
+   }
+  ],
+  "norm": -3
+ },
+ "step_mud_1": {
+  "layers": [
+   {
+    "src": "x/mud02.ogg",
+    "pitch": 1.0
+   },
+   {
+    "src": "footstep_snow_000.ogg",
+    "lp": 1800,
+    "gain": -3,
+    "fadeout": 0.06
+   },
+   {
+    "src": "water_splash-03.flac",
+    "dur": 0.2,
+    "gain": -12,
+    "pitch": 1.2,
+    "fadeout": 0.08
+   }
+  ],
+  "norm": -4
+ },
+ "step_mud_2": {
+  "layers": [
+   {
+    "src": "x/mud02.ogg",
+    "pitch": 0.92
+   },
+   {
+    "src": "footstep_snow_001.ogg",
+    "lp": 1800,
+    "gain": -3,
+    "fadeout": 0.06
+   },
+   {
+    "src": "water_splash-03.flac",
+    "dur": 0.2,
+    "gain": -12,
+    "pitch": 1.2,
+    "fadeout": 0.08
+   }
+  ],
+  "norm": -4
+ },
+ "step_mud_3": {
+  "layers": [
+   {
+    "src": "x/mud02.ogg",
+    "pitch": 1.08
+   },
+   {
+    "src": "footstep_snow_002.ogg",
+    "lp": 1800,
+    "gain": -3,
+    "fadeout": 0.06
+   },
+   {
+    "src": "water_splash-03.flac",
+    "dur": 0.2,
+    "gain": -12,
+    "pitch": 1.2,
+    "fadeout": 0.08
+   }
+  ],
+  "norm": -4
+ },
+ "step_mud_4": {
+  "layers": [
+   {
+    "src": "x/mud02.ogg",
+    "pitch": 0.96
+   },
+   {
+    "src": "footstep_snow_003.ogg",
+    "lp": 1800,
+    "gain": -3,
+    "fadeout": 0.06
+   },
+   {
+    "src": "water_splash-03.flac",
+    "dur": 0.2,
+    "gain": -12,
+    "pitch": 1.2,
+    "fadeout": 0.08
+   }
+  ],
+  "norm": -4
+ },
+ "step_rug_1": {
+  "layers": [
+   {
+    "src": "footstep_carpet_000.ogg",
+    "fadeout": 0.05
+   }
+  ],
+  "norm": -4
+ },
+ "step_rug_2": {
+  "layers": [
+   {
+    "src": "footstep_carpet_001.ogg",
+    "fadeout": 0.05
+   }
+  ],
+  "norm": -4
+ },
+ "step_rug_3": {
+  "layers": [
+   {
+    "src": "footstep_carpet_002.ogg",
+    "fadeout": 0.05
+   }
+  ],
+  "norm": -4
+ },
+ "step_rug_4": {
+  "layers": [
+   {
+    "src": "footstep_carpet_003.ogg",
+    "fadeout": 0.05
+   }
+  ],
+  "norm": -4
+ },
+ "step_rug_5": {
+  "layers": [
+   {
+    "src": "footstep_carpet_004.ogg",
+    "fadeout": 0.05
+   }
+  ],
+  "norm": -4
+ },
+ "far_shot_1": {
+  "layers": [
+   {
+    "src": "gunfire_sfx.wav",
+    "start": 0,
+    "dur": 0.6,
+    "pitch": 1.0,
+    "lp": 5000,
+    "fadeout": 0.3
+   }
+  ],
+  "norm": -2
+ },
+ "far_shot_2": {
+  "layers": [
+   {
+    "src": "gunfire_sfx.wav",
+    "start": 0,
+    "dur": 0.6,
+    "pitch": 0.88,
+    "lp": 5000,
+    "fadeout": 0.3
+   }
+  ],
+  "norm": -2
+ },
+ "far_shot_3": {
+  "layers": [
+   {
+    "src": "22 Magnum.wav",
+    "start": 0.2,
+    "dur": 0.6,
+    "pitch": 1.0,
+    "lp": 5000,
+    "fadeout": 0.3
+   }
+  ],
+  "norm": -2
+ },
+ "far_shell": {
+  "layers": [
+   {
+    "src": "cannon_hit_1.ogg",
+    "dur": 1.5,
+    "pitch": 0.82,
+    "fadeout": 0.6
+   },
+   {
+    "src": "low-rumbling-176033.mp3",
+    "dur": 2.2,
+    "gain": -6,
+    "lp": 400,
+    "fadeout": 1.2
+   }
+  ],
+  "norm": -2
+ },
+ "far_dropship": {
+  "layers": [
+   {
+    "src": "heli.ogg",
+    "start": 2.0,
+    "dur": 9.0,
+    "pitch": 0.68,
+    "fadein": 3.0,
+    "fadeout": 3.5
+   },
+   {
+    "src": "low-rumbling-176033.mp3",
+    "start": 4.0,
+    "dur": 9.0,
+    "gain": -5,
+    "lp": 300,
+    "fadein": 3.0,
+    "fadeout": 3.5
+   }
+  ],
+  "norm": -3
+ },
+ "far_siren": {
+  "layers": [
+   {
+    "src": "storm_3_siren.ogg",
+    "start": 3.4,
+    "dur": 12.0,
+    "fadein": 1.2,
+    "fadeout": 3.0
+   }
+  ],
+  "norm": -3
+ },
+ "chime_1": {
+  "layers": [
+   {
+    "src": "bell_ding1.wav",
+    "pitch": 0.8,
+    "fadeout": 0.6
+   }
+  ],
+  "norm": -4
+ },
+ "chime_2": {
+  "layers": [
+   {
+    "src": "bell_ding2.wav",
+    "pitch": 0.9,
+    "fadeout": 0.6
+   }
+  ],
+  "norm": -4
+ },
+ "chime_3": {
+  "layers": [
+   {
+    "src": "bell_ding3.wav",
+    "pitch": 0.75,
+    "fadeout": 0.6
+   }
+  ],
+  "norm": -4
+ },
+ "chime_4": {
+  "layers": [
+   {
+    "src": "bell_ding4.wav",
+    "pitch": 1.0,
+    "fadeout": 0.6
+   }
+  ],
+  "norm": -4
+ },
+ "bird_1": {
+  "layers": [
+   {
+    "src": "park_ambience_birds.wav",
+    "start": 1.6,
+    "dur": 1.6,
+    "hp": 1500,
+    "fadein": 0.05,
+    "fadeout": 0.3
+   }
+  ],
+  "norm": -3
+ },
+ "bird_2": {
+  "layers": [
+   {
+    "src": "park_ambience_birds.wav",
+    "start": 6.3,
+    "dur": 1.5,
+    "hp": 1500,
+    "fadein": 0.05,
+    "fadeout": 0.3
+   }
+  ],
+  "norm": -3
+ },
+ "bird_3": {
+  "layers": [
+   {
+    "src": "park_ambience_birds.wav",
+    "start": 8.9,
+    "dur": 2.0,
+    "hp": 1500,
+    "fadein": 0.05,
+    "fadeout": 0.3
+   }
+  ],
+  "norm": -3
+ },
+ "bird_4": {
+  "layers": [
+   {
+    "src": "park_ambience_birds.wav",
+    "start": 19.0,
+    "dur": 1.2,
+    "hp": 1500,
+    "fadein": 0.05,
+    "fadeout": 0.3
+   }
+  ],
+  "norm": -3
+ },
+ "bird_5": {
+  "layers": [
+   {
+    "src": "park_ambience_birds.wav",
+    "start": 57.4,
+    "dur": 2.1,
+    "hp": 1500,
+    "fadein": 0.05,
+    "fadeout": 0.3
+   }
+  ],
+  "norm": -3
+ },
+ "bench_open": {
+  "layers": [
+   {
+    "src": "metalLatch.ogg"
+   },
+   {
+    "src": "workshop - tool rummaging.wav",
+    "dur": 0.7,
+    "delay": 0.12,
+    "gain": -7,
+    "fadeout": 0.3
+   }
+  ],
+  "norm": -3
+ },
+ "bench_close": {
+  "layers": [
+   {
+    "src": "workshop - clink thud.wav",
+    "dur": 0.5,
+    "gain": -4,
+    "fadeout": 0.2
+   },
+   {
+    "src": "metalLatch.ogg",
+    "pitch": 0.9,
+    "delay": 0.15
+   }
+  ],
+  "norm": -3
+ },
+ "upgrade_gun": {
+  "layers": [
+   {
+    "src": "workshop - drill short 1.wav",
+    "dur": 0.55,
+    "fadeout": 0.15
+   },
+   {
+    "src": "workshop - ratchet1.wav",
+    "dur": 0.7,
+    "delay": 0.5,
+    "gain": -2,
+    "fadeout": 0.1
+   },
+   {
+    "src": "/home/user/GodotFall/assets/audio/sfx/reload_in.ogg",
+    "delay": 1.05,
+    "gain": -3
+   }
+  ],
+  "norm": -2
+ },
+ "upgrade_rack": {
+  "layers": [
+   {
+    "src": "metalLatch.ogg"
+   },
+   {
+    "src": "workshop - clink thud.wav",
+    "delay": 0.2,
+    "gain": -4,
+    "dur": 0.6,
+    "fadeout": 0.2
+   },
+   {
+    "src": "/home/user/GodotFall/assets/audio/sfx/reload_in.ogg",
+    "delay": 0.6
+   }
+  ],
+  "norm": -2
+ },
+ "upgrade_knife": {
+  "layers": [
+   {
+    "src": "workshop - scrape1.wav",
+    "dur": 0.6,
+    "hp": 1200,
+    "fadeout": 0.2
+   },
+   {
+    "src": "workshop - scrape2.wav",
+    "dur": 0.5,
+    "hp": 1200,
+    "delay": 0.45,
+    "fadeout": 0.2
+   },
+   {
+    "src": "workshop - ping.wav",
+    "delay": 0.95,
+    "gain": -6,
+    "fadeout": 0.4
+   }
+  ],
+  "norm": -2
+ },
+ "upgrade_titan": {
+  "layers": [
+   {
+    "src": "forger.ogg",
+    "dur": 1.3,
+    "fadeout": 0.4
+   },
+   {
+    "src": "workshop - ratchet2.wav",
+    "dur": 1.2,
+    "delay": 0.55,
+    "gain": 4,
+    "fadeout": 0.1
+   },
+   {
+    "src": "/home/user/GodotFall/assets/audio/sfx/titan_hiss_short.ogg",
+    "delay": 1.1,
+    "gain": -8
+   }
+  ],
+  "norm": -2
+ },
+ "upgrade_suit": {
+  "layers": [
+   {
+    "src": "zipper-1.wav",
+    "fadeout": 0.1
+   },
+   {
+    "src": "Audio/cloth1.ogg",
+    "delay": 0.55,
+    "gain": -2
+   },
+   {
+    "src": "metalClick.ogg",
+    "delay": 0.95,
+    "gain": 2
+   }
+  ],
+  "norm": -2
+ },
+ "level_up": {
+  "layers": [
+   {
+    "src": "bell_ding2.wav",
+    "fadeout": 0.5
+   },
+   {
+    "src": "bell_ding2.wav",
+    "pitch": 1.5,
+    "delay": 0.14,
+    "gain": -5,
+    "fadeout": 0.5
+   }
+  ],
+  "norm": -3
+ },
+ "outfit_change": {
+  "layers": [
+   {
+    "src": "rustling.ogg",
+    "start": 2.35,
+    "dur": 0.9,
+    "fadein": 0.05,
+    "fadeout": 0.3
+   },
+   {
+    "src": "zipper-1.wav",
+    "pitch": 1.1,
+    "delay": 0.7,
+    "gain": -3
+   }
+  ],
+  "norm": -3
+ },
+ "haircut": {
+  "layers": [
+   {
+    "src": "scissors/scissors.ogg",
+    "fadeout": 0.1
+   }
+  ],
+  "norm": -4
+ },
+ "coins": {
+  "layers": [
+   {
+    "src": "handleCoins.ogg",
+    "fadeout": 0.1
+   }
+  ],
+  "norm": -4
+ },
+ "map_open": {
+  "layers": [
+   {
+    "src": "snd_use_map.wav",
+    "fadeout": 0.2
+   }
+  ],
+  "norm": -4
+ },
+ "map_close": {
+  "layers": [
+   {
+    "src": "snd_close_map.wav",
+    "fadeout": 0.2
+   }
+  ],
+  "norm": -4
+ },
+ "paper_1": {
+  "layers": [
+   {
+    "src": "WAV/Paper Sound - 1.wav",
+    "fadeout": 0.15
+   }
+  ],
+  "norm": -5
+ },
+ "paper_2": {
+  "layers": [
+   {
+    "src": "WAV/Paper Sound - 2.wav",
+    "fadeout": 0.15
+   }
+  ],
+  "norm": -5
+ },
+ "paper_3": {
+  "layers": [
+   {
+    "src": "WAV/Paper Sound - 3.wav",
+    "fadeout": 0.15
+   }
+  ],
+  "norm": -5
+ },
+ "wardrobe_open": {
+  "layers": [
+   {
+    "src": "doorOpen_1.ogg",
+    "fadeout": 0.15
+   },
+   {
+    "src": "Audio/cloth2.ogg",
+    "delay": 0.25,
+    "gain": -6
+   }
+  ],
+  "norm": -5
+ },
+ "wardrobe_close": {
+  "layers": [
+   {
+    "src": "doorClose_1.ogg",
+    "fadeout": 0.15
+   }
+  ],
+  "norm": -5
+ },
+ "shop_bell": {
+  "layers": [
+   {
+    "src": "bell_ding1.wav",
+    "pitch": 1.6,
+    "fadeout": 0.5
+   },
+   {
+    "src": "bell_ding1.wav",
+    "pitch": 1.9,
+    "delay": 0.09,
+    "gain": -4,
+    "fadeout": 0.5
+   }
+  ],
+  "norm": -6
+ },
+ "sit_down": {
+  "layers": [
+   {
+    "src": "Audio/cloth1.ogg"
+   },
+   {
+    "src": "creak3.ogg",
+    "gain": -8,
+    "delay": 0.12
+   }
+  ],
+  "norm": -4
+ },
+ "bed_creak": {
+  "layers": [
+   {
+    "src": "creak2.ogg",
+    "fadeout": 0.15
+   },
+   {
+    "src": "Audio/cloth2.ogg",
+    "gain": -4
+   }
+  ],
+  "norm": -5
+ },
+ "contact_wall_1": {
+  "layers": [
+   {
+    "src": "rustling.ogg",
+    "start": 1.12,
+    "dur": 0.28,
+    "hp": 300,
+    "fadein": 0.01,
+    "fadeout": 0.12
+   },
+   {
+    "src": "thwack-01.wav",
+    "lp": 900,
+    "gain": -9,
+    "pitch": 0.8
+   }
+  ],
+  "norm": -4
+ },
+ "contact_wall_2": {
+  "layers": [
+   {
+    "src": "rustling.ogg",
+    "start": 2.4,
+    "dur": 0.28,
+    "hp": 300,
+    "fadein": 0.01,
+    "fadeout": 0.12
+   },
+   {
+    "src": "thwack-02.wav",
+    "lp": 900,
+    "gain": -9,
+    "pitch": 0.8
+   }
+  ],
+  "norm": -4
+ },
+ "contact_wall_3": {
+  "layers": [
+   {
+    "src": "rustling.ogg",
+    "start": 3.64,
+    "dur": 0.28,
+    "hp": 300,
+    "fadein": 0.01,
+    "fadeout": 0.12
+   },
+   {
+    "src": "thwack-03.wav",
+    "lp": 900,
+    "gain": -9,
+    "pitch": 0.8
+   }
+  ],
+  "norm": -4
+ },
+ "contact_wall_4": {
+  "layers": [
+   {
+    "src": "rustling.ogg",
+    "start": 5.26,
+    "dur": 0.28,
+    "hp": 300,
+    "fadein": 0.01,
+    "fadeout": 0.12
+   },
+   {
+    "src": "thwack-04.wav",
+    "lp": 900,
+    "gain": -9,
+    "pitch": 0.8
+   }
+  ],
+  "norm": -4
+ },
+ "contact_self_1": {
+  "layers": [
+   {
+    "src": "rustling.ogg",
+    "start": 6.57,
+    "dur": 0.22,
+    "hp": 600,
+    "lp": 7000,
+    "fadein": 0.02,
+    "fadeout": 0.12
+   }
+  ],
+  "norm": -6
+ },
+ "contact_self_2": {
+  "layers": [
+   {
+    "src": "rustling.ogg",
+    "start": 7.98,
+    "dur": 0.22,
+    "hp": 600,
+    "lp": 7000,
+    "fadein": 0.02,
+    "fadeout": 0.12
+   }
+  ],
+  "norm": -6
+ },
+ "contact_self_3": {
+  "layers": [
+   {
+    "src": "rustling.ogg",
+    "start": 10.52,
+    "dur": 0.22,
+    "hp": 600,
+    "lp": 7000,
+    "fadein": 0.02,
+    "fadeout": 0.12
+   }
+  ],
+  "norm": -6
+ },
+ "contact_self_4": {
+  "layers": [
+   {
+    "src": "rustling.ogg",
+    "start": 11.5,
+    "dur": 0.22,
+    "hp": 600,
+    "lp": 7000,
+    "fadein": 0.02,
+    "fadeout": 0.12
+   }
+  ],
+  "norm": -6
+ }
+}

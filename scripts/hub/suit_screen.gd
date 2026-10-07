@@ -65,7 +65,7 @@ const FOCUS := {
 }
 ## Through how far the camera has caught up each second (an ease-out swing).
 const SWING := 6.0
-const CONFIRM_SOUND := "workbench_ratchet"
+const CONFIRM_SOUND := "upgrade_suit"
 
 var kind := "suit"
 var armory: Armory
@@ -279,7 +279,7 @@ func confirm() -> bool:
 	var after: int = armory.pilot_level()
 	if after > before:
 		_level_flash = 1.6
-		SFX.play(self, "ui_confirm", -2.0)
+		SFX.play(self, "level_up", -4.0)
 		unlocked.append_array(Armory.unlocks_between(before, after))
 	refresh()
 	return ok

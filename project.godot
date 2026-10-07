@@ -34,6 +34,26 @@ anime_look={
 "type": "float",
 "value": 1.0
 }
+eco_grime={
+"type": "float",
+"value": 0.0
+}
+eco_scuffs={
+"type": "float",
+"value": 0.0
+}
+eco_tears={
+"type": "float",
+"value": 0.0
+}
+eco_scars={
+"type": "float",
+"value": 0.0
+}
+eco_slide={
+"type": "float",
+"value": 0.0
+}
 
 [rendering]
 

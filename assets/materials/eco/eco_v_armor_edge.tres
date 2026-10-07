@@ -17,3 +17,4 @@ shader_parameter/albedo = Color(0.62, 0.6, 0.57, 1)
 shader_parameter/shade_tint = Vector3(0.6, 0.58, 0.66)
 shader_parameter/sheen = 0.35
 shader_parameter/gold_edge = 0.9
+shader_parameter/damage_kind = 2

@@ -144,9 +144,9 @@ func select(index: int) -> void:
 ## Buys the selected gift. Returns whether it went through.
 func confirm() -> bool:
 	var ok := buy(rows[selected])
-	SFX.play(self, "cloth_2" if ok else "ui_error", -4.0)
+	SFX.play(self, "coins" if ok else "ui_error", -4.0)
 	if ok:
-		SFX.play(self, "ui_confirm", -8.0)
+		SFX.play(self, "paper_2", -8.0)  # wrapped up
 	refresh()
 	return ok
 

@@ -508,6 +508,10 @@ func _shot_feel(fx_parent: Node) -> void:
 	var port: Vector3 = viewmodel.global_transform * Vector3(0.03, 0.04, -0.05)
 	var right: Vector3 = player.head.global_basis.x
 	FX.casing(fx_parent, port, player.velocity + right * 2.2 + Vector3.UP * 2.0)
+	# ...and tinkles down by her feet a moment later
+	var land: Vector3 = player.global_position + right * 0.7
+	get_tree().create_timer(rng.randf_range(0.35, 0.55), false).timeout.connect(
+			func() -> void: SFX.play_at(fx_parent, land, "shell_casing", -20.0, SFX.vary(0.15)))
 	# The dead smart-lock module coughs sparks, more often as the mag runs dry.
 	var empty_frac := 1.0 - float(ammo) / magazine_size
 	if smart and smart_left == 0 and (rng.randf() < lerpf(spark_chance.x, spark_chance.y, empty_frac) or last):
@@ -782,6 +786,9 @@ func _reload_choreography() -> void:
 		var down: Vector3 = -viewmodel.global_basis.y
 		var mag_at: Vector3 = _parts["MagBase"][0].global_position if _parts.has("MagBase") else viewmodel.global_transform * Vector3(0.0, -0.09, 0.06)
 		FX.chunk(fx_parent, mag_at, Vector3(0.034, 0.1, 0.048), Color(0.82, 0.85, 0.9), player.velocity + down * 2.5 + player.head.global_basis.x * 0.6, 0.6)
+		var floor_at: Vector3 = player.global_position + player.head.global_basis.x * 0.3
+		get_tree().create_timer(0.4, false).timeout.connect(
+				func() -> void: SFX.play_at(fx_parent, floor_at, "mag_drop", -16.0, SFX.vary(0.08)))
 		_set_part_visible("MagBase", false)
 		_kick_vel += Vector3(0.0, 0.8, 0.0)
 		_kick_rot_vel += Vector3(-10.0, 0.0, 0.0)
