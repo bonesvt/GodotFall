@@ -1032,11 +1032,15 @@ func _give(s: Dictionary, limit: float, was: float, now: float, steps: float) ->
 
 ## Flattens a pressed spring's bone along the push (world space) and bulges it
 ## out the other ways, keeping its volume; `deep` is how far it's pressed
-## (1 = as far as contact lets it go). Eases in and out.
+## (1 = as far as contact lets it go; past that it's being pushed through, so
+## it spreads further). Eases in and out.
 func _squash(s: Dictionary, i: int, push: Vector3, deep: float, bone_basis: Basis, to_skel: Basis, steps: float) -> void:
 	var want := 0.0
 	if jiggle_squish and jiggle_collide and push.length() > 0.0005:
-		want = float(s["squish"]) * clampf(deep, 0.0, 1.0)
+		# up to "squish" as contact presses it to its limit, then up to half as
+		# much again as it's pushed on past it (eased, so it never stops dead)
+		var past := maxf(deep - 1.0, 0.0)
+		want = float(s["squish"]) * (clampf(deep, 0.0, 1.0) + 0.5 * tanh(past * 1.5))
 		# the bone axis the push is most along
 		var local := (bone_basis.orthonormalized().inverse() * (to_skel * push)).abs()
 		s["squash_axis"] = 0 if local.x >= local.y and local.x >= local.z else (1 if local.y >= local.z else 2)
@@ -1163,7 +1167,11 @@ func _step_springs(delta: float) -> void:
 		var dir: Vector3 = (next - origin).normalized()
 		var angle: float = dir.angle_to(rest_dir)
 		if s.has("squish"):
-			_squash(s, i, push, angle / maxf(normal_limit * contact_give, 1e-3), rest_xf.basis, to_skel.basis, steps)
+			var deep := angle / maxf(normal_limit * contact_give, 1e-3)
+			# pushed past even the extra room: the part spreads instead of going through
+			var held := origin + rest_dir.slerp(dir, minf(limit / maxf(angle, 1e-5), 1.0)).normalized() * length
+			deep += (_collide(s, held) - held).length() / maxf(float(s.get("touch", 0.05)), 1e-3)
+			_squash(s, i, push, deep, rest_xf.basis, to_skel.basis, steps)
 		var knee := limit * 0.6
 		if s.get("soft", false) and angle > knee:
 			# ease into the limit: swings up to 60% of it stay as they are, bigger ones round off

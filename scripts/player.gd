@@ -120,6 +120,10 @@ const CROUCH_EYE := 0.85
 const RADIUS := 0.4
 const STROLL_RADIUS := 0.11
 const SOFT_RADIUS := 0.16
+## Keep pushing at full press and, over SPREAD_TIME, her soft parts spread out
+## of the way and her core gives down to DEEP_RADIUS (just off her ribs).
+const DEEP_RADIUS := 0.1
+const SPREAD_TIME := 2.0
 ## How fast (m/s) her soft parts ease her back out once she stops pushing.
 const SOFT_PUSH_BACK := 0.3
 
@@ -155,9 +159,12 @@ var speed_mult := 1.0
 ## How far she's pressed into something off duty (0 = not touching, 1 = down to
 ## her core); _soft_press sets it each frame.
 var press := 0.0
+## How far she's pushed on past full press (0..1, see SPREAD_TIME).
+var spread := 0.0
 var strolling := false:
 	set(value):
 		strolling = value
+		spread = 0.0
 		if collision != null:
 			(collision.shape as CapsuleShape3D).radius = STROLL_RADIUS if value else RADIUS
 var cam_roll := 0.0
@@ -342,7 +349,7 @@ func _ground_state(delta: float) -> void:
 	if jump_buffer_timer > 0.0:
 		_jump()
 	if strolling:
-		velocity = soft_press(velocity)
+		velocity = soft_press(velocity, delta)
 	move_and_slide()
 	if not is_on_floor() and state == State.GROUND:
 		state = State.AIR
@@ -353,22 +360,27 @@ func _ground_state(delta: float) -> void:
 ## soaks up (none at first touch, all of it at her core), so she slows as she
 ## presses and the harder she keeps pushing the further she sinks in; once she
 ## stops pushing, her soft parts ease her back out. Sets `press` (0..1).
-func soft_press(v: Vector3) -> Vector3:
+func soft_press(v: Vector3, delta := 1.0 / 60.0) -> Vector3:
 	press = 0.0
 	if not is_inside_tree():
 		return v
 	var mine := collision.shape as CapsuleShape3D
-	var out := soft_press_at(get_world_3d().direct_space_state, collision.global_transform, mine.height, v, [get_rid()], collision_mask)
+	var out := soft_press_at(get_world_3d().direct_space_state, collision.global_transform, mine.height, v, [get_rid()], collision_mask, mine.radius)
 	press = out[1]
+	# still pushing at full press: her core gives a little more as her soft parts spread
+	var pushing: bool = out[2] and press > 0.85
+	spread = move_toward(spread, 1.0 if pushing else 0.0, delta / (SPREAD_TIME if pushing else 0.5))
+	mine.radius = lerpf(STROLL_RADIUS, DEEP_RADIUS, spread)
 	return out[0]
 
 
-## soft_press for a body whose capsule sits at `xf` (height `height`):
-## [the velocity it may move at, how far it's pressed in (0..1)]. Static so
+## soft_press for a body whose capsule (core radius `core`) sits at `xf`
+## (height `height`): [the velocity it may move at, how far it's pressed in
+## (0..1), whether it's pushing into anything]. Static so
 ## clips (tools/eco/collide_clips.gd) can press a stand-in the same way.
-static func soft_press_at(space: PhysicsDirectSpaceState3D, xf: Transform3D, height: float, v: Vector3, exclude: Array[RID], mask: int) -> Array:
+static func soft_press_at(space: PhysicsDirectSpaceState3D, xf: Transform3D, height: float, v: Vector3, exclude: Array[RID], mask: int, core := STROLL_RADIUS) -> Array:
 	if space == null:
-		return [v, 0.0]
+		return [v, 0.0, false]
 	var query := PhysicsShapeQueryParameters3D.new()
 	var shape := CapsuleShape3D.new()
 	shape.radius = SOFT_RADIUS
@@ -380,6 +392,7 @@ static func soft_press_at(space: PhysicsDirectSpaceState3D, xf: Transform3D, hei
 	var points := space.collide_shape(query, 8)
 	var feet := xf.origin.y - height * 0.5 + 0.25  # the floor and kerbs under her don't press
 	var press := 0.0
+	var into_any := false
 	var pushing := Vector2(v.x, v.z)
 	for k in range(1, points.size(), 2):
 		var p: Vector3 = points[k]
@@ -390,15 +403,16 @@ static func soft_press_at(space: PhysicsDirectSpaceState3D, xf: Transform3D, hei
 		if d < 1e-4:
 			continue
 		var n := out / d
-		var t := clampf((SOFT_RADIUS - d) / (SOFT_RADIUS - STROLL_RADIUS), 0.0, 1.0)
+		var t := clampf((SOFT_RADIUS - d) / (SOFT_RADIUS - core), 0.0, 1.0)
 		press = maxf(press, t)
 		var into := -pushing.dot(n)
 		if into > 0.0:
+			into_any = true
 			# the deeper she is, the more of her push the soft layer takes
 			pushing += n * into * (1.0 - pow(1.0 - t, 2.0))
 		elif t > 0.0 and Vector2(v.x, v.z).length() < 0.05:
 			pushing += n * SOFT_PUSH_BACK * t
-	return [Vector3(pushing.x, v.y, pushing.y), press]
+	return [Vector3(pushing.x, v.y, pushing.y), press, into_any]
 
 
 ## Responsive running: the part of your velocity along the keys you hold

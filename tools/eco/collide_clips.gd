@@ -112,17 +112,23 @@ func _press_scene() -> void:
 	cam_goal = Vector3(1.6, 0.1, -2.0)
 	_say("Off duty, walking into a wall")
 	var pressed := 0.0
-	for f in 330:
+	var spread := 0.0
+	for f in 450:
 		if f == 70:
 			_say("She slows as her soft parts meet it")
-		elif f == 150:
-			_say("Still pushing: she sinks in further")
-		elif f == 250:
+		elif f == 130:
+			_say("Still pushing: she spreads against it and sinks in further")
+		elif f == 370:
 			_say("Lets up: it eases her back out")
-		var want := Vector3(0, 0, -1.9) if f < 250 else Vector3.ZERO
-		var out := Player.soft_press_at(walker.get_world_3d().direct_space_state, shape.global_transform, 1.8, want, [walker.get_rid()], walker.collision_mask)
+		var want := Vector3(0, 0, -1.9) if f < 370 else Vector3.ZERO
+		var cap := shape.shape as CapsuleShape3D
+		var out := Player.soft_press_at(walker.get_world_3d().direct_space_state, shape.global_transform, 1.8, want, [walker.get_rid()], walker.collision_mask, cap.radius)
 		walker.velocity = out[0]
 		pressed = out[1]
+		# as player.gd soft_press: pushing on at full press, her core gives a little more
+		var on: bool = out[2] and pressed > 0.85
+		spread = move_toward(spread, 1.0 if on else 0.0, (1.0 / 60.0) / (Player.SPREAD_TIME if on else 0.5))
+		cap.radius = lerpf(Player.STROLL_RADIUS, Player.DEEP_RADIUS, spread)
 		walker.move_and_slide()
 		await _frames(1)
 	print("last press %.2f, at z %.3f" % [pressed, walker.position.z])

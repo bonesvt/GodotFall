@@ -55,6 +55,21 @@ func _run() -> void:
 	var along: Vector3 = player.soft_press(Vector3(1.0, 0, 0))
 	_check("walking along the wall isn't slowed", is_equal_approx(along.x, 1.0), along)
 
+	# pushing on at full press: over two seconds her core gives and she sinks further
+	player.global_position = Vector3(0, 0, -1.0 + 0.112)
+	await physics_frame
+	for f in 150:
+		var v: Vector3 = player.soft_press(toward)
+		player.global_position += v / 60.0
+		await physics_frame
+	print("after pushing 2.5 s: middle %.3f m off the wall" % (player.global_position.z + 1.0))
+	var cap := player.collision.shape as CapsuleShape3D
+	_check("pushing on, her soft parts spread and her core gives", player.spread > 0.99 and cap.radius < 0.101, [player.spread, cap.radius])
+	_check("so she sinks in a little further, but no deeper than her ribs", player.global_position.z + 1.0 < 0.108 and player.global_position.z + 1.0 > 0.099, player.global_position.z + 1.0)
+	for f in 40:
+		player.soft_press(Vector3.ZERO)
+	_check("letting up, it comes back", player.spread < 0.01 and cap.radius > 0.109, [player.spread, cap.radius])
+
 	player.strolling = false
 	_check("on duty her capsule is 0.4 m again", is_equal_approx((player.collision.shape as CapsuleShape3D).radius, 0.4), (player.collision.shape as CapsuleShape3D).radius)
 	player.queue_free()
