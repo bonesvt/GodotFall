@@ -65,6 +65,9 @@ const MORE_LINES := {
 	"bell": ["A white collar comes down, open, and closes round her throat.",
 		"A small bell clicks onto the front of it. The arm flicks it once. It rings, high and clean.",
 		"Calm voice: \"Now we'll always know where you are.\""],
+	"collar": ["A grey steel band comes down, open, and closes round her throat over the bell's collar.",
+		"Two bolts drive home at the back of her neck. A light at the side blinks amber, then holds.",
+		"Calm voice: \"Detention collar engaged. Stay where we can see you. Run, and it will remind you.\""],
 	"crown": ["The room goes quiet. Something white and thin comes down out of the ceiling, slow, to her head.",
 		"It settles on her brow. Every piece on her lights up at once: her ears, her eyes, her wrist, her back, her throat.",
 		"Calm voice, from everywhere: \"Welcome home, citizen.\""],
@@ -398,7 +401,7 @@ func _target(model: Node3D = _eco, p: String = piece) -> Vector3:
 			return at + turn * Vector3(0, 0, 0.12)
 		"bridge":
 			return at + turn * Vector3(0, 0.02, -0.06)  # the nose
-		"bell":
+		"bell", "collar":
 			return at + turn * Vector3(0, -0.05, -0.03)  # the throat
 		"crown":
 			return at + Vector3(0, 0.12, 0)  # brow and crown
@@ -462,6 +465,9 @@ func _shot(which: String) -> void:
 					_cam.look_at_from_position(at + Vector3(0.22, -0.04, -0.62), at + Vector3(0, -0.07, 0))
 				"bell":
 					_cam.look_at_from_position(at + Vector3(0.2, 0.06, -0.42), at + Vector3(0, -0.01, 0))
+				"collar":
+					# from her left, the status light coming on
+					_cam.look_at_from_position(at + Vector3(-0.3, 0.05, -0.36), at + Vector3(-0.02, 0.0, 0))
 				"bridge":
 					_cam.look_at_from_position(at + Vector3(0.2, -0.02, -0.34), at + Vector3(0, -0.01, 0))
 				"gloves":

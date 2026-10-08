@@ -23,6 +23,11 @@ extends RefCounted
 ##   bell        the Hymn bell on a collar: moving fast (over BELL_SPEED) it rings
 ##               every BELL_EVERY s, and on a run every enemy in BELL_RANGE hears
 ##               it like a shot; in town it tells the Shepherd where she is
+##   collar      the detention collar: grey steel over the bell's band, a status
+##               light. While the Shepherd hunts her it pings where she is every
+##               COLLAR_PING s, its pulse locks her where she stands for
+##               COLLAR_LOCK s, and running from it in its sight more than
+##               STUN_RANGE m off stuns her every STUN_EVERY s (shepherd.gd)
 ## Biggie can get a piece off at the folding table in his tent (gear_off_screen.gd):
 ## one try each time she's back in town, a steady-hand job (STEADY: how much room
 ## he has with each piece), and every slip shocks her (SLIP Hymn) and it stays on.
@@ -30,12 +35,12 @@ extends RefCounted
 
 const Vices := preload("res://scripts/hub/vices.gd")
 
-const GEAR := ["headphones", "cuff", "visor", "bridge", "gloves", "spine", "bell", "crown"]
+const GEAR := ["headphones", "cuff", "visor", "bridge", "gloves", "spine", "bell", "collar", "crown"]
 const GEAR_NAMES := {"headphones": "compliance headphones", "cuff": "dose cuff", "visor": "clarity visor",
-	"bridge": "calm bridge", "gloves": "comfort gloves", "spine": "Plumb Line spine", "bell": "Hymn bell", "crown": "Crown"}
+	"bridge": "calm bridge", "gloves": "comfort gloves", "spine": "Plumb Line spine", "bell": "Hymn bell", "collar": "detention collar", "crown": "Crown"}
 ## How much room Biggie's hand has getting each piece off (the width of the
 ## steady band, 0..1): the visor's cups on her eyes and the spine least of all.
-const STEADY := {"headphones": 0.22, "cuff": 0.2, "visor": 0.12, "bridge": 0.18, "gloves": 0.2, "spine": 0.1, "bell": 0.18, "crown": 0.08}
+const STEADY := {"headphones": 0.22, "cuff": 0.2, "visor": 0.12, "bridge": 0.18, "gloves": 0.2, "spine": 0.1, "bell": 0.18, "collar": 0.14, "crown": 0.08}
 ## Clean holds he needs in a row (pins, needles, cups, tubes, seals, segments).
 const HOLDS := 3
 ## Hymn a slip shocks into her.
@@ -51,6 +56,13 @@ const CROWN_FLOOR := 80.0
 const BELL_SPEED := 6.0
 const BELL_EVERY := 0.9
 const BELL_RANGE := 22.0
+## The detention collar (shepherd.gd): how often it tells the Shepherd where she
+## is, how long its lock holds her, and the stun for running.
+const COLLAR_PING := 5.0
+const COLLAR_LOCK := 1.5
+const STUN_RANGE := 12.0
+const STUN_EVERY := 8.0
+const STUN_HOLD := 0.9
 ## The gloves' numb hands (reload time x), the spine's heavier step (speed x).
 const RELOAD_SLOW := 1.3
 const GLOVE_SPREAD := 1.35

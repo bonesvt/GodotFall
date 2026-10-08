@@ -12,6 +12,9 @@ extends CharacterBody3D
 ## its gear goes on her in the dispensary's back room (Hymn.processed,
 ## fitting_scene.gd). Out of its
 ## sight for LOSE_TIME s, it loses her and walks off.
+## With the detention collar on her (hymn.gd) it always has her: the collar
+## pings where she is every COLLAR_PING s, a pulse locks her where she stands,
+## and running from it in its sight past STUN_RANGE m stuns her.
 
 const Hymn := preload("res://scripts/hub/hymn.gd")
 const SFX := preload("res://scripts/sfx.gd")
@@ -42,6 +45,8 @@ const CALLS := [
 	"Shepherd: \"Everyone else took theirs, Eco.\"",
 ]
 const LOST := "The Shepherd's loudspeaker goes quiet. It's lost her. For now."
+const LOCKED := "The collar's light flips red. Her legs lock. She can't take a step."
+const STUNNED := "The collar bites: white static down her spine. She drops to a knee. It doesn't like her running."
 const TAKEN := "White. Then a calm voice counting down from ten. Eco wakes on the dispensary bench. There's nothing left for them to put on her."
 
 var rm: Node
@@ -64,6 +69,13 @@ var piece := ""
 ## Its body, on the Choir's puppet (threat_model.gd).
 var puppet: Node3D
 var _col: CollisionShape3D
+## The collar: its next ping, the stun's wait while she runs, how long its
+## lock has left, and the stun's white flash.
+var _ping_t := 0.0
+var _stun_t := 1.2
+var _lock_left := 0.0
+var _flash := 0.0
+var _held := false
 
 
 static func create(run_manager: Node, pos: Vector3) -> CharacterBody3D:
@@ -145,6 +157,7 @@ func sees() -> bool:
 func _physics_process(delta: float) -> void:
 	_t += delta
 	_tick_darts(delta)
+	_tick_lock(delta)
 	match step:
 		Step.HUNT:
 			_hunt(delta)
@@ -171,6 +184,8 @@ func _hunt(delta: float) -> void:
 			give_up()
 			return
 	sedation = maxf(sedation - SEDATE_WEAR * delta, 0.0)
+	if Hymn.has("collar"):
+		_collar(delta, see, dist)
 	if dist <= GRAB_RANGE:
 		take_her()
 		return
@@ -268,6 +283,64 @@ func pulse() -> void:
 	var tw: Node = rm.hush_pull.triggers
 	if not tw.busy():
 		tw.fire(false, true)
+	if Hymn.has("collar"):
+		lock(Hymn.COLLAR_LOCK)
+		rm.hud.toast(LOCKED, 2.0)
+
+
+## The detention collar while it hunts her: it pings where she is, and running
+## from it where it can see her, far off, earns a stun.
+func _collar(delta: float, see: bool, dist: float) -> void:
+	var p := _player()
+	_ping_t -= delta
+	if _ping_t <= 0.0:
+		_ping_t = Hymn.COLLAR_PING
+		_last_seen = p.global_position
+	var v: Vector3 = p.velocity
+	var running := see and dist > Hymn.STUN_RANGE and Vector2(v.x, v.z).length() > Hymn.BELL_SPEED
+	if not running:
+		_stun_t = maxf(_stun_t, 1.2)
+		return
+	_stun_t -= delta
+	if _stun_t <= 0.0:
+		_stun_t = Hymn.STUN_EVERY
+		stun()
+
+
+## The collar's stun: a white flash, she's down for a moment, a little more sedated.
+func stun() -> void:
+	lock(Hymn.STUN_HOLD)
+	_flash = 0.55
+	sedation = minf(sedation + DART_SEDATE * 0.5, 1.0)
+	SFX.play(_player(), "radio_static_burst", -4.0, 1.6)
+	rm.hud.toast(STUNNED, 2.5)
+
+
+## Holds her where she stands for `seconds` (the collar's lock).
+func lock(seconds: float) -> void:
+	_lock_left = maxf(_lock_left, seconds)
+	_held = true
+	var p := _player()
+	p.set("entranced", true)
+	p.set("trance_dir", Vector3.ZERO)
+
+
+func _tick_lock(delta: float) -> void:
+	if _flash > 0.0:
+		_flash = maxf(_flash - delta * 1.5, 0.0)
+		if step == Step.HUNT:
+			_veil.color.a = _flash
+	if _lock_left <= 0.0:
+		return
+	_lock_left -= delta
+	if _lock_left <= 0.0 and step == Step.HUNT:
+		_held = false
+		_player().set("entranced", false)
+
+
+## True while the collar holds her.
+func locked() -> bool:
+	return _lock_left > 0.0
 
 
 func take_her() -> void:
@@ -309,6 +382,10 @@ func heard(at: Vector3) -> void:
 
 
 func give_up() -> void:
+	if _held:
+		_player().set("entranced", false)
+	_held = false
+	_lock_left = 0.0
 	Hymn.escaped()
 	rm.hud.toast(LOST, 4.0)
 	step = Step.GONE

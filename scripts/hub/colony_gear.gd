@@ -17,6 +17,8 @@ extends RefCounted
 ##               down to every finger
 ##   bell        the Hymn bell: a white collar at her throat with a small bell
 ##               that rings when she moves fast (hymn.gd: it tells on her)
+##   collar      the detention collar: a grey steel band over the bell's, bolts
+##               at the back, an amber status light at her left
 ##   crown       the Crown: a white circlet round her head with four lit nodes,
 ##               the piece that ties all the others together
 ##   spine       the Plumb Line: a white and chrome spine down her back from
@@ -88,6 +90,10 @@ static func apply(model: Node, p_gear = null) -> void:
 		var neck := _root(skel, NECK, NODE + "_Bell")
 		_bell(_piece(neck, "bell"), skel.get_bone_global_rest(skel.find_bone(NECK)).origin)
 		_match_layers(model, neck, "Body")
+	if "collar" in gear and skel.find_bone(NECK) >= 0:
+		var throat := _root(skel, NECK, NODE + "_Collar")
+		_collar(_piece(throat, "collar"), skel.get_bone_global_rest(skel.find_bone(NECK)).origin)
+		_match_layers(model, throat, "Body")
 	if "cuff" in gear and skel.find_bone(WRIST) >= 0:
 		var wrist := _root(skel, WRIST, NODE + "_Cuff")
 		_cuff(_piece(wrist, "cuff"), skel.get_bone_global_rest(skel.find_bone(WRIST)).origin)
@@ -165,6 +171,17 @@ static func fit(node: Node3D, piece: String, k: float) -> void:
 			var bell := node.get_node_or_null("Bell") as Node3D
 			if bell != null:
 				bell.scale = Vector3.ONE * maxf(smoothstep(0.6, 0.9, k), 0.01)
+		"collar":
+			# it closes round her throat, the bolts drive home, then the light comes on
+			var band := node.get_node_or_null("Band") as Node3D
+			if band != null:
+				band.scale = Vector3.ONE * lerpf(1.6, 1.0, smoothstep(0.0, 0.5, k))
+			for n in node.get_children():
+				if String(n.name).begins_with("Bolt_"):
+					(n as Node3D).scale = Vector3(maxf(smoothstep(0.5, 0.7, k), 0.01), 1, 1)
+			var light := node.get_node_or_null("Light") as Node3D
+			if light != null:
+				light.scale = Vector3.ONE * maxf(smoothstep(0.75, 0.85, k), 0.01)
 		"bridge":
 			node.position = Vector3(0, 0.25 * (1.0 - smoothstep(0.0, 0.35, k)), 0)
 			for side in ["L", "R"]:
@@ -380,6 +397,31 @@ static func _bell(root: Node3D, neck: Vector3) -> void:
 	_add(bell, clap, Vector3(0, -0.012, 0), _lit())
 
 
+## The detention collar: a grey steel band just over the bell's white one, a
+## seam and two bolts at the back, an amber status light at her left.
+static func _collar(root: Node3D, neck: Vector3) -> void:
+	var at := neck + Vector3(0, 0.035, 0)
+	var band := Node3D.new()
+	band.name = "Band"
+	band.position = at
+	root.add_child(band)
+	_cylinder(band, Vector3.ZERO, 0.057, 0.03, _steel())
+	_torus(band, Vector3(0, 0.0155, 0), 0.054, 0.059, _dark())
+	_torus(band, Vector3(0, -0.0155, 0), 0.054, 0.059, _dark())
+	for s in [-1.0, 1.0]:
+		var bolt := Node3D.new()
+		bolt.name = "Bolt_%d" % (0 if s < 0 else 1)
+		bolt.position = at + Vector3(0.012 * s, 0, 0.058)
+		root.add_child(bolt)
+		_box(bolt, Vector3.ZERO, Vector3(0.01, 0.016, 0.008), _chrome())
+	var light := Node3D.new()
+	light.name = "Light"
+	light.position = at + Vector3(-0.043, 0.002, -0.04)
+	root.add_child(light)
+	_box(light, Vector3.ZERO, Vector3(0.012, 0.01, 0.012), _dark())
+	_box(light, Vector3(-0.004, 0, -0.004), Vector3(0.007, 0.006, 0.007), _mat("amber", Color(1.0, 0.62, 0.15), 4.0))
+
+
 ## The Crown: a white circlet round her head above the brow, a peak at the
 ## front, four lit nodes round it.
 static func _crown(root: Node3D) -> void:
@@ -445,6 +487,13 @@ static func _chrome() -> StandardMaterial3D:
 	m.metallic = 0.9
 	m.roughness = 0.2
 	_mats["chrome"] = m
+	return m
+
+
+static func _steel() -> StandardMaterial3D:
+	var m := _mat("steel", Color(0.42, 0.45, 0.5), 0.0)
+	m.metallic = 0.8
+	m.roughness = 0.35
 	return m
 
 
