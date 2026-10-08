@@ -1210,7 +1210,8 @@ def skin_tone(px):
 # (Mom's and Ophelia's bikini/sheer/tight/lingerie were shelved 2026-10-04;
 # backup: /mnt/project-files/hub-npcs/shelved/npc_outfits.bundle)
 # Pip's: the cropped waistcoat (her everyday), the shorts, the rave fit (the
-# club) and the warden's mesh (the casino floor) (Bones, 2026-10-08).
+# club), the warden's mesh (the casino floor) and after-hours, micro cups with
+# side-tie bows (the rooms under the Undertow) (Bones, 2026-10-08).
 OUTFITS = {"ophelia": ["tee", "hoodie", "night", "prison", "colony", "colony_m"], "mom": ["home", "night"],
            "pip": ["crop", "shorts", "rave", "warden", "afterhours"]}
 # Outfits worn barefoot (the boots mesh hidden; hub_npc.gd NO_BOOTS).
@@ -1401,7 +1402,7 @@ def pip_outfit(g, skin, x, y, z, ax, front, cov, edge, sine, neck_r):
     if LOOK == "warden":
         return pip_warden(g, skin, x, y, z, ax, front, cov, edge, sine, neck_r)
     if LOOK == "afterhours" or LOOK.startswith("ah_"):
-        return pip_afterhours(g, skin, x, y, z, ax, front, cov, edge, sine, neck_r, LOOK[3:] if LOOK.startswith("ah_") else "")
+        return pip_afterhours(g, skin, x, y, z, ax, front, cov, edge, sine, neck_r, LOOK[3:] if LOOK.startswith("ah_") else "sides")
     cropped = LOOK in ("crop", "sheer", "jacket", "shorts")
     WINE, WINE_D, WINE_L = (0.2, 0.012, 0.035), (0.11, 0.006, 0.02), (0.36, 0.05, 0.08)
     VEST, STRIPE, GOLD, TROUSER = (0.016, 0.014, 0.018), (0.12, 0.11, 0.12), (0.62, 0.42, 0.1), (0.012, 0.011, 0.014)
@@ -1580,8 +1581,12 @@ def pip_afterhours(g, skin, x, y, z, ax, front, cov, edge, sine, neck_r, style="
         drop = g.mul(g.mx(line(0.062, 1.022, -0.15, 0.735, x), line(-0.062, 1.022, 0.15, 0.735, x)), front)
         belt = g.mul(belt, 0.0)
     elif style == "sides":   # bows at the hips, ends hanging down
-        knot = g.mul(g.band(ax, 0.145, 0.16), g.band(z, 0.695, 0.735))
-        bow = g.mul(g.sub(1.0, g.sstep(0.008, 0.01, g.sqrt(g.add(g.sq(g.sub(ax, 0.152)), g.sq(g.sub(z, 0.735)))))), 1.0)
+        ends = g.mx(g.mul(g.band(g.sub(ax, g.add(0.146, g.mul(g.sub(0.735, z), 0.12))), -0.0022, 0.0022), g.band(z, 0.685, 0.735)),
+                    g.mul(g.band(g.sub(ax, g.sub(0.158, g.mul(g.sub(0.735, z), 0.1))), -0.0022, 0.0022), g.band(z, 0.69, 0.735)))
+        loops = g.mx(g.band(g.sqrt(g.add(g.sq(g.sub(ax, 0.138)), g.sq(g.sub(z, 0.74)))), 0.004, 0.0065),
+                     g.band(g.sqrt(g.add(g.sq(g.sub(ax, 0.166)), g.sq(g.sub(z, 0.74)))), 0.004, 0.0065))
+        knot = g.mx(ends, loops)
+        bow = g.sub(1.0, g.sstep(0.0035, 0.0045, g.sqrt(g.add(g.sq(g.sub(ax, 0.152)), g.sq(g.sub(z, 0.738))))))
         strings = g.mx(strings, g.mul(g.mx(knot, bow), front))
         belt = g.mul(belt, 0.0)
         drop = g.mul(drop, 0.0)
