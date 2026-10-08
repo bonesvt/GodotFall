@@ -15,6 +15,8 @@ extends CharacterBody3D
 
 const Hymn := preload("res://scripts/hub/hymn.gd")
 const SFX := preload("res://scripts/sfx.gd")
+const ThreatModel := preload("res://scripts/threats/threat_model.gd")
+const ShepherdModel := preload("res://scripts/hub/shepherd_model.gd")
 
 enum Step { HUNT, PROCESS, GONE }
 
@@ -58,6 +60,8 @@ var _last_pos := Vector3.ZERO
 var _veil: ColorRect
 var _darts: Array = []
 var piece := ""
+## Its body, on the Choir's puppet (threat_model.gd).
+var puppet: Node3D
 var _col: CollisionShape3D
 
 
@@ -93,49 +97,24 @@ func _ready() -> void:
 	_say()
 
 
-## Its body from primitives: long white coat, grey limbs, a dark faceplate
-## with a glowing band, the dispensary tank on its back, a loudspeaker.
+## Its body (shepherd_model.gd) on the Choir's puppet (threat_model.gd): it
+## walks with the biped gait, and its slit, seal, tank and darts flare white
+## (tell) as it lines up a dart.
 func _build_model() -> void:
-	var white := _mat(Color(0.9, 0.92, 0.95))
-	var grey := _mat(Color(0.35, 0.37, 0.42))
-	var dark := _mat(Color(0.06, 0.07, 0.09))
-	var glow := _mat(Color(0.75, 0.92, 1.0), 3.0)
-	var hymn := _mat(Color(0.95, 0.97, 1.0), 1.5)
-	var body := Node3D.new()
-	body.name = "Model"
-	add_child(body)
-	_box(body, Vector3(0, 1.25, 0), Vector3(0.62, 0.95, 0.36), white)          # coat
-	_box(body, Vector3(0, 0.62, 0), Vector3(0.56, 0.42, 0.34), white)          # coat skirt
-	for s in [-1.0, 1.0]:
-		_box(body, Vector3(0.16 * s, 0.3, 0), Vector3(0.16, 0.6, 0.18), grey)  # legs
-		_box(body, Vector3(0.42 * s, 1.25, 0), Vector3(0.14, 0.85, 0.16), grey)  # arms
-		_box(body, Vector3(0.36 * s, 1.7, 0), Vector3(0.24, 0.12, 0.3), white)  # shoulders
-	_box(body, Vector3(0, 1.88, 0), Vector3(0.14, 0.12, 0.14), grey)           # neck
-	_box(body, Vector3(0, 2.02, 0), Vector3(0.3, 0.3, 0.32), white)            # head
-	_box(body, Vector3(0, 2.02, -0.165), Vector3(0.26, 0.2, 0.02), dark)       # faceplate
-	_box(body, Vector3(0, 2.04, -0.178), Vector3(0.22, 0.04, 0.01), glow)      # its eye
-	# the dispensary tank on its back, glowing with Hymn
-	var tank := MeshInstance3D.new()
-	var cyl := CylinderMesh.new()
-	cyl.top_radius = 0.16
-	cyl.bottom_radius = 0.16
-	cyl.height = 0.7
-	tank.mesh = cyl
-	tank.material_override = hymn
-	tank.position = Vector3(0, 1.35, 0.3)
-	body.add_child(tank)
-	_box(body, Vector3(0, 1.72, 0.3), Vector3(0.36, 0.06, 0.36), grey)
-	_box(body, Vector3(0, 0.98, 0.3), Vector3(0.36, 0.06, 0.36), grey)
-	# the loudspeaker on its shoulder, the dart gun in its right hand
-	_box(body, Vector3(-0.38, 1.85, -0.05), Vector3(0.16, 0.14, 0.2), dark)
-	_box(body, Vector3(0.42, 0.85, -0.18), Vector3(0.08, 0.12, 0.42), dark)
+	puppet = Node3D.new()
+	puppet.name = "Model"
+	puppet.set_script(ThreatModel)
+	puppet.gait = "biped"
+	puppet.stride_len = 1.9
+	puppet.swing = 22.0
+	puppet.add_child(ShepherdModel.build())
+	add_child(puppet)
 	var lamp := OmniLight3D.new()
 	lamp.light_color = Color(0.75, 0.9, 1.0)
 	lamp.light_energy = 1.4
 	lamp.omni_range = 4.0
 	lamp.position = Vector3(0, 2.0, -0.4)
-	body.add_child(lamp)
-
+	add_child(lamp)
 
 func _mat(c: Color, glow := 0.0) -> StandardMaterial3D:
 	var m := StandardMaterial3D.new()
@@ -146,16 +125,6 @@ func _mat(c: Color, glow := 0.0) -> StandardMaterial3D:
 		m.emission = c
 		m.emission_energy_multiplier = glow
 	return m
-
-
-func _box(parent: Node3D, at: Vector3, size: Vector3, m: Material) -> void:
-	var mi := MeshInstance3D.new()
-	var b := BoxMesh.new()
-	b.size = size
-	mi.mesh = b
-	mi.material_override = m
-	mi.position = at
-	parent.add_child(mi)
 
 
 func _player() -> Node3D:
@@ -210,6 +179,7 @@ func _hunt(delta: float) -> void:
 		_call_t = 0.0
 		_say()
 	_dart_t -= delta
+	puppet.set("tell", clampf(1.0 - _dart_t / 0.6, 0.0, 1.0) if see and dist <= DART_RANGE else 0.0)
 	if see and dist <= DART_RANGE and _dart_t <= 0.0:
 		_dart_t = DART_EVERY
 		fire_dart()

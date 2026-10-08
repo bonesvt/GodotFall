@@ -30,6 +30,7 @@ kit.GAME = True
 kit.RES_MULT = 2.0
 import choir  # noqa: E402  (after the game switches are set)
 import wild  # noqa: E402
+import colony  # noqa: E402
 
 argv = sys.argv[sys.argv.index("--") + 1:]
 OUT = Path(argv[0])
@@ -106,6 +107,16 @@ def cut_quillcat(c):
     return "Body"
 
 
+def cut_shepherd(c):
+    if c.z > 1.88:
+        return "Head"
+    if c.z > 1.12 or (abs(c.x) > 0.2 and c.z > 0.9):
+        return "Torso"
+    if abs(c.x) < 0.06:
+        return "Hips"
+    return ("Knee" if c.z < 0.56 else "Leg") + side(c)
+
+
 def cut_body(c):
     return "Body"
 
@@ -159,6 +170,13 @@ CREATURES = {
     "picker": (lambda M: wild.picker(M, V((0, 0, 0))), cut_body, {
         "Body": (None, (0, 0, 0.1)),
     }, 2500),
+    "shepherd": (lambda M: colony.shepherd(M), cut_shepherd, {
+        "Hips": (None, (0, 0, 1.0)),
+        "LegR": (None, (-0.11, 0, 1.0)), "LegL": (None, (0.11, 0, 1.0)),
+        "KneeR": ("LegR", (-0.115, -0.02, 0.55)), "KneeL": ("LegL", (0.115, -0.02, 0.55)),
+        "Torso": (None, (0, 0, 1.08)),
+        "Head": ("Torso", (0, -0.01, 1.86)),
+    }, 24000),
     "veilray": (lambda M: wild.veilray(M), cut_body, {
         "Body": (None, (0, 0, 0)),
         "WingR": ("Body", (-0.25, 0, 0.02)), "WingL": ("Body", (0.25, 0, 0.02)),
@@ -175,7 +193,7 @@ def build(name):
     kit.reset()
     if "--dry" not in sys.argv:
         sys.argv.append("--dry")  # no water plane under the lampjaw
-    M = choir.mats() if name in CHOIR else wild.mats()
+    M = colony.mats() if name == "shepherd" else (choir.mats() if name in CHOIR else wild.mats())
     builder(M)
     bpy.context.view_layer.update()
     # Bake modifiers and metaballs into plain meshes.
