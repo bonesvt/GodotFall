@@ -12,6 +12,7 @@ const ECO_MODEL := "res://scripts/ps2/eco_model.gd"
 const HUB_NPC := "res://scripts/hub/hub_npc.gd"
 const ContentRating := preload("res://scripts/radio/content_rating.gd")
 const Vices := preload("res://scripts/hub/vices.gd")
+const ViceLooks := preload("res://scripts/hub/vice_looks.gd")
 
 ## Whose clothes can be in it, in tab order, with their tab names (people()
 ## leaves out anyone with only the one outfit for now).
@@ -50,6 +51,7 @@ static func outfits(who: String) -> Array:
 			list = list.filter(func(o): return not o in mature)
 		if not Vices.hush_suit:
 			list.erase("suit_hush")
+		list.append_array(ViceLooks.wardrobe_looks())  # the hypno looks she's kept
 		return list
 	var npc: Script = load(HUB_NPC)
 	return npc.get_script_constant_map().get("OUTFITS", {}).get(who, []).duplicate()
@@ -68,6 +70,8 @@ static func options(who: String) -> Array:
 static func outfit_name(outfit: String) -> String:
 	if outfit == ROTATE:
 		return "Changes every run"
+	if ViceLooks.is_look(outfit):
+		return ViceLooks.look_name(outfit)
 	return NAMES.get(outfit, outfit.capitalize())
 
 
@@ -82,7 +86,7 @@ static func choice(who: String) -> String:
 
 
 static func choose(who: String, outfit: String) -> void:
-	if not options(who).has(outfit):
+	if not options(who).has(outfit) or (who == "eco" and locked()):
 		return
 	var cfg := ConfigFile.new()
 	cfg.load(save_path)
@@ -90,11 +94,20 @@ static func choose(who: String, outfit: String) -> void:
 	cfg.save(save_path)
 
 
+## Whether a hypno look has her (vice_looks.gd forced()): she wears it
+## everywhere and can't change out of it.
+static func locked() -> bool:
+	return ViceLooks.forced() != ""
+
+
 ## Puts Eco (the player's full-body model) in her pick at home, or her suit
-## on a run. Left alone while she's lying down or sitting.
+## on a run (a hypno look that has her, everywhere). Left alone while she's
+## lying down or sitting.
 static func dress_eco(player: Node, at_home: bool) -> void:
-	var pick := choice("eco")
-	eco_now = pick if at_home or pick.begins_with("suit") else "suit"
+	var forced := ViceLooks.forced()
+	var pick := forced if forced != "" else choice("eco")
+	var suit := ViceLooks.base(pick) if ViceLooks.is_look(pick) else pick
+	eco_now = pick if at_home or forced != "" or suit.begins_with("suit") else "suit"
 	var body := player.get_node_or_null("EcoBody") if player != null else null
 	if body == null:
 		return
