@@ -1,9 +1,10 @@
 extends SceneTree
-## Bakes Ophelia's lacing-stage textures (obsession_look.gd) from her own:
-##   body_hoodie_lacing.png  gold-stained fingertips from rolling the papers,
+## Bakes Ophelia's lacing-stage textures (obsession_look.gd) from her
+## obsessed outfit (tools/npc/paint_ophelia_obsession.gd):
+##   body_obsessed_lacing.png  gold-stained fingertips from rolling the papers,
 ##                           and ECO in pen with a heart on the back of her
 ##                           left hand
-##   face_lacing.png         dark circles under her eyes
+##   face_obsessed_lacing.png dark circles under her eyes
 ## It finds the spots on her mesh (fingertip bones, the back of the hand, just
 ## under each eye) and paints their triangles in UV space, so it follows the
 ## model whatever its UV layout.
@@ -34,16 +35,16 @@ func _initialize() -> void:
 		push_error("ophelia's body or face surface not found")
 		quit(1)
 		return
-	var body_img := Image.load_from_file(ProjectSettings.globalize_path(DIR + "body_hoodie.png"))
+	var body_img := Image.load_from_file(ProjectSettings.globalize_path(DIR + "body_obsessed.png"))
 	body_img.convert(Image.FORMAT_RGBA8)
 	_fingertips(body, body_img)
 	_doodle(body, body_img)
-	body_img.save_png(ProjectSettings.globalize_path(DIR + "body_hoodie_lacing.png"))
-	var face_img := Image.load_from_file(ProjectSettings.globalize_path(DIR + "face.png"))
+	body_img.save_png(ProjectSettings.globalize_path(DIR + "body_obsessed_lacing.png"))
+	var face_img := Image.load_from_file(ProjectSettings.globalize_path(DIR + "face_obsessed.png"))
 	face_img.convert(Image.FORMAT_RGBA8)
 	_circles(face, face_img)
-	face_img.save_png(ProjectSettings.globalize_path(DIR + "face_lacing.png"))
-	print("baked body_hoodie_lacing.png and face_lacing.png")
+	face_img.save_png(ProjectSettings.globalize_path(DIR + "face_obsessed_lacing.png"))
+	print("baked body_obsessed_lacing.png and face_obsessed_lacing.png")
 	quit()
 
 

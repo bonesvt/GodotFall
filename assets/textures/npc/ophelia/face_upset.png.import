@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://b1r41pm6jhpb4"
-path="res://.godot/imported/body_hoodie_lacing.png-a12a16737d82ee9c2c3e791a744e89ba.ctex"
+uid="uid://tgjv8acrtnev"
+path="res://.godot/imported/face_upset.png-b6f42936a4a52782c277c44d82a23b37.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/textures/npc/ophelia/body_hoodie_lacing.png"
-dest_files=["res://.godot/imported/body_hoodie_lacing.png-a12a16737d82ee9c2c3e791a744e89ba.ctex"]
+source_file="res://assets/textures/npc/ophelia/face_upset.png"
+dest_files=["res://.godot/imported/face_upset.png-b6f42936a4a52782c277c44d82a23b37.ctex"]
 
 [params]
 

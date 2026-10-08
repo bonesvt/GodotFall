@@ -22,7 +22,7 @@ func _run() -> void:
 	var npc: Node3D = HubNpc.create("ophelia", Vector3.ZERO, 0.0)
 	root.add_child(npc)
 	await process_frame
-	var want := {2: ["UpperChest"], 3: ["UpperChest", "Hips"], 4: ["UpperChest", "Hips", "Candle"], 5: ["UpperChest", "Hips", "Candle", "UpperArm", "Hand"]}
+	var want := {2: [], 3: ["Hips"], 4: ["Hips", "UpperChest", "Candle"], 5: ["Hips", "UpperChest", "Candle", "UpperArm", "Hand"]}
 	for meter in [30.0, 60.0, 80.0, 95.0]:
 		Obsession.reset()
 		Obsession.meter = meter
