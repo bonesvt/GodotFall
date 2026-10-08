@@ -12,8 +12,12 @@ extends CanvasLayer
 ## to a lit bezel, and tears in glitches. Behind the orders a hypnotic tunnel
 ## turns (the flipbook tools/hub/build_visor_fx.py renders in Blender), the
 ## colony's watching eye surfaces now and then, puppet strings hang from a
-## control bar down to her hands, a pendulum swings, a countdown takes her
-## deeper, and a ring breathes for her.
+## control bar down to her hands, a pendulum swings, and a ring breathes for
+## her. Low in the middle the inductions take turns (INDUCTIONS, INDUCTION s
+## each): a countdown that takes her deeper, a staircase down, affirmations
+## typed out for her, a counted breath, words that get heavier while her
+## eyelids close, and lines she's made to repeat. Her name is overwritten
+## with a citizen number, and her thoughts are counted down to zero.
 
 const Hymn := preload("res://scripts/hub/hymn.gd")
 const Vices := preload("res://scripts/hub/vices.gd")
@@ -82,6 +86,14 @@ void fragment() {
 }"
 const COUNT_FROM := 10
 const BREATH := 4.0
+## The inductions, in turn, and how long each runs.
+const INDUCTIONS := ["countdown", "stairs", "affirm", "breath", "heavy", "repeat"]
+const INDUCTION := 12.0
+const AFFIRM := ["I AM CALM.", "I AM SAFE.", "I DON'T NEED TO THINK.", "I BELONG TO THE COLONY."]
+const HEAVY := ["HEAVY", "HEAVIER", "SO HEAVY", "SINKING", "SINKING DEEPER"]
+const REPEAT := [["WE ARE CALM", "we are calm"], ["WE ARE TOGETHER", "we are together"], ["THE DOSE IS GOOD", "the dose is good"], ["I WILL COME BACK", "i will come back"]]
+const BREATH_BEATS := ["IN", "HOLD", "OUT", "HOLD"]
+const CITIZEN := "CITIZEN 0471"
 
 var rm: Node
 var _draw_on: Control
@@ -242,7 +254,7 @@ func spawn_word() -> void:
 	var big := rng.randf() < 0.25
 	_words.append({
 		"text": WORDS[rng.randi() % WORDS.size()],
-		"pos": Vector2(rng.randf_range(0.05, 0.75) * size.x, rng.randf_range(0.12, 0.9) * size.y),
+		"pos": Vector2(rng.randf_range(0.05, 0.75) * size.x, rng.randf_range(0.12, 0.62) * size.y),  # the low third is the inductions'
 		"size": rng.randi_range(64, 110) if big else rng.randi_range(22, 40),
 		"age": 0.0,
 		"life": LIFE * rng.randf_range(0.7, 1.3),
@@ -266,7 +278,10 @@ func _paint() -> void:
 	_strings(size, s)
 	_pendulum(size, s)
 	_breath(c, s)
-	_countdown(size, s)
+	_eyelids(size, s)  # the inductions' words float over her closing eyes
+	_induction(size, s)
+	_subject(size, s)
+	_thoughts(size, s)
 	# false HUD: compliance, heart rate, threats
 	var comp := 0.82 + 0.15 * sin(_t * 0.7)
 	_box(Vector2(24, size.y * 0.32), "COMPLIANCE  %d%%" % roundi(comp * 100.0), comp, s)
@@ -364,10 +379,140 @@ func _breath(c: Vector2, s: float) -> void:
 	_text(word, c + Vector2(-62, r + 30), 18, Color(WHITE, 0.55 * s))
 
 
+## The induction running now, low in the middle (they take turns).
+func which_induction() -> String:
+	return INDUCTIONS[int(_t / INDUCTION) % INDUCTIONS.size()]
+
+
+func _induction(size: Vector2, s: float) -> void:
+	var lt := fmod(_t, INDUCTION)
+	match which_induction():
+		"countdown":
+			_countdown(size, s, lt)
+		"stairs":
+			_stairs(size, s, lt)
+		"affirm":
+			_affirm(size, s, lt)
+		"breath":
+			_breath_count(size, s, lt)
+		"heavy":
+			_heavy(size, s, lt)
+		"repeat":
+			_repeat(size, s, lt)
+
+
+## A staircase down into the middle of her view, a step a second, the one
+## she's on lit.
+func _stairs(size: Vector2, s: float, lt: float) -> void:
+	var c := Vector2(size.x * 0.5, size.y * 0.62)
+	var on := mini(int(lt), 9)
+	for i in 10:
+		var k := 1.0 - i / 10.0
+		var w := 560.0 * k
+		var y := c.y + 200.0 * k * k
+		var lit := i == on
+		var step := Rect2(Vector2(c.x - w * 0.5, y), Vector2(w, 16.0 * k + 3.0))
+		_draw_on.draw_rect(step, Color(0.03, 0.04, 0.06, 0.5 * s))
+		_draw_on.draw_rect(step, Color(WHITE, (0.9 if lit else 0.45) * s), lit, 2.0 if not lit else -1.0)
+	_text("STEP %d" % (on + 1), c + Vector2(-48, 230), 26, Color(WHITE, 0.8 * s))
+	_text("ALL THE WAY DOWN" if on >= 9 else "...step down", c + Vector2(-80, 258), 18, Color(WHITE, 0.5 * s))
+
+
+## Affirmations typed out for her, one every three seconds.
+func _affirm(size: Vector2, s: float, lt: float) -> void:
+	var line: String = AFFIRM[int(lt / 3.0) % AFFIRM.size()]
+	var k := clampf(fmod(lt, 3.0) / 1.8, 0.0, 1.0)
+	var shown := line.substr(0, int(ceil(line.length() * k)))
+	var at := Vector2(size.x * 0.5 - line.length() * 11.0, size.y * 0.78)
+	_text("SAY IT:", at + Vector2(0, -34), 16, Color(WHITE, 0.45 * s))
+	_text(shown + ("_" if fmod(_t, 0.5) < 0.25 else ""), at, 38, Color(WHITE, 0.85 * s))
+
+
+## A counted breath: in for four, hold for four, out for four, hold for four.
+func _breath_count(size: Vector2, s: float, lt: float) -> void:
+	var beat := int(lt) % 16
+	var phase := beat / 4
+	var at := Vector2(size.x * 0.5 - 150.0, size.y * 0.8)
+	for i in 4:
+		var col := Color(WHITE, (0.9 if i == phase else 0.25) * s)
+		_text(BREATH_BEATS[i], at + Vector2(i * 84.0, 0), 24, col)
+	_text(str(beat % 4 + 1), Vector2(size.x * 0.5 - 12.0, size.y * 0.8 + 52.0), 44, Color(WHITE, 0.8 * s))
+
+
+## Words that get heavier and sink, a word every 2.4 s, while her eyelids
+## close (_eyelids).
+func _heavy(size: Vector2, s: float, lt: float) -> void:
+	var i := mini(int(lt / 2.4), HEAVY.size() - 1)
+	var k := fmod(lt, 2.4) / 2.4
+	var word: String = HEAVY[i]
+	var spaced := ""  # the letters drifting apart
+	for ch in word:
+		spaced += ch + " "
+	var at := Vector2(size.x * 0.5 - spaced.length() * 9.0, size.y * (0.72 + 0.04 * i) + k * 26.0)
+	_text(spaced, at, 30 + i * 3, Color(WHITE, (1.0 - k * 0.5) * 0.8 * s))
+
+
+## Lines she's made to say back: theirs, then hers under it, a beat late.
+func _repeat(size: Vector2, s: float, lt: float) -> void:
+	var pair: Array = REPEAT[int(lt / 3.0) % REPEAT.size()]
+	var k := fmod(lt, 3.0)
+	var at := Vector2(size.x * 0.5 - 170.0, size.y * 0.76)
+	_text("REPEAT AFTER US:", at + Vector2(0, -32), 16, Color(WHITE, 0.45 * s))
+	_text(pair[0], at, 32, Color(WHITE, 0.85 * s))
+	if k > 1.0:
+		var hers: String = pair[1]
+		var shown := hers.substr(0, int(ceil(hers.length() * clampf((k - 1.0) / 1.2, 0.0, 1.0))))
+		_text("\"" + shown + "\"", at + Vector2(20, 40), 26, Color(0.75, 0.9, 1.0, 0.8 * s))
+
+
+## Her name, overwritten: ECO scrambles and comes back a citizen number.
+func _subject(size: Vector2, s: float) -> void:
+	var k := fmod(_t, 10.0)
+	var name := "ECO"
+	if k > 6.0:
+		name = CITIZEN
+	elif k > 4.0:
+		name = ""
+		var glyphs := "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789#%"
+		for i in CITIZEN.length():
+			name += glyphs[rng.randi() % glyphs.length()]
+	var at := Vector2(24, size.y * 0.32 + 120.0)
+	_text("SUBJECT:", at, 14, Color(WHITE, 0.5 * s))
+	_text(name, at + Vector2(84, 0), 18, Color(WHITE, 0.85 * s) if name != "ECO" else Color(1.0, 0.8, 0.8, 0.85 * s))
+	if k > 6.0:
+		_text("NAME UPDATED", at + Vector2(0, 22), 13, Color(0.6, 1.0, 0.7, 0.6 * s))
+
+
+## Her thoughts, counted down to none.
+func _thoughts(size: Vector2, s: float) -> void:
+	var n := maxi(3 - int(fmod(_t, 16.0) / 4.0), 0)
+	var at := Vector2(size.x - 330, size.y * 0.32 + 104.0)
+	_box(at, "THOUGHTS  %d" % n, n / 3.0, s)
+	if n == 0:
+		_text("THINKING IS NOT REQUIRED", at + Vector2(0, 64), 15, Color(WHITE, 0.6 * s))
+
+
+## Her eyelids, heavy: dark closing in from above and below while the heavy
+## words run, or a trigger word has her; snapping open again.
+func _eyelids(size: Vector2, s: float) -> void:
+	var k := 0.0
+	if which_induction() == "heavy":
+		var lt := fmod(_t, INDUCTION)
+		k = smoothstep(0.0, 10.0, lt) * (1.0 - smoothstep(11.4, 11.8, lt))
+	if Vices.entranced:
+		k = maxf(k, 0.35 + 0.15 * sin(_t * 1.3))
+	if k <= 0.0:
+		return
+	var h := size.y * 0.5 * 0.82 * k
+	var lid := Color(0.02, 0.02, 0.04, 0.92 * s)
+	_draw_on.draw_rect(Rect2(Vector2.ZERO, Vector2(size.x, h)), lid)
+	_draw_on.draw_rect(Rect2(Vector2(0, size.y - h), Vector2(size.x, h)), lid)
+
+
 ## Counting her down, a number a second, each one smaller and further down.
-func _countdown(size: Vector2, s: float) -> void:
-	var n := COUNT_FROM - int(_t) % (COUNT_FROM + 1)
-	var k := fmod(_t, 1.0)
+func _countdown(size: Vector2, s: float, lt: float) -> void:
+	var n := COUNT_FROM - mini(int(lt), COUNT_FROM)
+	var k := fmod(lt, 1.0)
 	var depth := float(COUNT_FROM - n) / COUNT_FROM
 	var at := Vector2(size.x * 0.5 - 20.0, size.y * (0.7 + 0.12 * depth) + k * 14.0)
 	var big := int(lerpf(64.0, 26.0, depth))
