@@ -5,8 +5,11 @@ extends RefCounted
 ##   1 upset      Eco left without saying goodbye: arms-crossed hurt, won't look
 ##   2 clingy     (meter CLINGY_AT) in the hoodie, waiting on her tent's doorstep
 ##                for Eco to come back, watching the path
-##   3 obsessed   (meter OBSESSED_AT) her violet streak gone rose, a rose glow in
-##                her eyes, a smile that's a little too wide
+##   3 obsessed   (meter OBSESSED_AT) yandere: the light gone out of her eyes
+##                (no highlights, irises dark rose), eyes held wide and unblinking
+##                over a sweet, too-wide smile, a flush on her cheeks, head
+##                tilted; her violet streak burning hot rose against the black.
+##                It gets worse the higher the meter goes (stare())
 ## Mature only; once Eco's helped her and it's worn off, she's herself again.
 
 const Obsession := preload("res://scripts/hub/obsession.gd")
@@ -52,11 +55,27 @@ static func dress(npc: Node3D, info: Dictionary) -> void:
 			npc.spot = "doorstep"
 			if npc._anim != null and npc._anim.has_animation("idle"):
 				npc._anim.play("idle", 0.3)
-			npc.rest_mood = ["smile"] if s == 3 else ["sad"]
+			npc.rest_mood = ["tilt", "blush"] if s == 3 else ["sad"]
 			npc.calm()
 			for spec in info.get("interactables", []):
 				if spec.get("npc", "") == "ophelia":
 					spec["pos"] = at
+	_stare(npc, stare() if s >= 3 else 0.0)
+
+
+## How far gone the stare is, 0..1 (from OBSESSED_AT to full).
+static func stare() -> float:
+	return clampf((Obsession.meter - OBSESSED_AT) / (100.0 - OBSESSED_AT), 0.0, 1.0) * 0.6 + 0.4
+
+
+## Dead eyes held wide over a sweet smile (her VRoid face shapes), k 0..1.
+static func _stare(npc: Node3D, k: float) -> void:
+	for mi in npc.find_children("*", "MeshInstance3D", true, false):
+		var m3: MeshInstance3D = mi
+		for shape in [["Fcl_EYE_Highlight_Hide", 1.0], ["Fcl_EYE_Spread", 0.7], ["Fcl_MTH_Joy", 0.75], ["Fcl_MTH_Up", 0.3]]:
+			var b := m3.find_blend_shape_by_name(shape[0])
+			if b >= 0:
+				m3.set_blend_shape_value(b, float(shape[1]) * (1.0 if shape[0] == "Fcl_EYE_Highlight_Hide" and k > 0.0 else k))
 
 
 ## Her hair streak and eyes, rose (or back to her own).
@@ -70,8 +89,8 @@ static func _tint(npc: Node3D, rose: bool) -> void:
 			if base == null:
 				continue
 			var n := base.resource_name
-			var hair := n.contains("hair")
-			var eye := n.contains("eye") and not n.contains("white") and not n.contains("line") and not n.contains("brow")
+			var hair := n.contains("hair_streak")
+			var eye := n.contains("iris")
 			if not (hair or eye):
 				continue
 			if not rose:
@@ -83,10 +102,12 @@ static func _tint(npc: Node3D, rose: bool) -> void:
 			if hair:
 				var c = mine.get_shader_parameter("albedo")
 				var col: Color = c if c is Color else Color.WHITE
-				mine.set_shader_parameter("albedo", Color(col.r * 1.35, col.g * 0.7, col.b * 0.9, col.a))
-				mine.set_shader_parameter("emission", ROSE * 0.35)
-				mine.set_shader_parameter("emission_energy", 0.3)
-			else:
+				mine.set_shader_parameter("albedo", Color(1.0, 0.25, 0.5, col.a))
 				mine.set_shader_parameter("emission", ROSE)
-				mine.set_shader_parameter("emission_energy", 0.6)
+				mine.set_shader_parameter("emission_energy", 0.9)
+			else:
+				# the light gone out of them: dark, dull rose
+				mine.set_shader_parameter("albedo", Color(0.42, 0.08, 0.16))
+				mine.set_shader_parameter("emission", Color(0.5, 0.05, 0.15))
+				mine.set_shader_parameter("emission_energy", 0.25)
 			m3.set_surface_override_material(i, mine)
