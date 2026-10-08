@@ -36,15 +36,34 @@ func _run() -> void:
 		_check("stage %d at %d: its props" % [s, meter], ok, names)
 		_check("stage %d: watching range" % s, npc.notice_range == (ObsessionLook.WATCH_RANGE if s >= 3 else HubNpc.NOTICE_RANGE), npc.notice_range)
 	_check("keeper: her hair goes Eco's red", _dyed(npc), "")
+	_check("lacing on: gold fingers and the pen on her hand", _tex(npc, "npc_ophelia_body") == ObsessionLook.LACING_BODY, _tex(npc, "npc_ophelia_body"))
+	_check("lacing on: dark circles", _tex(npc, "npc_ophelia_face") == ObsessionLook.LACING_FACE, _tex(npc, "npc_ophelia_face"))
 	Obsession.meter = 60.0
 	ObsessionLook.dress(npc, {})
 	_check("below keeper: her hair's her own", not _dyed(npc), "")
+	_check("below lacing: her own skin", _tex(npc, "npc_ophelia_body") != ObsessionLook.LACING_BODY and _tex(npc, "npc_ophelia_face") != ObsessionLook.LACING_FACE, [_tex(npc, "npc_ophelia_body"), _tex(npc, "npc_ophelia_face")])
 	Obsession.reset()
 	ObsessionLook.dress(npc, {})
 	await process_frame
 	_check("over: no props, normal range", npc.find_children("ObsessionProp*", "Node3D", true, false).filter(func(n): return not n.is_queued_for_deletion()).is_empty() and npc.notice_range == HubNpc.NOTICE_RANGE, "")
 	print("FAILURES: %d" % failures)
 	quit(1 if failures > 0 else 0)
+
+
+## The texture her material `part` shows now.
+func _tex(npc: Node3D, part: String) -> String:
+	for mi in npc.find_children("*", "MeshInstance3D", true, false):
+		var m3: MeshInstance3D = mi
+		if m3.mesh == null:
+			continue
+		for i in m3.mesh.get_surface_count():
+			var base := m3.mesh.surface_get_material(i)
+			if base == null or base.resource_name != part:
+				continue
+			var o := m3.get_surface_override_material(i) as ShaderMaterial
+			var t = (o if o != null else base as ShaderMaterial).get_shader_parameter("albedo_tex")
+			return t.resource_path if t != null else ""
+	return ""
 
 
 func _dyed(npc: Node3D) -> bool:

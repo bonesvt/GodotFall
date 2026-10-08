@@ -13,7 +13,9 @@ extends RefCounted
 ##                Watching: she turns to track Eco anywhere near her tent
 ##                (WATCH_RANGE), with a photo strip of Eco on her belt
 ##   4 lacing     (meter LACING_AT) a lighter on a cord, a candle burning on
-##                her doorstep
+##                her doorstep, gold-stained fingertips, ECO in pen on the back
+##                of her left hand and dark circles under her eyes (textures
+##                baked by tools/npc/obsession_textures.gd)
 ##   5 keeper     (meter KEEPER_AT) her hair all Eco's red, Eco's pilot patches
 ##                on her shoulders, and Eco's titan key in her hand in place of
 ##                the pack
@@ -30,6 +32,9 @@ const KEEPER_AT := 90.0
 ## How far off obsessed Ophelia notices Eco, and how far round she turns.
 const WATCH_RANGE := 30.0
 const WATCH_TURN := 100.0
+## Her lacing-stage skin (tools/npc/obsession_textures.gd).
+const LACING_BODY := "res://assets/textures/npc/ophelia/body_hoodie_lacing.png"
+const LACING_FACE := "res://assets/textures/npc/ophelia/face_lacing.png"
 ## Eco's red.
 const ECO_RED := Color(0.72, 0.1, 0.1)
 const ROSE := Color(1.0, 0.45, 0.68)
@@ -85,6 +90,7 @@ static func dress(npc: Node3D, info: Dictionary) -> void:
 	npc.notice_range = WATCH_RANGE if s >= 3 else npc.NOTICE_RANGE
 	npc.max_turn = WATCH_TURN if s >= 3 else npc.MAX_TURN
 	_props(npc, s)
+	_skin(npc, s >= 4)
 
 
 ## How far gone the stare is, 0..1 (from OBSESSED_AT to full).
@@ -199,6 +205,28 @@ static func _props(npc: Node3D, s: int) -> void:
 			_box(key, Vector3(0, 0, 0), Vector3(0.03, 0.05, 0.01), _flat(Color(0.15, 0.15, 0.17)))
 			_box(key, Vector3(0, -0.045, 0), Vector3(0.008, 0.04, 0.004), _flat(Color(0.75, 0.75, 0.78)))
 			_box(key, Vector3(0, 0.012, -0.006), Vector3(0.01, 0.01, 0.002), _flat(Color(1.0, 0.3, 0.2), 2.0))
+
+
+## The lacing textures (gold fingertips, the pen on her hand, dark circles)
+## over her hoodie and face, or her own back. wear() puts her own back each
+## stay; this only has to lay them on.
+static func _skin(npc: Node3D, on: bool) -> void:
+	if not on:
+		return
+	var swaps := {"npc_ophelia_body": LACING_BODY, "npc_ophelia_face": LACING_FACE}
+	for mi in npc.find_children("*", "MeshInstance3D", true, false):
+		var m3: MeshInstance3D = mi
+		if m3.mesh == null:
+			continue
+		for i in m3.mesh.get_surface_count():
+			var base := m3.mesh.surface_get_material(i)
+			if base == null or not swaps.has(base.resource_name):
+				continue
+			var mine := m3.get_surface_override_material(i) as ShaderMaterial
+			if mine == null:
+				mine = base.duplicate()
+				m3.set_surface_override_material(i, mine)
+			mine.set_shader_parameter("albedo_tex", load(swaps[base.resource_name]))
 
 
 ## A prop holder on her bone, `at` metres off it, unscaled from the bone.
