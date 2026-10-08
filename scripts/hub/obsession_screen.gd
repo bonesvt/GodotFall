@@ -15,7 +15,7 @@ const INK := Color(0.96, 0.92, 0.94)
 const DIM := Color(0.96, 0.92, 0.94, 0.55)
 
 const LINES := [
-	"Eco puts the tin on the bed between them. The jar, the syringe, the stained Night Owls. KEEPSAKE, in Ophelia's handwriting. Ophelia goes very still.",
+	"Eco puts the tin on the bed between them. The jar, the stained Night Owls. KEEPSAKE, in Ophelia's handwriting. Ophelia goes very still.",
 	"Eco: \"Every pack you gave me. Every one I smoked out there thinking about you. You put this in them.\"",
 	"Ophelia: \"You always come home smelling like smoke and somebody else's fight, and then you go again. I just wanted you to want to come home. To me.\"",
 	"Eco: \"So you drugged me. You don't get to call that missing me.\"",

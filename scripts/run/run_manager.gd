@@ -83,7 +83,7 @@ const LACED := "This one's sweeter than it should be. Rose, under the tobacco. E
 const SMOKE_LOCKED := "Ophelia won't come out back for a smoke right now. \"You've got your own. The ones I gave you.\""
 const PACK_GIFT := "Ophelia presses a pack of Night Owls into Eco's hand and closes her fingers round it. \"For out there. So you think of me.\""
 const HOME_PULL := "Eco keeps looking back the way she came. Ophelia's waiting. She should get home."
-const PAPERS := "Under Ophelia's pillow: a tin. A jar of something pink and sweet, a syringe, and three Night Owls with a rose stain at the filter, like the ones in the packs she's been giving Eco. A label in her handwriting: KEEPSAKE. She's been drugging her."
+const PAPERS := "Under Ophelia's pillow: a tin. A jar of something pink and sweet and three Night Owls with a rose stain at the filter, like the ones in the packs she's been giving Eco. A label in her handwriting: KEEPSAKE. She's been drugging her."
 const Shepherd := preload("res://scripts/hub/shepherd.gd")
 const VisorScreen := preload("res://scripts/ui/visor_screen.gd")
 ## Where the Shepherd comes out, from the dispensary's spot (its back door).
