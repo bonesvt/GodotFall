@@ -1546,14 +1546,14 @@ def pip_afterhours(g, skin, x, y, z, ax, front, cov, edge, sine, neck_r):
     col = g.mixc(skin, PIP_LEG, g.mul(cov(g.sub(0.76, z)), g.sstep(0.0, 0.03, ax)))
     # the cups: small triangles over each side, widest at the bottom
     dx = g.abs(g.sub(ax, 0.062))
-    d_cup = g.mn(g.mn(g.sub(z, 1.012), g.sub(1.07, z)), g.sub(g.add(g.mul(g.sub(1.07, z), 0.69), 0.004), dx))
+    d_cup = g.mn(g.mn(g.sub(z, 1.016), g.sub(1.062, z)), g.sub(g.add(g.mul(g.sub(1.062, z), 0.6), 0.003), dx))
     cup = g.mul(cov(d_cup), front)
     # halter strings up to the neck, the tie round her back
-    halter = g.mul(g.mul(g.band(g.sub(ax, g.sub(0.062, g.mul(g.sub(z, 1.07), 0.17))), -0.0025, 0.0025), g.band(z, 1.07, 1.175)), front)
-    tie = g.mul(g.mul(g.band(z, 1.013, 1.019), g.sstep(0.2, 0.18, ax)), g.sub(1.0, cup))
+    halter = g.mul(g.mul(g.band(g.sub(ax, g.sub(0.062, g.mul(g.sub(z, 1.062), 0.17))), -0.0025, 0.0025), g.band(z, 1.062, 1.175)), front)
+    tie = g.mul(g.mul(g.band(z, 1.016, 1.021), g.sstep(0.2, 0.18, ax)), g.sub(1.0, cup))
     # the brief: the warden's cut, lower at the top, on side strings
-    cut = g.lerp(g.add(0.015, g.mul(g.sub(z, 0.68), 0.75)), g.add(0.004, g.mul(g.sstep(0.69, 0.77, z), 0.03)), g.sub(1.0, front))
-    top = g.add(0.745, g.mul(g.sub(1.0, front), 0.015))
+    cut = g.lerp(g.add(0.015, g.mul(g.sub(z, 0.68), 0.6)), g.add(0.003, g.mul(g.sstep(0.7, 0.77, z), 0.02)), g.sub(1.0, front))
+    top = g.add(0.728, g.mul(g.sub(1.0, front), 0.03))
     d_briefs = g.mn(g.mn(g.sub(top, z), g.sub(z, 0.66)), g.sub(cut, ax))
     briefs = cov(d_briefs)
     strings = g.mul(g.mul(g.band(g.sub(z, top), -0.006, 0.0), g.sstep(0.2, 0.18, ax)), g.sub(1.0, briefs))
