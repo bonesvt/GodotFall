@@ -33,6 +33,9 @@ const ContentRating := preload("res://scripts/radio/content_rating.gd")
 ## date outfit's hoops hang from the same lobes).
 const LOBE := Vector3(0.0744, 1.5174, 0.0214)
 const NOSE_TIP := Vector3(0.0, 1.4896, -0.078)
+## The drop on her belly ring; a hypno look can swap it for its own colour
+## (worn["gem"]).
+const TEAL := Color(0.2, 0.85, 0.8)
 
 ## Pieces that ride a body bone instead of her head, and the spot in her body's
 ## UV space that must be bare skin (suit mask green low) for them to show, so a
@@ -75,6 +78,14 @@ const TATTOOS := {
 ## sold: shown only while she's in it.
 const LOOK_TATTOOS := {
 	"marrow_swirl": {"name": "Marrow's swirl", "mature": true, "where": "outside of her left thigh", "blurb": "His spiral, violet, with a tendril curling down her thigh."},
+	"kintsugi_cracks": {"name": "Gold seams", "mature": true, "where": "round her left upper arm", "blurb": "Cracks filled with gold, like mended pottery. She says it doesn't hurt. It shines."},
+	"hymn_staff": {"name": "The hymn", "mature": true, "where": "round her left calf", "blurb": "A stave of the Choir's hymn. She hums it in her sleep."},
+	"idol_sun": {"name": "The Faith's sun", "mature": true, "where": "small of her back", "blurb": "A gold sun, where the faithful lay their hands on her."},
+	"parade_garter": {"name": "Parade garter", "mature": true, "where": "round her right thigh", "blurb": "Red and white with gold stars. Colony City's colours, for the crowds."},
+	"keepsake_locket": {"name": "Ophelia's locket", "mature": true, "where": "outside of her right thigh", "blurb": "A heart locket on a chain with an O on it. Ophelia drew it on her first."},
+	"warden_wire": {"name": "Barbed wire", "mature": true, "where": "round her left upper arm", "blurb": "Wire all the way round. Whatever she's guarding, it stays guarded."},
+	"survivor_phoenix": {"name": "Phoenix", "mature": true, "where": "along her bare right arm", "blurb": "Wings out, tail down to her wrist. Burned down, got back up."},
+	"unbound_wing": {"name": "Loose wing", "mature": true, "where": "outside of her right thigh", "blurb": "One wing in the old stripes, flying off on its own."},
 }
 
 ## Accessories: one per slot (head, eyes, face). Goggles go when something sits on her head.
@@ -100,7 +111,8 @@ static var _masks := {}
 
 
 ## Puts her extras on a model of her (eco_model.gd): `worn` is
-## {"piercings": [...], "tattoos": [...], "accessories": [...]}; empty uses
+## {"piercings": [...], "tattoos": [...], "accessories": [...]} (and an
+## optional "gem" Color for her belly ring's drop); empty uses
 ## what town_shops.gd has saved.
 static func apply(model: Node, worn := {}) -> void:
 	if model == null:
@@ -114,7 +126,7 @@ static func apply(model: Node, worn := {}) -> void:
 	var piercings: Array = worn.get("piercings", []).filter(func(id): return allowed(PIERCINGS, id))
 	var accessories: Array = worn.get("accessories", []).filter(func(id): return allowed(ACCESSORIES, id))
 	_dress_head(model, skel, piercings, accessories, outfit)
-	_dress_body(model, skel, piercings + accessories)
+	_dress_body(model, skel, piercings + accessories, worn.get("gem", TEAL))
 	_ink(model, worn.get("tattoos", []).filter(func(id): return allowed(TATTOOS, id) or allowed(LOOK_TATTOOS, id)))
 
 
@@ -163,7 +175,7 @@ static func _match_layers(model: Node, root: Node3D, mesh_name: String) -> void:
 
 ## Rebuilds the pieces that ride her body (BODY_PIECES), each on its own bone,
 ## shown only where her outfit leaves that spot bare.
-static func _dress_body(model: Node, skel: Skeleton3D, ids: Array) -> void:
+static func _dress_body(model: Node, skel: Skeleton3D, ids: Array, gem: Color) -> void:
 	for child in skel.get_children():
 		if String(child.name).begins_with(NODE + "_"):
 			skel.remove_child(child)
@@ -182,7 +194,7 @@ static func _dress_body(model: Node, skel: Skeleton3D, ids: Array) -> void:
 		root.transform = skel.get_bone_global_rest(skel.find_bone(bone)).affine_inverse()
 		att.add_child(root)
 		if PIERCINGS.has(id):
-			_piercing(root, id)
+			_piercing(root, id, gem)
 		else:
 			_accessory(root, id)
 		_match_layers(model, root, "Body")
@@ -216,7 +228,7 @@ static func _bare(model: Node, uv: Vector2) -> bool:
 	return true
 
 
-static func _piercing(root: Node3D, id: String) -> void:
+static func _piercing(root: Node3D, id: String, gem := TEAL) -> void:
 	var steel := _mat("steel", STEEL, Color(0.78, 0.8, 0.84), false)
 	match id:
 		"lobes":
@@ -247,7 +259,7 @@ static func _piercing(root: Node3D, id: String) -> void:
 		"navel":
 			_ball(root, Vector3(0.0, 1.072, -0.1125), 0.0022, steel)
 			_ring(root, Vector3(0.0, 1.061, -0.1135), Vector3.RIGHT, 0.0052, 0.0008, steel)
-			_ball(root, Vector3(0.0, 1.0545, -0.1145), 0.0032, _mat("gem", LENS, Color(0.2, 0.85, 0.8), false))
+			_ball(root, Vector3(0.0, 1.0545, -0.1145), 0.0032, _mat("gem_" + gem.to_html(false), LENS, gem, false))
 
 
 static func _accessory(root: Node3D, id: String) -> void:

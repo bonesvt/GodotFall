@@ -319,6 +319,9 @@ path wins. Every stage she reached stays in her wardrobe once she's free of it.
   Each look's `cuts` open the suit on her skin (bare arms, shorts, a crop top, an open back,
   hip windows...), placed by where each texel sits on her body (`tools/eco/body_pos.npz`, from
   `blender -b --factory-startup -P tools/eco/bake_body_pos.py`).
+- Mature only, each look also brings matching extras on top of what she bought in Solace: piercings,
+  its own colour of belly-ring drop (`"gem"`), and a tattoo of its own that isn't sold
+  (`eco_extras.gd` `LOOK_TATTOOS`, baked by `tools/ink/build_tattoos.py`).
 - Test: `godot --headless --path . -s res://tests/vice_looks_test.gd`
 
 ### Cheat box

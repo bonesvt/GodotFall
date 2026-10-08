@@ -86,8 +86,9 @@
   ],
   "cuts": [
    "sleeveless",
-   "hips",
-   "thigh_gap"
+   "lattice",
+   "deep_back",
+   "thigh_highs"
   ]
  },
  "sleepwalker": {
@@ -130,7 +131,8 @@
    0.97
   ],
   "cuts": [
-   "shorts"
+   "crop",
+   "hotpants"
   ]
  },
  "idol": {
@@ -169,8 +171,9 @@
   ],
   "cuts": [
    "sleeveless",
-   "midriff",
-   "thigh_gap"
+   "crop",
+   "side_cuts",
+   "hotpants"
   ]
  },
  "parade": {
@@ -213,7 +216,8 @@
    0.2
   ],
   "cuts": [
-   "shorts"
+   "hotpants",
+   "crop"
   ]
  },
  "keepsake_a": {
@@ -239,7 +243,9 @@
   ],
   "cuts": [
    "short_sleeves",
-   "collar"
+   "collar",
+   "side_cuts",
+   "thigh_highs"
   ],
   "from": "ophelia"
  },
@@ -278,7 +284,8 @@
    0.22
   ],
   "cuts": [
-   "thigh_gap"
+   "crop",
+   "hotpants"
   ]
  },
  "keepsake_c": {
@@ -316,7 +323,8 @@
    0.45
   ],
   "cuts": [
-   "shorts"
+   "crop",
+   "hotpants"
   ]
  },
  "her_own": {
@@ -368,8 +376,9 @@
   ],
   "cuts": [
    "sleeveless",
-   "thigh_gap",
-   "back"
+   "deep_back",
+   "side_cuts",
+   "thigh_highs"
   ]
  },
  "survivor": {
@@ -403,7 +412,7 @@
   "cuts": [
    "sleeve_l",
    "shorts_r",
-   "midriff"
+   "crop"
   ]
  },
  "unbound": {
@@ -451,7 +460,8 @@
    0.4
   ],
   "cuts": [
-   "shorts",
+   "crop",
+   "hotpants",
    "off_shoulder"
   ]
  }

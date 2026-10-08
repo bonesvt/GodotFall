@@ -52,50 +52,62 @@ const CRESTS := ["suit_t4h_collar", "suit_t5h_core", "suit_t5h_crest_l", "suit_t
 ## material -> {albedo, emit, emit_col, sheen} re-dyes for what's shown,
 ## "hair_style" a salon cut (hair.gd), "iris" her eye colour, "glass" how far
 ## the glass covers her at full strength and "glass_tint" its colour,
-## "crystals" crystal growths on her body, "extras" piercings and tattoos
-## (eco_extras.gd) she wears with it on top of her own. The baked textures (body, glow,
+## "crystals" crystal growths on her body, "extras" piercings, accessories and
+## tattoos (eco_extras.gd) she wears with it on top of her own, "gem" the colour
+## of her belly ring's drop. The baked textures (body, glow,
 ## mask, hair, fringe, cap, eyeline, face) are used where they exist; the
 ## body textures bare her arms, legs and style windows (tools/eco/vice_looks.json "cuts").
 const LOOKS := {
 	"his": {"base": "suit_shade", "hair_style": "pixie", "show": ["outfit_skater_any_shoes"], "hide": ["base_", "Boots", "Goggles"],
-		"extras": {"piercings": ["navel"], "tattoos": ["marrow_swirl"]},
+		"extras": {"piercings": ["navel", "lobe_hoops"], "tattoos": ["marrow_swirl"]}, "gem": VIOLET,
 		"mats": {"eco_v_sneaker_skater": {"albedo": Color(0.08, 0.06, 0.1)}, "eco_v_sneaker_skater_sole": {"albedo": VIOLET, "emit": 0.6}}},
 	# Kintsugi with Frost's icy braids and pale eyes, and crystal growing out of her
 	"kintsugi": {"base": "suit_shade", "hair_style": "braids", "iris": Color(0.7, 0.9, 1.0), "crystals": true,
+		"extras": {"piercings": ["navel", "helix"], "tattoos": ["kintsugi_cracks"]}, "gem": Color(0.7, 0.9, 1.0),
 		"show": [], "hide": ["base_", "Goggles"], "mats": {}},
 	"sleepwalker": {"base": "suit_shade", "hair_style": "shoulder", "iris": Color(0.85, 0.9, 1.0),
+		"extras": {"piercings": ["navel", "lobes"], "tattoos": ["hymn_staff"]}, "gem": Color(0.85, 0.9, 1.0),
 		"show": ["outfit_skater_t_hoodie", "outfit_skater_any_hood", "outfit_skater_any_shoes"], "hide": ["base_", "Boots", "Goggles"],
 		"mats": {"eco_v_hoodie_skater": {"albedo": Color(0.9, 1.05, 0.88)}, "eco_v_hoodie_skater_edge": {"albedo": Color(0.92, 0.94, 1.0), "emit": 0.4},
 			"eco_v_hoodie_skater_hood": {"albedo": Color(0.85, 1.0, 0.82)}, "eco_v_sneaker_skater": {"albedo": Color(0.9, 0.9, 0.88)},
 			"eco_v_sneaker_skater_sole": {"albedo": Color(0.95, 0.95, 0.95)}}},
 	"idol": {"base": "suit_shade", "hair_style": "braids", "iris": GOLD, "glass": 0.9, "glass_tint": GOLD,
+		"extras": {"piercings": ["navel", "lobes", "helix"], "tattoos": ["idol_sun"]}, "gem": GOLD,
 		"show": CRESTS, "hide": ["base_", "Goggles"],
 		"mats": {"eco_v_armor": {"albedo": Color(0.9, 0.85, 0.72), "sheen": 0.6}, "eco_v_armor_edge": {"albedo": GOLD, "emit": 1.0},
 			"eco_v_armor_glow": {"albedo": GOLD, "emit": 2.4}}},
 	"parade": {"base": "suit_shade", "hair_style": "ponytail",
+		"extras": {"piercings": ["navel"], "accessories": ["choker"], "tattoos": ["parade_garter"]}, "gem": Color(0.9, 0.15, 0.2),
 		"show": ["outfit_date_t_jacket", "outfit_date_any_hoops", "suit_t1h_belt"], "hide": ["base_shade", "Goggles"],
 		"mats": {"eco_v_jacket_date": {"albedo": Color(0.97, 0.97, 0.98), "sheen": 0.4}, "eco_v_jacket_date_edge": {"albedo": Color(1.0, 0.8, 0.4), "emit": 0.6},
 			"eco_v_steel": {"albedo": Color(1.0, 0.8, 0.35), "sheen": 1.0}, "eco_v_armor": {"albedo": Color(0.97, 0.97, 0.98), "sheen": 0.6},
 			"eco_v_armor_edge": {"albedo": Color(1.0, 0.8, 0.4), "emit": 0.6}}},
 	# Ophelia dresses her: her own suit, then matching her, then never leaving
-	"keepsake_a": {"base": "suit_ophelia", "iris": EMBER, "show": [], "hide": ["Goggles"], "mats": {}},
+	"keepsake_a": {"base": "suit_ophelia", "iris": EMBER, "show": [], "hide": ["Goggles"], "mats": {},
+		"extras": {"piercings": ["lobes"], "tattoos": ["keepsake_locket"]}},
 	"keepsake_b": {"base": "suit_shade", "iris": EMBER, "show": ["base_ophelia_skirt", "outfit_skater_t_hoodie"], "hide": ["base_shade", "Goggles"],
+		"extras": {"piercings": ["navel", "snakebites", "lobe_hoops"], "tattoos": ["keepsake_locket"]}, "gem": EMBER,
 		"mats": {"eco_v_hoodie_skater": {"albedo": Color(0.3, 0.26, 0.34)}, "eco_v_hoodie_skater_edge": {"albedo": VIOLET, "emit": 0.7}}},
 	"keepsake_c": {"base": "suit_shade", "hair_style": "shoulder", "iris": EMBER,
+		"extras": {"piercings": ["navel", "snakebites", "nose_stud"], "tattoos": ["keepsake_locket"]}, "gem": EMBER,
 		"show": ["outfit_skater_t_hoodie", "outfit_skater_any_hood", "outfit_skater_any_shoes"], "hide": ["base_", "Boots", "Goggles"],
 		"mats": {"eco_v_hoodie_skater": {"albedo": Color(1.15, 0.8, 0.8)}, "eco_v_hoodie_skater_hood": {"albedo": Color(1.1, 0.75, 0.75)},
 			"eco_v_hoodie_skater_edge": {"albedo": Color(1.0, 0.75, 0.7), "emit": 0.4}, "eco_v_sneaker_skater": {"albedo": Color(0.95, 0.95, 0.95)}}},
 	# her own picks, once she's out
-	"her_own": {"base": "date", "show": ["outfit_date_any_hoops"], "hide": [], "mats": {}},
+	"her_own": {"base": "date", "show": ["outfit_date_any_hoops"], "hide": [], "mats": {},
+		"extras": {"piercings": ["snakebites", "nose_stud"]}},
 	"warden": {"base": "suit_shade", "hair_style": "ponytail",
+		"extras": {"piercings": ["brow", "septum"], "tattoos": ["warden_wire"]},
 		"show": ["suit_t4l_choker", "outfit_date_any_hoops", "suit_t2h_pauldron_l", "suit_t2h_pauldron_r", "suit_t1h_bracer_l", "suit_t1h_bracer_r", "suit_t1h_belt"],
 		"hide": ["base_", "Goggles"],
 		"mats": {"eco_v_armor": {"albedo": Color(0.6, 0.62, 0.66), "sheen": 0.9}, "eco_v_armor_edge": {"albedo": Color(0.85, 0.85, 0.9)},
 			"eco_v_kit_leather": {"albedo": Color(0.04, 0.04, 0.05)}, "eco_v_leather_red": {"albedo": Color(0.8, 0.8, 0.85), "sheen": 1.0},
 			"eco_v_steel": {"albedo": Color(0.85, 0.85, 0.9), "sheen": 1.0}}},
 	"survivor": {"base": "suit_shade", "hair_style": "shoulder", "show": ["suit_t1m_toolpouch", "suit_t2m_scarf", "suit_t2m_scarf_knot", "outfit_skater_any_shoes"],
+		"extras": {"piercings": ["navel", "lobes", "brow"], "tattoos": ["survivor_phoenix"]}, "gem": EMBER,
 		"hide": ["base_", "Boots", "Goggles"], "mats": {"eco_v_kit_scarf": {"albedo": Color(0.9, 0.7, 0.3)}}},
 	"unbound": {"base": "suit_shade", "hair_style": "braids", "show": ["outfit_skater_t_hoodie"], "hide": ["base_", "Goggles"],
+		"extras": {"piercings": ["navel", "lobe_hoops", "nose_stud", "septum"], "tattoos": ["unbound_wing"]}, "gem": GOLD,
 		"mats": {"eco_v_hoodie_skater": {"albedo": Color(0.25, 0.22, 0.3)}}},
 }
 
@@ -402,6 +414,8 @@ static func apply(eco: Node3D) -> void:
 			for piece: String in look["extras"][kind]:
 				if not piece in worn.get(kind, []):
 					worn[kind] = worn.get(kind, []) + [piece]
+		if look.has("gem"):
+			worn["gem"] = look["gem"]
 		Extras.apply(eco, worn)
 	_crystals(eco, gate * 3 if look.get("crystals", false) else 0)
 

@@ -76,6 +76,12 @@ def cut_regions(x, y, z, on):
         "deep_back": torso & (z > 1.0) & (z < 1.36) & (ax < 0.11) & (y < 0.0),        # on up to her shoulder blades
         # her whole legs: the leg line rises from the seam up over her hips in front, just under her seat behind
         "hotpants": on & (z > 0.1) & (z < 0.7 + ax * (0.27 + 0.33 * np.clip((y + 0.05) / 0.07, 0, 1))),
+        # just her upper thighs, from the hotpants line down to over her knees (stockings below)
+        "thigh_highs": on & (z > 0.6) & (z < 0.7 + ax * (0.27 + 0.33 * np.clip((y + 0.05) / 0.07, 0, 1))),
+        # windows at her waist, one each side
+        "side_cuts": torso & (z > 0.99) & (z < 1.14) & (ax > 0.085),
+        # slashed strips across her stomach and the small of her back, like cracks
+        "lattice": torso & (z > 0.99) & (z < 1.15) & (np.sin((z * 1.0 + ax * 0.6) * 140) > 0.15),
         "shorts": leg & (z < 0.68),
         "shorts_r": leg & (z < 0.68) & (x < 0),   # one leg torn off
         "thigh_gap": leg & (z > 0.6) & (z < 0.68),

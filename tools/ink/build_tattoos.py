@@ -29,6 +29,10 @@ INK = (22, 26, 40)   # blue-black tattoo ink
 TEAL = (40, 170, 165)
 RED = (190, 40, 50)
 VIOLET = (150, 70, 230)  # Marrow's
+GOLD = (225, 165, 45)
+ICE = (150, 205, 240)
+EMBER = (235, 120, 40)
+ROSE = (215, 70, 110)
 FONTS = ["/mnt/skills/examples/canvas-design/canvas-fonts/NothingYouCouldDo-Regular.ttf",
          "/usr/share/fonts/truetype/dejavu/DejaVuSerif-Bold.ttf"]
 
@@ -58,6 +62,14 @@ PLACES = {
     # Hypno looks only (vice_looks.gd "extras", eco_extras.gd LOOK_TATTOOS): not sold
     # big and bold: her thigh's texels are coarse, so the design is averaged down to them ("soften")
     "marrow_swirl": {"mode": "decal", "c": v3(-0.1, 0.6, -0.045), "n": v3(-0.6, 0, -1), "right": v3(-1, 0, 0.6), "w": 0.08, "h": 0.2, "depth": 0.07, "soften": 3.0},
+    "kintsugi_cracks": {"mode": "band", "c": v3(-0.25, 1.347, 0.02), "axis": v3(1, 0, 0), "h": 0.07},
+    "hymn_staff": {"mode": "band", "c": v3(-0.086, 0.34, 0.045), "axis": v3(0, 1, 0), "h": 0.07, "soften": 2.0},
+    "idol_sun": {"mode": "decal", "c": v3(0.0, 1.09, 0.05), "n": v3(0, 0.2, 1), "right": v3(1, 0, 0), "w": 0.085, "h": 0.085, "depth": 0.035},
+    "parade_garter": {"mode": "band", "c": v3(0.082, 0.63, 0.003), "axis": v3(0, 1, 0), "h": 0.05, "soften": 2.0},
+    "keepsake_locket": {"mode": "decal", "c": v3(0.1, 0.65, -0.04), "n": v3(0.6, 0, -1), "right": v3(-1, 0, -0.6), "w": 0.09, "h": 0.105, "depth": 0.07, "soften": 3.0},
+    "warden_wire": {"mode": "band", "c": v3(-0.25, 1.347, 0.02), "axis": v3(1, 0, 0), "h": 0.06},
+    "survivor_phoenix": {"mode": "decal", "c": v3(0.33, 1.372, 0.026), "n": v3(0, 1, 0), "right": v3(1, 0, 0), "w": 0.16, "h": 0.07, "depth": 0.035},
+    "unbound_wing": {"mode": "decal", "c": v3(0.125, 0.6, 0.0), "n": v3(1, 0, 0), "right": v3(0, 0, -1), "w": 0.08, "h": 0.19, "depth": 0.05, "soften": 3.0},
 }
 
 
@@ -301,10 +313,157 @@ def marrow_swirl():
     return img
 
 
+def kintsugi_cracks():
+    """Gold filling the cracks round her arm, like the pottery: jagged seams, branching."""
+    w, h = DESIGN * 4, DESIGN
+    img, d = canvas(w, h)
+    rng = np.random.default_rng(7)
+    for row, (y0, wid) in enumerate(((h * 0.5, 34), (h * 0.22, 20), (h * 0.8, 20))):
+        pts, y = [], y0
+        for x in np.linspace(0, w, 28):
+            pts.append((x, y))
+            y = float(np.clip(y + rng.uniform(-60, 60), y0 - 90, y0 + 90))
+        pts[-1] = (w, y0)
+        pts[0] = (0, y0)
+        d.line(pts, fill=INK + (255,), width=wid + 14, joint="curve")
+        d.line(pts, fill=GOLD + (255,), width=wid, joint="curve")
+        if row == 0:
+            for k in range(3, 26, 4):
+                x, y = pts[k]
+                ex, ey = x + rng.uniform(40, 120), y + rng.choice([-1, 1]) * rng.uniform(80, 160)
+                d.line([(x, y), (ex, ey)], fill=INK + (255,), width=20)
+                d.line([(x, y), (ex, ey)], fill=GOLD + (255,), width=10)
+    return img
+
+
+def hymn_staff():
+    """A stave of the hymn round her calf, notes on it: the song she can't stop humming."""
+    w, h = DESIGN * 4, DESIGN
+    img, d = canvas(w, h)
+    for k in range(3):
+        y = h * 0.3 + k * h * 0.2
+        d.line([(0, y), (w, y)], fill=INK + (255,), width=14)
+    rng = np.random.default_rng(4)
+    for k in range(9):
+        x = 110 + k * w / 9
+        y = h * 0.3 + rng.integers(0, 5) * h * 0.1
+        d.ellipse([x - 44, y - 32, x + 44, y + 32], fill=INK + (255,))
+        d.line([(x + 38, y), (x + 38, y - 210)], fill=INK + (255,), width=16)
+        if k % 3 == 0:
+            d.line([(x + 38, y - 210), (x + 110, y - 150)], fill=INK + (255,), width=16)
+    return img
+
+
+def idol_sun():
+    """The Faith's sun on the small of her back: a gold disc in a ring of rays."""
+    img, d = canvas()
+    c = DESIGN / 2
+    for k in range(12):
+        a = k * math.pi / 6
+        ln = 240 if k % 2 == 0 else 190
+        tip = (c + math.cos(a) * ln, c + math.sin(a) * ln)
+        l, r = a - 0.16, a + 0.16
+        d.polygon([(c + math.cos(l) * 110, c + math.sin(l) * 110), tip, (c + math.cos(r) * 110, c + math.sin(r) * 110)],
+                  fill=GOLD + (255,), outline=INK + (255,), width=8)
+    d.ellipse([c - 115, c - 115, c + 115, c + 115], fill=INK + (255,))
+    d.ellipse([c - 92, c - 92, c + 92, c + 92], fill=GOLD + (255,))
+    d.ellipse([c - 40, c - 40, c + 40, c + 40], fill=INK + (255,))
+    return img
+
+
+def parade_garter():
+    """A parade garter round her thigh: red and white stripes, gold stars."""
+    w, h = DESIGN * 4, DESIGN
+    img, d = canvas(w, h)
+    d.rectangle([0, h * 0.18, w, h * 0.82], fill=(240, 236, 230, 255))
+    for k in range(16):
+        x = k * w / 16
+        d.polygon([(x, h * 0.18), (x + w / 32, h * 0.18), (x + w / 16, h * 0.82), (x + w / 32, h * 0.82)], fill=RED + (255,))
+    d.line([(0, h * 0.18), (w, h * 0.18)], fill=INK + (255,), width=24)
+    d.line([(0, h * 0.82), (w, h * 0.82)], fill=INK + (255,), width=24)
+    for k in range(4):
+        cx, cy, r = (k + 0.5) * w / 4, h / 2, 120
+        pts = [(cx + math.cos(-math.pi / 2 + j * math.pi / 5) * (r if j % 2 == 0 else r * 0.42),
+                cy + math.sin(-math.pi / 2 + j * math.pi / 5) * (r if j % 2 == 0 else r * 0.42)) for j in range(10)]
+        d.polygon(pts, fill=GOLD + (255,), outline=INK + (255,), width=10)
+    return img
+
+
+def keepsake_locket():
+    """Ophelia's: a heart-shaped locket on a chain, an O on its face."""
+    img, d = canvas(480, 560)
+    c, cy = 240, 330
+    # the chain, swinging in from the top
+    for k in range(9):
+        t = k / 8
+        x, y = c - 150 + t * 150 + math.sin(t * math.pi) * -40, 20 + t * 150
+        d.ellipse([x - 16, y - 12, x + 16, y + 12], outline=INK + (255,), width=9)
+    heart = []
+    for i in range(120):
+        t = i / 120 * 2 * math.pi
+        hx = 16 * math.sin(t) ** 3
+        hy = 13 * math.cos(t) - 5 * math.cos(2 * t) - 2 * math.cos(3 * t) - math.cos(4 * t)
+        heart.append((c + hx * 12, cy - hy * 12))
+    d.polygon(heart, fill=ROSE + (255,), outline=INK + (255,), width=18)
+    d.ellipse([c - 62, cy - 70, c + 62, cy + 50], outline=EMBER + (255,), width=26)
+    return img
+
+
+def warden_wire():
+    """Barbed wire round her arm: a twisted strand with barbs."""
+    w, h = DESIGN * 4, DESIGN
+    img, d = canvas(w, h)
+    for ph in (0, math.pi):
+        pts = [(x, h / 2 + math.sin(x / w * 16 * math.pi + ph) * 70) for x in np.linspace(0, w, 400)]
+        d.line(pts, fill=INK + (255,), width=26, joint="curve")
+    for k in range(8):
+        x = (k + 0.5) * w / 8
+        for a in (0.9, -0.9):
+            dx, dy = math.cos(a) * 110, math.sin(a) * 110
+            d.line([(x - dx, h / 2 - dy), (x + dx, h / 2 + dy)], fill=INK + (255,), width=20)
+    return img
+
+
+def survivor_phoenix():
+    """A phoenix along her bare arm, wings out, its tail trailing to her wrist."""
+    img, d = canvas(768, 336)
+    c, cy = 300, 168
+    for s in (-1, 1):
+        for k in range(5):
+            a = math.radians(-70 + k * 16) * s
+            ln = 150 - k * 14
+            tip = (c + 40 + math.sin(a) * ln * 0.8, cy + s * (40 + abs(math.cos(a)) * ln * 0.75))
+            d.polygon([(c + 10, cy + s * 18), tip, (c + 70, cy + s * 22)], fill=(EMBER if k % 2 else RED) + (255,), outline=INK + (255,), width=8)
+    for k in range(3):
+        tail = [(c + 60 + t * 380, cy + math.sin(t * 2 * math.pi + k) * 30 * (1 - t) + (k - 1) * 20) for t in np.linspace(0, 1, 60)]
+        d.line(tail, fill=INK + (255,), width=26, joint="curve")
+        d.line(tail, fill=(GOLD if k == 1 else EMBER) + (255,), width=12, joint="curve")
+    d.ellipse([c - 70, cy - 34, c + 40, cy + 34], fill=RED + (255,), outline=INK + (255,), width=10)
+    d.ellipse([c - 130, cy - 30, c - 70, cy + 30], fill=RED + (255,), outline=INK + (255,), width=10)
+    d.polygon([(c - 128, cy - 8), (c - 170, cy + 6), (c - 128, cy + 14)], fill=GOLD + (255,), outline=INK + (255,), width=6)
+    return img
+
+
+def unbound_wing():
+    """One wing down the outside of her thigh: feathers in her colours, flying off."""
+    img, d = canvas(300, 720)
+    cols = [VIOLET, (240, 240, 245), GOLD]
+    for k in range(7):
+        y0 = 70 + k * 80
+        ln = 230 - k * 18
+        tip = (40 + ln, y0 + 120)
+        d.polygon([(40, y0), (40 + ln * 0.6, y0 + 20), tip, (40 + ln * 0.4, y0 + 90), (40, y0 + 60)],
+                  fill=cols[k % 3] + (255,), outline=INK + (255,), width=14)
+    d.line([(40, 50), (40, 650)], fill=INK + (255,), width=30)
+    return img
+
+
 DESIGNS = {"precursor": precursor, "cry_anyway": cry_anyway, "fern_band": fern_band, "swallows": swallows,
            "sun_tree": sun_tree, "stars": stars, "heart_bolt": heart_bolt, "wrench": wrench,
            "tally": tally, "lower_back": lower_back, "hip_moth": hip_moth, "thigh_snake": thigh_snake,
-           "marrow_swirl": marrow_swirl}
+           "marrow_swirl": marrow_swirl, "kintsugi_cracks": kintsugi_cracks, "hymn_staff": hymn_staff, "idol_sun": idol_sun,
+           "parade_garter": parade_garter, "keepsake_locket": keepsake_locket, "warden_wire": warden_wire,
+           "survivor_phoenix": survivor_phoenix, "unbound_wing": unbound_wing}
 
 
 # --- projection ------------------------------------------------------------------
