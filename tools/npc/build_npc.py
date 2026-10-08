@@ -1401,18 +1401,22 @@ def pip_outfit(g, skin, x, y, z, ax, front, cov, edge, sine, neck_r):
     vv_half = g.mul(g.sub(z, 0.965), 0.5)
     if bare:   # plunging to the top button
         vv_half = g.mul(g.sub(z, 0.94), 0.42)
-    if LOOK == "crop":   # cropped under her bust, its points over her ribs
-        hem_z = g.sub(0.93, g.mul(g.mul(front, 0.03), g.sub(1.0, g.sstep(0.0, 0.05, ax))))
+    if LOOK == "crop":   # cropped high, the curve of her bust showing under it, clasped at the hem
+        under = g.op("EXPONENT", g.mul(g.sq(g.div(g.sub(ax, 0.06), 0.032)), -1.0))
+        hem_z = g.add(g.sub(1.0, g.mul(g.sub(1.0, front), 0.03)), g.mul(g.mul(front, under), 0.03))
+        vv_half = g.mul(g.sub(z, 0.998), 0.42)
     d_vest = g.mn(g.mn(g.sub(1.13, z), g.sub(z, hem_z)), g.sub(0.15, ax))
     d_vv = g.sub(g.mul(front, g.sub(vv_half, ax)), g.sub(1.0, front))
     vest = g.mul(cov(d_vest), g.sub(1.0, cov(d_vv)))
     pin = g.mul(g.sstep(0.93, 0.97, sine(x, 0.011)), vest)
     buttons = g.mul(g.mul(g.sub(1.0, g.sstep(0.0028, 0.0038, g.sqrt(g.add(g.sq(x), g.sq(g.mul(g.sub(g.op("FRACT", g.div(g.sub(z, 0.81), 0.04)), 0.5), 0.04)))))), front),
-                    g.mul(g.sstep(0.815 if LOOK != "crop" else 0.935, 0.82 if LOOK != "crop" else 0.94, z), g.sstep(0.95 if not bare else 0.925, 0.945 if not bare else 0.92, z)))
+                    g.mul(g.sstep(0.815, 0.82, z), g.sstep(0.95 if not bare else 0.925, 0.945 if not bare else 0.92, z)))
+    if LOOK == "crop":   # one gold clasp where the fronts meet
+        buttons = g.mul(g.mul(g.sub(1.0, g.sstep(0.0035, 0.0045, g.sqrt(g.add(g.sq(x), g.sq(g.sub(z, 1.004)))))), front), 1.0)
     # trousers: high on the waist (low on her hips under the cropped one), a pressed crease down the front of each leg
-    waist = 0.84 if LOOK != "crop" else 0.8
-    # the low one rides up over her seat at the back
-    d_trousers = g.mn(g.sub(g.add(waist, g.mul(g.sub(1.0, front), 0.035 if LOOK == "crop" else 0.0)), z), g.sub(z, 0.12))
+    waist = 0.84 if LOOK != "crop" else 0.765
+    # the low one hangs on her hips and rides up over her seat at the back
+    d_trousers = g.mn(g.sub(g.add(waist, g.mul(g.sub(1.0, front), 0.05 if LOOK == "crop" else 0.0)), z), g.sub(z, 0.12))
     trousers = cov(d_trousers)
     crease = g.mul(g.mul(g.band(ax, 0.072, 0.0735), front), g.mul(trousers, g.sstep(waist - 0.1, waist - 0.12, z)))
     belt = g.mul(g.band(z, waist - 0.04, waist - 0.022), trousers)
