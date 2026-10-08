@@ -2,22 +2,28 @@ extends Node
 ## The cheat box's control items (cheat_screen.gd), each played out as its own
 ## scene on Eco in third person, like Super Hush (super_hush_scene.gd), then
 ## the system it's for jumps to full. Mature only, like the systems.
-##   hymn     Super Hymn: a white colony ampoule she snaps under her nose. The
-##            view whites out in rings, her eyes go white, the calm voice
-##            welcomes her: Hymn to full.
-##   set      The Full Set: a white case with the colony seal. Every piece of
-##            the Shepherd's gear clicks onto her in turn, a word for each,
-##            and the Crown last: OBEY.
+##   hymn     TAKE ALL: a whole pack of Hymn films, TAKE ALL across it in the
+##            colony's print. The view whites out in rings, her eyes go white,
+##            the calm voice welcomes her: Hymn to full.
+##   set      The colony case: a white case with the seal opens on its own and
+##            every piece of the Shepherd's gear clicks onto her in turn, a word
+##            for each, the Crown last: OBEY.
 ##   glass    Glass Rush: three of Marrow's vials cracked at once. Violet glass
 ##            creeps up her arm and over her skin while he talks in her ear:
 ##            fully crystallised, three spare vials and his earpiece.
-##   keepsake Keepsake: a Night Owls pack with a heart on it from Ophelia. Rose
-##            smoke, her eyes going rose, Ophelia's voice in it: Keepsake full
-##            and Ophelia's obsession with it.
-##   family   Family Plan: a white envelope with the colony seal. Mom and
-##            Ophelia come to her side wearing the whole set, piece by piece,
-##            and say it together: the Hub Grip full for both of them.
-## The run manager plays it when the box closes and keeps its own controls off
+##   keepsake Ophelia's ECO pack: Night Owls with ECO written on it in her hand.
+##            Rose smoke, her eyes going rose, Ophelia's voice in it: Keepsake
+##            full, and Ophelia's obsession all the way (obsession_look.gd's
+##            last stage).
+##   dosebox  Mom's dose box: Mom's own box of Hymn films, a day to each slot.
+##            Mom and Ophelia come and take theirs beside her, smiling: their
+##            Hymn to 90, their scenes on the way queued (hub_grip.gd).
+##   family   The Family Plan: a white envelope with the seal. Mom and Ophelia
+##            come to her side wearing the whole set, piece by piece, and say it
+##            together: the Hub Grip full for both of them.
+##   toolkit  Biggie's toolkit: his battered red box. The gear comes off her a
+##            piece at a time, the colour drains out of her eyes and the glass
+##            off her skin, Biggie's voice: everything back to nothing.## The run manager plays it when the box closes and keeps its own controls off
 ## while busy().
 
 const Vices := preload("res://scripts/hub/vices.gd")
@@ -26,11 +32,15 @@ const Glass := preload("res://scripts/hub/glass.gd")
 const Obsession := preload("res://scripts/hub/obsession.gd")
 const HubGrip := preload("res://scripts/hub/hub_grip.gd")
 const ColonyGear := preload("res://scripts/hub/colony_gear.gd")
+const ObsessionLook := preload("res://scripts/hub/obsession_look.gd")
+const Wardrobe := preload("res://scripts/hub/wardrobe.gd")
 const EcoModel := preload("res://scripts/ps2/eco_model.gd")
 const SFX := preload("res://scripts/sfx.gd")
 const ViewCamera := preload("res://scripts/view_camera.gd")
 
 ## The beats, as in the Super Hush scene.
+## Mom's dose box: where it takes Mom's and Ophelia's Hymn.
+const DOSEBOX_TO := 90.0
 const LIFT := 0.3      # she lifts it
 const USE := 1.9       # it goes in, on, or open
 const CLOSE := 2.4     # the close shot
@@ -43,15 +53,15 @@ const END := 9.6
 ## and its lines (find, use, rush, voice, after).
 const ITEMS := {
 	"hymn": {
-		"name": "Super Hymn", "color": Color(0.92, 0.96, 1.0), "close": "eyes",
-		"find": "In the crate, packed in foam like a medal: a white ampoule with the colony seal. SUPER, in the colony's neat print.",
-		"use": "She snaps it under her nose. Lavender. Linen. Clean.",
+		"name": "TAKE ALL", "color": Color(0.92, 0.96, 1.0), "close": "eyes",
+		"find": "A whole pack of Hymn films, every one still in its foil. Across it, in the colony's neat print: TAKE ALL.",
+		"use": "She takes them. All of them, one after the other, and lets them melt. Lavender. Linen. Clean.",
 		"rush": "Eco: \"Oh. It's so quiet. Why is everything so quiet?\"",
 		"voice": "Calm voice, from every direction: \"Welcome home, citizen. You don't have to try any more.\"",
 		"after": "Eco comes to humming the town's tune. Her Hymn is full.",
 	},
 	"set": {
-		"name": "The Full Set", "color": Color(0.85, 0.94, 1.0), "close": "wide",
+		"name": "The colony case", "color": Color(0.85, 0.94, 1.0), "close": "wide",
 		"find": "A white case with the colony's ringed seal. It opens on its own.",
 		"use": "Something clicks onto her. Then something else.",
 		"rush": "Eco: \"Wait. Wait, I didn't...\"",
@@ -68,12 +78,20 @@ const ITEMS := {
 		"after": "Eco comes to glittering. The glass is all over her. There's an earpiece in her ear and three spare vials in her pocket.",
 	},
 	"keepsake": {
-		"name": "Keepsake", "color": Color(1.0, 0.45, 0.7), "close": "eyes",
-		"find": "A Night Owls pack with a little heart drawn on it in pen. Ophelia's handwriting: \"for you. only you.\"",
+		"name": "Ophelia's ECO pack", "color": Color(1.0, 0.45, 0.7), "close": "eyes",
+		"find": "A Night Owls pack with ECO written across it in pen, a little heart over the O. Ophelia's handwriting: \"for you. only you.\"",
 		"use": "She lights one. The smoke comes out rose.",
 		"rush": "Eco: \"It smells like her. Why does it smell like her?\"",
 		"voice": "Ophelia, close, from inside the smoke: \"There you are. Now you'll always come back to me.\"",
-		"after": "Eco comes to with the taste of roses. Her Keepsake is full, and Ophelia's never been so sure of her.",
+		"after": "Eco comes to with the taste of roses. Her Keepsake is full, and Ophelia's gone all the way: she's never letting go of her now.",
+	},
+	"dosebox": {
+		"name": "Mom's dose box", "color": Color(0.9, 0.95, 1.0), "close": "three",
+		"find": "Mom's dose box: seven little lids, a day on each in her round handwriting, a Hymn film under every one. There are three names on the lid. Hers is one of them.",
+		"use": "She opens Monday. Footsteps behind her: Mom, and Ophelia.",
+		"rush": "Mom: \"Oh, you found it. Good girl. One for you, one for me, one for Ophelia.\"",
+		"voice": "Mom and Ophelia, the films melting on their tongues, smiling at her the same way: \"Doesn't that feel better?\"",
+		"after": "Mom and Ophelia have taken theirs. Their Hymn is at 90, and it's going to show.",
 	},
 	"family": {
 		"name": "Family Plan", "color": Color(0.9, 0.95, 1.0), "close": "three",
@@ -82,6 +100,14 @@ const ITEMS := {
 		"rush": "Eco: \"Mom? Ophelia? What are you wearing?\"",
 		"voice": "Mom and Ophelia, together, smiling the same smile: \"Welcome home, citizen.\"",
 		"after": "Mom and Ophelia are wearing the Shepherd's whole set. Biggie or Doc Imani can still get it off them, one piece at a time.",
+	},
+	"toolkit": {
+		"name": "Biggie's toolkit", "color": Color(1.0, 0.75, 0.4), "close": "wide",
+		"find": "Biggie's toolkit, the battered red one. Taped to the lid: \"FOR EMERGENCIES. THIS IS ONE. - B\"",
+		"use": "The toolkit opens. Snips, a bolt cutter, a pair of tweezers she's scared of.",
+		"rush": "Biggie's voice, from somewhere: \"Hold still, kid. Real still.\"",
+		"voice": "Biggie: \"There. You're you again. Don't make me do that twice.\"",
+		"after": "Everything's off and out of her: the gear, the Hymn, the Hush, the glass, the Keepsake. Mom and Ophelia too. Clean slate.",
 	},
 }
 
@@ -97,6 +123,9 @@ var _said := {}
 var _layers: Array = []
 var _gun: Node3D
 var _shown := 0
+## Biggie's toolkit: what she had on when it opened, and how much is still on.
+var _strip_from: Array = []
+var _strip_left := -1
 ## For the family plan: Mom and Ophelia's places before they came over.
 var _family: Array = []
 
@@ -137,6 +166,8 @@ func play(p: String) -> void:
 	t = 0.0
 	_said.clear()
 	_shown = 0
+	_strip_from = []
+	_strip_left = -1
 	var player: Node3D = rm.player
 	player.set("entranced", true)
 	player.set("trance_dir", Vector3.ZERO)
@@ -146,8 +177,8 @@ func play(p: String) -> void:
 	_prop = _make_prop()
 	_shot("wide")
 	_say("find", 4.0)
-	if item == "family":
-		_bring_family()
+	if item in ["family", "dosebox"]:
+		_bring_family(item == "family")
 
 
 func _spec() -> Dictionary:
@@ -219,6 +250,13 @@ func _build_up(k: float) -> void:
 			_snap_pieces(k)
 		"family":
 			_dress_family(k)
+		"dosebox":
+			if k > 0.6 and _shown == 0:
+				_shown = 1
+				for f in _family:
+					f[0].mood(["smile", "closed"])
+		"toolkit":
+			_strip(k)
 
 
 ## The Full Set: a piece on her every so often, a word on the screen with each.
@@ -234,6 +272,23 @@ func _snap_pieces(k: float) -> void:
 	_word.text = String(words[n - 1]) if n > 0 else ""
 	_word.visible = n > 0
 	SFX.play(self, "cache_unlock", -6.0, 0.8 + 0.06 * n)
+
+
+## Biggie's toolkit: her gear coming off her a piece at a time, last on
+## first off, and the glass and the colour going out of her.
+func _strip(k: float) -> void:
+	if _strip_from.is_empty():
+		_strip_from = Hymn.gear.duplicate()
+	var left := clampi(int(ceil((1.0 - k) * _strip_from.size() - 0.001)), 0, _strip_from.size())
+	RenderingServer.global_shader_parameter_set("eco_glass", Glass.look() * (1.0 - k))
+	EcoModel.swirl_override = maxf(Vices.eye_swirl(), Obsession.eyes()) * (1.0 - k)
+	EcoModel.swirl_override_tint = Color(0.72, 0.32, 1.0)
+	if left == _strip_left:
+		return
+	_strip_left = left
+	for body in _bodies():
+		ColonyGear.apply(body, _strip_from.slice(0, left))
+	SFX.play(self, "dry_click", -4.0, 0.8)
 
 
 ## The family plan: Mom and Ophelia's pieces going on them as they stand by her.
@@ -260,8 +315,10 @@ func _use_sound() -> void:
 			SFX.play(self, "glass_break", -4.0, 1.2)
 		"keepsake":
 			SFX.play(self, "dry_click", -4.0, 1.4)  # the lighter
-		"family":
+		"family", "dosebox":
 			SFX.play(self, "paper_2", -4.0)
+		"toolkit":
+			SFX.play(self, "cache_open", -4.0)
 	SFX.play(self, "heartbeat", -4.0)
 
 
@@ -299,11 +356,37 @@ func _apply() -> void:
 				HubGrip.gear[who] = Hymn.GEAR.duplicate()
 				HubGrip.levels[who] = HubGrip.MAX
 			HubGrip.save()
+		"dosebox":
+			for who in HubGrip.WHO:
+				HubGrip._raise(who, maxf(DOSEBOX_TO - HubGrip.level(who), 0.0))  # their scenes queue on the way up
+			HubGrip.save()
+		"toolkit":
+			Vices.reset()
+			Vices.save()
+			Hymn.reset()
+			Hymn.save()
+			Glass.reset()
+			Glass.save()
+			Obsession.reset()
+			Obsession.save()
+			HubGrip.reset()
+			HubGrip.save()
 	if rm.has_method("dress_hub"):
 		rm.dress_hub()
-	if rm.player != null:
-		for body in _bodies():
-			ColonyGear.apply(body)
+	Wardrobe.dress_eco(rm.player, true)  # every copy of her, in what she has now
+	# and the ones in her gun's first-person arms (found first: applying frees
+	# the old gear's nodes)
+	var models: Array = rm.player.find_children("*", "Node3D", true, false).filter(func(m): return m.get_script() == EcoModel)
+	for m in models:
+		if is_instance_valid(m):
+			ColonyGear.apply(m)
+	# Mom and Ophelia as they are now: their gear, and how her obsession shows
+	for who in HubGrip.WHO:
+		var npc: Node3D = rm.hub_npcs.get(who)
+		if npc != null and is_instance_valid(npc):
+			ColonyGear.apply(npc, HubGrip.gear_of(who))
+			if who == "ophelia" and rm.get("zone_info") != null:
+				ObsessionLook.dress(npc, rm.zone_info)
 
 
 ## Stops it where it is (the hub was left under it, say).
@@ -340,8 +423,9 @@ func _say(key: String, seconds: float) -> void:
 
 # --- the family plan ----------------------------------------------------------
 
-## Mom and Ophelia (whoever's home) come to stand either side of her.
-func _bring_family() -> void:
+## Mom and Ophelia (whoever's home) come to stand either side of her; with
+## `bare`, their gear off for the scene (the Family Plan puts it on again).
+func _bring_family(bare := true) -> void:
 	_family = []
 	var player: Node3D = rm.player
 	var fwd := -player.global_basis.z
@@ -358,7 +442,8 @@ func _bring_family() -> void:
 		npc.global_rotation.y = player.global_rotation.y
 		if npc.get("home_yaw") != null:
 			npc.home_yaw = player.global_rotation.y
-		ColonyGear.apply(npc, [])
+		if bare:
+			ColonyGear.apply(npc, [])
 		side = 1.0
 
 
@@ -472,9 +557,9 @@ func _make_prop() -> Node3D:
 	var white := _mat(Color(0.93, 0.95, 0.98))
 	var dark := _mat(Color(0.1, 0.1, 0.12))
 	match item:
-		"hymn":  # a white ampoule, glowing at its neck
-			_cyl(p, 0.012, 0.06, Vector3.ZERO, white, Vector3(0, 0, 90))
-			_cyl(p, 0.006, 0.02, Vector3(0.04, 0, 0), _mat(Color(0.85, 0.95, 1.0), 3.0), Vector3(0, 0, 90))
+		"hymn":  # a pack of Hymn films, white foil, TAKE ALL in a lit band
+			_box(p, Vector3(0.12, 0.008, 0.075), Vector3.ZERO, white)
+			_box(p, Vector3(0.1, 0.002, 0.02), Vector3(0, 0.005, 0), _mat(Color(0.85, 0.95, 1.0), 2.5))
 		"set":  # the white case with the seal
 			_box(p, Vector3(0.14, 0.03, 0.1), Vector3.ZERO, white)
 			_cyl(p, 0.025, 0.004, Vector3(0, 0.016, 0), _mat(Color(0.8, 0.94, 1.0), 2.5))
@@ -485,6 +570,13 @@ func _make_prop() -> Node3D:
 		"keepsake":  # a Night Owls pack with a heart on it
 			_box(p, Vector3(0.09, 0.055, 0.022), Vector3.ZERO, _mat(Color(0.12, 0.1, 0.16)))
 			_box(p, Vector3(0.02, 0.018, 0.002), Vector3(0.0, 0.0, 0.012), _mat(Color(1.0, 0.4, 0.65), 1.5))
+		"dosebox":  # Mom's dose box: seven little lids in a row
+			_box(p, Vector3(0.17, 0.025, 0.045), Vector3.ZERO, white)
+			for i in 7:
+				_box(p, Vector3(0.02, 0.004, 0.04), Vector3(-0.072 + i * 0.024, 0.014, 0), _mat(Color(0.75, 0.88, 1.0) if i % 2 == 0 else Color(0.95, 0.85, 0.9)))
+		"toolkit":  # Biggie's battered red toolbox, its handle
+			_box(p, Vector3(0.16, 0.07, 0.07), Vector3.ZERO, _mat(Color(0.75, 0.15, 0.12)))
+			_box(p, Vector3(0.08, 0.012, 0.012), Vector3(0, 0.045, 0), dark)
 		"family":  # the white envelope, its seal
 			_box(p, Vector3(0.16, 0.004, 0.1), Vector3.ZERO, white)
 			_cyl(p, 0.014, 0.003, Vector3(0, 0.003, 0), _mat(Color(0.8, 0.94, 1.0), 2.0))

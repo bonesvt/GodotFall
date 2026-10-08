@@ -8,11 +8,13 @@ extends CanvasLayer
 ##   4   super Hush: Marrow's Hold to full at once (vices.gd, Mature only)
 ## and an item for each of the other control systems, each with its own scene
 ## (cheat_scene.gd), Mature only:
-##   5   Super Hymn: her Hymn to full (hymn.gd)
-##   6   The Full Set: every piece of the Shepherd's gear on her
+##   5   TAKE ALL Hymn films: her Hymn to full (hymn.gd)
+##   6   the colony case: every piece of the Shepherd's gear fitted in turn
 ##   7   Glass Rush: fully crystallised, three vials and his earpiece (glass.gd)
-##   8   Keepsake: Ophelia's Keepsake in her, and her obsession, to full (obsession.gd)
-##   9   Family Plan: Mom and Ophelia in the whole set, their Hymn full (hub_grip.gd)
+##   8   Ophelia's ECO pack: Keepsake full, her obsession all the way (obsession.gd)
+##   9   Mom's dose box: Mom's and Ophelia's Hymn to 90 (hub_grip.gd)
+##   0   the Family Plan: Mom and Ophelia in the whole set, their Hymn full
+##   R   Biggie's toolkit: everything above (and Super Hush) back to nothing
 
 const Armory := preload("res://scripts/hub/armory.gd")
 const TownShops := preload("res://scripts/hub/town_shops.gd")
@@ -83,16 +85,18 @@ func _ready() -> void:
 	col.add_child(_button("2   Max relationships (Ophelia, Mom and Biggie to full)", max_relationships))
 	col.add_child(_button("3   Unlock all cosmetics (piercings, tattoos, accessories)", unlock_cosmetics))
 	col.add_child(_button("4   Super Hush (Marrow's Hold to full, Mature only)", super_hush))
-	col.add_child(_button("5   Super Hymn (her Hymn to full)", func(): control_item("hymn")))
-	col.add_child(_button("6   The Full Set (every piece of the Shepherd's gear)", func(): control_item("set")))
+	col.add_child(_button("5   TAKE ALL Hymn films (her Hymn to full)", func(): control_item("hymn")))
+	col.add_child(_button("6   The colony case (all the Shepherd's gear, fitted in turn)", func(): control_item("set")))
 	col.add_child(_button("7   Glass Rush (fully crystallised, vials, his earpiece)", func(): control_item("glass")))
-	col.add_child(_button("8   Keepsake (Ophelia's, all of it)", func(): control_item("keepsake")))
-	col.add_child(_button("9   Family Plan (Mom and Ophelia, the whole set)", func(): control_item("family")))
+	col.add_child(_button("8   Ophelia's ECO pack (Keepsake full, her obsession all the way)", func(): control_item("keepsake")))
+	col.add_child(_button("9   Mom's dose box (Mom and Ophelia's Hymn to 90)", func(): control_item("dosebox")))
+	col.add_child(_button("0   The Family Plan (Mom and Ophelia, the whole set)", func(): control_item("family")))
+	col.add_child(_button("R   Biggie's toolkit (reset every control system)", func(): control_item("toolkit")))
 	_status = _text("", 16, INK)
 	_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_status.custom_minimum_size = Vector2(512, 0)
 	col.add_child(_status)
-	col.add_child(_text("1-9 pick   F or Esc close", 14, DIM))
+	col.add_child(_text("1-9, 0, R pick   F or Esc close", 14, DIM))
 
 
 func _input(event: InputEvent) -> void:
@@ -116,7 +120,11 @@ func _input(event: InputEvent) -> void:
 		KEY_8, KEY_KP_8:
 			control_item("keepsake")
 		KEY_9, KEY_KP_9:
+			control_item("dosebox")
+		KEY_0, KEY_KP_0:
 			control_item("family")
+		KEY_R:
+			control_item("toolkit")
 		_:
 			return
 	get_viewport().set_input_as_handled()
@@ -181,7 +189,7 @@ func control_item(id: String) -> bool:
 	if not Vices.allowed():
 		_did("The control items are Mature only (Settings > Game > rating).")
 		return false
-	if id == "family" and (npc_talk == null or not HubGrip.allowed()):
+	if id in ["family", "dosebox"] and (npc_talk == null or not HubGrip.allowed()):
 		_did("Nobody home for the Family Plan.")
 		return false
 	scene = id

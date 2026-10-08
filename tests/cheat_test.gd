@@ -71,7 +71,7 @@ func _run() -> void:
 	ContentRating.set_rating("T", false)
 	_check("control items: Mature only", not box.control_item("hymn") and box.scene == "", box.scene)
 	ContentRating.set_rating("M", false)
-	for id in ["hymn", "set", "glass", "keepsake", "family"]:
+	for id in ["hymn", "set", "glass", "keepsake", "dosebox", "family", "toolkit"]:
 		box.close_now = false
 		_check("%s: closes on its scene" % id, box.control_item(id) and box.scene == id and box.close_now, box.scene)
 
