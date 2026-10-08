@@ -985,7 +985,10 @@ func talk_to(who: String) -> void:
 			Obsession.saw(runs_ended)
 			open_bench("obsession")
 			return
+		var first_today := Obsession.seen_stay != runs_ended
 		var upset := Obsession.saw(runs_ended)
+		if upset == "" and first_today and ObsessionLook.stage() >= 3:
+			hud.toast(ObsessionLook.GREETING, 3.0)  # before her usual talk
 		if upset != "":  # Eco went out without seeing her: she won't talk, this time
 			hud.toast(upset, HUB_LINE_SECONDS)
 			hub_npcs[who].mood(["angry", "lookaway"])

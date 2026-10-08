@@ -55,12 +55,14 @@ static func dress(npc: Node3D, info: Dictionary) -> void:
 			npc.spot = "doorstep"
 			if npc._anim != null and npc._anim.has_animation("idle"):
 				npc._anim.play("idle", 0.3)
-			npc.rest_mood = ["tilt", "blush"] if s == 3 else ["sad"]
+			# obsessed: chin down, looking up at you through her fringe, so her eyes sit in shadow
+			npc.rest_mood = ["down", "blush"] if s == 3 else ["sad"]
 			npc.calm()
 			for spec in info.get("interactables", []):
 				if spec.get("npc", "") == "ophelia":
 					spec["pos"] = at
 	_stare(npc, stare() if s >= 3 else 0.0)
+	_pack(npc, s >= 3)
 
 
 ## How far gone the stare is, 0..1 (from OBSESSED_AT to full).
@@ -76,6 +78,50 @@ static func _stare(npc: Node3D, k: float) -> void:
 			var b := m3.find_blend_shape_by_name(shape[0])
 			if b >= 0:
 				m3.set_blend_shape_value(b, float(shape[1]) * (1.0 if shape[0] == "Fcl_EYE_Highlight_Hide" and k > 0.0 else k))
+
+
+## What she says the first time Eco comes to her each stay, once she's obsessed.
+const GREETING := "Ophelia, not blinking: \"You came back. You always come back.\""
+
+
+## A pack of her Night Owls in her right hand, turning over and over in her
+## fingers (or gone).
+static func _pack(npc: Node3D, on: bool) -> void:
+	var skel := npc.find_child("Skeleton3D", true, false) as Skeleton3D
+	if skel == null:
+		return
+	var old := skel.get_node_or_null("KeepsakePack")
+	if old != null:
+		old.queue_free()
+	if not on or skel.find_bone("J_Bip_R_Hand") < 0:
+		return
+	var att := BoneAttachment3D.new()
+	att.name = "KeepsakePack"
+	att.bone_name = "J_Bip_R_Hand"
+	skel.add_child(att)
+	var pack := MeshInstance3D.new()
+	var box := BoxMesh.new()
+	box.size = Vector3(0.055, 0.085, 0.022)
+	pack.mesh = box
+	var black := StandardMaterial3D.new()
+	black.albedo_color = Color(0.05, 0.05, 0.06)
+	pack.material_override = black
+	var band := MeshInstance3D.new()
+	var strip := BoxMesh.new()
+	strip.size = Vector3(0.057, 0.012, 0.024)
+	band.mesh = strip
+	var gold := StandardMaterial3D.new()
+	gold.albedo_color = Color(0.85, 0.65, 0.25)
+	gold.metallic = 0.8
+	band.material_override = gold
+	band.position = Vector3(0, 0.025, 0)
+	pack.add_child(band)
+	var hold := Node3D.new()
+	hold.position = Vector3(0, -0.07, -0.02)
+	att.add_child(hold)
+	hold.add_child(pack)
+	var spin := pack.create_tween().set_loops()
+	spin.tween_property(pack, "rotation:y", TAU, 2.8).from(0.0)
 
 
 ## Her hair streak and eyes, rose (or back to her own).
