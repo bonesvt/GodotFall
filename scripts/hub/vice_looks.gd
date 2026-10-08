@@ -32,6 +32,7 @@ const Hymn := preload("res://scripts/hub/hymn.gd")
 const Obsession := preload("res://scripts/hub/obsession.gd")
 const ContentRating := preload("res://scripts/radio/content_rating.gd")
 const Hair := preload("res://scripts/hub/hair.gd")
+const Extras := preload("res://scripts/hub/eco_extras.gd")
 
 const TEX := "res://assets/textures/eco/looks/%s_%s.png"
 ## Each look's id in the wardrobe and on her model starts with this.
@@ -51,11 +52,13 @@ const CRESTS := ["suit_t4h_collar", "suit_t5h_core", "suit_t5h_crest_l", "suit_t
 ## material -> {albedo, emit, emit_col, sheen} re-dyes for what's shown,
 ## "hair_style" a salon cut (hair.gd), "iris" her eye colour, "glass" how far
 ## the glass covers her at full strength and "glass_tint" its colour,
-## "crystals" crystal growths on her body. The baked textures (body, glow,
+## "crystals" crystal growths on her body, "extras" piercings and tattoos
+## (eco_extras.gd) she wears with it on top of her own. The baked textures (body, glow,
 ## mask, hair, fringe, cap, eyeline, face) are used where they exist; the
 ## body textures bare her arms, legs and style windows (tools/eco/vice_looks.json "cuts").
 const LOOKS := {
 	"his": {"base": "suit_shade", "hair_style": "pixie", "show": ["outfit_skater_any_shoes"], "hide": ["base_", "Boots", "Goggles"],
+		"extras": {"piercings": ["navel"], "tattoos": ["marrow_swirl"]},
 		"mats": {"eco_v_sneaker_skater": {"albedo": Color(0.08, 0.06, 0.1)}, "eco_v_sneaker_skater_sole": {"albedo": VIOLET, "emit": 0.6}}},
 	# Kintsugi with Frost's icy braids and pale eyes, and crystal growing out of her
 	"kintsugi": {"base": "suit_shade", "hair_style": "braids", "iris": Color(0.7, 0.9, 1.0), "crystals": true,
@@ -392,6 +395,14 @@ static func apply(eco: Node3D) -> void:
 				mi.set_surface_override_material(i, ours)
 				done.append([mi, i, now, ours])
 	eco.set_meta("vice_look_overrides", done)
+	if look.has("extras") and gate >= GATE["pieces"]:
+		# on top of what she wears from Solace; after the body's look mask, so a belly ring sees her bare stomach
+		var worn := load("res://scripts/hub/town_shops.gd").worn() as Dictionary
+		for kind: String in look["extras"]:
+			for piece: String in look["extras"][kind]:
+				if not piece in worn.get(kind, []):
+					worn[kind] = worn.get(kind, []) + [piece]
+		Extras.apply(eco, worn)
 	_crystals(eco, gate * 3 if look.get("crystals", false) else 0)
 
 

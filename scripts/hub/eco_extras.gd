@@ -71,6 +71,12 @@ const TATTOOS := {
 	"thigh_snake": {"name": "Snake and dagger", "mature": true, "where": "outside of her right thigh", "blurb": "Old sailor flash: a snake round a dagger. Better to die than live a coward."},
 }
 
+## Tattoos that come with a hypno look (vice_looks.gd "extras") and aren't
+## sold: shown only while she's in it.
+const LOOK_TATTOOS := {
+	"marrow_swirl": {"name": "Marrow's swirl", "mature": true, "where": "outside of her left thigh", "blurb": "His spiral, violet, with a tendril curling down her thigh."},
+}
+
 ## Accessories: one per slot (head, eyes, face). Goggles go when something sits on her head.
 const ACCESSORIES := {
 	"shades": {"name": "Round shades", "slot": "eyes", "blurb": "Little round black lenses. Look like trouble, see like a hawk (she says)."},
@@ -109,7 +115,7 @@ static func apply(model: Node, worn := {}) -> void:
 	var accessories: Array = worn.get("accessories", []).filter(func(id): return allowed(ACCESSORIES, id))
 	_dress_head(model, skel, piercings, accessories, outfit)
 	_dress_body(model, skel, piercings + accessories)
-	_ink(model, worn.get("tattoos", []).filter(func(id): return allowed(TATTOOS, id)))
+	_ink(model, worn.get("tattoos", []).filter(func(id): return allowed(TATTOOS, id) or allowed(LOOK_TATTOOS, id)))
 
 
 ## Rebuilds the head pieces (piercings and accessories) on her head bone.
@@ -319,7 +325,7 @@ static func _is_body(mat: Material) -> bool:
 
 ## The worn tattoos stacked into one texture (null for none).
 static func tattoo_texture(ids: Array) -> Texture2D:
-	var have := ids.filter(func(id): return TATTOOS.has(id) and ResourceLoader.exists(TATTOO_DIR + id + ".png"))
+	var have := ids.filter(func(id): return (TATTOOS.has(id) or LOOK_TATTOOS.has(id)) and ResourceLoader.exists(TATTOO_DIR + id + ".png"))
 	if have.is_empty():
 		return null
 	have.sort()

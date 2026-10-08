@@ -28,6 +28,7 @@ DESIGN = 512         # design canvas, square
 INK = (22, 26, 40)   # blue-black tattoo ink
 TEAL = (40, 170, 165)
 RED = (190, 40, 50)
+VIOLET = (150, 70, 230)  # Marrow's
 FONTS = ["/mnt/skills/examples/canvas-design/canvas-fonts/NothingYouCouldDo-Regular.ttf",
          "/usr/share/fonts/truetype/dejavu/DejaVuSerif-Bold.ttf"]
 
@@ -54,6 +55,9 @@ PLACES = {
     "lower_back": {"mode": "decal", "c": v3(0.0, 1.06, 0.046), "n": v3(0, 0.3, 1), "right": v3(1, 0, 0), "w": 0.16, "h": 0.056, "depth": 0.035},
     "hip_moth": {"mode": "decal", "c": v3(-0.11, 1.05, 0.0), "n": v3(-1, 0.1, -0.1), "right": v3(0, 0, 1), "w": 0.07, "h": 0.06, "depth": 0.035},
     "thigh_snake": {"mode": "decal", "c": v3(0.125, 0.6, 0.0), "n": v3(1, 0, 0), "right": v3(0, 0, -1), "w": 0.07, "h": 0.17, "depth": 0.04},
+    # Hypno looks only (vice_looks.gd "extras", eco_extras.gd LOOK_TATTOOS): not sold
+    # big and bold: her thigh's texels are coarse, so the design is averaged down to them ("soften")
+    "marrow_swirl": {"mode": "decal", "c": v3(-0.1, 0.6, -0.045), "n": v3(-0.6, 0, -1), "right": v3(-1, 0, 0.6), "w": 0.08, "h": 0.2, "depth": 0.07, "soften": 3.0},
 }
 
 
@@ -272,9 +276,35 @@ def thigh_snake():
     return img
 
 
+def marrow_swirl():
+    """Marrow's spiral, violet and ink like his suit, with a tendril curling
+    down from it to a drop."""
+    img, d = canvas(300, 720)
+    c, cy = 150, 140
+    for band, col, wid in ((0, INK, 34), (1, VIOLET, 30)):
+        pts = []
+        for i in range(400):
+            t = i / 400 * 2.4 * math.pi
+            r = 10 + t * 15
+            a = t + band * math.pi
+            pts.append((c + math.cos(a) * r, cy + math.sin(a) * r))
+        d.line(pts, fill=col + (255,), width=wid, joint="curve")
+    # the tendril, off the spiral's foot, swinging down her thigh to a drop
+    tail = []
+    for i in range(200):
+        t = i / 200
+        tail.append((c + math.sin(t * 2.4 * math.pi) * 60 * (1 - 0.5 * t), cy + 120 + t * 500))
+    d.line(tail, fill=INK + (255,), width=30, joint="curve")
+    d.line(tail, fill=VIOLET + (255,), width=14, joint="curve")
+    x, y = tail[-1]
+    d.ellipse([x - 26, y - 10, x + 26, y + 46], fill=VIOLET + (255,), outline=INK + (255,), width=9)
+    return img
+
+
 DESIGNS = {"precursor": precursor, "cry_anyway": cry_anyway, "fern_band": fern_band, "swallows": swallows,
            "sun_tree": sun_tree, "stars": stars, "heart_bolt": heart_bolt, "wrench": wrench,
-           "tally": tally, "lower_back": lower_back, "hip_moth": hip_moth, "thigh_snake": thigh_snake}
+           "tally": tally, "lower_back": lower_back, "hip_moth": hip_moth, "thigh_snake": thigh_snake,
+           "marrow_swirl": marrow_swirl}
 
 
 # --- projection ------------------------------------------------------------------
@@ -323,6 +353,8 @@ def bake(tid, mesh):
     pos, nrm, uv, idx = mesh
     place = PLACES[tid]
     design = DESIGNS[tid]()
+    if place.get("soften"):
+        design = design.filter(ImageFilter.GaussianBlur(place["soften"]))
     if place["mode"] == "band":
         # width wraps round once; keep the pixels square on the skin
         pass
