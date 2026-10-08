@@ -10,6 +10,13 @@ extends CanvasLayer
 ##       devotion, Colony City's Town's Grip, Ophelia's obsession), wrapping
 ##       back to none after full
 ##   8   unlock the free endings' looks (Warden, Survivor, Unbound, Her Own)
+## and an item for each of the other control systems, each with its own scene
+## (cheat_scene.gd), Mature only:
+##   9   Super Hymn: her Hymn to full (hymn.gd)
+##   0   The Full Set: every piece of the Shepherd's gear on her
+##   Q   Glass Rush: crystallised, three vials and his earpiece (glass.gd)
+##   W   Keepsake: Ophelia's Keepsake in her, and her obsession, to full (obsession.gd)
+##   E   Family Plan: Mom and Ophelia in the whole set, their Hymn full (hub_grip.gd)
 
 const Armory := preload("res://scripts/hub/armory.gd")
 const TownShops := preload("res://scripts/hub/town_shops.gd")
@@ -19,6 +26,8 @@ const SFX := preload("res://scripts/sfx.gd")
 const NpcTalk := preload("res://scripts/hub/npc_talk.gd")
 const Vices := preload("res://scripts/hub/vices.gd")
 const ViceLooks := preload("res://scripts/hub/vice_looks.gd")
+const HubGrip := preload("res://scripts/hub/hub_grip.gd")
+const CheatScene := preload("res://scripts/hub/cheat_scene.gd")
 
 const MAX_MATERIAL := 9999
 const GOLD := Color(1.0, 0.82, 0.3)
@@ -35,6 +44,9 @@ var unlocked: Array = []
 var done: Array = []
 ## Super Hush was picked: the box closes and its scene plays (super_hush_scene.gd).
 var inject := false
+## One of the control items was picked: the box closes and its scene plays
+## (cheat_scene.gd ITEMS key).
+var scene := ""
 var close_now := false
 
 var _status: Label
@@ -80,11 +92,16 @@ func _ready() -> void:
 	col.add_child(_button("6   Colony City look: Town's Grip up a stage (Mature only)", func(): look_meter("town_grip")))
 	col.add_child(_button("7   Ophelia's look: obsession up a stage (Mature only)", func(): look_meter("obsession")))
 	col.add_child(_button("8   Unlock the free endings' looks (Mature only)", unlock_looks))
+	col.add_child(_button("9   Super Hymn (her Hymn to full)", func(): control_item("hymn")))
+	col.add_child(_button("0   The Full Set (every piece of the Shepherd's gear)", func(): control_item("set")))
+	col.add_child(_button("Q   Glass Rush (fully crystallised, vials, his earpiece)", func(): control_item("glass")))
+	col.add_child(_button("W   Keepsake (Ophelia's, all of it)", func(): control_item("keepsake")))
+	col.add_child(_button("E   Family Plan (Mom and Ophelia, the whole set)", func(): control_item("family")))
 	_status = _text("", 16, INK)
 	_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_status.custom_minimum_size = Vector2(512, 0)
 	col.add_child(_status)
-	col.add_child(_text("1-8 pick   F or Esc close", 14, DIM))
+	col.add_child(_text("1-9, 0, Q, W, E pick   F or Esc close", 14, DIM))
 
 
 func _input(event: InputEvent) -> void:
@@ -107,6 +124,16 @@ func _input(event: InputEvent) -> void:
 			look_meter("obsession")
 		KEY_8, KEY_KP_8:
 			unlock_looks()
+		KEY_9, KEY_KP_9:
+			control_item("hymn")
+		KEY_0, KEY_KP_0:
+			control_item("set")
+		KEY_Q:
+			control_item("glass")
+		KEY_W:
+			control_item("keepsake")
+		KEY_E:
+			control_item("family")
 		_:
 			return
 	get_viewport().set_input_as_handled()
@@ -189,6 +216,21 @@ func unlock_looks() -> void:
 		if ViceLooks.unlock(id):
 			n += 1
 	_did("Unlocked %d looks in her wardrobe: Warden, Survivor, Unbound and Her Own." % n if n > 0 else "She has every free look already.")
+
+
+## One of the control items: the box closes and its scene plays out
+## (cheat_scene.gd), which sets its system to full at the end. Mature only.
+func control_item(id: String) -> bool:
+	if not Vices.allowed():
+		_did("The control items are Mature only (Settings > Game > rating).")
+		return false
+	if id == "family" and (npc_talk == null or not HubGrip.allowed()):
+		_did("Nobody home for the Family Plan.")
+		return false
+	scene = id
+	close_now = true
+	_did("%s: watch." % CheatScene.ITEMS[id]["name"])
+	return true
 
 
 func _did(line: String) -> void:

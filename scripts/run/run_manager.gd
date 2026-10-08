@@ -72,6 +72,7 @@ const DrunkScreen := preload("res://scripts/ui/drunk_screen.gd")
 const CravingScreen := preload("res://scripts/ui/craving_screen.gd")
 const HushPull := preload("res://scripts/hub/hush_pull.gd")
 const SuperHushScene := preload("res://scripts/hub/super_hush_scene.gd")
+const CheatScene := preload("res://scripts/hub/cheat_scene.gd")
 const FittingScene := preload("res://scripts/hub/fitting_scene.gd")
 const DoseScene := preload("res://scripts/hub/dose_scene.gd")
 const CheatScreen := preload("res://scripts/hub/cheat_screen.gd")
@@ -241,6 +242,8 @@ var bench = null
 var hush_pull: HushPull
 ## The cheat box's Super Hush, played out (super_hush_scene.gd).
 var super_hush_scene: SuperHushScene
+## The cheat box's other control items, played out (cheat_scene.gd).
+var cheat_scene: CheatScene
 ## The Shepherd's gear going on her in the dispensary's back room (fitting_scene.gd).
 var fitting_scene: FittingScene
 ## The morning dose at the dispensary, played out (dose_scene.gd).
@@ -318,6 +321,8 @@ func _ready() -> void:
 	add_child(hush_pull)
 	super_hush_scene = SuperHushScene.new(self)
 	add_child(super_hush_scene)
+	cheat_scene = CheatScene.new(self)
+	add_child(cheat_scene)
 	fitting_scene = FittingScene.new(self)
 	add_child(fitting_scene)
 	dose_scene = DoseScene.new(self)
@@ -543,6 +548,7 @@ func enter_hub() -> void:
 	tutorial.start_level("hub")
 	hush_pull.reset()
 	super_hush_scene.reset()
+	cheat_scene.reset()
 	fitting_scene.reset()
 	dose_scene.reset()
 	chorus_scene.reset()
@@ -785,7 +791,7 @@ func _hub_tick(delta: float) -> void:
 		if Input.is_action_just_pressed("interact") or Input.is_action_just_pressed("ui_cancel") or bench.get("close_now") == true:
 			close_bench()
 		return
-	if super_hush_scene.busy() or chorus_scene.busy() or fitting_scene.busy() or dose_scene.busy():
+	if super_hush_scene.busy() or cheat_scene.busy() or chorus_scene.busy() or fitting_scene.busy() or dose_scene.busy():
 		return
 	if garage != null:
 		if Input.is_action_just_pressed("interact") or Input.is_action_just_pressed("ui_cancel"):
@@ -1280,6 +1286,7 @@ func close_bench() -> void:
 			hud.toast("Fed: %s. It lasts the next run." % TownShops.MEALS[TownShops.meal()]["name"], HUB_LINE_SECONDS)
 	var kind: String = bench.get_meta("kind", "")
 	var inject: bool = bench.get("inject") == true
+	var cheat: String = bench.scene if bench is CheatScreen else ""
 	bench.queue_free()
 	bench = null
 	get_tree().paused = false
@@ -1291,6 +1298,8 @@ func close_bench() -> void:
 	dress_hub()
 	if inject:
 		super_hush_scene.play()
+	if cheat != "":
+		cheat_scene.play(cheat)
 	if hunt:
 		spawn_shepherd()
 	if dosed:
@@ -1968,7 +1977,7 @@ func end_run(title: String, reason: String) -> void:
 ## nothing else open.
 func _vice_keys() -> void:
 	if not Vices.allowed() or bench != null or garage != null or hub_piloting or npc_talk.active() or hush_pull.busy() \
-			or super_hush_scene.busy() or chorus_scene.busy() or fitting_scene.busy() or dose_scene.busy() or tether.busy():
+			or super_hush_scene.busy() or cheat_scene.busy() or chorus_scene.busy() or fitting_scene.busy() or dose_scene.busy() or tether.busy():
 		return
 	if not (phase == Phase.HUB or in_run()) or (titan != null and titan.piloted):
 		return
@@ -2184,7 +2193,7 @@ func _update_hud() -> void:
 func _prompt() -> String:
 	match phase:
 		Phase.HUB:
-			if hub_piloting or hush_pull.busy() or super_hush_scene.busy() or chorus_scene.busy() or fitting_scene.busy() or dose_scene.busy():
+			if hub_piloting or hush_pull.busy() or super_hush_scene.busy() or cheat_scene.busy() or chorus_scene.busy() or fitting_scene.busy() or dose_scene.busy():
 				return ""
 			if hub_titan != null and hub_titan.dropping:
 				return "Titanfall inbound"
