@@ -37,7 +37,7 @@ import numpy as np
 from mathutils import Matrix, Quaternion, Vector
 
 argv = sys.argv[sys.argv.index("--") + 1:]
-SRC, ROOT, WHO = argv[0], argv[1], argv[2]
+SRC, ROOT, WHO = argv[0], os.path.abspath(argv[1]), argv[2]   # Blender on Windows resolves "." against its own folder
 CONCEPT = argv[argv.index("--concept") + 1] if "--concept" in argv else None
 EXPORT = "--no-export" not in argv
 # pip's concept looks (boss, club, shark); the game's is boss
