@@ -150,11 +150,11 @@ func _run() -> void:
 
 	# The rest of the set: each capture the next piece, in order, each on her.
 	Hymn.gear = ["headphones", "cuff", "visor"]
-	for want in ["bridge", "gloves", "spine", "bell", "collar", "crown"]:
+	for want in ["bridge", "gloves", "spine", "band", "crown"]:
 		_check("next capture: %s" % want, Hymn.processed() == want, Hymn.gear)
 	Wardrobe.dress_eco(player, true)
 	await _ticks(2)
-	for part in ["bridge", "UpperL", "HandR", "Seg_0", "Seg_8", "Bell", "collar"]:
+	for part in ["bridge", "UpperL", "HandR", "Seg_0", "Seg_8", "band", "Speaker"]:
 		_check("%s on her" % part, player.find_child(part, true, false) != null, part)
 	_check("gloves: numb hands, slower reloads", Hymn.reload_scale() == Hymn.RELOAD_SLOW, Hymn.reload_scale())
 	_check("spine: a heavier step", Hymn.speed_scale() == Hymn.SPINE_SPEED, Hymn.speed_scale())
@@ -166,9 +166,9 @@ func _run() -> void:
 	var shadow_copy: Node = player.get_node("EcoBody/Shadow")
 	var floating := shadow_copy.find_child("ColonyGear*", true, false).find_children("*", "MeshInstance3D", true, false).filter(func(m): return m.cast_shadow != GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY)
 	_check("first person: no gear floating in view", floating.is_empty(), floating.size())
-	# the bell: rings moving fast, enemies near hear it, slow she's quiet
-	_check("bell quiet walking", not Hymn.tick_bell(1.0, 2.0), "")
-	_check("bell rings running", Hymn.tick_bell(1.0, 8.0) and not Hymn.tick_bell(0.1, 8.0) and Hymn.tick_bell(1.0, 8.0), "")
+	# the band's speaker: pings moving fast, enemies near hear it, slow she's quiet
+	_check("band quiet walking", not Hymn.tick_band(1.0, 2.0), "")
+	_check("band pings running", Hymn.tick_band(1.0, 8.0) and not Hymn.tick_band(0.1, 8.0) and Hymn.tick_band(1.0, 8.0), "")
 	_check("crowned: Hymn held up", (func(): Hymn.level = 10.0; Hymn.save(); return Hymn.level).call() >= Hymn.CROWN_FLOOR, Hymn.level)
 	_check("crowned: no time at all to shake his words", TriggerWords.window() < TriggerWords.WINDOW * 0.5, TriggerWords.window())
 	_check("the Crown's last off", Hymn.crown_locked(), Hymn.gear)

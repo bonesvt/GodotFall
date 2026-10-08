@@ -29,8 +29,7 @@ const START := {
 	"visor": "Biggie: \"These cups are right on your eyes. Don't you dare blink.\"",
 	"bridge": "Biggie: \"Tubes up your nose. This is gonna sting.\"",
 	"gloves": "Biggie: \"They've grown into your skin. I'm gonna have to peel 'em.\"",
-	"bell": "Biggie: \"Collar's welded shut. Hold your chin up, I'm cutting it off you.\"",
-	"collar": "Biggie: \"Prison steel. Seen these on the transports. Chin up, I'm going in at the bolts.\"",
+	"band": "Biggie: \"Prison steel, and it's listening. Chin up, I'm going in at the bolts.\"",
 	"crown": "Biggie: \"Last one. This is the one that's been talking to all the others. Don't move. Don't even think.\"",
 	"spine": "Biggie: \"Nine of these, right on your spine. Stand still. I'll go slow.\"",
 }
@@ -40,8 +39,7 @@ const OFF := {
 	"visor": "The cups let go with a wet pop and the visor's off. The world's too bright, and it's hers.",
 	"bridge": "He draws the tubes out slow. She sneezes for a full minute. Biggie laughs until she does too.",
 	"gloves": "The gloves peel off like old paint. Her hands sting. She can feel them again.",
-	"bell": "The collar falls open and the bell hits the floor with one last ring. Biggie stamps on it. Twice.",
-	"collar": "The bolts give, the band opens, and the amber light goes out. Eco rubs her neck. Biggie throws it in the river.",
+	"band": "The bolts give and the band falls open. Its speaker pings once on the floor. Biggie stamps on it until the light stops blinking.",
 	"crown": "The Crown comes away in his hands and goes dark. Eco makes a sound she doesn't recognise. Then she's crying, and it's hers.",
 	"spine": "The last segment comes away. Her back slumps the way it used to. It's hers again.",
 }

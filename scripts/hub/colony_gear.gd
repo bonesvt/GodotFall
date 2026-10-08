@@ -15,10 +15,10 @@ extends RefCounted
 ##               tube up into each nostril, a glowing vial behind each ear
 ##   gloves      comfort gloves: seamless white to the shoulder, lines of light
 ##               down to every finger
-##   bell        the Hymn bell: a white collar at her throat with a small bell
-##               that rings when she moves fast (hymn.gd: it tells on her)
-##   collar      the detention collar: a grey steel band over the bell's, bolts
-##               at the back, an amber status light at her left
+##   band        the Processed tracker band: a heavy grey prison band round her
+##               throat, bolts at the back, a small speaker grille under her chin
+##               and a light beside it that blinks (the same band on everyone
+##               processed)
 ##   crown       the Crown: a white circlet round her head with four lit nodes,
 ##               the piece that ties all the others together
 ##   spine       the Plumb Line: a white and chrome spine down her back from
@@ -86,14 +86,10 @@ static func apply(model: Node, p_gear = null) -> void:
 		_gloves(model, skel)
 	if "spine" in gear and skel.find_bone(SPINE_BONES[0]) >= 0:
 		_spine(model, skel)
-	if "bell" in gear and skel.find_bone(NECK) >= 0:
-		var neck := _root(skel, NECK, NODE + "_Bell")
-		_bell(_piece(neck, "bell"), skel.get_bone_global_rest(skel.find_bone(NECK)).origin)
+	if "band" in gear and skel.find_bone(NECK) >= 0:
+		var neck := _root(skel, NECK, NODE + "_Band")
+		_band(_piece(neck, "band"), skel.get_bone_global_rest(skel.find_bone(NECK)).origin)
 		_match_layers(model, neck, "Body")
-	if "collar" in gear and skel.find_bone(NECK) >= 0:
-		var throat := _root(skel, NECK, NODE + "_Collar")
-		_collar(_piece(throat, "collar"), skel.get_bone_global_rest(skel.find_bone(NECK)).origin)
-		_match_layers(model, throat, "Body")
 	if "cuff" in gear and skel.find_bone(WRIST) >= 0:
 		var wrist := _root(skel, WRIST, NODE + "_Cuff")
 		_cuff(_piece(wrist, "cuff"), skel.get_bone_global_rest(skel.find_bone(WRIST)).origin)
@@ -163,25 +159,19 @@ static func fit(node: Node3D, piece: String, k: float) -> void:
 				var dot := node.get_node_or_null("Node_%d" % i) as Node3D
 				if dot != null:
 					dot.scale = Vector3.ONE * maxf(smoothstep(0.55 + i * 0.1, 0.65 + i * 0.1, k), 0.01)
-		"bell":
-			# the collar closes round her throat, then the bell drops onto it
-			var band := node.get_node_or_null("Band") as Node3D
-			if band != null:
-				band.scale = Vector3.ONE * lerpf(1.6, 1.0, smoothstep(0.0, 0.6, k))
-			var bell := node.get_node_or_null("Bell") as Node3D
-			if bell != null:
-				bell.scale = Vector3.ONE * maxf(smoothstep(0.6, 0.9, k), 0.01)
-		"collar":
-			# it closes round her throat, the bolts drive home, then the light comes on
+		"band":
+			# it closes round her throat, the bolts drive home, then the speaker
+			# and its light come on
 			var band := node.get_node_or_null("Band") as Node3D
 			if band != null:
 				band.scale = Vector3.ONE * lerpf(1.6, 1.0, smoothstep(0.0, 0.5, k))
 			for n in node.get_children():
 				if String(n.name).begins_with("Bolt_"):
 					(n as Node3D).scale = Vector3(maxf(smoothstep(0.5, 0.7, k), 0.01), 1, 1)
-			var light := node.get_node_or_null("Light") as Node3D
-			if light != null:
-				light.scale = Vector3.ONE * maxf(smoothstep(0.75, 0.85, k), 0.01)
+			for part in ["Speaker", "Light"]:
+				var n := node.get_node_or_null(part) as Node3D
+				if n != null:
+					n.scale = Vector3.ONE * maxf(smoothstep(0.7, 0.85, k), 0.01)
 		"bridge":
 			node.position = Vector3(0, 0.25 * (1.0 - smoothstep(0.0, 0.35, k)), 0)
 			for side in ["L", "R"]:
@@ -373,54 +363,37 @@ static func _spine(model: Node, skel: Skeleton3D) -> void:
 		_match_layers(model, r, "Body")
 
 
-## A white collar round her throat, lit seam, a small bell at the front.
-static func _bell(root: Node3D, neck: Vector3) -> void:
+## The Processed tracker band: a heavy grey band round her throat, ridged top
+## and bottom, a seam and two bolts at the back, a round speaker grille under
+## her chin and a light beside it that blinks.
+static func _band(root: Node3D, neck: Vector3) -> void:
 	var at := neck + Vector3(0, 0.035, 0)
 	var band := Node3D.new()
 	band.name = "Band"
 	band.position = at
 	root.add_child(band)
-	_cylinder(band, Vector3.ZERO, 0.052, 0.026, _shell())
-	_torus(band, Vector3(0, -0.006, 0), 0.05, 0.056, _lit())
-	var bell := Node3D.new()
-	bell.name = "Bell"
-	bell.position = at + Vector3(0, -0.03, -0.055)
-	root.add_child(bell)
-	var dome := SphereMesh.new()
-	dome.radius = 0.016
-	dome.height = 0.024
-	_add(bell, dome, Vector3.ZERO, _chrome())
-	_cylinder(bell, Vector3(0, 0.014, 0), 0.004, 0.008, _shell())
-	var clap := SphereMesh.new()
-	clap.radius = 0.005
-	clap.height = 0.01
-	_add(bell, clap, Vector3(0, -0.012, 0), _lit())
-
-
-## The detention collar: a grey steel band just over the bell's white one, a
-## seam and two bolts at the back, an amber status light at her left.
-static func _collar(root: Node3D, neck: Vector3) -> void:
-	var at := neck + Vector3(0, 0.035, 0)
-	var band := Node3D.new()
-	band.name = "Band"
-	band.position = at
-	root.add_child(band)
-	_cylinder(band, Vector3.ZERO, 0.057, 0.03, _steel())
-	_torus(band, Vector3(0, 0.0155, 0), 0.054, 0.059, _dark())
-	_torus(band, Vector3(0, -0.0155, 0), 0.054, 0.059, _dark())
+	_cylinder(band, Vector3.ZERO, 0.057, 0.034, _steel())
+	_torus(band, Vector3(0, 0.017, 0), 0.054, 0.06, _dark())
+	_torus(band, Vector3(0, -0.017, 0), 0.054, 0.06, _dark())
 	for s in [-1.0, 1.0]:
 		var bolt := Node3D.new()
 		bolt.name = "Bolt_%d" % (0 if s < 0 else 1)
 		bolt.position = at + Vector3(0.012 * s, 0, 0.058)
 		root.add_child(bolt)
-		_box(bolt, Vector3.ZERO, Vector3(0.01, 0.016, 0.008), _chrome())
+		_box(bolt, Vector3.ZERO, Vector3(0.01, 0.02, 0.008), _chrome())
+	var speaker := Node3D.new()
+	speaker.name = "Speaker"
+	speaker.position = at + Vector3(0.008, -0.002, -0.058)
+	root.add_child(speaker)
+	var grille := _cylinder(speaker, Vector3.ZERO, 0.011, 0.005, _dark())
+	grille.rotation.x = PI * 0.5
+	for i in 3:
+		_box(speaker, Vector3(0, (i - 1) * 0.0045, -0.003), Vector3(0.014, 0.0012, 0.002), _chrome())
 	var light := Node3D.new()
 	light.name = "Light"
-	light.position = at + Vector3(-0.043, 0.002, -0.04)
+	light.position = at + Vector3(-0.016, 0.004, -0.057)
 	root.add_child(light)
-	_box(light, Vector3.ZERO, Vector3(0.012, 0.01, 0.012), _dark())
-	_box(light, Vector3(-0.004, 0, -0.004), Vector3(0.007, 0.006, 0.007), _mat("amber", Color(1.0, 0.62, 0.15), 4.0))
-
+	_box(light, Vector3.ZERO, Vector3(0.007, 0.007, 0.004), _blink())
 
 ## The Crown: a white circlet round her head above the brow, a peak at the
 ## front, four lit nodes round it.
@@ -494,6 +467,18 @@ static func _steel() -> StandardMaterial3D:
 	var m := _mat("steel", Color(0.42, 0.45, 0.5), 0.0)
 	m.metallic = 0.8
 	m.roughness = 0.35
+	return m
+
+
+## The tracker band's light: red, blinking on its own (a short flash a second).
+static func _blink() -> ShaderMaterial:
+	if _mats.has("blink"):
+		return _mats["blink"]
+	var sh := Shader.new()
+	sh.code = "shader_type spatial;\nrender_mode unshaded;\nvoid fragment() {\n\tfloat on = step(fract(TIME * 1.1), 0.18);\n\tALBEDO = mix(vec3(0.25, 0.02, 0.02), vec3(1.0, 0.12, 0.08) * 3.0, on);\n}\n"
+	var m := ShaderMaterial.new()
+	m.shader = sh
+	_mats["blink"] = m
 	return m
 
 

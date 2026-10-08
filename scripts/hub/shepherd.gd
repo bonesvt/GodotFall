@@ -12,9 +12,9 @@ extends CharacterBody3D
 ## its gear goes on her in the dispensary's back room (Hymn.processed,
 ## fitting_scene.gd). Out of its
 ## sight for LOSE_TIME s, it loses her and walks off.
-## With the detention collar on her (hymn.gd) it always has her: the collar
-## pings where she is every COLLAR_PING s, a pulse locks her where she stands,
-## and running from it in its sight past STUN_RANGE m stuns her.
+## With the tracker band on her (hymn.gd) it always has her: the band reports
+## where she is every BAND_TRACK s, a pulse locks it where she stands, and
+## running from it in its sight past STUN_RANGE m stuns her.
 
 const Hymn := preload("res://scripts/hub/hymn.gd")
 const SFX := preload("res://scripts/sfx.gd")
@@ -45,8 +45,8 @@ const CALLS := [
 	"Shepherd: \"Everyone else took theirs, Eco.\"",
 ]
 const LOST := "The Shepherd's loudspeaker goes quiet. It's lost her. For now."
-const LOCKED := "The collar's light flips red. Her legs lock. She can't take a step."
-const STUNNED := "The collar bites: white static down her spine. She drops to a knee. It doesn't like her running."
+const LOCKED := "The band's light goes solid red. Her legs lock. She can't take a step."
+const STUNNED := "The band bites: white static down her spine. She drops to a knee. It doesn't like her running."
 const TAKEN := "White. Then a calm voice counting down from ten. Eco wakes on the dispensary bench. There's nothing left for them to put on her."
 
 var rm: Node
@@ -69,7 +69,7 @@ var piece := ""
 ## Its body, on the Choir's puppet (threat_model.gd).
 var puppet: Node3D
 var _col: CollisionShape3D
-## The collar: its next ping, the stun's wait while she runs, how long its
+## The band: its next report, the stun's wait while she runs, how long its
 ## lock has left, and the stun's white flash.
 var _ping_t := 0.0
 var _stun_t := 1.2
@@ -184,8 +184,8 @@ func _hunt(delta: float) -> void:
 			give_up()
 			return
 	sedation = maxf(sedation - SEDATE_WEAR * delta, 0.0)
-	if Hymn.has("collar"):
-		_collar(delta, see, dist)
+	if Hymn.has("band"):
+		_track(delta, see, dist)
 	if dist <= GRAB_RANGE:
 		take_her()
 		return
@@ -283,21 +283,21 @@ func pulse() -> void:
 	var tw: Node = rm.hush_pull.triggers
 	if not tw.busy():
 		tw.fire(false, true)
-	if Hymn.has("collar"):
-		lock(Hymn.COLLAR_LOCK)
+	if Hymn.has("band"):
+		lock(Hymn.BAND_LOCK)
 		rm.hud.toast(LOCKED, 2.0)
 
 
-## The detention collar while it hunts her: it pings where she is, and running
+## The tracker band while it hunts her: it reports where she is, and running
 ## from it where it can see her, far off, earns a stun.
-func _collar(delta: float, see: bool, dist: float) -> void:
+func _track(delta: float, see: bool, dist: float) -> void:
 	var p := _player()
 	_ping_t -= delta
 	if _ping_t <= 0.0:
-		_ping_t = Hymn.COLLAR_PING
+		_ping_t = Hymn.BAND_TRACK
 		_last_seen = p.global_position
 	var v: Vector3 = p.velocity
-	var running := see and dist > Hymn.STUN_RANGE and Vector2(v.x, v.z).length() > Hymn.BELL_SPEED
+	var running := see and dist > Hymn.STUN_RANGE and Vector2(v.x, v.z).length() > Hymn.BAND_SPEED
 	if not running:
 		_stun_t = maxf(_stun_t, 1.2)
 		return
@@ -307,7 +307,7 @@ func _collar(delta: float, see: bool, dist: float) -> void:
 		stun()
 
 
-## The collar's stun: a white flash, she's down for a moment, a little more sedated.
+## The band's stun: a white flash, she's down for a moment, a little more sedated.
 func stun() -> void:
 	lock(Hymn.STUN_HOLD)
 	_flash = 0.55
@@ -316,7 +316,7 @@ func stun() -> void:
 	rm.hud.toast(STUNNED, 2.5)
 
 
-## Holds her where she stands for `seconds` (the collar's lock).
+## Holds her where she stands for `seconds` (the band's lock).
 func lock(seconds: float) -> void:
 	_lock_left = maxf(_lock_left, seconds)
 	_held = true
@@ -338,7 +338,7 @@ func _tick_lock(delta: float) -> void:
 		_player().set("entranced", false)
 
 
-## True while the collar holds her.
+## True while the band holds her.
 func locked() -> bool:
 	return _lock_left > 0.0
 
@@ -376,7 +376,7 @@ func _process_her(_delta: float) -> void:
 
 ## The Hymn bell on her collar rang at t: it knows where she is.
 func heard(at: Vector3) -> void:
-	if step == Step.HUNT and global_position.distance_to(at) <= Hymn.BELL_RANGE * 2.0:
+	if step == Step.HUNT and global_position.distance_to(at) <= Hymn.BAND_RANGE * 2.0:
 		_last_seen = at
 		unseen = 0.0
 
