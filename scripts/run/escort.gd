@@ -166,7 +166,10 @@ func _watched(delta: float) -> void:
 		if angle > g.view_cone:
 			continue
 		var q := PhysicsRayQueryParameters3D.create(g.global_position + g.EYE, at + Vector3.UP * (0.6 if crouched else 1.2), 1 | g.SIGHT_LAYER)
-		q.exclude = [g.get_rid(), pilot.get_rid()]
+		var skip: Array[RID] = [g.get_rid(), pilot.get_rid()]
+		if npc.get("soft_body") != null:
+			skip.append(npc.soft_body.get_rid())  # her own body isn't cover
+		q.exclude = skip
 		if not space.intersect_ray(q).is_empty():
 			continue
 		var near := 1.0 - dist / reach

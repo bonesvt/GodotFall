@@ -35,6 +35,7 @@ const MESS := {"colony": "mess_colony", "colony_m": "mess_colony"}
 
 const NpcSprings := preload("res://scripts/hub/npc_springs.gd")
 const Hair := preload("res://scripts/hub/hair.gd")
+const NpcIdles := preload("res://scripts/hub/npc_idles.gd")
 const Wardrobe := preload("res://scripts/hub/wardrobe.gd")
 const ContentRating := preload("res://scripts/radio/content_rating.gd")
 
@@ -105,6 +106,11 @@ func _ready() -> void:
 		model.name = "Model"
 		add_child(model)
 		_anim = model.find_child("AnimationPlayer", true, false) as AnimationPlayer
+		if _anim != null:
+			# their poses go in before anything plays: adding an animation library
+			# to a playing AnimationPlayer leaves it reading freed memory, which
+			# crashed the hub when Ophelia took a pose
+			NpcIdles._load_poses(self)
 		var springs := NpcSprings.make(who, model.find_child("Skeleton3D", true, false) as Skeleton3D)
 		if springs != null:
 			add_child(springs)
