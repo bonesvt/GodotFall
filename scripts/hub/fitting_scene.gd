@@ -78,6 +78,9 @@ const SEAT := 0.46
 const ACROSS := 2.1
 ## Eco's own copy goes on this render layer, which the first-person camera leaves out.
 const ECO_LAYER := 1 << 19
+## The modelled chairs and arms (tools/hub/build_fitting_room.py), and an arm segment's length.
+const ROOM_MODELS := "res://assets/models/colony_gear/fitting_room.glb"
+const ARM := 1.25
 const AFTER := "Eco wakes on the bench outside the dispensary. Her %s won't come off. She's tried."
 
 var rm: Node
@@ -105,6 +108,7 @@ var _veil_layer: CanvasLayer
 var _veil: ColorRect
 var _obey: Label
 var _said := {}
+var _room_mats := {}
 
 
 func _init(run_manager: Node) -> void:
@@ -257,6 +261,10 @@ func _build() -> void:
 	var wall := _mat(Color(0.9, 0.92, 0.95), 0.0)
 	var trim := _mat(Color(0.55, 0.6, 0.68), 0.0)
 	var lit := _mat(Color(0.85, 0.95, 1.0), 2.5)
+	var chrome := _mat(Color(0.75, 0.78, 0.82), 0.0)
+	chrome.metallic = 0.9
+	chrome.roughness = 0.2
+	_room_mats = {"shell": _mat(Color(0.95, 0.96, 0.98), 0.0), "trim": trim, "dark": _mat(Color(0.12, 0.13, 0.16), 0.0), "lit": lit, "chrome": chrome}
 	_box(Vector3(0, -0.05, 0), Vector3(7, 0.1, 7), wall)          # floor
 	_box(Vector3(0, 3.2, 0), Vector3(7, 0.1, 7), wall)            # ceiling
 	_box(Vector3(0, 1.6, 2.2), Vector3(7, 3.3, 0.1), wall)        # back wall
@@ -342,18 +350,37 @@ func _frame(at: Vector3, face: float, trim: Material) -> void:
 
 
 ## A fitting chair under someone sat at `at` facing -Z (`face` -1: facing +Z):
-## a white seat on a grey post, and a low back that leaves the spine clear.
+## the modelled one (tools/hub/build_fitting_room.py), or a white seat on a
+## grey post and a low back that leaves the spine clear.
 func _chair(at: Vector3, face: float, trim: Material, wall: Material) -> void:
+	var chair := Node3D.new()
+	chair.position = at
+	chair.rotation.y = 0.0 if face > 0.0 else PI
+	_set.add_child(chair)
+	if _room_model(chair, "chair"):
+		return
 	_box(at + Vector3(0, SEAT - 0.04, -0.12 * face), Vector3(0.5, 0.08, 0.5), wall)
 	_box(at + Vector3(0, (SEAT - 0.08) * 0.5, -0.1 * face), Vector3(0.12, SEAT - 0.08, 0.12), trim)
 	_box(at + Vector3(0, 0.02, -0.1 * face), Vector3(0.5, 0.04, 0.5), trim)
 	_box(at + Vector3(0, SEAT + 0.2, 0.17 * face), Vector3(0.46, 0.34, 0.06), wall)
 
 
-## An arm from the ceiling: a rod and a white clamp head. [arm, rod]
+## An arm from the ceiling: the modelled one, jointed (a mount, two segments
+## and a tool head, posed by _place_arm), or a rod and a white clamp head.
+## [arm, rod (null when jointed)]
 func _make_arm(trim: Material, wall: Material, lit: Material) -> Array:
 	var arm := Node3D.new()
 	_set.add_child(arm)
+	var jointed := true
+	for part in [["Mount", "arm_mount"], ["Upper", "arm_upper"], ["Lower", "arm_lower"], ["Clamp", "arm_head"]]:
+		var n := Node3D.new()
+		n.name = part[0]
+		arm.add_child(n)
+		jointed = _room_model(n, part[1]) and jointed
+	if jointed:
+		return [arm, null]
+	for n in arm.get_children():
+		n.free()
 	var rod_mi := MeshInstance3D.new()
 	var rod := CylinderMesh.new()
 	rod.top_radius = 0.035
@@ -378,6 +405,37 @@ func _make_arm(trim: Material, wall: Material, lit: Material) -> Array:
 	head.add_child(eye)
 	return [arm, rod_mi]
 
+
+## The modelled room parts (tools/hub/build_fitting_room.py): part -> [[mesh,
+## transform, material key], ...], read once.
+static var _room_parts := {}
+
+
+func _room_model(root: Node3D, part: String) -> bool:
+	if _room_parts.is_empty() and ResourceLoader.exists(ROOM_MODELS):
+		var inst := (load(ROOM_MODELS) as PackedScene).instantiate()
+		for mi in inst.find_children("*", "MeshInstance3D", true, false):
+			var bits := String(mi.name).split("__")
+			if bits.size() < 2:
+				continue
+			var key := ""
+			for ch in bits[1]:
+				if ch < "a" or ch > "z":
+					break
+				key += ch
+			if not _room_parts.has(bits[0]):
+				_room_parts[bits[0]] = []
+			_room_parts[bits[0]].append([(mi as MeshInstance3D).mesh, (mi as Node3D).transform, key])
+		inst.free()
+	if not _room_parts.has(part):
+		return false
+	for p in _room_parts[part]:
+		var mi := MeshInstance3D.new()
+		mi.mesh = p[0]
+		mi.transform = p[1]
+		mi.material_override = _room_mats.get(p[2], _room_mats.get("shell"))
+		root.add_child(mi)
+	return true
 
 ## Where on `model` the piece `p` goes, in the room's space (offsets in their
 ## own facing: they face -Z).
@@ -424,6 +482,9 @@ func _place_arm(arm: Node3D, rod_mi: MeshInstance3D, model: Node3D, p: String, d
 	var top := tip + model.global_basis.orthonormalized() * off
 	top.y = SET.y + 3.15
 	var head := top.lerp(tip, maxf(down, 0.03))
+	if rod_mi == null:
+		_pose_arm(arm, top, head, (top - tip) * Vector3(1, 0, 1), model.global_rotation.y)
+		return
 	arm.global_position = head
 	var span := top - head
 	var len := maxf(span.length(), 0.05)
@@ -433,6 +494,36 @@ func _place_arm(arm: Node3D, rod_mi: MeshInstance3D, model: Node3D, p: String, d
 	var side := up.cross(Vector3.FORWARD if absf(up.dot(Vector3.FORWARD)) < 0.9 else Vector3.RIGHT).normalized()
 	rod_mi.global_transform = Transform3D(Basis(side, up, side.cross(up)), head + span * 0.5)
 
+
+## The jointed arm: its mount in the ceiling at `top`, its jaws at `head`, the
+## elbow bent out `away` from whoever it's fitting (two-bone IK).
+func _pose_arm(arm: Node3D, top: Vector3, head: Vector3, away: Vector3, yaw: float) -> void:
+	var mount := arm.get_node("Mount") as Node3D
+	var upper := arm.get_node("Upper") as Node3D
+	var lower := arm.get_node("Lower") as Node3D
+	var clamp := arm.get_node("Clamp") as Node3D
+	mount.global_position = top
+	var shoulder := top + Vector3(0, -0.17, 0)
+	var wrist := head + Vector3(0, 0.15 * clamp.scale.y, 0)
+	var span := wrist - shoulder
+	var d := clampf(span.length(), 0.01, ARM * 2.0 - 0.001)
+	var dir := span.normalized() if span.length() > 0.001 else Vector3.DOWN
+	var out := away.normalized() if away.length() > 0.01 else Vector3.BACK
+	var bend := (out - dir * out.dot(dir))
+	bend = bend.normalized() if bend.length() > 0.001 else Vector3.RIGHT
+	var elbow := shoulder + dir * d * 0.5 + bend * sqrt(maxf(ARM * ARM - d * d * 0.25, 0.0))
+	_aim(upper, shoulder, elbow)
+	_aim(lower, elbow, wrist)
+	var keep := clamp.scale
+	clamp.global_transform = Transform3D(Basis(Vector3.UP, yaw), wrist)
+	clamp.scale = keep
+
+
+## Puts a segment's pivot at `from`, its -Y running to `to`.
+func _aim(n: Node3D, from: Vector3, to: Vector3) -> void:
+	var y := (from - to).normalized()
+	var x := y.cross(Vector3.FORWARD if absf(y.dot(Vector3.FORWARD)) < 0.95 else Vector3.RIGHT).normalized()
+	n.global_transform = Transform3D(Basis(x, y, x.cross(y)), from)
 
 func _shot(which: String) -> void:
 	if _cam == null:
