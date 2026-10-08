@@ -19,6 +19,8 @@ const ColonyGear := preload("res://scripts/hub/colony_gear.gd")
 const Hair := preload("res://scripts/hub/hair.gd")
 const SFX := preload("res://scripts/sfx.gd")
 const ECO := preload("res://assets/models/eco.tscn")
+const HubNpc := preload("res://scripts/hub/hub_npc.gd")
+const HubGrip := preload("res://scripts/hub/hub_grip.gd")
 
 ## Where the back room is built (out of sight under the hub).
 const SET := Vector3(0, -160, 0)
@@ -63,6 +65,7 @@ const MORE_LINES := {
 		"She stands in the frame while it clicks onto her spine segment by segment, shoulders to waist, each node lighting as it locks.",
 		"Her back straightens on its own. Calm voice: \"Walk with everyone. Never alone.\""],
 }
+const BESIDE := "  In the next frame, %s gets the same. Eco can't turn her head to look."
 const AFTER := "Eco wakes on the bench outside the dispensary. Her %s won't come off. She's tried."
 
 var rm: Node
@@ -70,6 +73,10 @@ var t := -1.0
 var piece := ""
 ## The visor's orders flash up at the end of its fitting (visor_screen.gd reads it).
 var visor_flash := false
+## Someone she loves, taken with her (hub_grip.gd), and the piece going on them.
+var with := ""
+var with_piece := ""
+var _with_model: Node3D
 var _set: Node3D
 var _eco: Node3D
 var _gear: Node3D
@@ -111,9 +118,12 @@ func busy() -> bool:
 	return t >= 0.0
 
 
-## Plays the fitting of `p` (a Hymn.GEAR piece), from white.
-func play(p: String) -> void:
+## Plays the fitting of `p` (a Hymn.GEAR piece), from white; `p_with` (hub_grip.gd)
+## was taken with her and gets `p_with_piece` in the next frame over.
+func play(p: String, p_with := "", p_with_piece := "") -> void:
 	piece = p
+	with = p_with
+	with_piece = p_with_piece
 	t = 0.0
 	_said.clear()
 	visor_flash = false
@@ -143,13 +153,15 @@ func _process(delta: float) -> void:
 	var k := clampf((t - FIT) / FIT_TIME, 0.0, 1.0)
 	if _eco != null:
 		ColonyGear.fit_model(_eco, piece, k)
+		if _with_model != null:
+			ColonyGear.fit_model(_with_model, with_piece, k)
 		if _gear != null and piece in ["headphones", "cuff"]:  # the others' fit() brings them down
 			_gear.position = Vector3(0, 0.45 * (1.0 - smoothstep(LOWER, ON, t)), 0)
 	_place_arm(down)
 	if t >= ON and not _said.has("on"):
 		_said["on"] = true
 		_shot("close")
-		rm.hud.toast(_lines()[0], 2.5)
+		rm.hud.toast(_lines()[0] + (BESIDE % HubGrip.NAMES[with] if _with_model != null else ""), 3.0)
 		SFX.play(self, "titan_servo_2", -8.0, 1.4)
 	if t >= FIT + FIT_TIME * 0.35 and not _said.has("fit"):
 		_said["fit"] = true
@@ -179,9 +191,9 @@ func _finish() -> void:
 	_teardown()
 	_show_hud(true)
 	rm.player.set("entranced", false)
-	rm.fitted(piece)
 	if Hymn.GEAR_NAMES.has(piece):
 		rm.hud.toast(AFTER % Hymn.GEAR_NAMES[piece], 6.0)
+	rm.fitted(piece)  # after: who was taken with her says so over it
 
 
 ## Stops it where it is (the hub was left under it, say).
@@ -252,6 +264,20 @@ func _build() -> void:
 	ColonyGear.apply(_eco, gear)
 	_gear = ColonyGear.piece_node(_eco, piece)
 	ColonyGear.fit_model(_eco, piece, 0.0)
+	# whoever was taken with her, in a frame of their own beside her
+	if with != "" and with_piece != "":
+		_with_model = HubNpc.create(with, Vector3(1.35, 0, 0.1), 0.0)
+		_set.add_child(_with_model)
+		_with_model.set_process(false)
+		if is_instance_valid(_with_model.soft_body):
+			_with_model.soft_body.queue_free()
+		ColonyGear.apply(_with_model, HubGrip.gear_of(with))
+		ColonyGear.fit_model(_with_model, with_piece, 0.0)
+		_with_model.mood(["sad"])
+		var frame2 := _mat(Color(0.55, 0.6, 0.68), 0.0)
+		for s in [-1.0, 1.0]:
+			_box(Vector3(1.35 + 0.55 * s, 1.1, 0.45), Vector3(0.1, 2.2, 0.1), frame2)
+		_box(Vector3(1.35, 2.2, 0.45), Vector3(1.2, 0.1, 0.1), frame2)
 	# the arm from the ceiling: a rod and a white clamp head
 	_arm = Node3D.new()
 	_set.add_child(_arm)
@@ -324,7 +350,10 @@ func _shot(which: String) -> void:
 	match which:
 		"wide":
 			_cam.fov = 48.0
-			_cam.look_at_from_position(SET + Vector3(1.2, 1.6, -2.6), SET + Vector3(0, 1.25, 0))
+			if _with_model != null:  # both frames in the shot
+				_cam.look_at_from_position(SET + Vector3(0.9, 1.6, -3.4), SET + Vector3(0.68, 1.2, 0))
+			else:
+				_cam.look_at_from_position(SET + Vector3(1.2, 1.6, -2.6), SET + Vector3(0, 1.25, 0))
 		"close":
 			_cam.fov = 26.0
 			match piece:
@@ -356,6 +385,7 @@ func _teardown() -> void:
 		_set.queue_free()
 	_set = null
 	_eco = null
+	_with_model = null
 	_gear = null
 	_arm = null
 	_cam = null

@@ -272,6 +272,11 @@ static func _lantern_row(root: Node3D, info: Dictionary, rng: RandomNumberGenera
 	shop(info, "shop_clinic", clinic, "[F] Mercy Clinic: implants", [
 		"Doc Imani stitched up Dad more times than I can count. She doesn't charge me. Yet.",
 	], "clinic", {"screen": "clinic"})
+	# Doc Imani's side room: she takes colony hardware off people (gear_off_screen.gd,
+	# Mature only; otherwise just the clinic's back door).
+	shop(info, "doc_gear", clinic + Vector3(0, 0, 2.6), "[F] Mercy Clinic: the back room", [
+		"The clinic's back room. Doc Imani's door is shut. A sign says KNOCK.",
+	], "gear_off_doc")
 
 	# The colony dispensary (hymn.gd): a white kiosk against the building line
 	# between the outfitter and the clinic, its screen and seal lit. Its daily

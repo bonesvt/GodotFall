@@ -6,8 +6,12 @@ extends CanvasLayer
 ## tube, seal or segment. HOLDS clean ones in a row and it's off her; one slip
 ## and it bites back (a shock of Hymn) and stays on. Opened like a workbench
 ## (pausing the hub), closed on F or Esc.
+## Mom's and Ophelia's gear (hub_grip.gd) is on the list too: the same job on
+## whoever sits down. Doc Imani does it at the Mercy Clinic (doc): for scrap,
+## with a steadier hand (DOC_STEADY), her own one try a visit.
 
 const Hymn := preload("res://scripts/hub/hymn.gd")
+const HubGrip := preload("res://scripts/hub/hub_grip.gd")
 const SFX := preload("res://scripts/sfx.gd")
 
 const OLIVE := Color(0.62, 0.66, 0.44)
@@ -43,31 +47,55 @@ const SLIPPED := "His hand slips. The %s bites back, a white jolt straight throu
 const SHAKE_SLOW := 1.6
 const SHAKE_FAST := 0.9
 
+const DOC_HELLO := "Doc Imani snaps on gloves and pulls the lamp down. \"Colony hardware. I've seen worse come out of soldiers. Who's first?\""
+const DOC_TIRED := "Doc Imani: \"One a visit. Nerves heal slower than you'd think. Come back after your next run.\""
+const DOC_NONE := "Doc Imani: \"Nothing of theirs on any of you. Keep it that way.\""
+## Scrap a try at the clinic, and how much steadier her hand is than Biggie's.
+const DOC_COST := 40
+const DOC_STEADY := 1.3
+const OFF_THEM := "%s's %s comes off. %s sits very still for a moment, then lets out a breath like she's been holding it for days."
+const SLIPPED_THEM := "The hand slips. %s's %s bites back, and %s cries out. It stays on."
+
 var kind := "gear_off"
 var unlocked: Array = []
 var close_now := false
-## What came off ("" none), and whether one slipped, for the toast and to re-dress her.
+## Doc Imani's clinic instead of Biggie's table.
+var doc := false
+var armory  # the armory (armory.gd), for Doc Imani's fee
+## What came off ("" none), and whether one slipped, for the toast and to re-dress her;
+## who it was ("eco", "mom", "ophelia").
 var removed := ""
 var slipped := ""
+var who := "eco"
 
 var _status: Label
 var _list: Label
 var _bar: Control
 var _piece := ""
+## [[who, piece], ...] as listed.
+var _rows: Array = []
 var _holds := 0
 var _t := 0.0
 var _at := 0.5
 var _close_in := -1.0
 var _rng := RandomNumberGenerator.new()
+## Who's here in the hub to sit down (Mom and Ophelia only when they are).
+var _present: Array = []
 
 
-func _init() -> void:
+func _init(p_doc := false, p_armory = null, present: Array = []) -> void:
+	doc = p_doc
+	armory = p_armory
+	_present = present
+	if doc:
+		kind = "gear_off_doc"
 	layer = 5
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	_rng.randomize()
 
 
 func _ready() -> void:
+	_rows = _entries()
 	var screen := Control.new()
 	screen.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	add_child(screen)
@@ -78,8 +106,8 @@ func _ready() -> void:
 	screen.add_child(back)
 	var panel := PanelContainer.new()
 	var box := StyleBoxFlat.new()
-	box.bg_color = Color(0.12, 0.13, 0.09, 0.96)
-	box.border_color = OLIVE
+	box.bg_color = Color(0.12, 0.13, 0.09, 0.96) if not doc else Color(0.08, 0.12, 0.12, 0.96)
+	box.border_color = OLIVE if not doc else Color(0.6, 0.9, 0.85)
 	box.set_border_width_all(2)
 	box.set_corner_radius_all(4)
 	box.set_content_margin_all(24)
@@ -90,12 +118,14 @@ func _ready() -> void:
 	var col := VBoxContainer.new()
 	col.add_theme_constant_override("separation", 10)
 	panel.add_child(col)
-	col.add_child(_text("BIGGIE'S TABLE", 28, OLIVE))
-	var line := HELLO
-	if Hymn.gear.is_empty():
-		line = NONE
-	elif Hymn.biggie_tried:
-		line = TIRED
+	col.add_child(_text("MERCY CLINIC  -  DOC IMANI" if doc else "BIGGIE'S TABLE", 28, OLIVE if not doc else Color(0.6, 0.9, 0.85)))
+	var line := DOC_HELLO if doc else HELLO
+	if _rows.is_empty():
+		line = DOC_NONE if doc else NONE
+	elif _tried():
+		line = DOC_TIRED if doc else TIRED
+	elif doc:
+		line += "  (%d scrap a try)" % DOC_COST
 	_status = _text(line, 16, INK)
 	_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_status.custom_minimum_size = Vector2(570, 0)
@@ -107,25 +137,47 @@ func _ready() -> void:
 	_bar.draw.connect(_draw_bar)
 	_bar.visible = false
 	col.add_child(_bar)
-	col.add_child(_text("1-6 pick a piece   Space when his hand's in the clear   F or Esc leave", 14, DIM))
+	col.add_child(_text("1-9 pick a piece   Space when the hand's in the clear   F or Esc leave", 14, DIM))
+
+
+## Everything on Eco, then on Mom and Ophelia if they're here: [who, piece].
+func _entries() -> Array:
+	var out := []
+	for g in Hymn.gear:
+		out.append(["eco", g])
+	for w in HubGrip.WHO:
+		if w in _present:
+			for g in HubGrip.gear_of(w):
+				out.append([w, g])
+	return out
+
+
+func _tried() -> bool:
+	return Hymn.doc_tried if doc else Hymn.biggie_tried
 
 
 func can_try() -> bool:
-	return not Hymn.gear.is_empty() and not Hymn.biggie_tried
+	return not _rows.is_empty() and not _tried()
 
 
 func _list_text() -> String:
 	if not can_try():
 		return ""
 	var rows := []
-	for i in Hymn.gear.size():
-		var g: String = Hymn.gear[i]
-		var room := Hymn.steady(g)
-		if g == "crown" and Hymn.crown_locked():
+	for i in _rows.size():
+		var w: String = _rows[i][0]
+		var g: String = _rows[i][1]
+		var room := _steady(g)
+		var tag: String = "" if w == "eco" else String(HubGrip.NAMES[w]) + ": "
+		if w == "eco" and g == "crown" and Hymn.crown_locked():
 			rows.append("%d   The Crown   (locked: everything else comes off first)" % (i + 1))
 			continue
-		rows.append("%d   The %s   (%s)" % [i + 1, Hymn.GEAR_NAMES[g], "fiddly" if room >= 0.18 else ("delicate" if room >= 0.12 else "very delicate")])
+		rows.append("%d   %sThe %s   (%s)" % [i + 1, tag, Hymn.GEAR_NAMES[g], "fiddly" if room >= 0.18 else ("delicate" if room >= 0.12 else "very delicate")])
 	return "\n".join(rows)
+
+
+func _steady(piece: String) -> float:
+	return Hymn.steady(piece) * (DOC_STEADY if doc else 1.0)
 
 
 func _process(delta: float) -> void:
@@ -136,7 +188,7 @@ func _process(delta: float) -> void:
 		return
 	if _piece == "":
 		return
-	# his hand: a wander of a few slow waves, quicker the more Hymn's in her
+	# the hand: a wander of a few slow waves, quicker the more Hymn's in her
 	_t += delta / lerpf(SHAKE_SLOW, SHAKE_FAST, Hymn.level / Hymn.MAX)
 	_at = 0.5 + 0.28 * sin(_t * 2.1) + 0.12 * sin(_t * 5.3 + 1.0) + 0.06 * sin(_t * 11.0 + 2.0)
 	_bar.queue_redraw()
@@ -150,44 +202,66 @@ func _input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 		return
 	var i: int = event.keycode - KEY_1
-	if _piece == "" and can_try() and i >= 0 and i < Hymn.gear.size():
-		if Hymn.gear[i] == "crown" and Hymn.crown_locked():
+	if _piece == "" and can_try() and i >= 0 and i < _rows.size():
+		var w: String = _rows[i][0]
+		var g: String = _rows[i][1]
+		if w == "eco" and g == "crown" and Hymn.crown_locked():
 			_status.text = CROWN_LOCKED
 		else:
-			pick(Hymn.gear[i])
+			pick(g, w)
 		get_viewport().set_input_as_handled()
 
 
-func pick(piece: String) -> void:
+func pick(piece: String, p_who := "eco") -> void:
+	if doc and armory != null:
+		if not armory._spend({"scrap": DOC_COST}):
+			_status.text = "Doc Imani: \"%d scrap, love. I don't do this for free.\"" % DOC_COST
+			return
+		armory.save()
 	_piece = piece
+	who = p_who
 	_holds = 0
 	_t = _rng.randf() * 10.0
 	_bar.visible = true
-	_list.text = "The %s." % Hymn.GEAR_NAMES[piece]
-	_status.text = START.get(piece, "")
+	_list.text = ("The %s." if who == "eco" else HubGrip.NAMES[who] + "'s %s.") % Hymn.GEAR_NAMES[piece]
+	_status.text = START.get(piece, "") if (who == "eco" and not doc) else "%s sits down. %s" % [HubGrip.NAMES.get(who, "Eco"), "Doc Imani: \"Breathe out, slow.\"" if doc else "Biggie: \"Easy now.\""]
 
 
-## Whether his hand's in the clear band now (`at` 0..1 along the bar).
+## Whether the hand's in the clear band now (`at` 0..1 along the bar).
 func clear_at(at: float) -> bool:
-	return absf(at - 0.5) <= Hymn.steady(_piece) * 0.5
+	return absf(at - 0.5) <= _steady(_piece) * 0.5
 
 
-## Space: one pin out if he's steady, a slip if not.
+## Space: one pin out if the hand's steady, a slip if not.
 func hold_now() -> void:
 	if clear_at(_at):
 		_holds += 1
 		SFX.play(self, "dry_click", -6.0, 1.3)
 		if _holds >= Hymn.HOLDS:
-			Hymn.biggie_try(_piece, true)
+			_try(true)
 			removed = _piece
-			_finish(OFF.get(_piece, ""), false)
+			var them: String = HubGrip.NAMES.get(who, "")
+			_finish(OFF.get(_piece, "") if who == "eco" else OFF_THEM % [them, Hymn.GEAR_NAMES[_piece], them], false)
 		else:
 			_bar.queue_redraw()
 	else:
-		Hymn.biggie_try(_piece, false)
+		_try(false)
 		slipped = _piece
 		SFX.play(self, "spark", -4.0)
-		_finish(SLIPPED % Hymn.GEAR_NAMES[_piece], true)
+		var them: String = HubGrip.NAMES.get(who, "")
+		_finish(SLIPPED % Hymn.GEAR_NAMES[_piece] if who == "eco" else SLIPPED_THEM % [them, Hymn.GEAR_NAMES[_piece], them], true)
+
+
+func _try(clean: bool) -> void:
+	if who == "eco":
+		Hymn.biggie_try(_piece, clean)
+	elif clean:
+		HubGrip.remove(who, _piece)
+	if doc:
+		Hymn.doc_tried = true
+	else:
+		Hymn.biggie_tried = true
+	Hymn.save()
 
 
 func _finish(line: String, bad: bool) -> void:
@@ -200,7 +274,7 @@ func _draw_bar() -> void:
 	var w := _bar.size.x
 	var h := _bar.size.y
 	_bar.draw_rect(Rect2(0, 10, w, h - 20), Color(0.2, 0.2, 0.16))
-	var band := Hymn.steady(_piece) if _piece != "" else 0.2
+	var band := _steady(_piece) if _piece != "" else 0.2
 	_bar.draw_rect(Rect2(w * (0.5 - band * 0.5), 10, w * band, h - 20), Color(GREEN, 0.7))
 	_bar.draw_rect(Rect2(w * clampf(_at, 0.0, 1.0) - 3, 0, 6, h), Color.WHITE if clear_at(_at) else RED)
 	for i in Hymn.HOLDS:

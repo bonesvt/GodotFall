@@ -49,11 +49,11 @@ const VISOR_HOVER := -0.075
 static var _mats := {}
 
 
-static func apply(model: Node, gear: Array = []) -> void:
+static func apply(model: Node, p_gear = null) -> void:
 	if model == null:
 		return
-	if gear.is_empty() and Hymn.allowed():
-		gear = Hymn.gear
+	# no list: Eco's own; someone else's (hub_grip.gd) may be empty
+	var gear: Array = Hymn.gear if p_gear == null else p_gear
 	var skel := model.find_child("Skeleton3D", true, false) as Skeleton3D
 	if skel == null or skel.find_bone(HEAD) < 0:
 		return
