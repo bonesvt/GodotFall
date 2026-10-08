@@ -21,8 +21,9 @@ const STREET_HALF := 7.0
 ## The alley gap on Low Row's west side, and the cellar door on its east.
 const ALLEY := Vector3(-STREET_HALF + 0.9, 0, 203.75)
 const CELLAR := Vector3(STREET_HALF - 1.1, 0, 213.3)
-## The basement room's floor centre, under the town.
-const BASEMENT := Vector3(-80.0, -10.0, 210.0)
+## The basement room's floor centre, under the town: deep enough that the
+## hillside's terrain (down to about y -9 here) never reaches into it.
+const BASEMENT := Vector3(-80.0, -30.0, 210.0)
 const ROOM := Vector3(7.0, 3.0, 7.0)
 ## Where Eco comes to (his armchair) and where the stairs up are.
 const WAKE := BASEMENT + Vector3(-1.9, 0, 1.4)
@@ -228,11 +229,11 @@ static func _her_room(root: Node3D, info: Dictionary) -> void:
 	var hw := HER_SIZE.x * 0.5
 	var hd := HER_SIZE.z * 0.5
 	var wall := Color(0.55, 0.52, 0.48)
-	K.carved(root, r + Vector3(0, -0.25, 0), Vector3(HER_SIZE.x + 0.6, 0.5, HER_SIZE.z + 0.6), Vector3.ZERO, Color(0.5, 0.47, 0.44))
-	K.carved(root, r + Vector3(0, HER_SIZE.y + 0.25, 0), Vector3(HER_SIZE.x + 0.6, 0.5, HER_SIZE.z + 0.6), Vector3.ZERO, Color(0.4, 0.38, 0.36))
+	_concrete(root, r + Vector3(0, -0.25, 0), Vector3(HER_SIZE.x + 0.6, 0.5, HER_SIZE.z + 0.6), Vector3.ZERO, Color(0.5, 0.47, 0.44))
+	_concrete(root, r + Vector3(0, HER_SIZE.y + 0.25, 0), Vector3(HER_SIZE.x + 0.6, 0.5, HER_SIZE.z + 0.6), Vector3.ZERO, Color(0.4, 0.38, 0.36))
 	for side in [-1.0, 1.0]:
-		K.carved(root, r + Vector3(side * (hw + 0.15), HER_SIZE.y * 0.5, 0), Vector3(0.3, HER_SIZE.y, HER_SIZE.z), Vector3.ZERO, wall)
-		K.carved(root, r + Vector3(0, HER_SIZE.y * 0.5, side * (hd + 0.15)), Vector3(HER_SIZE.x, HER_SIZE.y, 0.3), Vector3.ZERO, wall)
+		_concrete(root, r + Vector3(side * (hw + 0.15), HER_SIZE.y * 0.5, 0), Vector3(0.3, HER_SIZE.y, HER_SIZE.z), Vector3.ZERO, wall)
+		_concrete(root, r + Vector3(0, HER_SIZE.y * 0.5, side * (hd + 0.15)), Vector3(HER_SIZE.x, HER_SIZE.y, 0.3), Vector3.ZERO, wall)
 	# Cot with a blanket, a crate for a table, her toolbox, Dad's photo.
 	K.mesh(root, HER_WAKE + Vector3(-0.2, 0.25, 0.2), Vector3(0.9, 0.12, 1.9), Art.material("canvas", Color(0.45, 0.5, 0.4)))
 	K.mesh(root, HER_WAKE + Vector3(-0.2, 0.33, 0.45), Vector3(0.85, 0.06, 1.1), Art.material("fabric", Color(0.75, 0.4, 0.3)))
@@ -285,17 +286,25 @@ static func _cellar(root: Node3D, info: Dictionary) -> void:
 	spot["teleport"] = STAIRS + Vector3(-0.8, 0, 0.6)
 
 
+## A solid slab of the basement's concrete (floor, wall, ceiling). Not the
+## hub kit's carved(), which builds in whatever style the hub was last set to.
+static func _concrete(root: Node3D, pos: Vector3, size: Vector3, _rot := Vector3.ZERO, tint := Color.WHITE) -> StaticBody3D:
+	var body: StaticBody3D = K.Kit.box(root, pos, size, K.STONE, Vector3.ZERO, Art.material("concrete", tint))
+	body.set_meta("surface", "stone")  # footstep sounds (player.gd)
+	return body
+
+
 static func _basement(root: Node3D, info: Dictionary) -> void:
 	var b := BASEMENT
 	var hw := ROOM.x * 0.5
 	var hd := ROOM.z * 0.5
 	var concrete := Art.material("concrete", Color(0.42, 0.4, 0.44))
 	# Floor, ceiling and four walls, all solid, so it's sealed.
-	K.carved(root, b + Vector3(0, -0.25, 0), Vector3(ROOM.x + 0.6, 0.5, ROOM.z + 0.6), Vector3.ZERO, Color(0.5, 0.48, 0.52))
-	K.carved(root, b + Vector3(0, ROOM.y + 0.25, 0), Vector3(ROOM.x + 0.6, 0.5, ROOM.z + 0.6), Vector3.ZERO, Color(0.35, 0.33, 0.38))
+	_concrete(root, b + Vector3(0, -0.25, 0), Vector3(ROOM.x + 0.6, 0.5, ROOM.z + 0.6), Vector3.ZERO, Color(0.5, 0.48, 0.52))
+	_concrete(root, b + Vector3(0, ROOM.y + 0.25, 0), Vector3(ROOM.x + 0.6, 0.5, ROOM.z + 0.6), Vector3.ZERO, Color(0.35, 0.33, 0.38))
 	for side in [-1.0, 1.0]:
-		K.carved(root, b + Vector3(side * (hw + 0.15), ROOM.y * 0.5, 0), Vector3(0.3, ROOM.y, ROOM.z), Vector3.ZERO, Color(0.45, 0.43, 0.47))
-		K.carved(root, b + Vector3(0, ROOM.y * 0.5, side * (hd + 0.15)), Vector3(ROOM.x, ROOM.y, 0.3), Vector3.ZERO, Color(0.45, 0.43, 0.47))
+		_concrete(root, b + Vector3(side * (hw + 0.15), ROOM.y * 0.5, 0), Vector3(0.3, ROOM.y, ROOM.z), Vector3.ZERO, Color(0.45, 0.43, 0.47))
+		_concrete(root, b + Vector3(0, ROOM.y * 0.5, side * (hd + 0.15)), Vector3(ROOM.x, ROOM.y, 0.3), Vector3.ZERO, Color(0.45, 0.43, 0.47))
 	# A rug, his table with the resin jars glowing, his chair, her armchair.
 	K.mesh(root, b + Vector3(0, 0.02, 0.3), Vector3(3.2, 0.03, 2.4), Art.material("fabric", Color(0.35, 0.12, 0.2)))
 	K.mesh(root, b + Vector3(0.3, 0.75, -0.6), Vector3(1.6, 0.08, 0.9), Art.material("wood", Color(0.4, 0.3, 0.25)))
