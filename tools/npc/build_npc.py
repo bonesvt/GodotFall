@@ -1215,6 +1215,12 @@ OUTFITS = {"ophelia": ["tee", "hoodie", "night", "prison", "colony", "colony_m"]
            "pip": ["crop", "shorts", "rave", "warden", "afterhours"]}
 # Outfits worn barefoot (the boots mesh hidden; hub_npc.gd NO_BOOTS).
 BAREFOOT = ["night", "prison", "colony", "colony_m", "warden", "afterhours"]
+# --ah-styles: concept renders of the after-hours fit's alternative cuts
+# (sling, cross straps, side ties, chain harness), same coverage.
+AH_STYLES = ["ah_sling", "ah_cross", "ah_sides", "ah_chain"]
+if "--ah-styles" in argv:
+    OUTFITS["pip"] = ["crop"] + AH_STYLES
+    BAREFOOT = BAREFOOT + AH_STYLES
 OUTFIT = "tee"
 
 
@@ -1394,8 +1400,8 @@ def pip_outfit(g, skin, x, y, z, ax, front, cov, edge, sine, neck_r):
         return pip_rave(g, skin, x, y, z, ax, front, cov, edge, sine, neck_r)
     if LOOK == "warden":
         return pip_warden(g, skin, x, y, z, ax, front, cov, edge, sine, neck_r)
-    if LOOK == "afterhours":
-        return pip_afterhours(g, skin, x, y, z, ax, front, cov, edge, sine, neck_r)
+    if LOOK == "afterhours" or LOOK.startswith("ah_"):
+        return pip_afterhours(g, skin, x, y, z, ax, front, cov, edge, sine, neck_r, LOOK[3:] if LOOK.startswith("ah_") else "")
     cropped = LOOK in ("crop", "sheer", "jacket", "shorts")
     WINE, WINE_D, WINE_L = (0.2, 0.012, 0.035), (0.11, 0.006, 0.02), (0.36, 0.05, 0.08)
     VEST, STRIPE, GOLD, TROUSER = (0.016, 0.014, 0.018), (0.12, 0.11, 0.12), (0.62, 0.42, 0.1), (0.012, 0.011, 0.014)
@@ -1536,7 +1542,7 @@ def pip_warden(g, skin, x, y, z, ax, front, cov, edge, sine, neck_r):
     return g.mixc(col, INK, ink)
 
 
-def pip_afterhours(g, skin, x, y, z, ax, front, cov, edge, sine, neck_r):
+def pip_afterhours(g, skin, x, y, z, ax, front, cov, edge, sine, neck_r, style=""):
     """afterhours: the Underfloor and the high rollers' room. The warden fit
     with the mesh gone: two small black satin triangles on gold halter
     strings, a thong-cut black brief on gold side strings, a fine gold chain
@@ -1563,6 +1569,30 @@ def pip_afterhours(g, skin, x, y, z, ax, front, cov, edge, sine, neck_r):
     chip_r = g.sqrt(g.add(g.sq(x), g.sq(g.sub(z, 1.17))))
     chip = g.mul(g.sub(1.0, g.sstep(0.0075, 0.0085, chip_r)), front)
     col = g.mixc(col, SATIN, g.mx(cup, briefs))
+    # alternative cuts (--ah-styles), same cups and brief
+    def line(a0, z0, a1, z1, v, w=0.0022):
+        k = (a1 - a0) / (z1 - z0)
+        return g.mul(g.band(g.sub(v, g.add(a0, g.mul(g.sub(z, z0), k))), -w, w), g.band(z, min(z0, z1), max(z0, z1)))
+    if style == "sling":   # slingshot straps from each cup down to the brief, no back tie
+        tie = g.mul(tie, 0.0)
+        drop = g.mul(line(0.062, 1.022, 0.006, 0.728, ax), front)
+    elif style == "cross":   # straps from each cup crossing the belly to the other hip
+        drop = g.mul(g.mx(line(0.062, 1.022, -0.15, 0.735, x), line(-0.062, 1.022, 0.15, 0.735, x)), front)
+        belt = g.mul(belt, 0.0)
+    elif style == "sides":   # bows at the hips, ends hanging down
+        knot = g.mul(g.band(ax, 0.145, 0.16), g.band(z, 0.695, 0.735))
+        bow = g.mul(g.sub(1.0, g.sstep(0.008, 0.01, g.sqrt(g.add(g.sq(g.sub(ax, 0.152)), g.sq(g.sub(z, 0.735)))))), 1.0)
+        strings = g.mx(strings, g.mul(g.mx(knot, bow), front))
+        belt = g.mul(belt, 0.0)
+        drop = g.mul(drop, 0.0)
+    elif style == "chain":   # a gold chain harness: under the bust, a ring, down to the hips
+        links = g.sstep(0.35, 0.6, sine(g.add(x, z), 0.006))
+        under = g.mul(g.band(z, 0.995, 1.001), g.sstep(0.2, 0.18, ax))
+        ring_r = g.sqrt(g.add(g.sq(x), g.sq(g.sub(z, 0.93))))
+        ring = g.mul(g.band(ring_r, 0.009, 0.0125), front)
+        legs = g.mul(g.mx(line(0.009, 0.93, 0.15, 0.735, ax), line(0.0, 0.995, 0.0, 0.94, ax)), front)
+        collar = g.mul(line(0.062, 1.056, 0.03, 1.178, ax, 0.0018), front)
+        drop = g.mx(g.mx(g.mul(g.mx(under, legs), links), ring), collar)
     col = g.mixc(col, GOLD, g.mx(g.mx(g.mx(halter, tie), g.mx(strings, belt)), drop))
     col = g.mixc(col, GOLD, g.mx(g.band(ax, 0.405, 0.42), g.band(z, 0.1, 0.112)))
     col = g.mixc(col, (0.01, 0.008, 0.012), choker)
