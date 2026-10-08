@@ -249,6 +249,8 @@ var visor_friends: Node
 var _taken_with := ""
 ## Marrow's Glass on runs (focus, his orders: tether.gd) and the Chorus's end (chorus_scene.gd).
 var tether: Tether
+## Locked in Marrow's storeroom after coming to there (hush_den.gd STORE_LOCK).
+var _store_locked := false
 var chorus_scene: ChorusScene
 ## What she grabbed by mistake for this run, deep in Marrow's Hold
 ## (vices.gd wrong_gear): put right when she gets home.
@@ -883,6 +885,9 @@ func _hub_tick(delta: float) -> void:
 		return
 	if spot.get("press_console", false):
 		_step_press_strength()
+		return
+	if spot.get("locked_wake", false) and _store_locked:  # Marrow's storeroom, locked from outside
+		hud.toast(HushDen.STORE_LOCKED_DOOR, 3.0)
 		return
 	if spot.has("teleport") and (spot.get("open", false) or Vices.allowed()):
 		place_player(spot["teleport"])
@@ -2029,6 +2034,9 @@ func _wake_at_marrows() -> void:
 		HushDen.show_iv(hush.get("iv", {}), w["iv"])
 		if w["iv"] == "taped":
 			Vices.hold = minf(Vices.hold + HushDen.DRIP_HOLD, Vices.MAX_HOLD)  # what the drip put in her
+	if w.get("locked", false):  # his storeroom: locked from outside a while, then let out
+		_store_locked = true
+		get_tree().create_timer(HushDen.STORE_LOCK).timeout.connect(_store_unlocked)
 	Vices.save()
 	place_player(w["pos"])
 	var tab := mini(Vices.TAB, armory.amount("scrap")) if w["his"] else 0
@@ -2044,6 +2052,14 @@ func _wake_at_marrows() -> void:
 		hud.toast(HushDen.BEG_LINES[Vices.wakes % HushDen.BEG_LINES.size()] + "\n" + HushDen.ERRANDS[id]["task"], 10.0)
 		return
 	hud.toast(w["line"] + ("  (-%d scrap)" % tab if tab > 0 else ""), 6.0)
+
+
+func _store_unlocked() -> void:
+	if not _store_locked:
+		return
+	_store_locked = false
+	if phase == Phase.HUB:
+		hud.toast(HushDen.STORE_UNLOCKED, 5.0)
 
 
 ## A breath of smoke drifting up in front of the camera.

@@ -96,6 +96,56 @@ const BACK_SIZE := Vector3(3.2, 2.5, 3.2)
 const BACK_WAKE := BACK_ROOM + Vector3(-0.5, 0, 0.2)
 const BACK_DOOR_IN := BASEMENT + Vector3(-1.0, 0, 3.2)
 const BACK_DOOR_OUT := BACK_ROOM + Vector3(1.0, 0, -1.2)
+## His bathroom, off the basement's west wall: grimy tiles, the toilet she
+## comes to slumped against, a cracked mirror with smoke drifting in it, her
+## phone on the floor. Sealed, its door teleports, like the others.
+const BATH_ROOM := BASEMENT + Vector3(0, 0, -10.0)
+const BATH_SIZE := Vector3(2.4, 2.4, 2.6)
+const BATH_WAKE := BATH_ROOM + Vector3(-0.3, 0, 0.3)
+const BATH_DOOR_IN := BASEMENT + Vector3(-3.2, 0, 2.3)
+const BATH_DOOR_OUT := BATH_ROOM + Vector3(0.75, 0, -0.9)
+const BATH_LINES := [
+	"Eco comes to on cold tiles, slumped against a toilet in a bathroom she doesn't remember finding. Her phone's lit on the floor by her hand: 14 missed calls. Mom. In the mirror over the sink, smoke is drifting, though there's nothing in here to make it.",
+	"The bathroom again. Her cheek on the toilet seat, the taste of violet in her mouth. 14 missed calls from Mom. Something in the mirror's smoke looks back at her, and then it's only smoke.",
+]
+## His storeroom, behind a door in the basement's north wall: shelves of his
+## tins, a bare bulb, and by the door a pair of cuffs on a hook, open, unused.
+## Locked from outside when she comes to there, for STORE_LOCK s.
+const STORE_ROOM := BASEMENT + Vector3(0, 0, 10.0)
+const STORE_SIZE := Vector3(3.0, 2.5, 2.6)
+const STORE_WAKE := STORE_ROOM + Vector3(-0.6, 0, 0.2)
+const STORE_DOOR_IN := BASEMENT + Vector3(1.4, 0, 3.2)
+const STORE_DOOR_OUT := STORE_ROOM + Vector3(1.1, 0, -0.8)
+const STORE_LOCK := 9.0
+const STORE_LINE := "Eco comes to on the floor of a storeroom, shelves of his tins all round her. The door's locked from the outside. On a hook beside it hang a pair of cuffs, open. Unused. For now."
+const STORE_LOCKED_DOOR := "Locked from the outside. Eco doesn't shout. She doesn't want to know who'd come."
+const STORE_UNLOCKED := "The lock clicks from the outside. Footsteps on the stairs, going up. Then nothing. The cuffs stay on their hook."
+## The bathroom mirror: a dark murky glass with smoke drifting through it, and
+## now and then two violet eyes in it for a moment.
+const MIRROR := "shader_type spatial;
+render_mode unshaded;
+float h(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+float n2(vec2 p) {
+	vec2 i = floor(p);
+	vec2 f = fract(p);
+	f = f * f * (3.0 - 2.0 * f);
+	return mix(mix(h(i), h(i + vec2(1, 0)), f.x), mix(h(i + vec2(0, 1)), h(i + vec2(1, 1)), f.x), f.y);
+}
+void fragment() {
+	vec2 uv = UV;
+	vec2 q = uv * 2.5 + vec2(TIME * 0.03, -TIME * 0.12);
+	q += vec2(n2(q * 1.3 + TIME * 0.05), n2(q * 1.3 - TIME * 0.04)) * 1.2;  // curled
+	float smoke = n2(q) * 0.5 + n2(q * 2.1) * 0.3 + n2(q * 4.3) * 0.2;
+	vec3 glass = mix(vec3(0.2, 0.22, 0.24), vec3(0.34, 0.36, 0.38), uv.y);
+	vec3 col = mix(glass, vec3(0.04, 0.03, 0.06), smoothstep(0.4, 0.75, smoke) * 0.9);
+	float look = step(0.86, fract(TIME * 0.07));
+	for (int k = 0; k < 2; k++) {
+		vec2 eye = vec2(0.42 + 0.16 * float(k), 0.42);
+		col += vec3(0.7, 0.35, 1.0) * look * smoothstep(0.03, 0.0, length((uv - eye) * vec2(1.0, 2.2))) * 2.0;
+	}
+	col *= 0.85 + 0.15 * step(0.02, abs(uv.x - 0.3 - uv.y * 0.4));  // a crack across it
+	ALBEDO = col;
+}"
 ## From this Hold the drip's already in her arm when she comes to.
 const BACK_TAPED_FROM := 60.0
 ## The Hold the drip puts in her while she's out.
@@ -221,6 +271,8 @@ static func build(root: Node3D, info: Dictionary) -> void:
 	_basement(root, info)
 	_her_room(root, info)
 	var iv := _back_room(root, info)
+	_bathroom(root, info)
+	_storeroom(root, info)
 	info["hush"] = {"wake": WAKE, "own_room": HER_WAKE, "back_room": BACK_WAKE, "street": CELLAR + Vector3(-1.2, 0, 0), "iv": iv}
 	for id: String in ERRANDS:
 		K.interactable(info, "errand_" + id, ERRANDS[id]["pos"], ERRANDS[id]["prompt"], [ERRANDS[id]["done"]], 2.0)
@@ -228,16 +280,23 @@ static func build(root: Node3D, info: Dictionary) -> void:
 
 
 ## Which room she comes to in and what she finds, for his Hold `hold` and her
-## `n`th trance: {pos, line, his, iv} (his: she's at his, he takes a tab; iv:
-## "capped" or "taped" when it's his back room). Once she's a regular (from
-## the third trance on, his Hold past her own room), every third time she
-## comes to on the cot in the back room he had made up for her.
+## `n`th trance: {pos, line, his, iv, locked} (his: she's at his, he takes a
+## tab; iv: "capped" or "taped" when it's his back room; locked: his
+## storeroom, locked from outside a while). Once she's a regular (from the
+## third trance on, his Hold past her own room) it goes round four places:
+## his armchair, slumped by the toilet in his bathroom, the cot in the back
+## room he had made up for her, and locked in his storeroom.
 static func wake(hold: float, n: int) -> Dictionary:
 	if hold < OWN_ROOM_BELOW:
 		return {"pos": HER_WAKE, "line": OWN_ROOM_LINES[n % OWN_ROOM_LINES.size()], "his": false}
-	if n >= 2 and n % 3 == 2:
-		var taped := hold >= BACK_TAPED_FROM
-		return {"pos": BACK_WAKE, "line": BACK_TAPED if taped else BACK_CAPPED, "his": true, "iv": "taped" if taped else "capped"}
+	match n % 4 if n >= 2 else 0:
+		1:
+			return {"pos": BATH_WAKE, "line": BATH_LINES[(n / 4) % BATH_LINES.size()], "his": true}
+		2:
+			var taped := hold >= BACK_TAPED_FROM
+			return {"pos": BACK_WAKE, "line": BACK_TAPED if taped else BACK_CAPPED, "his": true, "iv": "taped" if taped else "capped"}
+		3:
+			return {"pos": STORE_WAKE, "line": STORE_LINE, "his": true, "locked": true}
 	if hold >= 60.0:
 		return {"pos": WAKE, "line": DEEP_LINES[n % DEEP_LINES.size()], "his": true}
 	return {"pos": WAKE, "line": WAKE_LINES[n % WAKE_LINES.size()], "his": true}
@@ -341,12 +400,147 @@ static func _back_room(root: Node3D, info: Dictionary) -> Dictionary:
 	return {"capped": capped, "taped": taped}
 
 
+## Four walls, floor and ceiling of a sealed room `size` at `at`.
+static func _shell(root: Node3D, at: Vector3, size: Vector3, wall: Color, floor_tint: Color) -> void:
+	var hw := size.x * 0.5
+	var hd := size.z * 0.5
+	_concrete(root, at + Vector3(0, -0.25, 0), Vector3(size.x + 0.6, 0.5, size.z + 0.6), Vector3.ZERO, floor_tint)
+	_concrete(root, at + Vector3(0, size.y + 0.25, 0), Vector3(size.x + 0.6, 0.5, size.z + 0.6), Vector3.ZERO, wall.darkened(0.25))
+	for side in [-1.0, 1.0]:
+		_concrete(root, at + Vector3(side * (hw + 0.15), size.y * 0.5, 0), Vector3(0.3, size.y, size.z), Vector3.ZERO, wall)
+		_concrete(root, at + Vector3(0, size.y * 0.5, side * (hd + 0.15)), Vector3(size.x, size.y, 0.3), Vector3.ZERO, wall)
+
+
+## His bathroom: grimy pale-green tiles, a stained toilet she comes to slumped
+## against, a sink with a cracked mirror full of drifting smoke (MIRROR), a
+## flickering strip light, and her phone on the floor lit with Mom's
+## missed calls.
+static func _bathroom(root: Node3D, info: Dictionary) -> void:
+	var r := BATH_ROOM
+	_shell(root, r, BATH_SIZE, Color(0.52, 0.58, 0.52), Color(0.4, 0.42, 0.38))
+	var tile := Art.material("pavers", Color(0.62, 0.68, 0.6))
+	K.mesh(root, r + Vector3(0, 0.6, BATH_SIZE.z * 0.5 - 0.02), Vector3(BATH_SIZE.x, 1.2, 0.03), tile)  # tiled to waist height
+	K.mesh(root, r + Vector3(-BATH_SIZE.x * 0.5 + 0.02, 0.6, 0), Vector3(0.03, 1.2, BATH_SIZE.z), tile)
+	# grime: dark stains down the tiles and round the floor drain
+	for k in 5:
+		K.mesh(root, r + Vector3(-0.9 + k * 0.4, 0.4 + 0.1 * (k % 2), BATH_SIZE.z * 0.5 - 0.04), Vector3(0.1 + 0.05 * (k % 3), 0.5, 0.01), Art.material("dirt", Color(0.25, 0.22, 0.15)))
+	K.mesh(root, r + Vector3(0.2, 0.005, -0.1), Vector3(0.5, 0.005, 0.5), Art.material("dirt", Color(0.2, 0.18, 0.12)))
+	# the toilet, against the back wall, she's slumped against it
+	var wc := r + Vector3(-0.55, 0, 0.95)
+	var porcelain := Art.material("alloy", Color(0.9, 0.9, 0.86))
+	_round(root, wc + Vector3(0, 0.19, -0.04), 0.17, 0.13, 0.38, porcelain)  # the bowl, narrowing to its foot
+	var seat := MeshInstance3D.new()
+	var ring := TorusMesh.new()
+	ring.inner_radius = 0.12
+	ring.outer_radius = 0.2
+	seat.mesh = ring
+	seat.material_override = Art.material("alloy", Color(0.78, 0.74, 0.62))  # stained
+	seat.scale = Vector3(1, 0.25, 1.15)
+	seat.position = wc + Vector3(0, 0.4, -0.04)
+	root.add_child(seat)
+	K.mesh(root, wc + Vector3(0, 0.62, 0.2), Vector3(0.42, 0.42, 0.16), porcelain)  # the tank
+	K.mesh(root, wc + Vector3(0, 0.84, 0.2), Vector3(0.45, 0.04, 0.19), porcelain)  # its lid
+	# the sink and the mirror over it
+	var sink := r + Vector3(0.5, 0, 1.05)
+	K.mesh(root, sink + Vector3(0, 0.82, 0), Vector3(0.5, 0.14, 0.38), porcelain)
+	_round(root, sink + Vector3(0, 0.875, -0.02), 0.15, 0.15, 0.02, Art.material("gunmetal", Color(0.25, 0.25, 0.25)))  # the basin, dark
+	K.mesh(root, sink + Vector3(0, 0.4, 0.1), Vector3(0.08, 0.8, 0.08), Art.material("gunmetal"))
+	var mirror := MeshInstance3D.new()
+	var quad := QuadMesh.new()
+	quad.size = Vector2(0.55, 0.7)
+	mirror.mesh = quad
+	mirror.material_override = _shader_mat("mirror", MIRROR)
+	mirror.position = sink + Vector3(0, 1.45, 0.215)
+	mirror.rotation_degrees.y = 180.0  # facing into the room
+	root.add_child(mirror)
+	K.mesh(root, sink + Vector3(0, 1.45, 0.235), Vector3(0.62, 0.78, 0.02), Art.material("gunmetal", Color(0.3, 0.3, 0.3)))  # its frame
+	# her phone on the floor by her hand, lit with the calls
+	var phone := r + Vector3(-0.1, 0.012, 0.3)
+	K.mesh(root, phone, Vector3(0.08, 0.01, 0.15), Art.material("gunmetal", Color(0.1, 0.1, 0.12)))
+	var screen := Label3D.new()
+	screen.text = "14 missed calls\nMom"
+	screen.font_size = 18
+	screen.pixel_size = 0.0012
+	screen.modulate = Color(0.85, 0.95, 1.0)
+	screen.outline_size = 0
+	screen.position = phone + Vector3(0, 0.012, 0)
+	screen.rotation_degrees = Vector3(-90, 0, 0)
+	root.add_child(screen)
+	K.light(root, r + Vector3(0, 2.2, 0), Color(0.8, 0.95, 0.85), 0.5, 3.5)  # the strip light, sick and green
+	K.interactable(info, "bath_phone", phone + Vector3(0.3, 0, -0.2), "[F] Your phone", [
+		"14 missed calls. Mom. Mom. Mom. Mom. The last one was an hour ago. No voicemail on that one.",
+	], 1.2)
+	K.mesh(root, BATH_DOOR_OUT + Vector3(0.45, 1.0, 0), Vector3(0.08, 2.0, 0.85), Art.material("wood", Color(0.4, 0.34, 0.28)))
+	K.interactable(info, "bath_door", BATH_DOOR_OUT, "[F] Back out to the basement", ["The bathroom door sticks, then gives."], 1.6)
+	info["interactables"].back()["teleport"] = BATH_DOOR_IN + Vector3(0.9, 0, 0)
+	K.mesh(root, BATH_DOOR_IN + Vector3(-0.15, 1.0, 0), Vector3(0.08, 2.0, 0.85), Art.material("wood", Color(0.4, 0.34, 0.28)))
+	K.interactable(info, "bathroom", BATH_DOOR_IN + Vector3(0.3, 0, 0), "[F] The bathroom", ["A narrow wooden door. It smells of bleach and violet."], 1.4)
+	info["interactables"].back()["teleport"] = BATH_DOOR_OUT + Vector3(-0.8, 0, 0)
+
+
+## His storeroom: shelves of his tins, a bare bulb, crates, and by the door a
+## pair of cuffs hanging on a hook, open. The door's a "locked_wake" spot: shut
+## while she's locked in after coming to here (run_manager.gd).
+static func _storeroom(root: Node3D, info: Dictionary) -> void:
+	var r := STORE_ROOM
+	_shell(root, r, STORE_SIZE, Color(0.4, 0.38, 0.36), Color(0.38, 0.36, 0.34))
+	# shelves of tins along the back wall
+	for row in 3:
+		var y := 0.45 + row * 0.6
+		K.mesh(root, r + Vector3(-0.2, y, STORE_SIZE.z * 0.5 - 0.25), Vector3(2.2, 0.04, 0.4), Art.material("wood", Color(0.45, 0.36, 0.28)))
+		for k in 7:
+			K.mesh(root, r + Vector3(-1.1 + k * 0.3, y + 0.08, STORE_SIZE.z * 0.5 - 0.25), Vector3(0.12, 0.12, 0.12), Art.material("alloy", Color(0.55, 0.4, 0.7)))
+	for x in [-1.25, 0.85]:
+		K.mesh(root, r + Vector3(x, 1.0, STORE_SIZE.z * 0.5 - 0.25), Vector3(0.05, 2.0, 0.4), Art.material("wood", Color(0.4, 0.32, 0.25)))
+	K.mesh(root, r + Vector3(-1.0, 0.3, -0.7), Vector3(0.6, 0.6, 0.6), Art.material("wood", Color(0.5, 0.42, 0.3)))
+	K.mesh(root, r + Vector3(-0.4, 0.25, -0.85), Vector3(0.5, 0.5, 0.5), Art.material("wood", Color(0.48, 0.4, 0.3)))
+	K.light(root, r + Vector3(0, 2.2, 0), Color(1.0, 0.85, 0.6), 0.8, 4.0)
+	K.light(root, STORE_DOOR_OUT + Vector3(-0.2, 2.0, 0.6), Color(1.0, 0.85, 0.6), 0.6, 2.0)  # over the door
+	# the cuffs on their hook, beside the door: open, hanging, never used
+	var hook := STORE_DOOR_OUT + Vector3(0.45, 1.5, 0.75)
+	K.mesh(root, hook, Vector3(0.04, 0.04, 0.08), Art.material("gunmetal"))
+	var steel := Art.material("alloy", Color(0.75, 0.77, 0.8))
+	for s in [-1.0, 1.0]:
+		var ring := MeshInstance3D.new()
+		var t := TorusMesh.new()
+		t.inner_radius = 0.04
+		t.outer_radius = 0.052
+		ring.mesh = t
+		ring.material_override = steel
+		ring.position = hook + Vector3(-0.05, -0.16, 0.055 * s)
+		ring.rotation_degrees = Vector3(10 * s, 0, 90)  # hanging flat to the wall, facing into the room
+		root.add_child(ring)
+	K.mesh(root, hook + Vector3(-0.03, -0.07, 0), Vector3(0.01, 0.1, 0.012), steel)  # the chain
+	# the door: steel, and from the basement side its bolt
+	K.mesh(root, STORE_DOOR_OUT + Vector3(0.45, 1.05, 0), Vector3(0.08, 2.1, 1.0), Art.material("gunmetal", Color(0.33, 0.33, 0.35)))
+	K.interactable(info, "store_door", STORE_DOOR_OUT, "[F] The door", ["It opens."], 1.8)
+	info["interactables"].back()["teleport"] = STORE_DOOR_IN + Vector3(0, 0, -0.9)
+	info["interactables"].back()["locked_wake"] = true
+	K.mesh(root, STORE_DOOR_IN + Vector3(0, 1.05, 0.25), Vector3(1.0, 2.1, 0.08), Art.material("gunmetal", Color(0.33, 0.33, 0.35)))
+	K.mesh(root, STORE_DOOR_IN + Vector3(0.35, 1.1, 0.2), Vector3(0.25, 0.05, 0.05), Art.material("alloy", Color(0.7, 0.7, 0.72)))  # the bolt
+	K.interactable(info, "storeroom", STORE_DOOR_IN, "[F] The storeroom", ["A steel door with a bolt on this side."], 1.6)
+	info["interactables"].back()["teleport"] = STORE_DOOR_OUT + Vector3(-0.9, 0, 0)
+
+
 ## Which way the back room's line is: "capped" on the blanket or "taped" to
 ## where her arm was (hush_den.gd wake()), on the nodes _back_room() returned.
 static func show_iv(iv: Dictionary, how: String) -> void:
 	for k in ["capped", "taped"]:
 		if iv.has(k) and is_instance_valid(iv[k]):
 			(iv[k] as Node3D).visible = k == how
+
+
+## A round, tapering solid (bowl, basin): radius r0 at the top, r1 at the foot.
+static func _round(root: Node3D, at: Vector3, r0: float, r1: float, h: float, m: Material) -> void:
+	var mi := MeshInstance3D.new()
+	var c := CylinderMesh.new()
+	c.top_radius = r0
+	c.bottom_radius = r1
+	c.height = h
+	mi.mesh = c
+	mi.material_override = m
+	mi.position = at
+	root.add_child(mi)
 
 
 ## A thin tube from a to b (the IV line).
