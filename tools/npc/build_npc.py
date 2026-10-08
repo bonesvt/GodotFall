@@ -2235,7 +2235,7 @@ def make_actions(arm):
                 add(p, "head", X, -3 * math.sin(t * 2))
             p["_hips_loc"] = E["hips_loc"](0.002 * breath, 0)
             E["key_pose"](arm, f, p, keyed)
-        for fc in a.fcurves:
+        for fc in E["action_fcurves"](a):
             for kp in fc.keyframe_points:
                 kp.interpolation = "BEZIER"
     arm.animation_data.action = bpy.data.actions["idle"]

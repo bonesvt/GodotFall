@@ -176,6 +176,15 @@ def write_png(px, name):
     return img
 
 
+def action_fcurves(a):
+    """An action's F-curves: a.fcurves up to Blender 4.x, its layers' channel
+    bags from 5.0 (layered actions)."""
+    if hasattr(a, "fcurves"):
+        return list(a.fcurves)
+    return [fc for layer in a.layers for strip in layer.strips
+            for bag in strip.channelbags for fc in bag.fcurves]
+
+
 def box_blur(a, r):
     """Mean over a (2r+1)^2 window (edges clamped), via summed-area tables."""
     p = np.pad(a, ((r + 1, r), (r + 1, r)) + ((0, 0),) * (a.ndim - 2), mode="edge")
@@ -3663,7 +3672,7 @@ def make_actions(arm):
         p["_hips_loc"] = hips_loc(-0.5, 0.05)
         key_pose(arm, f, p, keyed)
     for a in acts:
-        for fc in a.fcurves:
+        for fc in action_fcurves(a):
             for kp in fc.keyframe_points:
                 kp.interpolation = "BEZIER"
     arm.animation_data.action = bpy.data.actions["idle"]
