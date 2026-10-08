@@ -11,7 +11,7 @@ const ContentRating := preload("res://scripts/radio/content_rating.gd")
 const CELL := Vector2i(640, 360)
 ## When to grab each piece's three stills (seconds into its fitting).
 const TIMES := {"headphones": [2.4, 6.0, 7.9], "cuff": [2.4, 5.4, 7.9], "visor": [2.4, 5.9, 8.2],
-	"bridge": [2.4, 6.0, 7.9], "gloves": [2.4, 5.6, 7.9], "spine": [2.4, 5.8, 7.9]}
+	"bridge": [2.4, 6.0, 7.9], "gloves": [2.4, 5.6, 7.9], "spine": [2.4, 5.8, 7.9], "bell": [2.4, 6.6, 7.9]}
 
 var out := "user://fitting_shots"
 

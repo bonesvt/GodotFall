@@ -25,6 +25,7 @@ const START := {
 	"visor": "Biggie: \"These cups are right on your eyes. Don't you dare blink.\"",
 	"bridge": "Biggie: \"Tubes up your nose. This is gonna sting.\"",
 	"gloves": "Biggie: \"They've grown into your skin. I'm gonna have to peel 'em.\"",
+	"bell": "Biggie: \"Collar's welded shut. Hold your chin up, I'm cutting it off you.\"",
 	"spine": "Biggie: \"Nine of these, right on your spine. Stand still. I'll go slow.\"",
 }
 const OFF := {
@@ -33,6 +34,7 @@ const OFF := {
 	"visor": "The cups let go with a wet pop and the visor's off. The world's too bright, and it's hers.",
 	"bridge": "He draws the tubes out slow. She sneezes for a full minute. Biggie laughs until she does too.",
 	"gloves": "The gloves peel off like old paint. Her hands sting. She can feel them again.",
+	"bell": "The collar falls open and the bell hits the floor with one last ring. Biggie stamps on it. Twice.",
 	"spine": "The last segment comes away. Her back slumps the way it used to. It's hers again.",
 }
 const SLIPPED := "His hand slips. The %s bites back, a white jolt straight through her, and stays on. Biggie: \"Damn it. Not today. Next time.\""

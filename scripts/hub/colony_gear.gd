@@ -15,6 +15,8 @@ extends RefCounted
 ##               tube up into each nostril, a glowing vial behind each ear
 ##   gloves      comfort gloves: seamless white to the shoulder, lines of light
 ##               down to every finger
+##   bell        the Hymn bell: a white collar at her throat with a small bell
+##               that rings when she moves fast (hymn.gd: it tells on her)
 ##   spine       the Plumb Line: a white and chrome spine down her back from
 ##               just below her neck, a glowing node on each segment, cables
 ##               into her shoulders
@@ -28,6 +30,7 @@ const Hymn := preload("res://scripts/hub/hymn.gd")
 const HEAD := "J_Bip_C_Head"
 const WRIST := "J_Bip_L_Hand"
 const NODE := "ColonyGear"
+const NECK := "J_Bip_C_Neck"
 ## Her ears and temples in rest model space.
 const EAR := Vector3(0.072, 1.522, 0.012)
 ## Her nostrils (her right; her left mirrors it) and the bridge of her nose.
@@ -75,6 +78,10 @@ static func apply(model: Node, gear: Array = []) -> void:
 		_gloves(model, skel)
 	if "spine" in gear and skel.find_bone(SPINE_BONES[0]) >= 0:
 		_spine(model, skel)
+	if "bell" in gear and skel.find_bone(NECK) >= 0:
+		var neck := _root(skel, NECK, NODE + "_Bell")
+		_bell(_piece(neck, "bell"), skel.get_bone_global_rest(skel.find_bone(NECK)).origin)
+		_match_layers(model, neck, "Body")
 	if "cuff" in gear and skel.find_bone(WRIST) >= 0:
 		var wrist := _root(skel, WRIST, NODE + "_Cuff")
 		_cuff(_piece(wrist, "cuff"), skel.get_bone_global_rest(skel.find_bone(WRIST)).origin)
@@ -137,6 +144,14 @@ static func fit(node: Node3D, piece: String, k: float) -> void:
 			for n in node.get_children():
 				if String(n.name).begins_with("Needle_"):
 					(n as Node3D).scale = Vector3(1, maxf(smoothstep(0.0, 0.4, k), 0.01), 1)
+		"bell":
+			# the collar closes round her throat, then the bell drops onto it
+			var band := node.get_node_or_null("Band") as Node3D
+			if band != null:
+				band.scale = Vector3.ONE * lerpf(1.6, 1.0, smoothstep(0.0, 0.6, k))
+			var bell := node.get_node_or_null("Bell") as Node3D
+			if bell != null:
+				bell.scale = Vector3.ONE * maxf(smoothstep(0.6, 0.9, k), 0.01)
 		"bridge":
 			node.position = Vector3(0, 0.25 * (1.0 - smoothstep(0.0, 0.35, k)), 0)
 			for side in ["L", "R"]:
@@ -184,11 +199,17 @@ static func _piece(root: Node3D, piece: String) -> Node3D:
 	return n
 
 
+## Same render layers and shadow casting as her own meshes, so on her
+## first-person copies (eco_fp_body.gd: "Shadow" casts only shadows) the gear
+## doesn't float in front of the camera.
 static func _match_layers(model: Node, root: Node3D, mesh_name: String) -> void:
 	var own := model.find_child(mesh_name, true, false) as MeshInstance3D
+	if own == null:
+		own = model.find_child("Body", true, false) as MeshInstance3D
 	if own != null:
 		for mi in root.find_children("*", "MeshInstance3D", true, false):
 			mi.layers = own.layers
+			mi.cast_shadow = own.cast_shadow
 
 
 static func _headphones(root: Node3D) -> void:
@@ -320,6 +341,30 @@ static func _spine(model: Node, skel: Skeleton3D) -> void:
 			_line(seg, Vector3(0.022 * s, 0, -0.004), Vector3(0.06 * s, 0.03, -0.03), 0.003, _chrome())
 	for r in roots.values():
 		_match_layers(model, r, "Body")
+
+
+## A white collar round her throat, lit seam, a small bell at the front.
+static func _bell(root: Node3D, neck: Vector3) -> void:
+	var at := neck + Vector3(0, 0.035, 0)
+	var band := Node3D.new()
+	band.name = "Band"
+	band.position = at
+	root.add_child(band)
+	_cylinder(band, Vector3.ZERO, 0.052, 0.026, _shell())
+	_torus(band, Vector3(0, -0.006, 0), 0.05, 0.056, _lit())
+	var bell := Node3D.new()
+	bell.name = "Bell"
+	bell.position = at + Vector3(0, -0.03, -0.055)
+	root.add_child(bell)
+	var dome := SphereMesh.new()
+	dome.radius = 0.016
+	dome.height = 0.024
+	_add(bell, dome, Vector3.ZERO, _chrome())
+	_cylinder(bell, Vector3(0, 0.014, 0), 0.004, 0.008, _shell())
+	var clap := SphereMesh.new()
+	clap.radius = 0.005
+	clap.height = 0.01
+	_add(bell, clap, Vector3(0, -0.012, 0), _lit())
 
 
 static func _cuff(root: Node3D, wrist: Vector3) -> void:

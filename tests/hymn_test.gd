@@ -150,11 +150,11 @@ func _run() -> void:
 
 	# The rest of the set: each capture the next piece, in order, each on her.
 	Hymn.gear = ["headphones", "cuff", "visor"]
-	for want in ["bridge", "gloves", "spine"]:
+	for want in ["bridge", "gloves", "spine", "bell"]:
 		_check("next capture: %s" % want, Hymn.processed() == want, Hymn.gear)
 	Wardrobe.dress_eco(player, true)
 	await _ticks(2)
-	for part in ["bridge", "UpperL", "HandR", "Seg_0", "Seg_8"]:
+	for part in ["bridge", "UpperL", "HandR", "Seg_0", "Seg_8", "Bell"]:
 		_check("%s on her" % part, player.find_child(part, true, false) != null, part)
 	_check("gloves: numb hands, slower reloads", Hymn.reload_scale() == Hymn.RELOAD_SLOW, Hymn.reload_scale())
 	_check("spine: a heavier step", Hymn.speed_scale() == Hymn.SPINE_SPEED, Hymn.speed_scale())
@@ -162,6 +162,13 @@ func _run() -> void:
 	Hymn._puff = Hymn.BRIDGE_EVERY
 	before = Hymn.level
 	_check("bridge: a puff a minute", not Hymn.tick_bridge(Hymn.BRIDGE_EVERY * 0.5) and Hymn.tick_bridge(Hymn.BRIDGE_EVERY * 0.6) and Hymn.level > before, Hymn.level)
+	# first person: her full copy only casts shadows, so its gear mustn't hang in view
+	var shadow_copy: Node = player.get_node("EcoBody/Shadow")
+	var floating := shadow_copy.find_child("ColonyGear*", true, false).find_children("*", "MeshInstance3D", true, false).filter(func(m): return m.cast_shadow != GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY)
+	_check("first person: no gear floating in view", floating.is_empty(), floating.size())
+	# the bell: rings moving fast, enemies near hear it, slow she's quiet
+	_check("bell quiet walking", not Hymn.tick_bell(1.0, 2.0), "")
+	_check("bell rings running", Hymn.tick_bell(1.0, 8.0) and not Hymn.tick_bell(0.1, 8.0) and Hymn.tick_bell(1.0, 8.0), "")
 	_check("nothing left to put on her", Hymn.processed() == "", Hymn.gear.size())
 
 	# Biggie's table: one try a visit; a clean job takes it off, a slip shocks her.

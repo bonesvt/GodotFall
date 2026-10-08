@@ -18,6 +18,9 @@ extends RefCounted
 ##   gloves      comfort gloves (touch): numb hands, reloads RELOAD_SLOW slower
 ##   spine       the Plumb Line (balance): colony posture, a step heavier
 ##               (SPINE_SPEED)
+##   bell        the Hymn bell on a collar: moving fast (over BELL_SPEED) it rings
+##               every BELL_EVERY s, and on a run every enemy in BELL_RANGE hears
+##               it like a shot; in town it tells the Shepherd where she is
 ## Biggie can get a piece off at the folding table in his tent (gear_off_screen.gd):
 ## one try each time she's back in town, a steady-hand job (STEADY: how much room
 ## he has with each piece), and every slip shocks her (SLIP Hymn) and it stays on.
@@ -25,12 +28,12 @@ extends RefCounted
 
 const Vices := preload("res://scripts/hub/vices.gd")
 
-const GEAR := ["headphones", "cuff", "visor", "bridge", "gloves", "spine"]
+const GEAR := ["headphones", "cuff", "visor", "bridge", "gloves", "spine", "bell"]
 const GEAR_NAMES := {"headphones": "compliance headphones", "cuff": "dose cuff", "visor": "clarity visor",
-	"bridge": "calm bridge", "gloves": "comfort gloves", "spine": "Plumb Line spine"}
+	"bridge": "calm bridge", "gloves": "comfort gloves", "spine": "Plumb Line spine", "bell": "Hymn bell"}
 ## How much room Biggie's hand has getting each piece off (the width of the
 ## steady band, 0..1): the visor's cups on her eyes and the spine least of all.
-const STEADY := {"headphones": 0.22, "cuff": 0.2, "visor": 0.12, "bridge": 0.18, "gloves": 0.2, "spine": 0.1}
+const STEADY := {"headphones": 0.22, "cuff": 0.2, "visor": 0.12, "bridge": 0.18, "gloves": 0.2, "spine": 0.1, "bell": 0.18}
 ## Clean holds he needs in a row (pins, needles, cups, tubes, seals, segments).
 const HOLDS := 3
 ## Hymn a slip shocks into her.
@@ -38,6 +41,10 @@ const SLIP := 5.0
 ## The calm bridge's puff: how often, and how much Hymn.
 const BRIDGE_EVERY := 60.0
 const BRIDGE_PUFF := 1.5
+## The bell: how fast she has to be moving for it to ring, how often, how far it carries.
+const BELL_SPEED := 6.0
+const BELL_EVERY := 0.9
+const BELL_RANGE := 22.0
 ## The gloves' numb hands (reload time x), the spine's heavier step (speed x).
 const RELOAD_SLOW := 1.3
 const SPINE_SPEED := 0.94
@@ -65,6 +72,7 @@ static var captures := 0
 static var gear: Array = []
 static var cuff_left := CUFF_TIME
 static var _puff := BRIDGE_EVERY
+static var _bell_t := 0.0
 ## Biggie's had a go this time in town.
 static var biggie_tried := false
 static var save_path := "user://hymn.cfg"
@@ -174,6 +182,18 @@ static func tick_bridge(delta: float) -> bool:
 		return false
 	_puff = BRIDGE_EVERY
 	level = minf(level + BRIDGE_PUFF, MAX)
+	return true
+
+
+## Each tick: true when the bell rings (she's on the move, fast, with it on).
+static func tick_bell(delta: float, speed: float) -> bool:
+	if not has("bell") or speed < BELL_SPEED:
+		_bell_t = minf(_bell_t, 0.2)
+		return false
+	_bell_t -= delta
+	if _bell_t > 0.0:
+		return false
+	_bell_t = BELL_EVERY
 	return true
 
 

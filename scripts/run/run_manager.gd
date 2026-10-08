@@ -643,8 +643,25 @@ func fitted(_piece: String) -> void:
 	Wardrobe.dress_eco(player, true)
 
 
+## The Hymn bell on her collar (hymn.gd): moving fast, it rings. On a run every
+## enemy in earshot hears it like a shot; in town it tells the Shepherd where she is.
+func _ring_bell(delta: float) -> void:
+	var v: Vector3 = player.velocity
+	if not Hymn.tick_bell(delta, Vector2(v.x, v.z).length()):
+		return
+	var at: Vector3 = player.global_position
+	SFX.play(player, "chime_3", -4.0, 1.6)
+	for e in get_tree().get_nodes_in_group("enemies"):
+		if e is Node3D and e.has_method("hear_gunshot") and (e as Node3D).global_position.distance_to(at) <= Hymn.BELL_RANGE:
+			e.hear_gunshot(at)
+	for s in get_tree().get_nodes_in_group("shepherd"):
+		s.heard(at)
+
+
 ## Hymn in the hub: the dose cuff counting down, and on the HUD.
 func _tick_hymn(delta: float, roaming: bool) -> void:
+	if roaming:
+		_ring_bell(delta)
 	if Hymn.tick_bridge(delta):
 		hud.toast(BRIDGE_PUFF, 2.5)
 	var cuffed := Hymn.has("cuff") and not Hymn.dosed_today
@@ -676,6 +693,7 @@ func _physics_process(delta: float) -> void:
 			hush_pull.run_tick(delta, titan == null or not titan.piloted)
 			if Hymn.tick_bridge(delta):
 				hud.toast(BRIDGE_PUFF, 2.5)
+			_ring_bell(delta)
 			var pull_was := Obsession.crave
 			Obsession.tick_run(delta)
 			if pull_was < 0.5 and Obsession.crave >= 0.5:

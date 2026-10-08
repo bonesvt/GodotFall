@@ -56,6 +56,9 @@ const MORE_LINES := {
 	"gloves": ["Two long white gloves come down to her hands.",
 		"They slide up her arms to the shoulder and seal. Lines of light run down to every fingertip.",
 		"She can't feel her own hands. Calm voice: \"Warmth when you're good. Cold when you're not.\""],
+	"bell": ["A white collar comes down, open, and closes round her throat.",
+		"A small bell clicks onto the front of it. The arm flicks it once. It rings, high and clean.",
+		"Calm voice: \"Now we'll always know where you are.\""],
 	"spine": ["Something long and white comes down behind her, to her back.",
 		"She stands in the frame while it clicks onto her spine segment by segment, shoulders to waist, each node lighting as it locks.",
 		"Her back straightens on its own. Calm voice: \"Walk with everyone. Never alone.\""],
@@ -277,6 +280,8 @@ func _target() -> Vector3:
 			return at + Vector3(0, 0, 0.12)
 		"bridge":
 			return at + Vector3(0, 0.02, -0.06)  # her nose
+		"bell":
+			return at + Vector3(0, -0.05, -0.03)  # her throat
 	return at + Vector3(0, 0.06, 0)
 
 
@@ -312,6 +317,8 @@ func _shot(which: String) -> void:
 					_cam.look_at_from_position(at + Vector3(-0.36, -0.06, -0.36), at + Vector3(-0.08, -0.04, 0.0))
 				"cuff":
 					_cam.look_at_from_position(at + Vector3(-0.5, 0.3, -0.7), at)
+				"bell":
+					_cam.look_at_from_position(at + Vector3(0.2, 0.06, -0.42), at + Vector3(0, -0.01, 0))
 				"bridge":
 					_cam.look_at_from_position(at + Vector3(0.2, -0.02, -0.34), at + Vector3(0, -0.01, 0))
 				"gloves":

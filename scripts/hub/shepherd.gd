@@ -292,6 +292,13 @@ func _process_her(_delta: float) -> void:
 	step = Step.GONE
 
 
+## The Hymn bell on her collar rang at t: it knows where she is.
+func heard(at: Vector3) -> void:
+	if step == Step.HUNT and global_position.distance_to(at) <= Hymn.BELL_RANGE * 2.0:
+		_last_seen = at
+		unseen = 0.0
+
+
 func give_up() -> void:
 	Hymn.escaped()
 	rm.hud.toast(LOST, 4.0)
