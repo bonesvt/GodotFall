@@ -1553,7 +1553,7 @@ def pip_afterhours(g, skin, x, y, z, ax, front, cov, edge, sine, neck_r, style="
     col = g.mixc(skin, PIP_LEG, g.mul(cov(g.sub(0.76, z)), g.sstep(0.0, 0.03, ax)))
     # the cups: small triangles over each side, widest at the bottom
     dx = g.abs(g.sub(ax, 0.062))
-    d_cup = g.mn(g.mn(g.sub(z, 1.022), g.sub(1.056, z)), g.sub(g.add(g.mul(g.sub(1.056, z), 0.56), 0.003), dx))
+    d_cup = g.mn(g.mn(g.sub(z, 1.031), g.sub(1.045, z)), g.sub(g.add(g.mul(g.sub(1.045, z), 0.45), 0.003), dx))
     cup = g.mul(cov(d_cup), front)
     # halter strings up to the neck, the tie round her back
     halter = g.mul(g.mul(g.band(g.sub(ax, g.sub(0.062, g.mul(g.sub(z, 1.056), 0.17))), -0.0025, 0.0025), g.band(z, 1.056, 1.175)), front)
