@@ -316,6 +316,9 @@ path wins. Every stage she reached stays in her wardrobe once she's free of it.
   `ViceLooks.unlock()`, or from the cheat box.
 - The looks are recolours of pieces she already has: `python3 tools/eco/bake_vice_looks.py`
   bakes their textures from `tools/eco/vice_looks.json` into `assets/textures/eco/looks/`.
+  Each look's `cuts` open the suit on her skin (bare arms, shorts, a crop top, an open back,
+  hip windows...), placed by where each texel sits on her body (`tools/eco/body_pos.npz`, from
+  `blender -b --factory-startup -P tools/eco/bake_body_pos.py`).
 - Test: `godot --headless --path . -s res://tests/vice_looks_test.gd`
 
 ### Cheat box
