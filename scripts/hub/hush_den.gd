@@ -11,7 +11,7 @@ extends RefCounted
 ## The basement is a sealed room built under the town (BASEMENT), so it never
 ## shows from the street. Under Teen the alley is empty talk and the cellar
 ## door stays chained (the run manager checks the rating).
-## Marrow is a primitive placeholder figure until a proper model is built.
+## Marrow is a shadow man (figure(), tools/hub/build_marrow.py).
 
 const K := preload("res://scripts/hub/hub_kit.gd")
 const Glass := preload("res://scripts/hub/glass.gd")
@@ -28,6 +28,52 @@ const ROOM := Vector3(7.0, 3.0, 7.0)
 const WAKE := BASEMENT + Vector3(-1.9, 0, 1.4)
 const STAIRS := BASEMENT + Vector3(2.4, 0, -2.6)
 const VIOLET := Color(0.7, 0.35, 1.0)
+## Marrow the shadow man (tools/hub/build_marrow.py), and where his ember sits
+## in his cupped right hand standing and sitting.
+const MARROW_MODEL := "res://assets/models/marrow/marrow.glb"
+const EMBER_STAND := Vector3(0.22, 1.08, -0.23)
+const EMBER_SIT := Vector3(0.22, 0.95, -0.23)
+## His body: ink that light doesn't touch, his edges dissolving into noise that
+## drifts upward with a thin violet glow, the coat's tatters stirring.
+const SHADOW := "shader_type spatial;
+render_mode unshaded, cull_disabled, depth_prepass_alpha;
+uniform vec3 rim = vec3(0.5, 0.22, 0.85);
+varying vec3 wpos;
+float h(vec3 p) { return fract(sin(dot(p, vec3(127.1, 311.7, 74.7))) * 43758.5453); }
+float n3(vec3 p) {
+	vec3 i = floor(p);
+	vec3 f = fract(p);
+	f = f * f * (3.0 - 2.0 * f);
+	return mix(mix(mix(h(i), h(i + vec3(1, 0, 0)), f.x), mix(h(i + vec3(0, 1, 0)), h(i + vec3(1, 1, 0)), f.x), f.y),
+		mix(mix(h(i + vec3(0, 0, 1)), h(i + vec3(1, 0, 1)), f.x), mix(h(i + vec3(0, 1, 1)), h(i + vec3(1, 1, 1)), f.x), f.y), f.z);
+}
+void vertex() {
+	float low = clamp(1.0 - VERTEX.y / 1.2, 0.0, 1.0);
+	VERTEX.x += sin(TIME * 1.1 + VERTEX.y * 3.0) * 0.008 + sin(TIME * 2.3 + VERTEX.z * 9.0) * 0.018 * low * low;
+	VERTEX.z += cos(TIME * 1.7 + VERTEX.x * 8.0) * 0.018 * low * low;
+	wpos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
+}
+void fragment() {
+	float fres = pow(1.0 - clamp(abs(dot(NORMAL, VIEW)), 0.0, 1.0), 2.0);
+	float n = n3(wpos * 7.0 + vec3(0.0, -TIME * 0.5, 0.0)) * 0.6 + n3(wpos * 17.0 + vec3(0.0, -TIME * 0.9, 0.0)) * 0.4;
+	// light doesn't touch him: ink, with a thin violet glow only where he frays
+	ALBEDO = vec3(0.004, 0.003, 0.007) + rim * pow(fres, 3.0) * n * 0.55;
+	ALPHA = clamp(1.0 - smoothstep(0.55, 0.97, fres + n * 0.4 - 0.1), 0.0, 1.0);
+}"
+## The dark pooling under him, its edge creeping in and out.
+const POOL := "shader_type spatial;
+render_mode unshaded, cull_disabled, depth_draw_never;
+void fragment() {
+	vec2 p = UV - 0.5;
+	float a = atan(p.y, p.x);
+	float wob = 0.06 * sin(a * 7.0 + TIME * 0.6) + 0.04 * sin(a * 13.0 - TIME * 1.1);
+	float r = length(p) * 2.0;
+	ALBEDO = vec3(0.0);
+	ALPHA = (1.0 - smoothstep(0.35 + wob, 0.95 + wob, r)) * 0.85;
+}"
+static var _parts := {}
+static var _parts_read := false
+static var _mats := {}
 ## Her room: a separate sealed room (doors between them teleport), her cot,
 ## and her steel door's two sides.
 const HER_ROOM := BASEMENT + Vector3(10.0, 0, 0)
@@ -219,7 +265,7 @@ static func _alley(root: Node3D, info: Dictionary) -> void:
 	# A dim violet lamp over the gap, trash and Marrow leaning in the dark.
 	K.light(root, ALLEY + Vector3(-0.6, 2.6, 0), VIOLET, 0.7, 3.5)
 	K.mesh(root, ALLEY + Vector3(-0.85, 0.35, 0.35), Vector3(0.6, 0.7, 0.5), Art.material("corrugated", Color(0.3, 0.32, 0.3)))
-	_marrow(info, figure(root, ALLEY + Vector3(-0.6, 0, -0.2), 90.0))
+	_marrow(info, figure(root, ALLEY + Vector3(-0.6, 0, -0.2), -90.0))  # facing out onto Low Row
 	K.interactable(info, "hush_alley", ALLEY + Vector3(0.6, 0, 0), "[F] Someone's leaning in the alley", [
 		"Some guy in a long coat in the gap by the arcade. He looks at me like he already knows my name.",
 		"He's still there. He's always there.",
@@ -350,13 +396,33 @@ static func _glass_works(root: Node3D, info: Dictionary) -> void:
 	info["glass_nodes"] = nodes
 
 
-## Marrow: a tall figure in a long dark coat and a deep hood, a violet ember at
-## his hand. `sitting` folds him into his chair.
+## Marrow: a shadow man (tools/hub/build_marrow.py), too tall and too thin, a
+## long coat tattering at the floor, a deep hood with only two violet eyes in
+## it, long fingers cupping a violet Hush ember. His edges never hold still:
+## they dissolve into drifting dark (SHADOW), smoke rises off him, his
+## tendrils run out across the floor into a pool of dark under him (POOL), and
+## the ember lights him from below. `sitting` sinks him into his chair.
+## Without the model, a primitive stand-in.
 static func figure(root: Node3D, pos: Vector3, yaw: float, sitting := false) -> Node3D:
 	var f := Node3D.new()
 	f.position = pos
 	f.rotation_degrees.y = yaw
 	root.add_child(f)
+	var pose := "sit" if sitting else "stand"
+	var parts := _shadow_parts()
+	if parts.has(pose):
+		for p in parts[pose]:
+			var mi := MeshInstance3D.new()
+			mi.mesh = p[0]
+			mi.transform = p[1]
+			mi.material_override = _shadow_mat() if p[2] == "shadow" else _eye_mat()
+			if p[2] == "eyes":
+				mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			f.add_child(mi)
+		_ember(f, EMBER_SIT if sitting else EMBER_STAND)
+		_smoke(f, sitting)
+		_pool(f, Vector3(0, 0.012, -0.3 if sitting else 0.0))
+		return f
 	var coat := Art.material("fabric", Color(0.1, 0.09, 0.12))
 	var body := MeshInstance3D.new()
 	var cap := CapsuleMesh.new()
@@ -384,6 +450,135 @@ static func figure(root: Node3D, pos: Vector3, yaw: float, sitting := false) -> 
 	f.add_child(face)
 	_glow(f, Vector3(0.22, (0.95 if sitting else 1.05), -0.18), Vector3(0.04, 0.04, 0.04))
 	return f
+
+
+## The modelled shadow man: pose -> [[mesh, transform, "shadow"|"eyes"], ...].
+static func _shadow_parts() -> Dictionary:
+	if _parts_read:
+		return _parts
+	_parts_read = true
+	if not ResourceLoader.exists(MARROW_MODEL):
+		return _parts
+	var inst := (load(MARROW_MODEL) as PackedScene).instantiate()
+	for mi in inst.find_children("*", "MeshInstance3D", true, false):
+		var bits := String(mi.name).split("__")
+		if bits.size() < 2:
+			continue
+		var key := "eyes" if bits[1].begins_with("eyes") else "shadow"
+		if not _parts.has(bits[0]):
+			_parts[bits[0]] = []
+		_parts[bits[0]].append([(mi as MeshInstance3D).mesh, (mi as Node3D).transform, key])
+	inst.free()
+	return _parts
+
+
+static func _shader_mat(key: String, code: String) -> ShaderMaterial:
+	if not _mats.has(key):
+		var sh := Shader.new()
+		sh.code = code
+		var m := ShaderMaterial.new()
+		m.shader = sh
+		_mats[key] = m
+	return _mats[key]
+
+
+static func _shadow_mat() -> ShaderMaterial:
+	return _shader_mat("shadow", SHADOW)
+
+
+static func _eye_mat() -> StandardMaterial3D:
+	if not _mats.has("eyes"):
+		var m := StandardMaterial3D.new()
+		m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		m.albedo_color = Color(0.85, 0.6, 1.0)
+		m.emission_enabled = true
+		m.emission = VIOLET
+		m.emission_energy_multiplier = 5.0
+		_mats["eyes"] = m
+	return _mats["eyes"]
+
+
+## His Hush ember, cupped in his right hand, lighting him violet from below.
+static func _ember(f: Node3D, at: Vector3) -> void:
+	var mi := MeshInstance3D.new()
+	var s := SphereMesh.new()
+	s.radius = 0.022
+	s.height = 0.044
+	mi.mesh = s
+	mi.material_override = _eye_mat()
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	mi.position = at
+	f.add_child(mi)
+	var lamp := OmniLight3D.new()
+	lamp.light_color = VIOLET
+	lamp.light_energy = 0.9
+	lamp.omni_range = 2.4
+	lamp.position = at + Vector3(0, 0.05, -0.06)
+	f.add_child(lamp)
+
+
+## Smoke rising off him all the time, black and slow.
+static func _smoke(f: Node3D, sitting: bool) -> void:
+	var p := GPUParticles3D.new()
+	p.amount = 40
+	p.lifetime = 3.2
+	p.position = Vector3(0, 0.75 if sitting else 1.05, 0.05)
+	var pm := ParticleProcessMaterial.new()
+	pm.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_BOX
+	pm.emission_box_extents = Vector3(0.22, 0.45 if sitting else 0.8, 0.18)
+	pm.direction = Vector3(0, 1, 0)
+	pm.spread = 20.0
+	pm.initial_velocity_min = 0.06
+	pm.initial_velocity_max = 0.22
+	pm.gravity = Vector3(0, 0.04, 0)
+	pm.scale_min = 0.6
+	pm.scale_max = 1.3
+	var grow := Curve.new()
+	grow.add_point(Vector2(0, 0.4))
+	grow.add_point(Vector2(1, 1.0))
+	var gt := CurveTexture.new()
+	gt.curve = grow
+	pm.scale_curve = gt
+	var fade := Gradient.new()
+	fade.set_color(0, Color(0.01, 0.0, 0.02, 0.0))
+	fade.set_color(1, Color(0.0, 0.0, 0.0, 0.0))
+	fade.add_point(0.3, Color(0.02, 0.01, 0.035, 0.5))
+	var ft := GradientTexture1D.new()
+	ft.gradient = fade
+	pm.color_ramp = ft
+	p.process_material = pm
+	var quad := QuadMesh.new()
+	quad.size = Vector2(0.4, 0.4)
+	var puff := StandardMaterial3D.new()
+	puff.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
+	puff.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	puff.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	puff.vertex_color_use_as_albedo = true  # the fade in and out
+	puff.albedo_color = Color(0.015, 0.008, 0.025)  # and black, whatever the ramp gives
+	var soft := GradientTexture2D.new()
+	soft.fill = GradientTexture2D.FILL_RADIAL
+	soft.fill_from = Vector2(0.5, 0.5)
+	soft.fill_to = Vector2(1.0, 0.5)
+	var g := Gradient.new()
+	g.set_color(0, Color(1, 1, 1, 1))
+	g.set_color(1, Color(1, 1, 1, 0))
+	soft.gradient = g
+	puff.albedo_texture = soft
+	quad.material = puff
+	p.draw_pass_1 = quad
+	f.add_child(p)
+
+
+## A pool of dark under him, its edge creeping.
+static func _pool(f: Node3D, at: Vector3) -> void:
+	var mi := MeshInstance3D.new()
+	var plane := PlaneMesh.new()
+	plane.size = Vector2(2.6, 2.6)
+	mi.mesh = plane
+	mi.position = at
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	mi.material_override = _shader_mat("pool", POOL)
+	f.add_child(mi)
 
 
 static func _glow(parent: Node3D, pos: Vector3, size: Vector3) -> void:
