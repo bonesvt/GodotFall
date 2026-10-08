@@ -15,6 +15,7 @@ extends CharacterBody3D
 
 const Hymn := preload("res://scripts/hub/hymn.gd")
 const SFX := preload("res://scripts/sfx.gd")
+const HubGrip := preload("res://scripts/hub/hub_grip.gd")
 const ThreatModel := preload("res://scripts/threats/threat_model.gd")
 const ShepherdModel := preload("res://scripts/hub/shepherd_model.gd")
 
@@ -286,9 +287,17 @@ func _process_her(_delta: float) -> void:
 		return
 	# white: the fitting in the back room takes it from here (fitting_scene.gd)
 	piece = Hymn.processed()
-	if piece == "":
+	# whoever she loves is closest, within reach, comes too (hub_grip.gd)
+	var near := {}
+	for w in HubGrip.WHO:
+		var npc: Node3D = rm.hub_npcs.get(w)
+		if npc != null and is_instance_valid(npc):
+			near[w] = npc.global_position
+	var with := HubGrip.closest(_player().global_position, near) if HubGrip.allowed() else ""
+	var with_piece := HubGrip.take(with) if with != "" else ""
+	if piece == "" and with_piece == "":
 		rm.hud.toast(TAKEN, 6.0)  # nothing left to put on her
-	rm.processed_by_shepherd(piece)
+	rm.processed_by_shepherd(piece, with, with_piece)
 	step = Step.GONE
 
 

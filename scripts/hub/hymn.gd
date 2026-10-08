@@ -82,6 +82,8 @@ static var _puff := BRIDGE_EVERY
 static var _bell_t := 0.0
 ## Biggie's had a go this time in town.
 static var biggie_tried := false
+## Doc Imani's had a go this time in town (gear_off_screen.gd, the clinic).
+static var doc_tried := false
 static var save_path := "user://hymn.cfg"
 
 
@@ -249,6 +251,7 @@ static func biggie_try(piece: String, clean: bool) -> void:
 static func run_over() -> void:
 	_crown_floor()
 	biggie_tried = false
+	doc_tried = false
 	dosed_today = false
 	cuff_left = CUFF_TIME
 	save()
@@ -263,6 +266,7 @@ static func reset() -> void:
 	captures = 0
 	gear = []
 	biggie_tried = false
+	doc_tried = false
 	cuff_left = CUFF_TIME
 
 

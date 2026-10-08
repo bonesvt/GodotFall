@@ -88,6 +88,10 @@ const Shepherd := preload("res://scripts/hub/shepherd.gd")
 const VisorScreen := preload("res://scripts/ui/visor_screen.gd")
 const VisorFriends := preload("res://scripts/run/visor_friends.gd")
 const ObsessionLook := preload("res://scripts/hub/obsession_look.gd")
+const HubGrip := preload("res://scripts/hub/hub_grip.gd")
+const ColonyGear := preload("res://scripts/hub/colony_gear.gd")
+const TAKEN_WITH := "%s was taken with her. She's on the bench beside Eco, wearing the colony's %s, smiling. \"I feel so calm.\""
+const DEAF := "%s doesn't look up. Eco says her name again. Nothing. The headphones hum. Then %s blinks: \"Sorry, did you say something?\""
 ## Where the Shepherd comes out, from the dispensary's spot (its back door).
 const DISPENSARY_BACK_DOOR := Vector3(-0.5, 0.1, 4.5)
 const BRIDGE_PUFF := "The bridge hisses up her nose. Lavender. Linen. Calm."
@@ -241,6 +245,8 @@ var fitting_scene: FittingScene
 var dose_scene: DoseScene
 ## The clarity visor's lie on runs: grunts wearing her people's faces (visor_friends.gd).
 var visor_friends: Node
+## Who the Shepherd took with her this time, for when she comes to (hub_grip.gd).
+var _taken_with := ""
 ## Marrow's Glass on runs (focus, his orders: tether.gd) and the Chorus's end (chorus_scene.gd).
 var tether: Tether
 var chorus_scene: ChorusScene
@@ -296,6 +302,7 @@ func _ready() -> void:
 	Glass.open(Glass.path_for(Vices.save_path))
 	Hymn.open(Hymn.path_for(Vices.save_path))
 	Obsession.open(Obsession.path_for(Vices.save_path))
+	HubGrip.open(HubGrip.path_for(Vices.save_path))
 	tether = Tether.new(self)
 	add_child(tether)
 	chorus_scene = ChorusScene.new(self)
@@ -507,6 +514,8 @@ func enter_hub() -> void:
 		NpcIdles.settle(npc, zone_info, runs_ended)
 		if spec["who"] == "ophelia":
 			ObsessionLook.dress(npc, zone_info)  # how her obsession shows on her this stay
+		if spec["who"] in HubGrip.WHO:
+			ColonyGear.apply(npc, HubGrip.gear_of(spec["who"]))  # what the Shepherd put on them
 		hub_npcs[spec["who"]] = npc
 	Townsfolk.populate(zone_root, player, runs_ended)
 	Soundscape.hub(zone_root, zone_info)
@@ -519,6 +528,7 @@ func enter_hub() -> void:
 	npc_talk.state.save(npc_talk.save_path)
 	if hub_npcs.has("ophelia"):
 		NpcIdles.build_window(zone_root)
+	_grip_scene.call_deferred()  # someone she loves has gone further under (hub_grip.gd)
 	Wardrobe.dress_eco(player, true)
 	phase = Phase.HUB
 	dress_hub()
@@ -614,6 +624,21 @@ func _step_press_strength() -> void:
 	hud.toast("Press into things: %s" % ("Off" if next < 0.05 else "%d%%" % roundi(next * 100)), 2.0)
 
 
+## One of the people she loves has gone further under (hub_grip.gd): their scene,
+## played as a talk with them, wherever they are.
+func _grip_scene() -> void:
+	if not HubGrip.allowed() or phase != Phase.HUB or npc_talk.active():
+		return
+	var scene := HubGrip.next_scene(hub_npcs.keys())
+	if scene.is_empty():
+		return
+	npc_talk.stop()
+	var them: Node3D = hub_npcs[scene[0]]
+	# they're waiting for her: she starts in front of them, in talking range
+	place_player(them.global_position - them.global_transform.basis.z * 1.4 + Vector3(0, 0.1, 0))
+	npc_talk._play(them, scene[1])
+
+
 ## The Shepherd comes for her (hymn.gd), from the dispensary's back door.
 func spawn_shepherd() -> void:
 	if not Hymn.allowed() or phase != Phase.HUB or not get_tree().get_nodes_in_group("shepherd").is_empty():
@@ -634,10 +659,12 @@ func _dispensary_spot() -> Vector3:
 
 ## The Shepherd brought her in (piece: the gear it's putting on her, "" for
 ## none left): the fitting in the dispensary's back room, or straight out.
-func processed_by_shepherd(piece: String) -> void:
+func processed_by_shepherd(piece: String, with := "", with_piece := "") -> void:
 	hush_pull.triggers.reset()
+	if with != "" and with_piece != "":
+		_taken_with = with
 	if piece in Hymn.GEAR:
-		fitting_scene.play(piece)
+		fitting_scene.play(piece, with, with_piece)
 	else:
 		fitted(piece)
 
@@ -645,6 +672,11 @@ func processed_by_shepherd(piece: String) -> void:
 ## The fitting's over: she wakes on the bench outside the dispensary, in it.
 func fitted(_piece: String) -> void:
 	player.set("entranced", false)
+	if _taken_with != "" and hub_npcs.has(_taken_with):
+		var them: Node3D = hub_npcs[_taken_with]
+		ColonyGear.apply(them, HubGrip.gear_of(_taken_with))
+		hud.toast(TAKEN_WITH % [HubGrip.NAMES[_taken_with], Hymn.GEAR_NAMES.get(HubGrip.gear_of(_taken_with).back(), "gear")], HUB_LINE_SECONDS + 2.0)
+	_taken_with = ""
 	var at := _dispensary_spot()
 	if at != Vector3.INF:
 		place_player(at + Vector3(1.2, 0.1, 0))
@@ -827,7 +859,7 @@ func _hub_tick(delta: float) -> void:
 	if spot["id"] == "marrow" and Vices.allowed() and Glass.can_confront():
 		chorus_scene.play()
 		return
-	var vice_shop: bool = spot.get("shop", "") in ["bar", "stims", "hush", "dispensary", "gear_off"] and Vices.allowed()
+	var vice_shop: bool = spot.get("shop", "") in ["bar", "stims", "hush", "dispensary", "gear_off", "gear_off_doc"] and Vices.allowed()
 	if spot.has("date") and (not vice_shop or date_ready(spot)) and date_at(spot):
 		return
 	if spot.has("screen"):
@@ -976,6 +1008,12 @@ func _rest_prompt() -> String:
 
 ## Starts a conversation between Eco and one of the people in the hub.
 func talk_to(who: String) -> void:
+	if who in HubGrip.WHO and HubGrip.allowed() and hub_npcs.has(who):
+		if HubGrip.deaf_now(who):  # the headphones: she doesn't hear Eco, the first time
+			hud.toast(DEAF % [HubGrip.NAMES[who], HubGrip.NAMES[who]], HUB_LINE_SECONDS)
+			return
+		if HubGrip.has(who, "visor"):
+			hud.toast("%s: \"Good morning, citizen.\"" % HubGrip.NAMES[who], 2.5)
 	if who == "ophelia" and Obsession.allowed() and hub_npcs.has(who):
 		if Obsession.talk_waiting():  # Eco found the papers: they have it out
 			Obsession.saw(runs_ended)
@@ -1172,7 +1210,9 @@ func open_bench(kind: String) -> void:
 	elif kind == "dispensary":
 		bench = DispensaryScreen.new()
 	elif kind == "gear_off":
-		bench = GearOffScreen.new()
+		bench = GearOffScreen.new(false, armory, hub_npcs.keys())
+	elif kind == "gear_off_doc":
+		bench = GearOffScreen.new(true, armory, hub_npcs.keys())
 	elif kind == "obsession":
 		bench = ObsessionScreen.new(npc_talk)
 	else:
@@ -1204,7 +1244,11 @@ func close_bench() -> void:
 		dosed = bench.result == "took"
 		if bench.result == "palmed":
 			hud.toast("Palmed it. Nobody saw. (%d palmed so far: the officers watch closer each time.)" % Hymn.fakes, HUB_LINE_SECONDS)
-	if bench is GearOffScreen and bench.removed != "":
+	if bench is GearOffScreen and bench.removed != "" and bench.who != "eco":
+		if hub_npcs.has(bench.who):
+			ColonyGear.apply(hub_npcs[bench.who], HubGrip.gear_of(bench.who))
+		hud.toast("%s's %s is off. %s" % [HubGrip.NAMES[bench.who], Hymn.GEAR_NAMES[bench.removed], "Doc Imani bins it." if bench.doc else "Biggie drops it in the beer cooler."], HUB_LINE_SECONDS)
+	elif bench is GearOffScreen and bench.removed != "":
 		hud.toast("The %s is off her. Biggie drops it in the beer cooler. \"Let 'em come ask for it.\"" % Hymn.GEAR_NAMES[bench.removed], HUB_LINE_SECONDS)
 		Wardrobe.dress_eco(player, true)
 	elif bench is GearOffScreen and bench.slipped != "":
@@ -1876,6 +1920,7 @@ func end_run(title: String, reason: String) -> void:
 	Glass.run_over()
 	Hymn.run_over()
 	Obsession.run_over()
+	HubGrip.run_over()
 	tether.stop()
 	var haul := Armory.run_haul(run.materials, won)
 	armory.bank(haul)
@@ -2126,6 +2171,8 @@ func _prompt() -> String:
 					return family_scene.prompt()
 				if spot.get("shop", "") == "bar" and Vices.allowed() and not date_ready(spot):
 					return "[F] The Rusted Halo: drinks, smokes and Scrapjack"
+				if spot.get("shop", "") == "gear_off_doc" and Vices.allowed():
+					return "[F] Doc Imani: colony hardware off" + ("  (tried today)" if Hymn.doc_tried else "")
 				if spot.get("shop", "") == "gear_off" and Vices.allowed() and not Hymn.gear.is_empty():
 					return "[F] Biggie's table: get the colony gear off" + ("  (tried today)" if Hymn.biggie_tried else "")
 				if spot.get("shop", "") == "dispensary" and Vices.allowed():
