@@ -15,7 +15,9 @@ extends RefCounted
 ##               turning rings and false HUD (visor_screen.gd)
 ##   bridge      the calm bridge (smell): every BRIDGE_EVERY s it puffs a
 ##               little Hymn up her nose
-##   gloves      comfort gloves (touch): numb hands, reloads RELOAD_SLOW slower
+##   gloves      comfort gloves (touch): numb hands that won't come apart: she has
+##               to two-hand her one-handed guns, so reloads are RELOAD_SLOW
+##               slower and her shots spread GLOVE_SPREAD wider
 ##   spine       the Plumb Line (balance): colony posture, a step heavier
 ##               (SPINE_SPEED)
 ##   bell        the Hymn bell on a collar: moving fast (over BELL_SPEED) it rings
@@ -51,6 +53,7 @@ const BELL_EVERY := 0.9
 const BELL_RANGE := 22.0
 ## The gloves' numb hands (reload time x), the spine's heavier step (speed x).
 const RELOAD_SLOW := 1.3
+const GLOVE_SPREAD := 1.35
 const SPINE_SPEED := 0.94
 ## Hymn a dose puts in her, a Shepherd dart, and being processed.
 const DOSE := 12.0
@@ -215,6 +218,11 @@ static func tick_bell(delta: float, speed: float) -> bool:
 ## Her reload time multiplier (the gloves' numb hands).
 static func reload_scale() -> float:
 	return RELOAD_SLOW if has("gloves") else 1.0
+
+
+## Her gun's spread multiplier (the gloves hold her hands together on a one-handed grip).
+static func spread_scale() -> float:
+	return GLOVE_SPREAD if has("gloves") else 1.0
 
 
 ## Her move speed multiplier (the spine's colony step).
