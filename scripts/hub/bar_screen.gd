@@ -23,7 +23,7 @@ const BAD := Color(1.0, 0.45, 0.4)
 const BETS := [5, 15, 30, 60]
 const TABS := ["drinks", "cards"]
 ## The bar menu: Rook's drinks, then a pack of smokes.
-const MENU := Vices.ORDER + ["smokes"]
+static var MENU: Array = Vices.ORDER + ["smokes"]
 
 const ROOK_HELLO := [
 	"Rook: \"Eco. You look like hell. Sit.\"",
