@@ -377,7 +377,7 @@ func _process(delta: float) -> void:
 
 ## Current cone half-angle in degrees.
 func current_spread() -> float:
-	var s := (base_spread + bloom + Vices.SPREAD_DEG * Vices.effect()) * Vices.spread_scale()
+	var s := (base_spread + bloom + Vices.SPREAD_DEG * Vices.effect()) * Vices.spread_scale() * Hymn.spread_scale()
 	match player.state:
 		Pilot.State.GROUND:
 			s += move_spread * clampf(player.horizontal_speed() / player.sprint_speed, 0.0, 1.0)
