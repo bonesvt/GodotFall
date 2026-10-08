@@ -147,6 +147,21 @@ func _run() -> void:
 	await _ticks(2)
 	_check("not over a screen", visor.strength() == 0.0, visor.strength())
 	run_node.close_bench()
+	# the kaleidoscope runs in the hub, never out on a run
+	var seen_hub := []
+	var seen_run := []
+	var keep_t: float = visor._t
+	var keep_phase = run_node.phase
+	for i in 14:
+		visor._t = visor.INDUCTION * i + 1.0
+		seen_hub.append(visor.which_induction())
+	run_node.phase = run_node.Phase.FIGHT
+	for i in 14:
+		visor._t = visor.INDUCTION * i + 1.0
+		seen_run.append(visor.which_induction())
+	run_node.phase = keep_phase
+	visor._t = keep_t
+	_check("kaleidoscope: hub only", "kaleido" in seen_hub and not "kaleido" in seen_run and "countdown" in seen_run, seen_run)
 
 	# The rest of the set: each capture the next piece, in order, each on her.
 	Hymn.gear = ["headphones", "cuff", "visor"]

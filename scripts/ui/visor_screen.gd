@@ -124,6 +124,8 @@ const BREATH := 4.0
 ## The inductions, in turn, and how long each runs.
 const INDUCTIONS := ["countdown", "stairs", "rewrite", "breath", "heavy", "repeat", "kaleido"]
 const INDUCTION := 12.0
+## Only in the hub: out on a run she has to be able to see to fight.
+const HUB_ONLY := ["kaleido"]
 ## Her own thoughts, caught, struck out, and written over.
 const REWRITE := [["I have to get out.", "I want to stay."], ["Mom needs me.", "Mom is happy here."],
 	["Something is wrong.", "Everything is right."], ["This isn't me.", "This is who I am."]]
@@ -452,9 +454,18 @@ func _breath(c: Vector2, s: float) -> void:
 	_text(word, c + Vector2(-62, r + 30), 18, Color(WHITE, 0.55 * s))
 
 
-## The induction running now, low in the middle (they take turns).
+## The induction running now, low in the middle (they take turns; the
+## HUB_ONLY ones sit out a run).
 func which_induction() -> String:
-	return INDUCTIONS[int(_t / INDUCTION) % INDUCTIONS.size()]
+	var list: Array = INDUCTIONS if in_hub() else INDUCTIONS.filter(func(i): return not i in HUB_ONLY)
+	return list[int(_t / INDUCTION) % list.size()]
+
+
+## In the hub (or with no run manager, as in the render tools), not on a run.
+func in_hub() -> bool:
+	if rm == null or rm.get("phase") == null:
+		return true
+	return rm.phase == rm.Phase.HUB
 
 
 func _induction(size: Vector2, s: float) -> void:
