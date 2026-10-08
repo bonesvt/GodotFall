@@ -286,8 +286,19 @@ Under the Mature rating (Settings > Game), **F** at the Rusted Halo on Low Row o
   Space three times while his shaking hand is in the clear band (narrowest for the visor and
   the spine, narrower the more Hymn's in her); one slip shocks her (+5 Hymn) and it stays on
   (render: `tools/hub/biggie_table_shots.gd`). Render it: `godot --path . --resolution 1280x720 -s res://tools/hub/shepherd_shots.gd -- <dir>`.
+- **Ophelia's obsession** (`scripts/hub/obsession.gd`, Mature only): once she and Eco are together,
+  heading out on a run without seeing her first makes her upset (next time Eco tries to talk she
+  turns away angry); two skips in a row start her obsession, +25 each skip after. From 50 she
+  gives Eco a pack of Night Owls when she comes by (once a stay), every one laced with
+  **Keepsake**, a rose-coloured something she makes herself; each one Eco lights puts it in her,
+  and their smoke date stays shut while it's in her. It's a betrayal, and the game says so: rose
+  spirals in Eco's eyes (`eco_toon` `swirl_tint`), a rose pull home on runs that builds with time
+  away (the craving overlay and bar go rose), and Eco's lines drifting off to her. A tin turns
+  up under Ophelia's pillow (the jar, and Night Owls stained rose at the filter); finding it, the
+  next talk is having it out (`obsession_screen.gd`): **help her anyway** (trust comes back slow)
+  and it wears off over runs, no more packs; **walk away** and she doesn't stop. Render: `tools/hub/obsession_shots.gd`.
 - Tests: `godot --headless --path . -s res://tests/vices_test.gd`, `tests/hush_pull_test.gd`,
-  `tests/hold_effects_test.gd`, `tests/glass_test.gd`, `tests/trigger_test.gd`, `tests/hymn_test.gd`
+  `tests/hold_effects_test.gd`, `tests/glass_test.gd`, `tests/trigger_test.gd`, `tests/hymn_test.gd`, `tests/obsession_test.gd`
 
 ### Hypno looks (Mature only)
 Each path that gets its hooks in Eco dresses her in its own look, in stages as its meter
@@ -299,9 +310,10 @@ path wins. Every stage she reached stays in her wardrobe once she's free of it.
   level; Frost's icy braids and pale eyes, and crystal growing out of her arms, back and legs),
   **Faith: Idol** (devotion; gold glass spreads over her), **Colony City: Parade** (Town's
   Grip), **Ophelia's** Keepsake, Matching and Homebound (her obsession).
-- Devotion, Town's Grip and obsession are kept in `vice_looks.gd` until their routes land;
-  the cheat box moves them. The free endings' looks (Warden, Survivor, Unbound, and Her Own
-  after Ophelia) unlock with `ViceLooks.unlock()`, or from the cheat box.
+- Ophelia's looks follow her real obsession meter (`obsession.gd`), and helping her through it
+  unlocks Her Own. Devotion and Town's Grip are kept in `vice_looks.gd` until their routes land;
+  the cheat box moves them. The other free endings' looks (Warden, Survivor, Unbound) unlock with
+  `ViceLooks.unlock()`, or from the cheat box.
 - The looks are recolours of pieces she already has: `python3 tools/eco/bake_vice_looks.py`
   bakes their textures from `tools/eco/vice_looks.json` into `assets/textures/eco/looks/`.
 - Test: `godot --headless --path . -s res://tests/vice_looks_test.gd`

@@ -10,6 +10,7 @@ const ViceLooks := preload("res://scripts/hub/vice_looks.gd")
 const Vices := preload("res://scripts/hub/vices.gd")
 const Glass := preload("res://scripts/hub/glass.gd")
 const Hymn := preload("res://scripts/hub/hymn.gd")
+const Obsession := preload("res://scripts/hub/obsession.gd")
 const Wardrobe := preload("res://scripts/hub/wardrobe.gd")
 const ContentRating := preload("res://scripts/radio/content_rating.gd")
 const Hair := preload("res://scripts/hub/hair.gd")
@@ -36,7 +37,7 @@ func _ticks(n: int) -> void:
 
 
 func _clean() -> void:
-	for p in [ViceLooks.save_path, Wardrobe.save_path]:
+	for p in [ViceLooks.save_path, Wardrobe.save_path, Obsession.save_path]:
 		DirAccess.remove_absolute(ProjectSettings.globalize_path(p))
 
 
@@ -47,6 +48,8 @@ func _run() -> void:
 	ViceLooks.open("user://test_looks.cfg")
 	_clean()
 	ViceLooks.reset()
+	Obsession.save_path = "user://test_looks_obsession.cfg"
+	Obsession.reset()
 	Vices.hold = 0.0
 	Glass.glass = 0
 	Hymn.level = 0.0
@@ -89,6 +92,7 @@ func _run() -> void:
 	Vices.hold = 0.0
 	Glass.glass = 0
 	ViceLooks.add("obsession", 100.0)
+	_check("it's Ophelia's own obsession meter", Obsession.meter == 100.0, Obsession.meter)
 	_check("full obsession is Homebound", ViceLooks.forced() == "vl_keepsake_3", ViceLooks.forced())
 	_check("Homebound wears keepsake_c whole", ViceLooks.resolve("vl_keepsake_3") == ["keepsake_c", 4], ViceLooks.resolve("vl_keepsake_3"))
 	_check("Keepsake starts from Ophelia's suit", ViceLooks.base("vl_keepsake_1") == "suit_ophelia")
@@ -122,6 +126,12 @@ func _run() -> void:
 	_check("Warden unlocks", ViceLooks.unlock("warden"))
 	_check("and it's in her wardrobe", "vl_warden" in Wardrobe.outfits("eco"))
 	_check("by name", Wardrobe.outfit_name("vl_warden") == "Warden", Wardrobe.outfit_name("vl_warden"))
+
+	_check("Her Own waits until she's helped Ophelia", not "vl_her_own" in Wardrobe.outfits("eco"))
+	Obsession.resolved = "helped"
+	ViceLooks.note_reached()
+	_check("helping her through it unlocks Her Own", "vl_her_own" in Wardrobe.outfits("eco"))
+	Obsession.reset()
 
 	# Saved.
 	ViceLooks.open(ViceLooks.save_path)

@@ -107,6 +107,9 @@ const vec2 IRIS_L = vec2(0.252, 0.504);
 const vec2 IRIS_RIGHT = vec2(0.747, 0.504);
 const vec2 IRIS_R = vec2(0.112, 0.225);
 const vec3 HUSH_VIOLET = vec3(0.72, 0.32, 1.0);
+// The spirals' colour: Marrow's violet unless something else has her (Ophelia's
+// Keepsake turns them rose, eco_model.gd _eye_swirl).
+instance uniform vec3 swirl_tint : source_color, instance_index(5) = vec3(0.72, 0.32, 1.0);
 
 varying float v_sheen_mask;
 
@@ -263,12 +266,12 @@ void fragment() {
 		float arms = 0.5 + 0.5 * sin(atan(d.y, d.x) * 3.0 + r * 16.0 - turn);
 		float band = smoothstep(0.45, 0.8, arms) * (1.0 - smoothstep(0.8, 1.0, r)) * smoothstep(0.1, 0.3, r);
 		float k = clamp(hypno, 0.0, 1.0);
-		col = mix(col, col * 0.4 + HUSH_VIOLET * 0.7, k * 0.55);
-		col = mix(col, vec3(1.0, 0.8, 1.0), band * k);
+		col = mix(col, col * 0.4 + swirl_tint * 0.7, k * 0.55);
+		col = mix(col, mix(swirl_tint, vec3(1.0), 0.65), band * k);
 		// the iris glows softly all the time, breathing; the spiral arms brightest
 		float iris = 1.0 - smoothstep(0.85, 1.0, r);
 		float breath = 0.2 + 0.08 * sin(TIME * 1.6);
-		hypno_emit = HUSH_VIOLET * (band * 0.9 + iris * breath) * k;
+		hypno_emit = swirl_tint * (band * 0.9 + iris * breath) * k;
 	}
 	v_shade = mix(shade_tint, shade_tint_2, mask.g);
 	vec4 tattoo = texture(tattoo_tex, UV);

@@ -17,7 +17,7 @@ extends RefCounted
 ##   glass     Kintsugi            Glass level (glass.gd), with crystal growths
 ##   faith     Idol                devotion (here, until the faith route lands)
 ##   colony    Parade              Town's Grip (here, until Colony City lands)
-##   keepsake  Keepsake, Matching, Homebound   Ophelia's obsession (here)
+##   keepsake  Keepsake, Matching, Homebound   Ophelia's obsession (obsession.gd)
 ##
 ## Every look is a recolour of pieces she already has: the textures are baked
 ## by tools/eco/bake_vice_looks.py (from tools/eco/vice_looks.json) into
@@ -29,6 +29,7 @@ extends RefCounted
 const Vices := preload("res://scripts/hub/vices.gd")
 const Glass := preload("res://scripts/hub/glass.gd")
 const Hymn := preload("res://scripts/hub/hymn.gd")
+const Obsession := preload("res://scripts/hub/obsession.gd")
 const ContentRating := preload("res://scripts/radio/content_rating.gd")
 const Hair := preload("res://scripts/hub/hair.gd")
 
@@ -128,10 +129,9 @@ const CRYSTAL_SITES := [
 ]
 const CRYSTALS := "ViceCrystals"
 
-## The meters with no home of their own yet, 0..MAX.
+## The meters with no home of their own yet (Faith's, Colony City's), 0..MAX.
 static var devotion := 0.0
 static var town_grip := 0.0
-static var obsession := 0.0
 ## path -> the deepest stage she's been at (what the wardrobe keeps for her).
 static var reached := {}
 ## FREE ids she's earned.
@@ -163,7 +163,7 @@ static func meter(path: String) -> float:
 		"town_grip":
 			return town_grip
 		"obsession":
-			return obsession
+			return Obsession.meter
 	return 0.0
 
 
@@ -230,6 +230,9 @@ static func changed() -> bool:
 
 
 static func note_reached() -> void:
+	# helping Ophelia through it frees Eco to pick her own look again
+	if Obsession.resolved == "helped" and allowed():
+		unlock("her_own")
 	var grew := false
 	for path: String in PATHS:
 		var s := stage(path)
@@ -508,7 +511,7 @@ static func _crystals(eco: Node3D, sites: int) -> void:
 			attach.add_child(prism)
 
 
-## One of the meters kept here, 0..MAX.
+## One of the meters kept here (or Ophelia's), 0..MAX.
 static func level(meter_name: String) -> float:
 	match meter_name:
 		"devotion":
@@ -516,11 +519,11 @@ static func level(meter_name: String) -> float:
 		"town_grip":
 			return town_grip
 		"obsession":
-			return obsession
+			return Obsession.meter
 	return 0.0
 
 
-## A cheat or the story moving one of the meters kept here.
+## A cheat or the story moving one of the meters kept here (or Ophelia's).
 static func add(meter_name: String, amount: float) -> void:
 	match meter_name:
 		"devotion":
@@ -528,14 +531,14 @@ static func add(meter_name: String, amount: float) -> void:
 		"town_grip":
 			town_grip = clampf(town_grip + amount, 0.0, MAX)
 		"obsession":
-			obsession = clampf(obsession + amount, 0.0, MAX)
+			Obsession.meter = clampf(Obsession.meter + amount, 0.0, MAX)
+			Obsession.save()
 	save()
 
 
 static func reset() -> void:
 	devotion = 0.0
 	town_grip = 0.0
-	obsession = 0.0
 	reached = {}
 	unlocked = []
 	_last_forced = ""
@@ -549,7 +552,6 @@ static func open(path: String) -> void:
 		return
 	devotion = float(cfg.get_value("looks", "devotion", 0.0))
 	town_grip = float(cfg.get_value("looks", "town_grip", 0.0))
-	obsession = float(cfg.get_value("looks", "obsession", 0.0))
 	reached = Dictionary(cfg.get_value("looks", "reached", {}))
 	unlocked = Array(cfg.get_value("looks", "unlocked", [])).filter(func(id): return FREE.has(id))
 
@@ -558,7 +560,6 @@ static func save() -> void:
 	var cfg := ConfigFile.new()
 	cfg.set_value("looks", "devotion", devotion)
 	cfg.set_value("looks", "town_grip", town_grip)
-	cfg.set_value("looks", "obsession", obsession)
 	cfg.set_value("looks", "reached", reached)
 	cfg.set_value("looks", "unlocked", unlocked)
 	cfg.save(save_path)

@@ -4,6 +4,7 @@ extends CanvasLayer
 ## is drawn per weapon (see titan_gun.gd) so each gun reads differently.
 
 const Vices := preload("res://scripts/hub/vices.gd")
+const Obsession := preload("res://scripts/hub/obsession.gd")
 
 var status_label: Label
 var build_label: Label
@@ -126,11 +127,12 @@ func toast(text: String, seconds := 2.5) -> void:
 func _process(delta: float) -> void:
 	_toast_time -= delta
 	toast_label.visible = _toast_time > 0.0
-	var crave := Vices.crave_level()
+	var crave := maxf(Vices.crave_level(), Obsession.crave)
 	crave_bar.visible = crave > 0.01
 	if crave_bar.visible:
 		_crave_fill.size = Vector2((crave_bar.size.x - 4.0) * crave, crave_bar.size.y - 4.0)
 		# it throbs once it's bad
+		_crave_fill.color = Color(0.95, 0.35, 0.6) if Obsession.crave > Vices.crave_level() else Color(0.7, 0.3, 1.0)
 		_crave_fill.color.a = 1.0 if crave < 0.6 else 0.75 + 0.25 * sin(Time.get_ticks_msec() / 1000.0 * TAU * 1.8)
 	if crosshair.visible:
 		crosshair.queue_redraw()
