@@ -1,7 +1,9 @@
 extends CanvasLayer
-## HUD: spread-aware crosshair with hitmarkers, speedometer, movement state,
-## ability readouts, health, ammo, the grunt count, and stealth markers around
-## the crosshair pointing at every grunt that is noticing the pilot.
+## HUD: spread-aware crosshair with hitmarkers and stealth markers around it
+## pointing at every grunt that is noticing the pilot, and one clean panel in the
+## bottom left corner for the fight: health and armour bars, the magazine,
+## movement state, double jump, grapple, speed and grunts left. The controls
+## list stays off screen (H shows it).
 ## The reticle wears the pistol's story: around the spread ticks sits the
 ## ring of the old smart-lock, half its segments dead, flickering when the
 ## module glitches, and it still brackets enemies before failing to lock.
@@ -15,12 +17,9 @@ var player: Node
 var level: Node
 var weapon: Node
 var crosshair: Control
-var speed_label: Label
-var info_label: Label
+## The combat panel, bottom left: health, armour, magazine, movement (_draw_panel).
+var panel: Control
 var help_label: Label
-var ammo_label: Label
-var health_label: Label
-var enemy_label: Label
 var message_label: Label
 var hurt_rect: ColorRect
 var radio: Node
@@ -35,6 +34,14 @@ var _heart := 0.0
 var message_timer := 0.0
 
 const HITMARKER_TIME := 0.18
+const PANEL_SIZE := Vector2(400, 132)
+const PANEL_BG := Color(0.05, 0.06, 0.08, 0.62)
+const PANEL_LINE := Color(1, 1, 1, 0.12)
+const INK := Color(0.93, 0.95, 0.98)
+const DIM := Color(0.93, 0.95, 0.98, 0.55)
+const HP_COL := Color(0.95, 0.35, 0.3)
+const ARMOR_COL := Color(0.45, 0.8, 1.0)
+const AMMO_COL := Color(1.0, 0.85, 0.45)
 const HELP := """WASD  move (auto-sprint forward)
 Space  jump / double jump / wall jump
 C or Ctrl  crouch, slide when running
@@ -59,39 +66,17 @@ func _ready() -> void:
 	crosshair.draw.connect(_draw_crosshair)
 	add_child(crosshair)
 
-	speed_label = _label(40)
-	speed_label.set_anchors_and_offsets_preset(Control.PRESET_CENTER_BOTTOM)
-	speed_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	speed_label.offset_top = -120
-	speed_label.offset_left = -200
-	speed_label.offset_right = 200
-
-	info_label = _label(20)
-	info_label.set_anchors_and_offsets_preset(Control.PRESET_CENTER_BOTTOM)
-	info_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	info_label.offset_top = -60
-	info_label.offset_left = -300
-	info_label.offset_right = 300
-
-	ammo_label = _label(36)
-	ammo_label.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_RIGHT)
-	ammo_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	ammo_label.offset_left = -300
-	ammo_label.offset_top = -80
-	ammo_label.offset_right = -30
-
-	health_label = _label(36)
-	health_label.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_LEFT)
-	health_label.offset_left = 30
-	health_label.offset_top = -80
-	health_label.offset_right = 640
-
-	enemy_label = _label(22)
-	enemy_label.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
-	enemy_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	enemy_label.offset_left = -300
-	enemy_label.offset_right = -20
-	enemy_label.offset_top = 20
+	# Everything about the fight in one panel, bottom left (_draw_panel): health
+	# and armour bars, the magazine, movement, grapple, grunts left.
+	panel = Control.new()
+	panel.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_LEFT)
+	panel.offset_left = 20
+	panel.offset_right = 20 + PANEL_SIZE.x
+	panel.offset_top = -20 - PANEL_SIZE.y
+	panel.offset_bottom = -20
+	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	panel.draw.connect(_draw_panel)
+	add_child(panel)
 
 	message_label = _label(30)
 	message_label.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
@@ -100,10 +85,11 @@ func _ready() -> void:
 	message_label.offset_right = 400
 	message_label.offset_top = 140
 
+	# The controls, off screen until H.
 	help_label = _label(18)
 	help_label.position = Vector2(20, 20)
 	help_label.text = HELP
-
+	help_label.visible = false
 	if player != null:
 		weapon = player.get_node_or_null("Head/Camera3D/Weapon")
 		if weapon != null:
@@ -168,26 +154,10 @@ func _process(delta: float) -> void:
 	message_timer -= delta
 	message_label.visible = message_timer > 0.0
 
-	speed_label.text = "%.1f m/s" % player.horizontal_speed()
-	var grapple := "READY" if player.grapple_ready_in() <= 0.0 else "%.1fs" % player.grapple_ready_in()
-	info_label.text = "%s    double jump: %s    grapple: %s" % [
-		player.state_name(),
-		"READY" if player.air_jumps_left > 0 else "used",
-		grapple,
-	]
-
 	var hp_frac: float = player.health / player.max_health
 	_heartbeat(delta, hp_frac)
-	health_label.text = "HP %d" % ceili(player.health)
-	if player.max_armor > 0.0:
-		health_label.text += "   ARMOUR %d" % ceili(player.armor)
-	health_label.add_theme_color_override("font_color", Color.WHITE.lerp(Color(1, 0.25, 0.2), 1.0 - hp_frac))
 	hurt_rect.color.a = (1.0 - hp_frac) * 0.3 + hurt_flash * 0.5
-
-	if weapon != null:
-		ammo_label.text = "RELOADING" if weapon.is_reloading() else "%d / %d" % [weapon.ammo, weapon.magazine_size]
-	if level != null:
-		enemy_label.text = "Grunts left: %d" % level.grunts_alive()
+	panel.queue_redraw()
 	# no crosshair under the hub/town orbit camera: it isn't aiming, it's looking at her
 	var view := player.get_node_or_null("ViewCam")
 	crosshair.visible = view == null or not view.orbiting
@@ -212,7 +182,6 @@ func _draw_crosshair() -> void:
 	if weapon != null:
 		_draw_dead_lock_ring(center, gap)
 		_draw_lock_attempt()
-		_draw_ammo_pips()
 	_draw_detection(center)
 
 	if hitmarker_timer > 0.0:
@@ -302,23 +271,71 @@ func _draw_smart_lock(p: Vector2, close: float) -> void:
 		crosshair.draw_string(font, p + Vector2(-size * 0.5, size * 0.5 + 16), "LOCKED", HORIZONTAL_ALIGNMENT_LEFT, -1, 13, c)
 
 
-## One pip per round above the ammo counter; the last round glows red. Smart
-## rounds (the top of the mag, fired first) are pink.
-func _draw_ammo_pips() -> void:
+## The combat panel: a dark rounded card in the bottom left corner.
+##   HP 100  [bar]          ARMOUR 40 [bar]
+##   8 / 8   ||||||||  (one pip a round; smart rounds pink, the last red)
+##   GROUND  ·  double jump READY  ·  grapple READY  ·  5.2 m/s
+##   GRUNTS LEFT 4   (on a run)
+func _draw_panel() -> void:
+	var font := ThemeDB.fallback_font
+	var w := PANEL_SIZE.x
+	var box := StyleBoxFlat.new()
+	box.bg_color = PANEL_BG
+	box.border_color = PANEL_LINE
+	box.set_border_width_all(1)
+	box.set_corner_radius_all(10)
+	panel.draw_style_box(box, Rect2(Vector2.ZERO, PANEL_SIZE))
+	var x := 16.0
+	# health
+	var hp_frac := clampf(player.health / player.max_health, 0.0, 1.0)
+	panel.draw_string(font, Vector2(x, 30), "HP", HORIZONTAL_ALIGNMENT_LEFT, -1, 13, DIM)
+	panel.draw_string(font, Vector2(x + 26, 32), str(ceili(player.health)), HORIZONTAL_ALIGNMENT_LEFT, -1, 24, INK.lerp(HP_COL, 1.0 - hp_frac))
+	var bar_x := x + 80.0
+	var bar_w := w - bar_x - 16.0
+	if player.max_armor > 0.0:
+		bar_w = (w - bar_x - 16.0) * 0.6
+	_bar(Rect2(bar_x, 20, bar_w, 8), hp_frac, HP_COL)
+	if player.max_armor > 0.0:
+		var ax := bar_x + bar_w + 10.0
+		_bar(Rect2(ax, 20, w - ax - 16.0, 8), clampf(player.armor / player.max_armor, 0.0, 1.0), ARMOR_COL)
+	# the magazine
+	if weapon != null:
+		var reloading: bool = weapon.is_reloading()
+		panel.draw_string(font, Vector2(x, 68), "RELOADING" if reloading else "%d / %d" % [weapon.ammo, weapon.magazine_size], HORIZONTAL_ALIGNMENT_LEFT, -1, 22, AMMO_COL if not reloading else DIM)
+		_draw_ammo_pips(Vector2(bar_x + 6.0, 66.0))
+	# movement
+	var grapple := "READY" if player.grapple_ready_in() <= 0.0 else "%.1fs" % player.grapple_ready_in()
+	var move := "%s  ·  2x jump %s  ·  grapple %s  ·  %.1f m/s" % [player.state_name(),
+		"READY" if player.air_jumps_left > 0 else "used", grapple, player.horizontal_speed()]
+	panel.draw_line(Vector2(x, 84), Vector2(w - 16, 84), PANEL_LINE, 1.0)
+	panel.draw_string(font, Vector2(x, 104), move, HORIZONTAL_ALIGNMENT_LEFT, w - 32, 13, DIM)
+	if level != null:
+		panel.draw_string(font, Vector2(x, 122), "GRUNTS LEFT  %d" % level.grunts_alive(), HORIZONTAL_ALIGNMENT_LEFT, -1, 13, INK)
+
+
+func _bar(r: Rect2, frac: float, col: Color) -> void:
+	panel.draw_rect(r, Color(1, 1, 1, 0.1))
+	panel.draw_rect(Rect2(r.position, Vector2(r.size.x * frac, r.size.y)), col)
+
+
+## One pip per round; the last round glows red. Smart rounds (the top of the
+## mag, fired first) are pink.
+func _draw_ammo_pips(at: Vector2) -> void:
 	var n: int = weapon.magazine_size
-	var right := Vector2(crosshair.size.x - 32.0, crosshair.size.y - 88.0)
+	var step := minf(11.0, (PANEL_SIZE.x - at.x - 16.0) / maxf(n, 1))
+	var right := Vector2(at.x + (n - 1) * step + 3.0, at.y)
 	for i in n:
-		var x := right.x - (n - 1 - i) * 11.0
-		var rect := Rect2(x - 3.0, right.y - 18.0, 6.0, 18.0)
+		var x := right.x - (n - 1 - i) * step
+		var rect := Rect2(x - 3.0, right.y - 18.0, minf(6.0, step - 2.0), 18.0)
 		var loaded: bool = i < weapon.ammo and not weapon.is_reloading()
 		var c := Color(1.0, 0.85, 0.45) if weapon.ammo > 1 else Color(1.0, 0.3, 0.2)
 		if i >= weapon.ammo - weapon.smart_left:
 			c = Color(1.0, 0.45, 0.75)
-		crosshair.draw_rect(rect, Color(0, 0, 0, 0.6), true)
+		panel.draw_rect(rect, Color(0, 0, 0, 0.6), true)
 		if loaded:
-			crosshair.draw_rect(rect.grow(-1.0), c, true)
+			panel.draw_rect(rect.grow(-1.0), c, true)
 		else:
-			crosshair.draw_rect(rect.grow(-1.0), Color(1, 1, 1, 0.25), false, 1.0)
+			panel.draw_rect(rect.grow(-1.0), Color(1, 1, 1, 0.25), false, 1.0)
 
 
 const DETECT_RING := 90.0

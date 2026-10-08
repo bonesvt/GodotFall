@@ -159,7 +159,7 @@ func clock_text() -> String:
 func _clock_line(what: String, elapsed: float, deadline: float) -> String:
 	var left := ceili(maxf(deadline - elapsed, 0.0))
 	var next := Vices.timer_chance((floorf(elapsed / Vices.ROLL_EVERY) + 1.0) * Vices.ROLL_EVERY, deadline)
-	return "%s  %d:%02d   next roll %d%%" % [what, left / 60, left % 60, roundi(next * 100.0)]
+	return "%s  %d:%02d   next %d%%" % [what, left / 60, left % 60, roundi(next * 100.0)]
 
 
 func _process(_delta: float) -> void:
