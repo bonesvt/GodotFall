@@ -1,7 +1,8 @@
 """Bakes the hypno looks' textures (scripts/hub/vice_looks.gd LOOKS) from
 tools/eco/vice_looks.json: per look, the re-dyed bodysuit and its glow, hair,
 fringe, eye makeup and lips, written to assets/textures/eco/looks/<look>_*.png.
-A look leaves out what it doesn't change (no "pattern": her base outfit's own
+(The hair dye covers the cap of hair painted on her scalp too.) A look
+leaves out what it doesn't change (no "pattern": her base outfit's own
 bodysuit; no "hair": her own colour).
 
     python3 tools/eco/bake_vice_looks.py            (from the repo root)
@@ -102,7 +103,7 @@ def main():
             save(np.concatenate([g * gc, np.ones_like(g)], axis=2), f"{k}_glow.png")
         if "hair" in lk:
             hc = lk["hair"]
-            for src, dst in [("v_hair.png", "hair"), ("v_hair_fringe.png", "fringe")]:
+            for src, dst in [("v_hair.png", "hair"), ("v_hair_fringe.png", "fringe"), ("v_hair_cap.png", "cap")]:
                 h = load(src)
                 hl = lum(h)[..., None]
                 save(np.concatenate([np.clip(hl * np.array(hc[:3]) * hc[3] + np.array(hc[4:7]), 0, 1), h[..., 3:]], axis=2), f"{k}_{dst}.png")

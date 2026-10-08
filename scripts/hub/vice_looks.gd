@@ -51,7 +51,7 @@ const CRESTS := ["suit_t4h_collar", "suit_t5h_core", "suit_t5h_crest_l", "suit_t
 ## "hair_style" a salon cut (hair.gd), "iris" her eye colour, "glass" how far
 ## the glass covers her at full strength and "glass_tint" its colour,
 ## "crystals" crystal growths on her body. The baked textures (body, glow,
-## hair, fringe, eyeline, face) are used where they exist.
+## hair, fringe, cap, eyeline, face) are used where they exist.
 const LOOKS := {
 	"his": {"base": "suit_shade", "hair_style": "pixie", "show": ["outfit_skater_any_shoes"], "hide": ["base_", "Boots", "Goggles"],
 		"mats": {"eco_v_sneaker_skater": {"albedo": Color(0.08, 0.06, 0.1)}, "eco_v_sneaker_skater_sole": {"albedo": VIOLET, "emit": 0.6}}},
@@ -346,7 +346,7 @@ static func apply(eco: Node3D) -> void:
 	var show: Array = look["show"] if gate >= GATE["pieces"] else []
 	var mats: Dictionary = look["mats"]
 	var textures := {}
-	for part in ["body", "glow", "hair", "fringe", "eyeline", "face"]:
+	for part in ["body", "glow", "hair", "fringe", "cap", "eyeline", "face"]:
 		textures[part] = _tex(key, part)
 	var done := []
 	for node in eco.find_children("*", "MeshInstance3D", true, false):
@@ -373,6 +373,8 @@ static func apply(eco: Node3D) -> void:
 				spec = {"tex": textures["hair"]}
 			elif rn == "eco_v_hair_fringe" and gate >= GATE["hair"] and textures["fringe"] != null:
 				spec = {"tex": textures["fringe"]}
+			elif rn == "eco_v_hair_cap" and gate >= GATE["hair"] and textures["cap"] != null:
+				spec = {"tex": textures["cap"]}
 			elif rn == "eco_v_face" and gate >= GATE["makeup"] and textures["face"] != null:
 				spec = {"tex": textures["face"]}
 			elif rn == "eco_v_eyeline" and gate >= GATE["makeup"] and textures["eyeline"] != null:
