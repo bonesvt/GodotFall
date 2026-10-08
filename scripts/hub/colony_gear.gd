@@ -47,10 +47,16 @@ const TEMPLE := Vector3(0.07, 1.555, -0.035)
 ## Her right eye (her left mirrors it), the visor's inside face, and how far in
 ## front of her face it waits while the suction cups go on.
 const EYE := Vector3(0.032, 1.532, -0.064)
-const VISOR_INNER := -0.0475
+const VISOR_INNER := -0.0825
 const VISOR_HOVER := -0.075
+## The modelled gear (tools/hub/build_colony_gear.py); without it the pieces are built from primitives.
+const MODELS := "res://assets/models/colony_gear/colony_gear.glb"
 
 static var _mats := {}
+static var _parts := {}
+static var _parts_loaded := false
+## False builds every piece from primitives (the render tools' before shots).
+static var use_models := true
 
 
 static func apply(model: Node, p_gear = null) -> void:
@@ -238,43 +244,49 @@ static func _headphones(root: Node3D) -> void:
 		var cup := Node3D.new()
 		cup.name = "Cup_" + side
 		root.add_child(cup)
-		var c := _cylinder(cup, Vector3(0.088 * s, 1.505, 0.012), 0.048, 0.035, _shell())
-		c.rotation_degrees = Vector3(0, 0, 90)
-		var ring := _torus(cup, Vector3(0.107 * s, 1.505, 0.012), 0.026, 0.034, _lit())
-		ring.rotation_degrees = Vector3(0, 0, 90)
+		if not _model(cup, "hp_cup_" + side):
+			var c := _cylinder(cup, Vector3(0.088 * s, 1.505, 0.012), 0.048, 0.035, _shell())
+			c.rotation_degrees = Vector3(0, 0, 90)
+			var ring := _torus(cup, Vector3(0.107 * s, 1.505, 0.012), 0.026, 0.034, _lit())
+			ring.rotation_degrees = Vector3(0, 0, 90)
 		# the pin: from the cup's inside face into her ear, grown along its own Y
 		var pin := Node3D.new()
 		pin.name = "Pin_" + side
 		pin.position = Vector3(0.105 * s, EAR.y, EAR.z)
 		pin.rotation_degrees = Vector3(0, 0, 90.0 * s)  # its +Y points in at her ear
 		root.add_child(pin)
-		_cylinder(pin, Vector3(0, 0.022, 0), 0.006, 0.044, _lit())
-		_cylinder(pin, Vector3(0, 0.002, 0), 0.011, 0.008, _shell())
-	for i in 9:
-		var a := PI * (i + 0.5) / 9.0
-		var seg := _box(root, Vector3(cos(a) * 0.098, 1.515 + sin(a) * 0.125, 0.012), Vector3(0.05, 0.016, 0.03), _dark())
-		seg.rotation_degrees = Vector3(0, 0, rad_to_deg(a) + 90.0)
+		if not _model(pin, "pin"):
+			_cylinder(pin, Vector3(0, 0.022, 0), 0.006, 0.044, _lit())
+			_cylinder(pin, Vector3(0, 0.002, 0), 0.011, 0.008, _shell())
+	if not _model(root, "hp_band"):
+		for i in 9:
+			var a := PI * (i + 0.5) / 9.0
+			var seg := _box(root, Vector3(cos(a) * 0.098, 1.515 + sin(a) * 0.125, 0.012), Vector3(0.05, 0.016, 0.03), _dark())
+			seg.rotation_degrees = Vector3(0, 0, rad_to_deg(a) + 90.0)
 
 
 static func _visor(root: Node3D) -> void:
-	_box(root, Vector3(0, 1.535, -0.085), Vector3(0.175, 0.075, 0.075), _shell())
-	_box(root, Vector3(0, 1.535, -0.124), Vector3(0.15, 0.022, 0.004), _lit())
+	if not _model(root, "visor_body"):
+		_box(root, Vector3(0, 1.535, -0.085), Vector3(0.175, 0.075, 0.075), _shell())
+		_box(root, Vector3(0, 1.535, -0.124), Vector3(0.15, 0.022, 0.004), _lit())
+		for s in [-1.0, 1.0]:
+			_box(root, Vector3(0.088 * s, 1.54, -0.01), Vector3(0.012, 0.03, 0.15), _dark())
 	for side in ["L", "R"]:
 		var s := -1.0 if side == "L" else 1.0
-		_box(root, Vector3(0.088 * s, 1.54, -0.01), Vector3(0.012, 0.03, 0.15), _dark())
 		# a glass suction cup for each eye, on a stalk from the visor's inside face
 		var cup := Node3D.new()
 		cup.name = "EyeCup_" + side
 		cup.position = Vector3(EYE.x * s, EYE.y, EYE.z)
 		root.add_child(cup)
-		var dome := SphereMesh.new()
-		dome.radius = 0.014
-		dome.height = 0.014
-		dome.is_hemisphere = true
-		var d := _add(cup, dome, Vector3.ZERO, _lens())
-		d.rotation_degrees = Vector3(-90, 0, 0)  # the dome away from her eye, open side on it
-		var rim := _torus(cup, Vector3.ZERO, 0.012, 0.0155, _dark())
-		rim.rotation_degrees = Vector3(90, 0, 0)
+		if not _model(cup, "eyecup"):
+			var dome := SphereMesh.new()
+			dome.radius = 0.014
+			dome.height = 0.014
+			dome.is_hemisphere = true
+			var d := _add(cup, dome, Vector3.ZERO, _lens())
+			d.rotation_degrees = Vector3(-90, 0, 0)  # the dome away from her eye, open side on it
+			var rim := _torus(cup, Vector3.ZERO, 0.012, 0.0155, _dark())
+			rim.rotation_degrees = Vector3(90, 0, 0)
 		var stalk := Node3D.new()
 		stalk.name = "Stalk_" + side
 		stalk.position = Vector3(EYE.x * s, EYE.y, VISOR_INNER)
@@ -286,17 +298,21 @@ static func _visor(root: Node3D) -> void:
 		prong.position = Vector3(0.096 * s, TEMPLE.y, TEMPLE.z)
 		prong.rotation_degrees = Vector3(0, 0, 90.0 * s)
 		root.add_child(prong)
-		_cylinder(prong, Vector3(0, 0.014, 0), 0.004, 0.03, _lit())
+		if not _model(prong, "prong"):
+			_cylinder(prong, Vector3(0, 0.014, 0), 0.004, 0.03, _lit())
 
 
 static func _bridge(root: Node3D) -> void:
-	_box(root, NOSE_BRIDGE + Vector3(0, 0, -0.004), Vector3(0.046, 0.012, 0.012), _shell())
+	if not _model(root, "bridge_clip"):
+		_box(root, NOSE_BRIDGE + Vector3(0, 0, -0.004), Vector3(0.046, 0.012, 0.012), _shell())
+	var vials := _model(root, "bridge_vial")
 	for side in ["L", "R"]:
 		var s := -1.0 if side == "L" else 1.0
-		var vial := _cylinder(root, Vector3(0.074 * s, 1.5, 0.045), 0.009, 0.03, _lit())
-		vial.rotation_degrees = Vector3(90, 0, 0)
-		# a line from the clip along her cheek to the vial
-		_line(root, NOSE_BRIDGE + Vector3(0.022 * s, -0.004, 0.0), Vector3(0.074 * s, 1.5, 0.03), 0.0025, _shell())
+		if not vials:
+			var vial := _cylinder(root, Vector3(0.074 * s, 1.5, 0.045), 0.009, 0.03, _lit())
+			vial.rotation_degrees = Vector3(90, 0, 0)
+			# a line from the clip along her cheek to the vial
+			_line(root, NOSE_BRIDGE + Vector3(0.022 * s, -0.004, 0.0), Vector3(0.074 * s, 1.5, 0.03), 0.0025, _shell())
 		# the tube: down the side of her nose and up into the nostril
 		var tube := Node3D.new()
 		tube.name = "Tube_" + side
@@ -306,10 +322,12 @@ static func _bridge(root: Node3D) -> void:
 		var up := NOSTRIL * Vector3(s, 1, 1) - tube.position
 		_line(tube, Vector3.ZERO, low, 0.0028, _lit())
 		_line(tube, low, up, 0.0028, _lit())
+		_ball(tube, low, 0.0028, _lit())  # round where it bends
 
 
 ## Seamless white to the shoulder over each arm, a line of light down each finger
-## side, built on her arm bones (UpperArm to Hand), lit seams down to the hand.
+## side, built on her arm bones (UpperArm to Hand), lit seams down to the hand,
+## rounded over the shoulder, elbow, wrist and fingertips.
 static func _gloves(model: Node, skel: Skeleton3D) -> void:
 	for side in ["L", "R"]:
 		var bones := ["J_Bip_%s_UpperArm" % side, "J_Bip_%s_LowerArm" % side, "J_Bip_%s_Hand" % side]
@@ -325,12 +343,15 @@ static func _gloves(model: Node, skel: Skeleton3D) -> void:
 			n.position = pts[part[1]]
 			var b: Vector3 = pts[part[1] + 1] - n.position
 			_line(n, Vector3.ZERO, b, float(part[2]), _shell(), float(part[3]))
+			_ball(n, Vector3.ZERO, float(part[2]) * 1.01, _shell())  # the shoulder, the elbow
 			_line(n, Vector3(0, 0, -float(part[2]) * 0.95), b + Vector3(0, 0, -float(part[3]) * 0.95), 0.003, _lit())
 			_match_layers(model, root, "Body")
 		var hroot := _root(skel, bones[2], NODE + "_GloveHand%s" % side)
 		var h := _piece(hroot, "Hand" + side)
 		h.position = pts[2]
 		_line(h, Vector3.ZERO, tip - pts[2], 0.034, _shell(), 0.026)
+		_ball(h, Vector3.ZERO, 0.0345, _shell())  # the wrist
+		_ball(h, tip - pts[2], 0.026, _shell())  # the fingertips
 		_line(h, Vector3(0, 0, -0.03), tip - pts[2] + Vector3(0, 0, -0.022), 0.0025, _lit())
 		_match_layers(model, hroot, "Body")
 
@@ -353,10 +374,14 @@ static func _spine(model: Node, skel: Skeleton3D) -> void:
 		seg.name = "Seg_%d" % i
 		seg.position = at
 		(roots[bone] as Node3D).add_child(seg)
-		_box(seg, Vector3.ZERO, Vector3(0.05 - 0.01 * t, 0.028, 0.026), _shell())
-		_box(seg, Vector3(0, 0, 0.008), Vector3(0.018, 0.018, 0.018), _chrome())
-		var node := _cylinder(seg, Vector3(0, 0, 0.018), 0.007, 0.006, _lit())
-		node.rotation_degrees = Vector3(90, 0, 0)
+		var plate := Node3D.new()
+		plate.scale = Vector3((0.05 - 0.01 * t) / 0.05, 1, 1)
+		seg.add_child(plate)
+		if not _model(plate, "spine_seg"):
+			_box(seg, Vector3.ZERO, Vector3(0.05 - 0.01 * t, 0.028, 0.026), _shell())
+			_box(seg, Vector3(0, 0, 0.008), Vector3(0.018, 0.018, 0.018), _chrome())
+			var node := _cylinder(seg, Vector3(0, 0, 0.018), 0.007, 0.006, _lit())
+			node.rotation_degrees = Vector3(90, 0, 0)
 		for s in [-1.0, 1.0]:
 			_line(seg, Vector3(0.022 * s, 0, -0.004), Vector3(0.06 * s, 0.03, -0.03), 0.003, _chrome())
 	for r in roots.values():
@@ -372,46 +397,54 @@ static func _band(root: Node3D, neck: Vector3) -> void:
 	band.name = "Band"
 	band.position = at
 	root.add_child(band)
-	_cylinder(band, Vector3.ZERO, 0.057, 0.034, _steel())
-	_torus(band, Vector3(0, 0.017, 0), 0.054, 0.06, _dark())
-	_torus(band, Vector3(0, -0.017, 0), 0.054, 0.06, _dark())
+	if not _model(band, "band_body"):
+		_cylinder(band, Vector3.ZERO, 0.057, 0.034, _steel())
+		_torus(band, Vector3(0, 0.017, 0), 0.054, 0.06, _dark())
+		_torus(band, Vector3(0, -0.017, 0), 0.054, 0.06, _dark())
 	for s in [-1.0, 1.0]:
 		var bolt := Node3D.new()
 		bolt.name = "Bolt_%d" % (0 if s < 0 else 1)
 		bolt.position = at + Vector3(0.012 * s, 0, 0.058)
 		root.add_child(bolt)
-		_box(bolt, Vector3.ZERO, Vector3(0.01, 0.02, 0.008), _chrome())
+		if not _model(bolt, "band_bolt"):
+			_box(bolt, Vector3.ZERO, Vector3(0.01, 0.02, 0.008), _chrome())
 	var speaker := Node3D.new()
 	speaker.name = "Speaker"
-	speaker.position = at + Vector3(0.008, -0.002, -0.058)
+	speaker.position = at + Vector3(0.008, -0.002, -0.06)
 	root.add_child(speaker)
-	var grille := _cylinder(speaker, Vector3.ZERO, 0.011, 0.005, _dark())
-	grille.rotation.x = PI * 0.5
-	for i in 3:
-		_box(speaker, Vector3(0, (i - 1) * 0.0045, -0.003), Vector3(0.014, 0.0012, 0.002), _chrome())
+	if not _model(speaker, "band_speaker"):
+		var grille := _cylinder(speaker, Vector3.ZERO, 0.011, 0.005, _dark())
+		grille.rotation.x = PI * 0.5
+		for i in 3:
+			_box(speaker, Vector3(0, (i - 1) * 0.0045, -0.003), Vector3(0.014, 0.0012, 0.002), _chrome())
 	var light := Node3D.new()
 	light.name = "Light"
-	light.position = at + Vector3(-0.016, 0.004, -0.057)
+	light.position = at + Vector3(-0.016, 0.004, -0.06)
 	root.add_child(light)
-	_box(light, Vector3.ZERO, Vector3(0.007, 0.007, 0.004), _blink())
+	if not _model(light, "band_light"):
+		_box(light, Vector3.ZERO, Vector3(0.007, 0.007, 0.004), _blink())
+
 
 ## The Crown: a white circlet round her head above the brow, a peak at the
 ## front, four lit nodes round it.
 static func _crown(root: Node3D) -> void:
-	var c := Vector3(0, 1.618, 0.0)
-	var ring := _torus(root, c, 0.108, 0.124, _shell())
-	ring.rotation_degrees = Vector3(-8, 0, 0)
-	_box(root, c + Vector3(0, 0.026, -0.118), Vector3(0.034, 0.05, 0.014), _shell())
+	var c := Vector3(0, 1.603, 0.004)
+	if not _model(root, "crown_ring"):
+		var ring := _torus(root, c, 0.108, 0.124, _shell())
+		ring.rotation_degrees = Vector3(-8, 0, 0)
+		_box(root, c + Vector3(0, 0.026, -0.118), Vector3(0.034, 0.05, 0.014), _shell())
 	for i in 4:
 		var a := TAU * i / 4.0
 		var dot := Node3D.new()
 		dot.name = "Node_%d" % i
-		dot.position = c + Vector3(sin(a) * 0.118, 0.004 - cos(a) * 0.014, -cos(a) * 0.118)
+		# round the ring, which tips forward 12 degrees
+		dot.position = c + Vector3(sin(a) * 0.111, 0.002 - cos(a) * 0.023, -cos(a) * 0.111)
 		root.add_child(dot)
-		var s := SphereMesh.new()
-		s.radius = 0.008
-		s.height = 0.016
-		_add(dot, s, Vector3.ZERO, _lit())
+		if not _model(dot, "crown_node"):
+			var s := SphereMesh.new()
+			s.radius = 0.008
+			s.height = 0.016
+			_add(dot, s, Vector3.ZERO, _lit())
 
 
 static func _cuff(root: Node3D, wrist: Vector3) -> void:
@@ -420,10 +453,11 @@ static func _cuff(root: Node3D, wrist: Vector3) -> void:
 	shell.name = "Shell"
 	shell.position = at
 	root.add_child(shell)
-	var c := _cylinder(shell, Vector3.ZERO, 0.042, 0.05, _shell())
-	c.rotation_degrees = Vector3(0, 0, 90)
-	var r := _torus(shell, Vector3.ZERO, 0.041, 0.047, _lit())
-	r.rotation_degrees = Vector3(0, 0, 90)
+	if not _model(shell, "cuff_shell"):
+		var c := _cylinder(shell, Vector3.ZERO, 0.042, 0.05, _shell())
+		c.rotation_degrees = Vector3(0, 0, 90)
+		var r := _torus(shell, Vector3.ZERO, 0.041, 0.047, _lit())
+		r.rotation_degrees = Vector3(0, 0, 90)
 	for i in 4:
 		var a := TAU * (i + 0.5) / 4.0
 		var needle := Node3D.new()
@@ -432,8 +466,59 @@ static func _cuff(root: Node3D, wrist: Vector3) -> void:
 		needle.position = at + out * 0.06
 		needle.basis = Basis(Vector3(1, 0, 0), a + PI)  # +Y points in at her wrist
 		root.add_child(needle)
-		_cylinder(needle, Vector3(0, 0.015, 0), 0.0025, 0.03, _lit())
+		if not _model(needle, "needle"):
+			_cylinder(needle, Vector3(0, 0.015, 0), 0.0025, 0.03, _lit())
 
+
+## The modelled parts (tools/hub/build_colony_gear.py): part name -> [[mesh,
+## transform, material key], ...], read once from the glTF.
+static func _load_parts() -> void:
+	if _parts_loaded:
+		return
+	_parts_loaded = true
+	var scene := load(MODELS) as PackedScene if ResourceLoader.exists(MODELS) else null
+	if scene == null:
+		return
+	var inst := scene.instantiate()
+	for mi in inst.find_children("*", "MeshInstance3D", true, false):
+		var bits := String(mi.name).split("__")
+		if bits.size() < 2:
+			continue
+		# the material key, without the number Blender or Godot put on a repeat
+		var key := ""
+		for ch in bits[1]:
+			if ch < "a" or ch > "z":
+				break
+			key += ch
+		if not _parts.has(bits[0]):
+			_parts[bits[0]] = []
+		_parts[bits[0]].append([(mi as MeshInstance3D).mesh, (mi as Node3D).transform, key])
+	inst.free()
+
+
+## Hangs the modelled `part`'s meshes on `root`, each in the game's material for
+## its key. False if there's no such part (the primitives are built instead).
+static func _model(root: Node3D, part: String) -> bool:
+	_load_parts()
+	if not use_models or not _parts.has(part):
+		return false
+	var mats := {"shell": _shell(), "dark": _dark(), "lit": _lit(), "chrome": _chrome(), "steel": _steel(), "lens": _lens(), "blink": _blink()}
+	for p in _parts[part]:
+		var mi := MeshInstance3D.new()
+		mi.mesh = p[0]
+		mi.transform = p[1]
+		mi.material_override = mats.get(p[2], _shell())
+		root.add_child(mi)
+	return true
+
+
+static func _ball(root: Node3D, at: Vector3, r: float, m: Material) -> MeshInstance3D:
+	var s := SphereMesh.new()
+	s.radius = r
+	s.height = r * 2.0
+	s.radial_segments = 24
+	s.rings = 12
+	return _add(root, s, at, m)
 
 ## A tapered rod from  to  (radius r, to r2 at  if given).
 static func _line(root: Node3D, a: Vector3, b: Vector3, r: float, m: Material, r2 := -1.0) -> MeshInstance3D:
@@ -441,7 +526,7 @@ static func _line(root: Node3D, a: Vector3, b: Vector3, r: float, m: Material, r
 	c.bottom_radius = r
 	c.top_radius = r if r2 < 0.0 else r2
 	c.height = maxf(a.distance_to(b), 0.0005)
-	c.radial_segments = 12
+	c.radial_segments = 24
 	c.rings = 1
 	var mi := _add(root, c, (a + b) * 0.5, m)
 	var dir := (b - a).normalized()
