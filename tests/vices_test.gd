@@ -277,6 +277,13 @@ func _hush() -> void:
 	_check("hooked: wakes in his armchair", mid["pos"] == HushDen.WAKE and mid["his"] and mid["line"] in HushDen.WAKE_LINES, mid)
 	var deep := HushDen.wake(80.0, 1)
 	_check("his: deep lines", deep["his"] and deep["line"] in HushDen.DEEP_LINES, deep)
+	# a regular now: every third trance, the cot in the back room he had made up
+	var back_low := HushDen.wake(45.0, 2)
+	_check("back room: the cot, the line capped on the blanket", back_low["pos"] == HushDen.BACK_WAKE and back_low["iv"] == "capped" and back_low["line"] == HushDen.BACK_CAPPED, back_low)
+	var back_high := HushDen.wake(80.0, 5)
+	_check("back room, deep: the line already in her arm", back_high["pos"] == HushDen.BACK_WAKE and back_high["iv"] == "taped" and back_high["line"] == HushDen.BACK_TAPED, back_high)
+	_check("not her own room's turn", HushDen.wake(10.0, 2)["pos"] == HushDen.HER_WAKE and not HushDen.wake(45.0, 3).has("iv"), "")
+	_check("his note", HushDen.BACK_NOTE.contains("I had a room made up. Come and go as you like. You always come back."), "")
 
 	_errands(armory, talks)
 
