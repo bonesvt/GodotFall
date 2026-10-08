@@ -634,11 +634,20 @@ func _process(delta: float) -> void:
 ## Marrow's Hold shows in her eyes: violet spirals in her irises (vices.gd,
 ## eco_toon.gdshaderinc iris_swirl). Ophelia's Keepsake (obsession.gd) turns them
 ## rose when it's the stronger pull.
+## A scene's say over her eyes (cheat_scene.gd): the swirl's strength, -1 for
+## none, and its colour.
+static var swirl_override := -1.0
+static var swirl_override_tint := Color.WHITE
+
+
 func _eye_swirl() -> void:
 	var marrow := Vices.eye_swirl()
 	var rose := Obsession.eyes() * 0.9
 	var h := maxf(marrow, rose)
 	var tint := ROSE_SWIRL if rose > marrow and not Vices.entranced else VIOLET_SWIRL
+	if swirl_override >= 0.0:
+		h = swirl_override
+		tint = swirl_override_tint
 	if is_equal_approx(h, _hypno) and tint == _swirl_tint:
 		return
 	_hypno = h

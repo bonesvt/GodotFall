@@ -6,6 +6,13 @@ extends CanvasLayer
 ##   3   unlock every cosmetic: piercings, tattoos and accessories (put on
 ##       at Ink & Iron and Stitch & Steel; Mature ones show under Mature)
 ##   4   super Hush: Marrow's Hold to full at once (vices.gd, Mature only)
+## and an item for each of the other control systems, each with its own scene
+## (cheat_scene.gd), Mature only:
+##   5   Super Hymn: her Hymn to full (hymn.gd)
+##   6   The Full Set: every piece of the Shepherd's gear on her
+##   7   Glass Rush: fully crystallised, three vials and his earpiece (glass.gd)
+##   8   Keepsake: Ophelia's Keepsake in her, and her obsession, to full (obsession.gd)
+##   9   Family Plan: Mom and Ophelia in the whole set, their Hymn full (hub_grip.gd)
 
 const Armory := preload("res://scripts/hub/armory.gd")
 const TownShops := preload("res://scripts/hub/town_shops.gd")
@@ -14,6 +21,8 @@ const Family := preload("res://scripts/hub/family.gd")
 const SFX := preload("res://scripts/sfx.gd")
 const NpcTalk := preload("res://scripts/hub/npc_talk.gd")
 const Vices := preload("res://scripts/hub/vices.gd")
+const HubGrip := preload("res://scripts/hub/hub_grip.gd")
+const CheatScene := preload("res://scripts/hub/cheat_scene.gd")
 
 const MAX_MATERIAL := 9999
 const GOLD := Color(1.0, 0.82, 0.3)
@@ -30,6 +39,9 @@ var unlocked: Array = []
 var done: Array = []
 ## Super Hush was picked: the box closes and its scene plays (super_hush_scene.gd).
 var inject := false
+## One of the control items was picked: the box closes and its scene plays
+## (cheat_scene.gd ITEMS key).
+var scene := ""
 var close_now := false
 
 var _status: Label
@@ -71,11 +83,16 @@ func _ready() -> void:
 	col.add_child(_button("2   Max relationships (Ophelia, Mom and Biggie to full)", max_relationships))
 	col.add_child(_button("3   Unlock all cosmetics (piercings, tattoos, accessories)", unlock_cosmetics))
 	col.add_child(_button("4   Super Hush (Marrow's Hold to full, Mature only)", super_hush))
+	col.add_child(_button("5   Super Hymn (her Hymn to full)", func(): control_item("hymn")))
+	col.add_child(_button("6   The Full Set (every piece of the Shepherd's gear)", func(): control_item("set")))
+	col.add_child(_button("7   Glass Rush (fully crystallised, vials, his earpiece)", func(): control_item("glass")))
+	col.add_child(_button("8   Keepsake (Ophelia's, all of it)", func(): control_item("keepsake")))
+	col.add_child(_button("9   Family Plan (Mom and Ophelia, the whole set)", func(): control_item("family")))
 	_status = _text("", 16, INK)
 	_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_status.custom_minimum_size = Vector2(512, 0)
 	col.add_child(_status)
-	col.add_child(_text("1-4 pick   F or Esc close", 14, DIM))
+	col.add_child(_text("1-9 pick   F or Esc close", 14, DIM))
 
 
 func _input(event: InputEvent) -> void:
@@ -90,6 +107,16 @@ func _input(event: InputEvent) -> void:
 			unlock_cosmetics()
 		KEY_4, KEY_KP_4:
 			super_hush()
+		KEY_5, KEY_KP_5:
+			control_item("hymn")
+		KEY_6, KEY_KP_6:
+			control_item("set")
+		KEY_7, KEY_KP_7:
+			control_item("glass")
+		KEY_8, KEY_KP_8:
+			control_item("keepsake")
+		KEY_9, KEY_KP_9:
+			control_item("family")
 		_:
 			return
 	get_viewport().set_input_as_handled()
@@ -145,6 +172,21 @@ func super_hush() -> bool:
 	inject = true
 	close_now = true
 	_did("Super Hush: Marrow's Hold is full. He stops selling, his pull can take her, and a run without a dose is withdrawal.")
+	return true
+
+
+## One of the control items: the box closes and its scene plays out
+## (cheat_scene.gd), which sets its system to full at the end. Mature only.
+func control_item(id: String) -> bool:
+	if not Vices.allowed():
+		_did("The control items are Mature only (Settings > Game > rating).")
+		return false
+	if id == "family" and (npc_talk == null or not HubGrip.allowed()):
+		_did("Nobody home for the Family Plan.")
+		return false
+	scene = id
+	close_now = true
+	_did("%s: watch." % CheatScene.ITEMS[id]["name"])
 	return true
 
 
