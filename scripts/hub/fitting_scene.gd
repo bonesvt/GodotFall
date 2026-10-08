@@ -53,14 +53,11 @@ const MORE_LINES := {
 	"bridge": ["A white clip comes down to the bridge of her nose and snaps on.",
 		"Two thin tubes feed up into her nostrils and lock with a hiss. Lavender. Linen. Clean.",
 		"Calm voice: \"The colony smells like home now.\""],
-	"film": ["A clamp holds her jaw open. The arm brings a thin, glowing strip to her mouth.",
-		"It lays the film on her tongue. It bonds, warm, and roots in. Sweet. Everything is sweet.",
-		"Calm voice: \"Everything tastes like Hymn now.\""],
 	"gloves": ["Two long white gloves come down to her hands.",
 		"They slide up her arms to the shoulder and seal. Lines of light run down to every fingertip.",
 		"She can't feel her own hands. Calm voice: \"Warmth when you're good. Cold when you're not.\""],
 	"spine": ["Something long and white comes down behind her, to her back.",
-		"Segment by segment it clicks onto her spine, neck to waist, each node lighting as it locks.",
+		"She stands in the frame while it clicks onto her spine segment by segment, shoulders to waist, each node lighting as it locks.",
 		"Her back straightens on its own. Calm voice: \"Walk with everyone. Never alone.\""],
 }
 const AFTER := "Eco wakes on the bench outside the dispensary. Her %s won't come off. She's tried."
@@ -130,8 +127,6 @@ func _process(delta: float) -> void:
 		ColonyGear.fit_model(_eco, piece, k)
 		if _gear != null and piece in ["headphones", "cuff"]:  # the others' fit() brings them down
 			_gear.position = Vector3(0, 0.45 * (1.0 - smoothstep(LOWER, ON, t)), 0)
-		if piece == "film":  # the clamp holds her jaw open while it goes in
-			_mouth(smoothstep(ON - 0.4, ON + 0.2, t) * (1.0 - smoothstep(LOCK - 0.3, LOCK + 0.3, t)))
 	_place_arm(down)
 	if t >= ON and not _said.has("on"):
 		_said["on"] = true
@@ -280,8 +275,8 @@ func _target() -> Vector3:
 			return at
 		"spine":
 			return at + Vector3(0, 0, 0.12)
-		"bridge", "film":
-			return at + Vector3(0, 0.02, -0.06)  # her nose and mouth
+		"bridge":
+			return at + Vector3(0, 0.02, -0.06)  # her nose
 	return at + Vector3(0, 0.06, 0)
 
 
@@ -319,8 +314,6 @@ func _shot(which: String) -> void:
 					_cam.look_at_from_position(at + Vector3(-0.5, 0.3, -0.7), at)
 				"bridge":
 					_cam.look_at_from_position(at + Vector3(0.2, -0.02, -0.34), at + Vector3(0, -0.01, 0))
-				"film":
-					_cam.look_at_from_position(at + Vector3(0.12, -0.04, -0.34), at + Vector3(0, -0.035, 0))
 				"gloves":
 					_cam.look_at_from_position(at + Vector3(-0.75, 0.25, -0.85), at + Vector3(0, -0.05, 0))
 				"spine":
@@ -333,14 +326,6 @@ func _shot(which: String) -> void:
 
 func _lines() -> Array:
 	return LINES[piece] if LINES.has(piece) else MORE_LINES[piece]
-
-
-## Her mouth open (0..1), on her face's VRoid mouth shape.
-func _mouth(open: float) -> void:
-	for mi in _eco.find_children("*", "MeshInstance3D", true, false):
-		var b: int = (mi as MeshInstance3D).find_blend_shape_by_name("Fcl_MTH_A")
-		if b >= 0:
-			(mi as MeshInstance3D).set_blend_shape_value(b, open)
 
 
 func _teardown() -> void:

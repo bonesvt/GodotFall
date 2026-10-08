@@ -15,7 +15,6 @@ extends RefCounted
 ##               turning rings and false HUD (visor_screen.gd)
 ##   bridge      the calm bridge (smell): every BRIDGE_EVERY s it puffs a
 ##               little Hymn up her nose
-##   film        the Hymn film (taste): on her tongue; Hymn in everything
 ##   gloves      comfort gloves (touch): numb hands, reloads RELOAD_SLOW slower
 ##   spine       the Plumb Line (balance): colony posture, a step heavier
 ##               (SPINE_SPEED)
@@ -23,9 +22,9 @@ extends RefCounted
 
 const Vices := preload("res://scripts/hub/vices.gd")
 
-const GEAR := ["headphones", "cuff", "visor", "bridge", "film", "gloves", "spine"]
+const GEAR := ["headphones", "cuff", "visor", "bridge", "gloves", "spine"]
 const GEAR_NAMES := {"headphones": "compliance headphones", "cuff": "dose cuff", "visor": "clarity visor",
-	"bridge": "calm bridge", "film": "Hymn film", "gloves": "comfort gloves", "spine": "Plumb Line spine"}
+	"bridge": "calm bridge", "gloves": "comfort gloves", "spine": "Plumb Line spine"}
 ## The calm bridge's puff: how often, and how much Hymn.
 const BRIDGE_EVERY := 60.0
 const BRIDGE_PUFF := 1.5

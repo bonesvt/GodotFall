@@ -1,6 +1,7 @@
 extends Node
-## The morning dose (hymn.gd), when Eco takes it at the dispensary: a close-up
-## on her face as she swallows, a soft white wash across the view while the
+## The morning dose (hymn.gd), when Eco takes it at the dispensary: the dose is
+## a film, a thin glowing strip she lays on her own tongue. A close-up on her face
+## as it dissolves, a soft white wash across the view while the
 ## town goes quiet, and the calm voice: "Good morning, citizen." Deep in Hymn
 ## (SMILE_AT and up) she says it back. About LENGTH s; after the first one F
 ## skips it. The run manager plays it when the dispensary closes on a dose and
@@ -52,7 +53,7 @@ func play() -> void:
 	rm.pilot_hud.visible = false
 	rm.hud.status_label.visible = false
 	rm.hush_pull._close_up(rm.player)
-	rm.hud.toast("The officer slides the white pill across. Eco swallows it.", 2.0)
+	rm.hud.toast("The officer peels a thin, glowing strip off a sheet. Eco lays it on her tongue. It melts, sweet.", 2.2)
 
 
 func _process(delta: float) -> void:
@@ -62,6 +63,7 @@ func _process(delta: float) -> void:
 	if seen and t > 0.3 and Input.is_action_just_pressed("interact"):
 		_finish()
 		return
+	_mouth(smoothstep(0.2, 0.5, t) * (1.0 - smoothstep(SWALLOW + 0.3, SWALLOW + 0.7, t)) * 0.6)
 	if t >= SWALLOW and not _said.has("swallow"):
 		_said["swallow"] = true
 		SFX.play(self, "titan_hiss_short", -14.0, 2.4)
@@ -78,7 +80,19 @@ func _process(delta: float) -> void:
 		_finish()
 
 
+## Her mouth open a little (0..1) on both copies of her (eco_model.gd), for the film.
+func _mouth(open: float) -> void:
+	var eco: Node = rm.player.get_node_or_null("EcoBody")
+	if eco == null:
+		return
+	for mi in eco.find_children("*", "MeshInstance3D", true, false):
+		var b: int = (mi as MeshInstance3D).find_blend_shape_by_name("Fcl_MTH_A")
+		if b >= 0:
+			(mi as MeshInstance3D).set_blend_shape_value(b, open)
+
+
 func _finish() -> void:
+	_mouth(0.0)
 	t = -1.0
 	seen = true
 	_veil.color.a = 0.0

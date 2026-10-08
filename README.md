@@ -276,7 +276,12 @@ Under the Mature rating (Settings > Game), **F** at the Rusted Halo on Low Row o
   crowded with flashing orders, turning white rings, spirals from the corners, a fake compliance
   meter and heart rate, a marker always pointing back to the dispensary, "THREATS NEARBY 0",
   blinking warnings about her thoughts, scanlines, glitches and white flashes; quieter in third
-  person). Render it: `godot --path . --resolution 1280x720 -s res://tools/hub/shepherd_shots.gd -- <dir>`.
+  person), then the **calm bridge** (a clip over her nose, tubes up her nostrils: a little Hymn
+  every minute), **comfort gloves** to the shoulder (numb hands: reloads 30% slower) and the
+  **Plumb Line**, a white and chrome spine from below her neck to her waist, fitted segment by
+  segment while she stands in the frame (a heavier, colony step). Taking the dose plays out
+  (`dose_scene.gd`): she lays the glowing film on her tongue, a white wash, "Good morning,
+  citizen" (deep in Hymn she says it back). Render it: `godot --path . --resolution 1280x720 -s res://tools/hub/shepherd_shots.gd -- <dir>`.
 - Tests: `godot --headless --path . -s res://tests/vices_test.gd`, `tests/hush_pull_test.gd`,
   `tests/hold_effects_test.gd`, `tests/glass_test.gd`, `tests/trigger_test.gd`, `tests/hymn_test.gd`
 

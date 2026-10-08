@@ -150,11 +150,11 @@ func _run() -> void:
 
 	# The rest of the set: each capture the next piece, in order, each on her.
 	Hymn.gear = ["headphones", "cuff", "visor"]
-	for want in ["bridge", "film", "gloves", "spine"]:
+	for want in ["bridge", "gloves", "spine"]:
 		_check("next capture: %s" % want, Hymn.processed() == want, Hymn.gear)
 	Wardrobe.dress_eco(player, true)
 	await _ticks(2)
-	for part in ["bridge", "film", "UpperL", "HandR", "Seg_0", "Seg_8"]:
+	for part in ["bridge", "UpperL", "HandR", "Seg_0", "Seg_8"]:
 		_check("%s on her" % part, player.find_child(part, true, false) != null, part)
 	_check("gloves: numb hands, slower reloads", Hymn.reload_scale() == Hymn.RELOAD_SLOW, Hymn.reload_scale())
 	_check("spine: a heavier step", Hymn.speed_scale() == Hymn.SPINE_SPEED, Hymn.speed_scale())

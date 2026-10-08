@@ -19,11 +19,11 @@ const RED := Color(1.0, 0.4, 0.35)
 const SWEEP := 1.4
 
 const OFFICER := [
-	"Officer: \"Citizen. Your dose. Swallow it where I can see you.\"",
+	"Officer: \"Citizen. Your dose. On the tongue, where I can see it.\"",
 	"Officer: \"Morning, Eco. Hymn keeps you calm. Calm keeps you safe.\"",
 	"Officer: \"Hand out, eyes on me. Good.\"",
 ]
-const TOOK := "Eco swallows it. A clean white hush fills her head, like snow. Everything's fine. Everything's fine."
+const TOOK := "The film melts on her tongue. A clean white hush fills her head, like snow. Everything's fine. Everything's fine."
 const PALMED := "The officer turns to the next citizen. Eco's fist is shut round the pill. It goes in the gutter on the way out."
 const CAUGHT := "Officer: \"Open your hand.\" She runs. Behind her, something tall unfolds from the dispensary's back door."
 const REFUSED := "Eco: \"No.\" The officer just nods and taps her earpiece. \"Shepherd. Lantern Row.\""
