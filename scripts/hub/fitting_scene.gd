@@ -10,7 +10,9 @@ extends Node
 ##               out of it and seal onto her eyes, it seats over them, a prong
 ##               into each temple, and its first orders flash up (visor_screen.gd)
 ## Then the arm goes back up, the room whites out, and she wakes outside at the
-## dispensary. Built well below the hub on its own (SET), with its own copy of
+## dispensary. With someone taken with her (hub_grip.gd) they're sat in two
+## fitting chairs facing each other (standing for the spine), and the fitting
+## plays in first person: Eco watching them get theirs while hers goes on. Built well below the hub on its own (SET), with its own copy of
 ## her in what she's wearing. The run manager plays it and keeps its own
 ## controls off while busy().
 
@@ -21,6 +23,7 @@ const SFX := preload("res://scripts/sfx.gd")
 const ECO := preload("res://assets/models/eco.tscn")
 const HubNpc := preload("res://scripts/hub/hub_npc.gd")
 const HubGrip := preload("res://scripts/hub/hub_grip.gd")
+const EcoRest := preload("res://scripts/ps2/eco_rest.gd")
 
 ## Where the back room is built (out of sight under the hub).
 const SET := Vector3(0, -160, 0)
@@ -40,6 +43,7 @@ const OUT := 10.0      # white
 const END := 11.2
 
 const INTRO := "The dispensary's back room. White walls, a hum, a frame that holds her up. Something comes down from the ceiling."
+const INTRO_ACROSS := "The dispensary's back room. Two white chairs, facing. Eco can't move. Across from her, %s can't either. Something comes down from the ceiling."
 const LINES := {
 	"headphones": ["Clippers buzz her left side short to the skin. The arm sets a pair of white headphones round her head, cups open.",
 		"Thin pins slide out of the cups and into her ears. She can't flinch. Click. Click.",
@@ -65,7 +69,12 @@ const MORE_LINES := {
 		"She stands in the frame while it clicks onto her spine segment by segment, shoulders to waist, each node lighting as it locks.",
 		"Her back straightens on its own. Calm voice: \"Walk with everyone. Never alone.\""],
 }
-const BESIDE := "  In the next frame, %s gets the same. Eco can't turn her head to look."
+const BESIDE := "  Across from her, %s gets the same. Eco can't look away."
+## The fitting chairs: seat height, and how far apart they face each other.
+const SEAT := 0.46
+const ACROSS := 2.1
+## Eco's own copy goes on this render layer, which the first-person camera leaves out.
+const ECO_LAYER := 1 << 19
 const AFTER := "Eco wakes on the bench outside the dispensary. Her %s won't come off. She's tried."
 
 var rm: Node
@@ -77,6 +86,12 @@ var visor_flash := false
 var with := ""
 var with_piece := ""
 var _with_model: Node3D
+var _with_rest: EcoRest
+var _with_anim: AnimationPlayer
+var _with_gear: Node3D
+var _with_arm: Node3D
+var _with_rod: MeshInstance3D
+var _pov := false
 var _set: Node3D
 var _eco: Node3D
 var _gear: Node3D
@@ -133,7 +148,7 @@ func play(p: String, p_with := "", p_with_piece := "") -> void:
 	_show_hud(false)
 	_build()
 	_shot("wide")
-	rm.hud.toast(INTRO, 3.0)
+	rm.hud.toast(INTRO_ACROSS % HubGrip.NAMES[with] if with != "" and with_piece != "" else INTRO, 3.0)
 	SFX.play(self, "titan_powerdown", -14.0, 1.6)
 
 
@@ -151,16 +166,25 @@ func _process(delta: float) -> void:
 	# the arm: down with it, holding still, back up
 	var down := smoothstep(LOWER, ON, t) * (1.0 - smoothstep(UP, UP + 1.2, t))
 	var k := clampf((t - FIT) / FIT_TIME, 0.0, 1.0)
+	# their animation first, then their chair pose over it (eco_rest.gd)
+	if _with_anim != null:
+		_with_anim.advance(delta)
+	if _with_rest != null:
+		_with_rest.step(delta, "chair")
 	if _eco != null:
 		ColonyGear.fit_model(_eco, piece, k)
 		if _with_model != null:
 			ColonyGear.fit_model(_with_model, with_piece, k)
+		var drop := Vector3(0, 0.45 * (1.0 - smoothstep(LOWER, ON, t)), 0)
 		if _gear != null and piece in ["headphones", "cuff"]:  # the others' fit() brings them down
-			_gear.position = Vector3(0, 0.45 * (1.0 - smoothstep(LOWER, ON, t)), 0)
-	_place_arm(down)
+			_gear.position = drop
+		if _with_gear != null and with_piece in ["headphones", "cuff"]:
+			_with_gear.position = drop
+	_place_arm(_arm, _arm_rod, _eco, piece, down)
+	_place_arm(_with_arm, _with_rod, _with_model, with_piece, down)
 	if t >= ON and not _said.has("on"):
 		_said["on"] = true
-		_shot("close")
+		_shot("pov" if _with_model != null else "close")
 		rm.hud.toast(_lines()[0] + (BESIDE % HubGrip.NAMES[with] if _with_model != null else ""), 3.0)
 		SFX.play(self, "titan_servo_2", -8.0, 1.4)
 	if t >= FIT + FIT_TIME * 0.35 and not _said.has("fit"):
@@ -173,7 +197,12 @@ func _process(delta: float) -> void:
 		SFX.play(self, "cache_unlock", -4.0, 0.7)
 		SFX.play(self, "heartbeat", -6.0)
 		visor_flash = piece == "visor"
-	if _cam != null and t >= ON:
+		if _with_model != null:
+			_with_model.mood(["smile"])  # calm, all at once
+	if _cam != null and _pov:
+		_aim_pov()
+		_cam.fov = lerpf(52.0, 34.0, smoothstep(ON, LOCK, t))
+	elif _cam != null and t >= ON:
 		_cam.fov = lerpf(32.0, 24.0, smoothstep(ON, LOCK, t))
 	if t >= UP and not _said.has("up"):
 		_said["up"] = true
@@ -233,10 +262,6 @@ func _build() -> void:
 	_box(Vector3(0, 1.6, -3.4), Vector3(7, 3.3, 0.1), wall)
 	for x in [-1.6, 0.0, 1.6]:
 		_box(Vector3(x, 3.13, -0.6), Vector3(1.0, 0.03, 2.4), lit)  # light panels
-	# the fitting frame behind her: two posts and a top bar
-	for s in [-1.0, 1.0]:
-		_box(Vector3(0.55 * s, 1.1, 0.35), Vector3(0.1, 2.2, 0.1), trim)
-	_box(Vector3(0, 2.2, 0.35), Vector3(1.2, 0.1, 0.1), trim)
 	_box(Vector3(0, 1.0, 2.14), Vector3(2.4, 0.04, 0.02), lit)     # a lit seam on the back wall
 	var light := OmniLight3D.new()
 	light.light_color = Color(0.92, 0.96, 1.0)
@@ -250,6 +275,7 @@ func _build() -> void:
 	fill.omni_range = 5.0
 	fill.position = Vector3(-1.5, 1.6, -1.8)
 	_set.add_child(fill)
+	var across := with != "" and with_piece != ""
 	# her, in what she has on, with the gear she had plus this piece, its parts open
 	_eco = ECO.instantiate()
 	_set.add_child(_eco)
@@ -264,38 +290,82 @@ func _build() -> void:
 	ColonyGear.apply(_eco, gear)
 	_gear = ColonyGear.piece_node(_eco, piece)
 	ColonyGear.fit_model(_eco, piece, 0.0)
-	# whoever was taken with her, in a frame of their own beside her
-	if with != "" and with_piece != "":
-		_with_model = HubNpc.create(with, Vector3(1.35, 0, 0.1), 0.0)
+	# sat in her chair facing them, or stood in the frame (the spine's fitted standing)
+	if across and piece != "spine":
+		_eco.rest_pose = "chair"
+		_eco.rest_seat_height = SEAT
+		_chair(Vector3.ZERO, 1.0, trim, wall)
+	else:
+		_frame(Vector3.ZERO, 1.0, trim)
+	# whoever was taken with her, across from her
+	if across:
+		_with_model = HubNpc.create(with, Vector3(0, 0, -ACROSS), 180.0)
 		_set.add_child(_with_model)
-		_with_model.set_process(false)
+		_with_model.posed = true
 		if is_instance_valid(_with_model.soft_body):
 			_with_model.soft_body.queue_free()
 		ColonyGear.apply(_with_model, HubGrip.gear_of(with))
+		_with_gear = ColonyGear.piece_node(_with_model, with_piece)
 		ColonyGear.fit_model(_with_model, with_piece, 0.0)
 		_with_model.mood(["sad"])
-		var frame2 := _mat(Color(0.55, 0.6, 0.68), 0.0)
-		for s in [-1.0, 1.0]:
-			_box(Vector3(1.35 + 0.55 * s, 1.1, 0.45), Vector3(0.1, 2.2, 0.1), frame2)
-		_box(Vector3(1.35, 2.2, 0.45), Vector3(1.2, 0.1, 0.1), frame2)
-	# the arm from the ceiling: a rod and a white clamp head
-	_arm = Node3D.new()
-	_set.add_child(_arm)
-	_arm_rod = MeshInstance3D.new()
+		var skel := _with_model.find_child("Skeleton3D", true, false) as Skeleton3D
+		if with_piece != "spine" and skel != null:
+			_with_anim = _with_model.find_child("AnimationPlayer", true, false) as AnimationPlayer
+			if _with_anim != null:  # stepped here, so the chair pose goes on after it
+				_with_anim.callback_mode_process = AnimationMixer.ANIMATION_CALLBACK_MODE_PROCESS_MANUAL
+			_with_rest = EcoRest.new(skel)
+			_with_rest.seat_height = SEAT
+			if not _with_rest.usable():
+				_with_rest = null
+			_chair(Vector3(0, 0, -ACROSS), -1.0, trim, wall)
+		else:
+			_frame(Vector3(0, 0, -ACROSS), -1.0, trim)
+		var arm2: Array = _make_arm(trim, wall, lit)
+		_with_arm = arm2[0]
+		_with_rod = arm2[1]
+		# Eco's own copy stays out of her eyes' view
+		for v in _eco.find_children("*", "VisualInstance3D", true, false):
+			(v as VisualInstance3D).layers = ECO_LAYER
+	var arm: Array = _make_arm(trim, wall, lit)
+	_arm = arm[0]
+	_arm_rod = arm[1]
+
+
+## The fitting frame behind someone at `at` facing -Z (`face` -1: facing +Z).
+func _frame(at: Vector3, face: float, trim: Material) -> void:
+	for s in [-1.0, 1.0]:
+		_box(at + Vector3(0.55 * s, 1.1, 0.35 * face), Vector3(0.1, 2.2, 0.1), trim)
+	_box(at + Vector3(0, 2.2, 0.35 * face), Vector3(1.2, 0.1, 0.1), trim)
+
+
+## A fitting chair under someone sat at `at` facing -Z (`face` -1: facing +Z):
+## a white seat on a grey post, and a low back that leaves the spine clear.
+func _chair(at: Vector3, face: float, trim: Material, wall: Material) -> void:
+	_box(at + Vector3(0, SEAT - 0.04, -0.12 * face), Vector3(0.5, 0.08, 0.5), wall)
+	_box(at + Vector3(0, (SEAT - 0.08) * 0.5, -0.1 * face), Vector3(0.12, SEAT - 0.08, 0.12), trim)
+	_box(at + Vector3(0, 0.02, -0.1 * face), Vector3(0.5, 0.04, 0.5), trim)
+	_box(at + Vector3(0, SEAT + 0.2, 0.17 * face), Vector3(0.46, 0.34, 0.06), wall)
+
+
+## An arm from the ceiling: a rod and a white clamp head. [arm, rod]
+func _make_arm(trim: Material, wall: Material, lit: Material) -> Array:
+	var arm := Node3D.new()
+	_set.add_child(arm)
+	var rod_mi := MeshInstance3D.new()
 	var rod := CylinderMesh.new()
 	rod.top_radius = 0.035
 	rod.bottom_radius = 0.035
 	rod.height = 1.0
-	_arm_rod.mesh = rod
-	_arm_rod.material_override = trim
-	_arm.add_child(_arm_rod)
+	rod_mi.mesh = rod
+	rod_mi.material_override = trim
+	arm.add_child(rod_mi)
 	var head := MeshInstance3D.new()
 	var hb := BoxMesh.new()
 	hb.size = Vector3(0.24, 0.07, 0.14)
 	head.mesh = hb
 	head.material_override = wall
 	head.name = "Clamp"
-	_arm.add_child(head)
+	arm.add_child(head)
 	var eye := MeshInstance3D.new()
 	var eb := BoxMesh.new()
 	eb.size = Vector3(0.16, 0.012, 0.01)
@@ -303,55 +373,63 @@ func _build() -> void:
 	eye.material_override = lit
 	eye.position = Vector3(0, 0, -0.075)
 	head.add_child(eye)
+	return [arm, rod_mi]
 
 
-## Where on her the piece goes, in the room's space.
-func _target() -> Vector3:
-	var skel := _eco.find_child("Skeleton3D", true, false) as Skeleton3D if _eco != null else null
+## Where on `model` the piece `p` goes, in the room's space (offsets in their
+## own facing: they face -Z).
+func _target(model: Node3D = _eco, p: String = piece) -> Vector3:
+	var skel := model.find_child("Skeleton3D", true, false) as Skeleton3D if model != null else null
 	if skel == null:
 		return SET + Vector3(0, 1.5, 0)
-	var bone: String = {"cuff": ColonyGear.WRIST, "gloves": "J_Bip_L_LowerArm", "spine": "J_Bip_C_Chest"}.get(piece, ColonyGear.HEAD)
+	var bone: String = {"cuff": ColonyGear.WRIST, "gloves": "J_Bip_L_LowerArm", "spine": "J_Bip_C_Chest"}.get(p, ColonyGear.HEAD)
 	var i := skel.find_bone(bone)
 	var at := skel.global_transform * skel.get_bone_global_pose(i).origin
-	match piece:
+	var turn := model.global_basis.orthonormalized()
+	match p:
 		"cuff":
-			return at + Vector3(0.04, 0, 0)
+			return at + turn * Vector3(0.04, 0, 0)
 		"gloves":
 			return at
 		"spine":
-			return at + Vector3(0, 0, 0.12)
+			return at + turn * Vector3(0, 0, 0.12)
 		"bridge":
-			return at + Vector3(0, 0.02, -0.06)  # her nose
+			return at + turn * Vector3(0, 0.02, -0.06)  # the nose
 		"crown":
-			return at + Vector3(0, 0.12, 0)  # her brow and crown
+			return at + Vector3(0, 0.12, 0)  # brow and crown
 	return at + Vector3(0, 0.06, 0)
 
 
-## The arm, `down` of the way from the ceiling to just above the piece.
-func _place_arm(down: float) -> void:
-	if _arm == null:
+## `arm` `down` of the way from the ceiling to just above `p` on `model`.
+func _place_arm(arm: Node3D, rod_mi: MeshInstance3D, model: Node3D, p: String, down: float) -> void:
+	if arm == null or model == null:
 		return
-	var lift: float = {"cuff": 0.24, "spine": 0.5, "gloves": 0.35}.get(piece, 0.16)
-	var tip := _target() + Vector3(0, lift, 0)
-	_arm.get_node("Clamp").scale = Vector3.ONE * (0.5 if piece in ["cuff", "gloves", "spine"] else 1.0)
+	var lift: float = {"cuff": 0.24, "spine": 0.5, "gloves": 0.35}.get(p, 0.16)
+	var tip := _target(model, p) + Vector3(0, lift, 0)
+	arm.get_node("Clamp").scale = Vector3.ONE * (0.5 if p in ["cuff", "gloves", "spine"] else 1.0)
+	arm.global_rotation.y = model.global_rotation.y
 	var top := SET.y + 3.15
 	var y := lerpf(top - 0.1, tip.y, down)
-	_arm.global_position = Vector3(tip.x, y, tip.z)
+	arm.global_position = Vector3(tip.x, y, tip.z)
 	var len := maxf(top - y, 0.05)
-	(_arm_rod.mesh as CylinderMesh).height = len
-	_arm_rod.position = Vector3(0, len * 0.5, 0)
+	(rod_mi.mesh as CylinderMesh).height = len
+	rod_mi.position = Vector3(0, len * 0.5, 0)
 
 
 func _shot(which: String) -> void:
 	if _cam == null:
 		_cam = Camera3D.new()
 		_set.add_child(_cam)
+	_pov = which == "pov"
+	_cam.cull_mask = 0xFFFFF & ~ECO_LAYER if _pov else 0xFFFFF
 	var at := _target()
 	match which:
+		"pov":
+			_aim_pov()
 		"wide":
 			_cam.fov = 48.0
-			if _with_model != null:  # both frames in the shot
-				_cam.look_at_from_position(SET + Vector3(0.9, 1.6, -3.4), SET + Vector3(0.68, 1.2, 0))
+			if _with_model != null:  # the two of them face to face, from the side
+				_cam.look_at_from_position(SET + Vector3(2.7, 1.55, -ACROSS * 0.5 + 0.3), SET + Vector3(0, 0.95, -ACROSS * 0.5))
 			else:
 				_cam.look_at_from_position(SET + Vector3(1.2, 1.6, -2.6), SET + Vector3(0, 1.25, 0))
 		"close":
@@ -376,6 +454,18 @@ func _shot(which: String) -> void:
 	_cam.make_current()
 
 
+## Through Eco's eyes, at them across the room.
+func _aim_pov() -> void:
+	if _eco == null or _with_model == null:
+		return
+	var skel := _eco.find_child("Skeleton3D", true, false) as Skeleton3D
+	var head := SET + Vector3(0, 1.3, 0)
+	if skel != null:
+		head = skel.global_transform * skel.get_bone_global_pose(skel.find_bone(ColonyGear.HEAD)).origin
+	var eyes := head + Vector3(0, 0.07, -0.06)
+	_cam.look_at_from_position(eyes, _with_model.head_position() + Vector3(0, -0.12, 0))
+
+
 func _lines() -> Array:
 	return LINES[piece] if LINES.has(piece) else MORE_LINES[piece]
 
@@ -386,6 +476,12 @@ func _teardown() -> void:
 	_set = null
 	_eco = null
 	_with_model = null
+	_with_rest = null
+	_with_anim = null
+	_with_gear = null
+	_with_arm = null
+	_with_rod = null
+	_pov = false
 	_gear = null
 	_arm = null
 	_cam = null
