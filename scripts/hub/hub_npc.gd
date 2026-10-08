@@ -46,6 +46,10 @@ var voice: AudioStreamPlayer3D
 var talking := false
 ## Who they turn toward when close (the pilot).
 var look_target: Node3D
+## How far off they notice her, and how far round they'll turn to follow her
+## (obsession_look.gd widens both: obsessed Ophelia tracks Eco across the hub).
+var notice_range := NOTICE_RANGE
+var max_turn := MAX_TURN
 var _anim: AnimationPlayer
 var _mouth: Array = []   # [[MeshInstance3D, blend shape index]]
 var _t := 0.0
@@ -368,9 +372,9 @@ func _process(delta: float) -> void:
 	var want := home_yaw
 	if look_target != null and is_instance_valid(look_target):
 		var d := look_target.global_position - global_position
-		if not posed and (Vector2(d.x, d.z).length() < NOTICE_RANGE or talking):
+		if not posed and (Vector2(d.x, d.z).length() < notice_range or talking):
 			var toward := angle_difference(home_yaw, atan2(-d.x, -d.z))   # the model faces -Z
-			var most := deg_to_rad(MAX_TURN)
+			var most := deg_to_rad(max_turn)
 			want = home_yaw + clampf(toward, -most, most)
 	rotation.y = lerp_angle(rotation.y, want, minf(1.0, delta * TURN_SPEED))
 	# Mouth flaps while their voice plays.

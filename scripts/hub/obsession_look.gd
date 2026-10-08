@@ -9,7 +9,15 @@ extends RefCounted
 ##                (no highlights, irises dark rose), eyes held wide and unblinking
 ##                over a sweet, too-wide smile, a flush on her cheeks, head
 ##                tilted; her violet streak burning hot rose against the black.
-##                It gets worse the higher the meter goes (stare())
+##                It gets worse the higher the meter goes (stare()).
+##                Watching: she turns to track Eco anywhere near her tent
+##                (WATCH_RANGE), with a photo strip of Eco on her belt
+##   4 lacing     (meter LACING_AT) a lighter on a cord, a candle burning on
+##                her doorstep
+##   5 keeper     (meter KEEPER_AT) her hair all Eco's red, Eco's pilot patches
+##                on her shoulders, and Eco's titan key in her hand in place of
+##                the pack
+## Clingy also gets a little heart pin and a soft smile (props: _props()).
 ## Mature only; once Eco's helped her and it's worn off, she's herself again.
 
 const Obsession := preload("res://scripts/hub/obsession.gd")
@@ -17,12 +25,23 @@ const HubRooms := preload("res://scripts/hub/hub_rooms.gd")
 
 const CLINGY_AT := 25.0
 const OBSESSED_AT := 50.0
+const LACING_AT := 75.0
+const KEEPER_AT := 90.0
+## How far off obsessed Ophelia notices Eco, and how far round she turns.
+const WATCH_RANGE := 30.0
+const WATCH_TURN := 100.0
+## Eco's red.
+const ECO_RED := Color(0.72, 0.1, 0.1)
 const ROSE := Color(1.0, 0.45, 0.68)
 
 
 static func stage() -> int:
 	if not Obsession.allowed():
 		return 0
+	if Obsession.meter >= KEEPER_AT:
+		return 5
+	if Obsession.meter >= LACING_AT:
+		return 4
 	if Obsession.meter >= OBSESSED_AT:
 		return 3
 	if Obsession.meter >= CLINGY_AT:
@@ -35,12 +54,12 @@ static func stage() -> int:
 ## Puts this stay's look on her (`info`: the hub's, for her talk spot).
 static func dress(npc: Node3D, info: Dictionary) -> void:
 	var s := stage()
-	_tint(npc, s >= 3)
+	_tint(npc, s >= 3, s >= 5)
 	match s:
 		1:
 			npc.rest_mood = ["sad", "lookaway"]
 			npc.calm()
-		2, 3:
+		2, 3, 4, 5:
 			npc.wear("hoodie")
 			var door: Array = HubRooms.doorstep("ophelia")
 			var at: Vector3 = door[0] + (door[1] as Vector3) * -0.4  # just off the step, out front
@@ -56,13 +75,16 @@ static func dress(npc: Node3D, info: Dictionary) -> void:
 			if npc._anim != null and npc._anim.has_animation("idle"):
 				npc._anim.play("idle", 0.3)
 			# obsessed: chin down, looking up at you through her fringe, so her eyes sit in shadow
-			npc.rest_mood = ["down", "blush"] if s == 3 else ["sad"]
+			npc.rest_mood = ["down", "blush"] if s >= 3 else ["smile"]
 			npc.calm()
 			for spec in info.get("interactables", []):
 				if spec.get("npc", "") == "ophelia":
 					spec["pos"] = at
 	_stare(npc, stare() if s >= 3 else 0.0)
-	_pack(npc, s >= 3)
+	_pack(npc, s >= 3 and s < 5)
+	npc.notice_range = WATCH_RANGE if s >= 3 else npc.NOTICE_RANGE
+	npc.max_turn = WATCH_TURN if s >= 3 else npc.MAX_TURN
+	_props(npc, s)
 
 
 ## How far gone the stare is, 0..1 (from OBSESSED_AT to full).
@@ -124,8 +146,103 @@ static func _pack(npc: Node3D, on: bool) -> void:
 	spin.tween_property(pack, "rotation:y", TAU, 2.8).from(0.0)
 
 
-## Her hair streak and eyes, rose (or back to her own).
-static func _tint(npc: Node3D, rose: bool) -> void:
+## What she carries and wears at each stage, rebuilt each stay: a heart pin
+## (clingy on), a photo strip of Eco on her belt (obsessed on), a lighter on a
+## cord and a candle on her step (lacing on), Eco's pilot patches and her
+## titan key in hand (keeper).
+static func _props(npc: Node3D, s: int) -> void:
+	for old in npc.find_children("ObsessionProp*", "Node3D", true, false):
+		old.get_parent().remove_child(old)
+		old.queue_free()
+	var skel := npc.find_child("Skeleton3D", true, false) as Skeleton3D
+	if skel == null or s < 2:
+		return
+	var pink := _flat(Color(1.0, 0.45, 0.65), 0.6)
+	# a little heart pin, high on her left
+	var pin := _on(skel, "J_Bip_C_UpperChest", Vector3(-0.07, 0.04, -0.11))
+	if pin != null:
+		_box(pin, Vector3(-0.006, 0, 0), Vector3(0.016, 0.016, 0.006), pink, 45.0)
+		_box(pin, Vector3(0.006, 0, 0), Vector3(0.016, 0.016, 0.006), pink, -45.0)
+	if s >= 3:
+		# a strip of four photos of Eco, hanging off her belt on her right
+		var strip := _on(skel, "J_Bip_C_Hips", Vector3(0.13, -0.06, -0.04))
+		if strip != null:
+			_box(strip, Vector3(0, -0.06, 0), Vector3(0.04, 0.14, 0.003), _flat(Color(0.95, 0.93, 0.88)))
+			for i in 4:
+				_box(strip, Vector3(0, -0.012 - i * 0.032, -0.002), Vector3(0.032, 0.026, 0.002), _flat(Color(0.55, 0.12, 0.1)))
+	if s >= 4:
+		# a lighter on a cord, and a candle burning on her step
+		var cord := _on(skel, "J_Bip_C_UpperChest", Vector3(0, 0.0, -0.12))
+		if cord != null:
+			_box(cord, Vector3(0, -0.03, 0), Vector3(0.022, 0.036, 0.012), _flat(Color(0.85, 0.65, 0.25)))
+			_box(cord, Vector3(0, 0.03, 0.01), Vector3(0.003, 0.08, 0.003), _flat(Color(0.1, 0.1, 0.1)))
+		var candle := Node3D.new()
+		candle.name = "ObsessionPropCandle"
+		candle.position = Vector3(0.45, 0, -0.25)
+		npc.add_child(candle)
+		_box(candle, Vector3(0, 0.05, 0), Vector3(0.05, 0.1, 0.05), _flat(Color(0.92, 0.88, 0.8)))
+		_box(candle, Vector3(0, 0.115, 0), Vector3(0.012, 0.025, 0.012), _flat(Color(1.0, 0.6, 0.2), 3.0))
+		var flame := OmniLight3D.new()
+		flame.position = Vector3(0, 0.16, 0)
+		flame.light_color = Color(1.0, 0.6, 0.3)
+		flame.light_energy = 0.6
+		flame.omni_range = 1.6
+		candle.add_child(flame)
+	if s >= 5:
+		# Eco's pilot patches on her shoulders, Eco's titan key in her hand
+		for side in [["J_Bip_L_UpperArm", -1.0], ["J_Bip_R_UpperArm", 1.0]]:
+			var patch := _on(skel, side[0], Vector3(0.06 * float(side[1]), 0.0, 0.0))
+			if patch != null:
+				_box(patch, Vector3.ZERO, Vector3(0.004, 0.04, 0.05), _flat(Color(0.9, 0.45, 0.1)))
+		var key := _on(skel, "J_Bip_R_Hand", Vector3(0, -0.06, -0.02))
+		if key != null:
+			_box(key, Vector3(0, 0, 0), Vector3(0.03, 0.05, 0.01), _flat(Color(0.15, 0.15, 0.17)))
+			_box(key, Vector3(0, -0.045, 0), Vector3(0.008, 0.04, 0.004), _flat(Color(0.75, 0.75, 0.78)))
+			_box(key, Vector3(0, 0.012, -0.006), Vector3(0.01, 0.01, 0.002), _flat(Color(1.0, 0.3, 0.2), 2.0))
+
+
+## A prop holder on her bone, `at` metres off it, unscaled from the bone.
+static func _on(skel: Skeleton3D, bone_name: String, at: Vector3) -> Node3D:
+	var bone := skel.find_bone(bone_name)
+	if bone < 0:
+		return null
+	var att := BoneAttachment3D.new()
+	att.name = "ObsessionProp" + bone_name
+	att.bone_name = bone_name
+	skel.add_child(att)
+	var sc := skel.get_bone_global_pose(bone).basis.get_scale()
+	var holder := Node3D.new()
+	holder.position = at
+	holder.scale = Vector3(1.0 / maxf(sc.x, 0.001), 1.0 / maxf(sc.y, 0.001), 1.0 / maxf(sc.z, 0.001))
+	att.add_child(holder)
+	return holder
+
+
+static func _box(parent: Node3D, at: Vector3, size: Vector3, m: Material, roll := 0.0) -> void:
+	var mi := MeshInstance3D.new()
+	var b := BoxMesh.new()
+	b.size = size
+	mi.mesh = b
+	mi.material_override = m
+	mi.position = at
+	mi.rotation_degrees.z = roll
+	parent.add_child(mi)
+
+
+static func _flat(c: Color, glow := 0.0) -> StandardMaterial3D:
+	var m := StandardMaterial3D.new()
+	m.albedo_color = c
+	m.roughness = 0.6
+	if glow > 0.0:
+		m.emission_enabled = true
+		m.emission = c
+		m.emission_energy_multiplier = glow
+	return m
+
+
+## Her hair streak and eyes, rose (or back to her own); at keeper (`all_red`)
+## the rest of her hair goes Eco's red too.
+static func _tint(npc: Node3D, rose: bool, all_red := false) -> void:
 	for mi in npc.find_children("*", "MeshInstance3D", true, false):
 		var m3: MeshInstance3D = mi
 		if m3.mesh == null:
@@ -137,7 +254,18 @@ static func _tint(npc: Node3D, rose: bool) -> void:
 			var n := base.resource_name
 			var hair := n.contains("hair_streak")
 			var eye := n.contains("iris")
+			var rest_hair := all_red and not hair and n.to_lower().contains("hair")
+			if rest_hair:
+				var dyed: ShaderMaterial = base.duplicate()
+				dyed.set_meta("obsession", true)
+				dyed.set_shader_parameter("albedo", ECO_RED)
+				m3.set_surface_override_material(i, dyed)
+				continue
 			if not (hair or eye):
+				# the rest of her hair: back to her own unless it's dyed
+				if n.to_lower().contains("hair") and m3.get_surface_override_material(i) != null \
+						and m3.get_surface_override_material(i).has_meta("obsession"):
+					m3.set_surface_override_material(i, null)
 				continue
 			if not rose:
 				if m3.get_surface_override_material(i) != null and m3.get_surface_override_material(i).has_meta("obsession"):

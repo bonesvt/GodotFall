@@ -1,6 +1,6 @@
 extends SceneTree
 ## Ophelia through her obsession (obsession_look.gd), in the hub: upset, clingy
-## on her doorstep in the hoodie, obsessed with the rose streak and eyes. One
+## on her doorstep in the hoodie, obsessed, lacing and keeper. One
 ## column a stage, her whole self and her face.
 ##   godot --path . --resolution 1280x720 -s res://tools/hub/ophelia_stages_shots.gd -- <out_dir>
 ## Needs a renderer (not --headless). Writes <out_dir>/ophelia_stages.png.
@@ -41,12 +41,12 @@ func _go(run_node: Node) -> void:
 	run_node.hush_pull.triggers._next = INF
 	run_node.hud.visible = false
 	run_node.pilot_hud.visible = false
-	var sheet := Image.create(CELL.x * 3, CELL.y * 2, false, Image.FORMAT_RGBA8)
+	var sheet := Image.create(CELL.x * 5, CELL.y * 2, false, Image.FORMAT_RGBA8)
 	var cam := Camera3D.new()
 	run_node.add_child(cam)
 	var win := Vector2(root.get_texture().get_size())
 	var cw := int(win.y * CELL.x / CELL.y)
-	for col in 3:
+	for col in 5:
 		Obsession.reset()
 		match col:
 			0:
@@ -54,7 +54,11 @@ func _go(run_node: Node) -> void:
 			1:
 				Obsession.meter = 30.0
 			2:
-				Obsession.meter = 70.0
+				Obsession.meter = 60.0
+			3:
+				Obsession.meter = 80.0
+			4:
+				Obsession.meter = 95.0
 		run_node.enter_hub()
 		await _frames(30)
 		var oph: Node3D = run_node.hub_npcs["ophelia"]
