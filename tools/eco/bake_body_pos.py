@@ -1,11 +1,11 @@
 """Bakes where each texel of Eco's body texture sits on her (rest pose, metres,
-Blender axes: x her side, y forward, z up) into tools/eco/body_pos.png, which
-bake_vice_looks.py cuts her looks' skin windows by.
-R x in [-0.75, 0.75], G y in [-0.15, 0.15], B z in [0, 1.7], A 255 on her body.
+Blender axes: x her side, y forward, z up) into tools/eco/body_pos.npz, which
+bake_vice_looks.py cuts her looks' skin windows by: "pos" (1024 x 1024 x 3,
+float16) and "on" (where her body is).
 
     blender -b --factory-startup -P tools/eco/bake_body_pos.py      (from the repo root)
 """
-import bpy, os, struct, zlib, numpy as np
+import bpy, os, numpy as np
 
 REPO = os.getcwd()
 bpy.ops.wm.read_factory_settings(use_empty=True)
@@ -51,13 +51,5 @@ for ob in bpy.data.objects:
         yy, xx = np.nonzero(inside)
         pos[y0 + yy, x0 + xx] = p[yy, xx]
         hit[y0 + yy, x0 + xx] = True
-RANGE = np.array([[-0.75, 0.75], [-0.15, 0.15], [0.0, 1.7]], np.float32)
-q = np.clip((pos - RANGE[:, 0]) / (RANGE[:, 1] - RANGE[:, 0]), 0, 1)
-rgba = np.concatenate([q * 255 + 0.5, hit[..., None] * 255.0], axis=2).astype(np.uint8)
-raw = b"".join(b"\0" + row.tobytes() for row in rgba)
-def chunk(t, d):
-    return struct.pack(">I", len(d)) + t + d + struct.pack(">I", zlib.crc32(t + d) & 0xFFFFFFFF)
-with open(os.path.join(REPO, "tools/eco/body_pos.png"), "wb") as f:
-    f.write(b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", struct.pack(">IIBBBBB", N, N, 8, 6, 0, 0, 0))
-            + chunk(b"IDAT", zlib.compress(raw, 9)) + chunk(b"IEND", b""))
+np.savez_compressed(os.path.join(REPO, "tools/eco/body_pos.npz"), pos=pos.astype(np.float16), on=hit)
 print("coverage", hit.mean())
