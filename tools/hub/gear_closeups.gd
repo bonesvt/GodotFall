@@ -2,7 +2,8 @@ extends SceneTree
 ## The Shepherd's gear up close on Eco, all eight pieces on her: the old
 ## primitive build (top row) and the Blender models (bottom row,
 ## tools/hub/build_colony_gear.py). Her head three-quarter, her head in profile,
-## the band from the front, her left wrist and glove, her back, the Crown.
+## the band from the front, her left wrist and glove, her back, the Crown, her
+## back in profile.
 ##   godot --path . --resolution 1280x720 -s res://tools/hub/gear_closeups.gd -- <out_dir>
 ## Needs a renderer (not --headless). Writes <out_dir>/gear_closeups.png.
 
@@ -19,6 +20,7 @@ const SHOTS := [
 	[Vector3(-0.32, 0.1, -0.38), Vector3(-0.2, 0.86, -0.02)],
 	[Vector3(0.25, 0.1, 0.62), Vector3(0, 1.15, 0.08)],
 	[Vector3(0.2, 0.32, -0.36), Vector3(0, 1.6, 0.0)],
+	[Vector3(0.75, 0.05, 0.12), Vector3(0, 1.15, 0.06)],
 ]
 
 var out := "user://gear_closeups"

@@ -55,6 +55,7 @@ const MODELS := "res://assets/models/colony_gear/colony_gear.glb"
 static var _mats := {}
 static var _parts := {}
 static var _parts_loaded := false
+static var _surfaces := {}
 ## False builds every piece from primitives (the render tools' before shots).
 static var use_models := true
 
@@ -94,11 +95,11 @@ static func apply(model: Node, p_gear = null) -> void:
 		_spine(model, skel)
 	if "band" in gear and skel.find_bone(NECK) >= 0:
 		var neck := _root(skel, NECK, NODE + "_Band")
-		_band(_piece(neck, "band"), skel.get_bone_global_rest(skel.find_bone(NECK)).origin)
+		_band(_piece(neck, "band"), skel.get_bone_global_rest(skel.find_bone(NECK)).origin, _surface(model, skel))
 		_match_layers(model, neck, "Body")
 	if "cuff" in gear and skel.find_bone(WRIST) >= 0:
 		var wrist := _root(skel, WRIST, NODE + "_Cuff")
-		_cuff(_piece(wrist, "cuff"), skel.get_bone_global_rest(skel.find_bone(WRIST)).origin)
+		_cuff(_piece(wrist, "cuff"), skel.get_bone_global_rest(skel.find_bone(WRIST)).origin, _surface(model, skel), "gloves" in gear)
 		_match_layers(model, wrist, "Body")
 
 
@@ -359,13 +360,25 @@ static func _gloves(model: Node, skel: Skeleton3D) -> void:
 ## The Plumb Line: segments down her back from her neck to her hips, each on the
 ## nearest spine bone, with a glowing node and short cables out to the sides.
 static func _spine(model: Node, skel: Skeleton3D) -> void:
+	var body := _surface(model, skel)
 	var top := skel.get_bone_global_rest(skel.find_bone(SPINE_BONES[0])).origin
 	var bottom := skel.get_bone_global_rest(skel.find_bone(SPINE_BONES[SPINE_BONES.size() - 1])).origin
 	var roots := {}
 	for i in SEGMENTS:
 		var t := float(i) / float(SEGMENTS - 1)
 		var at := top.lerp(bottom, t)
-		at.z += 0.075 + 0.035 * sin(t * PI)  # out on her back, further at the shoulder blades
+		# flush on her back, tipped to follow its curve: her own surface there,
+		# else a guess (out on her back, further at the shoulder blades)
+		var tilt := 0.0
+		var back := _back_at(body, at.y)
+		if not is_nan(back):
+			var up := _back_at(body, at.y + 0.02)
+			var down := _back_at(body, at.y - 0.02)
+			if not is_nan(up) and not is_nan(down):
+				tilt = atan2(up - down, 0.04)  # leaning out going up: the plate tips back
+			at.z = back
+		else:
+			at.z += 0.075 + 0.035 * sin(t * PI)
 		var last := SPINE_BONES.size() - 1
 		var bone: String = SPINE_BONES[clampi(roundi(t * last), 0, last)]
 		if not roots.has(bone):
@@ -373,6 +386,7 @@ static func _spine(model: Node, skel: Skeleton3D) -> void:
 		var seg := Node3D.new()
 		seg.name = "Seg_%d" % i
 		seg.position = at
+		seg.rotation.x = tilt
 		(roots[bone] as Node3D).add_child(seg)
 		var plate := Node3D.new()
 		plate.scale = Vector3((0.05 - 0.01 * t) / 0.05, 1, 1)
@@ -391,26 +405,35 @@ static func _spine(model: Node, skel: Skeleton3D) -> void:
 ## The Processed tracker band: a heavy grey band round her throat, ridged top
 ## and bottom, a seam and two bolts at the back, a round speaker grille under
 ## her chin and a light beside it that blinks.
-static func _band(root: Node3D, neck: Vector3) -> void:
+static func _band(root: Node3D, neck: Vector3, body: PackedVector3Array) -> void:
 	var at := neck + Vector3(0, 0.035, 0)
+	# snug on her neck: its middle and girth there (the model's inside is 0.052 across)
+	var fit := _girth(body, at, Vector3.UP, 0.012, 0.09)
+	var size := 1.0
+	if fit.size() == 2:
+		at = Vector3(fit[0].x, at.y, fit[0].z)
+		size = clampf((float(fit[1]) + 0.004) / 0.052, 0.7, 1.4)
 	var band := Node3D.new()
 	band.name = "Band"
 	band.position = at
 	root.add_child(band)
-	if not _model(band, "band_body"):
+	var snug := Node3D.new()
+	snug.scale = Vector3(size, 1, size)
+	band.add_child(snug)
+	if not _model(snug, "band_body"):
 		_cylinder(band, Vector3.ZERO, 0.057, 0.034, _steel())
 		_torus(band, Vector3(0, 0.017, 0), 0.054, 0.06, _dark())
 		_torus(band, Vector3(0, -0.017, 0), 0.054, 0.06, _dark())
 	for s in [-1.0, 1.0]:
 		var bolt := Node3D.new()
 		bolt.name = "Bolt_%d" % (0 if s < 0 else 1)
-		bolt.position = at + Vector3(0.012 * s, 0, 0.058)
+		bolt.position = at + Vector3(0.012 * s, 0, 0.058 * size)
 		root.add_child(bolt)
 		if not _model(bolt, "band_bolt"):
 			_box(bolt, Vector3.ZERO, Vector3(0.01, 0.02, 0.008), _chrome())
 	var speaker := Node3D.new()
 	speaker.name = "Speaker"
-	speaker.position = at + Vector3(0.008, -0.002, -0.06)
+	speaker.position = at + Vector3(0.008, -0.002, -0.06 * size)
 	root.add_child(speaker)
 	if not _model(speaker, "band_speaker"):
 		var grille := _cylinder(speaker, Vector3.ZERO, 0.011, 0.005, _dark())
@@ -419,7 +442,7 @@ static func _band(root: Node3D, neck: Vector3) -> void:
 			_box(speaker, Vector3(0, (i - 1) * 0.0045, -0.003), Vector3(0.014, 0.0012, 0.002), _chrome())
 	var light := Node3D.new()
 	light.name = "Light"
-	light.position = at + Vector3(-0.016, 0.004, -0.06)
+	light.position = at + Vector3(-0.016, 0.004, -0.06 * size)
 	root.add_child(light)
 	if not _model(light, "band_light"):
 		_box(light, Vector3.ZERO, Vector3(0.007, 0.007, 0.004), _blink())
@@ -447,13 +470,24 @@ static func _crown(root: Node3D) -> void:
 			_add(dot, s, Vector3.ZERO, _lit())
 
 
-static func _cuff(root: Node3D, wrist: Vector3) -> void:
+static func _cuff(root: Node3D, wrist: Vector3, body: PackedVector3Array, gloved := false) -> void:
 	var at := wrist + Vector3(0.04, 0, 0)  # up her left forearm from the hand bone (her left is -X)
+	# snug on her wrist (the model's inside is 0.033 across; her arm lies along X at rest)
+	var fit := _girth(body, at, Vector3.RIGHT, 0.012, 0.07)
+	var size := 1.0
+	if fit.size() == 2:
+		at = Vector3(at.x, fit[0].y, fit[0].z)
+		size = clampf((float(fit[1]) + 0.003) / 0.033, 0.6, 1.4)
+	if gloved:  # over the glove there (_gloves: about 0.036 round her wrist)
+		size = maxf(size, 0.04 / 0.033)
 	var shell := Node3D.new()
 	shell.name = "Shell"
 	shell.position = at
 	root.add_child(shell)
-	if not _model(shell, "cuff_shell"):
+	var snug := Node3D.new()
+	snug.scale = Vector3(1, size, size)
+	shell.add_child(snug)
+	if not _model(snug, "cuff_shell"):
 		var c := _cylinder(shell, Vector3.ZERO, 0.042, 0.05, _shell())
 		c.rotation_degrees = Vector3(0, 0, 90)
 		var r := _torus(shell, Vector3.ZERO, 0.041, 0.047, _lit())
@@ -463,11 +497,71 @@ static func _cuff(root: Node3D, wrist: Vector3) -> void:
 		var needle := Node3D.new()
 		needle.name = "Needle_%d" % i
 		var out := Vector3(0, cos(a), sin(a))
-		needle.position = at + out * 0.06
+		needle.position = at + out * 0.06 * size
 		needle.basis = Basis(Vector3(1, 0, 0), a + PI)  # +Y points in at her wrist
 		root.add_child(needle)
 		if not _model(needle, "needle"):
 			_cylinder(needle, Vector3(0, 0.015, 0), 0.0025, 0.03, _lit())
+
+
+## Her skin and clothes at rest (every mesh on her but her hair, face, goggles
+## and boots), in rest model space, so pieces can sit snug on her: cached per
+## set of meshes.
+static func _surface(model: Node, skel: Skeleton3D) -> PackedVector3Array:
+	var key := ""
+	var parts: Array = []
+	for mi in model.find_children("*", "MeshInstance3D", true, false):
+		var n := String(mi.name)
+		if mi.mesh == null or not mi.visible or n.begins_with("Hair") or n.begins_with("Face") or n.begins_with("Goggles") or n.begins_with("Boots"):
+			continue
+		if mi.get_parent() != skel:
+			continue  # gear and props hang off attachments, not the skeleton
+		key += str(mi.mesh.get_rid().get_id()) + ","
+		parts.append(mi)
+	if _surfaces.has(key):
+		return _surfaces[key]
+	var pts := PackedVector3Array()
+	for mi in parts:
+		var xf: Transform3D = (mi as Node3D).transform
+		for sfc in mi.mesh.get_surface_count():
+			var arrays: Array = mi.mesh.surface_get_arrays(sfc)
+			for v in (arrays[Mesh.ARRAY_VERTEX] as PackedVector3Array):
+				pts.append(xf * v)
+	_surfaces[key] = pts
+	return pts
+
+
+## Round `axis` through `at`: the middle and outer radius of her surface within
+## `half` of `at` along it and `reach` of the axis. [] if there's none.
+static func _girth(pts: PackedVector3Array, at: Vector3, axis: Vector3, half: float, reach: float) -> Array:
+	var near: Array = []
+	var mid := Vector3.ZERO
+	for p in pts:
+		var d := p - at
+		var along := d.dot(axis)
+		if absf(along) > half:
+			continue
+		var across := d - axis * along
+		if across.length() > reach:
+			continue
+		near.append(p - axis * along)
+		mid += p - axis * along
+	if near.size() < 12:
+		return []
+	mid /= near.size()
+	var radii: Array = near.map(func(p): return (p - mid).length())
+	radii.sort()
+	return [mid, radii[int(radii.size() * 0.9)]]
+
+
+## How far out her back is at height y (the most +Z of her surface near her
+## spine there), or NAN.
+static func _back_at(pts: PackedVector3Array, y: float) -> float:
+	var best := NAN
+	for p in pts:
+		if absf(p.y - y) < 0.008 and absf(p.x) < 0.02 and (is_nan(best) or p.z > best):
+			best = p.z
+	return best
 
 
 ## The modelled parts (tools/hub/build_colony_gear.py): part name -> [[mesh,

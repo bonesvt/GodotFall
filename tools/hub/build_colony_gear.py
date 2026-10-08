@@ -337,14 +337,45 @@ def band():
     finish(sph(0.003, (0, 0, -0.0018), scale=(1, 1, 0.6)), "band_light", "blink")
 
 
+def curved_plate(width, height, thick, bend_r, part, material, bevel):
+    """A plate curved round her back (the curve's centre inside her, at -bend_r
+    on Z), its inner face's middle on the origin, bulging out along +Z."""
+    bm = bmesh.new()
+    steps = 16
+    half = width / 2 / bend_r
+    rings = []
+    for r in (bend_r, bend_r + thick):
+        for y in (-height / 2, height / 2):
+            rings.append([bm.verts.new((math.sin(-half + 2 * half * i / steps) * r,
+                                        y,
+                                        math.cos(-half + 2 * half * i / steps) * r - bend_r))
+                          for i in range(steps + 1)])
+    il, ih, ol, oh = rings
+    for i in range(steps):
+        bm.faces.new((ol[i], ol[i + 1], oh[i + 1], oh[i]))
+        bm.faces.new((il[i + 1], il[i], ih[i], ih[i + 1]))
+        bm.faces.new((oh[i], oh[i + 1], ih[i + 1], ih[i]))
+        bm.faces.new((ol[i + 1], ol[i], il[i], il[i + 1]))
+    bm.faces.new((il[0], ih[0], oh[0], ol[0]))
+    bm.faces.new((ol[steps], oh[steps], ih[steps], il[steps]))
+    me = bpy.data.meshes.new("plate")
+    bm.to_mesh(me)
+    bm.free()
+    ob = bpy.data.objects.new("plate", me)
+    bpy.context.collection.objects.link(ob)
+    return finish(ob, part, material, bevel=bevel, segs=3)
+
+
 def spine():
-    # a vertebra plate, 0.05 across (colony_gear.gd scales it down the back)
-    finish(box((0.05, 0.026, 0.02), (0, 0, 0)), "spine_seg", "shell", bevel=0.007, segs=4)
-    finish(box((0.03, 0.012, 0.02), (0, 0, -0.012)), "spine_seg", "dark", bevel=0.003)
-    finish(cyl(0.0095, 0.012, (0, 0, 0.009), verts=32), "spine_seg", "chrome", bevel=0.002)
-    finish(sph(0.0062, (0, 0, 0.016), scale=(1, 1, 0.7)), "spine_seg", "lit")
+    # a vertebra plate 0.05 across, curved round her back, its inner face on
+    # the origin so colony_gear.gd can lay it flush on her (and scale it down
+    # the back); a chrome boss and a lit node on it, a dark rib behind
+    curved_plate(0.05, 0.026, 0.008, 0.11, "spine_seg", "shell", 0.003)
+    curved_plate(0.034, 0.012, 0.004, 0.112, "spine_seg", "dark", 0.001)
+    finish(cyl(0.0085, 0.008, (0, 0, 0.011), verts=32), "spine_seg", "chrome", bevel=0.0015)
+    finish(sph(0.0055, (0, 0, 0.0155), scale=(1, 1, 0.7)), "spine_seg", "lit")
     for s in (-1.0, 1.0):
-        finish(sph(0.006, (0.024 * s, 0, -0.002)), "spine_seg", "chrome")
+        finish(sph(0.0045, (0.021 * s, 0, 0.006)), "spine_seg", "chrome")
 
 
 def turn_z_up():
