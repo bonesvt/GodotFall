@@ -2354,7 +2354,9 @@ def concept(arm, objs):
     arm.animation_data.action = bpy.data.actions["idle"]
     sc = bpy.context.scene
     sc.frame_set(0)
-    sc.render.engine = "BLENDER_EEVEE" if bpy.app.version < (4, 2) else "BLENDER_EEVEE_NEXT"
+    # Eevee is BLENDER_EEVEE before 4.2 and from 5.0, BLENDER_EEVEE_NEXT in between
+    engines = [e.identifier for e in type(sc.render).bl_rna.properties["engine"].enum_items]
+    sc.render.engine = "BLENDER_EEVEE_NEXT" if "BLENDER_EEVEE_NEXT" in engines else "BLENDER_EEVEE"
     sc.eevee.taa_render_samples = 32
     sc.view_settings.view_transform = "Standard"
     w = bpy.data.worlds.new("w")
