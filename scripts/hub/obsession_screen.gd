@@ -2,7 +2,8 @@ extends CanvasLayer
 ## Having it out with Ophelia (obsession.gd), the next time Eco talks to her
 ## after finding the rose papers in her tent. Opened like a workbench (pausing
 ## the hub): her side of it, then Eco's choice.
-##   1   help her: "Then we fix it. Together." Both of them get better.
+##   1   help her anyway: she drugged Eco, and Eco says so; they get through
+##       it, but trust comes back slower. Both of them get better.
 ##   2   walk away: "I can't do this." She doesn't stop, and it gets worse.
 
 const Obsession := preload("res://scripts/hub/obsession.gd")
@@ -14,12 +15,13 @@ const INK := Color(0.96, 0.92, 0.94)
 const DIM := Color(0.96, 0.92, 0.94, 0.55)
 
 const LINES := [
-	"Eco puts the tin on the bed between them. Rose-coloured papers. A jar of something pink and sweet. KEEPSAKE, in Ophelia's handwriting. Ophelia goes very still.",
-	"Ophelia: \"You always come home smelling like smoke and colony and somebody else's fight. And then you go again. Every time I think it's the last time.\"",
-	"Ophelia: \"I just wanted you to want to come home. To me. I didn't... it's not that much. It just makes you miss me.\"",
+	"Eco puts the tin on the bed between them. The jar, the syringe, the stained Night Owls. KEEPSAKE, in Ophelia's handwriting. Ophelia goes very still.",
+	"Eco: \"Every pack you gave me. Every one I smoked out there thinking about you. You put this in them.\"",
+	"Ophelia: \"You always come home smelling like smoke and somebody else's fight, and then you go again. I just wanted you to want to come home. To me.\"",
+	"Eco: \"So you drugged me. You don't get to call that missing me.\"",
 ]
-const HELPED := "Eco: \"Then we fix it. Together. No more tins.\" Ophelia cries into her shoulder, then tips the jar into the stove herself. It'll take a while. They've got a while."
-const LEFT := "Eco: \"I can't do this.\" She walks out. Behind her, Ophelia doesn't cry. She just sits by the gate, and watches it, and waits."
+const HELPED := "Eco: \"I don't forgive this yet. But I'm not leaving you with it. We fix it. No more tins, no more packs.\" She throws the rest of the Night Owls in the stove. Ophelia tips the jar in after them, crying. Trust comes back slower than the rest."
+const LEFT := "Eco: \"I can't trust you. I can't do this.\" She walks out. Behind her, Ophelia doesn't cry. She just sits by the gate, and watches it, and waits."
 
 var kind := "obsession"
 var unlocked: Array = []
@@ -66,7 +68,7 @@ func _ready() -> void:
 	_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_status.custom_minimum_size = Vector2(590, 0)
 	col.add_child(_status)
-	_choices = _text("1   Help her: \"Then we fix it. Together.\"\n2   Walk away: \"I can't do this.\"", 18, INK)
+	_choices = _text("1   Help her anyway: \"We fix it. No more packs.\"\n2   Walk away: \"I can't trust you.\"", 18, INK)
 	col.add_child(_choices)
 	col.add_child(_text("1-2 choose", 14, DIM))
 
@@ -95,7 +97,8 @@ func choose(how: String) -> void:
 	result = how
 	Obsession.resolve(how)
 	if npc_talk != null:
-		Romance.add(npc_talk.state, "ophelia", 5 if how == "helped" else -20)
+		# a betrayal either way: it costs her, more if Eco walks
+		Romance.add(npc_talk.state, "ophelia", -10 if how == "helped" else -30)
 		npc_talk.state.save(npc_talk.save_path)
 	_status.text = HELPED if how == "helped" else LEFT
 	_choices.text = ""

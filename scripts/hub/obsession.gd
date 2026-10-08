@@ -7,18 +7,21 @@ extends RefCounted
 ##   skip again     SKIPS_TO_OBSESS in a row and her obsession starts; every
 ##                  skip after that adds OBSESS_PER_SKIP (0..100)
 ##   seeing her     before a run brings it down a little (SEEN_EASE)
-## From LACE_AT up she laces the cigarettes on their smoke dates with
-## Keepsake, a rose-coloured something she makes herself: each laced date puts
-## LACE in Eco (keepsake, 0..100). Keepsake in her:
+## From LACE_AT up she starts giving Eco packs of Night Owls (vices.gd smokes),
+## once a stay when Eco comes to see her, and she's laced every one of them with
+## Keepsake, a rose-coloured something she makes herself. Eco doesn't know:
+## each laced one she lights (B) puts LACE in her (keepsake, 0..100). Their smoke
+## date stays shut while Keepsake's in her (date_locked()). Keepsake in her:
 ##   rose spirals in her eyes (eco_model.gd, eco_toon swirl_tint)
 ##   a pull home to Ophelia on runs: a rose craving that builds with time away
 ##   (crave, craving_screen.gd tints it rose) and her lines drifting to her (drift())
-## Keepsake shows: rose-papered cigarettes in a tin in Ophelia's tent
+## Keepsake shows: a tin in Ophelia's tent, the jar and her stained Night Owls
 ## (hub_rooms.gd "ophelia_papers", there while it's in Eco). Finding them sets up
 ## the confrontation the next time Eco talks to her (obsession_screen.gd):
 ##   help her       both of them get better: her obsession and Eco's Keepsake
-##                  wear off over runs (HELP_EASE, KEEPSAKE_EASE), no more lacing
+##                  wear off over runs (HELP_EASE, KEEPSAKE_EASE), no more packs
 ##   walk away      it stays: she doesn't stop, and it gets worse
+## It's a betrayal: Ophelia drugged her, and the game never pretends otherwise.
 ## Saved next to the vices save (path_for()).
 
 const Vices := preload("res://scripts/hub/vices.gd")
@@ -27,7 +30,9 @@ const SKIPS_TO_OBSESS := 2
 const OBSESS_PER_SKIP := 25.0
 const SEEN_EASE := 10.0
 const LACE_AT := 50.0
-const LACE := 20.0
+const LACE := 8.0
+## Night Owls in each pack she gives Eco.
+const PACK := 5
 const MAX := 100.0
 ## Each run: how fast it fades once Eco's helped her, and on its own.
 const HELP_EASE := 25.0
@@ -58,6 +63,9 @@ static var found := false
 static var resolved := ""
 ## The stay (runs_ended) Eco last talked to her in.
 static var seen_stay := -1
+## Laced Night Owls in Eco's pockets, and the stay Ophelia last gave her a pack.
+static var laced := 0
+static var gift_stay := -1
 ## The pull home on this run, 0..1 (not saved).
 static var crave := 0.0
 static var _away := 0.0
@@ -109,14 +117,31 @@ static func run_started(together: bool, stay: int) -> void:
 	save()
 
 
-## A smoke date with her finished: laced, if she's that far gone. Returns true
-## if it was.
-static func smoke_date() -> bool:
-	if not allowed() or meter < LACE_AT or resolved == "helped":
+## Eco came to see her: past LACE_AT she presses a pack of her Night Owls on
+## her, once a stay. True if she did (the run manager adds the smokes).
+static func give_pack(stay: int) -> bool:
+	if not allowed() or meter < LACE_AT or resolved == "helped" or gift_stay == stay:
 		return false
+	gift_stay = stay
+	laced += PACK
+	save()
+	return true
+
+
+## Eco lights a Night Owl (B): if it's one of Ophelia's, Keepsake goes in.
+## True when it was laced.
+static func light_up() -> bool:
+	if not allowed() or laced <= 0:
+		return false
+	laced -= 1
 	keepsake = minf(keepsake + LACE, MAX)
 	save()
 	return true
+
+
+## Their smoke date's off while Keepsake's in her.
+static func date_locked() -> bool:
+	return allowed() and keepsake > 0.0
 
 
 ## Each tick on a run: the pull home builds with time away from her.
@@ -153,6 +178,8 @@ static func resolve(how: String) -> void:
 	resolved = how
 	if how == "left":
 		meter = MAX
+	else:
+		laced = 0  # Eco throws out what's left of her packs
 	save()
 
 
@@ -190,6 +217,8 @@ static func reset() -> void:
 	found = false
 	resolved = ""
 	seen_stay = -1
+	laced = 0
+	gift_stay = -1
 	crave = 0.0
 	_away = 0.0
 
@@ -207,6 +236,8 @@ static func open(path: String) -> void:
 	found = bool(cfg.get_value("obsession", "found", false))
 	resolved = String(cfg.get_value("obsession", "resolved", ""))
 	seen_stay = int(cfg.get_value("obsession", "seen_stay", -1))
+	laced = int(cfg.get_value("obsession", "laced", 0))
+	gift_stay = int(cfg.get_value("obsession", "gift_stay", -1))
 
 
 static func save() -> void:
@@ -218,4 +249,6 @@ static func save() -> void:
 	cfg.set_value("obsession", "found", found)
 	cfg.set_value("obsession", "resolved", resolved)
 	cfg.set_value("obsession", "seen_stay", seen_stay)
+	cfg.set_value("obsession", "laced", laced)
+	cfg.set_value("obsession", "gift_stay", gift_stay)
 	cfg.save(save_path)

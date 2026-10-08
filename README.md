@@ -289,12 +289,14 @@ Under the Mature rating (Settings > Game), **F** at the Rusted Halo on Low Row o
 - **Ophelia's obsession** (`scripts/hub/obsession.gd`, Mature only): once she and Eco are together,
   heading out on a run without seeing her first makes her upset (next time Eco tries to talk she
   turns away angry); two skips in a row start her obsession, +25 each skip after. From 50 she
-  laces their smoke dates with **Keepsake**, a rose-coloured something she makes herself: rose
+  gives Eco a pack of Night Owls when she comes by (once a stay), every one laced with
+  **Keepsake**, a rose-coloured something she makes herself; each one Eco lights puts it in her,
+  and their smoke date stays shut while it's in her. It's a betrayal, and the game says so: rose
   spirals in Eco's eyes (`eco_toon` `swirl_tint`), a rose pull home on runs that builds with time
-  away (the craving overlay and bar go rose), and Eco's lines drifting off to her. A tin of rose
-  papers turns up under Ophelia's pillow; finding it, the next talk is having it out
-  (`obsession_screen.gd`): **help her** and it wears off over runs, no more lacing; **walk away**
-  and she doesn't stop. Render: `tools/hub/obsession_shots.gd`.
+  away (the craving overlay and bar go rose), and Eco's lines drifting off to her. A tin turns
+  up under Ophelia's pillow (the jar, and Night Owls stained rose at the filter); finding it, the
+  next talk is having it out (`obsession_screen.gd`): **help her anyway** (trust comes back slow)
+  and it wears off over runs, no more packs; **walk away** and she doesn't stop. Render: `tools/hub/obsession_shots.gd`.
 - Tests: `godot --headless --path . -s res://tests/vices_test.gd`, `tests/hush_pull_test.gd`,
   `tests/hold_effects_test.gd`, `tests/glass_test.gd`, `tests/trigger_test.gd`, `tests/hymn_test.gd`, `tests/obsession_test.gd`
 

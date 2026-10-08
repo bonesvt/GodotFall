@@ -79,9 +79,11 @@ const DispensaryScreen := preload("res://scripts/hub/dispensary_screen.gd")
 const GearOffScreen := preload("res://scripts/hub/gear_off_screen.gd")
 const Obsession := preload("res://scripts/hub/obsession.gd")
 const ObsessionScreen := preload("res://scripts/hub/obsession_screen.gd")
-const LACED := "The smoke's sweeter than it should be. Rose, under the tobacco. Ophelia watches her breathe it in, and smiles."
+const LACED := "This one's sweeter than it should be. Rose, under the tobacco. Eco thinks of Ophelia, and can't stop."
+const SMOKE_LOCKED := "Ophelia won't come out back for a smoke right now. \"You've got your own. The ones I gave you.\""
+const PACK_GIFT := "Ophelia presses a pack of Night Owls into Eco's hand and closes her fingers round it. \"For out there. So you think of me.\""
 const HOME_PULL := "Eco keeps looking back the way she came. Ophelia's waiting. She should get home."
-const PAPERS := "Under Ophelia's pillow: a tin. Rose-coloured cigarette papers, a jar of something pink and sweet, and a label in her handwriting: KEEPSAKE. Eco should talk to her."
+const PAPERS := "Under Ophelia's pillow: a tin. A jar of something pink and sweet, a syringe, and three Night Owls with a rose stain at the filter, like the ones in the packs she's been giving Eco. A label in her handwriting: KEEPSAKE. She's been drugging her."
 const Shepherd := preload("res://scripts/hub/shepherd.gd")
 const VisorScreen := preload("res://scripts/ui/visor_screen.gd")
 ## Where the Shepherd comes out, from the dispensary's spot (its back door).
@@ -958,6 +960,12 @@ func talk_to(who: String) -> void:
 			hud.toast(upset, HUB_LINE_SECONDS)
 			hub_npcs[who].mood(["angry", "lookaway"])
 			return
+		if Obsession.give_pack(runs_ended):  # her Night Owls, every one laced with Keepsake
+			Vices.smokes = mini(Vices.smokes + Obsession.PACK, Vices.MAX_SMOKES)
+			Obsession.laced = mini(Obsession.laced, Vices.smokes)
+			Vices.save()
+			Obsession.save()
+			npc_talk.finished.connect(func(_w): hud.toast(PACK_GIFT, HUB_LINE_SECONDS), CONNECT_ONE_SHOT)
 	# Sick: once Mom has said her piece about the run, she puts Eco to bed.
 	if who == "mom" and family_scene != null and int(npc_talk.state.get_value("mom", "run_seen", 0)) >= runs_ended and family_scene.care():
 		return
@@ -987,6 +995,9 @@ func date_at(spot: Dictionary) -> bool:
 	var who := date_partner()
 	if who == "" or not TownShops.available("dates", place):
 		return false
+	if place == "smoke" and who == "ophelia" and Obsession.date_locked():
+		hud.toast(SMOKE_LOCKED, HUB_LINE_SECONDS)
+		return true
 	var npc: Node3D = hub_npcs[who]
 	var name := String(NpcTalk.NAMES.get(who, who)).capitalize()
 	if int(npc_talk.state.get_value(who, "date_run", -1)) == runs_ended:
@@ -1035,15 +1046,8 @@ func _stage_smoke(npc: Node3D) -> Node3D:
 	staged.setup(npc, player.global_position, npc.global_position, player.get_node_or_null("EcoBody"))
 	npc_talk.cue.connect(staged.play)
 	npc_talk.finished.connect(func(_who): staged.finish(), CONNECT_ONE_SHOT)
-	npc_talk.finished.connect(func(_who): _smoke_after(), CONNECT_ONE_SHOT)
 	staged.done.connect(func(): npc_talk.cue.disconnect(staged.play), CONNECT_ONE_SHOT)
 	return staged
-
-
-## A smoke date's over: laced with Keepsake, if Ophelia's that far gone (obsession.gd).
-func _smoke_after() -> void:
-	if Obsession.smoke_date():
-		hud.toast(LACED, HUB_LINE_SECONDS)
 
 
 ## Who Eco can ask out now: the first of the people she's romancing who's
@@ -1859,7 +1863,7 @@ func _vice_keys() -> void:
 		return
 	if Input.is_action_just_pressed("smoke"):
 		if Vices.light_up():
-			hud.toast("Eco lights a Night Owl. Steady hands for a while; slower healing.", 3.0)
+			hud.toast(LACED if Obsession.light_up() else "Eco lights a Night Owl. Steady hands for a while; slower healing.", 3.0)
 			_puff()
 		elif Vices.smoke_left > 0.0:
 			hud.toast("Still got one going.", 2.0)

@@ -62,10 +62,25 @@ func _run() -> void:
 		Obsession.run_started(true, stay + 10 + i)
 	_check("three skips: obsessed", Obsession.skips == 3 and Obsession.meter == Obsession.OBSESS_PER_SKIP * 2.0, Obsession.meter)
 
-	# Laced smoke dates.
-	_check("not laced below LACE_AT", (func(): Obsession.meter = Obsession.LACE_AT - 1.0; return not Obsession.smoke_date()).call(), Obsession.keepsake)
+	# Her Night Owls, laced: a pack when Eco comes to see her, past LACE_AT.
+	Obsession.meter = Obsession.LACE_AT - 1.0
+	_check("no pack below LACE_AT", not Obsession.give_pack(stay), Obsession.laced)
 	Obsession.meter = Obsession.LACE_AT
-	_check("laced: Keepsake in Eco", Obsession.smoke_date() and Obsession.keepsake == Obsession.LACE, Obsession.keepsake)
+	Vices.smokes = 0
+	Obsession.upset = false  # she's had her say about the skips
+	run_node.talk_to("ophelia")
+	await _ticks(2)
+	run_node.npc_talk.stop()
+	await _ticks(2)
+	_check("she gives Eco a pack", Obsession.laced == Obsession.PACK and Vices.smokes == Obsession.PACK and run_node.hud.toast_label.text.contains("Night Owls"), [Obsession.laced, Vices.smokes])
+	_check("one pack a stay", not Obsession.give_pack(stay), Obsession.laced)
+	_check("no Keepsake till she lights one", Obsession.keepsake == 0.0 and not Obsession.date_locked(), Obsession.keepsake)
+	Input.action_press("smoke")
+	await _ticks(2)
+	Input.action_release("smoke")
+	await _ticks(2)
+	_check("lighting one of hers: Keepsake in Eco", Obsession.keepsake == Obsession.LACE and Obsession.laced == Obsession.PACK - 1 and run_node.hud.toast_label.text.contains("sweeter"), [Obsession.keepsake, run_node.hud.toast_label.text])
+	_check("the smoke date's shut while it's in her", Obsession.date_locked(), Obsession.keepsake)
 	Obsession.keepsake = 60.0
 	await _ticks(5)
 	var body: Node = player.get_node("EcoBody/Body")
@@ -103,7 +118,7 @@ func _run() -> void:
 	var m := Obsession.meter
 	Obsession.run_over()
 	_check("helping: it wears off over runs", Obsession.keepsake < k and Obsession.meter < m, [Obsession.keepsake, Obsession.meter])
-	_check("no more laced dates", not Obsession.smoke_date(), Obsession.keepsake)
+	_check("no more packs, none left on her", not Obsession.give_pack(stay + 99) and Obsession.laced == 0, Obsession.laced)
 
 	# Teen: none of it.
 	ContentRating.set_rating("T", false)
