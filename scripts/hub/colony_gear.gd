@@ -82,7 +82,7 @@ static func fit(node: Node3D, piece: String, k: float) -> void:
 				var cup := node.get_node_or_null("Cup_" + side) as Node3D
 				var pin := node.get_node_or_null("Pin_" + side) as Node3D
 				if cup != null:
-					var open := lerpf(0.12, 0.06, smoothstep(0.0, 0.3, k)) * (1.0 - smoothstep(0.7, 1.0, k))
+					var open := lerpf(0.13, 0.08, smoothstep(0.0, 0.3, k)) * (1.0 - smoothstep(0.7, 1.0, k))
 					cup.position = Vector3(open * s, 0, 0)
 				if pin != null:
 					pin.scale = Vector3(1, maxf(smoothstep(0.3, 0.7, k), 0.01), 1)

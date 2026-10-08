@@ -23,6 +23,8 @@ const ECO := preload("res://assets/models/eco.tscn")
 ## Where the back room is built (out of sight under the hub).
 const SET := Vector3(0, -160, 0)
 const WHITE := Color(0.95, 0.97, 1.0)
+## The salon cut (hair.gd) her hair's pulled back into for the headphones' fitting.
+const HAIR_BACK := "undercut"  # her left side buzzed: that ear clear for the close-up
 
 ## The beats, in seconds.
 const IN := 0.8        # the white-out clears on the room
@@ -37,7 +39,7 @@ const END := 11.2
 
 const INTRO := "The dispensary's back room. White walls, a hum, a frame that holds her up. Something comes down from the ceiling."
 const LINES := {
-	"headphones": ["The arm sets a pair of white headphones round her head, cups open.",
+	"headphones": ["Clippers buzz her left side short to the skin. The arm sets a pair of white headphones round her head, cups open.",
 		"Thin pins slide out of the cups and into her ears. She can't flinch. Click. Click.",
 		"Calm voice, inside her head now: \"Compliance audio engaged. You will hear us everywhere.\""],
 	"cuff": ["A white cuff, open like a jaw, comes down to her left wrist.",
@@ -212,7 +214,8 @@ func _build() -> void:
 	var body: Node = rm.player.get_node_or_null("EcoBody/Body")
 	if body != null and body.get("outfit") != null:
 		_eco.wear(String(body.outfit))
-	Hair.apply(_eco, "eco")
+	# for the headphones the frame pulls her hair back and ties it, so you see the pins go in
+	Hair.apply(_eco, "eco", HAIR_BACK if piece == "headphones" else "")
 	var gear: Array = Hymn.gear.duplicate()
 	if not piece in gear:
 		gear.append(piece)
@@ -285,7 +288,7 @@ func _shot(which: String) -> void:
 			match piece:
 				"headphones":
 					# her left ear, from the side and a little in front
-					_cam.look_at_from_position(at + Vector3(-0.42, 0.02, -0.4), at + Vector3(-0.06, -0.04, 0))
+					_cam.look_at_from_position(at + Vector3(-0.36, -0.06, -0.36), at + Vector3(-0.08, -0.04, 0.0))
 				"cuff":
 					_cam.look_at_from_position(at + Vector3(-0.5, 0.3, -0.7), at)
 				_:
