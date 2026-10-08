@@ -29,6 +29,7 @@ func _run() -> void:
 	await _ticks(60)
 	player = run_node.player
 	var pull: Node = run_node.hush_pull
+	pull.triggers._next = INF  # his trigger words have their own test (trigger_test.gd)
 	Vices.hold = Vices.MAX_HOLD
 	_check("full hold: the pull can take her", Vices.can_pull(), Vices.hold)
 
@@ -134,15 +135,26 @@ func _run() -> void:
 	Vices.errand = ""
 	Vices.pulled = false
 
-	# The dice: only roaming free, every PULL_EVERY seconds.
+	# The clock: a roll every ROLL_EVERY seconds roaming free, rising to certain.
+	_check("20% a minute in the hub", is_equal_approx(Vices.timer_chance(60.0, Vices.PULL_DEADLINE), 0.2) \
+			and is_equal_approx(Vices.timer_chance(Vices.PULL_DEADLINE, Vices.PULL_DEADLINE), 1.0), Vices.PULL_DEADLINE)
+	_check("10% a minute on a withdrawal run", is_equal_approx(Vices.timer_chance(60.0, Vices.EPISODE_DEADLINE), 0.1), Vices.EPISODE_DEADLINE)
 	Vices.errand = ""
 	Vices.pulled = false
 	pull.roam = 0.0
-	pull.tick(Vices.PULL_EVERY * 0.5, false)
+	pull.tick(Vices.ROLL_EVERY * 0.5, false)
 	_check("not while she's busy", pull.roam == 0.0 and not pull.busy(), pull.roam)
+	pull.tick(Vices.ROLL_EVERY * 0.5, true)
+	_check("the clock shows on screen", pull.clock_text().begins_with("MARROW'S PULL  4:30") and pull.clock_text().ends_with("20%"), pull.clock_text())
+	pull.roam = Vices.PULL_DEADLINE - 1.0
+	pull.tick(2.0, true)
+	_check("certain when the clock runs out", pull.busy(), pull.step)
+	_check("the clock hides while it has her", pull.clock_text() == "", pull.clock_text())
+	pull.reset()
+	Vices.pulled = false
 	Vices.hold = 50.0
-	pull.tick(Vices.PULL_EVERY * 2.0, true)
-	_check("not below full hold", not pull.busy(), pull.step)
+	pull.tick(Vices.PULL_DEADLINE * 2.0, true)
+	_check("not below full hold", not pull.busy() and pull.clock_text() == "", pull.step)
 
 	print("hush_pull_test: %s (%d failures)" % ["PASS" if failures == 0 else "FAIL", failures])
 	quit(1 if failures > 0 else 0)

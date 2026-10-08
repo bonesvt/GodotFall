@@ -197,13 +197,13 @@ Under the Mature rating (Settings > Game), **F** at the Rusted Halo on Low Row o
   town, eight of them, from leaving a packet in the arcade's bin to breaking into the Okoro house,
   lifting Stitch & Steel's cash tin, stealing vials from the clinic, jimmying the recruitment
   office's window or palming a jade cat off the Lucky Lantern's shelf (`hush_den.gd` ERRANDS; the
-  spot only shows while it's hers), and back at his table the errand pays one dose. Roaming the hub or town there's also a chance, every 40 s, that his pull takes her
+  spot only shows while it's hers), and back at his table the errand pays one dose. Roaming the hub or town a violet clock counts down at the top of the screen: every minute there's a chance his pull takes her, 20% more each minute, certain at 5:00 (the clock starts over once she's dosed or on an errand)
   (`scripts/hub/hush_pull.gd`): a close-up as the spirals in her eyes spin up, then the player
   loses her and she walks in a trance, stiff and slow (`eco_model.gd` `_trance_walk`), down the
   street, into the cellar and up to his table, where he hands her the errand. Once per trip home.
   Go out on a run at full Hold without a dose and it's a run in **withdrawal**, hard mode: shaky
-  aim, a heavy haze, much slower healing, hits hurt 35% more, heavier feet, and every 45 s a chance
-  the swirls take her mid-fight (a close-up, guns down) and she walks off the job: the run ends
+  aim, a heavy haze, much slower healing, hits hurt 35% more, heavier feet, and the same clock on screen: every minute a chance
+  (10% more each minute, certain at 10:00) the swirls take her mid-fight (a close-up, guns down) and she walks off the job: the run ends
   abandoned and she comes to at his table begging for another errand. Clean runs still loosen his
   Hold; walking off a job to beg doesn't.
 - The violet spirals show in her eyes from the first dose on, deeper as his Hold grows, and her
@@ -244,8 +244,61 @@ Under the Mature rating (Settings > Game), **F** at the Rusted Halo on Low Row o
   Hold). Hold on every time and it breaks: his Hold and her glass gone, the town wakes up and
   Marrow runs for good (his alley is empty). Miss one and she wakes in his chair, Hold +20, the
   vats brewing again.
+- **Trigger words** (`scripts/hub/trigger_words.gd`): from Hold 60 his phrases turn up in the world
+  ("Come home, Eco", "Hush now", "Right on time"...): on the radio, from a passing townsperson,
+  chalked on a wall, and on runs in her ear or a dead grunt's radio. One locks her up: the phrase
+  big and violet, the screen flaring, and **F** five times in 3 s shakes it off. Miss it and in the
+  hub his Hold goes up 2 (and at full Hold the pull clock jumps a minute); on a run she stands
+  there guard down 2.5 s more. One every 2.5 minutes at Hold 60, every minute at full Hold.
+- **Craving** (`scripts/ui/craving_screen.gd`, `vices.gd` crave_level): the stim shakes or
+  Marrow's clock running on her show as a violet dark closing in from the screen edges, thumping
+  like a heartbeat (70 bpm rising to 140), with spiral tendrils curling in past halfway, and a
+  CRAVING bar under the clock. A dose or one of his errands clears his; a stim clears the shakes. Render it:
+  `godot --path . --resolution 1280x720 -s res://tools/hub/trigger_shots.gd -- <dir>`.
+- **Hymn** (`scripts/hub/hymn.gd`, Mature only): the colony's daily dose. A white **dispensary**
+  kiosk on Lantern Row (`dispensary_screen.gd`) hands one out each time Eco's back in town:
+  **1** take it (Hymn in her +12), **2** palm it (a marker sweeps a bar; Space while it's in the
+  slice where the officer looks away, narrower each time she's done it), **3** refuse. A missed
+  palm or a refusal sets **the Shepherd** on her (`shepherd.gd`): a tall white colony enforcer
+  with a dispensary tank on its back and a loudspeaker, out of the dispensary's back door and up
+  the street after her. It never shoots to kill: Hymn darts (each a step of sedation; full
+  sedation brings her in), a sonic pulse that fires one of the colony's trigger words, and a grab
+  up close. Out of its sight for 14 s it loses her. Brought in, she's **processed**: a white-out,
+  then the **fitting** in the dispensary's back room (`fitting_scene.gd`): she stands in a white
+  frame while an arm comes down from the ceiling with the next piece of its gear and puts it on
+  her in a close-up (the headphones' pins sliding into her ears before the cups clamp shut, the
+  cuff's needles into her wrist before it closes, the visor's prongs into her temples before it
+  lights up and its first orders flash), and she wakes at the dispensary wearing it
+  (`colony_gear.gd`, shown on her; render: `tools/hub/fitting_shots.gd`):
+  **compliance headphones** (trigger words from any Hold, twice as often, a quarter less time to
+  shake them, in the colony's voice), a **dose cuff** (skip the line and it counts down 3:00 on
+  the HUD, then doses her), and the **clarity visor** (`scripts/ui/visor_screen.gd`: her view
+  crowded with flashing orders, turning white rings, spirals from the corners, a fake compliance
+  meter and heart rate, a marker always pointing back to the dispensary, "THREATS NEARBY 0",
+  blinking warnings about her thoughts, scanlines, glitches and white flashes; quieter in third
+  person), then the **calm bridge** (a clip over her nose, tubes up her nostrils: a little Hymn
+  every minute), **comfort gloves** to the shoulder (numb hands: reloads 30% slower) and the
+  **Plumb Line**, a white and chrome spine from below her neck to her waist, fitted segment by
+  segment while she stands in the frame (a heavier, colony step). Taking the dose plays out
+  (`dose_scene.gd`): she lays the glowing film on her tongue, a white wash, "Good morning,
+  citizen" (deep in Hymn she says it back). **Biggie** gets the gear off at the folding table in
+  his tent (`gear_off_screen.gd`), one try each time she's back in town: pick a piece, then
+  Space three times while his shaking hand is in the clear band (narrowest for the visor and
+  the spine, narrower the more Hymn's in her); one slip shocks her (+5 Hymn) and it stays on
+  (render: `tools/hub/biggie_table_shots.gd`). Render it: `godot --path . --resolution 1280x720 -s res://tools/hub/shepherd_shots.gd -- <dir>`.
+- **Ophelia's obsession** (`scripts/hub/obsession.gd`, Mature only): once she and Eco are together,
+  heading out on a run without seeing her first makes her upset (next time Eco tries to talk she
+  turns away angry); two skips in a row start her obsession, +25 each skip after. From 50 she
+  gives Eco a pack of Night Owls when she comes by (once a stay), every one laced with
+  **Keepsake**, a rose-coloured something she makes herself; each one Eco lights puts it in her,
+  and their smoke date stays shut while it's in her. It's a betrayal, and the game says so: rose
+  spirals in Eco's eyes (`eco_toon` `swirl_tint`), a rose pull home on runs that builds with time
+  away (the craving overlay and bar go rose), and Eco's lines drifting off to her. A tin turns
+  up under Ophelia's pillow (the jar, and Night Owls stained rose at the filter); finding it, the
+  next talk is having it out (`obsession_screen.gd`): **help her anyway** (trust comes back slow)
+  and it wears off over runs, no more packs; **walk away** and she doesn't stop. Render: `tools/hub/obsession_shots.gd`.
 - Tests: `godot --headless --path . -s res://tests/vices_test.gd`, `tests/hush_pull_test.gd`,
-  `tests/hold_effects_test.gd`, `tests/glass_test.gd`
+  `tests/hold_effects_test.gd`, `tests/glass_test.gd`, `tests/trigger_test.gd`, `tests/hymn_test.gd`, `tests/obsession_test.gd`
 
 ### Cheat box
 A dented ammo crate with a gold trim by the rug in Eco's loft (`scripts/hub/cheat_screen.gd`).

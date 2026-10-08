@@ -20,6 +20,7 @@ extends Node
 const Vices := preload("res://scripts/hub/vices.gd")
 const HushDen := preload("res://scripts/hub/hush_den.gd")
 const ViewCamera := preload("res://scripts/view_camera.gd")
+const TriggerWords := preload("res://scripts/hub/trigger_words.gd")
 
 enum Step { IDLE, SPIN, WANDER, WALK, FADE, ARRIVE, EPISODE }
 
@@ -54,11 +55,13 @@ const ARRIVE_LINES := [
 
 var rm: Node
 var step := Step.IDLE
-## Seconds she's been roaming since the last roll of the dice.
+## Seconds on the hub clock: roaming free at full Hold since it last started.
 var roam := 0.0
 var rng := RandomNumberGenerator.new()
-## Seconds into this run since the last roll for a withdrawal episode.
+## Seconds on the withdrawal clock this run.
 var run_roam := 0.0
+## His trigger words (trigger_words.gd).
+var triggers: Node
 
 var _t := 0.0
 var _route: Array = []
@@ -75,6 +78,8 @@ func _init(run_manager: Node) -> void:
 	rm = run_manager
 	name = "HushPull"
 	rng.randomize()
+	triggers = TriggerWords.new(self)
+	add_child(triggers)
 
 
 func _ready() -> void:
@@ -90,22 +95,79 @@ func _ready() -> void:
 
 ## A pull is under way: the run manager keeps F, B, N and the rest off.
 func busy() -> bool:
-	return step != Step.IDLE
+	return step != Step.IDLE or triggers.busy()
 
 
 ## Called each physics tick in the hub. `free`: she's roaming with nothing
 ## open, not resting, not in a titan, not in his basement already.
 func tick(delta: float, free: bool) -> void:
+	if triggers.busy():
+		triggers.tick(delta, free, false)
+		return
 	if step == Step.IDLE:
-		if not free or not Vices.can_pull():
+		if not free:
 			return
+		if not Vices.can_pull():
+			roam = 0.0  # dosed, on an errand or back from one: the clock starts over
+			Vices.hush_crave = 0.0
+			triggers.tick(delta, true, false)
+			return
+		var before := roam
 		roam += delta
-		if roam >= Vices.PULL_EVERY:
+		Vices.hush_crave = crave_on(roam, Vices.PULL_DEADLINE)
+		if _rolls_hit(before, roam, Vices.PULL_DEADLINE):
 			roam = 0.0
-			if rng.randf() < Vices.PULL_CHANCE:
-				start()
+			start()
+			return
+		triggers.tick(delta, true, false)
 		return
 	_advance(delta)
+
+
+## How bad the craving is `elapsed` seconds into a clock certain at `deadline`:
+## there from the start, all the way up when it runs out.
+static func crave_on(elapsed: float, deadline: float) -> float:
+	return 0.25 + 0.75 * Vices.timer_chance(elapsed, deadline)
+
+
+## Rolls for every ROLL_EVERY mark the clock passed going from `before` to
+## `after`, each at its rising chance (certain at `deadline`): true if one hit.
+func _rolls_hit(before: float, after: float, deadline: float) -> bool:
+	var mark := floorf(before / Vices.ROLL_EVERY) + 1.0
+	while mark * Vices.ROLL_EVERY <= after:
+		if rng.randf() < Vices.timer_chance(mark * Vices.ROLL_EVERY, deadline):
+			return true
+		mark += 1.0
+	return false
+
+
+## The clock on screen: what's coming for her, how long until it's certain and
+## the chance on the next roll. "" when nothing is counting down.
+func clock_text() -> String:
+	if step != Step.IDLE or rm == null:
+		return ""
+	if (rm.super_hush_scene != null and rm.super_hush_scene.busy()) \
+			or (rm.chorus_scene != null and rm.chorus_scene.busy()):
+		return ""
+	if rm.phase == rm.Phase.HUB:
+		return _clock_line("MARROW'S PULL", roam, Vices.PULL_DEADLINE) if Vices.can_pull() else ""
+	if rm.phase in [rm.Phase.ZONE, rm.Phase.ARENA, rm.Phase.FIGHT] and Vices.can_episode():
+		return _clock_line("WITHDRAWAL", run_roam, Vices.EPISODE_DEADLINE)
+	return ""
+
+
+func _clock_line(what: String, elapsed: float, deadline: float) -> String:
+	var left := ceili(maxf(deadline - elapsed, 0.0))
+	var next := Vices.timer_chance((floorf(elapsed / Vices.ROLL_EVERY) + 1.0) * Vices.ROLL_EVERY, deadline)
+	return "%s  %d:%02d   next roll %d%%" % [what, left / 60, left % 60, roundi(next * 100.0)]
+
+
+func _process(_delta: float) -> void:
+	if rm == null or rm.hud == null or rm.hud.pull_label == null:
+		return
+	var text := clock_text()
+	rm.hud.pull_label.text = text
+	rm.hud.pull_label.visible = text != ""
 
 
 ## His pull takes her, now.
@@ -168,13 +230,21 @@ func run_tick(delta: float, free: bool) -> void:
 		if _t >= EPISODE_TIME:
 			_end_episode()
 		return
-	if step != Step.IDLE or not free or not Vices.can_episode():
+	if triggers.busy():
+		triggers.tick(delta, free, true)
 		return
-	run_roam += delta
-	if run_roam >= Vices.EPISODE_EVERY:
-		run_roam = 0.0
-		if rng.randf() < Vices.EPISODE_CHANCE:
+	if step != Step.IDLE or not free:
+		return
+	if Vices.can_episode():
+		var before := run_roam
+		run_roam += delta
+		Vices.hush_crave = crave_on(run_roam, Vices.EPISODE_DEADLINE)
+		if _rolls_hit(before, run_roam, Vices.EPISODE_DEADLINE):
 			episode()
+			return
+	else:
+		Vices.hush_crave = 0.0
+	triggers.tick(delta, true, true)
 
 
 ## Withdrawal takes her off the run, now.
@@ -214,7 +284,9 @@ func reset() -> void:
 		rm.player.set("trance_dir", Vector3.ZERO)
 		_arms(true)
 		_veil.color.a = 0.0
+	triggers.reset()
 	run_roam = 0.0
+	Vices.hush_crave = 0.0
 
 
 ## Her gun and knife, off while it has her on a run.

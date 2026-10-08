@@ -17,6 +17,7 @@ const FamilyBed := preload("res://scripts/hub/family_bed.gd")
 const K := preload("res://scripts/hub/hub_kit.gd")
 const Kit := preload("res://scripts/run/level_kit.gd")
 const Props := preload("res://scripts/hub/hub_props.gd")
+const Obsession := preload("res://scripts/hub/obsession.gd")
 
 ## Tent doors: half width and height. The tents' deck floors are at F (the
 ## same height as the temple's floor).
@@ -354,6 +355,14 @@ static func _ophelia(root: Node3D, info: Dictionary) -> void:
 	# A full-length mirror, covered with a sheet.
 	K.mesh(root, Vector3(x1 - 0.4, F + 0.9, zb + 0.4), Vector3(0.6, 1.8, 0.1), Art.material("canvas", Color(0.75, 0.73, 0.75)), Vector3(4, -30, 0))
 	_rug(root, Vector3(x0 + 4.4, 0, zb + 3.3), Vector2(3.2, 2.4), Color(0.22, 0.12, 0.28))
+	# Her Keepsake tin under the pillow (obsession.gd), while Eco has it in her: rose
+	# papers in a battered tin. The spot's always listed; the run manager skips it
+	# unless the tin's there (papers_there()).
+	if Obsession.papers_there():
+		var tin := bed + Vector3(-0.2, 0.62, -0.55)
+		K.mesh(root, tin, Vector3(0.16, 0.04, 0.11), Art.material("gunmetal", Color(0.6, 0.45, 0.5)))
+		K.glow(root, tin + Vector3(0.0, 0.025, 0.0), Vector3(0.1, 0.008, 0.07), Color(1.0, 0.45, 0.65))
+	K.interactable(info, "ophelia_papers", bed + Vector3(0.7, 0, 0.2), "[F] Something under her pillow", ["A tin."], 1.3)
 	_npc(info, "ophelia", "Ophelia", Vector3(x0 + 4.6, F, zb + 3.4), 180.0)
 
 
@@ -416,6 +425,14 @@ static func _biggie(root: Node3D, info: Dictionary) -> void:
 	K.mesh(root, pot + Vector3(-0.12, 0.1, 0), Vector3(0.03, 0.1, 0.06), clay)  # handle
 	for i in 2:
 		K.mesh(root, pot + Vector3(-0.05 + i * 0.16, 0.03, 0.2), Vector3(0.07, 0.06, 0.07), Art.material("canvas", Color(0.85, 0.8, 0.7)))
+	# His pliers and tweezers by the manual: he's the one who gets the colony's
+	# gear off her (gear_off_screen.gd, Mature only; otherwise it's just his table).
+	K.mesh(root, t + Vector3(-0.62, 0.76, -0.15), Vector3(0.16, 0.02, 0.03), Art.material("gunmetal"), Vector3(0, 25, 0))
+	K.mesh(root, t + Vector3(-0.6, 0.76, 0.05), Vector3(0.12, 0.012, 0.012), Art.material("gunmetal"), Vector3(0, -15, 0))
+	K.interactable(info, "biggie_table", t + Vector3(0, 0, 1.0), "[F] Biggie's table", [
+		"Biggie's folding table: a field manual and his tea things. One cup's always for whoever drops by.",
+	], 1.4)
+	info["interactables"].back()["shop"] = "gear_off"
 	for dz in [0.75]:
 		K.wood(root, t + Vector3(0.5, 0.25, dz), Vector3(0.6, 0.5, 0.4))
 	var radio := Vector3(x0 + 0.8, F, zb + 1.4)
