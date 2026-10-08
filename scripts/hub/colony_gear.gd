@@ -117,9 +117,10 @@ static func fit_model(model: Node, piece: String, k: float) -> void:
 		"gloves":
 			for side in ["L", "R"]:
 				for part in [["Hand", 0.0], ["Fore", 0.3], ["Upper", 0.6]]:
-					var n := model.find_child(part[0] + side, true, false) as Node3D
-					if n != null:
-						n.scale = Vector3.ONE * maxf(smoothstep(part[1], part[1] + 0.3, k), 0.01)
+					# the hand is a palm and every finger joint: all of them
+					for n in model.find_children(part[0] + side + "*", "Node3D", true, false):
+						if String(n.name) == part[0] + side or String(n.name).begins_with(part[0] + side + "_"):
+							(n as Node3D).scale = Vector3.ONE * maxf(smoothstep(part[1], part[1] + 0.3, k), 0.01)
 		"spine":
 			for i in SEGMENTS:
 				var n := model.find_child("Seg_%d" % i, true, false) as Node3D
@@ -347,14 +348,69 @@ static func _gloves(model: Node, skel: Skeleton3D) -> void:
 			_ball(n, Vector3.ZERO, float(part[2]) * 1.01, _shell())  # the shoulder, the elbow
 			_line(n, Vector3(0, 0, -float(part[2]) * 0.95), b + Vector3(0, 0, -float(part[3]) * 0.95), 0.003, _lit())
 			_match_layers(model, root, "Body")
-		var hroot := _root(skel, bones[2], NODE + "_GloveHand%s" % side)
-		var h := _piece(hroot, "Hand" + side)
-		h.position = pts[2]
-		_line(h, Vector3.ZERO, tip - pts[2], 0.034, _shell(), 0.026)
-		_ball(h, Vector3.ZERO, 0.0345, _shell())  # the wrist
-		_ball(h, tip - pts[2], 0.026, _shell())  # the fingertips
-		_line(h, Vector3(0, 0, -0.03), tip - pts[2] + Vector3(0, 0, -0.022), 0.0025, _lit())
+		_glove_hand(model, skel, side, pts[2], tip)
+
+
+## The glove's hand, fitted to hers: an oval palm from her wrist to her
+## knuckles on the hand bone, and a tapered sleeve with a rounded end on each
+## joint of every finger and the thumb, each on its own finger bone so it bends
+## with her. Every part's named Hand<side>... so the fitting grows them all.
+## Without finger bones, a rounded mitt.
+static func _glove_hand(model: Node, skel: Skeleton3D, side: String, wrist: Vector3, tip: Vector3) -> void:
+	var hand_bone := "J_Bip_%s_Hand" % side
+	var hroot := _root(skel, hand_bone, NODE + "_GloveHand%s" % side)
+	var h := _piece(hroot, "Hand" + side)
+	h.position = wrist
+	var bone_at := func(n: String) -> Vector3:
+		var i := skel.find_bone("J_Bip_%s_%s" % [side, n])
+		return skel.get_bone_global_rest(i).origin if i >= 0 else Vector3.INF
+	var knuckles: Array = ["Index1", "Middle1", "Ring1", "Little1"].map(bone_at)
+	if knuckles.has(Vector3.INF):
+		_line(h, Vector3.ZERO, tip - wrist, 0.034, _shell(), 0.026)
+		_ball(h, Vector3.ZERO, 0.0345, _shell())
+		_ball(h, tip - wrist, 0.026, _shell())
 		_match_layers(model, hroot, "Body")
+		return
+	# the palm: an oval from the wrist to the middle knuckle, as wide as the knuckles
+	var mid: Vector3 = knuckles[1]
+	var along := (mid - wrist).normalized()
+	var across: Vector3 = (knuckles[0] - knuckles[3])
+	var width := across.length() + 0.026
+	across = (across - along * across.dot(along)).normalized()
+	var up := along.cross(across).normalized()
+	var palm := MeshInstance3D.new()
+	var ball := SphereMesh.new()
+	ball.radius = 0.5
+	ball.height = 1.0
+	ball.radial_segments = 24
+	ball.rings = 12
+	palm.mesh = ball
+	palm.material_override = _shell()
+	palm.transform = Transform3D(Basis(across * width, up * 0.034, along * (wrist.distance_to(mid) + 0.03)), (wrist + mid) * 0.5 - wrist)
+	h.add_child(palm)
+	_ball(h, Vector3.ZERO, 0.03, _shell())  # the wrist, where it meets the forearm
+	_line(h, Vector3.ZERO, (mid - wrist) * 0.95, 0.0022, _lit())  # a lit seam over the back of the hand
+	_match_layers(model, hroot, "Body")
+	# every joint of every finger, on its own bone
+	for f in ["Thumb", "Index", "Middle", "Ring", "Little"]:
+		var r: float = {"Thumb": 0.0098, "Little": 0.0073}.get(f, 0.0082)
+		var joints: Array = [1, 2, 3].map(func(k): return bone_at.call(f + str(k)))
+		if joints.has(Vector3.INF):
+			continue
+		var end: Vector3 = joints[2] + (joints[2] - joints[1]) * 0.9
+		joints.append(end)
+		for k in 3:
+			var froot := _root(skel, "J_Bip_%s_%s%d" % [side, f, k + 1], NODE + "_Glove%s%s%d" % [side, f, k + 1])
+			var seg := _piece(froot, "Hand%s_%s%d" % [side, f, k + 1])
+			var a: Vector3 = joints[k]
+			var b: Vector3 = joints[k + 1]
+			seg.position = a
+			var taper := r * (1.0 - 0.1 * k)
+			_line(seg, Vector3.ZERO, b - a, taper, _shell(), taper * 0.92)
+			_ball(seg, Vector3.ZERO, taper * 1.02, _shell())  # the knuckle
+			if k == 2:
+				_ball(seg, b - a, taper * 0.9, _shell())  # the fingertip
+			_match_layers(model, froot, "Body")
 
 
 ## The Plumb Line: segments down her back from her neck to her hips, each on the
