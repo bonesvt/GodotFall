@@ -27,6 +27,7 @@ const Art := preload("res://scripts/ps2/ps2_assets.gd")
 const TP := preload("res://scripts/hub/town_props.gd")
 const Armory := preload("res://scripts/hub/armory.gd")
 const ContentRating := preload("res://scripts/radio/content_rating.gd")
+const Below := preload("res://scripts/hub/downtown_below.gd")
 
 ## The street runs east along z from the end of Low Row (x = X0) to the town's east fence.
 const Z0 := 214.0
@@ -44,11 +45,13 @@ const CYAN := Color(0.25, 0.95, 1.0)
 const LIME := Color(0.6, 1.0, 0.35)
 
 ## Where Pip stands, in turn by hub stay: [spot, position, yaw, outfit].
+## After hours she holds court in the high rollers' room (downtown_below.gd).
 const PIP_SPOTS := [
 	["casino", Vector3(CASINO_X - 2.6, 0, Z1 - 1.3), 60.0, "warden"],
 	["club", Vector3(CLUB_X - 2.4, 0, Z1 - 1.2), 55.0, "rave"],
 	["arch", Vector3(X0 + 3.2, 0, Z0 + 1.2), 100.0, "crop"],
 	["casino", Vector3(CASINO_X - 2.6, 0, Z1 - 1.3), 60.0, "shorts"],
+	["high_rollers", Below.HIGH + Vector3(2.0, 0, -2.6), 200.0, "afterhours"],
 ]
 
 static var save_path := "user://downtown.cfg"
@@ -83,6 +86,7 @@ static func build(root: Node3D, info: Dictionary) -> void:
 	# Shut the gap behind the cinema with stacked crates.
 	TP.spawn(street, "crates", Vector3(21.5, 0, Z0 - 0.8), 15.0)
 	T._solid(street, Vector3(21.8, 1.0, Z0 - 0.8), Vector3(4.6, 2.0, 1.4))
+	Below.build(street, info)  # the Underfloor and the high rollers' room (Mature)
 	K.sound(info, "downtown_hum", Vector3(CLUB_X, 1.5, Z1 + 1.0), -10.0, 10.0)
 
 
@@ -174,6 +178,8 @@ static func place_pip(info: Dictionary, run: int, rating := "") -> Dictionary:
 	if rating == "":
 		rating = ContentRating.current()
 	var spot: Array = PIP_SPOTS[posmod(run, PIP_SPOTS.size())]
+	if spot[0] == "high_rollers" and rating != "M":
+		spot = PIP_SPOTS[2]  # the rooms below are Mature only: she's at the arch
 	var outfit: String = spot[3]
 	if outfit == "warden" and rating != "M":
 		outfit = "crop"
@@ -246,6 +252,28 @@ static func buy_secret(armory: Armory, id: String) -> bool:
 	cfg.set_value("downtown", "pages", mini(int(cfg.get_value("downtown", "pages", 0)) + 1, LEDGER.size()))
 	cfg.save(save_path)
 	return true
+
+
+## Pip's own dirt Eco has found (downtown_below.gd DIRT ids).
+static func dirt() -> Array:
+	return Array(_cfg().get_value("downtown", "dirt", []))
+
+
+## Eco finds a piece of Pip's dirt. Returns what she sees, plus the last
+## word once she's found all of it.
+static func find_dirt(id: String) -> String:
+	if not Below.DIRT.has(id):
+		return ""
+	var cfg := _cfg()
+	var found: Array = Array(cfg.get_value("downtown", "dirt", []))
+	var text: String = Below.DIRT[id]["text"]
+	if not found.has(id):
+		found.append(id)
+		cfg.set_value("downtown", "dirt", found)
+		cfg.save(save_path)
+		if found.size() == Below.DIRT.size():
+			text += "\n" + Below.ALL_FOUND
+	return text
 
 
 ## The run the secret was for is over.

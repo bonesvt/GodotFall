@@ -30,6 +30,8 @@ var selected := 0
 var ledger := false
 ## What she bought while it was open, for the toast after.
 var bought := ""
+## Which screen this is (the run manager and hub test read it off any bench).
+var kind := "club"
 ## Benches report weapons unlocked by a level up; nothing here does that.
 var unlocked: Array = []
 

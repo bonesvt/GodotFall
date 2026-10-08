@@ -129,6 +129,10 @@ const TELEPORT_LINES := {
 	"her_room": "Key, lock, in. She shuts it behind her and checks the weld.",
 	"her_room_door": "Back out into his basement.",
 	"physics_lab": "Down the ladder to the lab. Time to see what gives.",
+	"undertow_down": "The bouncer lifts the rope. \"She said you'd come down eventually.\"",
+	"undertow_up": "Back up into the neon.",
+	"gold_door": "Gold door. Low light, slow music, nobody here yet.",
+	"gold_door_back": "Back to the corridor of rooms.",
 	"physics_lab_exit": "Back up into the temple.",
 }
 ## Ophelia notices Eco slipping away while Marrow's Hold is deep (vices.gd).
@@ -855,6 +859,10 @@ func _hub_tick(delta: float) -> void:
 		return
 	if spot.get("press_console", false):
 		_step_press_strength()
+		return
+	if spot.has("dirt"):
+		hud.toast(Downtown.find_dirt(spot["dirt"]), 7.0)  # Pip's own secrets (downtown_below.gd)
+		SFX.play(player, "cloth_2", -4.0)
 		return
 	if spot.has("teleport") and (spot.get("open", false) or Vices.allowed()):
 		place_player(spot["teleport"])
@@ -2154,6 +2162,10 @@ func _prompt() -> String:
 					return "[F] Marrow: Hush"
 				if spot["id"] == "cinema_cellar" and Vices.allowed():
 					return "[F] Go down to Marrow's basement"
+				if spot["id"] == "undertow_down" and Vices.allowed():
+					return "[F] The bouncer lifts the rope for Pip's sister"
+				if spot.has("dirt") and Downtown.dirt().has(spot["dirt"]):
+					return spot["prompt"] + "  (seen)"
 				if spot.get("npc", "") == "mom" and Family.sick(npc_talk.state, runs_ended):
 					return spot["prompt"] + "  (you're burning up)"
 				var text: String = spot["prompt"]

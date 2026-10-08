@@ -1212,9 +1212,9 @@ def skin_tone(px):
 # Pip's: the cropped waistcoat (her everyday), the shorts, the rave fit (the
 # club) and the warden's mesh (the casino floor) (Bones, 2026-10-08).
 OUTFITS = {"ophelia": ["tee", "hoodie", "night", "prison", "colony", "colony_m"], "mom": ["home", "night"],
-           "pip": ["crop", "shorts", "rave", "warden"]}
+           "pip": ["crop", "shorts", "rave", "warden", "afterhours"]}
 # Outfits worn barefoot (the boots mesh hidden; hub_npc.gd NO_BOOTS).
-BAREFOOT = ["night", "prison", "colony", "colony_m", "warden"]
+BAREFOOT = ["night", "prison", "colony", "colony_m", "warden", "afterhours"]
 OUTFIT = "tee"
 
 
@@ -1394,6 +1394,8 @@ def pip_outfit(g, skin, x, y, z, ax, front, cov, edge, sine, neck_r):
         return pip_rave(g, skin, x, y, z, ax, front, cov, edge, sine, neck_r)
     if LOOK == "warden":
         return pip_warden(g, skin, x, y, z, ax, front, cov, edge, sine, neck_r)
+    if LOOK == "afterhours":
+        return pip_afterhours(g, skin, x, y, z, ax, front, cov, edge, sine, neck_r)
     cropped = LOOK in ("crop", "sheer", "jacket", "shorts")
     WINE, WINE_D, WINE_L = (0.2, 0.012, 0.035), (0.11, 0.006, 0.02), (0.36, 0.05, 0.08)
     VEST, STRIPE, GOLD, TROUSER = (0.016, 0.014, 0.018), (0.12, 0.11, 0.12), (0.62, 0.42, 0.1), (0.012, 0.011, 0.014)
@@ -1531,6 +1533,43 @@ def pip_warden(g, skin, x, y, z, ax, front, cov, edge, sine, neck_r):
     col = g.mixc(col, (0.85, 0.82, 0.75), g.mul(g.band(chip_r, 0.0045, 0.006), chip))
     col = g.mixc(col, (0.3, 0.03, 0.07), g.mul(g.band(z, 0.0, 0.012), g.sstep(-0.06, -0.08, y)))   # wine toenails
     ink = g.mx(g.mx(edge(d_band), edge(d_briefs)), g.mul(edge(d_mesh), 0.6))
+    return g.mixc(col, INK, ink)
+
+
+def pip_afterhours(g, skin, x, y, z, ax, front, cov, edge, sine, neck_r):
+    """afterhours: the Underfloor and the high rollers' room. The warden fit
+    with the mesh gone: two small black satin triangles on gold halter
+    strings, a thong-cut black brief on gold side strings, a fine gold chain
+    from between the cups to a low waist chain, gold cuffs and anklets, the
+    house chip on her choker, barefoot."""
+    SATIN, GOLD = (0.05, 0.04, 0.055), (0.62, 0.42, 0.1)
+    col = g.mixc(skin, PIP_LEG, g.mul(cov(g.sub(0.76, z)), g.sstep(0.0, 0.03, ax)))
+    # the cups: small triangles over each side, widest at the bottom
+    dx = g.abs(g.sub(ax, 0.062))
+    d_cup = g.mn(g.mn(g.sub(z, 1.012), g.sub(1.07, z)), g.sub(g.add(g.mul(g.sub(1.07, z), 0.69), 0.004), dx))
+    cup = g.mul(cov(d_cup), front)
+    # halter strings up to the neck, the tie round her back
+    halter = g.mul(g.mul(g.band(g.sub(ax, g.sub(0.062, g.mul(g.sub(z, 1.07), 0.17))), -0.0025, 0.0025), g.band(z, 1.07, 1.175)), front)
+    tie = g.mul(g.mul(g.band(z, 1.013, 1.019), g.sstep(0.2, 0.18, ax)), g.sub(1.0, cup))
+    # the brief: the warden's cut, lower at the top, on side strings
+    cut = g.lerp(g.add(0.015, g.mul(g.sub(z, 0.68), 0.75)), g.add(0.004, g.mul(g.sstep(0.69, 0.77, z), 0.03)), g.sub(1.0, front))
+    top = g.add(0.745, g.mul(g.sub(1.0, front), 0.015))
+    d_briefs = g.mn(g.mn(g.sub(top, z), g.sub(z, 0.66)), g.sub(cut, ax))
+    briefs = cov(d_briefs)
+    strings = g.mul(g.mul(g.band(g.sub(z, top), -0.006, 0.0), g.sstep(0.2, 0.18, ax)), g.sub(1.0, briefs))
+    belt = g.mul(g.mul(g.band(g.sub(z, g.sub(0.8, g.mul(front, 0.01))), 0.0, 0.006), g.sstep(0.45, 0.6, sine(g.add(x, y), 0.008))), g.sstep(0.2, 0.18, ax))
+    drop = g.mul(g.mul(g.band(x, -0.0018, 0.0018), g.band(z, 0.8, 1.02)), front)
+    choker = g.mul(g.band(z, 1.178, 1.192), g.sub(1.0, g.sstep(0.065, 0.075, neck_r)))
+    chip_r = g.sqrt(g.add(g.sq(x), g.sq(g.sub(z, 1.17))))
+    chip = g.mul(g.sub(1.0, g.sstep(0.0075, 0.0085, chip_r)), front)
+    col = g.mixc(col, SATIN, g.mx(cup, briefs))
+    col = g.mixc(col, GOLD, g.mx(g.mx(g.mx(halter, tie), g.mx(strings, belt)), drop))
+    col = g.mixc(col, GOLD, g.mx(g.band(ax, 0.405, 0.42), g.band(z, 0.1, 0.112)))
+    col = g.mixc(col, (0.01, 0.008, 0.012), choker)
+    col = g.mixc(col, (0.42, 0.03, 0.05), chip)
+    col = g.mixc(col, (0.85, 0.82, 0.75), g.mul(g.band(chip_r, 0.0045, 0.006), chip))
+    col = g.mixc(col, (0.3, 0.03, 0.07), g.mul(g.band(z, 0.0, 0.012), g.sstep(-0.06, -0.08, y)))   # wine toenails
+    ink = g.mx(g.mul(edge(d_cup), front), edge(d_briefs))
     return g.mixc(col, INK, ink)
 
 

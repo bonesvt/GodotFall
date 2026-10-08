@@ -21,7 +21,7 @@ const TURN_SPEED := 2.5
 const MAX_TURN := 60.0
 ## Who has more than one outfit (body.png first, then body_<outfit>.png from
 ## tools/npc/build_npc.py). They change between runs.
-const OUTFITS := {"ophelia": ["tee", "hoodie", "night"], "mom": ["home", "night"], "pip": ["crop", "shorts", "rave", "warden"]}
+const OUTFITS := {"ophelia": ["tee", "hoodie", "night"], "mom": ["home", "night"], "pip": ["crop", "shorts", "rave", "warden", "afterhours"]}
 ## Outfits only worn on missions, never picked for the hub (Ophelia's
 ## detainee rags, and the colony's torn intake suit she's held in at Level 2's
 ## stasis column, "colony" for Teen and "colony_m" for Mature):
@@ -29,7 +29,7 @@ const OUTFITS := {"ophelia": ["tee", "hoodie", "night"], "mom": ["home", "night"
 ## the ruined make-up) and hair blend shape (MESS: frizzed from the fight).
 const MISSION_OUTFITS := {"ophelia": ["prison", "colony", "colony_m"]}
 ## Outfits worn barefoot or in socks: the boots come off.
-const NO_BOOTS := ["night", "prison", "colony", "colony_m", "warden"]
+const NO_BOOTS := ["night", "prison", "colony", "colony_m", "warden", "afterhours"]
 ## The hair blend shape an outfit turns on (tools/npc/build_npc.py mess_colony()).
 const MESS := {"colony": "mess_colony", "colony_m": "mess_colony"}
 

@@ -32,6 +32,8 @@ var reels: Array = ["starling", "starling", "starling"]
 ## Scrap won (or lost, negative) while the screen was open.
 var net := 0
 var spins := 0
+## Which screen this is (the run manager and hub test read it off any bench).
+var kind := "casino"
 ## Benches report weapons unlocked by a level up; nothing here does that.
 var unlocked: Array = []
 
