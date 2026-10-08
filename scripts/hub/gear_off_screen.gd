@@ -26,6 +26,7 @@ const START := {
 	"bridge": "Biggie: \"Tubes up your nose. This is gonna sting.\"",
 	"gloves": "Biggie: \"They've grown into your skin. I'm gonna have to peel 'em.\"",
 	"bell": "Biggie: \"Collar's welded shut. Hold your chin up, I'm cutting it off you.\"",
+	"crown": "Biggie: \"Last one. This is the one that's been talking to all the others. Don't move. Don't even think.\"",
 	"spine": "Biggie: \"Nine of these, right on your spine. Stand still. I'll go slow.\"",
 }
 const OFF := {
@@ -35,8 +36,10 @@ const OFF := {
 	"bridge": "He draws the tubes out slow. She sneezes for a full minute. Biggie laughs until she does too.",
 	"gloves": "The gloves peel off like old paint. Her hands sting. She can feel them again.",
 	"bell": "The collar falls open and the bell hits the floor with one last ring. Biggie stamps on it. Twice.",
+	"crown": "The Crown comes away in his hands and goes dark. Eco makes a sound she doesn't recognise. Then she's crying, and it's hers.",
 	"spine": "The last segment comes away. Her back slumps the way it used to. It's hers again.",
 }
+const CROWN_LOCKED := "Biggie: \"Every wire on you runs into this thing. Pull it now and it takes the rest of you with it. Everything else first, kid.\""
 const SLIPPED := "His hand slips. The %s bites back, a white jolt straight through her, and stays on. Biggie: \"Damn it. Not today. Next time.\""
 ## Seconds his hand takes to wander the bar, at no Hymn and at full.
 const SHAKE_SLOW := 1.6
@@ -120,6 +123,9 @@ func _list_text() -> String:
 	for i in Hymn.gear.size():
 		var g: String = Hymn.gear[i]
 		var room := Hymn.steady(g)
+		if g == "crown" and Hymn.crown_locked():
+			rows.append("%d   The Crown   (locked: everything else comes off first)" % (i + 1))
+			continue
 		rows.append("%d   The %s   (%s)" % [i + 1, Hymn.GEAR_NAMES[g], "fiddly" if room >= 0.18 else ("delicate" if room >= 0.12 else "very delicate")])
 	return "\n".join(rows)
 
@@ -147,7 +153,10 @@ func _input(event: InputEvent) -> void:
 		return
 	var i: int = event.keycode - KEY_1
 	if _piece == "" and can_try() and i >= 0 and i < Hymn.gear.size():
-		pick(Hymn.gear[i])
+		if Hymn.gear[i] == "crown" and Hymn.crown_locked():
+			_status.text = CROWN_LOCKED
+		else:
+			pick(Hymn.gear[i])
 		get_viewport().set_input_as_handled()
 
 

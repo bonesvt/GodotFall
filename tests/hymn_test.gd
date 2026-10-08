@@ -150,7 +150,7 @@ func _run() -> void:
 
 	# The rest of the set: each capture the next piece, in order, each on her.
 	Hymn.gear = ["headphones", "cuff", "visor"]
-	for want in ["bridge", "gloves", "spine", "bell"]:
+	for want in ["bridge", "gloves", "spine", "bell", "crown"]:
 		_check("next capture: %s" % want, Hymn.processed() == want, Hymn.gear)
 	Wardrobe.dress_eco(player, true)
 	await _ticks(2)
@@ -169,6 +169,9 @@ func _run() -> void:
 	# the bell: rings moving fast, enemies near hear it, slow she's quiet
 	_check("bell quiet walking", not Hymn.tick_bell(1.0, 2.0), "")
 	_check("bell rings running", Hymn.tick_bell(1.0, 8.0) and not Hymn.tick_bell(0.1, 8.0) and Hymn.tick_bell(1.0, 8.0), "")
+	_check("crowned: Hymn held up", (func(): Hymn.level = 10.0; Hymn.save(); return Hymn.level).call() >= Hymn.CROWN_FLOOR, Hymn.level)
+	_check("crowned: no time at all to shake his words", TriggerWords.window() < TriggerWords.WINDOW * 0.5, TriggerWords.window())
+	_check("the Crown's last off", Hymn.crown_locked(), Hymn.gear)
 	_check("nothing left to put on her", Hymn.processed() == "", Hymn.gear.size())
 
 	# Biggie's table: one try a visit; a clean job takes it off, a slip shocks her.

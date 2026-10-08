@@ -59,6 +59,9 @@ const MORE_LINES := {
 	"bell": ["A white collar comes down, open, and closes round her throat.",
 		"A small bell clicks onto the front of it. The arm flicks it once. It rings, high and clean.",
 		"Calm voice: \"Now we'll always know where you are.\""],
+	"crown": ["The room goes quiet. Something white and thin comes down out of the ceiling, slow, to her head.",
+		"It settles on her brow. Every piece on her lights up at once: her ears, her eyes, her wrist, her back, her throat.",
+		"Calm voice, from everywhere: \"Welcome home, citizen.\""],
 	"spine": ["Something long and white comes down behind her, to her back.",
 		"She stands in the frame while it clicks onto her spine segment by segment, shoulders to waist, each node lighting as it locks.",
 		"Her back straightens on its own. Calm voice: \"Walk with everyone. Never alone.\""],
@@ -78,6 +81,7 @@ var _arm_rod: MeshInstance3D
 var _cam: Camera3D
 var _veil_layer: CanvasLayer
 var _veil: ColorRect
+var _obey: Label
 var _said := {}
 
 
@@ -95,6 +99,15 @@ func _ready() -> void:
 	_veil.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_veil.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_veil_layer.add_child(_veil)
+	_obey = Label.new()
+	_obey.text = "OBEY"
+	_obey.add_theme_font_size_override("font_size", 160)
+	_obey.add_theme_color_override("font_color", Color(0.55, 0.62, 0.72))
+	_obey.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_obey.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_obey.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_obey.visible = false
+	_veil_layer.add_child(_obey)
 
 
 func busy() -> bool:
@@ -123,6 +136,11 @@ func _process(delta: float) -> void:
 	t += delta
 	# the white-out clearing, and coming back at the end
 	_veil.color.a = maxf(1.0 - smoothstep(0.0, IN, t), smoothstep(OUT, OUT + 0.8, t))
+	# the Crown: every piece lights at once, then white, and one word
+	var crowned := piece == "crown" and t >= LOCK and t < UP
+	_obey.visible = crowned
+	if crowned:
+		_veil.color.a = maxf(_veil.color.a, smoothstep(LOCK, LOCK + 0.25, t) * (1.0 - smoothstep(UP - 0.5, UP, t)))
 	# the arm: down with it, holding still, back up
 	var down := smoothstep(LOWER, ON, t) * (1.0 - smoothstep(UP, UP + 1.2, t))
 	var k := clampf((t - FIT) / FIT_TIME, 0.0, 1.0)
@@ -181,6 +199,7 @@ func reset() -> void:
 
 
 func _show_hud(on: bool) -> void:
+	rm.hud.corners_hidden = not on
 	if rm.get("pilot_hud") != null:
 		rm.pilot_hud.visible = on
 	rm.hud.status_label.visible = on
@@ -282,6 +301,8 @@ func _target() -> Vector3:
 			return at + Vector3(0, 0.02, -0.06)  # her nose
 		"bell":
 			return at + Vector3(0, -0.05, -0.03)  # her throat
+		"crown":
+			return at + Vector3(0, 0.12, 0)  # her brow and crown
 	return at + Vector3(0, 0.06, 0)
 
 
@@ -317,6 +338,8 @@ func _shot(which: String) -> void:
 					_cam.look_at_from_position(at + Vector3(-0.36, -0.06, -0.36), at + Vector3(-0.08, -0.04, 0.0))
 				"cuff":
 					_cam.look_at_from_position(at + Vector3(-0.5, 0.3, -0.7), at)
+				"crown":
+					_cam.look_at_from_position(at + Vector3(0.22, -0.04, -0.62), at + Vector3(0, -0.07, 0))
 				"bell":
 					_cam.look_at_from_position(at + Vector3(0.2, 0.06, -0.42), at + Vector3(0, -0.01, 0))
 				"bridge":

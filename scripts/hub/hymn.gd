@@ -28,12 +28,12 @@ extends RefCounted
 
 const Vices := preload("res://scripts/hub/vices.gd")
 
-const GEAR := ["headphones", "cuff", "visor", "bridge", "gloves", "spine", "bell"]
+const GEAR := ["headphones", "cuff", "visor", "bridge", "gloves", "spine", "bell", "crown"]
 const GEAR_NAMES := {"headphones": "compliance headphones", "cuff": "dose cuff", "visor": "clarity visor",
-	"bridge": "calm bridge", "gloves": "comfort gloves", "spine": "Plumb Line spine", "bell": "Hymn bell"}
+	"bridge": "calm bridge", "gloves": "comfort gloves", "spine": "Plumb Line spine", "bell": "Hymn bell", "crown": "Crown"}
 ## How much room Biggie's hand has getting each piece off (the width of the
 ## steady band, 0..1): the visor's cups on her eyes and the spine least of all.
-const STEADY := {"headphones": 0.22, "cuff": 0.2, "visor": 0.12, "bridge": 0.18, "gloves": 0.2, "spine": 0.1, "bell": 0.18}
+const STEADY := {"headphones": 0.22, "cuff": 0.2, "visor": 0.12, "bridge": 0.18, "gloves": 0.2, "spine": 0.1, "bell": 0.18, "crown": 0.08}
 ## Clean holds he needs in a row (pins, needles, cups, tubes, seals, segments).
 const HOLDS := 3
 ## Hymn a slip shocks into her.
@@ -41,6 +41,10 @@ const SLIP := 5.0
 ## The calm bridge's puff: how often, and how much Hymn.
 const BRIDGE_EVERY := 60.0
 const BRIDGE_PUFF := 1.5
+## The Crown, last of all: it ties every piece together. While it's on, Hymn
+## never falls below CROWN_FLOOR, his words come in half the time (trigger_words.gd),
+## and Biggie can't touch it until everything else is off her (crown_locked()).
+const CROWN_FLOOR := 80.0
 ## The bell: how fast she has to be moving for it to ring, how often, how far it carries.
 const BELL_SPEED := 6.0
 const BELL_EVERY := 0.9
@@ -185,6 +189,17 @@ static func tick_bridge(delta: float) -> bool:
 	return true
 
 
+## The Crown holds her Hymn up.
+static func _crown_floor() -> void:
+	if has("crown"):
+		level = maxf(level, CROWN_FLOOR)
+
+
+## The Crown can't come off while anything else is still on her.
+static func crown_locked() -> bool:
+	return "crown" in gear and gear.size() > 1
+
+
 ## Each tick: true when the bell rings (she's on the move, fast, with it on).
 static func tick_bell(delta: float, speed: float) -> bool:
 	if not has("bell") or speed < BELL_SPEED:
@@ -224,6 +239,7 @@ static func biggie_try(piece: String, clean: bool) -> void:
 
 ## A run ends: tomorrow's dose is waiting.
 static func run_over() -> void:
+	_crown_floor()
 	biggie_tried = false
 	dosed_today = false
 	cuff_left = CUFF_TIME
@@ -259,6 +275,7 @@ static func open(path: String) -> void:
 
 
 static func save() -> void:
+	_crown_floor()
 	var cfg := ConfigFile.new()
 	cfg.set_value("hymn", "level", level)
 	cfg.set_value("hymn", "dosed_today", dosed_today)
