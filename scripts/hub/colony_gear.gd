@@ -16,6 +16,8 @@ extends RefCounted
 ##               tube up into each nostril, a glowing vial behind each ear
 ##   gloves      comfort gloves: seamless white to the shoulder, lines of light
 ##               down to every finger
+##   crown       the Crown: a white circlet round her head with four lit nodes,
+##               the piece that ties all the others together
 ##   spine       the Plumb Line: a white and chrome spine down her back from
 ##               just below her neck, a glowing node on each segment, cables
 ##               into her shoulders
@@ -61,12 +63,16 @@ static func apply(model: Node, gear: Array = []) -> void:
 			child.free()
 	if not Hymn.allowed():
 		return
-	if "headphones" in gear or "visor" in gear:
+	if "headphones" in gear or "visor" in gear or "crown" in gear:
 		var head := _root(skel, HEAD, NODE)
 		if "headphones" in gear:
 			_headphones(_piece(head, "headphones"))
 		if "visor" in gear:
 			_visor(_piece(head, "visor"))
+		if "crown" in gear:
+			_crown(_piece(head, "crown"))
+			for g in model.find_children("Goggles*", "MeshInstance3D", true, false):
+				g.visible = false  # the Crown sits where her goggles do
 		_match_layers(model, head, "Face")
 	if "bridge" in gear:
 		var face := _root(skel, HEAD, NODE + "_Face")
@@ -138,6 +144,13 @@ static func fit(node: Node3D, piece: String, k: float) -> void:
 			for n in node.get_children():
 				if String(n.name).begins_with("Needle_"):
 					(n as Node3D).scale = Vector3(1, maxf(smoothstep(0.0, 0.4, k), 0.01), 1)
+		"crown":
+			# it comes down onto her head, then its nodes light one by one
+			node.position = Vector3(0, 0.3 * (1.0 - smoothstep(0.0, 0.55, k)), 0)
+			for i in 4:
+				var dot := node.get_node_or_null("Node_%d" % i) as Node3D
+				if dot != null:
+					dot.scale = Vector3.ONE * maxf(smoothstep(0.55 + i * 0.1, 0.65 + i * 0.1, k), 0.01)
 		"bridge":
 			node.position = Vector3(0, 0.25 * (1.0 - smoothstep(0.0, 0.35, k)), 0)
 			for side in ["L", "R"]:
@@ -324,6 +337,25 @@ static func _spine(model: Node, skel: Skeleton3D) -> void:
 			_line(seg, Vector3(0.022 * s, 0, -0.004), Vector3(0.06 * s, 0.03, -0.03), 0.003, _chrome())
 	for r in roots.values():
 		_match_layers(model, r, "Body")
+
+
+## The Crown: a white circlet round her head above the brow, a peak at the
+## front, four lit nodes round it.
+static func _crown(root: Node3D) -> void:
+	var c := Vector3(0, 1.618, 0.0)
+	var ring := _torus(root, c, 0.108, 0.124, _shell())
+	ring.rotation_degrees = Vector3(-8, 0, 0)
+	_box(root, c + Vector3(0, 0.026, -0.118), Vector3(0.034, 0.05, 0.014), _shell())
+	for i in 4:
+		var a := TAU * i / 4.0
+		var dot := Node3D.new()
+		dot.name = "Node_%d" % i
+		dot.position = c + Vector3(sin(a) * 0.118, 0.004 - cos(a) * 0.014, -cos(a) * 0.118)
+		root.add_child(dot)
+		var s := SphereMesh.new()
+		s.radius = 0.008
+		s.height = 0.016
+		_add(dot, s, Vector3.ZERO, _lit())
 
 
 static func _cuff(root: Node3D, wrist: Vector3) -> void:

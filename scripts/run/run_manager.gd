@@ -86,6 +86,8 @@ const HOME_PULL := "Eco keeps looking back the way she came. Ophelia's waiting. 
 const PAPERS := "Under Ophelia's pillow: a tin. A jar of something pink and sweet and three Night Owls with a rose stain at the filter, like the ones in the packs she's been giving Eco. A label in her handwriting: KEEPSAKE. She's been drugging her."
 const Shepherd := preload("res://scripts/hub/shepherd.gd")
 const VisorScreen := preload("res://scripts/ui/visor_screen.gd")
+const VisorFriends := preload("res://scripts/run/visor_friends.gd")
+const ObsessionLook := preload("res://scripts/hub/obsession_look.gd")
 ## Where the Shepherd comes out, from the dispensary's spot (its back door).
 const DISPENSARY_BACK_DOOR := Vector3(-0.5, 0.1, 4.5)
 const BRIDGE_PUFF := "The bridge hisses up her nose. Lavender. Linen. Calm."
@@ -238,6 +240,8 @@ var super_hush_scene: SuperHushScene
 var fitting_scene: FittingScene
 ## The morning dose at the dispensary, played out (dose_scene.gd).
 var dose_scene: DoseScene
+## The clarity visor's lie on runs: grunts wearing her people's faces (visor_friends.gd).
+var visor_friends: Node
 ## Marrow's Glass on runs (focus, his orders: tether.gd) and the Chorus's end (chorus_scene.gd).
 var tether: Tether
 var chorus_scene: ChorusScene
@@ -306,6 +310,8 @@ func _ready() -> void:
 	add_child(fitting_scene)
 	dose_scene = DoseScene.new(self)
 	add_child(dose_scene)
+	visor_friends = VisorFriends.new(self)
+	add_child(visor_friends)
 	npc_talk = NpcTalk.new()
 	npc_talk.save_path = npc_path
 	add_child(npc_talk)
@@ -501,6 +507,8 @@ func enter_hub() -> void:
 		zone_root.add_child(npc)
 		npc.wear_for_run(runs_ended)
 		NpcIdles.settle(npc, zone_info, runs_ended)
+		if spec["who"] == "ophelia":
+			ObsessionLook.dress(npc, zone_info)  # how her obsession shows on her this stay
 		hub_npcs[spec["who"]] = npc
 	Townsfolk.populate(zone_root, player, runs_ended)
 	Soundscape.hub(zone_root, zone_info)

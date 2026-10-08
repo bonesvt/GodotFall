@@ -163,6 +163,18 @@ func _paint() -> void:
 		for i in 6:
 			var g := Rect2(rng.randf() * size.x, rng.randf() * size.y, rng.randf_range(60, 300), rng.randf_range(4, 18))
 			_draw_on.draw_rect(g, Color(WHITE, 0.35 * s))
+	# on a run, every grunt wearing a friend's face (visor_friends.gd) gets its tag
+	var friends: Node = rm.get("visor_friends") if rm != null else null
+	if friends != null and friends.on():
+		var cam := get_viewport().get_camera_3d()
+		for pair in friends.disguised():
+			var grunt: Node3D = pair[0]
+			var head := grunt.global_position + Vector3(0, 2.05, 0)
+			if cam == null or cam.is_position_behind(head):
+				continue
+			var at := cam.unproject_position(head)
+			_text("FRIEND", at + Vector2(-34, 0), 20, Color(0.55, 1.0, 0.65, 0.95))
+			_text(String(pair[1]).to_upper(), at + Vector2(-30, 18), 13, Color(0.75, 1.0, 0.8, 0.8))
 	# the odd white flash
 	if _flash > 0.0:
 		_draw_on.draw_rect(Rect2(Vector2.ZERO, size), Color(WHITE, 0.3 * _flash * s))

@@ -150,7 +150,7 @@ func _run() -> void:
 
 	# The rest of the set: each capture the next piece, in order, each on her.
 	Hymn.gear = ["headphones", "cuff", "visor"]
-	for want in ["bridge", "gloves", "spine"]:
+	for want in ["bridge", "gloves", "spine", "crown"]:
 		_check("next capture: %s" % want, Hymn.processed() == want, Hymn.gear)
 	Wardrobe.dress_eco(player, true)
 	await _ticks(2)
@@ -162,6 +162,13 @@ func _run() -> void:
 	Hymn._puff = Hymn.BRIDGE_EVERY
 	before = Hymn.level
 	_check("bridge: a puff a minute", not Hymn.tick_bridge(Hymn.BRIDGE_EVERY * 0.5) and Hymn.tick_bridge(Hymn.BRIDGE_EVERY * 0.6) and Hymn.level > before, Hymn.level)
+	# first person: her full copy only casts shadows, so its gear mustn't hang in view
+	var shadow_copy: Node = player.get_node("EcoBody/Shadow")
+	var floating := shadow_copy.find_child("ColonyGear*", true, false).find_children("*", "MeshInstance3D", true, false).filter(func(m): return m.cast_shadow != GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY)
+	_check("first person: no gear floating in view", floating.is_empty(), floating.size())
+	_check("crowned: Hymn held up", (func(): Hymn.level = 10.0; Hymn.save(); return Hymn.level).call() >= Hymn.CROWN_FLOOR, Hymn.level)
+	_check("crowned: no time at all to shake his words", TriggerWords.window() < TriggerWords.WINDOW * 0.5, TriggerWords.window())
+	_check("the Crown's last off", Hymn.crown_locked(), Hymn.gear)
 	_check("nothing left to put on her", Hymn.processed() == "", Hymn.gear.size())
 
 	# Biggie's table: one try a visit; a clean job takes it off, a slip shocks her.
