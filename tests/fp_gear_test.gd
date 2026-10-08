@@ -8,6 +8,7 @@ extends SceneTree
 const Hymn := preload("res://scripts/hub/hymn.gd")
 const ContentRating := preload("res://scripts/radio/content_rating.gd")
 const EcoArms := preload("res://scripts/eco_fp_arms.gd")
+const EcoBody := preload("res://scripts/eco_fp_body.gd")
 
 var failures := 0
 
@@ -42,9 +43,31 @@ func _run() -> void:
 	await process_frame
 	var again := sk.get_children().filter(func(c): return c is BoneAttachment3D and String(c.name) == "ColonyGear" and c.is_visible_in_tree())
 	_check("still hidden after a rebuild", again.is_empty(), again)
+
+	# her full model in first person ("Shadow", eco_fp_body.gd) is drawn only
+	# into shadows: its gear must be too, or it hangs round the camera
+	var holder := Node3D.new()
+	root.add_child(holder)
+	var fp: Node3D = EcoBody.new()
+	holder.add_child(fp)
+	for i in 3:
+		await process_frame
+	fp.shadow.apply_suit()
+	var drawn := _gear_meshes(fp.shadow).filter(func(m): return m.cast_shadow != GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY)
+	_check("first person: her shadow copy's gear only casts a shadow", not _gear_meshes(fp.shadow).is_empty() and drawn.is_empty(), drawn.size())
+	fp.set_third_person(true)
+	drawn = _gear_meshes(fp.shadow).filter(func(m): return m.cast_shadow != GeometryInstance3D.SHADOW_CASTING_SETTING_ON)
+	_check("third person: it's drawn for real", drawn.is_empty(), drawn.size())
 	Hymn.gear = []
 	print("FAILURES: %d" % failures)
 	quit(1 if failures > 0 else 0)
+
+
+func _gear_meshes(model: Node) -> Array:
+	var out := []
+	for att in model.find_children("ColonyGear*", "BoneAttachment3D", true, false):
+		out.append_array(att.find_children("*", "MeshInstance3D", true, false))
+	return out
 
 
 func _check(what: String, ok: bool, detail = null) -> void:
