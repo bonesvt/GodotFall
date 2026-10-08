@@ -26,6 +26,12 @@ func _initialize() -> void:
 	run_node.armory_path = "user://test_hub_armory.cfg"
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(run_node.armory_path))
 	DirAccess.remove_absolute(ProjectSettings.globalize_path("user://test_settings.cfg"))
+	# The vices, Hymn, Hub Grip and other saves sit next to the armory. Left over
+	# from an earlier run, the Hub Grip's levels climb run after run until a
+	# scene is waiting at home and holds her in place.
+	for f in DirAccess.get_files_at("user://"):
+		if f.begins_with("test_hub_armory_"):
+			DirAccess.remove_absolute(ProjectSettings.globalize_path("user://" + f))
 	# Ophelia is only in the hub once Level 2 has rescued her (run_manager RESCUED_IN).
 	var progress := ConfigFile.new()
 	progress.set_value("progress", "cleared", ["level2"])
