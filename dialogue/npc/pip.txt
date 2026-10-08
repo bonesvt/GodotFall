@@ -1,0 +1,70 @@
+# Pip, Eco's older sister. She chose the shady life over the heroic one and
+# runs everything crooked in Downtown: the Velvet Ace casino, the Undertow
+# club, and the secrets that pass through both. Dry, sharp, never raises her
+# voice, loves her sister and would rather die than say so plainly.
+#
+# One conversation per [block]. [intro] plays the first time Eco talks to her,
+# [won] / [lost] the first time after a run ends that way, then the [any]
+# blocks take turns. Each line is "speaker: words"; speakers are pip and eco.
+# Voices: no recorded speech. scripts/hub/babble.gd sings each line as babble.
+
+[intro]
+pip: Well. The Starling, in my street. Do you want an autograph or a drink?
+eco: Pip. You look...
+pip: Expensive. The word you want is expensive.
+eco: I was going to say "like Mom's worst nightmare".
+pip: Same thing. Mom's worst nightmare is anything that costs more than a quilt.
+eco: She still sets your place at the table.
+pip: I know. I send her flowers on Dad's birthday. Neither of us mentions it. It's working.
+
+[won]
+pip: The whole Undertow heard you brought a titan home. Drinks were on the house.
+eco: You bought everybody drinks? For me?
+pip: I charged everybody double for drinks, and told them it was for you. They paid happily.
+eco: That's the most Pip thing I've ever heard.
+pip: Thank you. Now go and wash. You smell like a reactor.
+
+[lost]
+pip: Sit. Don't argue, sit. Who did that to your face?
+eco: A colony grunt with a lucky shot.
+pip: Name? Unit? Which bar does he drink in?
+eco: Pip. You can't have people killed for punching me.
+pip: I wasn't going to have him killed. I was going to have his tab called in. It's worse.
+
+[any]
+pip: Rule one of Downtown: the house always wins. Rule two: I am the house.
+eco: What's rule three?
+pip: Rule three is you don't ask what rule three is. Dad taught me that one, actually.
+eco: Dad never taught you anything like that.
+pip: He taught me to watch the exits and never play a hand I couldn't afford to lose. I just made a business out of it.
+
+[any]
+eco: Why'd you leave? Really.
+pip: Because one of us had to make sure the other one has bullets, and you were never going to sell anything but your stubbornness.
+eco: So the casino's a charity now?
+pip: The casino launders colony scrip. Every officer who loses at my reels pays for your war. Call it what you like.
+
+[any]
+pip: Mom came in last week. Stood at the door of the Velvet Ace for ten minutes.
+eco: She came in?
+pip: She didn't come in. She stood at the door and looked at me like I was still twelve and late for dinner. Then she left a jar of soup with the doorman.
+eco: Did you eat it?
+pip: ...All of it. Tell her and I'll ban you from the street.
+
+[any]
+eco: Is that what you wear to work?
+pip: It's what I wear to be looked at. People who are looking at me don't look at their cards.
+eco: That's a business plan?
+pip: It's the whole business plan. Yours is "run at the robots". Let's not compare.
+
+[any]
+pip: The Undertow is where the colony officers drink off duty. They talk. I pour. Everything worth knowing in this valley crosses my bar.
+eco: And you sell it.
+pip: I sell it to you, at a price that would make Sal weep. Family discount: I don't charge you extra for being annoying.
+
+[any]
+pip: You still sleep with the hangar lights on?
+eco: No.
+pip: Liar. So do I. Behind the casino, there's a window that faces the temple. I can see your lights from my office.
+eco: You watch my lights?
+pip: I watch everything. Yours just happen to be the ones I check first.

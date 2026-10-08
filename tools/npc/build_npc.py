@@ -1209,9 +1209,12 @@ def skin_tone(px):
 # bake to body_<outfit>.png and hub_npc.gd swaps them in.
 # (Mom's and Ophelia's bikini/sheer/tight/lingerie were shelved 2026-10-04;
 # backup: /mnt/project-files/hub-npcs/shelved/npc_outfits.bundle)
-OUTFITS = {"ophelia": ["tee", "hoodie", "night", "prison", "colony", "colony_m"], "mom": ["home", "night"]}
+# Pip's: the cropped waistcoat (her everyday), the shorts, the rave fit (the
+# club) and the warden's mesh (the casino floor) (Bones, 2026-10-08).
+OUTFITS = {"ophelia": ["tee", "hoodie", "night", "prison", "colony", "colony_m"], "mom": ["home", "night"],
+           "pip": ["crop", "shorts", "rave", "warden"]}
 # Outfits worn barefoot (the boots mesh hidden; hub_npc.gd NO_BOOTS).
-BAREFOOT = ["night", "prison", "colony", "colony_m"]
+BAREFOOT = ["night", "prison", "colony", "colony_m", "warden"]
 OUTFIT = "tee"
 
 
@@ -1374,6 +1377,10 @@ def ophelia_outfit(g, skin, x, y, z, ax, front, cov, edge, sine, neck_r):
     return g.mixc(col, INK, ink)
 
 
+# the pale skin of her body, for her legs and feet where the preset paints stockings
+PIP_LEG = (0.82, 0.62, 0.55)
+
+
 def pip_outfit(g, skin, x, y, z, ax, front, cov, edge, sine, neck_r):
     """A wine satin shirt open in a deep V, sleeves rolled to the forearm,
     under a black pinstripe waistcoat cinched at the waist with gold buttons;
@@ -1385,6 +1392,8 @@ def pip_outfit(g, skin, x, y, z, ax, front, cov, edge, sine, neck_r):
         return pip_shark(g, skin, x, y, z, ax, front, cov, edge, sine, neck_r)
     if LOOK == "rave":
         return pip_rave(g, skin, x, y, z, ax, front, cov, edge, sine, neck_r)
+    if LOOK == "warden":
+        return pip_warden(g, skin, x, y, z, ax, front, cov, edge, sine, neck_r)
     cropped = LOOK in ("crop", "sheer", "jacket", "shorts")
     WINE, WINE_D, WINE_L = (0.2, 0.012, 0.035), (0.11, 0.006, 0.02), (0.36, 0.05, 0.08)
     VEST, STRIPE, GOLD, TROUSER = (0.016, 0.014, 0.018), (0.12, 0.11, 0.12), (0.62, 0.42, 0.1), (0.012, 0.011, 0.014)
@@ -1419,7 +1428,7 @@ def pip_outfit(g, skin, x, y, z, ax, front, cov, edge, sine, neck_r):
     # trousers: high on the waist (low on her hips under the cropped one), a pressed crease down the front of each leg
     waist = 0.765 if cropped else 0.84
     # the low one hangs on her hips and rides up over her seat at the back
-    d_trousers = g.mn(g.sub(g.add(waist, g.mul(g.sub(1.0, front), 0.05 if cropped else 0.0)), z), g.sub(z, 0.66 if LOOK == "shorts" else 0.12))
+    d_trousers = g.mn(g.sub(g.add(waist, g.mul(g.sub(1.0, front), 0.05 if cropped else 0.0)), z), g.sub(z, g.add(0.69, g.mul(g.mul(g.sub(1.0, front), g.sub(1.0, g.sstep(0.02, 0.09, ax))), 0.035)) if LOOK == "shorts" else 0.12))
     trousers = cov(d_trousers)
     crease = g.mul(g.mul(g.band(ax, 0.072, 0.0735), front), g.mul(trousers, g.sstep(waist - 0.1, waist - 0.12, z)))
     belt = g.mul(g.band(z, waist - 0.04, waist - 0.022), trousers)
@@ -1447,7 +1456,7 @@ def pip_outfit(g, skin, x, y, z, ax, front, cov, edge, sine, neck_r):
         highs = cov(d_highs)
         lace = g.mul(g.mul(g.band(z, 0.575, 0.6), g.sstep(0.3, 0.7, sine(g.add(x, y), 0.007))), highs)
         # the preset's skin has stockings painted into the legs: bare skin under hers (as Mom's)
-        col = g.mixc(col, (0.62, 0.42, 0.35), g.mul(cov(g.mn(g.sub(0.76, z), g.sub(z, 0.1))), g.sstep(0.0, 0.03, ax)))
+        col = g.mixc(col, PIP_LEG, g.mul(cov(g.mn(g.sub(0.76, z), g.sub(z, 0.1))), g.sstep(0.0, 0.03, ax)))
         col = g.mixc(col, (0.012, 0.01, 0.014), g.mul(highs, 0.55))
         col = g.mixc(col, (0.01, 0.008, 0.012), lace)
     col = g.mixc(col, TROUSER, trousers)
@@ -1481,6 +1490,47 @@ def pip_outfit(g, skin, x, y, z, ax, front, cov, edge, sine, neck_r):
     if not bare:
         ink = g.mx(ink, g.mx(g.mul(edge(d_shirt), g.sub(1.0, vest)), g.mul(edge(d_v), shirt)))
         ink = g.mx(ink, g.mul(g.band(ax, 0.3245, 0.3265), shirt))
+    return g.mixc(col, INK, ink)
+
+
+def pip_warden(g, skin, x, y, z, ax, front, cov, edge, sine, neck_r):
+    """warden: the casino floor. A sheer black mesh bodystocking from a high
+    neck to her wrists and ankles over next to nothing (a narrow black satin
+    bandeau, low under her bust, and a cheeky thong-cut brief), barefoot; a
+    gold chain belt low on her hips, gold cuffs, and the chip on a black
+    choker: the house's badge."""
+    BLACK, SATIN, GOLD = (0.01, 0.008, 0.012), (0.05, 0.04, 0.055), (0.62, 0.42, 0.1)
+    # bare legs and feet under it (the preset paints stockings into the skin)
+    col = g.mixc(skin, PIP_LEG, g.mul(cov(g.sub(0.76, z)), g.sstep(0.0, 0.03, ax)))
+    # the bandeau: a narrow band over the fullest part of her bust only,
+    # dipping between them; its top and bottom curve show the rest
+    under = g.op("EXPONENT", g.mul(g.sq(g.div(g.sub(ax, 0.06), 0.03)), -1.0))
+    band_top = g.sub(1.062, g.mul(g.sub(1.0, under), 0.012))
+    band_bot = g.add(1.012, g.mul(under, 0.004))
+    d_band = g.mn(g.mn(g.sub(band_top, z), g.sub(z, band_bot)), g.sub(g.add(0.105, g.mul(g.sub(1.0, front), 0.2)), ax))
+    band = cov(d_band)
+    # the brief: a small triangle at the front, a thong-cut strip at the back
+    cut = g.lerp(g.add(0.015, g.mul(g.sub(z, 0.68), 0.75)), g.add(0.004, g.mul(g.sstep(0.69, 0.77, z), 0.03)), g.sub(1.0, front))
+    d_briefs = g.mn(g.mn(g.sub(g.add(0.765, g.mul(g.sub(1.0, front), 0.02)), z), g.sub(z, 0.66)), g.sub(cut, ax))
+    briefs = cov(d_briefs)
+    strap = g.mul(g.mul(g.band(g.sub(z, g.add(0.758, g.mul(g.sub(1.0, front), 0.02))), 0.0, 0.008), g.sstep(0.2, 0.18, ax)), g.sub(1.0, briefs))
+    d_mesh = g.mn(g.mn(g.sub(1.2, z), g.sub(z, 0.1)), g.sub(0.44, ax))
+    mesh = cov(d_mesh)
+    net = g.mx(g.sstep(0.82, 0.93, sine(g.add(x, z), 0.007)), g.sstep(0.82, 0.93, sine(g.sub(x, z), 0.007)))
+    belt = g.mul(g.mul(g.band(g.sub(z, g.sub(0.75, g.mul(front, 0.012))), 0.0, 0.007), g.sstep(0.45, 0.6, sine(g.add(x, y), 0.008))), g.sstep(0.2, 0.18, ax))
+    choker = g.mul(g.band(z, 1.178, 1.192), g.sub(1.0, g.sstep(0.065, 0.075, neck_r)))
+    chip_r = g.sqrt(g.add(g.sq(x), g.sq(g.sub(z, 1.17))))
+    chip = g.mul(g.sub(1.0, g.sstep(0.0075, 0.0085, chip_r)), front)
+    col = g.mixc(col, SATIN, g.mx(g.mx(band, briefs), strap))
+    col = g.mixc(col, BLACK, g.mul(mesh, 0.35))
+    col = g.mixc(col, BLACK, g.mul(g.mul(mesh, net), 0.6))
+    col = g.mixc(col, BLACK, g.mul(g.mx(g.band(ax, 0.425, 0.44), g.band(z, 0.1, 0.112)), mesh))
+    col = g.mixc(col, BLACK, choker)
+    col = g.mixc(col, GOLD, g.mx(belt, g.band(ax, 0.405, 0.42)))
+    col = g.mixc(col, (0.42, 0.03, 0.05), chip)
+    col = g.mixc(col, (0.85, 0.82, 0.75), g.mul(g.band(chip_r, 0.0045, 0.006), chip))
+    col = g.mixc(col, (0.3, 0.03, 0.07), g.mul(g.band(z, 0.0, 0.012), g.sstep(-0.06, -0.08, y)))   # wine toenails
+    ink = g.mx(g.mx(edge(d_band), edge(d_briefs)), g.mul(edge(d_mesh), 0.6))
     return g.mixc(col, INK, ink)
 
 
@@ -1852,7 +1902,7 @@ def clothes_graph(nt, skin):
 def bake_body(body, skin_img):
     """Bakes the painted clothes over the skin into body.png, and each of the
     character's other outfits (OUTFITS) into body_<outfit>.png."""
-    global OUTFIT
+    global OUTFIT, LOOK
     sc = bpy.context.scene
     sc.render.engine = "CYCLES"
     sc.cycles.samples = 4
@@ -1870,6 +1920,8 @@ def bake_body(body, skin_img):
     outfits = OUTFITS.get(WHO, ["default"])
     for k, outfit in enumerate(outfits):
         OUTFIT = outfit
+        if WHO == "pip":
+            LOOK = outfit
         nt = m.node_tree
         nt.nodes.clear()
         uv = nt.nodes.new("ShaderNodeUVMap")
