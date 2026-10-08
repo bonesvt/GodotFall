@@ -2309,8 +2309,9 @@ def concept_materials():
             rgb.outputs[0].default_value = (*m.diffuse_color[:3], 1)
             col, alpha = rgb.outputs[0], None
         if alpha is not None:
-            m.blend_method = "HASHED"
-            m.shadow_method = "HASHED"
+            for attr in ("blend_method", "shadow_method"):   # both gone in Blender 5 (dithered by default)
+                if hasattr(m, attr):
+                    setattr(m, attr, "HASHED")
         kind = "hair" if part.startswith(("hair", "beard")) else ("face" if part in ("face", "brow", "eyeline", "lash", "iris", "eye_white", "eye_glint", "mouth") else "body")
         cel(nt, col, SHADE[kind], alpha=alpha, rim=0.0 if kind == "face" and part != "face" else 0.22)
 
@@ -2357,7 +2358,8 @@ def concept(arm, objs):
     # Eevee is BLENDER_EEVEE before 4.2 and from 5.0, BLENDER_EEVEE_NEXT in between
     engines = [e.identifier for e in type(sc.render).bl_rna.properties["engine"].enum_items]
     sc.render.engine = "BLENDER_EEVEE_NEXT" if "BLENDER_EEVEE_NEXT" in engines else "BLENDER_EEVEE"
-    sc.eevee.taa_render_samples = 32
+    if hasattr(sc.eevee, "taa_render_samples"):
+        sc.eevee.taa_render_samples = 32
     sc.view_settings.view_transform = "Standard"
     w = bpy.data.worlds.new("w")
     sc.world = w
