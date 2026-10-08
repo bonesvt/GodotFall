@@ -408,12 +408,25 @@ func _place_arm(arm: Node3D, rod_mi: MeshInstance3D, model: Node3D, p: String, d
 	var tip := _target(model, p) + Vector3(0, lift, 0)
 	arm.get_node("Clamp").scale = Vector3.ONE * (0.5 if p in ["cuff", "gloves", "spine"] else 1.0)
 	arm.global_rotation.y = model.global_rotation.y
-	var top := SET.y + 3.15
-	var y := lerpf(top - 0.1, tip.y, down)
-	arm.global_position = Vector3(tip.x, y, tip.z)
-	var len := maxf(top - y, 0.05)
+	# it hangs from the ceiling off to one side, not straight over them, so
+	# from across the room it doesn't cross their face: from behind for the
+	# head, from their left for the wrist and arm (they face -Z)
+	var off := Vector3(0, 0, 0.75)
+	if p in ["cuff", "gloves"]:
+		off = Vector3(-1.4, 0, 0.5)
+	elif p == "spine":
+		off = Vector3(0, 0, 0.9)
+	var top := tip + model.global_basis.orthonormalized() * off
+	top.y = SET.y + 3.15
+	var head := top.lerp(tip, maxf(down, 0.03))
+	arm.global_position = head
+	var span := top - head
+	var len := maxf(span.length(), 0.05)
 	(rod_mi.mesh as CylinderMesh).height = len
-	rod_mi.position = Vector3(0, len * 0.5, 0)
+	# the rod from the clamp back up to its mount
+	var up := span.normalized() if span.length() > 0.01 else Vector3.UP
+	var side := up.cross(Vector3.FORWARD if absf(up.dot(Vector3.FORWARD)) < 0.9 else Vector3.RIGHT).normalized()
+	rod_mi.global_transform = Transform3D(Basis(side, up, side.cross(up)), head + span * 0.5)
 
 
 func _shot(which: String) -> void:
