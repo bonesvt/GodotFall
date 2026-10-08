@@ -7,6 +7,13 @@ extends CanvasLayer
 ## dispensary, a threat count of zero, warnings about her thoughts, scanlines,
 ## glitches and the odd white flash. Worse while a trigger word has her. In
 ## third person it's quieter (THIRD_PERSON). Over the HUD, under the screens.
+## Seen through the visor's glass (LENS): a curved inner screen that bends
+## her view at the edges, splits its colours, rolls scanlines down it, darkens
+## to a lit bezel, and tears in glitches. Behind the orders a hypnotic tunnel
+## turns (the flipbook tools/hub/build_visor_fx.py renders in Blender), the
+## colony's watching eye surfaces now and then, puppet strings hang from a
+## control bar down to her hands, a pendulum swings, a countdown takes her
+## deeper, and a ring breathes for her.
 
 const Hymn := preload("res://scripts/hub/hymn.gd")
 const Vices := preload("res://scripts/hub/vices.gd")
@@ -21,6 +28,60 @@ const LIFE := 1.6
 ## How much of it shows in third person.
 const THIRD_PERSON := 0.4
 const WHITE := Color(0.95, 0.98, 1.0)
+const SPIRAL := preload("res://assets/textures/visor/spiral_sheet.png")
+const EYE := preload("res://assets/textures/visor/eye.png")
+## The glass she sees it all through.
+const LENS := "shader_type canvas_item;
+uniform sampler2D screen_tex : hint_screen_texture, filter_linear;
+uniform float strength = 1.0;
+uniform float tear = 0.0;
+uniform float seed = 0.0;
+uniform float t = 0.0;
+float hash(float n) { return fract(sin(n) * 43758.5453); }
+void fragment() {
+	vec2 c = SCREEN_UV - 0.5;
+	float aspect = SCREEN_PIXEL_SIZE.y / SCREEN_PIXEL_SIZE.x;
+	vec2 cc = c * vec2(aspect, 1.0);
+	float r2 = dot(cc, cc);
+	// the curved inner screen: her view bends in toward its edges
+	vec2 uv = c * (1.0 + 0.09 * strength * r2) + 0.5;
+	// glitch tears: bands of it slide sideways
+	float band = floor(uv.y * 26.0 + hash(seed) * 3.0);
+	float torn = step(1.0 - 0.4 * tear, hash(band + seed * 13.1));
+	uv.x += torn * (hash(band * 1.7 + seed) - 0.5) * 0.16 * tear;
+	// colours split toward the edges, and wider in a tear
+	vec2 split = c * 0.007 * strength * (0.4 + r2 * 3.0) + vec2(torn * 0.012 * tear, 0.0);
+	vec3 col = vec3(texture(screen_tex, uv + split).r, texture(screen_tex, uv).g, texture(screen_tex, uv - split).b);
+	if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0) col = vec3(0.0);
+	// scanlines, and a bright bar rolling down
+	float px = SCREEN_UV.y / SCREEN_PIXEL_SIZE.y;
+	col *= 1.0 - 0.12 * strength * (0.5 + 0.5 * sin(px * 1.5708));
+	col += (1.0 - smoothstep(0.0, 0.06, abs(fract(SCREEN_UV.y - t * 0.11) - 0.5))) * 0.06 * strength;
+	// the glass: a cold white tint
+	col = mix(col, col * vec3(0.9, 0.97, 1.06) + 0.025, strength);
+	// the lens edge: dark round the rim, a lit bezel just inside it
+	float e = length(cc * vec2(0.8, 1.0));
+	col *= 1.0 - smoothstep(0.5, 0.74, e) * 0.88 * strength;
+	col += vec3(0.75, 0.9, 1.0) * exp(-pow((e - 0.6) / 0.01, 2.0)) * 0.3 * strength;
+	COLOR = vec4(col, 1.0);
+}"
+## The tunnel's flipbook, played and turned, added over her view.
+const FLIPBOOK := "shader_type canvas_item;
+render_mode blend_add;
+uniform float alpha = 0.4;
+uniform float spin = 0.0;
+uniform float fps = 16.0;
+void fragment() {
+	vec2 p = UV - 0.5;
+	p = mat2(vec2(cos(spin), sin(spin)), vec2(-sin(spin), cos(spin))) * p + 0.5;
+	float f = mod(floor(TIME * fps), 32.0);
+	vec2 cell = vec2(mod(f, 8.0), floor(f / 8.0));
+	vec4 s = texture(TEXTURE, (cell + clamp(p, 0.0, 1.0)) / vec2(8.0, 4.0));
+	float fade = 1.0 - smoothstep(0.32, 0.5, length(UV - 0.5));
+	COLOR = vec4(s.rgb * s.a * alpha * fade * vec3(0.85, 0.95, 1.0), 1.0);
+}"
+const COUNT_FROM := 10
+const BREATH := 4.0
 
 var rm: Node
 var _draw_on: Control
@@ -33,6 +94,14 @@ var _glitch := 0.0
 var _strength := 0.0
 var _font: Font
 var rng := RandomNumberGenerator.new()
+var _spiral: TextureRect
+var _eye: TextureRect
+var _lens: ColorRect
+var _tear := 0.0
+var _tear_seed := 0.0
+var _next_tear := 3.0
+var _eye_t := -1.0
+var _next_eye := 6.0
 
 
 func _init(run_manager: Node = null) -> void:
@@ -44,11 +113,39 @@ func _init(run_manager: Node = null) -> void:
 
 func _ready() -> void:
 	_font = ThemeDB.fallback_font
+	_spiral = TextureRect.new()
+	_spiral.texture = SPIRAL
+	_spiral.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_spiral.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_spiral.material = _shader(FLIPBOOK)
+	add_child(_spiral)
+	_eye = TextureRect.new()
+	_eye.texture = EYE
+	_eye.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_eye.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var add := CanvasItemMaterial.new()
+	add.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
+	_eye.material = add
+	add_child(_eye)
 	_draw_on = Control.new()
 	_draw_on.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_draw_on.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_draw_on.draw.connect(_paint)
 	add_child(_draw_on)
+	# the glass goes over everything she sees here, last
+	_lens = ColorRect.new()
+	_lens.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_lens.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_lens.material = _shader(LENS)
+	add_child(_lens)
+
+
+func _shader(code: String) -> ShaderMaterial:
+	var sh := Shader.new()
+	sh.code = code
+	var m := ShaderMaterial.new()
+	m.shader = sh
+	return m
 
 
 ## How strongly it shows now, 0..1 (0: no visor, a screen open, Teen).
@@ -70,10 +167,14 @@ func strength() -> float:
 func _process(delta: float) -> void:
 	_strength = strength()
 	_draw_on.visible = _strength > 0.0
+	_spiral.visible = _draw_on.visible
+	_lens.visible = _draw_on.visible
+	_eye.visible = _draw_on.visible and _eye_t >= 0.0
 	if not _draw_on.visible:
 		_words.clear()
 		return
 	_t += delta
+	_tick_imagery(delta)
 	if _words.is_empty():
 		for i in 5:  # it comes on in a burst
 			spawn_word()
@@ -93,6 +194,46 @@ func _process(delta: float) -> void:
 	_flash = maxf(_flash - delta * 3.0, 0.0)
 	_glitch -= delta
 	_draw_on.queue_redraw()
+
+
+## The tunnel, the eye and the glass, each frame.
+func _tick_imagery(delta: float) -> void:
+	var size := _draw_on.size
+	var gripped := Vices.entranced
+	# the tunnel turning behind the orders, breathing in and out
+	var side := size.y * (0.92 + 0.05 * sin(_t * TAU / BREATH))
+	_spiral.size = Vector2(side, side)
+	_spiral.position = size * 0.5 - _spiral.size * 0.5
+	var sm := _spiral.material as ShaderMaterial
+	sm.set_shader_parameter("alpha", (0.55 if gripped else 0.3) * _strength)
+	sm.set_shader_parameter("spin", -_t * 0.25)
+	# the watching eye: now and then it opens over everything, then fades
+	_next_eye -= delta * (2.0 if gripped else 1.0)
+	if _next_eye <= 0.0 and _eye_t < 0.0:
+		_eye_t = 0.0
+		_next_eye = rng.randf_range(9.0, 15.0)
+	if _eye_t >= 0.0:
+		_eye_t += delta
+		var k := smoothstep(0.0, 0.6, _eye_t) * (1.0 - smoothstep(2.4, 3.2, _eye_t))
+		var w := size.y * (0.75 + 0.08 * _eye_t)
+		_eye.size = Vector2(w, w)
+		_eye.position = Vector2(size.x * 0.5, size.y * 0.42) - _eye.size * 0.5
+		_eye.modulate = Color(1, 1, 1, 0.5 * k * _strength)
+		if _eye_t > 3.2:
+			_eye_t = -1.0
+	# the glass, and its tears: with every glitch, and every few seconds anyway
+	_next_tear -= delta * (2.5 if gripped else 1.0)
+	if _glitch > 0.0 or _next_tear <= 0.0:
+		_tear = 1.0
+		_tear_seed = rng.randf() * 100.0
+		if _next_tear <= 0.0:
+			_next_tear = rng.randf_range(2.5, 6.0)
+	_tear = maxf(_tear - delta * 6.0, 0.0)
+	var lm := _lens.material as ShaderMaterial
+	lm.set_shader_parameter("strength", _strength)
+	lm.set_shader_parameter("tear", _tear)
+	lm.set_shader_parameter("seed", _tear_seed)
+	lm.set_shader_parameter("t", _t)
 
 
 ## One order, somewhere on screen, big or small.
@@ -115,9 +256,6 @@ func _paint() -> void:
 	var c := size * 0.5
 	var s := _strength
 	var a := 0.55 * s
-	# scanlines
-	for y in range(0, int(size.y), 4):
-		_draw_on.draw_line(Vector2(0, y), Vector2(size.x, y), Color(WHITE, 0.035 * s), 1.0)
 	# turning, pulsing rings round the middle (Hymn's concentric circles)
 	for i in 5:
 		var r := 60.0 + i * 70.0 + 14.0 * sin(_t * 2.0 + i)
@@ -125,14 +263,10 @@ func _paint() -> void:
 		for k in 6:
 			var from := spin + TAU * k / 6.0
 			_draw_on.draw_arc(c, r, from, from + TAU / 9.0, 16, Color(WHITE, a * (0.5 - i * 0.07)), 2.0 + (1.0 if i == 0 else 0.0))
-	# spirals winding in from the corners
-	for corner in [Vector2(0, 0), Vector2(size.x, 0), Vector2(0, size.y), Vector2(size.x, size.y)]:
-		var pts := PackedVector2Array()
-		for j in 60:
-			var u := j / 60.0
-			var ang := _t * 1.4 + u * TAU * 2.5
-			pts.append(corner + Vector2(cos(ang), sin(ang)) * (1.0 - u) * 260.0)
-		_draw_on.draw_polyline(pts, Color(WHITE, a * 0.45), 2.0)
+	_strings(size, s)
+	_pendulum(size, s)
+	_breath(c, s)
+	_countdown(size, s)
 	# false HUD: compliance, heart rate, threats
 	var comp := 0.82 + 0.15 * sin(_t * 0.7)
 	_box(Vector2(24, size.y * 0.32), "COMPLIANCE  %d%%" % roundi(comp * 100.0), comp, s)
@@ -178,6 +312,70 @@ func _paint() -> void:
 	# the odd white flash
 	if _flash > 0.0:
 		_draw_on.draw_rect(Rect2(Vector2.ZERO, size), Color(WHITE, 0.3 * _flash * s))
+
+
+## The control bar of a marionette over her view, swaying, its strings running
+## down to the bottom of the screen where her hands and gun are.
+func _strings(size: Vector2, s: float) -> void:
+	var sway := sin(_t * 0.9) * 0.08
+	var bar_c := Vector2(size.x * 0.5 + sin(_t * 0.6) * 40.0, size.y * 0.15)
+	var bar := Vector2(cos(sway), sin(sway)) * 150.0
+	var cross := Vector2(-sin(sway), cos(sway)) * 46.0
+	var col := Color(WHITE, 0.75 * s)
+	_draw_on.draw_line(bar_c - bar, bar_c + bar, col, 5.0)
+	_draw_on.draw_line(bar_c - cross, bar_c + cross, col, 5.0)
+	var ends := [bar_c - bar, bar_c + bar, bar_c - cross, bar_c + cross]
+	var to := [Vector2(size.x * 0.18, size.y * 1.02), Vector2(size.x * 0.82, size.y * 1.02), Vector2(size.x * 0.62, size.y * 0.86), Vector2(size.x * 0.4, size.y * 0.9)]
+	for i in 4:
+		var a: Vector2 = ends[i]
+		var b: Vector2 = to[i] + Vector2(sin(_t * 1.3 + i) * 18.0, 0)
+		var mid := (a + b) * 0.5 + Vector2(sin(_t * 1.1 + i * 2.0) * 22.0, 30.0)
+		var pts := PackedVector2Array()
+		for j in 17:
+			var u := j / 16.0
+			pts.append(a.lerp(mid, u).lerp(mid.lerp(b, u), u))
+		_draw_on.draw_polyline(pts, Color(WHITE, 0.5 * s), 2.5)
+	_text("WE HOLD THE STRINGS", bar_c + Vector2(-110, 78), 15, Color(WHITE, 0.45 * s))
+
+
+## A pocket watch on a chain, swinging, high on the left.
+func _pendulum(size: Vector2, s: float) -> void:
+	var pivot := Vector2(size.x * 0.27, size.y * 0.08)
+	var swing := sin(_t * TAU / 2.6) * 0.42
+	var bob := pivot + Vector2(sin(swing), cos(swing)) * size.y * 0.24
+	for j in 14:
+		var p := pivot.lerp(bob, j / 14.0)
+		_draw_on.draw_circle(p, 3.0, Color(WHITE, 0.5 * s))
+	_draw_on.draw_circle(bob, 30.0, Color(0.05, 0.07, 0.1, 0.35 * s))
+	_draw_on.draw_arc(bob, 30.0, 0.0, TAU, 40, Color(WHITE, 0.75 * s), 3.0)
+	_draw_on.draw_arc(bob, 22.0, 0.0, TAU, 40, Color(WHITE, 0.35 * s), 1.5)
+	var hand := Vector2(cos(-_t * 3.0), sin(-_t * 3.0)) * 18.0
+	_draw_on.draw_line(bob, bob + hand, Color(WHITE, 0.8 * s), 2.0)
+	_text("WATCH IT", bob + Vector2(-34, 52), 14, Color(WHITE, 0.4 * s))
+
+
+## A ring that breathes for her, round the middle: in, then out.
+func _breath(c: Vector2, s: float) -> void:
+	var phase := fmod(_t, BREATH * 2.0) / BREATH
+	var k := smoothstep(0.0, 1.0, phase) if phase < 1.0 else 1.0 - smoothstep(1.0, 2.0, phase)
+	var r := 70.0 + 90.0 * k
+	_draw_on.draw_arc(c, r, 0.0, TAU, 64, Color(WHITE, (0.25 + 0.2 * k) * s), 3.0)
+	var word := "BREATHE IN" if phase < 1.0 else "BREATHE OUT"
+	_text(word, c + Vector2(-62, r + 30), 18, Color(WHITE, 0.55 * s))
+
+
+## Counting her down, a number a second, each one smaller and further down.
+func _countdown(size: Vector2, s: float) -> void:
+	var n := COUNT_FROM - int(_t) % (COUNT_FROM + 1)
+	var k := fmod(_t, 1.0)
+	var depth := float(COUNT_FROM - n) / COUNT_FROM
+	var at := Vector2(size.x * 0.5 - 20.0, size.y * (0.7 + 0.12 * depth) + k * 14.0)
+	var big := int(lerpf(64.0, 26.0, depth))
+	if n == 0:
+		_text("DEEPER", at + Vector2(-50, 0), 40, Color(WHITE, (1.0 - k) * 0.8 * s))
+	else:
+		_text(str(n), at, big, Color(WHITE, (1.0 - k * 0.7) * 0.7 * s))
+		_text("...deeper", at + Vector2(big * 0.7, 0), 16, Color(WHITE, 0.4 * s))
 
 
 func _box(at: Vector2, label: String, fill: float, s: float) -> void:
