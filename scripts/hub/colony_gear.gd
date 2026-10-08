@@ -400,7 +400,7 @@ static func _glove_hand(model: Node, skel: Skeleton3D, side: String, wrist: Vect
 		var end: Vector3 = joints[2] + (joints[2] - joints[1]) * 0.9
 		joints.append(end)
 		for k in 3:
-			var froot := _root(skel, "J_Bip_%s_%s%d" % [side, f, k + 1], NODE + "_Glove%s%s%d" % [side, f, k + 1])
+			var froot := _root(skel, "J_Bip_%s_%s%d" % [side, f, k + 1], NODE + "_Glove%s%d%s" % [f, k + 1, side])
 			var seg := _piece(froot, "Hand%s_%s%d" % [side, f, k + 1])
 			var a: Vector3 = joints[k]
 			var b: Vector3 = joints[k + 1]
