@@ -27,7 +27,7 @@ const OUTFITS := {"ophelia": ["tee", "hoodie", "night"], "mom": ["home", "night"
 ## stasis column, "colony" for Teen and "colony_m" for Mature):
 ## body_<outfit>.png too. An outfit can bring its own face (face_<outfit>.png:
 ## the ruined make-up) and hair blend shape (MESS: frizzed from the fight).
-const MISSION_OUTFITS := {"ophelia": ["prison", "colony", "colony_m"]}
+const MISSION_OUTFITS := {"ophelia": ["prison", "colony", "colony_m", "upset", "clingy", "obsessed"]}
 ## Outfits worn barefoot or in socks: the boots come off.
 const NO_BOOTS := ["night", "prison", "colony", "colony_m"]
 ## The hair blend shape an outfit turns on (tools/npc/build_npc.py mess_colony()).

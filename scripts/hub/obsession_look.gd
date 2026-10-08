@@ -2,13 +2,19 @@ extends RefCounted
 ## How Ophelia looks as her obsession (obsession.gd) deepens, put on her hub
 ## model each stay (run_manager.gd enter_hub, after her idle is picked):
 ##   0 calm       as she is
-##   1 upset      Eco left without saying goodbye: arms-crossed hurt, won't look
-##   2 clingy     (meter CLINGY_AT) in the hoodie, waiting on her tent's doorstep
-##                for Eco to come back, watching the path
+##   1 upset      Eco left without saying goodbye: hurt, won't look, her makeup
+##                run down her cheeks from crying (outfit "upset")
+##   2 clingy     (meter CLINGY_AT) in a hoodie dyed Eco's red and teal with a
+##                spanner-heart charm, waiting on her doorstep, watching the path
+##                (outfit "clingy")
+## Her outfits for these (hub_npc.gd MISSION_OUTFITS) are painted from her own
+## textures by tools/npc/paint_ophelia_obsession.gd.
 ##   3 obsessed   (meter OBSESSED_AT) yandere: the light gone out of her eyes
 ##                (no highlights, irises dark rose), eyes held wide and unblinking
 ##                over a sweet, too-wide smile, a flush on her cheeks, head
-##                tilted; her violet streak burning hot rose against the black.
+##                tilted; her violet streak burning hot rose against the black;
+##                her top deep rose-black under rose lace, black lace sleeves,
+##                dark-rose liner and lips (outfit "obsessed").
 ##                It gets worse the higher the meter goes (stare())
 ## Mature only; once Eco's helped her and it's worn off, she's herself again.
 
@@ -38,10 +44,11 @@ static func dress(npc: Node3D, info: Dictionary) -> void:
 	_tint(npc, s >= 3)
 	match s:
 		1:
+			npc.wear("upset")
 			npc.rest_mood = ["sad", "lookaway"]
 			npc.calm()
 		2, 3:
-			npc.wear("hoodie")
+			npc.wear("obsessed" if s == 3 else "clingy")
 			var door: Array = HubRooms.doorstep("ophelia")
 			var at: Vector3 = door[0] + (door[1] as Vector3) * -0.4  # just off the step, out front
 			for p in npc.find_children("*", "Node3D", true, false):
