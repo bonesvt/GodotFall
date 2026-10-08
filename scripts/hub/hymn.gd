@@ -13,12 +13,25 @@ extends RefCounted
 ##               doses her where she stands
 ##   visor       the clarity visor: her view crowded with flashing orders,
 ##               turning rings and false HUD (visor_screen.gd)
+##   bridge      the calm bridge (smell): every BRIDGE_EVERY s it puffs a
+##               little Hymn up her nose
+##   film        the Hymn film (taste): on her tongue; Hymn in everything
+##   gloves      comfort gloves (touch): numb hands, reloads RELOAD_SLOW slower
+##   spine       the Plumb Line (balance): colony posture, a step heavier
+##               (SPINE_SPEED)
 ## All of it is saved next to her vices (path_for()).
 
 const Vices := preload("res://scripts/hub/vices.gd")
 
-const GEAR := ["headphones", "cuff", "visor"]
-const GEAR_NAMES := {"headphones": "compliance headphones", "cuff": "dose cuff", "visor": "clarity visor"}
+const GEAR := ["headphones", "cuff", "visor", "bridge", "film", "gloves", "spine"]
+const GEAR_NAMES := {"headphones": "compliance headphones", "cuff": "dose cuff", "visor": "clarity visor",
+	"bridge": "calm bridge", "film": "Hymn film", "gloves": "comfort gloves", "spine": "Plumb Line spine"}
+## The calm bridge's puff: how often, and how much Hymn.
+const BRIDGE_EVERY := 60.0
+const BRIDGE_PUFF := 1.5
+## The gloves' numb hands (reload time x), the spine's heavier step (speed x).
+const RELOAD_SLOW := 1.3
+const SPINE_SPEED := 0.94
 ## Hymn a dose puts in her, a Shepherd dart, and being processed.
 const DOSE := 12.0
 const DART := 4.0
@@ -42,6 +55,7 @@ static var hunted := false
 static var captures := 0
 static var gear: Array = []
 static var cuff_left := CUFF_TIME
+static var _puff := BRIDGE_EVERY
 static var save_path := "user://hymn.cfg"
 
 
@@ -138,6 +152,28 @@ static func tick_cuff(delta: float) -> bool:
 		return false
 	take_dose()
 	return true
+
+
+## Each tick (hub or run, not paused): the calm bridge's puff. True when it puffs.
+static func tick_bridge(delta: float) -> bool:
+	if not has("bridge"):
+		return false
+	_puff -= delta
+	if _puff > 0.0:
+		return false
+	_puff = BRIDGE_EVERY
+	level = minf(level + BRIDGE_PUFF, MAX)
+	return true
+
+
+## Her reload time multiplier (the gloves' numb hands).
+static func reload_scale() -> float:
+	return RELOAD_SLOW if has("gloves") else 1.0
+
+
+## Her move speed multiplier (the spine's colony step).
+static func speed_scale() -> float:
+	return SPINE_SPEED if has("spine") else 1.0
 
 
 ## A run ends: tomorrow's dose is waiting.

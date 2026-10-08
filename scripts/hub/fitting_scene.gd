@@ -49,6 +49,20 @@ const LINES := {
 		"Two soft glass cups reach out of its inside and settle over her eyes. They seal with a wet click. She can't blink.",
 		"It seats over them, prongs into her temples, and lights up. OBEY. OBEY. OBEY. Calm voice: \"See only what is true.\""],
 }
+const MORE_LINES := {
+	"bridge": ["A white clip comes down to the bridge of her nose and snaps on.",
+		"Two thin tubes feed up into her nostrils and lock with a hiss. Lavender. Linen. Clean.",
+		"Calm voice: \"The colony smells like home now.\""],
+	"film": ["A clamp holds her jaw open. The arm brings a thin, glowing strip to her mouth.",
+		"It lays the film on her tongue. It bonds, warm, and roots in. Sweet. Everything is sweet.",
+		"Calm voice: \"Everything tastes like Hymn now.\""],
+	"gloves": ["Two long white gloves come down to her hands.",
+		"They slide up her arms to the shoulder and seal. Lines of light run down to every fingertip.",
+		"She can't feel her own hands. Calm voice: \"Warmth when you're good. Cold when you're not.\""],
+	"spine": ["Something long and white comes down behind her, to her back.",
+		"Segment by segment it clicks onto her spine, neck to waist, each node lighting as it locks.",
+		"Her back straightens on its own. Calm voice: \"Walk with everyone. Never alone.\""],
+}
 const AFTER := "Eco wakes on the bench outside the dispensary. Her %s won't come off. She's tried."
 
 var rm: Node
@@ -112,23 +126,25 @@ func _process(delta: float) -> void:
 	# the arm: down with it, holding still, back up
 	var down := smoothstep(LOWER, ON, t) * (1.0 - smoothstep(UP, UP + 1.2, t))
 	var k := clampf((t - FIT) / FIT_TIME, 0.0, 1.0)
-	if _gear != null:
-		ColonyGear.fit(_gear, piece, k)
-		if piece != "visor":  # the visor's own fit() brings it down
+	if _eco != null:
+		ColonyGear.fit_model(_eco, piece, k)
+		if _gear != null and piece in ["headphones", "cuff"]:  # the others' fit() brings them down
 			_gear.position = Vector3(0, 0.45 * (1.0 - smoothstep(LOWER, ON, t)), 0)
+		if piece == "film":  # the clamp holds her jaw open while it goes in
+			_mouth(smoothstep(ON - 0.4, ON + 0.2, t) * (1.0 - smoothstep(LOCK - 0.3, LOCK + 0.3, t)))
 	_place_arm(down)
 	if t >= ON and not _said.has("on"):
 		_said["on"] = true
 		_shot("close")
-		rm.hud.toast(LINES[piece][0], 2.5)
+		rm.hud.toast(_lines()[0], 2.5)
 		SFX.play(self, "titan_servo_2", -8.0, 1.4)
 	if t >= FIT + FIT_TIME * 0.35 and not _said.has("fit"):
 		_said["fit"] = true
-		rm.hud.toast(LINES[piece][1], 3.0)
+		rm.hud.toast(_lines()[1], 3.0)
 		SFX.play(self, "titan_hiss_short", -8.0, 2.2)
 	if t >= LOCK and not _said.has("lock"):
 		_said["lock"] = true
-		rm.hud.toast(LINES[piece][2], 3.0)
+		rm.hud.toast(_lines()[2], 3.0)
 		SFX.play(self, "cache_unlock", -4.0, 0.7)
 		SFX.play(self, "heartbeat", -6.0)
 		visor_flash = piece == "visor"
@@ -221,7 +237,7 @@ func _build() -> void:
 		gear.append(piece)
 	ColonyGear.apply(_eco, gear)
 	_gear = ColonyGear.piece_node(_eco, piece)
-	ColonyGear.fit(_gear, piece, 0.0)
+	ColonyGear.fit_model(_eco, piece, 0.0)
 	# the arm from the ceiling: a rod and a white clamp head
 	_arm = Node3D.new()
 	_set.add_child(_arm)
@@ -254,18 +270,28 @@ func _target() -> Vector3:
 	var skel := _eco.find_child("Skeleton3D", true, false) as Skeleton3D if _eco != null else null
 	if skel == null:
 		return SET + Vector3(0, 1.5, 0)
-	var bone := ColonyGear.WRIST if piece == "cuff" else ColonyGear.HEAD
+	var bone: String = {"cuff": ColonyGear.WRIST, "gloves": "J_Bip_L_LowerArm", "spine": "J_Bip_C_Chest"}.get(piece, ColonyGear.HEAD)
 	var i := skel.find_bone(bone)
 	var at := skel.global_transform * skel.get_bone_global_pose(i).origin
-	return at + (Vector3(0.04, 0, 0) if piece == "cuff" else Vector3(0, 0.06, 0))
+	match piece:
+		"cuff":
+			return at + Vector3(0.04, 0, 0)
+		"gloves":
+			return at
+		"spine":
+			return at + Vector3(0, 0, 0.12)
+		"bridge", "film":
+			return at + Vector3(0, 0.02, -0.06)  # her nose and mouth
+	return at + Vector3(0, 0.06, 0)
 
 
 ## The arm, `down` of the way from the ceiling to just above the piece.
 func _place_arm(down: float) -> void:
 	if _arm == null:
 		return
-	var tip := _target() + Vector3(0, 0.16 if piece != "cuff" else 0.24, 0)
-	_arm.get_node("Clamp").scale = Vector3.ONE * (0.5 if piece == "cuff" else 1.0)
+	var lift: float = {"cuff": 0.24, "spine": 0.5, "gloves": 0.35}.get(piece, 0.16)
+	var tip := _target() + Vector3(0, lift, 0)
+	_arm.get_node("Clamp").scale = Vector3.ONE * (0.5 if piece in ["cuff", "gloves", "spine"] else 1.0)
 	var top := SET.y + 3.15
 	var y := lerpf(top - 0.1, tip.y, down)
 	_arm.global_position = Vector3(tip.x, y, tip.z)
@@ -291,10 +317,30 @@ func _shot(which: String) -> void:
 					_cam.look_at_from_position(at + Vector3(-0.36, -0.06, -0.36), at + Vector3(-0.08, -0.04, 0.0))
 				"cuff":
 					_cam.look_at_from_position(at + Vector3(-0.5, 0.3, -0.7), at)
+				"bridge":
+					_cam.look_at_from_position(at + Vector3(0.2, -0.02, -0.34), at + Vector3(0, -0.01, 0))
+				"film":
+					_cam.look_at_from_position(at + Vector3(0.12, -0.04, -0.34), at + Vector3(0, -0.035, 0))
+				"gloves":
+					_cam.look_at_from_position(at + Vector3(-0.75, 0.25, -0.85), at + Vector3(0, -0.05, 0))
+				"spine":
+					_cam.look_at_from_position(at + Vector3(0.45, 0.42, 0.85), at + Vector3(0, 0.14, -0.05))
 				_:
 					# from the side, to see the cups cross the gap onto her eyes
 					_cam.look_at_from_position(at + Vector3(0.42, 0.0, -0.4), at + Vector3(0, -0.04, -0.07))
 	_cam.make_current()
+
+
+func _lines() -> Array:
+	return LINES[piece] if LINES.has(piece) else MORE_LINES[piece]
+
+
+## Her mouth open (0..1), on her face's VRoid mouth shape.
+func _mouth(open: float) -> void:
+	for mi in _eco.find_children("*", "MeshInstance3D", true, false):
+		var b: int = (mi as MeshInstance3D).find_blend_shape_by_name("Fcl_MTH_A")
+		if b >= 0:
+			(mi as MeshInstance3D).set_blend_shape_value(b, open)
 
 
 func _teardown() -> void:

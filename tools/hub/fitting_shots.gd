@@ -10,7 +10,8 @@ const Hymn := preload("res://scripts/hub/hymn.gd")
 const ContentRating := preload("res://scripts/radio/content_rating.gd")
 const CELL := Vector2i(640, 360)
 ## When to grab each piece's three stills (seconds into its fitting).
-const TIMES := {"headphones": [2.4, 6.0, 7.9], "cuff": [2.4, 5.4, 7.9], "visor": [2.4, 5.9, 8.2]}
+const TIMES := {"headphones": [2.4, 6.0, 7.9], "cuff": [2.4, 5.4, 7.9], "visor": [2.4, 5.9, 8.2],
+	"bridge": [2.4, 6.0, 7.9], "film": [3.6, 5.6, 7.9], "gloves": [2.4, 5.6, 7.9], "spine": [2.4, 5.8, 7.9]}
 
 var out := "user://fitting_shots"
 
@@ -37,7 +38,7 @@ func _go(run_node: Node) -> void:
 	Vices.reset()
 	Hymn.reset()
 	run_node.hush_pull.triggers._next = INF
-	var sheet := Image.create(CELL.x * 3, CELL.y * 3, false, Image.FORMAT_RGBA8)
+	var sheet := Image.create(CELL.x * 3, CELL.y * Hymn.GEAR.size(), false, Image.FORMAT_RGBA8)
 	var scene: Node = run_node.fitting_scene
 	for row in Hymn.GEAR.size():
 		var piece: String = Hymn.GEAR[row]

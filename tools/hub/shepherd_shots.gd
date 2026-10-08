@@ -79,9 +79,9 @@ func _go(run_node: Node) -> void:
 	_grab()
 	shep.queue_free()
 	# Eco by the dispensary in all its gear
-	Hymn.gear = ["headphones", "cuff", "visor"]
+	Hymn.gear = Hymn.GEAR.duplicate()
 	run_node.Wardrobe.dress_eco(player, true)
-	player.rotation.y = -PI * 0.5
+	player.rotation.y = -PI * 0.75  # three-quarter from behind: the spine and gloves show
 	await _frames(5)
 	cam.fov = 30
 	cam.look_at_from_position(eco_at + Vector3(2.6, 1.5, 1.3), eco_at + Vector3(0, 1.2, 0))

@@ -72,6 +72,7 @@ const CravingScreen := preload("res://scripts/ui/craving_screen.gd")
 const HushPull := preload("res://scripts/hub/hush_pull.gd")
 const SuperHushScene := preload("res://scripts/hub/super_hush_scene.gd")
 const FittingScene := preload("res://scripts/hub/fitting_scene.gd")
+const DoseScene := preload("res://scripts/hub/dose_scene.gd")
 const CheatScreen := preload("res://scripts/hub/cheat_screen.gd")
 const Hymn := preload("res://scripts/hub/hymn.gd")
 const DispensaryScreen := preload("res://scripts/hub/dispensary_screen.gd")
@@ -79,6 +80,7 @@ const Shepherd := preload("res://scripts/hub/shepherd.gd")
 const VisorScreen := preload("res://scripts/ui/visor_screen.gd")
 ## Where the Shepherd comes out, from the dispensary's spot (its back door).
 const DISPENSARY_BACK_DOOR := Vector3(-0.5, 0.1, 4.5)
+const BRIDGE_PUFF := "The bridge hisses up her nose. Lavender. Linen. Calm."
 const CUFF_DOSED := "The cuff hisses. Something cold goes into her wrist, and then the calm comes: white, quiet, everywhere. Hymn."
 const Glass := preload("res://scripts/hub/glass.gd")
 const Tether := preload("res://scripts/run/tether.gd")
@@ -225,6 +227,8 @@ var hush_pull: HushPull
 var super_hush_scene: SuperHushScene
 ## The Shepherd's gear going on her in the dispensary's back room (fitting_scene.gd).
 var fitting_scene: FittingScene
+## The morning dose at the dispensary, played out (dose_scene.gd).
+var dose_scene: DoseScene
 ## Marrow's Glass on runs (focus, his orders: tether.gd) and the Chorus's end (chorus_scene.gd).
 var tether: Tether
 var chorus_scene: ChorusScene
@@ -289,6 +293,8 @@ func _ready() -> void:
 	add_child(super_hush_scene)
 	fitting_scene = FittingScene.new(self)
 	add_child(fitting_scene)
+	dose_scene = DoseScene.new(self)
+	add_child(dose_scene)
 	npc_talk = NpcTalk.new()
 	npc_talk.save_path = npc_path
 	add_child(npc_talk)
@@ -502,6 +508,7 @@ func enter_hub() -> void:
 	hush_pull.reset()
 	super_hush_scene.reset()
 	fitting_scene.reset()
+	dose_scene.reset()
 	chorus_scene.reset()
 	tether.stop()
 	if Hymn.hunted and Hymn.allowed():
@@ -627,6 +634,8 @@ func fitted(_piece: String) -> void:
 
 ## Hymn in the hub: the dose cuff counting down, and on the HUD.
 func _tick_hymn(delta: float, roaming: bool) -> void:
+	if Hymn.tick_bridge(delta):
+		hud.toast(BRIDGE_PUFF, 2.5)
 	var cuffed := Hymn.has("cuff") and not Hymn.dosed_today
 	hud.cuff_label.visible = cuffed
 	if not cuffed:
@@ -654,6 +663,8 @@ func _physics_process(delta: float) -> void:
 		_vice_keys()
 		if phase in [Phase.ZONE, Phase.ARENA, Phase.FIGHT]:
 			hush_pull.run_tick(delta, titan == null or not titan.piloted)
+			if Hymn.tick_bridge(delta):
+				hud.toast(BRIDGE_PUFF, 2.5)
 			tether.run_tick(delta, (titan == null or not titan.piloted) and not hush_pull.busy())
 		elif tether.active():
 			tether.stop()
@@ -692,7 +703,7 @@ func _hub_tick(delta: float) -> void:
 		if Input.is_action_just_pressed("interact") or Input.is_action_just_pressed("ui_cancel") or bench.get("close_now") == true:
 			close_bench()
 		return
-	if super_hush_scene.busy() or chorus_scene.busy() or fitting_scene.busy():
+	if super_hush_scene.busy() or chorus_scene.busy() or fitting_scene.busy() or dose_scene.busy():
 		return
 	if garage != null:
 		if Input.is_action_just_pressed("interact") or Input.is_action_just_pressed("ui_cancel"):
@@ -1093,12 +1104,12 @@ func close_bench() -> void:
 		if bench.freed:
 			hud.toast("Eco walks out on Marrow. Her hands are shaking, but she's out. She should go and see the people who waited for her.", 5.0)
 	var hunt := false
+	var dosed := false
 	if bench is DispensaryScreen:
 		hunt = bench.hunt
+		dosed = bench.result == "took"
 		if bench.result == "palmed":
 			hud.toast("Palmed it. Nobody saw. (%d palmed so far: the officers watch closer each time.)" % Hymn.fakes, HUB_LINE_SECONDS)
-		elif bench.result == "took":
-			hud.toast("Hymn in her: %d%%. Calm. So calm." % roundi(Hymn.level), HUB_LINE_SECONDS)
 	if bench is BarScreen and bench.net != 0:
 		hud.toast("Scrapjack: %s%d scrap tonight." % ["+" if bench.net > 0 else "", bench.net], HUB_LINE_SECONDS)
 	if bench is WardrobeScreen and not bench.changed.is_empty():
@@ -1124,6 +1135,8 @@ func close_bench() -> void:
 		super_hush_scene.play()
 	if hunt:
 		spawn_shepherd()
+	if dosed:
+		dose_scene.play()
 
 
 ## Puts the gun picked at the weapon rack, upgraded and fitted, in Eco's hand,
@@ -1793,7 +1806,7 @@ func end_run(title: String, reason: String) -> void:
 ## nothing else open.
 func _vice_keys() -> void:
 	if not Vices.allowed() or bench != null or garage != null or hub_piloting or npc_talk.active() or hush_pull.busy() \
-			or super_hush_scene.busy() or chorus_scene.busy() or fitting_scene.busy() or tether.busy():
+			or super_hush_scene.busy() or chorus_scene.busy() or fitting_scene.busy() or dose_scene.busy() or tether.busy():
 		return
 	if not (phase == Phase.HUB or in_run()) or (titan != null and titan.piloted):
 		return
@@ -1990,7 +2003,7 @@ func _update_hud() -> void:
 func _prompt() -> String:
 	match phase:
 		Phase.HUB:
-			if hub_piloting or hush_pull.busy() or super_hush_scene.busy() or chorus_scene.busy() or fitting_scene.busy():
+			if hub_piloting or hush_pull.busy() or super_hush_scene.busy() or chorus_scene.busy() or fitting_scene.busy() or dose_scene.busy():
 				return ""
 			if hub_titan != null and hub_titan.dropping:
 				return "Titanfall inbound"

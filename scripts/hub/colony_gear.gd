@@ -11,6 +11,14 @@ extends RefCounted
 ##   visor       the clarity visor: a white band over her eyes, lit across,
 ##               a glass suction cup sealed on each eye under it, and a prong
 ##               into each temple
+##   bridge      the calm bridge: a white clip over the bridge of her nose, a
+##               tube up into each nostril, a glowing vial behind each ear
+##   film        the Hymn film on her tongue (out of sight: a faint glow at
+##               her lips)
+##   gloves      comfort gloves: seamless white to the shoulder, lines of light
+##               down to every finger
+##   spine       the Plumb Line: a white and chrome spine down her back, a
+##               glowing node on each segment, cables into her shoulders
 ## Each piece sits under a node named for it, and its moving parts are named
 ## too (Cup_L/R, Pin_L/R, Shell, Needle_N, EyeCup_L/R, Stalk_L/R, Prong_L/R), so the fitting in the
 ## dispensary's back room (fitting_scene.gd) can play them going on: open()
@@ -23,6 +31,13 @@ const WRIST := "J_Bip_L_Hand"
 const NODE := "ColonyGear"
 ## Her ears and temples in rest model space.
 const EAR := Vector3(0.072, 1.522, 0.012)
+## Her nostrils (her right; her left mirrors it), the bridge of her nose and her lips.
+const NOSTRIL := Vector3(0.009, 1.481, -0.07)
+const NOSE_BRIDGE := Vector3(0, 1.515, -0.071)
+const LIPS := Vector3(0, 1.447, -0.066)
+## Her spine, top to bottom, and the bones its segments ride.
+const SPINE_BONES := ["J_Bip_C_Neck", "J_Bip_C_UpperChest", "J_Bip_C_Chest", "J_Bip_C_Spine", "J_Bip_C_Hips"]
+const SEGMENTS := 9
 const TEMPLE := Vector3(0.07, 1.555, -0.035)
 ## Her right eye (her left mirrors it), the visor's inside face, and how far in
 ## front of her face it waits while the suction cups go on.
@@ -54,6 +69,17 @@ static func apply(model: Node, gear: Array = []) -> void:
 		if "visor" in gear:
 			_visor(_piece(head, "visor"))
 		_match_layers(model, head, "Face")
+	if "bridge" in gear or "film" in gear:
+		var face := _root(skel, HEAD, NODE + "_Face")
+		if "bridge" in gear:
+			_bridge(_piece(face, "bridge"))
+		if "film" in gear:
+			_film(_piece(face, "film"))
+		_match_layers(model, face, "Face")
+	if "gloves" in gear:
+		_gloves(model, skel)
+	if "spine" in gear and skel.find_bone(SPINE_BONES[0]) >= 0:
+		_spine(model, skel)
 	if "cuff" in gear and skel.find_bone(WRIST) >= 0:
 		var wrist := _root(skel, WRIST, NODE + "_Cuff")
 		_cuff(_piece(wrist, "cuff"), skel.get_bone_global_rest(skel.find_bone(WRIST)).origin)
@@ -63,6 +89,28 @@ static func apply(model: Node, gear: Array = []) -> void:
 ## The piece's node on a model (null if it isn't wearing it).
 static func piece_node(model: Node, piece: String) -> Node3D:
 	return model.find_child(piece, true, false) as Node3D
+
+
+## Fits piece on model to k (0..1): the gloves and the spine are spread
+## over several bones, so they're found on the model; the rest by piece_node().
+##   gloves      the hands first, then up the forearms, then to the shoulders
+##   spine       segment by segment from her neck down
+static func fit_model(model: Node, piece: String, k: float) -> void:
+	match piece:
+		"gloves":
+			for side in ["L", "R"]:
+				for part in [["Hand", 0.0], ["Fore", 0.3], ["Upper", 0.6]]:
+					var n := model.find_child(part[0] + side, true, false) as Node3D
+					if n != null:
+						n.scale = Vector3.ONE * maxf(smoothstep(part[1], part[1] + 0.3, k), 0.01)
+		"spine":
+			for i in SEGMENTS:
+				var n := model.find_child("Seg_%d" % i, true, false) as Node3D
+				if n != null:
+					var at := float(i) / float(SEGMENTS) * 0.8
+					n.scale = Vector3.ONE * maxf(smoothstep(at, at + 0.15, k), 0.01)
+		_:
+			fit(piece_node(model, piece), piece, k)
 
 
 ## How far through its fitting a piece is: 0 open and clear of her, 1 locked on.
@@ -94,6 +142,18 @@ static func fit(node: Node3D, piece: String, k: float) -> void:
 			for n in node.get_children():
 				if String(n.name).begins_with("Needle_"):
 					(n as Node3D).scale = Vector3(1, maxf(smoothstep(0.0, 0.4, k), 0.01), 1)
+		"bridge":
+			node.position = Vector3(0, 0.25 * (1.0 - smoothstep(0.0, 0.35, k)), 0)
+			for side in ["L", "R"]:
+				var tube := node.get_node_or_null("Tube_" + side) as Node3D
+				if tube != null:
+					tube.scale = Vector3(1, maxf(smoothstep(0.35, 0.85, k), 0.01), 1)
+		"film":
+			# carried to her lips, laid on her tongue, gone inside
+			var strip := node.get_node_or_null("Strip") as Node3D
+			if strip != null:
+				strip.position = LIPS + Vector3(0, 0.12 * (1.0 - smoothstep(0.0, 0.4, k)), -0.05 * (1.0 - smoothstep(0.0, 0.4, k)) + 0.04 * smoothstep(0.45, 0.8, k))
+				strip.scale = Vector3.ONE * maxf(1.0 - smoothstep(0.7, 0.9, k), 0.01)
 		"visor":
 			var hover := VISOR_HOVER * (1.0 - smoothstep(0.65, 0.8, k))
 			node.position = Vector3(0, 0.35 * (1.0 - smoothstep(0.0, 0.35, k)), hover)
@@ -199,6 +259,89 @@ static func _visor(root: Node3D) -> void:
 		_cylinder(prong, Vector3(0, 0.014, 0), 0.004, 0.03, _lit())
 
 
+static func _bridge(root: Node3D) -> void:
+	_box(root, NOSE_BRIDGE + Vector3(0, 0, -0.004), Vector3(0.046, 0.012, 0.012), _shell())
+	for side in ["L", "R"]:
+		var s := -1.0 if side == "L" else 1.0
+		var vial := _cylinder(root, Vector3(0.074 * s, 1.5, 0.045), 0.009, 0.03, _lit())
+		vial.rotation_degrees = Vector3(90, 0, 0)
+		# a line from the clip along her cheek to the vial
+		_line(root, NOSE_BRIDGE + Vector3(0.022 * s, -0.004, 0.0), Vector3(0.074 * s, 1.5, 0.03), 0.0025, _shell())
+		# the tube: down the side of her nose and up into the nostril
+		var tube := Node3D.new()
+		tube.name = "Tube_" + side
+		tube.position = NOSE_BRIDGE + Vector3(0.02 * s, -0.004, 0.0)
+		root.add_child(tube)
+		var low := Vector3(0.016 * s, 1.47, -0.076) - tube.position
+		var up := NOSTRIL * Vector3(s, 1, 1) - tube.position
+		_line(tube, Vector3.ZERO, low, 0.0028, _lit())
+		_line(tube, low, up, 0.0028, _lit())
+
+
+static func _film(root: Node3D) -> void:
+	var strip := Node3D.new()
+	strip.name = "Strip"
+	strip.position = LIPS
+	root.add_child(strip)
+	_box(strip, Vector3(0, 0, -0.012), Vector3(0.022, 0.0025, 0.03), _film_mat())
+	# once it's in, a faint glow at her lips
+	_box(root, LIPS + Vector3(0, -0.001, 0.004), Vector3(0.012, 0.002, 0.01), _film_mat())
+
+
+## Seamless white to the shoulder over each arm, a line of light down each finger
+## side, built on her arm bones (UpperArm to Hand), lit seams down to the hand.
+static func _gloves(model: Node, skel: Skeleton3D) -> void:
+	for side in ["L", "R"]:
+		var bones := ["J_Bip_%s_UpperArm" % side, "J_Bip_%s_LowerArm" % side, "J_Bip_%s_Hand" % side]
+		if bones.any(func(b): return skel.find_bone(b) < 0):
+			continue
+		var pts: Array = bones.map(func(b): return skel.get_bone_global_rest(skel.find_bone(b)).origin)
+		var tip: Vector3 = pts[2] + (pts[2] - pts[1]).normalized() * 0.07
+		var parts := [["Upper", 0, 0.048, 0.042], ["Fore", 1, 0.042, 0.034]]
+		for part in parts:
+			var root := _root(skel, bones[part[1]], NODE + "_Glove%s%s" % [part[0], side])
+			var n := _piece(root, part[0] + side)
+			# the piece sits at its near end, so it grows out from there in the fitting
+			n.position = pts[part[1]]
+			var b: Vector3 = pts[part[1] + 1] - n.position
+			_line(n, Vector3.ZERO, b, float(part[2]), _shell(), float(part[3]))
+			_line(n, Vector3(0, 0, -float(part[2]) * 0.95), b + Vector3(0, 0, -float(part[3]) * 0.95), 0.003, _lit())
+			_match_layers(model, root, "Body")
+		var hroot := _root(skel, bones[2], NODE + "_GloveHand%s" % side)
+		var h := _piece(hroot, "Hand" + side)
+		h.position = pts[2]
+		_line(h, Vector3.ZERO, tip - pts[2], 0.034, _shell(), 0.026)
+		_line(h, Vector3(0, 0, -0.03), tip - pts[2] + Vector3(0, 0, -0.022), 0.0025, _lit())
+		_match_layers(model, hroot, "Body")
+
+
+## The Plumb Line: segments down her back from her neck to her hips, each on the
+## nearest spine bone, with a glowing node and short cables out to the sides.
+static func _spine(model: Node, skel: Skeleton3D) -> void:
+	var top := skel.get_bone_global_rest(skel.find_bone(SPINE_BONES[0])).origin
+	var bottom := skel.get_bone_global_rest(skel.find_bone(SPINE_BONES[4])).origin
+	var roots := {}
+	for i in SEGMENTS:
+		var t := float(i) / float(SEGMENTS - 1)
+		var at := top.lerp(bottom, t)
+		at.z += 0.075 + 0.035 * sin(t * PI)  # out on her back, further at the shoulder blades
+		var bone: String = SPINE_BONES[clampi(roundi(t * 4.0), 0, 4)]
+		if not roots.has(bone):
+			roots[bone] = _root(skel, bone, NODE + "_Spine_" + bone)
+		var seg := Node3D.new()
+		seg.name = "Seg_%d" % i
+		seg.position = at
+		(roots[bone] as Node3D).add_child(seg)
+		_box(seg, Vector3.ZERO, Vector3(0.05 - 0.01 * t, 0.028, 0.026), _shell())
+		_box(seg, Vector3(0, 0, 0.008), Vector3(0.018, 0.018, 0.018), _chrome())
+		var node := _cylinder(seg, Vector3(0, 0, 0.018), 0.007, 0.006, _lit())
+		node.rotation_degrees = Vector3(90, 0, 0)
+		for s in [-1.0, 1.0]:
+			_line(seg, Vector3(0.022 * s, 0, -0.004), Vector3(0.06 * s, 0.03, -0.03), 0.003, _chrome())
+	for r in roots.values():
+		_match_layers(model, r, "Body")
+
+
 static func _cuff(root: Node3D, wrist: Vector3) -> void:
 	var at := wrist + Vector3(0.04, 0, 0)  # up her left forearm from the hand bone (her left is -X)
 	var shell := Node3D.new()
@@ -218,6 +361,47 @@ static func _cuff(root: Node3D, wrist: Vector3) -> void:
 		needle.basis = Basis(Vector3(1, 0, 0), a + PI)  # +Y points in at her wrist
 		root.add_child(needle)
 		_cylinder(needle, Vector3(0, 0.015, 0), 0.0025, 0.03, _lit())
+
+
+## A tapered rod from  to  (radius r, to r2 at  if given).
+static func _line(root: Node3D, a: Vector3, b: Vector3, r: float, m: Material, r2 := -1.0) -> MeshInstance3D:
+	var c := CylinderMesh.new()
+	c.bottom_radius = r
+	c.top_radius = r if r2 < 0.0 else r2
+	c.height = maxf(a.distance_to(b), 0.0005)
+	c.radial_segments = 12
+	c.rings = 1
+	var mi := _add(root, c, (a + b) * 0.5, m)
+	var dir := (b - a).normalized()
+	if absf(dir.dot(Vector3.UP)) < 0.999:
+		mi.basis = Basis(Vector3.UP.cross(dir).normalized(), Vector3.UP.angle_to(dir))
+	elif dir.y < 0.0:
+		mi.basis = Basis(Vector3.RIGHT, PI)
+	return mi
+
+
+static func _chrome() -> StandardMaterial3D:
+	if _mats.has("chrome"):
+		return _mats["chrome"]
+	var m := StandardMaterial3D.new()
+	m.albedo_color = Color(0.75, 0.78, 0.82)
+	m.metallic = 0.9
+	m.roughness = 0.2
+	_mats["chrome"] = m
+	return m
+
+
+static func _film_mat() -> StandardMaterial3D:
+	if _mats.has("film"):
+		return _mats["film"]
+	var m := StandardMaterial3D.new()
+	m.albedo_color = Color(0.9, 0.96, 1.0, 0.7)
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	m.emission_enabled = true
+	m.emission = Color(0.8, 0.92, 1.0)
+	m.emission_energy_multiplier = 1.5
+	_mats["film"] = m
+	return m
 
 
 static func _shell() -> StandardMaterial3D:

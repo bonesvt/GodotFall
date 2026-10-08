@@ -12,6 +12,7 @@ const Hymn := preload("res://scripts/hub/hymn.gd")
 const TriggerWords := preload("res://scripts/hub/trigger_words.gd")
 const Shepherd := preload("res://scripts/hub/shepherd.gd")
 const ContentRating := preload("res://scripts/radio/content_rating.gd")
+const Wardrobe := preload("res://scripts/hub/wardrobe.gd")
 
 var run_node: Node
 var player: CharacterBody3D
@@ -46,6 +47,10 @@ func _run() -> void:
 	run_node.bench.take()
 	await _until(func(): return run_node.bench == null, 4.0)
 	_check("taking it: Hymn in her, done for today", Hymn.level == Hymn.DOSE and Hymn.dosed_today and not Hymn.hunted, [Hymn.level, Hymn.dosed_today])
+	await _ticks(2)
+	_check("the morning dose plays out", run_node.dose_scene.busy() and player.entranced, run_node.dose_scene.t)
+	await _until(func(): return not run_node.dose_scene.busy(), 6.0)
+	_check("and lets her go", not player.entranced, player.entranced)
 	run_node.open_bench("dispensary")
 	await _ticks(2)
 	_check("once a day", run_node.bench._status.text == run_node.bench.DONE, run_node.bench._status.text)
@@ -142,6 +147,22 @@ func _run() -> void:
 	await _ticks(2)
 	_check("not over a screen", visor.strength() == 0.0, visor.strength())
 	run_node.close_bench()
+
+	# The rest of the set: each capture the next piece, in order, each on her.
+	Hymn.gear = ["headphones", "cuff", "visor"]
+	for want in ["bridge", "film", "gloves", "spine"]:
+		_check("next capture: %s" % want, Hymn.processed() == want, Hymn.gear)
+	Wardrobe.dress_eco(player, true)
+	await _ticks(2)
+	for part in ["bridge", "film", "UpperL", "HandR", "Seg_0", "Seg_8"]:
+		_check("%s on her" % part, player.find_child(part, true, false) != null, part)
+	_check("gloves: numb hands, slower reloads", Hymn.reload_scale() == Hymn.RELOAD_SLOW, Hymn.reload_scale())
+	_check("spine: a heavier step", Hymn.speed_scale() == Hymn.SPINE_SPEED, Hymn.speed_scale())
+	Hymn.level = 50.0
+	Hymn._puff = Hymn.BRIDGE_EVERY
+	before = Hymn.level
+	_check("bridge: a puff a minute", not Hymn.tick_bridge(Hymn.BRIDGE_EVERY * 0.5) and Hymn.tick_bridge(Hymn.BRIDGE_EVERY * 0.6) and Hymn.level > before, Hymn.level)
+	_check("nothing left to put on her", Hymn.processed() == "", Hymn.gear.size())
 
 	# A new day after a run; Teen: none of it.
 	Hymn.run_over()
