@@ -68,6 +68,9 @@ global uniform float eco_slide;
 // Marrow's Glass (scripts/hub/glass.gd): how far violet crystal has crept
 // over her skin, 0..1, spreading in the order dirt does (damage_tex R).
 global uniform float eco_glass;
+// The glass's colour: Marrow's violet, or a hypno look's own (vice_looks.gd:
+// gold for the Faith Idol, ice for Kintsugi's frost).
+global uniform vec3 eco_glass_tint;
 // 0: none (hair, eyes, glass). 1: her body or face, from damage_tex
 // (tools/eco/bake_damage.py; each channel the level at which a texel turns:
 // R grime, G torn, B scuffed, A scarred; tears only open on her suit's fabric,
@@ -218,11 +221,11 @@ void fragment() {
 			float seam_glow = 1.0 - smoothstep(0.0, 0.06, d2 - d1);
 			// each facet a flat plane of glass: a light and a dark side, a pale glint
 			float plane = step(0.5, fract(facet * 7.0));
-			vec3 crystal = mix(vec3(0.3, 0.12, 0.48), vec3(0.82, 0.66, 1.0), 0.2 + 0.5 * facet + 0.2 * plane);
+			vec3 crystal = mix(eco_glass_tint * vec3(0.417, 0.375, 0.48), mix(eco_glass_tint, vec3(1.0), 0.55), 0.2 + 0.5 * facet + 0.2 * plane);
 			// a soft edge where it meets her skin, glassy right through further in
 			float rim_in = smoothstep(front + 0.03, front + 0.1, reach);
 			col = mix(col, crystal, glassed * (0.55 + 0.4 * rim_in));
-			glass_emit = HUSH_VIOLET * (seam_glow * 1.2 + 0.08 + 0.12 * facet) * glassed;
+			glass_emit = eco_glass_tint * (seam_glow * 1.2 + 0.08 + 0.12 * facet) * glassed;
 		}
 	} else if (damage_kind == 3) {
 		vec4 d = texture(damage_tex, UV);

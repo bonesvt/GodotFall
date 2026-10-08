@@ -111,6 +111,13 @@ var clung := 0
 		outfit = value if value in OUTFITS else "suit"
 		if is_inside_tree():
 			apply_suit()
+## A hypno look over her outfit (scripts/hub/vice_looks.gd: "vl_<path>_<stage>"
+## or a free ending's "vl_<id>"; wear() one by name), or "" for none.
+var vice_look := "":
+	set(value):
+		vice_look = value if ViceLooks.valid(value) else ""
+		if is_inside_tree():
+			apply_suit()
 ## A rest pose layered over her animation (scripts/ps2/eco_rest.gd): "sleep",
 ## "sit" or "lounge"; "" lets her animation play. She settles into it (and back
 ## out) over a moment, and moves from one to another without standing up.
@@ -303,6 +310,7 @@ const EcoRest := preload("res://scripts/ps2/eco_rest.gd")
 const Prefs := preload("res://scripts/game/prefs.gd")
 const Hair := preload("res://scripts/hub/hair.gd")
 const ColonyGear := preload("res://scripts/hub/colony_gear.gd")
+const ViceLooks := preload("res://scripts/hub/vice_looks.gd")
 const Extras := preload("res://scripts/hub/eco_extras.gd")
 const EcoFlesh := preload("res://scripts/ps2/eco_flesh.gd")
 const EcoCling := preload("res://scripts/ps2/eco_cling.gd")
@@ -443,11 +451,19 @@ static func piece_worn(mesh_name: String, weight: String) -> bool:
 	return true
 
 
-## Puts her in one of her suits or clothes (OUTFITS) by name; false (and nothing
-## changes) for anything else, such as clothes she doesn't have.
+## Puts her in one of her suits or clothes (OUTFITS) or a hypno look
+## (vice_looks.gd) by name; false (and nothing changes) for anything else,
+## such as clothes she doesn't have.
 func wear(outfit_name: String) -> bool:
+	if ViceLooks.is_look(outfit_name):
+		if not ViceLooks.valid(outfit_name):
+			return false
+		vice_look = outfit_name
+		outfit = ViceLooks.base(outfit_name)
+		return true
 	if not outfit_name in OUTFITS:
 		return false
+	vice_look = ""
 	outfit = outfit_name
 	return true
 
@@ -514,6 +530,7 @@ func apply_suit() -> void:
 	_style_gear(STYLE_GEAR.get(style(), {}) if suited_ and suit_tier == 0 else {})
 	Extras.apply(self)  # her piercings, tattoos and accessories from Solace
 	ColonyGear.apply(self)  # the Shepherd's gear, if it's put any on her (hymn.gd)
+	ViceLooks.apply(self)  # a hypno look over it all (vice_looks.gd)
 
 
 ## Shows a suit style's borrowed pieces (STYLE_GEAR) in its colours, hides

@@ -113,7 +113,7 @@ func set_suit(tier: int, weight := "medium") -> void:
 ## What her first-person body copies from her full model each frame, so it
 ## (and her arm on the gun, eco_fp_arms.gd) wears whatever she has on: the
 ## wardrobe (scripts/hub/wardrobe.gd) and her suit upgrades dress "Shadow".
-const DRESS := ["outfit", "suit_weight", "suit_tier"]
+const DRESS := ["outfit", "suit_weight", "suit_tier", "vice_look"]
 
 
 ## Puts the first-person body in the same outfit and suit as her full model.

@@ -289,12 +289,31 @@ Under the Mature rating (Settings > Game), **F** at the Rusted Halo on Low Row o
 - Tests: `godot --headless --path . -s res://tests/vices_test.gd`, `tests/hush_pull_test.gd`,
   `tests/hold_effects_test.gd`, `tests/glass_test.gd`, `tests/trigger_test.gd`, `tests/hymn_test.gd`
 
+### Hypno looks (Mature only)
+Each path that gets its hooks in Eco dresses her in its own look, in stages as its meter
+climbs (25/50/75/100): her hair and makeup first, then her suit, then the pieces and the
+haircut, then her eyes (`scripts/hub/vice_looks.gd`). While one has her she wears it
+everywhere, runs included, and the wardrobe says "Not yours to change right now"; the deepest
+path wins. Every stage she reached stays in her wardrobe once she's free of it.
+- **Hymn: Sleepwalker** (Hymn level), **Marrow's: His** (Hold), **Glass: Kintsugi** (Glass
+  level; Frost's icy braids and pale eyes, and crystal growing out of her arms, back and legs),
+  **Faith: Idol** (devotion; gold glass spreads over her), **Colony City: Parade** (Town's
+  Grip), **Ophelia's** Keepsake, Matching and Homebound (her obsession).
+- Devotion, Town's Grip and obsession are kept in `vice_looks.gd` until their routes land;
+  the cheat box moves them. The free endings' looks (Warden, Survivor, Unbound, and Her Own
+  after Ophelia) unlock with `ViceLooks.unlock()`, or from the cheat box.
+- The looks are recolours of pieces she already has: `python3 tools/eco/bake_vice_looks.py`
+  bakes their textures from `tools/eco/vice_looks.json` into `assets/textures/eco/looks/`.
+- Test: `godot --headless --path . -s res://tests/vice_looks_test.gd`
+
 ### Cheat box
 A dented ammo crate with a gold trim by the rug in Eco's loft (`scripts/hub/cheat_screen.gd`).
 **F** opens it: **1** maxes every material (9999), **2** maxes every relationship (Ophelia's
 affection, Mom's and Biggie's bond), **3** unlocks every piercing, tattoo and accessory (they land
 taken off; put them on at Ink & Iron and Stitch & Steel, Mature ones under Mature), **4** is
-Super Hush: Marrow's Hold straight to full (Mature only). Super Hush plays a short scene
+Super Hush: Marrow's Hold straight to full (Mature only). **5**, **6** and **7** push the hypno
+looks' own meters (Faith's devotion, Colony City's Town's Grip, Ophelia's obsession) up a
+stage, back to none after full, and **8** unlocks the free endings' looks (all Mature only). Super Hush plays a short scene
 (`scripts/hub/super_hush_scene.gd`): she finds an injector under the crate's false bottom, puts it
 to her neck, the view floods violet, a close-up pushes in on her spiralling eyes while Marrow's
 voice finds her, and she comes to with his Hold full. Test: `tests/cheat_test.gd` (the scene:

@@ -7,6 +7,7 @@ extends CanvasLayer
 ##   Tab or Q/E       whose clothes      A/D or drag       turn them round
 
 const Wardrobe := preload("res://scripts/hub/wardrobe.gd")
+const ViceLooks := preload("res://scripts/hub/vice_looks.gd")
 const Hair := preload("res://scripts/hub/hair.gd")
 const HubNpc := preload("res://scripts/hub/hub_npc.gd")
 const BenchScreen := preload("res://scripts/hub/bench_screen.gd")
@@ -146,6 +147,9 @@ func switch_person(dir: int) -> void:
 ## Saves the picked outfit for them. Returns whether it changed anything.
 func confirm() -> bool:
 	var outfit: String = _options()[selected]
+	if who() == "eco" and Wardrobe.locked():
+		SFX.play(self, "ui_error", -6.0)
+		return false
 	if outfit == Wardrobe.choice(who()):
 		SFX.play(self, "ui_error", -6.0)
 		return false
@@ -160,7 +164,7 @@ func refresh() -> void:
 	_tab_label.text = "   ".join(Wardrobe.people().map(func(p): return ("[ %s ]" % p[1]) if p[0] == who() else p[1]))
 	for c in _list.get_children():
 		c.queue_free()
-	var now := Wardrobe.choice(who())
+	var now := ViceLooks.forced() if who() == "eco" and Wardrobe.locked() else Wardrobe.choice(who())
 	var options := _options()
 	for i in options.size():
 		var outfit: String = options[i]
@@ -173,6 +177,10 @@ func refresh() -> void:
 		_detail.text = "She picks for herself: something different after every run."
 	elif who() != "eco":
 		_detail.text = ""
+	elif Wardrobe.locked():
+		_detail.text = "Not yours to change right now. (%s)" % Wardrobe.outfit_name(ViceLooks.forced())
+	elif ViceLooks.is_look(options[selected]):
+		_detail.text = "Something she kept. Hers to wear now, and hers to take off."
 	elif String(options[selected]).begins_with("suit"):
 		_detail.text = "Eco wears it everywhere, runs included (an upgraded suit goes over it)."
 	else:

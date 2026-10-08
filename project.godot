@@ -58,6 +58,10 @@ eco_glass={
 "type": "float",
 "value": 0.0
 }
+eco_glass_tint={
+"type": "vec3",
+"value": Vector3(0.72, 0.32, 1)
+}
 
 [rendering]
 

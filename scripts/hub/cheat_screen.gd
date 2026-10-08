@@ -6,6 +6,10 @@ extends CanvasLayer
 ##   3   unlock every cosmetic: piercings, tattoos and accessories (put on
 ##       at Ink & Iron and Stitch & Steel; Mature ones show under Mature)
 ##   4   super Hush: Marrow's Hold to full at once (vices.gd, Mature only)
+##   5-7 the hypno looks' own meters up a stage (vice_looks.gd: Faith's
+##       devotion, Colony City's Town's Grip, Ophelia's obsession), wrapping
+##       back to none after full
+##   8   unlock the free endings' looks (Warden, Survivor, Unbound, Her Own)
 
 const Armory := preload("res://scripts/hub/armory.gd")
 const TownShops := preload("res://scripts/hub/town_shops.gd")
@@ -14,6 +18,7 @@ const Family := preload("res://scripts/hub/family.gd")
 const SFX := preload("res://scripts/sfx.gd")
 const NpcTalk := preload("res://scripts/hub/npc_talk.gd")
 const Vices := preload("res://scripts/hub/vices.gd")
+const ViceLooks := preload("res://scripts/hub/vice_looks.gd")
 
 const MAX_MATERIAL := 9999
 const GOLD := Color(1.0, 0.82, 0.3)
@@ -71,11 +76,15 @@ func _ready() -> void:
 	col.add_child(_button("2   Max relationships (Ophelia, Mom and Biggie to full)", max_relationships))
 	col.add_child(_button("3   Unlock all cosmetics (piercings, tattoos, accessories)", unlock_cosmetics))
 	col.add_child(_button("4   Super Hush (Marrow's Hold to full, Mature only)", super_hush))
+	col.add_child(_button("5   Faith look: devotion up a stage (Mature only)", func(): look_meter("devotion")))
+	col.add_child(_button("6   Colony City look: Town's Grip up a stage (Mature only)", func(): look_meter("town_grip")))
+	col.add_child(_button("7   Ophelia's look: obsession up a stage (Mature only)", func(): look_meter("obsession")))
+	col.add_child(_button("8   Unlock the free endings' looks (Mature only)", unlock_looks))
 	_status = _text("", 16, INK)
 	_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_status.custom_minimum_size = Vector2(512, 0)
 	col.add_child(_status)
-	col.add_child(_text("1-4 pick   F or Esc close", 14, DIM))
+	col.add_child(_text("1-8 pick   F or Esc close", 14, DIM))
 
 
 func _input(event: InputEvent) -> void:
@@ -90,6 +99,14 @@ func _input(event: InputEvent) -> void:
 			unlock_cosmetics()
 		KEY_4, KEY_KP_4:
 			super_hush()
+		KEY_5, KEY_KP_5:
+			look_meter("devotion")
+		KEY_6, KEY_KP_6:
+			look_meter("town_grip")
+		KEY_7, KEY_KP_7:
+			look_meter("obsession")
+		KEY_8, KEY_KP_8:
+			unlock_looks()
 		_:
 			return
 	get_viewport().set_input_as_handled()
@@ -146,6 +163,32 @@ func super_hush() -> bool:
 	close_now = true
 	_did("Super Hush: Marrow's Hold is full. He stops selling, his pull can take her, and a run without a dose is withdrawal.")
 	return true
+
+
+## One of the hypno looks' meters up a stage (25), back to none after full.
+## Returns the meter's new level (-1 under Teen).
+func look_meter(meter_name: String) -> float:
+	if not ViceLooks.allowed():
+		_did("The hypno looks are Mature only (Settings > Game > rating).")
+		return -1.0
+	var now := ViceLooks.level(meter_name)
+	ViceLooks.add(meter_name, -ViceLooks.MAX if now >= ViceLooks.MAX else ViceLooks.STAGE_AT[0])
+	var level := ViceLooks.level(meter_name)
+	var wearing := ViceLooks.forced()
+	_did("%s is at %d. %s" % [meter_name.capitalize(), int(level),
+			("She's in %s now." % ViceLooks.look_name(wearing)) if wearing != "" else "Nothing has her."])
+	return level
+
+
+func unlock_looks() -> void:
+	if not ViceLooks.allowed():
+		_did("The hypno looks are Mature only (Settings > Game > rating).")
+		return
+	var n := 0
+	for id: String in ViceLooks.FREE:
+		if ViceLooks.unlock(id):
+			n += 1
+	_did("Unlocked %d looks in her wardrobe: Warden, Survivor, Unbound and Her Own." % n if n > 0 else "She has every free look already.")
 
 
 func _did(line: String) -> void:
