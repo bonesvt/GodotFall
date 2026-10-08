@@ -1,6 +1,6 @@
 @tool
 extends EditorScenePostImport
-## Import script for the hub NPCs' glbs (mom, ophelia, biggie; built by
+## Import script for the hub NPCs' glbs (mom, ophelia, biggie, pip; built by
 ## tools/npc/build_npc.py). Gives every surface the same toon shading as Eco
 ## (assets/shaders/eco_toon*), built here from each Blender material's name
 ## (npc_<who>_<part>) and the textures in assets/textures/npc/<who>/, sets
@@ -37,6 +37,7 @@ const FACES := {
 	"mom": {"Fcl_BRW_Sorrow": 0.55, "Fcl_EYE_Natural": 0.2, "Fcl_MTH_Up": 0.15},
 	"ophelia": {"Fcl_EYE_Sorrow": 0.3, "Fcl_BRW_Sorrow": 0.3, "Fcl_MTH_Down": 0.25},
 	"biggie": {"Fcl_BRW_Joy": 0.6, "Fcl_EYE_Joy": 0.45, "Fcl_MTH_Fun": 0.3},
+	"pip": {"Fcl_BRW_Angry": 0.18, "Fcl_EYE_Natural": 0.35, "Fcl_MTH_Fun": 0.22},
 	# the people of Solace (tools/town/build_townsfolk.py)
 	"town_pell": {"Fcl_BRW_Joy": 0.3, "Fcl_MTH_Fun": 0.25},
 	"town_kit": {"Fcl_BRW_Angry": 0.2, "Fcl_MTH_Up": 0.2},
