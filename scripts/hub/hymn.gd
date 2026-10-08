@@ -10,7 +10,10 @@ extends RefCounted
 ##   headphones  trigger words twice as often, a shorter window to shake them
 ##               (trigger_words.gd), and from any Hold, in the colony's voice
 ##   cuff        a dose cuff: skip the line and it counts down on the HUD, then
-##               doses her where she stands
+##               doses her where she stands. A Hymn bell hangs off it and rings
+##               when she sprints or lands from a fall (tick_bell), and every
+##               ring is heard: enemies in BELL_RANGE come to it, the Shepherd
+##               knows where she is. Walking keeps it quiet.
 ##   visor       the clarity visor: her view crowded with flashing orders,
 ##               turning rings and false HUD (visor_screen.gd)
 ##   bridge      the calm bridge (smell): every BRIDGE_EVERY s it puffs a
@@ -51,6 +54,13 @@ const MAX := 100.0
 const WINDOW := 0.3
 const WINDOW_SHRINK := 0.05
 const MIN_WINDOW := 0.1
+## The cuff's bell: it rings at BELL_SPEED (m/s, a sprint) or faster, at most
+## every BELL_EVERY s, and on landing from BELL_FALL s in the air; enemies
+## within BELL_RANGE hear it.
+const BELL_SPEED := 8.5
+const BELL_EVERY := 1.1
+const BELL_FALL := 0.45
+const BELL_RANGE := 16.0
 ## Seconds the dose cuff gives her to get to the line once she's back in town.
 const CUFF_TIME := 180.0
 
@@ -65,6 +75,8 @@ static var captures := 0
 static var gear: Array = []
 static var cuff_left := CUFF_TIME
 static var _puff := BRIDGE_EVERY
+static var _bell_wait := 0.0
+static var _air := 0.0
 ## Biggie's had a go this time in town.
 static var biggie_tried := false
 static var save_path := "user://hymn.cfg"
@@ -177,6 +189,21 @@ static func tick_bridge(delta: float) -> bool:
 	return true
 
 
+## Each physics tick: the cuff's bell, from how fast she's moving (flat m/s)
+## and whether she's on the ground. True when it rings.
+static func tick_bell(delta: float, speed: float, grounded: bool) -> bool:
+	if not has("cuff"):
+		_air = 0.0
+		return false
+	_bell_wait = maxf(_bell_wait - delta, 0.0)
+	var landed := grounded and _air >= BELL_FALL
+	_air = 0.0 if grounded else _air + delta
+	if _bell_wait > 0.0 or not (landed or speed >= BELL_SPEED):
+		return false
+	_bell_wait = BELL_EVERY
+	return true
+
+
 ## Her reload time multiplier (the gloves' numb hands).
 static func reload_scale() -> float:
 	return RELOAD_SLOW if has("gloves") else 1.0
@@ -220,6 +247,8 @@ static func reset() -> void:
 	gear = []
 	biggie_tried = false
 	cuff_left = CUFF_TIME
+	_bell_wait = 0.0
+	_air = 0.0
 
 
 static func open(path: String) -> void:

@@ -117,6 +117,8 @@ static func _synth(id: String) -> PackedFloat32Array:
 				_delay(_filter(_burst(0.03, 0.0005, 160.0, 0.25), "bp", 1700.0, 4.0), 0.004),
 				_delay(_blips([880.0, 660.0], 0.03, 0.08), 0.02),
 			]), 0.0)
+		"hymn_bell":  # the dose cuff's little brass bell: a bright, clear ting that carries
+			return _reverb(_mix([_ring([2093.0, 3140.0, 5230.0, 6850.0], 1.1, 4.5, 0.32), _tick(6200.0, 0.2)]), 0.25)
 		"spark":  # crackle from the dead smart-lock module
 			return _filter(_crackle(0.22, 46, 0.6), "hp", 1800.0)
 		"lock_err":  # the smart-lock trying, and failing, to lock: a glitchy chirp
