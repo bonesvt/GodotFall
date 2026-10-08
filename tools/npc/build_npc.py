@@ -1383,6 +1383,9 @@ def pip_outfit(g, skin, x, y, z, ax, front, cov, edge, sine, neck_r):
         return pip_club(g, skin, x, y, z, ax, front, cov, edge, sine, neck_r)
     if LOOK == "shark":
         return pip_shark(g, skin, x, y, z, ax, front, cov, edge, sine, neck_r)
+    if LOOK == "rave":
+        return pip_rave(g, skin, x, y, z, ax, front, cov, edge, sine, neck_r)
+    cropped = LOOK in ("crop", "sheer", "jacket", "shorts")
     WINE, WINE_D, WINE_L = (0.2, 0.012, 0.035), (0.11, 0.006, 0.02), (0.36, 0.05, 0.08)
     VEST, STRIPE, GOLD, TROUSER = (0.016, 0.014, 0.018), (0.12, 0.11, 0.12), (0.62, 0.42, 0.1), (0.012, 0.011, 0.014)
     neck_z = g.lerp(g.sub(1.17, g.mul(0.01, front)), 1.4, g.sstep(0.065, 0.09, ax))
@@ -1391,7 +1394,7 @@ def pip_outfit(g, skin, x, y, z, ax, front, cov, edge, sine, neck_r):
     v_half = g.mul(g.sub(z, 1.02), 0.6)
     d_v = g.sub(g.mul(front, g.sub(v_half, ax)), g.sub(1.0, front))
     shirt = g.mul(cov(d_shirt), g.sub(1.0, cov(d_v)))
-    bare = LOOK in ("bare", "crop")   # the waistcoat worn on its own
+    bare = LOOK in ("bare", "suit") or cropped   # the waistcoat worn on its own
     if bare:
         shirt = g.mul(shirt, 0.0)
     cuff = g.mul(g.band(ax, 0.325, 0.36), shirt)
@@ -1401,7 +1404,7 @@ def pip_outfit(g, skin, x, y, z, ax, front, cov, edge, sine, neck_r):
     vv_half = g.mul(g.sub(z, 0.965), 0.5)
     if bare:   # plunging to the top button
         vv_half = g.mul(g.sub(z, 0.94), 0.42)
-    if LOOK == "crop":   # cropped high, the curve of her bust showing under it, clasped at the hem
+    if cropped:   # cropped high, the curve of her bust showing under it, clasped at the hem
         under = g.op("EXPONENT", g.mul(g.sq(g.div(g.sub(ax, 0.06), 0.032)), -1.0))
         hem_z = g.add(g.sub(1.0, g.mul(g.sub(1.0, front), 0.03)), g.mul(g.mul(front, under), 0.03))
         vv_half = g.mul(g.sub(z, 0.998), 0.42)
@@ -1411,12 +1414,12 @@ def pip_outfit(g, skin, x, y, z, ax, front, cov, edge, sine, neck_r):
     pin = g.mul(g.sstep(0.93, 0.97, sine(x, 0.011)), vest)
     buttons = g.mul(g.mul(g.sub(1.0, g.sstep(0.0028, 0.0038, g.sqrt(g.add(g.sq(x), g.sq(g.mul(g.sub(g.op("FRACT", g.div(g.sub(z, 0.81), 0.04)), 0.5), 0.04)))))), front),
                     g.mul(g.sstep(0.815, 0.82, z), g.sstep(0.95 if not bare else 0.925, 0.945 if not bare else 0.92, z)))
-    if LOOK == "crop":   # one gold clasp where the fronts meet
+    if cropped:   # one gold clasp where the fronts meet
         buttons = g.mul(g.mul(g.sub(1.0, g.sstep(0.0035, 0.0045, g.sqrt(g.add(g.sq(x), g.sq(g.sub(z, 1.004)))))), front), 1.0)
     # trousers: high on the waist (low on her hips under the cropped one), a pressed crease down the front of each leg
-    waist = 0.84 if LOOK != "crop" else 0.765
+    waist = 0.765 if cropped else 0.84
     # the low one hangs on her hips and rides up over her seat at the back
-    d_trousers = g.mn(g.sub(g.add(waist, g.mul(g.sub(1.0, front), 0.05 if LOOK == "crop" else 0.0)), z), g.sub(z, 0.12))
+    d_trousers = g.mn(g.sub(g.add(waist, g.mul(g.sub(1.0, front), 0.05 if cropped else 0.0)), z), g.sub(z, 0.66 if LOOK == "shorts" else 0.12))
     trousers = cov(d_trousers)
     crease = g.mul(g.mul(g.band(ax, 0.072, 0.0735), front), g.mul(trousers, g.sstep(waist - 0.1, waist - 0.12, z)))
     belt = g.mul(g.band(z, waist - 0.04, waist - 0.022), trousers)
@@ -1432,19 +1435,83 @@ def pip_outfit(g, skin, x, y, z, ax, front, cov, edge, sine, neck_r):
     col = g.mixc(skin, WINE, shirt)
     col = g.mixc(col, WINE_L, sheen)
     col = g.mixc(col, WINE_D, cuff)
+    if LOOK == "sheer":   # a sheer black mesh top under it, high neck, long sleeves
+        d_mesh = g.mn(g.mn(g.sub(1.19, z), g.sub(z, 0.8)), g.sub(0.44, ax))
+        mesh = cov(d_mesh)
+        dots = g.mul(g.sstep(0.6, 0.9, g.mul(sine(x, 0.006), sine(z, 0.006))), mesh)
+        col = g.mixc(col, (0.01, 0.008, 0.012), g.mul(mesh, 0.62))
+        col = g.mixc(col, (0.005, 0.004, 0.006), g.mul(dots, 0.5))
+        col = g.mixc(col, (0.01, 0.008, 0.012), g.mul(g.band(z, 1.175, 1.19), mesh))
+    if LOOK == "shorts":   # pinstripe shorts and sheer black thigh-highs with a lace top
+        d_highs = g.mn(g.sub(0.6, z), g.sub(z, 0.12))
+        highs = cov(d_highs)
+        lace = g.mul(g.mul(g.band(z, 0.575, 0.6), g.sstep(0.3, 0.7, sine(g.add(x, y), 0.007))), highs)
+        # the preset's skin has stockings painted into the legs: bare skin under hers (as Mom's)
+        col = g.mixc(col, (0.62, 0.42, 0.35), g.mul(cov(g.mn(g.sub(0.76, z), g.sub(z, 0.1))), g.sstep(0.0, 0.03, ax)))
+        col = g.mixc(col, (0.012, 0.01, 0.014), g.mul(highs, 0.55))
+        col = g.mixc(col, (0.01, 0.008, 0.012), lace)
     col = g.mixc(col, TROUSER, trousers)
+    if LOOK == "shorts":
+        col = g.mixc(col, STRIPE, g.mul(g.sstep(0.93, 0.97, sine(x, 0.011)), trousers))
     col = g.mixc(col, (0.05, 0.048, 0.055), crease)
     col = g.mixc(col, VEST, vest)
     col = g.mixc(col, STRIPE, pin)
     col = g.mixc(col, VEST, belt)
     col = g.mixc(col, GOLD, g.mx(g.mul(buttons, vest), buckle))
     col = g.mixc(col, GOLD, g.mx(chain, cuffs))
+    if LOOK == "suit":   # a wine satin tie hung loose in the V
+        tie_x = g.mul(g.sub(1.17, z), 0.05)
+        tie_w = g.add(0.007, g.mul(g.sstep(1.0, 0.9, z), 0.006))
+        tie = g.mul(g.mul(cov(g.mn(g.sub(tie_w, g.abs(g.sub(x, tie_x))), g.sub(z, 0.9))), g.sstep(1.17, 1.165, z)), front)
+        col = g.mixc(col, WINE, tie)
+        col = g.mixc(col, WINE_L, g.mul(g.band(g.sub(x, tie_x), -0.002, 0.0005), tie))
+    if LOOK == "jacket":   # a cropped black blazer worn open over it, wine lining at the lapels
+        d_jk = g.mn(g.mn(g.sub(1.2, z), g.sub(z, 0.95)), g.sub(0.445, ax))
+        jk_open = g.sub(g.mul(front, g.sub(g.add(0.085, g.mul(g.sub(z, 0.95), 0.25)), ax)), g.sub(1.0, front))
+        jk = g.mul(cov(d_jk), g.sub(1.0, cov(jk_open)))
+        lapel = g.mul(g.mul(g.band(g.sub(ax, g.add(0.085, g.mul(g.sub(z, 0.95), 0.25))), 0.0, 0.012), front), jk)
+        col = g.mixc(col, VEST, jk)
+        col = g.mixc(col, WINE, lapel)
+        col = g.mixc(col, GOLD, g.mul(g.band(ax, 0.42, 0.43), jk))
     col = g.mixc(col, (0.42, 0.03, 0.05), chip)
     col = g.mixc(col, (0.85, 0.82, 0.75), chip_ring)
     ink = g.mx(g.mx(edge(d_vest), g.mul(edge(d_vv), cov(d_vest))), edge(d_trousers))
+    if LOOK == "jacket":
+        ink = g.mx(ink, g.mx(edge(d_jk), g.mul(edge(jk_open), cov(d_jk))))
     if not bare:
         ink = g.mx(ink, g.mx(g.mul(edge(d_shirt), g.sub(1.0, vest)), g.mul(edge(d_v), shirt)))
         ink = g.mx(ink, g.mul(g.band(ax, 0.3245, 0.3265), shirt))
+    return g.mixc(col, INK, ink)
+
+
+def pip_rave(g, skin, x, y, z, ax, front, cov, edge, sine, neck_r):
+    """rave: a black fishnet long-sleeve crop over a neon-pink bandeau, low
+    black cargo pants with neon green straps hanging off the hips, glowing
+    bands round her upper arms and a neon ring on a black choker."""
+    BLACK, PINK, LIME, GOLD = (0.012, 0.01, 0.014), (1.0, 0.08, 0.55), (0.45, 1.0, 0.1), (0.62, 0.42, 0.1)
+    net = g.mx(g.sstep(0.8, 0.92, sine(g.add(x, z), 0.012)), g.sstep(0.8, 0.92, sine(g.sub(x, z), 0.012)))
+    d_net = g.mn(g.mn(g.sub(1.17, z), g.sub(z, 0.95)), g.sub(0.43, ax))
+    fish = cov(d_net)
+    d_band = g.mn(g.sub(1.075, z), g.sub(z, g.sub(0.985, g.mul(g.sub(1.0, front), 0.0))))
+    band = cov(d_band)
+    d_pants = g.mn(g.sub(g.add(0.765, g.mul(g.sub(1.0, front), 0.05)), z), g.sub(z, 0.12))
+    pants = cov(d_pants)
+    pocket = g.mul(g.mul(cov(g.mn(g.sub(0.05, g.abs(g.sub(ax, 0.11))), g.sub(0.06, g.abs(g.sub(z, 0.5))))), pants), g.sstep(0.0, 0.3, g.abs(x)))
+    straps = g.mul(g.mx(g.band(g.sub(z, g.add(0.62, g.mul(x, 0.6))), 0.0, 0.006), g.band(g.sub(z, g.sub(0.7, g.mul(x, 0.5))), 0.0, 0.006)), pants)
+    glow = g.band(ax, 0.2, 0.215)
+    choker = g.mul(g.band(z, 1.178, 1.192), g.sub(1.0, g.sstep(0.065, 0.075, neck_r)))
+    ring = g.mul(g.mul(g.band(g.sqrt(g.add(g.sq(x), g.sq(g.sub(z, 1.172)))), 0.004, 0.0058), front), g.sstep(1.16, 1.165, z))
+    col = g.mixc(skin, PINK, band)
+    col = g.mixc(col, BLACK, g.mul(fish, net))
+    col = g.mixc(col, BLACK, g.mul(g.band(z, 0.95, 0.958), fish))
+    col = g.mixc(col, BLACK, pants)
+    col = g.mixc(col, (0.04, 0.038, 0.045), pocket)
+    col = g.mixc(col, LIME, straps)
+    col = g.mixc(col, LIME, glow)
+    col = g.mixc(col, BLACK, choker)
+    col = g.mixc(col, PINK, ring)
+    col = g.mixc(col, GOLD, g.band(ax, 0.42, 0.44))
+    ink = g.mx(g.mx(edge(d_band), edge(d_pants)), g.mul(edge(pocket), 0.0))
     return g.mixc(col, INK, ink)
 
 
