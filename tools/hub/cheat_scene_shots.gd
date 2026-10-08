@@ -1,7 +1,8 @@
 extends SceneTree
 ## The cheat box's control items (cheat_scene.gd), one row each: she finds it,
 ## it takes hold (its close shot), and the voice as the colour comes up.
-## Super Hymn, the Full Set, Glass Rush, Keepsake, the Family Plan.
+## TAKE ALL, the colony case, Glass Rush, Ophelia's ECO pack, Mom's dose box,
+## the Family Plan, and Biggie's toolkit (on her in all of it).
 ##   godot --path . --resolution 1280x720 -s res://tools/hub/cheat_scene_shots.gd -- <out_dir>
 ## Needs a renderer (not --headless). Writes <out_dir>/cheat_scenes.png.
 
@@ -12,7 +13,7 @@ const Obsession := preload("res://scripts/hub/obsession.gd")
 const HubGrip := preload("res://scripts/hub/hub_grip.gd")
 const ContentRating := preload("res://scripts/radio/content_rating.gd")
 const CELL := Vector2i(640, 360)
-const ITEMS := ["hymn", "set", "glass", "keepsake", "family"]
+const ITEMS := ["hymn", "set", "glass", "keepsake", "dosebox", "family", "toolkit"]
 const TIMES := [1.2, 4.2, 6.6]
 
 var out := "user://cheat_scene_shots"
@@ -56,6 +57,10 @@ func _go() -> void:
 		Obsession.reset()
 		run_node.dress_hub()
 		var p: Node3D = run_node.player
+		if ITEMS[row] == "toolkit":  # everything on her first, for Biggie to take off
+			Hymn.gear = Hymn.GEAR.duplicate()
+			Glass.glass = Glass.MAX_GLASS
+			Vices.hold = 80.0
 		preload("res://scripts/hub/wardrobe.gd").dress_eco(p, true)  # off with the last row's gear
 		await _frames(3)
 		p.rotation.y = 0.6

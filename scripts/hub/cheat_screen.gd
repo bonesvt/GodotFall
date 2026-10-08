@@ -12,11 +12,15 @@ extends CanvasLayer
 ##   8   unlock the free endings' looks (Warden, Survivor, Unbound, Her Own)
 ## and an item for each of the other control systems, each with its own scene
 ## (cheat_scene.gd), Mature only:
-##   9   Super Hymn: her Hymn to full (hymn.gd)
-##   0   The Full Set: every piece of the Shepherd's gear on her
+##   9   TAKE ALL Hymn films: her Hymn to full (hymn.gd)
+##   0   the colony case: every piece of the Shepherd's gear fitted in turn
 ##   Q   Glass Rush: crystallised, three vials and his earpiece (glass.gd)
-##   W   Keepsake: Ophelia's Keepsake in her, and her obsession, to full (obsession.gd)
+##   W   Ophelia's ECO pack: Keepsake full, her obsession all the way (obsession.gd)
 ##   E   Family Plan: Mom and Ophelia in the whole set, their Hymn full (hub_grip.gd)
+##   T   Mom's dose box: Mom's and Ophelia's Hymn to 90 (hub_grip.gd)
+##   Y   the glass shard: Faith's devotion to full (vice_looks.gd)
+##   U   the PRIORITY ticket: Colony City's Town's Grip to full (vice_looks.gd)
+##   R   Biggie's toolkit: everything above (and Super Hush) back to nothing
 
 const Armory := preload("res://scripts/hub/armory.gd")
 const TownShops := preload("res://scripts/hub/town_shops.gd")
@@ -92,16 +96,20 @@ func _ready() -> void:
 	col.add_child(_button("6   Colony City look: Town's Grip up a stage (Mature only)", func(): look_meter("town_grip")))
 	col.add_child(_button("7   Ophelia's look: obsession up a stage (Mature only)", func(): look_meter("obsession")))
 	col.add_child(_button("8   Unlock the free endings' looks (Mature only)", unlock_looks))
-	col.add_child(_button("9   Super Hymn (her Hymn to full)", func(): control_item("hymn")))
-	col.add_child(_button("0   The Full Set (every piece of the Shepherd's gear)", func(): control_item("set")))
+	col.add_child(_button("9   TAKE ALL Hymn films (her Hymn to full)", func(): control_item("hymn")))
+	col.add_child(_button("0   The colony case (all the Shepherd's gear, fitted in turn)", func(): control_item("set")))
 	col.add_child(_button("Q   Glass Rush (fully crystallised, vials, his earpiece)", func(): control_item("glass")))
-	col.add_child(_button("W   Keepsake (Ophelia's, all of it)", func(): control_item("keepsake")))
-	col.add_child(_button("E   Family Plan (Mom and Ophelia, the whole set)", func(): control_item("family")))
+	col.add_child(_button("W   Ophelia's ECO pack (Keepsake full, her obsession all the way)", func(): control_item("keepsake")))
+	col.add_child(_button("E   The Family Plan (Mom and Ophelia, the whole set)", func(): control_item("family")))
+	col.add_child(_button("T   Mom's dose box (Mom and Ophelia's Hymn to 90)", func(): control_item("dosebox")))
+	col.add_child(_button("Y   The glass shard (Faith's devotion to full)", func(): control_item("shard")))
+	col.add_child(_button("U   The PRIORITY ticket (Town's Grip to full)", func(): control_item("ticket")))
+	col.add_child(_button("R   Biggie's toolkit (reset every control system)", func(): control_item("toolkit")))
 	_status = _text("", 16, INK)
 	_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_status.custom_minimum_size = Vector2(512, 0)
 	col.add_child(_status)
-	col.add_child(_text("1-9, 0, Q, W, E pick   F or Esc close", 14, DIM))
+	col.add_child(_text("1-9, 0, Q, W, E, T, Y, U, R pick   F or Esc close", 14, DIM))
 
 
 func _input(event: InputEvent) -> void:
@@ -134,6 +142,14 @@ func _input(event: InputEvent) -> void:
 			control_item("keepsake")
 		KEY_E:
 			control_item("family")
+		KEY_T:
+			control_item("dosebox")
+		KEY_Y:
+			control_item("shard")
+		KEY_U:
+			control_item("ticket")
+		KEY_R:
+			control_item("toolkit")
 		_:
 			return
 	get_viewport().set_input_as_handled()
@@ -224,7 +240,7 @@ func control_item(id: String) -> bool:
 	if not Vices.allowed():
 		_did("The control items are Mature only (Settings > Game > rating).")
 		return false
-	if id == "family" and (npc_talk == null or not HubGrip.allowed()):
+	if id in ["family", "dosebox"] and (npc_talk == null or not HubGrip.allowed()):
 		_did("Nobody home for the Family Plan.")
 		return false
 	scene = id
