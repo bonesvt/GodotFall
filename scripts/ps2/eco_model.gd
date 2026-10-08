@@ -303,6 +303,10 @@ const EcoRest := preload("res://scripts/ps2/eco_rest.gd")
 const Prefs := preload("res://scripts/game/prefs.gd")
 const Hair := preload("res://scripts/hub/hair.gd")
 const ColonyGear := preload("res://scripts/hub/colony_gear.gd")
+const Obsession := preload("res://scripts/hub/obsession.gd")
+## The spirals in her eyes: Marrow's violet, Ophelia's rose.
+const VIOLET_SWIRL := Color(0.72, 0.32, 1.0)
+const ROSE_SWIRL := Color(1.0, 0.42, 0.62)
 const Extras := preload("res://scripts/hub/eco_extras.gd")
 const EcoFlesh := preload("res://scripts/ps2/eco_flesh.gd")
 const EcoCling := preload("res://scripts/ps2/eco_cling.gd")
@@ -358,6 +362,7 @@ var _face: MeshInstance3D
 ## Her meshes with the iris layer, and the Hush swirl they show (vices.gd).
 var _iris_meshes: Array = []
 var _hypno := 0.0
+var _swirl_tint := Color(0.72, 0.32, 1.0)
 ## The face's weights from before she fell asleep (blend shape index -> weight).
 var _awake_face := {}
 ## The content rating her clothes were last put on for.
@@ -627,12 +632,17 @@ func _process(delta: float) -> void:
 
 
 ## Marrow's Hold shows in her eyes: violet spirals in her irises (vices.gd,
-## eco_toon.gdshaderinc iris_swirl).
+## eco_toon.gdshaderinc iris_swirl). Ophelia's Keepsake (obsession.gd) turns them
+## rose when it's the stronger pull.
 func _eye_swirl() -> void:
-	var h := Vices.eye_swirl()
-	if is_equal_approx(h, _hypno):
+	var marrow := Vices.eye_swirl()
+	var rose := Obsession.eyes() * 0.9
+	var h := maxf(marrow, rose)
+	var tint := ROSE_SWIRL if rose > marrow and not Vices.entranced else VIOLET_SWIRL
+	if is_equal_approx(h, _hypno) and tint == _swirl_tint:
 		return
 	_hypno = h
+	_swirl_tint = tint
 	if _iris_meshes.is_empty():
 		for mi: MeshInstance3D in find_children("*", "MeshInstance3D", true, false):
 			if mi.mesh == null:
@@ -645,6 +655,7 @@ func _eye_swirl() -> void:
 	for mi: MeshInstance3D in _iris_meshes:
 		if is_instance_valid(mi):
 			mi.set_instance_shader_parameter("hypno", h)
+			mi.set_instance_shader_parameter("swirl_tint", tint)
 
 
 func _animate() -> void:

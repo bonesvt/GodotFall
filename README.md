@@ -286,8 +286,17 @@ Under the Mature rating (Settings > Game), **F** at the Rusted Halo on Low Row o
   Space three times while his shaking hand is in the clear band (narrowest for the visor and
   the spine, narrower the more Hymn's in her); one slip shocks her (+5 Hymn) and it stays on
   (render: `tools/hub/biggie_table_shots.gd`). Render it: `godot --path . --resolution 1280x720 -s res://tools/hub/shepherd_shots.gd -- <dir>`.
+- **Ophelia's obsession** (`scripts/hub/obsession.gd`, Mature only): once she and Eco are together,
+  heading out on a run without seeing her first makes her upset (next time Eco tries to talk she
+  turns away angry); two skips in a row start her obsession, +25 each skip after. From 50 she
+  laces their smoke dates with **Keepsake**, a rose-coloured something she makes herself: rose
+  spirals in Eco's eyes (`eco_toon` `swirl_tint`), a rose pull home on runs that builds with time
+  away (the craving overlay and bar go rose), and Eco's lines drifting off to her. A tin of rose
+  papers turns up under Ophelia's pillow; finding it, the next talk is having it out
+  (`obsession_screen.gd`): **help her** and it wears off over runs, no more lacing; **walk away**
+  and she doesn't stop. Render: `tools/hub/obsession_shots.gd`.
 - Tests: `godot --headless --path . -s res://tests/vices_test.gd`, `tests/hush_pull_test.gd`,
-  `tests/hold_effects_test.gd`, `tests/glass_test.gd`, `tests/trigger_test.gd`, `tests/hymn_test.gd`
+  `tests/hold_effects_test.gd`, `tests/glass_test.gd`, `tests/trigger_test.gd`, `tests/hymn_test.gd`, `tests/obsession_test.gd`
 
 ### Cheat box
 A dented ammo crate with a gold trim by the rug in Eco's loft (`scripts/hub/cheat_screen.gd`).

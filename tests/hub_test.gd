@@ -81,7 +81,7 @@ func _run() -> void:
 			_check("the lab console changes how much she can press", Prefs.press_strength() != before and run_node.hud.toast_label.text.begins_with("Press into things"), [before, Prefs.press_strength()])
 			Prefs.set_press_strength(1.0)
 			continue
-		if spot["id"] in ["tutorial_poster", "uncharted_map", "garage", "level_board", "level2_board"]:  # level boards: tests/level1_test.gd, level2_test.gd
+		if spot["id"] in ["tutorial_poster", "uncharted_map", "garage", "level_board", "level2_board", "ophelia_papers"]:  # the Keepsake tin: tests/obsession_test.gd  # level boards: tests/level1_test.gd, level2_test.gd
 			continue
 		await _stand_at(spot["pos"])
 		if spot.has("teleport") and (spot.get("open", false) or Vices.allowed()):

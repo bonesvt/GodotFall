@@ -77,6 +77,11 @@ const CheatScreen := preload("res://scripts/hub/cheat_screen.gd")
 const Hymn := preload("res://scripts/hub/hymn.gd")
 const DispensaryScreen := preload("res://scripts/hub/dispensary_screen.gd")
 const GearOffScreen := preload("res://scripts/hub/gear_off_screen.gd")
+const Obsession := preload("res://scripts/hub/obsession.gd")
+const ObsessionScreen := preload("res://scripts/hub/obsession_screen.gd")
+const LACED := "The smoke's sweeter than it should be. Rose, under the tobacco. Ophelia watches her breathe it in, and smiles."
+const HOME_PULL := "Eco keeps looking back the way she came. Ophelia's waiting. She should get home."
+const PAPERS := "Under Ophelia's pillow: a tin. Rose-coloured cigarette papers, a jar of something pink and sweet, and a label in her handwriting: KEEPSAKE. Eco should talk to her."
 const Shepherd := preload("res://scripts/hub/shepherd.gd")
 const VisorScreen := preload("res://scripts/ui/visor_screen.gd")
 ## Where the Shepherd comes out, from the dispensary's spot (its back door).
@@ -284,6 +289,7 @@ func _ready() -> void:
 	Vices.open(armory_path.get_basename() + "_vices.cfg")
 	Glass.open(Glass.path_for(Vices.save_path))
 	Hymn.open(Hymn.path_for(Vices.save_path))
+	Obsession.open(Obsession.path_for(Vices.save_path))
 	tether = Tether.new(self)
 	add_child(tether)
 	chorus_scene = ChorusScene.new(self)
@@ -376,6 +382,8 @@ func abandon_run() -> void:
 
 
 func start_run(seed_value: int, uncharted := 0, level := "") -> void:
+	if phase == Phase.HUB:  # did she go and see Ophelia first? (obsession.gd)
+		Obsession.run_started(NpcTalk.Romance.status(npc_talk.state, "ophelia") == "together", runs_ended)
 	if seed_value == 0:
 		seed_value = randi_range(1, 999999)
 	run = RunState.new(seed_value, uncharted, level)
@@ -666,6 +674,10 @@ func _physics_process(delta: float) -> void:
 			hush_pull.run_tick(delta, titan == null or not titan.piloted)
 			if Hymn.tick_bridge(delta):
 				hud.toast(BRIDGE_PUFF, 2.5)
+			var pull_was := Obsession.crave
+			Obsession.tick_run(delta)
+			if pull_was < 0.5 and Obsession.crave >= 0.5:
+				hud.toast(HOME_PULL, 4.0)
 			tether.run_tick(delta, (titan == null or not titan.piloted) and not hush_pull.busy())
 		elif tether.active():
 			tether.stop()
@@ -775,6 +787,11 @@ func _hub_tick(delta: float) -> void:
 		return
 	if spot.has("glass"):
 		_glass_spot(spot)
+		return
+	if spot["id"] == "ophelia_papers":
+		Obsession.find_papers()
+		hud.toast(PAPERS, HUB_LINE_SECONDS + 2.0)
+		SFX.play(player, "paper_2", -4.0)
 		return
 	if spot.get("shop", "") == "hush" and Vices.allowed() and Glass.broken:
 		hud.toast(MARROW_GONE, HUB_LINE_SECONDS)
@@ -931,6 +948,16 @@ func _rest_prompt() -> String:
 
 ## Starts a conversation between Eco and one of the people in the hub.
 func talk_to(who: String) -> void:
+	if who == "ophelia" and Obsession.allowed() and hub_npcs.has(who):
+		if Obsession.talk_waiting():  # Eco found the papers: they have it out
+			Obsession.saw(runs_ended)
+			open_bench("obsession")
+			return
+		var upset := Obsession.saw(runs_ended)
+		if upset != "":  # Eco went out without seeing her: she won't talk, this time
+			hud.toast(upset, HUB_LINE_SECONDS)
+			hub_npcs[who].mood(["angry", "lookaway"])
+			return
 	# Sick: once Mom has said her piece about the run, she puts Eco to bed.
 	if who == "mom" and family_scene != null and int(npc_talk.state.get_value("mom", "run_seen", 0)) >= runs_ended and family_scene.care():
 		return
@@ -1008,8 +1035,15 @@ func _stage_smoke(npc: Node3D) -> Node3D:
 	staged.setup(npc, player.global_position, npc.global_position, player.get_node_or_null("EcoBody"))
 	npc_talk.cue.connect(staged.play)
 	npc_talk.finished.connect(func(_who): staged.finish(), CONNECT_ONE_SHOT)
+	npc_talk.finished.connect(func(_who): _smoke_after(), CONNECT_ONE_SHOT)
 	staged.done.connect(func(): npc_talk.cue.disconnect(staged.play), CONNECT_ONE_SHOT)
 	return staged
+
+
+## A smoke date's over: laced with Keepsake, if Ophelia's that far gone (obsession.gd).
+func _smoke_after() -> void:
+	if Obsession.smoke_date():
+		hud.toast(LACED, HUB_LINE_SECONDS)
 
 
 ## Who Eco can ask out now: the first of the people she's romancing who's
@@ -1084,6 +1118,8 @@ func open_bench(kind: String) -> void:
 		bench = DispensaryScreen.new()
 	elif kind == "gear_off":
 		bench = GearOffScreen.new()
+	elif kind == "obsession":
+		bench = ObsessionScreen.new(npc_talk)
 	else:
 		bench = GunsmithScreen.new(armory) if kind == "gunsmith" else BenchScreen.new(armory, kind)
 	bench.set_meta("kind", kind)
@@ -1403,6 +1439,8 @@ func nearest_hub_spot() -> Dictionary:
 	for spot in zone_info.get("interactables", []):
 		if spot.has("errand") and (spot["errand"] != Vices.errand or Vices.errand_done or not Vices.allowed()):
 			continue  # Marrow's errand spots are only there while she's on one
+		if spot["id"] == "ophelia_papers" and not Obsession.papers_there():
+			continue  # her Keepsake tin, only while it's in Eco (obsession.gd)
 		if spot.has("glass") and (not Glass.ledger_there() or spot["glass"] in Glass.vats):
 			continue  # the Chorus's ledger and vats (glass.gd)
 		var at: Vector3 = spot["pos"]
@@ -1782,6 +1820,7 @@ func end_run(title: String, reason: String) -> void:
 	Vices.run_over()
 	Glass.run_over()
 	Hymn.run_over()
+	Obsession.run_over()
 	tether.stop()
 	var haul := Armory.run_haul(run.materials, won)
 	armory.bank(haul)

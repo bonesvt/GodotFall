@@ -7,6 +7,9 @@ extends CanvasLayer
 ## and the drunk haze (drunk_screen.gd), under the HUD.
 
 const Vices := preload("res://scripts/hub/vices.gd")
+const Obsession := preload("res://scripts/hub/obsession.gd")
+const VIOLET := Color(0.62, 0.22, 0.95)
+const ROSE := Color(0.95, 0.3, 0.55)
 
 const SHADER := """
 shader_type canvas_item;
@@ -14,6 +17,7 @@ uniform float strength = 0.0;
 uniform float beat = 0.0;
 uniform float flare = 0.0;
 uniform float aspect = 1.777;
+uniform vec3 tint = vec3(0.62, 0.22, 0.95);
 
 void fragment() {
 	vec2 c = (UV - 0.5) * vec2(aspect, 1.0);
@@ -27,7 +31,7 @@ void fragment() {
 	float spiral = sin(a * 5.0 + log(r + 0.05) * 9.0 - TIME * 1.6);
 	float tendrils = smoothstep(0.55, 1.0, spiral) * smoothstep(reach - 0.25, reach + 0.3, r) * smoothstep(0.45, 0.9, s);
 	float k = clamp(edge * (0.55 + 0.35 * beat) + tendrils * 0.5, 0.0, 1.0);
-	vec3 violet = mix(vec3(0.08, 0.0, 0.14), vec3(0.62, 0.22, 0.95), tendrils + 0.25 * beat);
+	vec3 violet = mix(tint * 0.15, tint, tendrils + 0.25 * beat);
 	k = max(k * s, flare * (0.35 + 0.5 * smoothstep(0.1, 0.8, r)));
 	violet = mix(violet, vec3(0.75, 0.4, 1.0), flare * 0.6);
 	COLOR = vec4(violet, k * 0.85);
@@ -66,7 +70,9 @@ static func heartbeat(phase: float) -> float:
 
 
 func _process(delta: float) -> void:
-	var s := Vices.crave_level()
+	# Marrow's (or the stims') violet, or Ophelia's rose when that pull is stronger
+	var s := maxf(Vices.crave_level(), Obsession.crave)
+	_mat.set_shader_parameter("tint", ROSE if Obsession.crave > Vices.crave_level() else VIOLET)
 	# His words or his pull: it flares while they have her.
 	_flare = move_toward(_flare, 1.0 if (Vices.entranced and Vices.allowed()) else 0.0, delta * 2.5)
 	_rect.visible = s > 0.01 or _flare > 0.01

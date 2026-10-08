@@ -17,6 +17,7 @@ const FamilyBed := preload("res://scripts/hub/family_bed.gd")
 const K := preload("res://scripts/hub/hub_kit.gd")
 const Kit := preload("res://scripts/run/level_kit.gd")
 const Props := preload("res://scripts/hub/hub_props.gd")
+const Obsession := preload("res://scripts/hub/obsession.gd")
 
 ## Tent doors: half width and height. The tents' deck floors are at F (the
 ## same height as the temple's floor).
@@ -354,6 +355,14 @@ static func _ophelia(root: Node3D, info: Dictionary) -> void:
 	# A full-length mirror, covered with a sheet.
 	K.mesh(root, Vector3(x1 - 0.4, F + 0.9, zb + 0.4), Vector3(0.6, 1.8, 0.1), Art.material("canvas", Color(0.75, 0.73, 0.75)), Vector3(4, -30, 0))
 	_rug(root, Vector3(x0 + 4.4, 0, zb + 3.3), Vector2(3.2, 2.4), Color(0.22, 0.12, 0.28))
+	# Her Keepsake tin under the pillow (obsession.gd), while Eco has it in her: rose
+	# papers in a battered tin. The spot's always listed; the run manager skips it
+	# unless the tin's there (papers_there()).
+	if Obsession.papers_there():
+		var tin := bed + Vector3(-0.2, 0.62, -0.55)
+		K.mesh(root, tin, Vector3(0.16, 0.04, 0.11), Art.material("gunmetal", Color(0.6, 0.45, 0.5)))
+		K.glow(root, tin + Vector3(0.0, 0.025, 0.0), Vector3(0.1, 0.008, 0.07), Color(1.0, 0.45, 0.65))
+	K.interactable(info, "ophelia_papers", bed + Vector3(0.7, 0, 0.2), "[F] Something under her pillow", ["A tin."], 1.3)
 	_npc(info, "ophelia", "Ophelia", Vector3(x0 + 4.6, F, zb + 3.4), 180.0)
 
 
