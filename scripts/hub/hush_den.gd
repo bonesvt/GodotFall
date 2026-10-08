@@ -110,16 +110,23 @@ const BATH_LINES := [
 ]
 ## His storeroom, behind a door in the basement's north wall: shelves of his
 ## tins, a bare bulb, and by the door a pair of cuffs on a hook, open, unused.
-## Locked from outside when she comes to there, for STORE_LOCK s.
+## Its lock is on the inside: she locks herself in.
 const STORE_ROOM := BASEMENT + Vector3(0, 0, 10.0)
 const STORE_SIZE := Vector3(3.0, 2.5, 2.6)
 const STORE_WAKE := STORE_ROOM + Vector3(-0.6, 0, 0.2)
 const STORE_DOOR_IN := BASEMENT + Vector3(1.4, 0, 3.2)
 const STORE_DOOR_OUT := STORE_ROOM + Vector3(1.1, 0, -0.8)
-const STORE_LOCK := 9.0
-const STORE_LINE := "Eco comes to on the floor of a storeroom, shelves of his tins all round her. The door's locked from the outside. On a hook beside it hang a pair of cuffs, open. Unused. For now."
-const STORE_LOCKED_DOOR := "Locked from the outside. Eco doesn't shout. She doesn't want to know who'd come."
-const STORE_UNLOCKED := "The lock clicks from the outside. Footsteps on the stairs, going up. Then nothing. The cuffs stay on their hook."
+## She comes to there holding the key and an empty vial, the door locked from
+## her side: she unlocked it once, then locked herself back in. Leaving is
+## holding [F] while the Hush drags her eyes to the glow under the door
+## (leave_pull.gd); from STORE_CANT_FROM Hold she can't finish until Marrow,
+## through the door, has said his piece and gone back up (STORE_HE_GOES s).
+const STORE_CANT_FROM := 70.0
+const STORE_HE_GOES := 7.0
+const STORE_LINE := "Eco comes to on the storeroom floor, the key in one hand and an empty Hush vial in the other. The door's locked from her side. She unlocked it once: there's a scratch by the lock where the key slipped. Then she locked herself back in. A pair of cuffs hangs open on a hook by the door."
+const STORE_THROUGH_DOOR := "Marrow, through the door, close to it: \"I bought those for the first ones. I've never needed them for you.\""
+const STORE_HE_LEAVES := "Footsteps on the stairs, going up. Her hand's steadier on the key with him gone."
+const STORE_OUT := "The key turns. The violet under the door goes out as she opens it."
 ## The bathroom mirror: a dark murky glass with smoke drifting through it, and
 ## now and then two violet eyes in it for a moment.
 const MIRROR := "shader_type spatial;
@@ -470,7 +477,7 @@ static func _bathroom(root: Node3D, info: Dictionary) -> void:
 	K.interactable(info, "bath_phone", phone + Vector3(0.3, 0, -0.2), "[F] Your phone", [
 		"14 missed calls. Mom. Mom. Mom. Mom. The last one was an hour ago. No voicemail on that one.",
 	], 1.2)
-	K.mesh(root, BATH_DOOR_OUT + Vector3(0.45, 1.0, 0), Vector3(0.08, 2.0, 0.85), Art.material("wood", Color(0.4, 0.34, 0.28)))
+	K.mesh(root, BATH_DOOR_OUT + Vector3(0.41, 1.0, 0), Vector3(0.06, 2.0, 0.85), Art.material("wood", Color(0.4, 0.34, 0.28)))
 	K.interactable(info, "bath_door", BATH_DOOR_OUT, "[F] Back out to the basement", ["The bathroom door sticks, then gives."], 1.6)
 	info["interactables"].back()["teleport"] = BATH_DOOR_IN + Vector3(0.9, 0, 0)
 	K.mesh(root, BATH_DOOR_IN + Vector3(-0.15, 1.0, 0), Vector3(0.08, 2.0, 0.85), Art.material("wood", Color(0.4, 0.34, 0.28)))
@@ -479,8 +486,9 @@ static func _bathroom(root: Node3D, info: Dictionary) -> void:
 
 
 ## His storeroom: shelves of his tins, a bare bulb, crates, and by the door a
-## pair of cuffs hanging on a hook, open. The door's a "locked_wake" spot: shut
-## while she's locked in after coming to here (run_manager.gd).
+## pair of cuffs hanging on a hook, open; the empty vial she dropped, and violet
+## light glowing under the door from his basement. The door's a "locked_wake"
+## spot: after coming to here she has to hold to leave (leave_pull.gd).
 static func _storeroom(root: Node3D, info: Dictionary) -> void:
 	var r := STORE_ROOM
 	_shell(root, r, STORE_SIZE, Color(0.4, 0.38, 0.36), Color(0.38, 0.36, 0.34))
@@ -497,7 +505,7 @@ static func _storeroom(root: Node3D, info: Dictionary) -> void:
 	K.light(root, r + Vector3(0, 2.2, 0), Color(1.0, 0.85, 0.6), 0.8, 4.0)
 	K.light(root, STORE_DOOR_OUT + Vector3(-0.2, 2.0, 0.6), Color(1.0, 0.85, 0.6), 0.6, 2.0)  # over the door
 	# the cuffs on their hook, beside the door: open, hanging, never used
-	var hook := STORE_DOOR_OUT + Vector3(0.45, 1.5, 0.75)
+	var hook := STORE_DOOR_OUT + Vector3(0.37, 1.5, 0.75)  # on the wall (its inside face is 0.4 past the door spot)
 	K.mesh(root, hook, Vector3(0.04, 0.04, 0.08), Art.material("gunmetal"))
 	var steel := Art.material("alloy", Color(0.75, 0.77, 0.8))
 	for s in [-1.0, 1.0]:
@@ -511,14 +519,34 @@ static func _storeroom(root: Node3D, info: Dictionary) -> void:
 		ring.rotation_degrees = Vector3(10 * s, 0, 90)  # hanging flat to the wall, facing into the room
 		root.add_child(ring)
 	K.mesh(root, hook + Vector3(-0.03, -0.07, 0), Vector3(0.01, 0.1, 0.012), steel)  # the chain
-	# the door: steel, and from the basement side its bolt
-	K.mesh(root, STORE_DOOR_OUT + Vector3(0.45, 1.05, 0), Vector3(0.08, 2.1, 1.0), Art.material("gunmetal", Color(0.33, 0.33, 0.35)))
+	# the door: steel, its lock and keyhole on this side, violet glowing under it
+	K.mesh(root, STORE_DOOR_OUT + Vector3(0.36, 1.07, 0), Vector3(0.06, 2.06, 1.0), Art.material("gunmetal", Color(0.55, 0.55, 0.58)))
+	K.mesh(root, STORE_DOOR_OUT + Vector3(0.31, 1.05, -0.32), Vector3(0.04, 0.2, 0.12), Art.material("alloy", Color(0.8, 0.7, 0.45)))  # the lock
+	K.mesh(root, STORE_DOOR_OUT + Vector3(0.288, 1.0, -0.32), Vector3(0.01, 0.025, 0.012), Art.material("gunmetal", Color(0.05, 0.05, 0.05)))  # its keyhole
+	var glow := StandardMaterial3D.new()
+	glow.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	glow.albedo_color = Color(0.92, 0.75, 1.0)
+	K.mesh(root, STORE_DOOR_OUT + Vector3(0.31, 0.012, 0), Vector3(0.05, 0.02, 0.96), glow)
+	K.light(root, STORE_DOOR_OUT + Vector3(0.25, 0.06, 0), VIOLET, 1.8, 2.2)  # spilling across the floor
+	# the vial she emptied, on the floor where she came to
+	var vial := MeshInstance3D.new()
+	var vm := CylinderMesh.new()
+	vm.top_radius = 0.012
+	vm.bottom_radius = 0.012
+	vm.height = 0.07
+	vial.mesh = vm
+	var vg := StandardMaterial3D.new()
+	vg.albedo_color = Color(0.8, 0.7, 1.0, 0.5)
+	vg.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	vial.material_override = vg
+	vial.position = STORE_WAKE + Vector3(0.25, 0.012, -0.15)
+	vial.rotation_degrees = Vector3(0, 30, 90)
+	root.add_child(vial)
 	K.interactable(info, "store_door", STORE_DOOR_OUT, "[F] The door", ["It opens."], 1.8)
 	info["interactables"].back()["teleport"] = STORE_DOOR_IN + Vector3(0, 0, -0.9)
 	info["interactables"].back()["locked_wake"] = true
 	K.mesh(root, STORE_DOOR_IN + Vector3(0, 1.05, 0.25), Vector3(1.0, 2.1, 0.08), Art.material("gunmetal", Color(0.33, 0.33, 0.35)))
-	K.mesh(root, STORE_DOOR_IN + Vector3(0.35, 1.1, 0.2), Vector3(0.25, 0.05, 0.05), Art.material("alloy", Color(0.7, 0.7, 0.72)))  # the bolt
-	K.interactable(info, "storeroom", STORE_DOOR_IN, "[F] The storeroom", ["A steel door with a bolt on this side."], 1.6)
+	K.interactable(info, "storeroom", STORE_DOOR_IN, "[F] The storeroom", ["A steel door. Its lock's on the inside."], 1.6)
 	info["interactables"].back()["teleport"] = STORE_DOOR_OUT + Vector3(-0.9, 0, 0)
 
 

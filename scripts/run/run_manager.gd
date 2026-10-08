@@ -67,6 +67,7 @@ const BarScreen := preload("res://scripts/hub/bar_screen.gd")
 const StimScreen := preload("res://scripts/hub/stim_screen.gd")
 const HushScreen := preload("res://scripts/hub/hush_screen.gd")
 const HushDen := preload("res://scripts/hub/hush_den.gd")
+const LeavePull := preload("res://scripts/hub/leave_pull.gd")
 const DrunkScreen := preload("res://scripts/ui/drunk_screen.gd")
 const CravingScreen := preload("res://scripts/ui/craving_screen.gd")
 const HushPull := preload("res://scripts/hub/hush_pull.gd")
@@ -250,8 +251,10 @@ var visor_friends: Node
 var _taken_with := ""
 ## Marrow's Glass on runs (focus, his orders: tether.gd) and the Chorus's end (chorus_scene.gd).
 var tether: Tether
-## Locked in Marrow's storeroom after coming to there (hush_den.gd STORE_LOCK).
+## Locked in Marrow's storeroom after coming to there, by her own hand
+## (hush_den.gd STORE_*), and her holding on to leave (leave_pull.gd).
 var _store_locked := false
+var _leave_pull: CanvasLayer
 var chorus_scene: ChorusScene
 ## What she grabbed by mistake for this run, deep in Marrow's Hold
 ## (vices.gd wrong_gear): put right when she gets home.
@@ -890,8 +893,10 @@ func _hub_tick(delta: float) -> void:
 	if spot.get("press_console", false):
 		_step_press_strength()
 		return
-	if spot.get("locked_wake", false) and _store_locked:  # Marrow's storeroom, locked from outside
-		hud.toast(HushDen.STORE_LOCKED_DOOR, 3.0)
+	if spot.get("locked_wake", false) and _store_locked:  # Marrow's storeroom: she locked herself in
+		if _leave_pull == null or not is_instance_valid(_leave_pull):
+			_leave_pull = LeavePull.new(self)
+			add_child(_leave_pull)
 		return
 	if spot.has("teleport") and (spot.get("open", false) or Vices.allowed()):
 		place_player(spot["teleport"])
@@ -2038,9 +2043,8 @@ func _wake_at_marrows() -> void:
 		HushDen.show_iv(hush.get("iv", {}), w["iv"])
 		if w["iv"] == "taped":
 			Vices.hold = minf(Vices.hold + HushDen.DRIP_HOLD, Vices.MAX_HOLD)  # what the drip put in her
-	if w.get("locked", false):  # his storeroom: locked from outside a while, then let out
+	if w.get("locked", false):  # his storeroom: she locked herself back in
 		_store_locked = true
-		get_tree().create_timer(HushDen.STORE_LOCK).timeout.connect(_store_unlocked)
 	Vices.save()
 	place_player(w["pos"])
 	var tab := mini(Vices.TAB, armory.amount("scrap")) if w["his"] else 0
@@ -2058,12 +2062,14 @@ func _wake_at_marrows() -> void:
 	hud.toast(w["line"] + ("  (-%d scrap)" % tab if tab > 0 else ""), 6.0)
 
 
-func _store_unlocked() -> void:
-	if not _store_locked:
-		return
+## She held on long enough to turn the key (leave_pull.gd): out into his basement.
+func store_left() -> void:
 	_store_locked = false
-	if phase == Phase.HUB:
-		hud.toast(HushDen.STORE_UNLOCKED, 5.0)
+	_leave_pull = null
+	if phase != Phase.HUB:
+		return
+	place_player(HushDen.STORE_DOOR_IN + Vector3(0, 0, -0.9))
+	hud.toast(HushDen.STORE_OUT, 4.0)
 
 
 ## A breath of smoke drifting up in front of the camera.
