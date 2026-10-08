@@ -160,6 +160,23 @@ func _run() -> void:
 	_check("riding her bones", clusters.all(func(c): return c is BoneAttachment3D and c.get_parent() == skeleton and c.bone_idx >= 0))
 	var iris := _surface(eco, "eco_v_iris")
 	_check("her eyes go pale", iris != null and (iris.get_shader_parameter("albedo") as Color).is_equal_approx(ViceLooks.LOOKS["kintsugi"]["iris"]), iris)
+	var body := _surface(eco, "eco_v_body")
+	_check("her suit opens on her skin", body != null and body.get_shader_parameter("mask_tex") == load(ViceLooks.TEX % ["kintsugi", "mask"]), body)
+	eco.wear("vl_marrow_4")
+	await _ticks(1)
+	_check("His comes with a belly ring", skeleton.get_node_or_null("EcoExtras_navel") != null)
+	var inked := _surface(eco, "eco_v_body")
+	_check("and his swirl on her thigh", inked != null and inked.get_shader_parameter("tattoo_tex") != null, inked)
+	var drop: MeshInstance3D = null
+	for mi in skeleton.get_node("EcoExtras_navel").find_children("*", "MeshInstance3D", true, false):
+		drop = mi
+	var drop_col: Color = (drop.material_override as ShaderMaterial).get_shader_parameter("albedo") if drop != null and drop.material_override is ShaderMaterial else Color.BLACK
+	_check("its drop is his violet", drop_col.is_equal_approx(ViceLooks.VIOLET), drop_col)
+	for path: String in ["glass", "hymn", "faith", "colony"]:
+		eco.wear(ViceLooks.look_id(path, 4))
+		await _ticks(1)
+		var ink := _surface(eco, "eco_v_body")
+		_check(path + "'s look brings its own tattoo", ink != null and ink.get_shader_parameter("tattoo_tex") != null, path)
 	eco.wear("vl_glass_1")
 	await _ticks(1)
 	_check("stage 1: a little crystal", ViceLooks.crystal_clusters(eco).size() == 3, ViceLooks.crystal_clusters(eco).size())
