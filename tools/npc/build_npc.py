@@ -2,7 +2,7 @@
 model, kept in the project files as preset/anime-fox-girl-preset.zip ->
 Untitled.glb), so they share her anime toon look. Run through Blender 4:
 
-    blender -b --factory-startup -P tools/npc/build_npc.py -- <Untitled.glb> <repo root> <mom|ophelia|biggie> [--concept <png prefix>] [--no-export]
+    blender -b --factory-startup -P tools/npc/build_npc.py -- <Untitled.glb> <repo root> <mom|ophelia|biggie|pip> [--concept <png prefix>] [--no-export]
 
 It reuses the helpers in tools/eco/build_eco_vroid.py (loaded without running
 its main()), then gives each character their own hair, face, body and painted
@@ -17,6 +17,11 @@ clothes:
   flat chest, broad shoulders, a gut, thick limbs, a grey buzz cut and a big
   grey beard, a scar over his left eye; his faded field jacket (too tight now)
   over a grey tee, ribbons on his chest, cargo trousers and a knee brace.
+- pip: Eco's older sister, who runs Downtown's casino and club. Taller, the
+  family red gone deep wine, long and sleek with a deep side part; amber eyes,
+  winged liner, wine lips, a beauty mark; a wine satin shirt open at the collar
+  under a cinched black pinstripe waistcoat, black wide trousers, gold chain
+  with a casino chip on it, black heeled boots.
 Writes assets/models/npc/<who>.glb and assets/textures/npc/<who>/*.png. The
 glb's material names (npc_<who>_*) are swapped for toon materials on import
 by assets/models/npc/npc_import.gd. --concept renders cel-shaded concept
@@ -35,6 +40,8 @@ argv = sys.argv[sys.argv.index("--") + 1:]
 SRC, ROOT, WHO = argv[0], argv[1], argv[2]
 CONCEPT = argv[argv.index("--concept") + 1] if "--concept" in argv else None
 EXPORT = "--no-export" not in argv
+# pip's concept looks (boss, club, shark); the game's is boss
+LOOK = argv[argv.index("--look") + 1] if "--look" in argv else "boss"
 
 # Eco's builder: every helper, without running it.
 _eco_path = os.path.join(ROOT, "tools", "eco", "build_eco_vroid.py")
@@ -80,6 +87,13 @@ SPEC = {
         # silver-white
         "hair": [(0.30, (0.22, 0.21, 0.2)), (0.62, (0.42, 0.41, 0.39)),
                  (0.86, (0.62, 0.61, 0.59)), (1.0, (0.85, 0.84, 0.82))],
+    },
+    "pip": {
+        "height": 1.73, "head": 0.93, "legs": 1.05,
+        "face": {"Fcl_BRW_Angry": 0.18, "Fcl_EYE_Natural": 0.35, "Fcl_MTH_Fun": 0.22},
+        # the family red, deeper and cooler: wine
+        "hair": [(0.30, (0.022, 0.001, 0.007)), (0.62, (0.10, 0.006, 0.022)),
+                 (0.86, (0.24, 0.025, 0.055)), (1.0, (0.5, 0.17, 0.22))],
     },
 }[WHO]
 
@@ -226,6 +240,24 @@ def mess_colony(hair):
     kb.value = 0.0
 
 
+def hair_pip():
+    """Long like Mom's, a deep side part: the fringe swept off her right eye
+    and left long down her left side, past her cheek. club: a sleek, blunt
+    bob at the jaw, the same side part. shark: long, the fringe swept back
+    off both eyes."""
+    def rules(p, m):
+        if m == 1:
+            if LOOK == "shark":
+                return 1.345, 0.03, 0.0
+            if p.x > 0.004:   # her left: left long
+                return (1.262 if LOOK == "club" else -1.0), 0.03, 0.0
+            return 1.335 - 0.02 * smooth(0.0, -0.05, p.x), 0.03, 0.0
+        if LOOK == "club":
+            return 1.205, 0.03, 0.15
+        return -1.0, 0.03, 0.0
+    fold_hair(rules, drop_below=1.2 if LOOK == "club" else None)
+
+
 def hair_biggie():
     """No hair object: the preset's scalp shell (the body's HairBack material)
     dyed silver and cut back to an old man's horseshoe, bald over the crown
@@ -278,6 +310,17 @@ def face_mom():
 def face_ophelia():
     face = bpy.data.objects["Face"]
     scale_eyes(face, 0.9)
+
+
+def face_pip():
+    """Mom's bones, sharper: smaller irises, a narrower chin."""
+    face = bpy.data.objects["Face"]
+    scale_eyes(face, 0.88)
+
+    def chin(i, p):
+        w = smooth(1.262, 1.214, p.z) * smooth(-0.025, -0.045, p.y)
+        return Vector((p.x * (1 - 0.05 * w), p.y - 0.001 * w, p.z - 0.003 * w))
+    move_verts(face, chin)
 
 
 def face_biggie():
@@ -373,6 +416,22 @@ def body_ophelia():
         out = N[:, 0] * np.sign(P[:, 0])
         return -0.006 * np.exp(-((z - 0.74) / 0.08) ** 2) * np.clip(out, 0, 1) - 0.004 * ss(0.5, 0.6, z) * ss(0.75, 0.68, z)
     print("ophelia body: up to %.1f mm" % (push(bpy.data.objects["Body"], amount) * 1000))
+
+
+def body_pip():
+    """Eco's figure on a taller frame, a little fuller in the bust and hips,
+    the waist cinched in by her waistcoat."""
+    def amount(P, N):
+        x, y, z = P[:, 0], P[:, 1], P[:, 2]
+        ax = np.abs(x)
+        out = N[:, 0] * np.sign(x)
+        glute = 0.03 * np.exp(-((ax - 0.064) / 0.064) ** 2 - ((z - 0.755) / 0.08) ** 2) * ss(-0.02, 0.04, y)
+        hip = 0.018 * np.exp(-((z - 0.76) / 0.085) ** 2) * ss(0.1, 0.65, out)
+        thigh = 0.012 * ss(0.4, 0.55, z) * ss(0.8, 0.68, z) * (0.35 + 0.65 * ss(-0.5, 0.5, out))
+        bust = 0.022 * gauss(P, 0.062, -0.105, 1.04, 0.05, 0.055, 0.055) * ss(-0.03, -0.07, y)
+        waist = -0.006 * np.exp(-((z - 0.9) / 0.05) ** 2) * np.clip(out, 0, 1) * (ax < 0.2)
+        return glute + hip + thigh + bust + waist
+    print("pip body: up to %.1f mm" % (push(bpy.data.objects["Body"], amount, passes=7) * 1000))
 
 
 # Biggie's build, worked out as cross-sections (rest space, before scaling):
@@ -1057,6 +1116,15 @@ def face_paint(face, img):
         paint((0.05, 0.03, 0.055), 0.6 * (1 - ss(0.03, 0.1, np.abs(ring - 0.9))) * ss(1.2905, 1.2875, z) * (y < -0.02))
         paint((0.03, 0.02, 0.035), 0.9 * line(0.068, 1.29, 0.079, 1.297, 0.0012))
         paint((0.16, 0.04, 0.12), 0.85 * (1 - ss(0.35, 1.0, lips)) * (y < -0.04))
+    elif WHO == "pip":
+        # smoky plum lids, a long black wing, deep wine lips, a beauty mark
+        # under her left eye
+        tint((0.66, 0.42, 0.5), 0.6 * lid)
+        paint((0.03, 0.02, 0.03), 0.95 * line(0.066, 1.2905, 0.083, 1.3, 0.0013))
+        paint((0.3, 0.025, 0.06), 0.9 * (1 - ss(0.35, 1.0, lips)) * (y < -0.04))
+        tint((1.0, 0.85, 0.85), 0.25 * np.exp(-(((x - 0.045) / 0.02) ** 2 + ((z - 1.268) / 0.012) ** 2)))
+        mark = np.exp(-(((sx - 0.054) / 0.0016) ** 2 + ((z - 1.266) / 0.0016) ** 2))
+        paint((0.12, 0.05, 0.05), 0.9 * mark * front)
     else:
         # weathered: tanned, ruddy nose and cheeks, forehead lines, crow's feet
         # and a scar down through his left eye
@@ -1306,6 +1374,137 @@ def ophelia_outfit(g, skin, x, y, z, ax, front, cov, edge, sine, neck_r):
     return g.mixc(col, INK, ink)
 
 
+def pip_outfit(g, skin, x, y, z, ax, front, cov, edge, sine, neck_r):
+    """A wine satin shirt open in a deep V, sleeves rolled to the forearm,
+    under a black pinstripe waistcoat cinched at the waist with gold buttons;
+    black high-waisted trousers with a pressed crease and a gold buckle; a
+    gold chain with a casino chip on it. (club and shark: concept looks.)"""
+    if LOOK == "club":
+        return pip_club(g, skin, x, y, z, ax, front, cov, edge, sine, neck_r)
+    if LOOK == "shark":
+        return pip_shark(g, skin, x, y, z, ax, front, cov, edge, sine, neck_r)
+    WINE, WINE_D, WINE_L = (0.2, 0.012, 0.035), (0.11, 0.006, 0.02), (0.36, 0.05, 0.08)
+    VEST, STRIPE, GOLD, TROUSER = (0.016, 0.014, 0.018), (0.12, 0.11, 0.12), (0.62, 0.42, 0.1), (0.012, 0.011, 0.014)
+    neck_z = g.lerp(g.sub(1.17, g.mul(0.01, front)), 1.4, g.sstep(0.065, 0.09, ax))
+    d_shirt = g.mn(g.mn(g.sub(neck_z, z), g.sub(z, 0.83)), g.sub(0.36, ax))
+    # the open collar: a V down to her breastbone
+    v_half = g.mul(g.sub(z, 1.02), 0.6)
+    d_v = g.sub(g.mul(front, g.sub(v_half, ax)), g.sub(1.0, front))
+    shirt = g.mul(cov(d_shirt), g.sub(1.0, cov(d_v)))
+    bare = LOOK in ("bare", "crop")   # the waistcoat worn on its own
+    if bare:
+        shirt = g.mul(shirt, 0.0)
+    cuff = g.mul(g.band(ax, 0.325, 0.36), shirt)
+    sheen = g.mul(g.mul(g.sstep(0.5, 1.0, sine(g.add(g.mul(x, 0.8), z), 0.06)), 0.35), shirt)
+    # the waistcoat: sleeveless, its own lower V, a pointed hem at the front
+    hem_z = g.sub(0.8, g.mul(g.mul(front, 0.025), g.sub(1.0, g.sstep(0.0, 0.06, ax))))
+    vv_half = g.mul(g.sub(z, 0.965), 0.5)
+    if bare:   # plunging to the top button
+        vv_half = g.mul(g.sub(z, 0.94), 0.42)
+    if LOOK == "crop":   # cropped under her bust, its points over her ribs
+        hem_z = g.sub(0.93, g.mul(g.mul(front, 0.03), g.sub(1.0, g.sstep(0.0, 0.05, ax))))
+    d_vest = g.mn(g.mn(g.sub(1.13, z), g.sub(z, hem_z)), g.sub(0.15, ax))
+    d_vv = g.sub(g.mul(front, g.sub(vv_half, ax)), g.sub(1.0, front))
+    vest = g.mul(cov(d_vest), g.sub(1.0, cov(d_vv)))
+    pin = g.mul(g.sstep(0.93, 0.97, sine(x, 0.011)), vest)
+    buttons = g.mul(g.mul(g.sub(1.0, g.sstep(0.0028, 0.0038, g.sqrt(g.add(g.sq(x), g.sq(g.mul(g.sub(g.op("FRACT", g.div(g.sub(z, 0.81), 0.04)), 0.5), 0.04)))))), front),
+                    g.mul(g.sstep(0.815 if LOOK != "crop" else 0.935, 0.82 if LOOK != "crop" else 0.94, z), g.sstep(0.95 if not bare else 0.925, 0.945 if not bare else 0.92, z)))
+    # trousers: high on the waist (low on her hips under the cropped one), a pressed crease down the front of each leg
+    waist = 0.84 if LOOK != "crop" else 0.8
+    # the low one rides up over her seat at the back
+    d_trousers = g.mn(g.sub(g.add(waist, g.mul(g.sub(1.0, front), 0.035 if LOOK == "crop" else 0.0)), z), g.sub(z, 0.12))
+    trousers = cov(d_trousers)
+    crease = g.mul(g.mul(g.band(ax, 0.072, 0.0735), front), g.mul(trousers, g.sstep(waist - 0.1, waist - 0.12, z)))
+    belt = g.mul(g.band(z, waist - 0.04, waist - 0.022), trousers)
+    buckle = g.mul(g.mul(g.band(x, -0.011, 0.011), g.band(z, waist - 0.041, waist - 0.021)), front)
+    # gold cuffs on her bare forearms
+    cuffs = g.mul(g.band(ax, 0.42, 0.44), 1.0 if bare else 0.0)
+    # gold chain and the chip, resting in the V
+    chain = g.mul(g.band(g.sub(z, g.sub(1.155, g.mul(g.sq(g.div(ax, 0.05)), 0.075))), -0.0006, 0.0006), front)
+    chain = g.mul(chain, g.sub(1.0, g.sstep(0.05, 0.055, ax)))
+    chip_r = g.sqrt(g.add(g.sq(x), g.sq(g.sub(z, 1.07))))
+    chip = g.mul(g.sub(1.0, g.sstep(0.0085, 0.0095, chip_r)), front)
+    chip_ring = g.mul(g.band(chip_r, 0.0052, 0.0068), chip)
+    col = g.mixc(skin, WINE, shirt)
+    col = g.mixc(col, WINE_L, sheen)
+    col = g.mixc(col, WINE_D, cuff)
+    col = g.mixc(col, TROUSER, trousers)
+    col = g.mixc(col, (0.05, 0.048, 0.055), crease)
+    col = g.mixc(col, VEST, vest)
+    col = g.mixc(col, STRIPE, pin)
+    col = g.mixc(col, VEST, belt)
+    col = g.mixc(col, GOLD, g.mx(g.mul(buttons, vest), buckle))
+    col = g.mixc(col, GOLD, g.mx(chain, cuffs))
+    col = g.mixc(col, (0.42, 0.03, 0.05), chip)
+    col = g.mixc(col, (0.85, 0.82, 0.75), chip_ring)
+    ink = g.mx(g.mx(edge(d_vest), g.mul(edge(d_vv), cov(d_vest))), edge(d_trousers))
+    if not bare:
+        ink = g.mx(ink, g.mx(g.mul(edge(d_shirt), g.sub(1.0, vest)), g.mul(edge(d_v), shirt)))
+        ink = g.mx(ink, g.mul(g.band(ax, 0.3245, 0.3265), shirt))
+    return g.mixc(col, INK, ink)
+
+
+def pip_club(g, skin, x, y, z, ax, front, cov, edge, sine, neck_r):
+    """club: a black satin halter jumpsuit, plunging at the front and open to
+    the small of her back, a gold chain belt, black opera gloves past the
+    elbow, the chip on a short gold chain at her throat."""
+    BLACK, SHEEN, GOLD = (0.012, 0.01, 0.014), (0.07, 0.06, 0.075), (0.62, 0.42, 0.1)
+    # halter: up round the neck, off the shoulders
+    shoulder = g.sstep(0.07, 0.1, ax)
+    top_z = g.lerp(1.19, 1.06, shoulder)
+    d_suit = g.mn(g.mn(g.sub(top_z, z), g.sub(z, 0.12)), g.sub(0.17, ax))
+    plunge = g.sub(g.mul(front, g.sub(g.mul(g.sub(z, 0.93), 0.24), ax)), g.sub(1.0, front))
+    back_open = g.sub(g.mul(g.sub(1.0, front), g.sub(g.mul(g.sub(z, 0.86), 0.5), ax)), front)
+    suit = g.mul(g.mul(cov(d_suit), g.sub(1.0, cov(plunge))), g.sub(1.0, cov(back_open)))
+    sheen = g.mul(g.mul(g.sstep(0.6, 1.0, sine(g.add(x, g.mul(z, 0.4)), 0.07)), 0.5), suit)
+    gloves = cov(g.mn(g.sub(ax, 0.235), g.sub(0.6, ax)))
+    belt = g.mul(g.mul(g.band(z, 0.8, 0.808), g.sstep(0.45, 0.6, sine(g.add(x, y), 0.008))), suit)
+    collar = g.band(z, 1.172, 1.19)
+    chip_r = g.sqrt(g.add(g.sq(x), g.sq(g.sub(z, 1.15))))
+    chip = g.mul(g.sub(1.0, g.sstep(0.0075, 0.0085, chip_r)), front)
+    col = g.mixc(skin, BLACK, suit)
+    col = g.mixc(col, SHEEN, sheen)
+    col = g.mixc(col, BLACK, gloves)
+    col = g.mixc(col, GOLD, g.mx(belt, g.mul(collar, g.sub(1.0, shoulder))))
+    col = g.mixc(col, (0.42, 0.03, 0.05), chip)
+    col = g.mixc(col, (0.85, 0.82, 0.75), g.mul(g.band(chip_r, 0.0045, 0.006), chip))
+    ink = g.mx(g.mx(g.mul(edge(plunge), cov(d_suit)), g.mul(edge(back_open), cov(d_suit))), g.mx(edge(d_suit), edge(g.sub(ax, 0.235))))
+    return g.mixc(col, INK, ink)
+
+
+def pip_shark(g, skin, x, y, z, ax, front, cov, edge, sine, neck_r):
+    """shark: a cropped oxblood leather jacket, collar up, worn open over a
+    black turtleneck tucked into black trousers; a gold watch and rings."""
+    OX, OX_L, BLACK, GOLD = (0.13, 0.02, 0.02), (0.3, 0.07, 0.06), (0.014, 0.013, 0.016), (0.62, 0.42, 0.1)
+    neck_z = 1.24
+    d_turtle = g.mn(g.mn(g.sub(neck_z, z), g.sub(z, 0.8)), g.sub(0.43, ax))
+    turtle = cov(d_turtle)
+    rib = g.mul(g.mul(g.sstep(0.3, 0.7, sine(x, 0.006)), g.sstep(1.16, 1.17, z)), turtle)
+    hem_z = 0.86
+    d_jacket = g.mn(g.mn(g.sub(1.2, z), g.sub(z, hem_z)), g.sub(0.46, ax))
+    opening = g.sub(g.mul(front, g.sub(g.add(0.03, g.mul(g.sub(z, 0.86), 0.12)), ax)), g.sub(1.0, front))
+    jacket = g.mul(cov(d_jacket), g.sub(1.0, cov(opening)))
+    shine = g.mul(g.mul(g.sstep(0.7, 1.0, sine(g.add(g.mul(x, 1.3), z), 0.05)), 0.6), jacket)
+    seams = g.mul(g.mx(g.band(ax, 0.15, 0.153), g.band(g.sub(z, hem_z), 0.0, 0.02)), jacket)
+    zip_ = g.mul(g.mul(g.band(g.sub(ax, g.add(0.03, g.mul(g.sub(z, 0.86), 0.12))), 0.0, 0.0025), front), cov(d_jacket))
+    d_trousers = g.mn(g.sub(0.83, z), g.sub(z, 0.12))
+    trousers = cov(d_trousers)
+    belt = g.mul(g.band(z, 0.81, 0.828), trousers)
+    buckle = g.mul(g.mul(g.band(x, -0.01, 0.01), g.band(z, 0.81, 0.828)), front)
+    watch = g.band(ax, 0.455, 0.47)
+    col = g.mixc(skin, BLACK, turtle)
+    col = g.mixc(col, (0.05, 0.048, 0.055), rib)
+    col = g.mixc(col, BLACK, trousers)
+    col = g.mixc(col, (0.06, 0.04, 0.03), belt)
+    col = g.mixc(col, GOLD, g.mx(buckle, g.mul(watch, g.sstep(0.0, 0.01, y))))
+    col = g.mixc(col, OX, jacket)
+    col = g.mixc(col, OX_L, shine)
+    col = g.mixc(col, (0.06, 0.01, 0.01), seams)
+    col = g.mixc(col, GOLD, zip_)
+    ink = g.mx(g.mx(edge(d_jacket), g.mul(edge(opening), cov(d_jacket))), g.mx(g.mul(edge(d_turtle), 0.6), edge(d_trousers)))
+    return g.mixc(col, INK, ink)
+
+
 def colony_outfit(g, skin, x, y, z, ax, front, cov, edge, sine, neck_r):
     """colony / colony_m: Ophelia as the colony holds her in Level 2 (Bones
     picked it 2026-10-05; concepts in the project files' ophelia-captive/).
@@ -1535,6 +1734,8 @@ def clothes_graph(nt, skin):
         return col
     if WHO == "ophelia":
         return ophelia_outfit(g, skin, x, y, z, ax, front, cov, edge, sine, neck_r)
+    if WHO == "pip":
+        return pip_outfit(g, skin, x, y, z, ax, front, cov, edge, sine, neck_r)
     # biggie: an old soldier gone gentle. A long rust-red wrap coat crossed
     # left over right with an ochre trim, a cream undershirt in the V, a wide
     # dark sash tied over his belly, his old ribbons still pinned on, loose
@@ -1642,13 +1843,13 @@ def textures(objs, boots):
             plan.append((face, i, "face"))
         elif "FaceBrow" in m.name:
             px = read_px(img).copy()
-            px[..., :3] = to_srgb(np.array({"mom": (0.07, 0.016, 0.012), "ophelia": (0.01, 0.01, 0.014), "biggie": (0.5, 0.48, 0.45)}[WHO]))
+            px[..., :3] = to_srgb(np.array({"mom": (0.07, 0.016, 0.012), "ophelia": (0.01, 0.01, 0.014), "biggie": (0.5, 0.48, 0.45), "pip": (0.05, 0.006, 0.012)}[WHO]))
             px[..., 3] = ss(0.12, 0.45, px[..., 3])
             write_png(px, "brow")
             plan.append((face, i, "brow"))
         elif "FaceEyeline" in m.name or "FaceEyelash" in m.name:
             px = read_px(img).copy()
-            px[..., :3] = to_srgb(to_lin(px[..., :3]) * np.array({"mom": (0.4, 0.28, 0.26), "ophelia": (0.3, 0.2, 0.28), "biggie": (0.4, 0.33, 0.3)}[WHO]))
+            px[..., :3] = to_srgb(to_lin(px[..., :3]) * np.array({"mom": (0.4, 0.28, 0.26), "ophelia": (0.3, 0.2, 0.28), "biggie": (0.4, 0.33, 0.3), "pip": (0.2, 0.12, 0.16)}[WHO]))
             if WHO == "biggie":   # a lighter, plainer lash line
                 px[..., 3] *= 0.55
             name = "eyeline" if "Eyeline" in m.name else "lash"
@@ -1656,8 +1857,8 @@ def textures(objs, boots):
             plan.append((face, i, name))
         elif "EyeIris" in m.name:
             px = read_px(img).copy()
-            # mom: Eco's pale blue gone a touch grey; ophelia: dull grey-green; biggie: tired brown
-            target = {"mom": (0.25, 0.42, 0.55), "ophelia": (0.25, 0.32, 0.28), "biggie": (0.2, 0.12, 0.06)}[WHO]
+            # mom: Eco's pale blue gone a touch grey; ophelia: dull grey-green; biggie: tired brown; pip: amber
+            target = {"mom": (0.25, 0.42, 0.55), "ophelia": (0.25, 0.32, 0.28), "biggie": (0.2, 0.12, 0.06), "pip": (0.6, 0.33, 0.05)}[WHO]
             L = lum(to_lin(px[..., :3]))[..., None]
             px[..., :3] = to_srgb(np.clip(L * 1.6, 0, 1.4) * np.array(target))
             write_png(px, "iris")
@@ -1693,7 +1894,7 @@ def textures(objs, boots):
             px = read_px(tex_of(m)).copy()
             t = lum(to_lin(px[..., :3]))[..., None]
             lo, hi = {"mom": ((0.02, 0.01, 0.005), (0.2, 0.11, 0.06)), "ophelia": ((0.004, 0.004, 0.006), (0.06, 0.06, 0.075)),
-                      "biggie": ((0.012, 0.01, 0.008), (0.12, 0.1, 0.075))}[WHO]
+                      "biggie": ((0.012, 0.01, 0.008), (0.12, 0.1, 0.075)), "pip": ((0.003, 0.003, 0.004), (0.1, 0.09, 0.1))}[WHO]
             px[..., :3] = to_srgb(np.array(lo) * (1 - t) + np.array(hi) * t)
             write_png(px, "boots")
             plan.append((boots, i, "boots"))
@@ -1775,6 +1976,21 @@ def stance():
         add(p, "upperarm.L", Y, -4)
         add(p, "forearm.R", X, 10)
         add(p, "forearm.L", X, 10)
+    elif WHO == "pip":
+        # owns the room: chin up, shoulders back, her weight on one hip and her
+        # left hand on it
+        add(p, "chest", X, 3)
+        add(p, "head", X, 4)
+        add(p, "head", Y, -5)
+        add(p, "hips", Y, -5)
+        add(p, "thigh.L", Y, 3)
+        add(p, "thigh.R", Y, -2)
+        add(p, "shin.L", X, -8)
+        add(p, "thigh.L", X, 5)
+        add(p, "upperarm.L", Y, 30)
+        add(p, "upperarm.L", X, -8)
+        add(p, "forearm.L", Y, -80)
+        add(p, "upperarm.R", Y, -4)
     else:
         # at ease: upright, belly out, hands folded on top of it, head tilted
         # a little, the way a man listens who has time for you
@@ -1941,7 +2157,7 @@ def concept(arm, objs):
     arm.animation_data.action = bpy.data.actions["idle"]
     sc = bpy.context.scene
     sc.frame_set(0)
-    sc.render.engine = "BLENDER_EEVEE"
+    sc.render.engine = "BLENDER_EEVEE" if bpy.app.version < (4, 2) else "BLENDER_EEVEE_NEXT"
     sc.eevee.taa_render_samples = 32
     sc.view_settings.view_transform = "Standard"
     w = bpy.data.worlds.new("w")
@@ -2008,12 +2224,12 @@ def main():
     arm = E["setup_scene"]()
     E["remove_fox_parts"]()
     boots = strip_clothes()
-    {"mom": hair_mom, "ophelia": hair_ophelia, "biggie": hair_biggie}[WHO]()
-    {"mom": face_mom, "ophelia": face_ophelia, "biggie": face_biggie}[WHO]()
+    {"mom": hair_mom, "ophelia": hair_ophelia, "biggie": hair_biggie, "pip": hair_pip}[WHO]()
+    {"mom": face_mom, "ophelia": face_ophelia, "biggie": face_biggie, "pip": face_pip}[WHO]()
     if WHO == "biggie":
         body_biggie(arm)
     else:
-        {"mom": body_mom, "ophelia": body_ophelia}[WHO]()
+        {"mom": body_mom, "ophelia": body_ophelia, "pip": body_pip}[WHO]()
         E["glute_bones"](arm)   # jiggle springs, as Eco's
     extras = []
     if WHO in ("mom", "ophelia"):
