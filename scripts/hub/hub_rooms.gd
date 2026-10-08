@@ -416,6 +416,14 @@ static func _biggie(root: Node3D, info: Dictionary) -> void:
 	K.mesh(root, pot + Vector3(-0.12, 0.1, 0), Vector3(0.03, 0.1, 0.06), clay)  # handle
 	for i in 2:
 		K.mesh(root, pot + Vector3(-0.05 + i * 0.16, 0.03, 0.2), Vector3(0.07, 0.06, 0.07), Art.material("canvas", Color(0.85, 0.8, 0.7)))
+	# His pliers and tweezers by the manual: he's the one who gets the colony's
+	# gear off her (gear_off_screen.gd, Mature only; otherwise it's just his table).
+	K.mesh(root, t + Vector3(-0.62, 0.76, -0.15), Vector3(0.16, 0.02, 0.03), Art.material("gunmetal"), Vector3(0, 25, 0))
+	K.mesh(root, t + Vector3(-0.6, 0.76, 0.05), Vector3(0.12, 0.012, 0.012), Art.material("gunmetal"), Vector3(0, -15, 0))
+	K.interactable(info, "biggie_table", t + Vector3(0, 0, 1.0), "[F] Biggie's table", [
+		"Biggie's folding table: a field manual and his tea things. One cup's always for whoever drops by.",
+	], 1.4)
+	info["interactables"].back()["shop"] = "gear_off"
 	for dz in [0.75]:
 		K.wood(root, t + Vector3(0.5, 0.25, dz), Vector3(0.6, 0.5, 0.4))
 	var radio := Vector3(x0 + 0.8, F, zb + 1.4)

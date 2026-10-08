@@ -164,6 +164,40 @@ func _run() -> void:
 	_check("bridge: a puff a minute", not Hymn.tick_bridge(Hymn.BRIDGE_EVERY * 0.5) and Hymn.tick_bridge(Hymn.BRIDGE_EVERY * 0.6) and Hymn.level > before, Hymn.level)
 	_check("nothing left to put on her", Hymn.processed() == "", Hymn.gear.size())
 
+	# Biggie's table: one try a visit; a clean job takes it off, a slip shocks her.
+	Hymn.gear = ["headphones", "visor"]
+	Hymn.biggie_tried = false
+	Hymn.level = 30.0
+	run_node.open_bench("gear_off")
+	await _ticks(2)
+	var table: CanvasLayer = run_node.bench
+	_check("Biggie's table opens", table != null and table.kind == "gear_off" and table.can_try(), table)
+	table.pick("headphones")
+	_check("his band is narrower for the visor", Hymn.steady("visor") < Hymn.steady("headphones"), [Hymn.steady("visor"), Hymn.steady("headphones")])
+	for i in Hymn.HOLDS:
+		table._at = 0.5
+		table.hold_now()
+	_check("three clean holds: the headphones are off", not ("headphones" in Hymn.gear) and table.removed == "headphones", Hymn.gear)
+	await _until(func(): return run_node.bench == null, 4.0)
+	await _ticks(2)
+	_check("and off her model", player.find_child("Cup_L", true, false) == null, player.find_child("Cup_L", true, false))
+	run_node.open_bench("gear_off")
+	await _ticks(2)
+	_check("once a visit", not run_node.bench.can_try(), Hymn.biggie_tried)
+	run_node.close_bench()
+	Hymn.biggie_tried = false
+	before = Hymn.level
+	run_node.open_bench("gear_off")
+	await _ticks(2)
+	table = run_node.bench
+	table.pick("visor")
+	table._at = 0.05
+	table.hold_now()
+	_check("a slip: it stays on and shocks her", "visor" in Hymn.gear and Hymn.level == before + Hymn.SLIP and table.slipped == "visor", [Hymn.gear, Hymn.level])
+	await _until(func(): return run_node.bench == null, 4.0)
+	Hymn.run_over()
+	_check("another try after the next run", not Hymn.biggie_tried, Hymn.biggie_tried)
+
 	# A new day after a run; Teen: none of it.
 	Hymn.run_over()
 	_check("a run over: tomorrow's dose waiting", not Hymn.dosed_today, Hymn.dosed_today)

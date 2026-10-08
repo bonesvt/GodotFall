@@ -76,6 +76,7 @@ const DoseScene := preload("res://scripts/hub/dose_scene.gd")
 const CheatScreen := preload("res://scripts/hub/cheat_screen.gd")
 const Hymn := preload("res://scripts/hub/hymn.gd")
 const DispensaryScreen := preload("res://scripts/hub/dispensary_screen.gd")
+const GearOffScreen := preload("res://scripts/hub/gear_off_screen.gd")
 const Shepherd := preload("res://scripts/hub/shepherd.gd")
 const VisorScreen := preload("res://scripts/ui/visor_screen.gd")
 ## Where the Shepherd comes out, from the dispensary's spot (its back door).
@@ -781,7 +782,7 @@ func _hub_tick(delta: float) -> void:
 	if spot["id"] == "marrow" and Vices.allowed() and Glass.can_confront():
 		chorus_scene.play()
 		return
-	var vice_shop: bool = spot.get("shop", "") in ["bar", "stims", "hush", "dispensary"] and Vices.allowed()
+	var vice_shop: bool = spot.get("shop", "") in ["bar", "stims", "hush", "dispensary", "gear_off"] and Vices.allowed()
 	if spot.has("date") and (not vice_shop or date_ready(spot)) and date_at(spot):
 		return
 	if spot.has("screen"):
@@ -1081,6 +1082,8 @@ func open_bench(kind: String) -> void:
 		bench = CheatScreen.new(armory, npc_talk)
 	elif kind == "dispensary":
 		bench = DispensaryScreen.new()
+	elif kind == "gear_off":
+		bench = GearOffScreen.new()
 	else:
 		bench = GunsmithScreen.new(armory) if kind == "gunsmith" else BenchScreen.new(armory, kind)
 	bench.set_meta("kind", kind)
@@ -1110,6 +1113,11 @@ func close_bench() -> void:
 		dosed = bench.result == "took"
 		if bench.result == "palmed":
 			hud.toast("Palmed it. Nobody saw. (%d palmed so far: the officers watch closer each time.)" % Hymn.fakes, HUB_LINE_SECONDS)
+	if bench is GearOffScreen and bench.removed != "":
+		hud.toast("The %s is off her. Biggie drops it in the beer cooler. \"Let 'em come ask for it.\"" % Hymn.GEAR_NAMES[bench.removed], HUB_LINE_SECONDS)
+		Wardrobe.dress_eco(player, true)
+	elif bench is GearOffScreen and bench.slipped != "":
+		hud.toast("The %s is still on her. Try again after the next run." % Hymn.GEAR_NAMES[bench.slipped], HUB_LINE_SECONDS)
 	if bench is BarScreen and bench.net != 0:
 		hud.toast("Scrapjack: %s%d scrap tonight." % ["+" if bench.net > 0 else "", bench.net], HUB_LINE_SECONDS)
 	if bench is WardrobeScreen and not bench.changed.is_empty():
@@ -2023,6 +2031,8 @@ func _prompt() -> String:
 					return family_scene.prompt()
 				if spot.get("shop", "") == "bar" and Vices.allowed() and not date_ready(spot):
 					return "[F] The Rusted Halo: drinks, smokes and Scrapjack"
+				if spot.get("shop", "") == "gear_off" and Vices.allowed() and not Hymn.gear.is_empty():
+					return "[F] Biggie's table: get the colony gear off" + ("  (tried today)" if Hymn.biggie_tried else "")
 				if spot.get("shop", "") == "dispensary" and Vices.allowed():
 					return "[F] Colony dispensary: today's Hymn" + ("  (done today)" if Hymn.dosed_today else "")
 				if spot.get("shop", "") == "stims" and Vices.allowed():

@@ -281,7 +281,11 @@ Under the Mature rating (Settings > Game), **F** at the Rusted Halo on Low Row o
   **Plumb Line**, a white and chrome spine from below her neck to her waist, fitted segment by
   segment while she stands in the frame (a heavier, colony step). Taking the dose plays out
   (`dose_scene.gd`): she lays the glowing film on her tongue, a white wash, "Good morning,
-  citizen" (deep in Hymn she says it back). Render it: `godot --path . --resolution 1280x720 -s res://tools/hub/shepherd_shots.gd -- <dir>`.
+  citizen" (deep in Hymn she says it back). **Biggie** gets the gear off at the folding table in
+  his tent (`gear_off_screen.gd`), one try each time she's back in town: pick a piece, then
+  Space three times while his shaking hand is in the clear band (narrowest for the visor and
+  the spine, narrower the more Hymn's in her); one slip shocks her (+5 Hymn) and it stays on
+  (render: `tools/hub/biggie_table_shots.gd`). Render it: `godot --path . --resolution 1280x720 -s res://tools/hub/shepherd_shots.gd -- <dir>`.
 - Tests: `godot --headless --path . -s res://tests/vices_test.gd`, `tests/hush_pull_test.gd`,
   `tests/hold_effects_test.gd`, `tests/glass_test.gd`, `tests/trigger_test.gd`, `tests/hymn_test.gd`
 

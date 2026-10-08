@@ -18,6 +18,9 @@ extends RefCounted
 ##   gloves      comfort gloves (touch): numb hands, reloads RELOAD_SLOW slower
 ##   spine       the Plumb Line (balance): colony posture, a step heavier
 ##               (SPINE_SPEED)
+## Biggie can get a piece off at the folding table in his tent (gear_off_screen.gd):
+## one try each time she's back in town, a steady-hand job (STEADY: how much room
+## he has with each piece), and every slip shocks her (SLIP Hymn) and it stays on.
 ## All of it is saved next to her vices (path_for()).
 
 const Vices := preload("res://scripts/hub/vices.gd")
@@ -25,6 +28,13 @@ const Vices := preload("res://scripts/hub/vices.gd")
 const GEAR := ["headphones", "cuff", "visor", "bridge", "gloves", "spine"]
 const GEAR_NAMES := {"headphones": "compliance headphones", "cuff": "dose cuff", "visor": "clarity visor",
 	"bridge": "calm bridge", "gloves": "comfort gloves", "spine": "Plumb Line spine"}
+## How much room Biggie's hand has getting each piece off (the width of the
+## steady band, 0..1): the visor's cups on her eyes and the spine least of all.
+const STEADY := {"headphones": 0.22, "cuff": 0.2, "visor": 0.12, "bridge": 0.18, "gloves": 0.2, "spine": 0.1}
+## Clean holds he needs in a row (pins, needles, cups, tubes, seals, segments).
+const HOLDS := 3
+## Hymn a slip shocks into her.
+const SLIP := 5.0
 ## The calm bridge's puff: how often, and how much Hymn.
 const BRIDGE_EVERY := 60.0
 const BRIDGE_PUFF := 1.5
@@ -55,6 +65,8 @@ static var captures := 0
 static var gear: Array = []
 static var cuff_left := CUFF_TIME
 static var _puff := BRIDGE_EVERY
+## Biggie's had a go this time in town.
+static var biggie_tried := false
 static var save_path := "user://hymn.cfg"
 
 
@@ -175,8 +187,24 @@ static func speed_scale() -> float:
 	return SPINE_SPEED if has("spine") else 1.0
 
 
+## Biggie's band for piece, narrower the more Hymn's in her.
+static func steady(piece: String) -> float:
+	return float(STEADY.get(piece, 0.15)) * lerpf(1.0, 0.7, level / MAX)
+
+
+## His try at piece came off (true: it's off her) or slipped (a shock).
+static func biggie_try(piece: String, clean: bool) -> void:
+	biggie_tried = true
+	if clean:
+		gear.erase(piece)
+	else:
+		level = minf(level + SLIP, MAX)
+	save()
+
+
 ## A run ends: tomorrow's dose is waiting.
 static func run_over() -> void:
+	biggie_tried = false
 	dosed_today = false
 	cuff_left = CUFF_TIME
 	save()
@@ -190,6 +218,7 @@ static func reset() -> void:
 	hunted = false
 	captures = 0
 	gear = []
+	biggie_tried = false
 	cuff_left = CUFF_TIME
 
 
@@ -206,6 +235,7 @@ static func open(path: String) -> void:
 	hunted = bool(cfg.get_value("hymn", "hunted", false))
 	captures = int(cfg.get_value("hymn", "captures", 0))
 	gear = Array(cfg.get_value("hymn", "gear", [])).filter(func(g): return g in GEAR)
+	biggie_tried = bool(cfg.get_value("hymn", "biggie_tried", false))
 
 
 static func save() -> void:
@@ -217,4 +247,5 @@ static func save() -> void:
 	cfg.set_value("hymn", "hunted", hunted)
 	cfg.set_value("hymn", "captures", captures)
 	cfg.set_value("hymn", "gear", gear)
+	cfg.set_value("hymn", "biggie_tried", biggie_tried)
 	cfg.save(save_path)

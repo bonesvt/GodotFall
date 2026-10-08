@@ -91,7 +91,7 @@ func _run() -> void:
 			var to: Vector3 = spot["teleport"]
 			_check("%s takes her through" % spot["id"], Vector2(player.global_position.x - to.x, player.global_position.z - to.z).length() < 1.0, player.global_position)
 			continue
-		if spot.get("shop", "") in ["bar", "stims", "hush", "dispensary"] and Vices.allowed():
+		if spot.get("shop", "") in ["bar", "stims", "hush", "dispensary", "gear_off"] and Vices.allowed():
 			# Under Mature the Rusted Halo, Sal's hatch and the colony dispensary open their screens
 			# (tests/vices_test.gd, tests/hymn_test.gd).
 			await _press("interact")
