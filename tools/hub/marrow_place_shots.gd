@@ -45,7 +45,7 @@ func _go() -> void:
 	]
 	var seated: Node3D = null
 	for n in run_node.find_children("*", "Node3D", true, false):
-		if n.get_child_count() > 0 and n.get_children().any(func(c): return c is GPUParticles3D) and n.global_position.y < -5.0:
+		if n.get_child_count() > 0 and n.get_children().any(func(c): return c is GPUParticles3D) and n.global_position.y < HushDen.BASEMENT.y + 3.0:
 			seated = n
 	if seated != null:
 		var at := seated.global_position

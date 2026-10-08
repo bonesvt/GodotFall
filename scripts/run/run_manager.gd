@@ -787,7 +787,8 @@ func _hub_tick(delta: float) -> void:
 			disembark_hub_titan()
 		return
 	# Falling out of the world in the hub costs nothing: back inside the door.
-	if player.global_position.y < float(zone_info["floor_y"]) - KILL_DEPTH:
+	# (Below Marrow's basement, which is sealed off well under the town.)
+	if player.global_position.y < minf(float(zone_info["floor_y"]) - KILL_DEPTH, HushDen.BASEMENT.y - 5.0):
 		place_player(zone_info["spawn"])
 		return
 	var roaming := rest_spot.is_empty() and not npc_talk.active() and not course_armed \
