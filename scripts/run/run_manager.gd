@@ -2017,12 +2017,18 @@ func chorus_changed() -> void:
 
 ## After a run on Hush (or with his Hold deep): she comes to at Marrow's
 ## instead of at the temple: locked in her own room while his Hold is shallow,
-## in his armchair (short his tab) once it's deeper (hush_den.gd wake()).
+## in his armchair (short his tab) once it's deeper, and now and then on the
+## cot in the back room he had made up for her, by his IV (hush_den.gd wake()).
 func _wake_at_marrows() -> void:
 	Vices.trance = false
 	Vices.save()
 	var w := HushDen.wake(Vices.hold, Vices.wakes)
 	Vices.wakes += 1
+	if w.has("iv"):  # his back room: the line capped on the blanket, or in her arm
+		var hush: Dictionary = zone_info.get("hush", {})
+		HushDen.show_iv(hush.get("iv", {}), w["iv"])
+		if w["iv"] == "taped":
+			Vices.hold = minf(Vices.hold + HushDen.DRIP_HOLD, Vices.MAX_HOLD)  # what the drip put in her
 	Vices.save()
 	place_player(w["pos"])
 	var tab := mini(Vices.TAB, armory.amount("scrap")) if w["his"] else 0

@@ -89,6 +89,20 @@ const LEDGER_TEXT := "A ledger under a colony seal. SOLACE TRIAL. Compound H: co
 const VAT_LOCKED_LINE := "Three tanks of something violet, brewing. Glass, by the smell. She'd like to know what it's for first."
 ## Under this Hold she still makes it to her own room.
 const OWN_ROOM_BELOW := 30.0
+## The back room he had made up for her, off the basement's north wall: a
+## sealed room like hers (its door teleports), a narrow cot, and his IV stand.
+const BACK_ROOM := BASEMENT + Vector3(-10.0, 0, 0)
+const BACK_SIZE := Vector3(3.2, 2.5, 3.2)
+const BACK_WAKE := BACK_ROOM + Vector3(-0.5, 0, 0.2)
+const BACK_DOOR_IN := BASEMENT + Vector3(-1.0, 0, 3.2)
+const BACK_DOOR_OUT := BACK_ROOM + Vector3(1.0, 0, -1.2)
+## From this Hold the drip's already in her arm when she comes to.
+const BACK_TAPED_FROM := 60.0
+## The Hold the drip puts in her while she's out.
+const DRIP_HOLD := 6.0
+const BACK_NOTE := "A note on the water glass, in violet ink: \"You're here so often now, I had a room made up. Come and go as you like. You always come back.\""
+const BACK_CAPPED := "Eco comes to alone on a narrow cot in a room she's never seen. A blanket. A glass of water. Beside her, an IV stand, a bag of Hush glowing violet on its hook. The line's capped, coiled on the blanket. Waiting for her."
+const BACK_TAPED := "Eco comes to alone on a narrow cot in a room she's never seen. There's tape on the inside of her arm. The line runs up to a bag of Hush glowing violet on its stand, half gone. She doesn't remember it going in. She peels the tape off. Her hand is steady. That's the worst part."
 ## Where his pull walks her in, at the foot of the stairs facing his table.
 const ARRIVE := BASEMENT + Vector3(0.3, 0, 0.7)
 ## How his pull walks her down Solace to the cellar door (hush_pull.gd):
@@ -206,20 +220,151 @@ static func build(root: Node3D, info: Dictionary) -> void:
 	_cellar(root, info)
 	_basement(root, info)
 	_her_room(root, info)
-	info["hush"] = {"wake": WAKE, "own_room": HER_WAKE, "street": CELLAR + Vector3(-1.2, 0, 0)}
+	var iv := _back_room(root, info)
+	info["hush"] = {"wake": WAKE, "own_room": HER_WAKE, "back_room": BACK_WAKE, "street": CELLAR + Vector3(-1.2, 0, 0), "iv": iv}
 	for id: String in ERRANDS:
 		K.interactable(info, "errand_" + id, ERRANDS[id]["pos"], ERRANDS[id]["prompt"], [ERRANDS[id]["done"]], 2.0)
 		info["interactables"].back()["errand"] = id  # only there while it's her errand (run_manager.gd)
 
 
 ## Which room she comes to in and what she finds, for his Hold `hold` and her
-## `n`th trance: {pos, line, his} (his: she's in his armchair, he takes a tab).
+## `n`th trance: {pos, line, his, iv} (his: she's at his, he takes a tab; iv:
+## "capped" or "taped" when it's his back room). Once she's a regular (from
+## the third trance on, his Hold past her own room), every third time she
+## comes to on the cot in the back room he had made up for her.
 static func wake(hold: float, n: int) -> Dictionary:
 	if hold < OWN_ROOM_BELOW:
 		return {"pos": HER_WAKE, "line": OWN_ROOM_LINES[n % OWN_ROOM_LINES.size()], "his": false}
+	if n >= 2 and n % 3 == 2:
+		var taped := hold >= BACK_TAPED_FROM
+		return {"pos": BACK_WAKE, "line": BACK_TAPED if taped else BACK_CAPPED, "his": true, "iv": "taped" if taped else "capped"}
 	if hold >= 60.0:
 		return {"pos": WAKE, "line": DEEP_LINES[n % DEEP_LINES.size()], "his": true}
 	return {"pos": WAKE, "line": WAKE_LINES[n % WAKE_LINES.size()], "his": true}
+
+
+## The back room he had made up for her: bare cold concrete, a narrow cot with
+## a blanket, a crate with a glass of water and his note, and an IV stand with
+## a bag of Hush glowing violet. Its line two ways, one shown at a time
+## (show_iv()): capped and coiled on the blanket, or running down to where her
+## arm lay, a curl of tape on the end. Returns {capped, taped} nodes.
+static func _back_room(root: Node3D, info: Dictionary) -> Dictionary:
+	var r := BACK_ROOM
+	var hw := BACK_SIZE.x * 0.5
+	var hd := BACK_SIZE.z * 0.5
+	var wall := Color(0.42, 0.42, 0.46)
+	_concrete(root, r + Vector3(0, -0.25, 0), Vector3(BACK_SIZE.x + 0.6, 0.5, BACK_SIZE.z + 0.6), Vector3.ZERO, Color(0.44, 0.43, 0.46))
+	_concrete(root, r + Vector3(0, BACK_SIZE.y + 0.25, 0), Vector3(BACK_SIZE.x + 0.6, 0.5, BACK_SIZE.z + 0.6), Vector3.ZERO, Color(0.34, 0.33, 0.37))
+	for side in [-1.0, 1.0]:
+		_concrete(root, r + Vector3(side * (hw + 0.15), BACK_SIZE.y * 0.5, 0), Vector3(0.3, BACK_SIZE.y, BACK_SIZE.z), Vector3.ZERO, wall)
+		_concrete(root, r + Vector3(0, BACK_SIZE.y * 0.5, side * (hd + 0.15)), Vector3(BACK_SIZE.x, BACK_SIZE.y, 0.3), Vector3.ZERO, wall)
+	# the cot: a narrow steel frame, a thin mattress, a grey blanket, a pillow
+	var cot := BACK_WAKE + Vector3(-0.35, 0, 0.1)
+	K.mesh(root, cot + Vector3(0, 0.36, 0), Vector3(0.72, 0.05, 1.9), Art.material("gunmetal", Color(0.3, 0.31, 0.33)))
+	K.mesh(root, cot + Vector3(0, 0.43, 0), Vector3(0.68, 0.09, 1.85), Art.material("canvas", Color(0.7, 0.68, 0.64)))
+	K.mesh(root, cot + Vector3(0, 0.49, -0.15), Vector3(0.7, 0.04, 1.25), Art.material("canvas", Color(0.55, 0.57, 0.64)))
+	K.mesh(root, cot + Vector3(0, 0.52, 0.72), Vector3(0.5, 0.09, 0.32), Art.material("canvas", Color(0.85, 0.84, 0.82)))
+	for x in [-0.32, 0.32]:
+		for z in [-0.9, 0.9]:
+			K.mesh(root, cot + Vector3(x, 0.17, z), Vector3(0.04, 0.34, 0.04), Art.material("gunmetal"))
+	# a crate for a table: the water glass and his note
+	var crate := cot + Vector3(0.75, 0, 0.55)
+	K.mesh(root, crate + Vector3(0, 0.25, 0), Vector3(0.5, 0.5, 0.5), Art.material("wood", Color(0.5, 0.42, 0.32)))
+	var glass := MeshInstance3D.new()
+	var cyl := CylinderMesh.new()
+	cyl.top_radius = 0.035
+	cyl.bottom_radius = 0.03
+	cyl.height = 0.12
+	glass.mesh = cyl
+	var water := StandardMaterial3D.new()
+	water.albedo_color = Color(0.8, 0.9, 1.0, 0.45)
+	water.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	water.roughness = 0.05
+	glass.material_override = water
+	glass.position = crate + Vector3(-0.1, 0.56, 0.05)
+	root.add_child(glass)
+	K.mesh(root, crate + Vector3(0.1, 0.505, -0.05), Vector3(0.15, 0.005, 0.11), Art.material("canvas", Color(0.95, 0.93, 0.88)))
+	K.mesh(root, crate + Vector3(0.1, 0.509, -0.05), Vector3(0.1, 0.002, 0.004), Art.material("fabric", VIOLET))  # his violet ink
+	K.interactable(info, "back_room_note", crate + Vector3(-0.3, 0, -0.2), "[F] Read the note", [BACK_NOTE], 1.4)
+	# the IV stand: a steel pole on a five-legged foot, a hook, the bag glowing
+	var stand := cot + Vector3(-0.6, 0, 0.5)
+	K.mesh(root, stand + Vector3(0, 0.95, 0), Vector3(0.025, 1.9, 0.025), Art.material("alloy", Color(0.8, 0.82, 0.85)))
+	for k in 5:
+		var a := k * TAU / 5.0
+		K.mesh(root, stand + Vector3(cos(a) * 0.14, 0.03, sin(a) * 0.14), Vector3(0.3, 0.02, 0.025), Art.material("alloy", Color(0.8, 0.82, 0.85)), Vector3(0, -rad_to_deg(a), 0))
+	K.mesh(root, stand + Vector3(0, 1.9, 0), Vector3(0.22, 0.015, 0.015), Art.material("alloy", Color(0.8, 0.82, 0.85)))
+	var bag := MeshInstance3D.new()
+	var bm := CapsuleMesh.new()
+	bm.radius = 0.06
+	bm.height = 0.26
+	bag.mesh = bm
+	bag.scale = Vector3(1.0, 1.0, 0.5)
+	var hush := StandardMaterial3D.new()
+	hush.albedo_color = Color(0.6, 0.3, 0.9, 0.8)
+	hush.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	hush.emission_enabled = true
+	hush.emission = VIOLET
+	hush.emission_energy_multiplier = 2.2
+	bag.material_override = hush
+	bag.position = stand + Vector3(0.09, 1.74, 0)
+	root.add_child(bag)
+	K.light(root, stand + Vector3(0.15, 1.6, -0.1), VIOLET, 0.8, 3.5)
+	K.light(root, r + Vector3(0.5, 2.3, -0.3), Color(0.85, 0.88, 1.0), 0.35, 4.0)  # a bare bulb, dim
+	var line := Art.material("alloy", Color(0.75, 0.6, 0.95))
+	var drip := bag.position + Vector3(0, -0.15, 0)
+	# capped: the line down to the blanket, coiled there, its end capped
+	var capped := Node3D.new()
+	root.add_child(capped)
+	var coil := cot + Vector3(-0.1, 0.52, 0.1)
+	_tube(capped, drip, coil + Vector3(-0.15, 0, 0.1), line)
+	for k in 10:
+		var a0 := k * TAU / 5.0
+		var a1 := (k + 1) * TAU / 5.0
+		var rr := 0.09 - k * 0.004
+		_tube(capped, coil + Vector3(cos(a0) * rr, 0.01 * k * 0.1, sin(a0) * rr), coil + Vector3(cos(a1) * rr, 0.01 * (k + 1) * 0.1, sin(a1) * rr), line)
+	K.mesh(capped, coil + Vector3(0.05, 0.015, 0.0), Vector3(0.025, 0.025, 0.05), Art.material("gunmetal", Color(0.9, 0.3, 0.3)))
+	# taped: the line down to where her left arm lay, a curl of tape on its end
+	var taped := Node3D.new()
+	root.add_child(taped)
+	var arm := cot + Vector3(-0.22, 0.53, 0.05)
+	_tube(taped, drip, arm + Vector3(0, 0.25, 0.1), line)
+	_tube(taped, arm + Vector3(0, 0.25, 0.1), arm, line)
+	K.mesh(taped, arm + Vector3(0, 0.005, 0), Vector3(0.07, 0.006, 0.05), Art.material("canvas", Color(0.95, 0.94, 0.9)))
+	taped.visible = false
+	# the doors: the steel one in, and its outside on the basement's north wall
+	K.mesh(root, BACK_DOOR_OUT + Vector3(0.45, 1.05, 0), Vector3(0.08, 2.1, 1.0), Art.material("gunmetal", Color(0.3, 0.3, 0.33)))
+	K.interactable(info, "back_room_door", BACK_DOOR_OUT, "[F] Back out to the basement", ["The door isn't locked. He wants her to know that."], 1.8)
+	info["interactables"].back()["teleport"] = BACK_DOOR_IN + Vector3(0, 0, -0.9)
+	K.mesh(root, BACK_DOOR_IN + Vector3(0, 1.05, 0.25), Vector3(1.0, 2.1, 0.08), Art.material("gunmetal", Color(0.3, 0.3, 0.33)))
+	K.interactable(info, "back_room", BACK_DOOR_IN, "[F] The back room", ["A plain steel door that wasn't there before."], 1.6)
+	info["interactables"].back()["teleport"] = BACK_DOOR_OUT + Vector3(-0.9, 0, 0)
+	return {"capped": capped, "taped": taped}
+
+
+## Which way the back room's line is: "capped" on the blanket or "taped" to
+## where her arm was (hush_den.gd wake()), on the nodes _back_room() returned.
+static func show_iv(iv: Dictionary, how: String) -> void:
+	for k in ["capped", "taped"]:
+		if iv.has(k) and is_instance_valid(iv[k]):
+			(iv[k] as Node3D).visible = k == how
+
+
+## A thin tube from a to b (the IV line).
+static func _tube(parent: Node3D, a: Vector3, b: Vector3, m: Material) -> void:
+	var mi := MeshInstance3D.new()
+	var c := CylinderMesh.new()
+	c.top_radius = 0.004
+	c.bottom_radius = 0.004
+	c.height = maxf(a.distance_to(b), 0.001)
+	c.radial_segments = 8
+	c.rings = 1
+	mi.mesh = c
+	mi.material_override = m
+	mi.position = (a + b) * 0.5
+	var dir := (b - a).normalized()
+	if absf(dir.dot(Vector3.UP)) < 0.999:
+		mi.basis = Basis(Vector3.UP.cross(dir).normalized(), Vector3.UP.angle_to(dir))
+	parent.add_child(mi)
 
 
 ## Her room: walls she patched, a cot, her tools, Dad's photo, a warm lamp,
