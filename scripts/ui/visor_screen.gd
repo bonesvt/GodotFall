@@ -41,6 +41,13 @@ uniform float strength = 1.0;
 uniform float tear = 0.0;
 uniform float seed = 0.0;
 uniform float t = 0.0;
+// the inductions' alterations to what she sees (0 none .. 1 full)
+uniform float drain = 0.0;
+uniform float tunnel = 0.0;
+uniform float ripple = 0.0;
+uniform float echo = 0.0;
+uniform float kaleido = 0.0;
+uniform float split_view = 0.0;
 float hash(float n) { return fract(sin(n) * 43758.5453); }
 void fragment() {
 	vec2 c = SCREEN_UV - 0.5;
@@ -49,6 +56,18 @@ void fragment() {
 	float r2 = dot(cc, cc);
 	// the curved inner screen: her view bends in toward its edges
 	vec2 uv = c * (1.0 + 0.09 * strength * r2) + 0.5;
+	// breathing walls: the view swells and shrinks, rings rolling out through it
+	uv = (uv - 0.5) * (1.0 - 0.05 * ripple * sin(t * 1.5708)) + 0.5;
+	uv += normalize(c + 0.0001) * sin(length(cc) * 34.0 - t * 5.0) * 0.007 * ripple;
+	// kaleidoscope: her view folded into six mirrored slices round the middle
+	if (kaleido > 0.0) {
+		vec2 p = (uv - 0.5) * vec2(aspect, 1.0);
+		float seg = 6.2831853 / 6.0;
+		float a = mod(atan(p.y, p.x) + t * 0.3, seg);
+		a = abs(a - seg * 0.5);
+		vec2 q = vec2(cos(a), sin(a)) * length(p) / vec2(aspect, 1.0) + 0.5;
+		uv = mix(uv, q, kaleido);
+	}
 	// glitch tears: bands of it slide sideways
 	float band = floor(uv.y * 26.0 + hash(seed) * 3.0);
 	float torn = step(1.0 - 0.4 * tear, hash(band + seed * 13.1));
@@ -57,6 +76,22 @@ void fragment() {
 	vec2 split = c * 0.007 * strength * (0.4 + r2 * 3.0) + vec2(torn * 0.012 * tear, 0.0);
 	vec3 col = vec3(texture(screen_tex, uv + split).r, texture(screen_tex, uv).g, texture(screen_tex, uv - split).b);
 	if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0) col = vec3(0.0);
+	// double vision: a second of everything, drifting off and back
+	if (split_view > 0.0) {
+		vec2 o = vec2(0.045, 0.012) * split_view;
+		col = mix(col, 0.5 * (texture(screen_tex, uv + o).rgb + texture(screen_tex, uv - o).rgb), min(split_view * 2.0, 1.0));
+	}
+	// time slipping: everything trails behind itself
+	if (echo > 0.0) {
+		vec2 d = vec2(cos(t * 0.7), sin(t * 0.9)) * 0.014 * echo;
+		vec3 trail = (texture(screen_tex, uv + d).rgb + texture(screen_tex, uv + d * 2.0).rgb + texture(screen_tex, uv + d * 3.0).rgb) / 3.0;
+		col = mix(col, max(col, trail), 0.75 * echo);
+	}
+	// colour draining out of the world, toward the colony's white
+	float lum = dot(col, vec3(0.3, 0.59, 0.11));
+	col = mix(col, vec3(lum) * vec3(0.92, 0.96, 1.04) + 0.1 * drain, drain);
+	// tunnel vision: white closing in from the edges
+	col = mix(col, vec3(0.95, 0.97, 1.0), smoothstep(0.62 - 0.4 * tunnel, 0.78 - 0.4 * tunnel, length(cc)) * tunnel);
 	// scanlines, and a bright bar rolling down
 	float px = SCREEN_UV.y / SCREEN_PIXEL_SIZE.y;
 	col *= 1.0 - 0.12 * strength * (0.5 + 0.5 * sin(px * 1.5708));
@@ -87,9 +122,14 @@ void fragment() {
 const COUNT_FROM := 10
 const BREATH := 4.0
 ## The inductions, in turn, and how long each runs.
-const INDUCTIONS := ["countdown", "stairs", "affirm", "breath", "heavy", "repeat"]
+const INDUCTIONS := ["countdown", "stairs", "rewrite", "breath", "heavy", "repeat", "kaleido"]
 const INDUCTION := 12.0
-const AFFIRM := ["I AM CALM.", "I AM SAFE.", "I DON'T NEED TO THINK.", "I BELONG TO THE COLONY."]
+## Her own thoughts, caught, struck out, and written over.
+const REWRITE := [["I have to get out.", "I want to stay."], ["Mom needs me.", "Mom is happy here."],
+	["Something is wrong.", "Everything is right."], ["This isn't me.", "This is who I am."]]
+const CAPTIONS := {"countdown": "COLOUR IS A DISTRACTION", "stairs": "LOOK ONLY AHEAD", "rewrite": "THOUGHT CORRECTED",
+	"breath": "THE WALLS BREATHE WITH YOU", "heavy": "TIME IS SLOWING DOWN", "repeat": "YOU ARE NOT ALONE IN THERE",
+	"kaleido": "THERE IS NO OUTSIDE"}
 const HEAVY := ["HEAVY", "HEAVIER", "SO HEAVY", "SINKING", "SINKING DEEPER"]
 const REPEAT := [["WE ARE CALM", "we are calm"], ["WE ARE TOGETHER", "we are together"], ["THE DOSE IS GOOD", "the dose is good"], ["I WILL COME BACK", "i will come back"]]
 const BREATH_BEATS := ["IN", "HOLD", "OUT", "HOLD"]
@@ -246,6 +286,39 @@ func _tick_imagery(delta: float) -> void:
 	lm.set_shader_parameter("tear", _tear)
 	lm.set_shader_parameter("seed", _tear_seed)
 	lm.set_shader_parameter("t", _t)
+	var fx := alterations()
+	for key in fx:
+		lm.set_shader_parameter(key, float(fx[key]) * _strength)
+
+
+## What the induction running now does to her view (the lens's uniforms):
+## colour drains as the countdown goes deeper, the edges white out going down
+## the stairs, the walls breathe with the counted breath, time trails while
+## the words get heavy, she sees double while she repeats, and the view folds
+## into a kaleidoscope.
+func alterations() -> Dictionary:
+	var lt := fmod(_t, INDUCTION)
+	var fx := {"drain": 0.0, "tunnel": 0.0, "ripple": 0.0, "echo": 0.0, "split_view": 0.0, "kaleido": 0.0}
+	var ease := smoothstep(0.0, 1.0, lt) * (1.0 - smoothstep(INDUCTION - 0.6, INDUCTION, lt))
+	match which_induction():
+		"countdown":
+			fx["drain"] = clampf(lt / COUNT_FROM, 0.0, 1.0) * ease
+		"stairs":
+			fx["tunnel"] = clampf(lt / 10.0, 0.0, 1.0) * 0.85 * ease
+		"rewrite":
+			fx["drain"] = 0.25 * ease  # a moment of grey round every correction
+		"breath":
+			fx["ripple"] = ease
+		"heavy":
+			fx["echo"] = smoothstep(0.0, 8.0, lt) * ease
+		"repeat":
+			fx["split_view"] = (0.5 + 0.5 * sin(lt * 1.3)) * ease
+		"kaleido":
+			fx["kaleido"] = smoothstep(1.0, 4.0, lt) * (1.0 - smoothstep(9.0, 11.5, lt))
+	if Vices.entranced:
+		fx["echo"] = maxf(fx["echo"], 0.4)
+		fx["drain"] = maxf(fx["drain"], 0.3)
+	return fx
 
 
 ## One order, somewhere on screen, big or small.
@@ -386,13 +459,18 @@ func which_induction() -> String:
 
 func _induction(size: Vector2, s: float) -> void:
 	var lt := fmod(_t, INDUCTION)
+	var cap: String = CAPTIONS.get(which_induction(), "")
+	if cap != "":
+		_text(cap, Vector2(size.x * 0.5 - cap.length() * 6.0, size.y * 0.93), 16, Color(WHITE, 0.55 * s))
 	match which_induction():
 		"countdown":
 			_countdown(size, s, lt)
 		"stairs":
 			_stairs(size, s, lt)
-		"affirm":
-			_affirm(size, s, lt)
+		"rewrite":
+			_rewrite(size, s, lt)
+		"kaleido":
+			pass
 		"breath":
 			_breath_count(size, s, lt)
 		"heavy":
@@ -418,14 +496,23 @@ func _stairs(size: Vector2, s: float, lt: float) -> void:
 	_text("ALL THE WAY DOWN" if on >= 9 else "...step down", c + Vector2(-80, 258), 18, Color(WHITE, 0.5 * s))
 
 
-## Affirmations typed out for her, one every three seconds.
-func _affirm(size: Vector2, s: float, lt: float) -> void:
-	var line: String = AFFIRM[int(lt / 3.0) % AFFIRM.size()]
-	var k := clampf(fmod(lt, 3.0) / 1.8, 0.0, 1.0)
-	var shown := line.substr(0, int(ceil(line.length() * k)))
-	var at := Vector2(size.x * 0.5 - line.length() * 11.0, size.y * 0.78)
-	_text("SAY IT:", at + Vector2(0, -34), 16, Color(WHITE, 0.45 * s))
-	_text(shown + ("_" if fmod(_t, 0.5) < 0.25 else ""), at, 38, Color(WHITE, 0.85 * s))
+## Her own thought, typed as she has it, struck out, and written over with
+## theirs, one every three seconds.
+func _rewrite(size: Vector2, s: float, lt: float) -> void:
+	var pair: Array = REWRITE[int(lt / 3.0) % REWRITE.size()]
+	var k := fmod(lt, 3.0)
+	var hers: String = pair[0]
+	var theirs: String = pair[1]
+	var at := Vector2(size.x * 0.5 - 200.0, size.y * 0.76)
+	_text("YOUR THOUGHT:", at + Vector2(0, -34), 15, Color(1.0, 0.8, 0.8, 0.5 * s))
+	var typed := hers.substr(0, int(ceil(hers.length() * clampf(k / 1.0, 0.0, 1.0))))
+	_text(typed, at, 32, Color(1.0, 0.85, 0.85, (0.85 if k < 1.6 else 0.35) * s))
+	if k > 1.1:  # struck through
+		var w := hers.length() * 15.5 * clampf((k - 1.1) / 0.4, 0.0, 1.0)
+		_draw_on.draw_line(at + Vector2(-6, -10), at + Vector2(w, -10), Color(1.0, 0.3, 0.3, 0.9 * s), 4.0)
+	if k > 1.6:  # and written over
+		var shown := theirs.substr(0, int(ceil(theirs.length() * clampf((k - 1.6) / 0.9, 0.0, 1.0))))
+		_text(shown + ("_" if fmod(_t, 0.5) < 0.25 else ""), at + Vector2(0, 44), 34, Color(WHITE, 0.9 * s))
 
 
 ## A counted breath: in for four, hold for four, out for four, hold for four.
@@ -459,6 +546,7 @@ func _repeat(size: Vector2, s: float, lt: float) -> void:
 	var at := Vector2(size.x * 0.5 - 170.0, size.y * 0.76)
 	_text("REPEAT AFTER US:", at + Vector2(0, -32), 16, Color(WHITE, 0.45 * s))
 	_text(pair[0], at, 32, Color(WHITE, 0.85 * s))
+	_text(pair[0], at + Vector2(9, 4), 32, Color(WHITE, 0.3 * s))  # seen twice
 	if k > 1.0:
 		var hers: String = pair[1]
 		var shown := hers.substr(0, int(ceil(hers.length() * clampf((k - 1.0) / 1.2, 0.0, 1.0))))

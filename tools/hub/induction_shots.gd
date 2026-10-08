@@ -1,7 +1,9 @@
 extends SceneTree
 ## The clarity visor's inductions (visor_screen.gd INDUCTIONS), one panel each,
-## caught partway through: the countdown, the stairs, the affirmations, the
-## counted breath, the heavy words with her eyelids closing, the repeat.
+## caught partway through, each bending her view its own way: the countdown
+## draining the colour, the stairs closing her view in, a thought rewritten,
+## the breathing walls, time trailing under heavy words, double vision while she
+## repeats, the kaleidoscope.
 ##   godot --path . --resolution 1280x720 -s res://tools/hub/induction_shots.gd -- <out_dir>
 ## Needs a renderer (not --headless). Writes <out_dir>/inductions.png.
 
@@ -10,7 +12,7 @@ const Hymn := preload("res://scripts/hub/hymn.gd")
 const ContentRating := preload("res://scripts/radio/content_rating.gd")
 const CELL := Vector2i(640, 360)
 ## Seconds into each induction to catch it.
-const AT := [9.5, 6.4, 7.6, 5.5, 9.2, 8.6]
+const AT := [9.5, 8.0, 2.7, 5.5, 9.0, 1.9, 6.5]
 
 var out := "user://induction_shots"
 
@@ -43,8 +45,8 @@ func _go(run_node: Node) -> void:
 		if c.get_script() != null and String(c.get_script().resource_path).ends_with("whisper_caption.gd"):
 			c.visible = false
 	await _frames(10)
-	var sheet := Image.create(CELL.x * 3, CELL.y * 2, false, Image.FORMAT_RGBA8)
-	for i in 6:
+	var sheet := Image.create(CELL.x * 4, CELL.y * 2, false, Image.FORMAT_RGBA8)
+	for i in 7:
 		visor._next_eye = 99.0
 		visor._next_tear = 99.0
 		visor._t = visor.INDUCTION * i + AT[i]
@@ -55,7 +57,7 @@ func _go(run_node: Node) -> void:
 		var img := root.get_texture().get_image()
 		img.convert(Image.FORMAT_RGBA8)
 		img.resize(CELL.x, CELL.y)
-		sheet.blit_rect(img, Rect2i(Vector2i.ZERO, CELL), Vector2i(CELL.x * (i % 3), CELL.y * (i / 3)))
+		sheet.blit_rect(img, Rect2i(Vector2i.ZERO, CELL), Vector2i(CELL.x * (i % 4), CELL.y * (i / 4)))
 	sheet.save_png(out.path_join("inductions.png"))
 	print("wrote inductions.png")
 	Hymn.reset()
