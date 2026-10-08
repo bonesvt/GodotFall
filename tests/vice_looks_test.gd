@@ -160,6 +160,8 @@ func _run() -> void:
 	_check("riding her bones", clusters.all(func(c): return c is BoneAttachment3D and c.get_parent() == skeleton and c.bone_idx >= 0))
 	var iris := _surface(eco, "eco_v_iris")
 	_check("her eyes go pale", iris != null and (iris.get_shader_parameter("albedo") as Color).is_equal_approx(ViceLooks.LOOKS["kintsugi"]["iris"]), iris)
+	var body := _surface(eco, "eco_v_body")
+	_check("her suit opens on her skin", body != null and body.get_shader_parameter("mask_tex") == load(ViceLooks.TEX % ["kintsugi", "mask"]), body)
 	eco.wear("vl_glass_1")
 	await _ticks(1)
 	_check("stage 1: a little crystal", ViceLooks.crystal_clusters(eco).size() == 3, ViceLooks.crystal_clusters(eco).size())

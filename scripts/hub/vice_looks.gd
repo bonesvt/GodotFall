@@ -52,7 +52,8 @@ const CRESTS := ["suit_t4h_collar", "suit_t5h_core", "suit_t5h_crest_l", "suit_t
 ## "hair_style" a salon cut (hair.gd), "iris" her eye colour, "glass" how far
 ## the glass covers her at full strength and "glass_tint" its colour,
 ## "crystals" crystal growths on her body. The baked textures (body, glow,
-## hair, fringe, cap, eyeline, face) are used where they exist.
+## mask, hair, fringe, cap, eyeline, face) are used where they exist; the
+## body textures bare her arms, legs and style windows (tools/eco/vice_looks.json "cuts").
 const LOOKS := {
 	"his": {"base": "suit_shade", "hair_style": "pixie", "show": ["outfit_skater_any_shoes"], "hide": ["base_", "Boots", "Goggles"],
 		"mats": {"eco_v_sneaker_skater": {"albedo": Color(0.08, 0.06, 0.1)}, "eco_v_sneaker_skater_sole": {"albedo": VIOLET, "emit": 0.6}}},
@@ -349,7 +350,7 @@ static func apply(eco: Node3D) -> void:
 	var show: Array = look["show"] if gate >= GATE["pieces"] else []
 	var mats: Dictionary = look["mats"]
 	var textures := {}
-	for part in ["body", "glow", "hair", "fringe", "cap", "eyeline", "face"]:
+	for part in ["body", "glow", "mask", "hair", "fringe", "cap", "eyeline", "face"]:
 		textures[part] = _tex(key, part)
 	var done := []
 	for node in eco.find_children("*", "MeshInstance3D", true, false):
@@ -371,7 +372,7 @@ static func apply(eco: Node3D) -> void:
 			var rn := m.resource_name
 			var spec := {}
 			if rn == "eco_v_body" and gate >= GATE["body"] and textures["body"] != null:
-				spec = {"tex": textures["body"], "glow_tex": textures["glow"]}
+				spec = {"tex": textures["body"], "glow_tex": textures["glow"], "mask_tex": textures["mask"]}
 			elif rn == "eco_v_hair" and gate >= GATE["hair"] and textures["hair"] != null:
 				spec = {"tex": textures["hair"]}
 			elif rn == "eco_v_hair_fringe" and gate >= GATE["hair"] and textures["fringe"] != null:
@@ -410,6 +411,8 @@ static func _recolour(m: ShaderMaterial, spec: Dictionary) -> ShaderMaterial:
 		d.set_shader_parameter("albedo_tex", spec["tex"])
 	if spec.has("glow_tex") and spec["glow_tex"] != null:
 		d.set_shader_parameter("glow_tex", spec["glow_tex"])
+	if spec.has("mask_tex") and spec["mask_tex"] != null:  # where the look bares her skin
+		d.set_shader_parameter("mask_tex", spec["mask_tex"])
 	if spec.has("albedo"):
 		d.set_shader_parameter("albedo", spec["albedo"])
 	if spec.has("emit"):
