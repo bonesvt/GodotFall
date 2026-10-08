@@ -661,6 +661,22 @@ func _tick_hymn(delta: float, roaming: bool) -> void:
 	hud.cuff_label.text = "DOSE CUFF  %d:%02d  get to the dispensary" % [left / 60, left % 60]
 
 
+## The dose cuff's bell (hymn.gd tick_bell): a ring calls every enemy in
+## BELL_RANGE to her and tells the Shepherd where she is.
+func _tick_bell(delta: float) -> void:
+	if player == null or player.get("entranced"):
+		return
+	var flat := Vector2(player.velocity.x, player.velocity.z).length()
+	if not Hymn.tick_bell(delta, flat, player.is_on_floor()):
+		return
+	var at := player.global_position
+	SFX.play(player, "hymn_bell", -4.0, SFX.vary(0.04))
+	for e in get_tree().get_nodes_in_group("enemies"):
+		if e is Node3D and e.has_method("hear_gunshot") and (e as Node3D).global_position.distance_to(at) <= Hymn.BELL_RANGE:
+			e.hear_gunshot(at)
+	get_tree().call_group("shepherd", "hear_bell", at)
+
+
 func place_player(pos: Vector3) -> void:
 	checkpoint = pos
 	player.spawn_transform = Transform3D(Basis(), pos)
@@ -674,6 +690,7 @@ func _physics_process(delta: float) -> void:
 	if not get_tree().paused:
 		Vices.tick(delta)
 		_vice_keys()
+		_tick_bell(delta)
 		if phase in [Phase.ZONE, Phase.ARENA, Phase.FIGHT]:
 			hush_pull.run_tick(delta, titan == null or not titan.piloted)
 			if Hymn.tick_bridge(delta):
@@ -976,6 +993,28 @@ func talk_to(who: String) -> void:
 		return
 	if hub_npcs.has(who):
 		npc_talk.start(hub_npcs[who], runs_ended, last_result == "RUN COMPLETE")
+
+
+## The top left card (run_hud.gd): everyone Eco can romance who's in her life
+## (rescued), how it stands with them, and Ophelia's obsession when it's started.
+func relations_text() -> String:
+	if npc_talk == null:
+		return ""
+	var rows := []
+	for who in ["ophelia"] + NpcTalk.NAMES.keys().filter(func(w): return w != "ophelia"):
+		if who in ["eco", "narrator"] or not is_rescued(who) or not npc_talk.romanceable(who):
+			continue
+		if not npc_talk.state.get_value(who, "met", false):
+			continue
+		var stage := NpcTalk.Romance.stage(npc_talk.state, who)
+		var row := "%s   %s   %d/%d" % [String(NpcTalk.NAMES[who]), stage.capitalize(), NpcTalk.Romance.affection(npc_talk.state, who), NpcTalk.Romance.MAX]
+		if who == "ophelia" and Obsession.allowed():
+			if Obsession.upset:
+				row += "\n   upset: you left without saying goodbye"
+			if Obsession.meter > 0.0:
+				row += "\n   obsession %d%%" % roundi(Obsession.meter)
+		rows.append(row)
+	return "\n".join(rows)
 
 
 ## The people Eco can romance, for the gift shop's taste notes:
@@ -2010,6 +2049,7 @@ func _whisper(category: String, delay := 0.0) -> void:
 
 func _update_hud() -> void:
 	hud.build_label.visible = phase != Phase.HUB
+	hud.set_relations(relations_text())
 	if phase == Phase.HUB:
 		var status := "THE TEMPLE    LEVEL %d    %s    Runs %d" % [armory.pilot_level(), _materials_text(armory.stash), runs_started]
 		if last_result != "":
@@ -2026,7 +2066,7 @@ func _update_hud() -> void:
 			status += "    %s" % Glass.state_name().to_upper()
 		if Glass.pockets_text() != "":
 			status += "    %s" % Glass.pockets_text()
-		hud.status_label.text = status + "\nHead out from the poster outside or the mission table in the hall. F looks at things and works the benches."
+		hud.status_label.text = status
 		hud.prompt_label.text = _prompt()
 		hud.crosshair.visible = hub_piloting
 		hud.fight_label.visible = hub_piloting
@@ -2037,9 +2077,9 @@ func _update_hud() -> void:
 	var where := "ZONE %d/%d" % [run.zone + 1, run.zone_count] if run.zone < run.zone_count else "FINAL"
 	if run.level != "":
 		where = "LEVEL %d" % Levels.spec(run.level)["number"] + ("  FINAL" if phase in [Phase.ARENA, Phase.FIGHT] else "")
-	hud.status_label.text = "RUN %d    %s    PILOT %d    %s    %s%s\n%s" % [
+	hud.status_label.text = "RUN %d    %s    PILOT %d    %s    %s%s" % [
 		run.run_seed, where, run.pilot_hp, _clock(run.time), _materials_text(run.materials),
-		_vices_text(), CONTROLS]
+		_vices_text()]
 
 	var build := ["TITAN BUILD"]
 	for slot in TitanParts.SLOTS:

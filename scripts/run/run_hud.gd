@@ -1,10 +1,15 @@
 extends CanvasLayer
-## Run HUD: run status, titan build, prompts, the salvage choice and the summary.
+## Run HUD: prompts, toasts, the salvage choice and the summary, and three of
+## the screen's corners (the fight is hud.gd's, bottom left): top left who Eco's
+## with (relations_label), top right what's got a hold on her (the pull clock,
+## craving, dose cuff, Hymn, Keepsake; hidden when nothing has), bottom right the
+## run status and titan build, small.
 ## The run manager writes the text; this only lays it out. The titan reticle
 ## is drawn per weapon (see titan_gun.gd) so each gun reads differently.
 
 const Vices := preload("res://scripts/hub/vices.gd")
 const Obsession := preload("res://scripts/hub/obsession.gd")
+const Hymn := preload("res://scripts/hub/hymn.gd")
 
 var status_label: Label
 var build_label: Label
@@ -16,6 +21,11 @@ var crave_bar: Control
 var trigger_label: Label
 var cuff_label: Label
 var _crave_fill: ColorRect
+var vices_panel: PanelContainer
+var hymn_label: Label
+var keepsake_label: Label
+var relations_panel: PanelContainer
+var relations_label: Label
 var crosshair: Control
 ## The piloted titan, set on embark; the reticle reads its gun.
 var titan: Node
@@ -28,15 +38,27 @@ var _toast_time := 0.0
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
-	status_label = _label(20)
-	status_label.position = Vector2(20, 270)  # under the controls help (hud.gd)
+	# Bottom right, small: where she is, what she's carrying; the titan build above it on runs.
+	status_label = _label(14)
+	status_label.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_RIGHT)
+	status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	status_label.vertical_alignment = VERTICAL_ALIGNMENT_BOTTOM
+	status_label.offset_left = -900
+	status_label.offset_right = -20
+	status_label.offset_top = -80
+	status_label.offset_bottom = -20
+	status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	status_label.add_theme_color_override("font_color", Color(0.93, 0.95, 0.98, 0.75))
 
-	build_label = _label(18)
-	build_label.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
+	build_label = _label(14)
+	build_label.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_RIGHT)
 	build_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	build_label.vertical_alignment = VERTICAL_ALIGNMENT_BOTTOM
 	build_label.offset_left = -520
 	build_label.offset_right = -20
-	build_label.offset_top = 20
+	build_label.offset_top = -220
+	build_label.offset_bottom = -84
+	build_label.add_theme_color_override("font_color", Color(0.93, 0.95, 0.98, 0.75))
 
 	prompt_label = _centered(26, 60)
 	toast_label = _centered(30, -220)
@@ -47,54 +69,49 @@ func _ready() -> void:
 	fight_label.offset_right = 500
 	fight_label.offset_top = -200
 
-	# Marrow's pull / withdrawal clock at full Hold (hush_pull.gd writes it).
-	pull_label = _label(24)
-	pull_label.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
-	pull_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	pull_label.offset_left = -300
-	pull_label.offset_right = 300
-	pull_label.offset_top = 16
-	pull_label.add_theme_color_override("font_color", Color(0.82, 0.55, 1.0))
-	pull_label.visible = false
-
-	# How bad the craving is (Vices.crave_level()), a bar under the clock.
+	# Top right: what's got a hold on her (only when something has): Marrow's pull
+	# or withdrawal clock (hush_pull.gd writes it), the craving bar, the dose
+	# cuff's countdown, Hymn in her and its gear, Ophelia's Keepsake.
+	var vices_box := _corner(Control.PRESET_TOP_RIGHT, Color(0.72, 0.5, 1.0))
+	vices_panel = vices_box[0]
+	var col: VBoxContainer = vices_box[1]
+	col.add_child(_small("HELD", 12, Color(0.85, 0.75, 1.0, 0.6)))
+	pull_label = _small("", 17, Color(0.82, 0.6, 1.0))
+	col.add_child(pull_label)
 	crave_bar = Control.new()
-	crave_bar.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
-	crave_bar.offset_left = -130
-	crave_bar.offset_right = 130
-	crave_bar.offset_top = 52
-	crave_bar.offset_bottom = 74
+	crave_bar.custom_minimum_size = Vector2(260, 16)
 	crave_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	crave_bar.visible = false
-	add_child(crave_bar)
+	col.add_child(crave_bar)
 	var back := ColorRect.new()
-	back.color = Color(0.06, 0.02, 0.1, 0.75)
+	back.color = Color(1, 1, 1, 0.08)
 	back.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	crave_bar.add_child(back)
 	_crave_fill = ColorRect.new()
 	_crave_fill.color = Color(0.7, 0.3, 1.0)
-	_crave_fill.position = Vector2(2, 2)
 	crave_bar.add_child(_crave_fill)
 	var word := Label.new()
 	word.text = "CRAVING"
-	word.add_theme_font_size_override("font_size", 14)
-	word.add_theme_color_override("font_outline_color", Color.BLACK)
-	word.add_theme_constant_override("outline_size", 4)
+	word.add_theme_font_size_override("font_size", 11)
 	word.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	word.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	word.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	crave_bar.add_child(word)
+	cuff_label = _small("", 15, Color(0.85, 0.95, 1.0))
+	col.add_child(cuff_label)
+	hymn_label = _small("", 15, Color(0.88, 0.94, 1.0))
+	col.add_child(hymn_label)
+	keepsake_label = _small("", 15, Color(1.0, 0.6, 0.75))
+	col.add_child(keepsake_label)
+	for l in [pull_label, crave_bar, cuff_label, hymn_label, keepsake_label]:
+		l.visible = false
 
-	# The Shepherd's dose cuff counting down (hymn.gd), under the craving bar.
-	cuff_label = _label(20)
-	cuff_label.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
-	cuff_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	cuff_label.offset_left = -300
-	cuff_label.offset_right = 300
-	cuff_label.offset_top = 80
-	cuff_label.add_theme_color_override("font_color", Color(0.85, 0.95, 1.0))
-	cuff_label.visible = false
-
+	# Top left: who she's with (run_manager.gd relations_text()).
+	var rel_box := _corner(Control.PRESET_TOP_LEFT, Color(1.0, 0.6, 0.75))
+	relations_panel = rel_box[0]
+	(rel_box[1] as VBoxContainer).add_child(_small("HEART", 12, Color(1.0, 0.8, 0.85, 0.6)))
+	relations_label = _small("", 15, Color(0.95, 0.93, 0.95))
+	(rel_box[1] as VBoxContainer).add_child(relations_label)
+	relations_panel.visible = false
 	# One of Marrow's trigger words, big, and the taps to shake it (trigger_words.gd).
 	trigger_label = _centered(40, 150)
 	trigger_label.offset_top = 80
@@ -119,6 +136,49 @@ func _ready() -> void:
 	summary_panel = _panel(summary_label)
 
 
+## A dark rounded card in a corner of the screen, with a thin accent line on top:
+## [the panel, the column inside it].
+func _corner(corner: int, accent: Color) -> Array:
+	var p := PanelContainer.new()
+	var box := StyleBoxFlat.new()
+	box.bg_color = Color(0.05, 0.06, 0.08, 0.62)
+	box.border_color = Color(accent, 0.55)
+	box.border_width_top = 2
+	box.set_corner_radius_all(10)
+	box.set_content_margin_all(12)
+	box.content_margin_left = 16
+	box.content_margin_right = 16
+	p.add_theme_stylebox_override("panel", box)
+	p.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	p.set_anchors_and_offsets_preset(corner)
+	var right := corner == Control.PRESET_TOP_RIGHT
+	p.grow_horizontal = Control.GROW_DIRECTION_BEGIN if right else Control.GROW_DIRECTION_END
+	p.offset_left = -20 if right else 20
+	p.offset_right = -20 if right else 20
+	p.offset_top = 20
+	add_child(p)
+	var col := VBoxContainer.new()
+	col.add_theme_constant_override("separation", 6)
+	col.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	p.add_child(col)
+	return [p, col]
+
+
+func _small(text: String, size: int, col: Color) -> Label:
+	var l := Label.new()
+	l.text = text
+	l.add_theme_font_size_override("font_size", size)
+	l.add_theme_color_override("font_color", col)
+	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	return l
+
+
+## Who she's with, for the top left card ("" hides it).
+func set_relations(text: String) -> void:
+	relations_label.text = text
+	relations_panel.visible = text != ""
+
+
 func toast(text: String, seconds := 2.5) -> void:
 	toast_label.text = text
 	_toast_time = seconds
@@ -130,10 +190,23 @@ func _process(delta: float) -> void:
 	var crave := maxf(Vices.crave_level(), Obsession.crave)
 	crave_bar.visible = crave > 0.01
 	if crave_bar.visible:
-		_crave_fill.size = Vector2((crave_bar.size.x - 4.0) * crave, crave_bar.size.y - 4.0)
+		_crave_fill.size = Vector2(crave_bar.size.x * crave, crave_bar.size.y)
 		# it throbs once it's bad
 		_crave_fill.color = Color(0.95, 0.35, 0.6) if Obsession.crave > Vices.crave_level() else Color(0.7, 0.3, 1.0)
 		_crave_fill.color.a = 1.0 if crave < 0.6 else 0.75 + 0.25 * sin(Time.get_ticks_msec() / 1000.0 * TAU * 1.8)
+	# Hymn in her and the gear on her; Ophelia's Keepsake
+	hymn_label.visible = Hymn.allowed() and (Hymn.level > 0.0 or not Hymn.gear.is_empty() or Hymn.hunted)
+	if hymn_label.visible:
+		var t := "HYMN  %d%%" % roundi(Hymn.level)
+		if not Hymn.gear.is_empty():
+			t += "   gear %d/%d" % [Hymn.gear.size(), Hymn.GEAR.size()]
+		if Hymn.hunted:
+			t += "   HUNTED"
+		hymn_label.text = t
+	keepsake_label.visible = Obsession.allowed() and Obsession.keepsake > 0.0
+	if keepsake_label.visible:
+		keepsake_label.text = "KEEPSAKE  %d%%" % roundi(Obsession.keepsake) + ("   pull home %d%%" % roundi(Obsession.crave * 100.0) if Obsession.crave > 0.01 else "")
+	vices_panel.visible = visible and (pull_label.visible or crave_bar.visible or cuff_label.visible or hymn_label.visible or keepsake_label.visible)
 	if crosshair.visible:
 		crosshair.queue_redraw()
 

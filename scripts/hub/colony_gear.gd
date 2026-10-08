@@ -7,7 +7,8 @@ extends RefCounted
 ##   headphones  white cans with glowing rings and a band over her head; a
 ##               pin from each cup locked into her ear (why they won't come off)
 ##   cuff        a white dose cuff on her left wrist, its ring glowing, four
-##               needles in under it
+##               needles in under it, and a little brass Hymn bell hanging off
+##               it on a short chain (hymn.gd tick_bell: it rings as she runs)
 ##   visor       the clarity visor: a white band over her eyes, lit across,
 ##               a glass suction cup sealed on each eye under it, and a prong
 ##               into each temple
@@ -189,6 +190,9 @@ static func _match_layers(model: Node, root: Node3D, mesh_name: String) -> void:
 	if own != null:
 		for mi in root.find_children("*", "MeshInstance3D", true, false):
 			mi.layers = own.layers
+			# her first-person "Shadow" copy is drawn only into shadows (eco_fp_body.gd);
+			# its gear has to be too, or it hangs in front of the camera
+			mi.cast_shadow = own.cast_shadow
 
 
 static func _headphones(root: Node3D) -> void:
@@ -341,6 +345,22 @@ static func _cuff(root: Node3D, wrist: Vector3) -> void:
 		needle.basis = Basis(Vector3(1, 0, 0), a + PI)  # +Y points in at her wrist
 		root.add_child(needle)
 		_cylinder(needle, Vector3(0, 0.015, 0), 0.0025, 0.03, _lit())
+	# the Hymn bell, on a short chain from the underside of the cuff
+	var bell := Node3D.new()
+	bell.name = "Bell"
+	bell.position = at + Vector3(0, -0.05, 0)
+	root.add_child(bell)
+	_line(bell, Vector3.ZERO, Vector3(0, -0.022, 0), 0.0015, _chrome())
+	var dome := CylinderMesh.new()
+	dome.top_radius = 0.006
+	dome.bottom_radius = 0.016
+	dome.height = 0.022
+	dome.radial_segments = 16
+	_add(bell, dome, Vector3(0, -0.033, 0), _brass())
+	var clapper := SphereMesh.new()
+	clapper.radius = 0.004
+	clapper.height = 0.008
+	_add(bell, clapper, Vector3(0, -0.046, 0), _brass())
 
 
 ## A tapered rod from  to  (radius r, to r2 at  if given).
@@ -368,6 +388,17 @@ static func _chrome() -> StandardMaterial3D:
 	m.metallic = 0.9
 	m.roughness = 0.2
 	_mats["chrome"] = m
+	return m
+
+
+static func _brass() -> StandardMaterial3D:
+	if _mats.has("brass"):
+		return _mats["brass"]
+	var m := StandardMaterial3D.new()
+	m.albedo_color = Color(0.8, 0.62, 0.28)
+	m.metallic = 0.85
+	m.roughness = 0.3
+	_mats["brass"] = m
 	return m
 
 

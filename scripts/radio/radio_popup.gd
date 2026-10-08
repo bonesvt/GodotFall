@@ -39,10 +39,10 @@ func _ready() -> void:
 	font = ThemeDB.fallback_font
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
-	offset_left = 24
-	offset_right = 24 + WIDTH
-	offset_bottom = -100
-	offset_top = -100 - (HEADER + PAD * 2.0 + ROW * MAX_ROWS)
+	offset_left = 20
+	offset_right = 20 + WIDTH
+	offset_bottom = -170  # above the fight panel (hud.gd)
+	offset_top = -170 - (HEADER + PAD * 2.0 + ROW * MAX_ROWS)
 	modulate.a = 0.0
 
 

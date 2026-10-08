@@ -221,6 +221,13 @@ func _say() -> void:
 
 
 ## A Hymn dart at her: it flies, and hits if she's still where it's going.
+## Her cuff's bell rang at pos (hymn.gd tick_bell): it knows where she is.
+func hear_bell(pos: Vector3) -> void:
+	if step == Step.HUNT:
+		_last_seen = pos
+		unseen = 0.0
+
+
 func fire_dart() -> void:
 	var p := _player()
 	var from := global_position + Vector3(0.42, 1.0, 0) .rotated(Vector3.UP, rotation.y)

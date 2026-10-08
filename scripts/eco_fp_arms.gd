@@ -80,6 +80,7 @@ func _process(delta: float) -> void:
 	if _poll <= 0.0:
 		_poll = 0.25
 		_sync()
+	_hide_off_arm()
 
 
 func _sync() -> void:
@@ -96,6 +97,19 @@ func _sync() -> void:
 		var v = eco.get(prop)
 		if v != null and model.get(prop) != null and model.get(prop) != v:
 			model.set(prop, v)
+
+
+## Hides whatever her model hangs on bones off her right arm (the Shepherd's
+## gear, colony_gear.gd: headphones, visor, spine, the left cuff and glove),
+## which would float in front of the camera on this arm-only model. Her right
+## glove stays. apply_suit() rebuilds those pieces, so this runs every frame.
+func _hide_off_arm() -> void:
+	if skeleton == null:
+		return
+	for child in skeleton.get_children():
+		var att := child as BoneAttachment3D
+		if att != null and att.visible and not _arm_bone(att.bone_name):
+			att.visible = false
 
 
 func _arm_bone(bone_name: String) -> bool:
@@ -127,6 +141,7 @@ func _cut_meshes() -> void:
 			# the posed arm is nowhere near the bind pose's bounds
 			mi.custom_aabb = AABB(Vector3(-3, -3, -3), Vector3(6, 6, 6))
 	model.apply_suit()
+	_hide_off_arm()
 
 
 ## The part of `mesh` skinned (mostly) to her right arm, or null if none is.
