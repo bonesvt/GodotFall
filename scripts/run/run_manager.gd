@@ -701,20 +701,20 @@ func _tick_hymn(delta: float, roaming: bool) -> void:
 	hud.cuff_label.text = "DOSE CUFF  %d:%02d  get to the dispensary" % [left / 60, left % 60]
 
 
-## The dose cuff's bell (hymn.gd tick_bell): a ring calls every enemy in
-## BELL_RANGE to her and tells the Shepherd where she is.
-func _tick_bell(delta: float) -> void:
+## The tracker band's speaker (hymn.gd tick_band): moving fast, it pings. A
+## ping calls every enemy in BAND_RANGE to her and tells the Shepherd where she is.
+func _band_ping(delta: float) -> void:
 	if player == null or player.get("entranced"):
 		return
 	var flat := Vector2(player.velocity.x, player.velocity.z).length()
-	if not Hymn.tick_bell(delta, flat, player.is_on_floor()):
+	if not Hymn.tick_band(delta, flat):
 		return
 	var at := player.global_position
-	SFX.play(player, "hymn_bell", -4.0, SFX.vary(0.04))
+	SFX.play(player, "ui_confirm", -3.0, 1.9)
 	for e in get_tree().get_nodes_in_group("enemies"):
-		if e is Node3D and e.has_method("hear_gunshot") and (e as Node3D).global_position.distance_to(at) <= Hymn.BELL_RANGE:
+		if e is Node3D and e.has_method("hear_gunshot") and (e as Node3D).global_position.distance_to(at) <= Hymn.BAND_RANGE:
 			e.hear_gunshot(at)
-	get_tree().call_group("shepherd", "hear_bell", at)
+	get_tree().call_group("shepherd", "heard", at)
 
 
 func place_player(pos: Vector3) -> void:
@@ -730,7 +730,7 @@ func _physics_process(delta: float) -> void:
 	if not get_tree().paused:
 		Vices.tick(delta)
 		_vice_keys()
-		_tick_bell(delta)
+		_band_ping(delta)
 		if phase in [Phase.ZONE, Phase.ARENA, Phase.FIGHT]:
 			hush_pull.run_tick(delta, titan == null or not titan.piloted)
 			if Hymn.tick_bridge(delta):

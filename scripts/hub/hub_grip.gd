@@ -191,6 +191,8 @@ static func open(path: String) -> void:
 		return
 	levels = cfg.get_value("grip", "levels", {})
 	gear = cfg.get_value("grip", "gear", {})
+	for who in gear:
+		gear[who] = Hymn.migrate(gear[who])
 	seen = cfg.get_value("grip", "seen", {})
 	pending = cfg.get_value("grip", "pending", [])
 

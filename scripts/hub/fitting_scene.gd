@@ -62,8 +62,11 @@ const MORE_LINES := {
 	"gloves": ["Two long white gloves come down to her hands.",
 		"They slide up her arms to the shoulder and seal. Lines of light run down to every fingertip.",
 		"She can't feel her own hands. Calm voice: \"Warmth when you're good. Cold when you're not.\""],
+	"band": ["A heavy grey band comes down, open, and closes round her throat.",
+		"Bolts drive home at the back of her neck. A small speaker under her chin crackles, and a light beside it starts to blink.",
+		"Calm voice, from her own throat now: \"Tracking engaged. Wherever you run, you'll tell us.\""],
 	"crown": ["The room goes quiet. Something white and thin comes down out of the ceiling, slow, to her head.",
-		"It settles on her brow. Every piece on her lights up at once: her ears, her eyes, her nose, her hands, her back.",
+		"It settles on her brow. Every piece on her lights up at once: her ears, her eyes, her wrist, her back, her throat.",
 		"Calm voice, from everywhere: \"Welcome home, citizen.\""],
 	"spine": ["Something long and white comes down behind her, to her back.",
 		"She stands in the frame while it clicks onto her spine segment by segment, shoulders to waist, each node lighting as it locks.",
@@ -395,6 +398,8 @@ func _target(model: Node3D = _eco, p: String = piece) -> Vector3:
 			return at + turn * Vector3(0, 0, 0.12)
 		"bridge":
 			return at + turn * Vector3(0, 0.02, -0.06)  # the nose
+		"band":
+			return at + turn * Vector3(0, -0.05, -0.03)  # the throat
 		"crown":
 			return at + Vector3(0, 0.12, 0)  # brow and crown
 	return at + Vector3(0, 0.06, 0)
@@ -455,6 +460,9 @@ func _shot(which: String) -> void:
 					_cam.look_at_from_position(at + Vector3(-0.5, 0.3, -0.7), at)
 				"crown":
 					_cam.look_at_from_position(at + Vector3(0.22, -0.04, -0.62), at + Vector3(0, -0.07, 0))
+				"band":
+					# from in front and a little to her left: the speaker and its light
+					_cam.look_at_from_position(at + Vector3(-0.2, 0.06, -0.4), at + Vector3(-0.01, 0.0, 0))
 				"bridge":
 					_cam.look_at_from_position(at + Vector3(0.2, -0.02, -0.34), at + Vector3(0, -0.01, 0))
 				"gloves":
