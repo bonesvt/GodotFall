@@ -87,7 +87,7 @@ static func colony(parent: Node3D) -> Dictionary:
 	_box(root, v + Vector3(-0.2, VAN_SIZE.y - 0.42, 0.55), Vector3(0.08, 0.08, 0.7), grey)
 	var light := OmniLight3D.new()
 	light.light_color = Color(0.88, 0.94, 1.0)
-	light.light_energy = 1.4
+	light.light_energy = 0.7
 	light.omni_range = 3.5
 	light.position = v + Vector3(0, VAN_SIZE.y - 0.4, 0)
 	root.add_child(light)

@@ -58,6 +58,8 @@ const ALERT := {
 }
 
 static var hooks := {}
+## who -> the captors Eco was too late to stop (newest last).
+static var lost_to := {}
 ## Times each has been saved, and been too late for.
 static var saved := 0
 static var lost := 0
@@ -130,6 +132,10 @@ static func rescued(who: String, captor: String) -> void:
 ## them ("" for none, or another captor).
 static func too_late(who: String, captor: String) -> String:
 	lost += 1
+	var mine: Array = lost_to.get(who, []).duplicate()
+	mine.erase(captor)
+	mine.append(captor)
+	lost_to[who] = mine
 	var piece := ""
 	if captor == "colony":
 		piece = HubGrip.take(who)  # its next piece, and their Hymn up with it
@@ -147,7 +153,21 @@ static func run_over() -> void:
 	save()
 
 
+## The captor whose hold on `who` shows, of those who've had her ("" for none):
+## the newest. The colony's shows once their Hub Grip is past SHOWS_AT too.
+static func held_by(who: String) -> String:
+	if not allowed():
+		return ""
+	var mine: Array = lost_to.get(who, [])
+	for i in range(mine.size() - 1, -1, -1):
+		var c: String = mine[i]
+		if (c == "colony" and HubGrip.level(who) >= SHOWS_AT) or shows(who, c):
+			return c
+	return ""
+
+
 static func reset() -> void:
+	lost_to = {}
 	hooks = {}
 	saved = 0
 	lost = 0
@@ -160,6 +180,7 @@ static func open(path: String) -> void:
 	if cfg.load(path) != OK:
 		return
 	hooks = cfg.get_value("rescue", "hooks", {})
+	lost_to = cfg.get_value("rescue", "lost_to", {})
 	saved = int(cfg.get_value("rescue", "saved", 0))
 	lost = int(cfg.get_value("rescue", "lost", 0))
 
@@ -167,6 +188,7 @@ static func open(path: String) -> void:
 static func save() -> void:
 	var cfg := ConfigFile.new()
 	cfg.set_value("rescue", "hooks", hooks)
+	cfg.set_value("rescue", "lost_to", lost_to)
 	cfg.set_value("rescue", "saved", saved)
 	cfg.set_value("rescue", "lost", lost)
 	cfg.save(save_path)

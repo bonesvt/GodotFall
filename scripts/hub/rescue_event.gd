@@ -71,6 +71,30 @@ const LATE := {
 	"cutter": ["%s's on the crate, shaking so hard it rattles. Red lines glow up her arms and her neck, under the skin. Wiring.",
 		"Cutter, grinning: \"Tell Eco she's next. Tell her mine's better than Marrow's.\""],
 }
+## The eyes they come away with, like Eco's own under the same thing: Marrow's
+## violet swirl, the colony's white, Cutter's red (eco_toon's iris swirl),
+## strong as it goes in, fainter after while his hold on them shows.
+const EYE_TINT := {"marrow": Color(0.72, 0.32, 1.0), "colony": Color(0.55, 0.78, 1.0), "cutter": Color(1.0, 0.12, 0.08)}
+const EYES_IN := 0.9
+const EYES_AFTER := 0.5
+## Afterwards: now and then, a stay, one of them who's been had walks off to
+## whoever had her, and Eco can see her going: DRAWN_CHANCE a stay, once Eco's
+## been out in Solace DRAWN_DELAY s. The way she walks (town.gd's streets).
+const DRAWN_CHANCE := 0.5
+const DRAWN_DELAY := Vector2(15.0, 40.0)
+const WALK_SPEED := 1.1
+const SPOT_RANGE := 8.0
+const ROUTES := {
+	"marrow": [Vector3(-1.5, 0, 191.0), Vector3(2.0, 0, 204.0), Vector3(4.6, 0, 213.3)],
+	"colony": [Vector3(1.5, 0, 133.0), Vector3(-0.5, 0, 141.0), Vector3(-4.4, 0, 146.8)],
+	"cutter": [Vector3(0.5, 0, 131.0), Vector3(1.0, 0, 124.0), Vector3(5.4, 0, 116.5)],
+}
+const SPOTTED := {
+	"marrow": "%s, walking down Low Row toward the cinema's cellar door. Eco calls her name. She doesn't turn. Her eyes are violet at the edges.",
+	"colony": "%s, walking up Lantern Row to the colony kiosk like she's late for it. Eco calls her. She smiles back, white-eyed, and keeps walking.",
+	"cutter": "%s, out past the town gate, heading for the pilgrim road and Cutter's tarp. Shaking. Red in her eyes. She doesn't hear Eco at all.",
+}
+const GONE := "%s's not at home. Someone saw her heading into Solace."
 const QUIET := "%s smiles when Eco says her name, and doesn't say much back. She doesn't say much at all any more."
 ## Cutter's Wiring: red veins lit under the skin of their body texture (where it's skin-coloured).
 const VEINS := "shader_type spatial;
@@ -166,13 +190,28 @@ func running() -> bool:
 
 
 ## A new stay in the hub: nobody's taken, the roll starts over. (Someone taken
-## when she left the hub was lost: lose() first.)
+## when she left the hub was lost: lose() first.) And maybe, this stay, one
+## who's been had goes back to whoever had her.
 func reset() -> void:
 	lose()
 	_rolled = false
 	_roll = Rescue.ROLL_EVERY
 	_quiet_said.clear()
 	_shaders.clear()
+	_end_walk()
+	_drawn_who = ""
+	_drawn_at = -1.0
+	if Rescue.allowed() and rm.get("hub_npcs") != null and randf() < DRAWN_CHANCE:
+		var held: Array = Rescue.WHO.filter(func(w): return rm.hub_npcs.has(w) and Rescue.held_by(w) != "")
+		if not held.is_empty():
+			draw_off(held[randi() % held.size()], randf_range(DRAWN_DELAY.x, DRAWN_DELAY.y))
+
+
+## `p_who` will go to whoever's got her, once Eco's been out in Solace `after` s.
+func draw_off(p_who: String, after: float) -> void:
+	_drawn_who = p_who
+	_drawn_captor = Rescue.held_by(p_who)
+	_drawn_at = after if _drawn_captor != "" else -1.0
 
 
 ## She left the hub with someone taken: too late, without the scene.
@@ -198,13 +237,17 @@ func tick(delta: float, roaming: bool) -> void:
 		left -= delta
 		if left <= 0.0:
 			play_late()
+	if _drawn_at >= 0.0 and roaming and rm.player.global_position.z > 120.0 and step == Step.IDLE:
+		_drawn_at -= delta
+		if _drawn_at < 0.0:
+			_start_walk()
 
 
 ## Takes one of them, by one of the captors who've started on Eco. False if
 ## nobody could be.
 func start_random() -> bool:
 	var captors := Rescue.active_captors()
-	var people: Array = Rescue.WHO.filter(func(w): return rm.hub_npcs.has(w))
+	var people: Array = Rescue.WHO.filter(func(w): return rm.hub_npcs.has(w) and not (w == _drawn_who and _walker != null))
 	if captors.is_empty() or people.is_empty():
 		return false
 	return start(people[randi() % people.size()], captors[randi() % captors.size()])
@@ -386,7 +429,7 @@ func _late_tick() -> void:
 		_said["after"] = true
 		_drop_prop()
 		_step_back()
-		_victim.mood(["closed", "smile"] if captor != "cutter" else ["sad"])
+		_victim.mood(["plain"] if captor == "colony" else (["smile"] if captor == "marrow" else ["sad"]))  # eyes open: what's in them shows
 		_look(_site["cam"], _victim.head_position() + Vector3(0, -0.25, 0), 40.0)
 		rm.hud.toast(_late_line(0), 3.6)
 	if t >= L_SECOND and not _said.has("second"):
@@ -542,11 +585,12 @@ func _apply_tick() -> void:
 				rm.hud.toast("She drinks. Her eyes go soft and violet at the edges.", 2.0)
 			"colony":
 				SFX.play(self, "cache_unlock", -4.0, 0.7)
-				_victim.mood(["smile"])
+				_victim.mood(["plain"])  # a blank, open stare
 			"cutter":
 				_veil.color = Color(0.85, 0.05, 0.05, 0.85)  # red, at contact, and nothing more
 				veins(_victim, true)
 				SFX.play(self, "heartbeat", 0.0, 1.2)
+		eyes(_victim, EYES_IN, EYE_TINT[captor])  # the same in her eyes as Eco gets
 	if captor == "cutter" and t >= L_IN and t < L_AFTER:
 		_veil.color.a = 0.85 * (1.0 - smoothstep(L_IN, L_IN + 0.8, t))
 
@@ -836,8 +880,10 @@ func _draw_marker() -> void:
 
 # --- afterwards -------------------------------------------------------------------
 
-## Cutter's Wiring on whoever's still got it in them (veins, a shake), each frame.
+## Cutter's Wiring on whoever's still got it in them (veins, a shake), and the
+## eyes whoever's had them left them with, each frame; and one of them walking off.
 func _aftermath(_delta: float) -> void:
+	_walk_tick(_delta)
 	if rm.get("hub_npcs") == null:
 		return
 	for w in Rescue.WHO:
@@ -845,6 +891,10 @@ func _aftermath(_delta: float) -> void:
 		if got == null or not is_instance_valid(got):
 			continue
 		var npc: Node3D = got
+		var by := Rescue.held_by(w)
+		if String(npc.get_meta("rescue_eyes", "")) != by:
+			npc.set_meta("rescue_eyes", by)
+			eyes(npc, EYES_AFTER if by != "" else 0.0, EYE_TINT.get(by, Color.WHITE))
 		var wired := Rescue.shows(w, "cutter")
 		if wired != bool(npc.get_meta("wired", false)):
 			veins(npc, wired)
@@ -888,6 +938,132 @@ static func veins(npc: Node3D, on: bool) -> void:
 		var m := npc.get_node_or_null("Model") as Node3D
 		if m != null:
 			m.position = Vector3.ZERO
+
+
+## Their irises swirling in `tint`, `strength` 0..1 (0: their own eyes again).
+static func eyes(npc: Node3D, strength: float, tint: Color) -> void:
+	if npc == null or not is_instance_valid(npc):
+		return
+	for mi in npc.find_children("*", "MeshInstance3D", true, false):
+		var m3 := mi as MeshInstance3D
+		if m3.mesh == null:
+			continue
+		var has := false
+		for i in m3.mesh.get_surface_count():
+			var base := m3.mesh.surface_get_material(i) as ShaderMaterial
+			if base == null or not String(base.resource_name).ends_with("_iris"):
+				continue
+			has = true
+			var mine := m3.get_surface_override_material(i) as ShaderMaterial
+			if mine == null or not mine.has_meta("rescue_iris"):
+				mine = (mine if mine != null else base).duplicate()
+				mine.set_meta("rescue_iris", true)
+				m3.set_surface_override_material(i, mine)
+			mine.set_shader_parameter("iris_swirl", strength > 0.0)
+		if has:
+			m3.set_instance_shader_parameter("hypno", strength)
+			m3.set_instance_shader_parameter("swirl_tint", tint)
+
+
+# --- drawn back to them -------------------------------------------------------------
+
+var _drawn_who := ""
+var _drawn_captor := ""
+var _drawn_at := -1.0
+var _walker: Node3D
+var _walk_route: Array = []
+var _walk_leg := 1
+var _spotted := false
+
+
+## She's off to them: gone from home, and walking through Solace.
+func _start_walk() -> void:
+	_drawn_at = -1.0
+	if _drawn_who == "" or not rm.hub_npcs.has(_drawn_who):
+		return
+	_walk_route = ROUTES[_drawn_captor]
+	var real: Node3D = rm.hub_npcs[_drawn_who]
+	_walker = HubNpc.create(_drawn_who, _walk_route[0], 0.0)
+	_walker.name = "Drawn_" + _drawn_who
+	rm.zone_root.add_child(_walker)
+	_walker.posed = true
+	if is_instance_valid(_walker.soft_body):
+		_walker.soft_body.queue_free()
+	if real.get("outfit") != null and String(real.outfit) != "":
+		_walker.wear(String(real.outfit))
+	ColonyGear.apply(_walker, HubGrip.gear_of(_drawn_who))
+	_walker.mood(["plain"])
+	eyes(_walker, EYES_IN, EYE_TINT[_drawn_captor])
+	if _drawn_captor == "cutter":
+		veins(_walker, true)
+	_borrow_walk(_walker)
+	_walk_leg = 1
+	_spotted = false
+	real.visible = false
+	if is_instance_valid(real.get("soft_body")):
+		(real.soft_body as CollisionObject3D).collision_layer = 0
+	_walker_spot(true)
+
+
+## Her walk: the townsfolk's walk loop, borrowed (their rigs are the same).
+static func _borrow_walk(npc: Node3D) -> void:
+	var ap := npc.find_child("AnimationPlayer", true, false) as AnimationPlayer
+	var path := "res://assets/models/npc/town_bram.glb"
+	if ap == null or not ResourceLoader.exists(path):
+		return
+	var src: Node = load(path).instantiate()
+	var sap := src.find_child("AnimationPlayer", true, false) as AnimationPlayer
+	if sap != null and sap.has_animation("walk"):
+		ap.stop()  # (adding a library to a playing player reads freed memory: hub_npc.gd)
+		var lib := AnimationLibrary.new()
+		var walk: Animation = sap.get_animation("walk").duplicate()
+		walk.loop_mode = Animation.LOOP_LINEAR
+		lib.add_animation("walk", walk)
+		if not ap.has_animation_library("rescue"):
+			ap.add_animation_library("rescue", lib)
+		ap.play("rescue/walk")
+	src.free()
+
+
+func _walk_tick(delta: float) -> void:
+	if _walker == null or not is_instance_valid(_walker):
+		return
+	if rm.get("bench") != null or busy():
+		return
+	var to: Vector3 = _walk_route[_walk_leg]
+	var at := _walker.global_position
+	var d := Vector3(to.x - at.x, 0, to.z - at.z)
+	if d.length() < 0.15:
+		_walk_leg += 1
+		if _walk_leg >= _walk_route.size():
+			_end_walk()  # there: gone to them, for the rest of the stay
+			return
+		return
+	var step_ := d.normalized() * minf(WALK_SPEED * delta, d.length())
+	_walker.global_position += step_
+	_walker.rotation.y = atan2(-d.x, -d.z)
+	if _drawn_captor == "cutter":
+		_shake(_walker, 0.6)
+	if not _spotted and rm.player.global_position.distance_to(_walker.global_position) < SPOT_RANGE:
+		_spotted = true
+		rm.hud.toast(SPOTTED[_drawn_captor] % Rescue.NAMES[_drawn_who], 5.0)
+
+
+func _end_walk() -> void:
+	if _walker != null and is_instance_valid(_walker):
+		_walker.queue_free()
+	_walker = null
+	_walker_spot(false)
+
+
+## While she's out, her spot at home says so.
+func _walker_spot(on: bool) -> void:
+	if rm.get("zone_info") == null or not rm.zone_info.has("interactables"):
+		return
+	rm.zone_info["interactables"] = rm.zone_info["interactables"].filter(func(s): return s["id"] != "rescue_gone")
+	if on and _drawn_who != "" and rm.hub_npcs.has(_drawn_who):
+		var K := preload("res://scripts/hub/hub_kit.gd")
+		K.interactable(rm.zone_info, "rescue_gone", (rm.hub_npcs[_drawn_who] as Node3D).global_position, "[F] Where's %s?" % Rescue.NAMES[_drawn_who], [GONE % Rescue.NAMES[_drawn_who]], 2.0)
 
 
 ## Marrow's quiet in them: said once a stay, before they talk. "" if not.

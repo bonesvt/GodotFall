@@ -107,6 +107,19 @@ func _run() -> void:
 	_check("Cutter's hold on her +20", is_equal_approx(Rescue.hook("mom", "cutter"), 20.0), Rescue.hook("mom", "cutter"))
 	await _ticks(2)
 	_check("Wiring: on her, at home", run_node.hub_npcs["mom"].get_meta("wired", false), "")
+	_check("Cutter's had her: his red in her eyes, at home", Rescue.held_by("mom") == "cutter" and run_node.hub_npcs["mom"].get_meta("rescue_eyes", "") == "cutter", Rescue.held_by("mom"))
+
+	# afterwards: she walks off to him, and Eco can see her going
+	run_node.place_player(Vector3(0.5, 0.1, 127.0))
+	await _ticks(4)
+	ev.draw_off("mom", 0.05)
+	await _until(func(): return ev._walker != null, 3.0)
+	_check("off to Cutter: walking out of Solace", ev._walker != null and not run_node.hub_npcs["mom"].visible, ev._walker)
+	var was: Vector3 = ev._walker.global_position if ev._walker != null else Vector3.ZERO
+	await _ticks(60)
+	_check("walking his way", ev._walker != null and ev._walker.global_position.distance_to(was) > 0.5, ev._walker.global_position if ev._walker != null else null)
+	_check("Eco sees her go", ev._spotted and run_node.hud.toast_label.text.contains("pilgrim road"), run_node.hud.toast_label.text)
+	ev._end_walk()
 
 	# the colony, too late: the next piece
 	var pieces := HubGrip.gear_of("mom").size()
