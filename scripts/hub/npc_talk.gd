@@ -55,8 +55,8 @@ const GAP := 0.9
 ## Walk this far (m) from whoever you're talking to and the talk ends.
 const LEAVE_RANGE := 5.5
 
-const NAMES := {"mom": "MOM", "ophelia": "OPHELIA", "biggie": "BIGGIE", "eco": "ECO", "narrator": ""}
-const COLORS := {"mom": Color(0.6, 0.85, 0.6), "ophelia": Color(0.78, 0.55, 1.0), "biggie": Color(0.95, 0.75, 0.4), "eco": Color(1.0, 0.45, 0.45),
+const NAMES := {"mom": "MOM", "ophelia": "OPHELIA", "biggie": "BIGGIE", "pip": "PIP", "eco": "ECO", "narrator": ""}
+const COLORS := {"mom": Color(0.6, 0.85, 0.6), "ophelia": Color(0.78, 0.55, 1.0), "biggie": Color(0.95, 0.75, 0.4), "pip": Color(1.0, 0.72, 0.3), "eco": Color(1.0, 0.45, 0.45),
 	"narrator": Color(0.8, 0.8, 0.82)}
 
 var save_path := DEFAULT_PATH

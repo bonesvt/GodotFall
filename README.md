@@ -159,6 +159,36 @@ Close-ups: `xvfb-run -a godot --path . --rendering-driver opengl3 -s res://tools
 -- <dir> --pierce=all --ink=all`, and `tools/ink/shop_shots.gd` for the counters. Test:
 `tests/town_shops_test.gd`.
 
+### Downtown: Pip's street
+Eco's older sister **Pip** chose the shady life over the heroic one, and she runs everything
+crooked in Solace from **Downtown**, a short neon street off the end of Low Row
+(`scripts/hub/downtown.gd`, built from `town.gd`):
+- **The Velvet Ace** (Mature only): the Gilded Reels, Pip's slot machine
+  (`scripts/hub/casino_screen.gd`). 1-4 sets the bet, Space spins; bets and wins go through Eco's
+  scrap. Three of a kind pays 4x to 75x (three starlings), two cherries pay the bet back. Under Teen
+  the door just gives Eco's lines.
+- **The Undertow**: Pip's booth (`scripts/hub/club_screen.gd`) sells five secrets, one at a time,
+  each a boost for the next run like a Seven Suns meal (patrol rota, supply manifest, medic's
+  schedule, back routes, armour specs). Every secret turns a page of Pip's ledger, the story of what
+  Downtown knows (Tab to read it).
+- **Below the Undertow** (Mature only, `scripts/hub/downtown_below.gd`): a roped stair beside the
+  club goes down to the Underfloor, a corridor of private rooms with just a bed and mood lighting,
+  and through the gold door to the high rollers' room with its stage, poles, card table and Pip's
+  chair, and through its stage door to the dancers' dressing room, where the women who work down
+  there leave their own reviews of the job, the guests and Pip. Six pieces of Pip's own dirt are hidden there; each one Eco finds shows a little more of
+  how her sister holds the colony's officers from the shadows. Saved with the rest of Downtown.
+  What the rooms are for is said plainly by what's lying about (a rate board, the room timers, the
+  laundry cart, the house rules: `HINTS`) and by Pip when Eco finds her down there
+  (`dialogue/npc/pip_M.txt`); nothing is ever shown, and the rooms are empty after hours.
+- **Pip** herself (`dialogue/npc/pip.txt`, model `assets/models/npc/pip.glb` from
+  `tools/npc/build_npc.py`) stands somewhere different each hub stay, dressed for it: the casino
+  door in her warden mesh or shorts, the club in her rave fit, the arch in her pinstripe crop, the
+  corridor of rooms, or the high rollers' room after hours. Teen swaps the warden for the crop and
+  keeps her upstairs. At each business she's at work (`assets/models/npc/pip_poses.glb` from
+  `tools/npc/build_poses.py`): shuffling cards at the casino, a cocktail at the club, her ledger in
+  the corridor, a chip in her chair.
+Test: `godot --headless --path . -s res://tests/downtown_test.gd`.
+
 ### Vices: the Rusted Halo, smokes, stims and Hush (Mature only)
 Under the Mature rating (Settings > Game), **F** at the Rusted Halo on Low Row opens the bar
 (`scripts/hub/bar_screen.gd`). Under Teen it keeps its old lines and none of this shows.

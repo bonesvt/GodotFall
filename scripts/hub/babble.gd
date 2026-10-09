@@ -13,6 +13,7 @@ const VOICES := {
 	"mom": {"pitch": 300.0, "spread": 5.0, "rate": 15.0, "bright": 0.35, "breath": 0.05, "gain": 0.5},
 	"ophelia": {"pitch": 235.0, "spread": 2.0, "rate": 12.0, "bright": 0.2, "breath": 0.12, "gain": 0.42},
 	"biggie": {"pitch": 125.0, "spread": 4.0, "rate": 12.5, "bright": 0.55, "breath": 0.08, "gain": 0.55},
+	"pip": {"pitch": 265.0, "spread": 3.0, "rate": 14.0, "bright": 0.25, "breath": 0.1, "gain": 0.46},
 	"eco": {"pitch": 370.0, "spread": 7.0, "rate": 17.0, "bright": 0.3, "breath": 0.04, "gain": 0.45},
 	# the people of Solace (townsfolk.gd)
 	"town_pell": {"pitch": 270.0, "spread": 6.0, "rate": 15.5, "bright": 0.4, "breath": 0.05, "gain": 0.5},

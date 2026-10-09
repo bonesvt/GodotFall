@@ -64,6 +64,9 @@ const Saves := preload("res://scripts/game/saves.gd")
 const PauseMenu := preload("res://scripts/ui/pause_menu.gd")
 const Vices := preload("res://scripts/hub/vices.gd")
 const BarScreen := preload("res://scripts/hub/bar_screen.gd")
+const Downtown := preload("res://scripts/hub/downtown.gd")
+const CasinoScreen := preload("res://scripts/hub/casino_screen.gd")
+const ClubScreen := preload("res://scripts/hub/club_screen.gd")
 const StimScreen := preload("res://scripts/hub/stim_screen.gd")
 const HushScreen := preload("res://scripts/hub/hush_screen.gd")
 const HushDen := preload("res://scripts/hub/hush_den.gd")
@@ -126,6 +129,12 @@ const TELEPORT_LINES := {
 	"her_room": "Key, lock, in. She shuts it behind her and checks the weld.",
 	"her_room_door": "Back out into his basement.",
 	"physics_lab": "Down the ladder to the lab. Time to see what gives.",
+	"undertow_down": "The bouncer lifts the rope. \"She said you'd come down eventually.\"",
+	"undertow_up": "Back up into the neon.",
+	"gold_door": "Gold door. Low light, slow music, nobody here yet.",
+	"gold_door_back": "Back to the corridor of rooms.",
+	"stage_door": "Staff only. Eco goes in anyway. Mirrors, bulbs, the smell of hairspray and cheap tea.",
+	"stage_door_back": "Back out past the poles.",
 	"physics_lab_exit": "Back up into the temple.",
 }
 ## Ophelia notices Eco slipping away while Marrow's Hold is deep (vices.gd).
@@ -493,6 +502,7 @@ func enter_hub() -> void:
 	_fresh_level("Hub")
 	zone_info = HubBuilder.build(zone_root)
 	Weather.wind = Vector3.ZERO  # still air in the temple (the lab's fan aside)
+	Downtown.place_pip(zone_info, runs_ended)
 	_hide_unrescued(zone_info)
 	hub_npcs = {}
 	for spec in zone_info.get("npcs", []):
@@ -500,7 +510,13 @@ func enter_hub() -> void:
 		npc.look_target = player
 		zone_root.add_child(npc)
 		npc.wear_for_run(runs_ended)
+		if spec.has("outfit"):
+			npc.wear(spec["outfit"])  # dressed for where she stands (Pip, downtown.gd)
 		NpcIdles.settle(npc, zone_info, runs_ended)
+		if spec.get("anim", "") != "":
+			NpcIdles.strike(npc, spec["anim"], spec.get("props", []))  # Pip at work
+		if spec.has("spot"):
+			npc.spot = spec["spot"]  # she talks about where she is ([spot ...] in her lines)
 		hub_npcs[spec["who"]] = npc
 	Townsfolk.populate(zone_root, player, runs_ended)
 	Soundscape.hub(zone_root, zone_info)
@@ -826,6 +842,9 @@ func _hub_tick(delta: float) -> void:
 	var vice_shop: bool = spot.get("shop", "") in ["bar", "stims", "hush", "dispensary", "gear_off"] and Vices.allowed()
 	if spot.has("date") and (not vice_shop or date_ready(spot)) and date_at(spot):
 		return
+	if spot.get("screen", "") == "casino" and not Vices.allowed():
+		hud.toast(spot["lines"][randi() % spot["lines"].size()], HUB_LINE_SECONDS)  # the reels are Mature only
+		return
 	if spot.has("screen"):
 		open_bench(spot["screen"])
 		return
@@ -846,6 +865,10 @@ func _hub_tick(delta: float) -> void:
 		return
 	if spot.get("press_console", false):
 		_step_press_strength()
+		return
+	if spot.has("dirt"):
+		hud.toast(Downtown.find_dirt(spot["dirt"]), 7.0)  # Pip's own secrets (downtown_below.gd)
+		SFX.play(player, "cloth_2", -4.0)
 		return
 	if spot.has("teleport") and (spot.get("open", false) or Vices.allowed()):
 		place_player(spot["teleport"])
@@ -1156,6 +1179,10 @@ func open_bench(kind: String) -> void:
 		bench = SuitScreen.new(armory)
 	elif kind == "bar":
 		bench = BarScreen.new(armory)
+	elif kind == "casino":
+		bench = CasinoScreen.new(armory)
+	elif kind == "club":
+		bench = ClubScreen.new(armory)
 	elif kind == "stims":
 		bench = StimScreen.new(armory)
 	elif kind == "hush":
@@ -1204,6 +1231,10 @@ func close_bench() -> void:
 		hud.toast("The %s is still on her. Try again after the next run." % Hymn.GEAR_NAMES[bench.slipped], HUB_LINE_SECONDS)
 	if bench is BarScreen and bench.net != 0:
 		hud.toast("Scrapjack: %s%d scrap tonight." % ["+" if bench.net > 0 else "", bench.net], HUB_LINE_SECONDS)
+	if bench is CasinoScreen and bench.net != 0:
+		hud.toast("The Gilded Reels: %s%d scrap tonight." % ["+" if bench.net > 0 else "", bench.net], HUB_LINE_SECONDS)
+	if bench is ClubScreen and bench.bought != "":
+		hud.toast("Pip's secret: %s. It lasts the next run." % Downtown.SECRETS[bench.bought]["name"], HUB_LINE_SECONDS)
 	if bench is WardrobeScreen and not bench.changed.is_empty():
 		for npc in hub_npcs.values():
 			npc.wear_for_run(runs_ended)
@@ -1873,8 +1904,10 @@ func end_run(title: String, reason: String) -> void:
 	var haul := Armory.run_haul(run.materials, won)
 	armory.bank(haul)
 	# The meal from Seven Suns was for this run.
-	if TownShops.meal() != "":
+	# So was Pip's secret.
+	if TownShops.meal() != "" or Downtown.secret() != "":
 		TownShops.finish_meal()
+		Downtown.finish_secret()
 		player.apply_suit(TownShops.boost(armory.suit_profile()))
 	Saves.record_run(won)
 	if boss != null:
@@ -2135,6 +2168,10 @@ func _prompt() -> String:
 					return "[F] Marrow: Hush"
 				if spot["id"] == "cinema_cellar" and Vices.allowed():
 					return "[F] Go down to Marrow's basement"
+				if spot["id"] == "undertow_down" and Vices.allowed():
+					return "[F] The bouncer lifts the rope for Pip's sister"
+				if spot.has("dirt") and Downtown.dirt().has(spot["dirt"]):
+					return spot["prompt"] + "  (seen)"
 				if spot.get("npc", "") == "mom" and Family.sick(npc_talk.state, runs_ended):
 					return spot["prompt"] + "  (you're burning up)"
 				var text: String = spot["prompt"]

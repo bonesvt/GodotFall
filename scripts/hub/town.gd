@@ -30,6 +30,7 @@ const Props := preload("res://scripts/hub/hub_props.gd")
 const Ambient := preload("res://scripts/hub/ambient.gd")
 const TP := preload("res://scripts/hub/town_props.gd")
 const TownMood := preload("res://scripts/hub/town_mood.gd")
+const Downtown := preload("res://scripts/hub/downtown.gd")
 const GiftShop := preload("res://scripts/hub/gift_shop.gd")
 const HushDen := preload("res://scripts/hub/hush_den.gd")
 
@@ -98,6 +99,7 @@ static func build(root: Node3D, info: Dictionary) -> void:
 	_low_row(town, info, rng)
 	HushDen.build(town, info)  # Marrow's alley and cinema basement (vices.gd, Mature)
 	_garden(town, info, rng)
+	Downtown.build(town, info)  # Pip's street off the end of Low Row (downtown.gd)
 	_canopy(town, rng)
 	_surroundings(town, rng)
 	_fences(town)
@@ -106,6 +108,7 @@ static func build(root: Node3D, info: Dictionary) -> void:
 	mood.name = "TownMood"
 	for seg: Vector2 in ROWS:
 		mood.zones.append(Rect2(-STREET_HALF - 1.0, seg.x, STREET_HALF * 2 + 2.0, seg.y - seg.x))
+	mood.zones.append(Downtown.STREET)
 	root.add_child(mood)
 
 
