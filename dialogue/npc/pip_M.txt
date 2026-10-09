@@ -1,0 +1,39 @@
+# Pip's Mature cut, read on top of pip.txt (npc_talk.gd overlay()). The rooms
+# under the Undertow and the high rollers' room are Mature only, so the talks
+# about them live here: what the rooms are for, said plainly, nothing shown.
+# [spot <name>] plays the first time Eco talks to her at that spot in a hub
+# stay (downtown.gd PIP_SPOTS).
+
+[spot rooms]
+eco: Pip. Who sleeps down here?
+pip: Nobody sleeps down here. That's rather the point of it.
+eco: So it's what it looks like.
+pip: It's officers a long way from their wives, paying by the hour for a door that locks. I provide the door. Whatever happens behind it is between the grown-ups who walked through it.
+eco: And the camera behind the mirror?
+pip: Is between me and the grown-ups. Put the ledger down, little sister. You'll get fingerprints on my pension.
+
+[spot rooms]
+pip: Red room's booked twice tonight. Same lieutenant, two different women, and he thinks neither of them knows about the other.
+eco: Do they?
+pip: They both told me. They're splitting his tip. Everybody who works down here is smarter than everybody who pays to come down here.
+eco: Including you?
+pip: Especially me. I'm the one who counts the money.
+
+[spot rooms]
+eco: Does Mom know what this is?
+pip: Mom knows I "run a hotel". She asked if I put mints on the pillows.
+eco: You do put something on the pillows.
+pip: Hygiene is a kindness, Eco. Mom would approve of the principle. Let's never test that.
+
+[spot high_rollers]
+pip: Sit if you want. Don't sit on that sofa. Or that one. Actually, stand.
+eco: What happens up there on the stage?
+pip: The dancers dance, the men tip, and the men who think tipping buys more than dancing learn what the back alley looks like. The dancers choose. That rule is the only thing in this room I don't charge for.
+eco: And you just watch.
+pip: I watch who they watch. You'd be amazed how much a man tells you with his eyes when his wife thinks he's on night patrol.
+
+[spot high_rollers]
+eco: Is this where you got the captain's letter?
+pip: He wanted a private dance, a closed door and no questions. He got all three, and I got a signature. It was a very good night for everyone except his career.
+eco: That's blackmail, Pip.
+pip: It's insurance. He recruits children for the colony, Eco. I'm not losing sleep over his reputation.

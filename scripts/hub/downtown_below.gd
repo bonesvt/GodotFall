@@ -50,6 +50,36 @@ const DIRT := {
 		"text": "Her chair, up on a step, facing the stage and the door at once. A notebook on the arm: who watched which dancer, who drank what, who talked. Nobody looks at the woman in the chair. That's the point."},
 }
 const DIRT_ORDER := ["mirror", "guestbook", "reels", "markers", "safe", "chair"]
+
+## What the rooms are for, said plainly by what's lying about (nothing is
+## ever shown: the rooms are empty after hours). Not dirt, just looking:
+## [id, room ("under" or "high"), offset from its origin, prompt, lines in turn].
+const HINTS := [
+	["rate_board", "under", Vector3(-4.4, 0, -1.0), "[F] The board by the stairs", [
+		"A chalkboard by the stairs. ROOMS BY THE HOUR. ALL NIGHT ON REQUEST. COMPANY ARRANGED AT THE BAR. Someone has drawn a little heart next to 'company'.",
+		"Under the prices, in Pip's handwriting: 'No names at the door. Names cost extra.'"]],
+	["timers", "under", Vector3(-2.8, 0, -0.9), "[F] The desk with the timers", [
+		"Three egg timers on a little desk, one for each room. When one rings, somebody knocks twice. After that Pip charges by the quarter hour.",
+		"A notepad by the timers: 'Lt. Varga, red room, two hours. Asked for Mira again. Mira says no more.' Pip has underlined it twice."]],
+	["foil_bowl", "under", Vector3(0.9, 0, 0.9), "[F] A bowl by the door", [
+		"A glass bowl by every door, full of little foil packets. Restocked every night, the way a hotel leaves mints on the pillow.",
+		"Eco leaves them exactly where they are and decides she was never here."]],
+	["linen_cart", "under", Vector3(2.2, 0, -0.8), "[F] The laundry cart", [
+		"A laundry cart heaped with sheets, none of them clean. The rooms are changed between guests. That's a lot of guests for one night.",
+		"There's a lipstick kiss on a pillowcase. Not Pip's shade."]],
+	["door_tags", "under", Vector3(4.0, 0, 0.9), "[F] The tags on the handles", [
+		"Each door has a tag on its handle: VACANT on one side, a red silk tassel on the other. Tassel out means don't knock, whatever you hear.",
+		"The blue room's tassel is out. Nobody's in there. Somebody paid for it anyway, so nobody else can be."]],
+	["stage_card", "high", Vector3(-2.8, 0, 1.3), "[F] A card on the stage steps", [
+		"A price list for the stage, gold on black. A DANCE. A PRIVATE DANCE. THE GOLD DOOR, CLOSED. The last line has no price. You ask Pip.",
+		"On the back, small: 'Dancers choose. Guests who argue leave by the alley, and they don't come back down.'"]],
+	["tip_glass", "high", Vector3(1.0, 0, 1.3), "[F] The glass by the middle pole", [
+		"A brandy glass stuffed with folded scrip by the middle pole. Rank pins are pushed through some of the notes, so the dancers know exactly who tipped.",
+		"Most of the pins are officers'. The biggest wad has the recruiters' captain's pin through it."]],
+	["house_rules", "high", Vector3(-1.2, 0, -3.5), "[F] The plaque by the door", [
+		"A brass plaque by the door. HOUSE RULES: Look all you like. Touch only what you've paid for. What happens here, the house remembers.",
+		"The last rule is newer than the others. The brass is shinier."]],
+]
 ## Eco, once she's found all of it.
 const ALL_FOUND := "Eco thought her sister sold secrets. She doesn't. She makes them: she builds rooms for men to be weak in, and keeps the receipts."
 
@@ -61,6 +91,7 @@ static func build(root: Node3D, info: Dictionary) -> void:
 	_rope(below, info)
 	_underfloor(below, info)
 	_high_rollers(below, info)
+	_hints(below, info)
 
 
 ## The velvet rope on the street and the stair behind it.
@@ -181,6 +212,34 @@ static func _high_rollers(root: Node3D, info: Dictionary) -> void:
 	K.mesh(root, GOLD_DOOR_OUT + Vector3(0, 1.1, -0.45), Vector3(1.1, 2.2, 0.08), Art.material("alloy", GOLD))
 	K.interactable(info, "gold_door_back", GOLD_DOOR_OUT, "[F] Back through the gold door", ["The corridor of rooms."], 1.8)
 	info["interactables"].back()["teleport"] = GOLD_DOOR_IN + Vector3(-0.9, 0, 0)
+
+
+## The things lying about (HINTS), each something small to look at.
+static func _hints(root: Node3D, info: Dictionary) -> void:
+	for h in HINTS:
+		var at: Vector3 = (UNDER if h[1] == "under" else HIGH) + h[2]
+		match h[0]:
+			"rate_board":
+				K.mesh(root, at + Vector3(0, 1.4, -0.15), Vector3(0.9, 0.6, 0.04), Art.material("canvas", Color(0.08, 0.1, 0.09)))
+			"timers":
+				K.mesh(root, at + Vector3(0, 0.38, 0), Vector3(0.7, 0.76, 0.4), Art.material("wood", Color(0.2, 0.12, 0.1)))
+				for k in 3:
+					K.mesh(root, at + Vector3(-0.2 + k * 0.2, 0.8, 0), Vector3(0.07, 0.07, 0.07), Art.material("canvas", (ROOM_COLORS[k] as Color).darkened(0.2)))
+			"foil_bowl":
+				K.mesh(root, at + Vector3(0, 0.9, 0), Vector3(0.2, 0.08, 0.2), Art.material("alloy", Color(0.75, 0.8, 0.85)))
+				K.mesh(root, at + Vector3(0, 0.43, 0), Vector3(0.06, 0.86, 0.06), Art.material("gunmetal", GOLD))
+			"linen_cart":
+				K.mesh(root, at + Vector3(0, 0.45, 0), Vector3(0.9, 0.6, 0.5), Art.material("canvas", Color(0.3, 0.28, 0.3)))
+				K.mesh(root, at + Vector3(0, 0.82, 0), Vector3(0.85, 0.2, 0.45), Art.material("fabric", Color(0.85, 0.82, 0.86)))
+			"door_tags":
+				K.glow(root, at + Vector3(0.5, 1.0, 0.2), Vector3(0.03, 0.12, 0.03), RED)
+			"stage_card":
+				K.mesh(root, at + Vector3(0, 0.675, 0.3), Vector3(0.25, 0.35, 0.02), Art.material("canvas", Color(0.05, 0.04, 0.05)))
+			"tip_glass":
+				K.mesh(root, at + Vector3(0, 0.58, 0.35), Vector3(0.14, 0.16, 0.14), Art.material("alloy", Color(0.85, 0.9, 0.95)))
+			"house_rules":
+				K.glow(root, at + Vector3(0, 1.5, 0.08), Vector3(0.5, 0.3, 0.02), GOLD * 0.9)
+		K.interactable(info, h[0], at, h[3], h[4], 1.6)
 
 
 const MAGENTA_SOFT := Color(1.0, 0.35, 0.7)

@@ -176,10 +176,16 @@ crooked in Solace from **Downtown**, a short neon street off the end of Low Row
   and through the gold door to the high rollers' room with its stage, poles, card table and Pip's
   chair. Six pieces of Pip's own dirt are hidden there; each one Eco finds shows a little more of
   how her sister holds the colony's officers from the shadows. Saved with the rest of Downtown.
+  What the rooms are for is said plainly by what's lying about (a rate board, the room timers, the
+  laundry cart, the house rules: `HINTS`) and by Pip when Eco finds her down there
+  (`dialogue/npc/pip_M.txt`); nothing is ever shown, and the rooms are empty after hours.
 - **Pip** herself (`dialogue/npc/pip.txt`, model `assets/models/npc/pip.glb` from
   `tools/npc/build_npc.py`) stands somewhere different each hub stay, dressed for it: the casino
-  door in her warden mesh or shorts, the club in her rave fit, the arch in her pinstripe crop, or
-  the high rollers' room after hours. Teen swaps the warden for the crop and keeps her upstairs.
+  door in her warden mesh or shorts, the club in her rave fit, the arch in her pinstripe crop, the
+  corridor of rooms, or the high rollers' room after hours. Teen swaps the warden for the crop and
+  keeps her upstairs. At each business she's at work (`assets/models/npc/pip_poses.glb` from
+  `tools/npc/build_poses.py`): shuffling cards at the casino, a cocktail at the club, her ledger in
+  the corridor, a chip in her chair.
 Test: `godot --headless --path . -s res://tests/downtown_test.gd`.
 
 ### Vices: the Rusted Halo, smokes, stims and Hush (Mature only)

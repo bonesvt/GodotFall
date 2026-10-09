@@ -513,6 +513,8 @@ func enter_hub() -> void:
 		NpcIdles.settle(npc, zone_info, runs_ended)
 		if spec.get("anim", "") != "":
 			NpcIdles.strike(npc, spec["anim"], spec.get("props", []))  # Pip at work
+		if spec.has("spot"):
+			npc.spot = spec["spot"]  # she talks about where she is ([spot ...] in her lines)
 		hub_npcs[spec["who"]] = npc
 	Townsfolk.populate(zone_root, player, runs_ended)
 	Soundscape.hub(zone_root, zone_info)

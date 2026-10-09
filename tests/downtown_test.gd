@@ -11,6 +11,7 @@ const CasinoScreen := preload("res://scripts/hub/casino_screen.gd")
 const ClubScreen := preload("res://scripts/hub/club_screen.gd")
 const Below := preload("res://scripts/hub/downtown_below.gd")
 const HubNpc := preload("res://scripts/hub/hub_npc.gd")
+const NpcTalk := preload("res://scripts/hub/npc_talk.gd")
 
 const ARMORY_PATH := "user://test_downtown_armory.cfg"
 const DOWNTOWN_PATH := "user://test_downtown.cfg"
@@ -143,6 +144,15 @@ func _run() -> void:
 	for id in Below.DIRT_ORDER:
 		last = Downtown.find_dirt(id)
 	_check("all of it: Eco's last word", Below.ALL_FOUND in last and Downtown.dirt().size() == Below.DIRT.size(), Downtown.dirt())
+
+	# What the rooms are for, lying about to be read (nothing shown), and
+	# Pip talking about them at her spots there (Mature only, like the rooms).
+	for h in Below.HINTS:
+		_check("something to read: %s" % h[0], h[0] in ids, "")
+	var cut := NpcTalk.parse(FileAccess.get_file_as_string("res://dialogue/npc/pip_M.txt"))
+	_check("Pip talks about the rooms and the high rollers' room", cut["spot"].has("rooms") and cut["spot"].has("high_rollers"), cut["spot"].keys())
+	var plain := NpcTalk.parse(FileAccess.get_file_as_string("res://dialogue/npc/pip.txt"))
+	_check("not in the Teen lines", not plain["spot"].has("rooms") and not plain["spot"].has("high_rollers"), plain["spot"].keys())
 
 	for path in [ARMORY_PATH, DOWNTOWN_PATH, TOWN_PATH]:
 		DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
