@@ -23,6 +23,7 @@ extends CanvasLayer
 ##   R   Biggie's toolkit: everything above (and Super Hush) back to nothing
 ##   C   Cutter's Redline: he's there, and the needle (cutter_scene.gd)
 ##   G   five Redline charges, for the Rig in Biggie's den (redline.gd)
+##   V   a rescue: Mom or Ophelia taken right now (rescue_event.gd)
 
 const Armory := preload("res://scripts/hub/armory.gd")
 const TownShops := preload("res://scripts/hub/town_shops.gd")
@@ -109,11 +110,12 @@ func _ready() -> void:
 	col.add_child(_button("R   Biggie's toolkit (reset every control system)", func(): control_item("toolkit")))
 	col.add_child(_button("C   Cutter's Redline (the needle, the high, a charge)", redline_item))
 	col.add_child(_button("G   Five Redline charges (spend them at the Rig in Biggie's den)", redline_charges))
+	col.add_child(_button("V   A rescue (Mom or Ophelia taken, now: get to them)", rescue_item))
 	_status = _text("", 16, INK)
 	_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_status.custom_minimum_size = Vector2(512, 0)
 	col.add_child(_status)
-	col.add_child(_text("1-9, 0, Q, W, E, T, Y, U, R, C, G pick   F or Esc close", 14, DIM))
+	col.add_child(_text("1-9, 0, Q, W, E, T, Y, U, R, C, G, V pick   F or Esc close", 14, DIM))
 
 
 func _input(event: InputEvent) -> void:
@@ -158,6 +160,8 @@ func _input(event: InputEvent) -> void:
 			redline_item()
 		KEY_G:
 			redline_charges()
+		KEY_V:
+			rescue_item()
 		_:
 			return
 	get_viewport().set_input_as_handled()
@@ -255,6 +259,17 @@ func unlock_looks() -> void:
 
 ## One of the control items: the box closes and its scene plays out
 ## (cheat_scene.gd), which sets its system to full at the end. Mature only.
+## Someone taken, now: Biggie runs in when the box shuts (rescue_event.gd).
+func rescue_item() -> bool:
+	if not Vices.allowed():
+		_did("Rescues are Mature only (Settings > Game > rating).")
+		return false
+	scene = "rescue"
+	close_now = true
+	_did("A rescue: run.")
+	return true
+
+
 ## Five Redline charges for the Rig.
 func redline_charges() -> bool:
 	if not Vices.allowed():

@@ -47,7 +47,7 @@ func _go() -> void:
 	sheet = Image.create(CELL.x * 2, CELL.y * 2, false, Image.FORMAT_RGBA8)
 	var spot := {}
 	for s in run_node.zone_info["interactables"]:
-		if s["id"] == "rig":
+		if s["id"] == "redline_rig":
 			spot = s
 	var chair: Vector3 = spot["pos"] - Vector3(0, 0, 0.85)
 	var p: Node3D = run_node.player

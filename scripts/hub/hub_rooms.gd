@@ -462,10 +462,10 @@ static func _biggie(root: Node3D, info: Dictionary) -> void:
 	K.light(root, bulb + Vector3(0, -0.2, 0), BULB, 1.3, 8.0)
 	_rug(root, Vector3(x0 + 3.6, 0, zb + 4.0), Vector2(2.6, 2.0), Color(0.45, 0.35, 0.25), 6.0)
 	_npc(info, "biggie", "Biggie", Vector3(x0 + 3.4, F, zb + 3.6), 180.0)
-	_rig(root, info, Vector3(x1 - 1.35, F, zb + 1.3))
+	_rig(root, info, Vector3(x0 + 6.0, F, zb + 1.2))
 
 
-## The Rig (redline.gd, rig_screen.gd), in the back corner of Biggie's den:
+## The Rig (redline.gd, rig_screen.gd), against the back wall of Biggie's den:
 ## an old barber's chair in cracked oxblood leather on a chrome pedestal,
 ## leaning back, and over it a jointed arm with a red-lit injector head; a rack
 ## of Redline vials glowing on the wall, a steel tray of his tools on a cart,
@@ -523,7 +523,7 @@ static func _rig(root: Node3D, info: Dictionary, at: Vector3) -> void:
 	# the red work lamp
 	K.light(root, at + Vector3(0.1, 2.2, 0.3), Color(1.0, 0.3, 0.24), 0.9, 3.5)
 	info["rig_seat"] = at + Vector3(0, 0, 0.08)
-	K.interactable(info, "rig", at + Vector3(0, 0, 0.85), "[F] The Rig", [
+	K.interactable(info, "redline_rig", at + Vector3(0, 0, 0.85), "[F] The Rig", [
 		"An old barber's chair under a jointed arm. Biggie keeps it oiled and won't say what it's for.",
 	], 1.3)
 	info["interactables"].back()["shop"] = "rig"

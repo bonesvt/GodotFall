@@ -12,6 +12,7 @@ const RED := Color(1.0, 0.3, 0.25)
 const INK := Color(0.95, 0.93, 0.9)
 const DIM := Color(0.95, 0.93, 0.9, 0.55)
 
+var kind := "rig"
 ## Benches report weapons unlocked by a level up; nothing here does that.
 var unlocked: Array = []
 ## Something went on or came off.

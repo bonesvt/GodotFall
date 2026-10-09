@@ -69,7 +69,7 @@ func _run() -> void:
 	# the Rig, in Biggie's den: her pick, for a charge
 	var rig_spot := {}
 	for s in run_node.zone_info["interactables"]:
-		if s["id"] == "rig":
+		if s["id"] == "redline_rig":
 			rig_spot = s
 	_check("the Rig's in Biggie's den", not rig_spot.is_empty() and rig_spot.get("shop", "") == "rig", rig_spot.get("pos"))
 	run_node.open_bench("rig")
