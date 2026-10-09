@@ -21,6 +21,7 @@ extends CanvasLayer
 ##   Y   the glass shard: Faith's devotion to full (vice_looks.gd)
 ##   U   the PRIORITY ticket: Colony City's Town's Grip to full (vice_looks.gd)
 ##   R   Biggie's toolkit: everything above (and Super Hush) back to nothing
+##   C   Cutter's Redline: he's there, and the needle (cutter_scene.gd)
 
 const Armory := preload("res://scripts/hub/armory.gd")
 const TownShops := preload("res://scripts/hub/town_shops.gd")
@@ -105,11 +106,12 @@ func _ready() -> void:
 	col.add_child(_button("Y   The glass shard (Faith's devotion to full)", func(): control_item("shard")))
 	col.add_child(_button("U   The PRIORITY ticket (Town's Grip to full)", func(): control_item("ticket")))
 	col.add_child(_button("R   Biggie's toolkit (reset every control system)", func(): control_item("toolkit")))
+	col.add_child(_button("C   Cutter's Redline (the needle; from the second, a change)", redline_item))
 	_status = _text("", 16, INK)
 	_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_status.custom_minimum_size = Vector2(512, 0)
 	col.add_child(_status)
-	col.add_child(_text("1-9, 0, Q, W, E, T, Y, U, R pick   F or Esc close", 14, DIM))
+	col.add_child(_text("1-9, 0, Q, W, E, T, Y, U, R, C pick   F or Esc close", 14, DIM))
 
 
 func _input(event: InputEvent) -> void:
@@ -150,6 +152,8 @@ func _input(event: InputEvent) -> void:
 			control_item("ticket")
 		KEY_R:
 			control_item("toolkit")
+		KEY_C:
+			redline_item()
 		_:
 			return
 	get_viewport().set_input_as_handled()
@@ -205,6 +209,17 @@ func super_hush() -> bool:
 	inject = true
 	close_now = true
 	_did("Super Hush: Marrow's Hold is full. He stops selling, his pull can take her, and a run without a dose is withdrawal.")
+	return true
+
+
+## Cutter's Redline: the box closes, he's right there, and the needle.
+func redline_item() -> bool:
+	if not Vices.allowed():
+		_did("Redline is Mature only (Settings > Game > rating).")
+		return false
+	scene = "redline"
+	close_now = true
+	_did("Cutter's Redline: watch.")
 	return true
 
 

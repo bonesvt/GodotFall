@@ -310,6 +310,9 @@ const EcoRest := preload("res://scripts/ps2/eco_rest.gd")
 const Prefs := preload("res://scripts/game/prefs.gd")
 const Hair := preload("res://scripts/hub/hair.gd")
 const ColonyGear := preload("res://scripts/hub/colony_gear.gd")
+const RedlineBody := preload("res://scripts/hub/redline_body.gd")
+const Redline := preload("res://scripts/hub/redline.gd")
+const REDLINE_SWIRL := Color(1.0, 0.12, 0.1)
 const ViceLooks := preload("res://scripts/hub/vice_looks.gd")
 const Obsession := preload("res://scripts/hub/obsession.gd")
 ## The spirals in her eyes: Marrow's violet, Ophelia's rose.
@@ -535,6 +538,7 @@ func apply_suit() -> void:
 	_style_gear(STYLE_GEAR.get(style(), {}) if suited_ and suit_tier == 0 else {})
 	Extras.apply(self)  # her piercings, tattoos and accessories from Solace
 	ColonyGear.apply(self)  # the Shepherd's gear, if it's put any on her (hymn.gd)
+	RedlineBody.apply(self)  # what Cutter's Redline has changed of her (redline.gd)
 	ViceLooks.apply(self)  # a hypno look over it all (vice_looks.gd)
 
 
@@ -662,6 +666,11 @@ func _eye_swirl() -> void:
 	var rose := Obsession.eyes() * 0.9
 	var h := maxf(marrow, rose)
 	var tint := ROSE_SWIRL if rose > marrow and not Vices.entranced else VIOLET_SWIRL
+	# Redline: red in her eyes while she's high, and for good once it's changed them
+	var red := 0.85 if Redline.high() else (0.4 if Redline.has("eyes") else 0.0)
+	if red > h:
+		h = red
+		tint = REDLINE_SWIRL
 	if swirl_override >= 0.0:
 		h = swirl_override
 		tint = swirl_override_tint

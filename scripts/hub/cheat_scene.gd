@@ -39,6 +39,8 @@ const Obsession := preload("res://scripts/hub/obsession.gd")
 const HubGrip := preload("res://scripts/hub/hub_grip.gd")
 const ViceLooks := preload("res://scripts/hub/vice_looks.gd")
 const ColonyGear := preload("res://scripts/hub/colony_gear.gd")
+const Redline := preload("res://scripts/hub/redline.gd")
+const RedlineBody := preload("res://scripts/hub/redline_body.gd")
 const ObsessionLook := preload("res://scripts/hub/obsession_look.gd")
 const Wardrobe := preload("res://scripts/hub/wardrobe.gd")
 const EcoModel := preload("res://scripts/ps2/eco_model.gd")
@@ -408,6 +410,8 @@ func _apply() -> void:
 			HubGrip.save()
 			ViceLooks.add("devotion", -ViceLooks.MAX)
 			ViceLooks.add("town_grip", -ViceLooks.MAX)
+			Redline.reset()
+			Redline.save()
 	if rm.has_method("dress_hub"):
 		rm.dress_hub()
 	Wardrobe.dress_eco(rm.player, true)  # every copy of her, in what she has now
@@ -417,6 +421,7 @@ func _apply() -> void:
 	for m in models:
 		if is_instance_valid(m):
 			ColonyGear.apply(m)
+			RedlineBody.apply(m)
 	# Mom and Ophelia as they are now: their gear, and how her obsession shows
 	for who in HubGrip.WHO:
 		var npc: Node3D = rm.hub_npcs.get(who)
