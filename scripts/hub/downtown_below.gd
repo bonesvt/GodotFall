@@ -60,7 +60,7 @@ const HINTS := [
 		"Under the prices, in Pip's handwriting: 'No names at the door. Names cost extra.'"]],
 	["timers", "under", Vector3(-2.8, 0, -0.9), "[F] The desk with the timers", [
 		"Three egg timers on a little desk, one for each room. When one rings, somebody knocks twice. After that Pip charges by the quarter hour.",
-		"A notepad by the timers: 'Lt. Varga, red room, two hours. Asked for Mira again. Mira says no more.' Pip has underlined it twice."]],
+		"A notepad by the timers: 'Lt. Varga, red room, two hours. Asked for Liesl again. Liesl says no more.' Pip has underlined it twice."]],
 	["foil_bowl", "under", Vector3(0.9, 0, 0.9), "[F] A bowl by the door", [
 		"A glass bowl by every door, full of little foil packets. Restocked every night, the way a hotel leaves mints on the pillow.",
 		"Eco leaves them exactly where they are and decides she was never here."]],
@@ -70,6 +70,16 @@ const HINTS := [
 	["door_tags", "under", Vector3(4.0, 0, 0.9), "[F] The tags on the handles", [
 		"Each door has a tag on its handle: VACANT on one side, a red silk tassel on the other. Tassel out means don't knock, whatever you hear.",
 		"The blue room's tassel is out. Nobody's in there. Somebody paid for it anyway, so nobody else can be."]],
+	# a guest's review pinned inside each room's door, and the replies under it
+	["review_red", "under", Vector3(-5.3, 0, 1.5), "[F] A comment card by the door", [
+		"A comment card, red room: 'Five stars. The lock works, the walls are thick, and nobody asked my name. Back Thursday. The wife thinks I'm on patrol.' Signed 'A Grateful Sergeant'.",
+		"Under it, another hand: 'Bed creaks. Tell Pip.' Under that, in Pip's: 'The bed creaks so the lady with the timers knows you're still alive. Working as intended.'"]],
+	["review_violet", "under", Vector3(-1.3, 0, 1.5), "[F] A comment card by the door", [
+		"A comment card, violet room: 'Four stars. Lovely lighting, very forgiving. One star off because somebody knocked twice at exactly the wrong moment.' Pip, underneath: 'That was the timer, sir. You were forty minutes over.'",
+		"Another: 'Asked for the all-night rate. Got the all-night rate. Got no sleep whatsoever. No complaints.' No name, just a rank pin pushed through the card."]],
+	["review_blue", "under", Vector3(2.7, 0, 1.5), "[F] A comment card by the door", [
+		"A comment card, blue room: 'Three stars. The music next door was too loud, and so was I, apparently. Got a note about it.' Pip, below: 'You got two notes. Read the second one.'",
+		"Another, in very careful handwriting: 'Came down nervous, went home a different man. Thank you, Vell.' Pip has added: 'Vell says you're welcome. Vell also says tip.'"]],
 	["stage_card", "high", Vector3(-2.8, 0, 1.3), "[F] A card on the stage steps", [
 		"A price list for the stage, gold on black. A DANCE. A PRIVATE DANCE. THE GOLD DOOR, CLOSED. The last line has no price. You ask Pip.",
 		"On the back, small: 'Dancers choose. Guests who argue leave by the alley, and they don't come back down.'"]],
@@ -233,6 +243,8 @@ static func _hints(root: Node3D, info: Dictionary) -> void:
 				K.mesh(root, at + Vector3(0, 0.82, 0), Vector3(0.85, 0.2, 0.45), Art.material("fabric", Color(0.85, 0.82, 0.86)))
 			"door_tags":
 				K.glow(root, at + Vector3(0.5, 1.0, 0.2), Vector3(0.03, 0.12, 0.03), RED)
+			"review_red", "review_violet", "review_blue":
+				K.mesh(root, at + Vector3(0, 1.3, -0.19), Vector3(0.12, 0.17, 0.02), Art.material("canvas", Color(0.92, 0.88, 0.8)))
 			"stage_card":
 				K.mesh(root, at + Vector3(0, 0.675, 0.3), Vector3(0.25, 0.35, 0.02), Art.material("canvas", Color(0.05, 0.04, 0.05)))
 			"tip_glass":
