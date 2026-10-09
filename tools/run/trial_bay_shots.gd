@@ -72,13 +72,13 @@ func _go() -> void:
 	await _frames(30)
 	var c: Vector3 = HoldingCell.COLUMN
 	await _look(Vector3(0.4, 1.6, 4.2), Vector3(0, 1.3, -2.2), 55.0)                 # from the street
-	await _look(c + Vector3(0.2, 1.55, 1.2), c + Vector3(0, 1.45, 0), 40.0)          # her in the frame
-	await _look(Vector3(-0.9, 1.5, -0.1), Vector3(-1.5, 0.9, -1.2), 45.0)            # the cart
+	await _look(c + Vector3(1.5, 1.3, 0.5), c + Vector3(0, 1.0, 0.1), 50.0)          # her in the frame, clamped, the screen in her face
+	await _look(c + Vector3(0.15, 1.65, -0.25), c + Vector3(0, 1.5, 0.55), 60.0)     # over her shoulder: what it shows her
 	await _look(Vector3(0.6, 1.8, -1.0), Vector3(-2.5, 1.95, -1.6), 50.0)            # the wall screen
 	cell.release()
 	await _frames(70)   # the visor comes off her
 	await _look(Vector3(0.4, 1.6, 3.2), Vector3(0, 1.2, -2.2), 55.0)                 # shorted, dark
-	await _look(c + Vector3(0.3, 1.5, 1.0), c + Vector3(0, 1.35, 0), 40.0)           # visor off, cuff on
+	await _look(c + Vector3(1.2, 1.5, 0.8), c + Vector3(0, 1.3, 0), 40.0)            # visor off, clamps open, cuff on
 	sheet.save_png(out.path_join("trial_bay.png"))
 	print("saved ", out.path_join("trial_bay.png"))
 	quit()

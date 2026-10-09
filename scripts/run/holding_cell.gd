@@ -6,14 +6,16 @@ extends Node3D
 ## white inside, with a drain. She stands in the same white fitting frame as
 ## the dispensary's back room (fitting_scene.gd), under a column of white
 ## light, wearing the prototype compliance headphones, dose cuff and clarity
-## visor (colony_gear.gd): nothing holds her there but the visor and the dose.
+## visor (colony_gear.gd), the frame's clamps on her forearms and ankles, and
+## a screen hung in front of her face flashing rings and words at her.
 ## Two empty frames beside hers, their visors hanging off them, were the
 ## subjects before her. The wall screen reads her trial (TRIAL_TEXT, LOG), a
 ## steel cart holds a tray of Hymn films cut into strips, and a sealed case
 ## of Glass reference vials from "supplier: M." is the first thing tying
 ## Marrow to the colony. Guards are posted round the block but nothing holds
 ## the screen shut: sneak up, F shorts it and kills the bay's power
-## (run_manager rescue()), the light goes out, Eco lifts the dead visor off
+## (run_manager rescue()), the light and the screen go out, the clamps spring
+## open, Eco lifts the dead visor off
 ## her and pulls the headphones, and she follows Eco out (escort.gd). The
 ## cuff's pins won't come out: she goes home wearing it (run_manager
 ## _rescue_bonus, hub_grip.gd). The cell opens toward local +z.
@@ -49,6 +51,11 @@ const EMPTY := [Vector3(-1.75, 0.0, -3.35), Vector3(1.95, 0.0, -3.4)]
 ## What the colony put on her for the trial, and what stays on once she's out.
 const TRIAL_GEAR := ["headphones", "cuff", "visor"]
 const KEPT_GEAR := ["cuff"]
+## The screen hung in front of her face, and what it flashes at her, a word at
+## a time over turning white rings.
+const FEED_AT := Vector3(0.0, 1.5, 0.55)
+const FEED_WORDS := ["CALM", "YOU ARE DOING SO WELL", "STAY", "SOLACE IS SAFE", "BREATHE WITH US", "GOOD", "BE ON TIME", "STAY"]
+const FEED_WORD_TIME := 1.1
 ## The wall screen over her frame, and the last lines of the trial log.
 const TRIAL_TEXT := "HYMN TRIAL  BAY 7
 SUBJECT 07   DAY 19
@@ -74,6 +81,11 @@ var _log: Label3D
 var _rings: Array = []    # MeshInstance3D drifting down the light
 var _pylons: Array = []   # the power strips up her frame's posts
 var _glows: Array = []    # the bay's lit seams, dark once it's shorted
+var _clamps: Array = []   # the frame's clamps on her, open once it's shorted
+## The screen in front of her face: its words, its rings, and its backing.
+var _feed: Node3D
+var _feed_word: Label3D
+var _feed_rings: Array = []
 var _rating := ""
 var _t := 0.0
 
@@ -95,20 +107,103 @@ func _dress() -> void:
 		ophelia.wear("colony_m" if HubNpc.mature() else "colony")
 
 
-## Standing in the frame in the white light, swaying a little, eyes shut
-## behind the visor, with the trial's gear on.
+## Standing stock still in the frame in the white light, eyes shut behind the
+## visor, with the trial's gear on and the frame's clamps on her forearms and
+## ankles.
 func _hold() -> void:
 	if ophelia == null or ophelia._anim == null:
 		return
-	NpcIdles._load_poses(ophelia)
-	for pose in ["idle_sway", "idle"]:
-		var name: String = pose if pose == "idle" else NpcIdles.LIB + "/" + pose
-		if ophelia._anim.has_animation(name):
-			ophelia._anim.play(name, 0.0)
-			break
+	if ophelia._anim.has_animation("idle"):
+		ophelia._anim.play("idle", 0.0)
+		ophelia._anim.seek(0.0, true)
+		ophelia._anim.speed_scale = 0.0   # held, not breathing easy
 	ophelia.posed = true
 	ophelia.mood(["closed", "smile"])
 	ColonyGear.apply(ophelia, TRIAL_GEAR)
+	_clamp()
+
+
+## The frame's clamps: a white band round each forearm, arms run out to the
+## frame's posts, and a band round each ankle locked to its base plate, each
+## lit with the bay's light. Built in cell space round where her pose has
+## them, since she's held still.
+func _clamp() -> void:
+	for c in _clamps:
+		c.queue_free()
+	_clamps.clear()
+	var skel := ophelia.find_child("Skeleton3D", true, false) as Skeleton3D
+	if skel == null:
+		return
+	var white := _flat(Color(0.93, 0.94, 0.96))
+	var lit := Kit.glow(FIELD)
+	for side in ["L", "R"]:
+		var hand: Variant = _bone_at(skel, "J_Bip_%s_Hand" % side)
+		var elbow: Variant = _bone_at(skel, "J_Bip_%s_LowerArm" % side)
+		var foot: Variant = _bone_at(skel, "J_Bip_%s_Foot" % side)
+		if hand == null or elbow == null or foot == null:
+			continue
+		var s := 1.0 if (hand as Vector3).x > COLUMN.x else -1.0
+		var wrist: Vector3 = (hand as Vector3).lerp(elbow as Vector3, 0.3)
+		var post := Vector3(COLUMN.x + 0.5 * s, wrist.y, COLUMN.z - 0.35)
+		_clamp_part(_band(wrist, ((elbow as Vector3) - (hand as Vector3)).normalized(), 0.05, 0.07, white, lit))
+		_clamp_part(_bar(wrist + (post - wrist).normalized() * 0.05, post, 0.035, white))
+		var ankle: Vector3 = (foot as Vector3) + Vector3.UP * 0.06
+		_clamp_part(_band(ankle, Vector3.UP, 0.055, 0.07, white, lit))
+		_clamp_part(_bar(ankle - Vector3.UP * 0.04, Vector3(ankle.x, 0.06, ankle.z), 0.04, white))
+
+
+func _clamp_part(n: Node3D) -> void:
+	_clamps.append(n)
+
+
+## Where a bone of hers is, in cell space (null if she hasn't got it).
+func _bone_at(skel: Skeleton3D, bone_name: String) -> Variant:
+	var b := skel.find_bone(bone_name)
+	if b < 0:
+		return null
+	return to_local((skel.global_transform * skel.get_bone_global_pose(b)).origin)
+
+
+## A clamp band at `at` round `axis`, with a lit line round its middle.
+func _band(at: Vector3, axis: Vector3, radius: float, height: float, m: Material, lit: Material) -> Node3D:
+	var n := Node3D.new()
+	n.name = "Clamp"
+	add_child(n)
+	n.position = at
+	n.basis = Basis(Quaternion(Vector3.UP, axis.normalized()))
+	var band := MeshInstance3D.new()
+	var cyl := CylinderMesh.new()
+	cyl.top_radius = radius
+	cyl.bottom_radius = radius
+	cyl.height = height
+	cyl.radial_segments = 16
+	band.mesh = cyl
+	band.material_override = m
+	n.add_child(band)
+	var line := MeshInstance3D.new()
+	var torus := TorusMesh.new()
+	torus.inner_radius = radius
+	torus.outer_radius = radius + 0.006
+	torus.rings = 16
+	torus.ring_segments = 4
+	line.mesh = torus
+	line.material_override = lit
+	n.add_child(line)
+	_glows.append(line)
+	return n
+
+
+## A square bar from a to b.
+func _bar(a: Vector3, b: Vector3, thick: float, m: Material) -> Node3D:
+	var mi := MeshInstance3D.new()
+	var bm := BoxMesh.new()
+	bm.size = Vector3(thick, a.distance_to(b), thick)
+	mi.mesh = bm
+	mi.material_override = m
+	add_child(mi)
+	mi.position = (a + b) * 0.5
+	mi.basis = Basis(Quaternion(Vector3.UP, (b - a).normalized()))
+	return mi
 
 
 ## The gear she has on (empty under Teen, where the gear never shows).
@@ -127,6 +222,15 @@ func _process(delta: float) -> void:
 	if opened:
 		return
 	_t += delta
+	# The screen's rings turn out from its middle; a new word every so often.
+	for i in _feed_rings.size():
+		var ring: MeshInstance3D = _feed_rings[i]
+		var f := fposmod(_t * 0.45 + float(i) / _feed_rings.size(), 1.0)
+		var r := 0.15 + f * 1.4
+		ring.scale = Vector3(r, 1.0, r * 0.95)
+		ring.transparency = f
+	if _feed_word != null:
+		_feed_word.text = FEED_WORDS[int(_t / FEED_WORD_TIME) % FEED_WORDS.size()]
 	# Rings of the light sink down over her, slow; the light breathes.
 	var h := SIZE.y - PAD_TOP - 0.3
 	for i in _rings.size():
@@ -152,6 +256,7 @@ func _build() -> void:
 	_tile(w, d, h)
 	_build_light(h)
 	_build_frame(COLUMN, true)
+	_build_feed(h)
 	# The subjects before her: their frames dark, their visors hung on them.
 	for i in EMPTY.size():
 		_build_frame(EMPTY[i], false, i)
@@ -269,6 +374,44 @@ func _build_light(h: float) -> void:
 	_field_light.omni_range = 4.0
 	_field_light.position = COLUMN + Vector3(0, 2.4, 0.3)
 	add_child(_field_light)
+
+
+## The screen in front of her face, hung off the ceiling on a pole and turned
+## to her: dark glass, white rings turning out from its middle and one word at
+## a time. From the street you see its grey back.
+func _build_feed(h: float) -> void:
+	_feed = Node3D.new()
+	_feed.name = "Feed"
+	_feed.position = COLUMN + FEED_AT
+	_feed.rotation_degrees = Vector3(0, 180, 0)   # its face (+z) toward her
+	add_child(_feed)
+	var casing := _flat(Color(0.55, 0.58, 0.62))
+	K.mesh(_feed, Vector3(0, 0, -0.02), Vector3(0.62, 0.4, 0.04), casing)
+	K.mesh(_feed, Vector3(0, (h - FEED_AT.y) * 0.5 + 0.1, -0.02), Vector3(0.03, h - FEED_AT.y - 0.2, 0.03), casing)
+	_glows.append(K.mesh(_feed, Vector3(0, 0, 0.001), Vector3(0.56, 0.34, 0.002), Kit.glow(Color(0.04, 0.05, 0.08))))
+	var ring_mat := StandardMaterial3D.new()
+	ring_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	ring_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	ring_mat.albedo_color = Color(FIELD, 0.8)
+	for i in 3:
+		var ring := MeshInstance3D.new()
+		var torus := TorusMesh.new()
+		torus.inner_radius = 0.1
+		torus.outer_radius = 0.106
+		torus.rings = 32
+		torus.ring_segments = 4
+		ring.mesh = torus
+		ring.material_override = ring_mat
+		ring.rotation_degrees = Vector3(90, 0, 0)
+		ring.position = Vector3(0, 0, 0.004)
+		_feed.add_child(ring)
+		_feed_rings.append(ring)
+	_feed_word = Kit.label(_feed, Vector3(0, -0.12, 0.006), FEED_WORDS[0], 40)
+	_feed_word.billboard = BaseMaterial3D.BILLBOARD_DISABLED
+	_feed_word.pixel_size = 0.0018
+	_feed_word.outline_size = 0
+	_feed_word.render_priority = 2
+	_feed_word.modulate = FIELD
 
 
 ## A white fitting frame behind someone standing at `at` facing +z: two posts
@@ -403,15 +546,24 @@ func release() -> bool:
 	for strip: MeshInstance3D in _pylons:
 		strip.material_override = Kit.glow(Color(1.0, 0.55, 0.3))
 		get_tree().create_timer(0.25, false).timeout.connect(_burn_out.bind(strip, dead))
-	for line: MeshInstance3D in _glows:
-		line.material_override = dead
+	for line in _glows:
+		if is_instance_valid(line):
+			line.material_override = dead
 	_field.visible = false
 	for ring in _rings:
 		ring.visible = false
 	_field_light.light_energy = 0.0
 	_light.light_energy = 0.3   # the street's spill, now the screen's gone
+	# the screen in her face goes dark, and the clamps spring open
+	for ring in _feed_rings:
+		ring.visible = false
+	_feed_word.text = ""
+	for c in _clamps:
+		c.queue_free()
+	_clamps.clear()
 	if ophelia != null:
 		if ophelia._anim != null:
+			ophelia._anim.speed_scale = 1.0
 			ophelia.posed = false
 			if ophelia._anim.has_animation("idle"):
 				ophelia._anim.play("idle", 0.25)
