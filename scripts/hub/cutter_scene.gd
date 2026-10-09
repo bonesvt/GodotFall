@@ -1,16 +1,15 @@
 extends Node
 ## Cutter's scenes (cutter.gd, redline.gd), on Eco in third person:
-##   the catch  he has the back of her head; through her eyes, his needle of
-##              Redline comes in slow at the camera, then red (a flash at contact, nothing
-##              more); her heart, her eyes swirling red; from the second time
-##              a Redline charge left in her for the Rig (redline.gd); and Cutter,
-##              off and laughing
+##   the catch  he has the back of her head; close on her eye from outside as
+##              his needle of Redline comes in slow, then through her eyes as
+##              it comes at the camera, then red (a flash at contact: the needle
+##              going in is never shown); her heart, her eyes swirling red; a
+##              Redline charge left in her for the Rig (redline.gd); and
+##              Cutter, off and laughing
 ##   the crash  when the high runs out: the colour goes out of everything, she
 ##              sinks to the floor, shaking, and swears never again
-## And while she's high, her view pulses red with her heart. The run manager plays the scenes and keeps
-## its controls off while busy().
-## The needle is only ever seen through her own eyes: no shot of her eye from
-## outside.
+## And while she's high, her view pulses red with her heart. The run manager
+## plays the scenes and keeps its controls off while busy().
 
 const Redline := preload("res://scripts/hub/redline.gd")
 const Wardrobe := preload("res://scripts/hub/wardrobe.gd")
@@ -22,7 +21,8 @@ const EcoModel := preload("res://scripts/ps2/eco_model.gd")
 const RED := Color(0.85, 0.05, 0.05)
 ## The catch's beats.
 const GRAB := 0.0
-const EYE := 1.4        # through her eyes: the needle coming
+const EYE := 1.4        # close on her eye, from outside: the needle coming
+const EYE_FP := 2.6     # then through her eyes for the last of it
 const IN := 3.6         # the needle's in: red
 const RUSH := 4.4
 const CHANGE := 5.4     # the change coming on (a wider shot of her)
@@ -142,10 +142,13 @@ func _process(delta: float) -> void:
 func _catch_tick(_delta: float) -> void:
 	if t >= EYE and not _said.has("eye"):
 		_said["eye"] = true
-		_shot("eye")
+		_shot("eye_out")
 		_say("eye", 2.4)
 		_syringe = _make_syringe()
 		SFX.play(self, "heartbeat", -6.0, 0.8)
+	if t >= EYE_FP and not _said.has("eye_fp"):
+		_said["eye_fp"] = true
+		_shot("eye")
 	if _syringe != null:
 		# in toward her eye, slow, then stopping at it
 		var k := smoothstep(EYE, IN, t)
@@ -180,8 +183,10 @@ func _catch_tick(_delta: float) -> void:
 		a = maxf(a, 0.18 + 0.12 * sin(t * 9.0))
 		a *= 1.0 - smoothstep(GOES, END, t)
 	_veil.color = Color(RED, a)
-	if _cam != null and t >= EYE and t < IN:
-		_cam.fov = lerpf(60.0, 48.0, smoothstep(EYE, IN, t))  # her view narrowing on it
+	if _cam != null and t >= EYE and t < EYE_FP:
+		_cam.fov = lerpf(22.0, 15.0, smoothstep(EYE, EYE_FP, t))  # closing in on her eye
+	elif _cam != null and t >= EYE_FP and t < IN:
+		_cam.fov = lerpf(60.0, 48.0, smoothstep(EYE_FP, IN, t))  # her view narrowing on it
 	if t >= END:
 		_finish()
 
@@ -340,8 +345,8 @@ func _make_syringe() -> Node3D:
 	return s
 
 
-## "two": over her shoulder onto him; "eye": through her right eye, first
-## person; "change": her whole self, to see what it's done; "low": low and in
+## "two": over her shoulder onto him; "eye_out": tight on her right eye from
+## in front; "eye": through her right eye, first person; "change": her whole self, to see what it's done; "low": low and in
 ## front of her, for the crash.
 func _shot(which: String) -> void:
 	if _cam == null:
@@ -360,6 +365,11 @@ func _shot(which: String) -> void:
 		"two":
 			_cam.fov = 40.0
 			_cam.look_at_from_position(eyes - fwd * 0.9 + right * 0.55 + Vector3(0, 0.15, 0), eyes + fwd * 0.6)
+		"eye_out":
+			# in front and a little to her right, under her fringe: her eye and the needle
+			_cam.fov = 22.0
+			var eye := _eye_pos()
+			_cam.look_at_from_position(eye + fwd * 0.42 + right * 0.2 - Vector3(0, 0.03, 0), eye)
 		"eye":
 			# through her right eye, looking out: the needle comes at the camera
 			_cam.fov = 60.0

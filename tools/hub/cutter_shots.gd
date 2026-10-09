@@ -1,8 +1,8 @@
 extends SceneTree
 ## Cutter (cutter.gd, cutter_model.gd) and his scenes (cutter_scene.gd) in the
 ## hub: Cutter front, three-quarter and side (top row); the catch: his hand at
-## her head, through her eyes as the needle comes in, the red, and the change
-## coming on (her second catch: the wiring) (middle row); and the crash, the
+## her head, close on her eye from outside as the needle comes, then through
+## her eyes as it comes at her, and after (middle row); and the crash, the
 ## colour going, down on the floor, shaking (bottom row).
 ##   godot --path . --resolution 1280x720 -s res://tools/hub/cutter_shots.gd -- <out_dir>
 ## Needs a renderer (not --headless). Writes <out_dir>/cutter.png.
@@ -80,7 +80,7 @@ func _go() -> void:
 	Redline.catches = 1
 	var scene: Node = run_node.cutter_scene
 	run_node.cutter_now()
-	var times := [1.0, 2.9, 3.75, 6.6]
+	var times := [1.0, 2.2, 3.2, 6.6]
 	for i in 4:
 		while scene.t < times[i]:
 			await process_frame
