@@ -1,15 +1,16 @@
 extends Node
 ## Cutter's scenes (cutter.gd, redline.gd), on Eco in third person:
-##   the catch  he has the back of her head; close on her eye as his needle of
-##              Redline comes in slow, then red (a flash at contact, nothing
+##   the catch  he has the back of her head; through her eyes, his needle of
+##              Redline comes in slow at the camera, then red (a flash at contact, nothing
 ##              more); her heart, her eyes swirling red; from the second time
 ##              the change it brings, coming on (redline_body.gd); and Cutter,
 ##              off and laughing
 ##   the crash  when the high runs out: the colour goes out of everything, she
 ##              sinks to the floor, shaking, and swears never again
-## And while she's high, her view pulses red with her heart; once it's changed
-## her eyes, a faint red cast stays. The run manager plays the scenes and keeps
+## And while she's high, her view pulses red with her heart. The run manager plays the scenes and keeps
 ## its controls off while busy().
+## The needle is only ever seen through her own eyes: no shot of her eye from
+## outside.
 
 const Redline := preload("res://scripts/hub/redline.gd")
 const Wardrobe := preload("res://scripts/hub/wardrobe.gd")
@@ -21,7 +22,7 @@ const EcoModel := preload("res://scripts/ps2/eco_model.gd")
 const RED := Color(0.85, 0.05, 0.05)
 ## The catch's beats.
 const GRAB := 0.0
-const EYE := 1.4        # close on her eye
+const EYE := 1.4        # through her eyes: the needle coming
 const IN := 3.6         # the needle's in: red
 const RUSH := 4.4
 const CHANGE := 5.4     # the change coming on (a wider shot of her)
@@ -152,7 +153,7 @@ func _catch_tick(_delta: float) -> void:
 		var k := smoothstep(EYE, IN, t)
 		var eye := _eye_pos()
 		var from: Vector3 = _syringe.get_meta("from")
-		_syringe.global_position = from.lerp(eye + (from - eye).normalized() * 0.02, k)
+		_syringe.global_position = from.lerp(eye + (from - eye).normalized() * 0.05, k)
 		_syringe.look_at(eye, Vector3.UP)
 	if t >= IN and not _said.has("in"):
 		_said["in"] = true
@@ -184,7 +185,7 @@ func _catch_tick(_delta: float) -> void:
 		a *= 1.0 - smoothstep(GOES, END, t)
 	_veil.color = Color(RED, a)
 	if _cam != null and t >= EYE and t < IN:
-		_cam.fov = lerpf(18.0, 11.0, smoothstep(EYE, IN, t))
+		_cam.fov = lerpf(60.0, 48.0, smoothstep(EYE, IN, t))  # her view narrowing on it
 	if t >= END:
 		_finish()
 
@@ -231,7 +232,7 @@ func reset() -> void:
 	_finish()
 
 
-## While she's high: her view pulses red with her heart. Changed eyes: a faint red cast.
+## While she's high: her view pulses red with her heart.
 func _high_overlay(delta: float) -> void:
 	var a := 0.0
 	if Redline.high():
@@ -241,8 +242,6 @@ func _high_overlay(delta: float) -> void:
 			_pulse = 1.0
 		_pulse = maxf(_pulse - delta * 2.5, 0.0)
 		a = 0.06 + 0.12 * _pulse
-	elif Redline.has("eyes"):
-		a = 0.05
 	if rm.get("bench") != null:
 		a = 0.0
 	_veil.color = Color(RED, a)
@@ -307,7 +306,7 @@ func _make_syringe() -> Node3D:
 	var s := Node3D.new()
 	add_child(s)
 	var eye := _eye_pos()
-	var from := eye + p.global_basis * Vector3(0.12, 0.05, -0.32)
+	var from := eye + p.global_basis * Vector3(0.05, 0.03, -0.4)  # out in front of her, coming at her view
 	s.set_meta("from", from)
 	s.global_position = from
 	var glass := StandardMaterial3D.new()
@@ -337,8 +336,8 @@ func _make_syringe() -> Node3D:
 	return s
 
 
-## "two": over her shoulder onto him; "eye": tight on her right eye from the
-## side; "change": her whole self, to see what it's done; "low": low and in
+## "two": over her shoulder onto him; "eye": through her right eye, first
+## person; "change": her whole self, to see what it's done; "low": low and in
 ## front of her, for the crash.
 func _shot(which: String) -> void:
 	if _cam == null:
@@ -352,15 +351,17 @@ func _shot(which: String) -> void:
 	var eyes := p.global_position + Vector3(0, 1.5, 0)
 	_cam.h_offset = 0.0
 	_cam.v_offset = 0.0
+	_cam.near = 0.05
 	match which:
 		"two":
 			_cam.fov = 40.0
 			_cam.look_at_from_position(eyes - fwd * 0.9 + right * 0.55 + Vector3(0, 0.15, 0), eyes + fwd * 0.6)
 		"eye":
-			# in front and a little to her right, under her fringe: her eye and the needle
-			_cam.fov = 22.0
+			# through her right eye, looking out: the needle comes at the camera
+			_cam.fov = 60.0
+			_cam.near = 0.005
 			var eye := _eye_pos()
-			_cam.look_at_from_position(eye + fwd * 0.42 + right * 0.2 - Vector3(0, 0.03, 0), eye)
+			_cam.look_at_from_position(eye + fwd * 0.02, eye + fwd)  # just past her face, so it's not in shot
 		"change":
 			_cam.fov = 42.0
 			_cam.look_at_from_position(eyes + fwd * 2.2 + right * 0.7 + Vector3(0, 0.1, 0), eyes - Vector3(0, 0.45, 0))

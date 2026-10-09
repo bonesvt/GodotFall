@@ -897,7 +897,7 @@ func respawn() -> void:
 func take_damage(amount: float, from := Vector3.ZERO) -> void:
 	if health <= 0.0 or untouchable_timer > 0.0:
 		return
-	amount *= damage_mult * Vices.damage_scale()
+	amount *= damage_mult * Vices.damage_scale() * Redline.damage_scale()
 	var soaked := minf(armor, amount)
 	armor -= soaked
 	health -= amount - soaked
@@ -980,6 +980,8 @@ func _trance(delta: float) -> void:
 # --- Crouch, camera, rope -----------------------------------------------------
 
 func _set_crouch(want: bool) -> void:
+	if want and not Redline.can_crouch():
+		want = false  # Redline's forced posture
 	if want == crouching:
 		return
 	if not want and test_move(global_transform, Vector3.UP * (STAND_HEIGHT - CROUCH_HEIGHT)):

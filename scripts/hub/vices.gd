@@ -77,7 +77,7 @@ const MAX_SMOKES := 20
 
 ## Stims: id -> name, cost, seconds, and what they do while they last.
 const STIMS := {
-	"redline": {"name": "Redline", "cost": {"scrap": 30}, "time": 12.0, "speed": 1.3, "blurb": "Legs like pistons. Twelve seconds of running faster than anyone should."},
+	"redline": {"name": "Piston", "cost": {"scrap": 30}, "time": 12.0, "speed": 1.3, "blurb": "Legs like pistons. Twelve seconds of running faster than anyone should."},
 	"ironskin": {"name": "Ironskin", "cost": {"scrap": 30, "alloy": 5}, "time": 12.0, "damage": 0.6, "blurb": "Colony trauma juice. You feel the bullets. They just don't matter for a while."},
 	"deadeye": {"name": "Deadeye", "cost": {"scrap": 35, "circuits": 1}, "time": 10.0, "sway": 0.0, "spread": 0.3, "blurb": "Ten seconds where your hands are stone and the world holds still."},
 }
@@ -770,7 +770,7 @@ static func run_line() -> String:
 
 ## What she mutters starting a run with the shakes.
 static func craving_line() -> String:
-	return "Hands won't stop shaking. One Redline. Just one. ...No. Maybe."
+	return "Hands won't stop shaking. One Piston. Just one. ...No. Maybe."
 
 
 ## What she mutters starting a run in withdrawal.

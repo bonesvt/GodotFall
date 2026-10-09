@@ -1,7 +1,8 @@
 extends SceneTree
 ## Cutter and Redline (cutter.gd, redline.gd, redline_body.gd, cutter_scene.gd):
 ## he catches her, the needle scene plays and she's high; when it's out, the
-## crash; from the second catch a change a time, in order, on her own bones;
+## crash; from the second catch a change a time (wiring, heavy body, long
+## legs, forced posture), in order, on her own bones;
 ## Doc Imani takes the newest back for scrap; Biggie's toolkit takes the lot.
 ## Mature only.
 ##   godot --headless --path . -s res://tests/redline_test.gd
@@ -55,44 +56,51 @@ func _run() -> void:
 	await _ticks(3)
 	_check("the crash over: hers again", not Redline.crash_owed and not player.entranced, Redline.crash_owed)
 
-	# the second catch: wrong ears
+	# the second catch: the wiring
 	run_node.cutter_now()
 	await _ticks(4)
 	await _until(func(): return not scene.busy(), 12.0)
 	await _ticks(3)
-	_check("the second time: wrong ears", Redline.changes == ["ears"], Redline.changes)
-	_check("on her: the ears", player.find_child("RedlineBody_Ears", true, false) != null, "")
+	_check("the second time: the wiring", Redline.changes == ["wiring"], Redline.changes)
+	_check("on her: veins up her arms and neck", player.find_child("RedlineBody_Veins_J_Bip_C_Neck", true, false) != null and player.find_child("RedlineBody_Veins_J_Bip_L_LowerArm", true, false) != null, "")
 	Redline.high_left = 0.0
 	Redline.crash_owed = false
 
 	# the rest, in order, on her bones
-	for i in 6:
+	for i in 3:
 		Redline.caught()
 	Redline.high_left = 0.0
 	Redline.crash_owed = false
-	_check("they stack, in order", Redline.changes == Redline.CHANGES.slice(0, 7), Redline.changes)
+	_check("they stack, in order", Redline.changes == Redline.CHANGES, Redline.changes)
+	_check("nothing but the agreed set", Redline.CHANGES == ["wiring", "heavy", "legs", "posture"], Redline.CHANGES)
 	run_node.cutter_scene._redress_copies()  # as the catch scene does
 	await _ticks(4)
 	var body: Node = player.get_node("EcoBody/Body")
 	var skel: Skeleton3D = body.get("skeleton")
 	var mod: Node = skel.get_node("RedlineBody")
 	_check("reshaping her every frame", mod.runs > 0, mod.runs)
-	_check("hands too big", mod.last.get("J_Bip_L_Hand:scale", 1.0) > 1.3, mod.last)
-	_check("a stretched neck, long forearms", mod.last.get("J_Bip_C_Head:length", 1.0) > 1.8 and mod.last.get("J_Bip_R_Hand:length", 1.0) > 1.2, mod.last)
+	_check("heavy: all of her a size up, evenly", is_equal_approx(skel.scale.x, skel.scale.y) and is_equal_approx(skel.scale.y, skel.scale.z) and skel.scale.x > 1.03 and skel.scale.x < 1.06, skel.scale)
 	_check("long legs: lifted so her feet reach the floor", skel.position.y > 0.05, skel.position.y)
-	_check("a tail", player.find_child("RedlineBody_Tail", true, false) != null, "")
-	_check("clumsy hands, long legs", Redline.reload_scale() > 1.0 and Redline.jump_scale() > 1.0, [Redline.reload_scale(), Redline.jump_scale()])
+	_check("forced posture: held straight", mod.last.get("posture", false), mod.last)
+	_check("heavy and long legs and locked arms", Redline.damage_scale() < 1.0 and Redline.jump_scale() > 1.0 and Redline.reload_scale() > 1.0, [Redline.damage_scale(), Redline.jump_scale(), Redline.reload_scale()])
+	player._set_crouch(true)
+	_check("forced posture: she can't crouch", not player.crouching, player.crouching)
+	_check("no ears, no tail", player.find_child("RedlineBody_Ears", true, false) == null and player.find_child("RedlineBody_Tail", true, false) == null, "")
 
 	# Doc Imani: the newest one back, for scrap
 	run_node.armory.stash["scrap"] = 100
 	run_node._doc_redline()
 	await _ticks(3)
-	_check("Doc Imani takes the newest back", not "tail" in Redline.changes and Redline.changes.size() == 6 and run_node.armory.amount("scrap") == 100 - Redline.DOC_COST, Redline.changes)
-	_check("and it's gone from her", player.find_child("RedlineBody_Tail", true, false) == null, "")
+	_check("Doc Imani takes the newest back", not "posture" in Redline.changes and Redline.changes.size() == 3 and run_node.armory.amount("scrap") == 100 - Redline.DOC_COST, Redline.changes)
+	_check("and she can crouch again", Redline.can_crouch(), "")
+	Redline.changes = []
+	run_node.cutter_scene._redress_copies()
+	await _ticks(3)
+	_check("all treated: her own size and height again", skel.scale.is_equal_approx(Vector3.ONE) and skel.position.y < 0.02, [skel.scale, skel.position.y])
 
 	# Teen: none of it
 	ContentRating.set_rating("T", false)
-	_check("teen: no Redline", not Redline.allowed() and not Redline.has("ears") and Redline.speed_scale() == 1.0, "")
+	_check("teen: no Redline", not Redline.allowed() and not Redline.has("wiring") and Redline.speed_scale() == 1.0, "")
 	ContentRating.set_rating("M", false)
 	Redline.reset()
 	Redline.save()

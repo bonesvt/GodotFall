@@ -666,8 +666,8 @@ func _eye_swirl() -> void:
 	var rose := Obsession.eyes() * 0.9
 	var h := maxf(marrow, rose)
 	var tint := ROSE_SWIRL if rose > marrow and not Vices.entranced else VIOLET_SWIRL
-	# Redline: red in her eyes while she's high, and for good once it's changed them
-	var red := 0.85 if Redline.high() else (0.4 if Redline.has("eyes") else 0.0)
+	# Redline: red in her eyes while she's high
+	var red := 0.85 if Redline.high() else 0.0
 	if red > h:
 		h = red
 		tint = REDLINE_SWIRL

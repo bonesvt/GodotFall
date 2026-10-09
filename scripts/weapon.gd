@@ -673,7 +673,7 @@ func damage_at(distance: float) -> float:
 func start_reload() -> void:
 	if reload_timer > 0.0 or ammo >= magazine_size:
 		return
-	reload_timer = reload_time * Hymn.reload_scale() * Redline.reload_scale()  # the comfort gloves' numb hands, Redline's too-big ones
+	reload_timer = reload_time * Hymn.reload_scale() * Redline.reload_scale()  # the comfort gloves' numb hands, Redline's locked arms
 	_reload_events = 0
 	stop_inspect()
 
