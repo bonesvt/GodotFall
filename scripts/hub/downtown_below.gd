@@ -112,14 +112,14 @@ const HINTS := [
 		"A rota under the kettle: who's on, who's off, who's walking whom home. 'P' is down for every night."]],
 	# Pip herself: the one thing in the house that isn't on the menu
 	["pip_card", "high", Vector3(2.8, 0, 1.3), "[F] A gold card on the stage steps", [
-		"A second card, gold on gold, one line long: THE HOUSE. One evening with the woman who owns this room. Price: a sealed envelope. She opens it, she decides. Waiting list: closed.",
-		"Pinned behind it, in Pip's hand: 'Self-review. Five stars, obviously. I don't sell hours, I sell evenings, and I decide when the evening's over. Dinner first. They talk, I listen, and by dessert they'd sign anything. Some of them think that was the part they paid for. It never is. They don't complain about the rest. They save up. P.'"]],
+		"A second card, gold on gold, one line long: THE HOUSE. One night with the woman who owns this room, the gold door locked till morning. Price: a sealed envelope. She opens it, she decides. Waiting list: closed.",
+		"Pinned behind it, in Pip's hand: 'Self-review. Five stars, obviously. I don't sell hours, I sell nights, and I decide when the night's over. Dinner first. They talk, I listen, and by dessert they'd sign anything. Then I take them upstairs and make them forget they did. Nobody has ever asked for a refund. Nobody has ever been able to walk straight enough to ask. P.'"]],
 	["pip_book", "high", Vector3(3.5, 0, -1.6), "[F] The leather book on the bar", [
-		"A leather book on the bar: GUESTS OF THE HOUSE. A colonel: 'Sold my second titan to afford one night. I'd sell the first. She knew my name, my wife's name and three things I've never told anyone before the door had even shut. Five stars.'",
-		"A quartermaster: 'Four stars. She made me wait three months for the booking, then all evening for anything else, then made me ask nicely. Twice. I have never been so happy to be told no so many times before a yes.'",
-		"A trader from the coast: 'Paid in pearls. She weighed them in front of me. Worth every gram. Left at dawn with nothing: not my money, not my secrets, not my dignity. Already saving for next year. Five stars.'",
-		"The recruiters' captain: 'One star. She took my letter, my career and my evening, in that order, and smiled the whole time.' Pip, underneath: 'He's booked again for spring.'",
-		"Unsigned, in a shaky hand: 'I don't remember what we talked about. I remember candlelight, and her hair down, and her telling me exactly what to do, slowly. I still think about it every day. Five stars. Ten, if she'd let me.'"]],
+		"A leather book on the bar: GUESTS OF THE HOUSE. A colonel: 'Sold my second titan to afford one night. I'd sell the first. She had my secrets before the door shut and everything else by midnight. Woke up with her lipstick in places I had to explain to my batman. Five stars.'",
+		"A quartermaster: 'Four stars. She made me wait three months for the booking, then all evening for the bedroom, then made me ask nicely. Twice. Once we got there, she didn't make me wait at all. Lost a star for the bruise on my pride. Gained one somewhere else.'",
+		"A trader from the coast: 'Paid in pearls. She weighed them in front of me, then took the rest of the night weighing me. Left at dawn with nothing: not my money, not my secrets, not my shirt, which she kept. Already saving for next year. Five stars.'",
+		"The recruiters' captain: 'One star. She took my letter, my career and my evening, in that order, and then she took her time with the rest of me, smiling the whole way. Would book again.' Pip, underneath: 'He has. Spring.'",
+		"Unsigned, in a shaky hand: 'I remember candlelight, and her hair coming down, and her telling me exactly what to do, slowly, and then not having to tell me anything at all. I didn't sleep. I didn't want to. Five stars. Ten, if she'd let me.'"]],
 	["stage_card", "high", Vector3(-2.8, 0, 1.3), "[F] A card on the stage steps", [
 		"A price list for the stage, gold on black. A DANCE. A PRIVATE DANCE. THE GOLD DOOR, CLOSED. The last line has no price. You ask Pip.",
 		"On the back, small: 'Dancers choose. Guests who argue leave by the alley, and they don't come back down.'"]],
