@@ -88,6 +88,16 @@ func _run() -> void:
 	_check("after hours: the high rollers' room", late["spot"] == "high_rollers" and late["outfit"] == "afterhours", late)
 	var teen := Downtown.place_pip({"interactables": []}, 4, "T")
 	_check("Teen keeps her upstairs", teen["spot"] == "arch" and teen["outfit"] == "crop", teen)
+	var below := Downtown.place_pip({"interactables": []}, 5, "M")
+	_check("and the corridor of rooms, with her ledger", below["spot"] == "rooms" and below["anim"] == "work_rooms" and below["props"] == ["ledger"], below)
+	_check("Teen: not the rooms either", Downtown.place_pip({"interactables": []}, 5, "T")["spot"] == "arch", "")
+	# She's working at each of her businesses: a loop for each in her poses file.
+	var poses: Node = load("res://assets/models/npc/pip_poses.glb").instantiate()
+	var ap := poses.find_child("AnimationPlayer", true, false) as AnimationPlayer
+	for s in Downtown.PIP_SPOTS:
+		if s[4] != "":
+			_check("she works the %s (%s)" % [s[0], s[4]], ap.has_animation(s[4]), ap.get_animation_list())
+	poses.free()
 
 	# She looks down at Eco when Eco comes close; Mom doesn't.
 	var eco := Node3D.new()

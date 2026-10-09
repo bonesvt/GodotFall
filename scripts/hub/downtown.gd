@@ -46,12 +46,15 @@ const LIME := Color(0.6, 1.0, 0.35)
 
 ## Where Pip stands, in turn by hub stay: [spot, position, yaw, outfit].
 ## After hours she holds court in the high rollers' room (downtown_below.gd).
+## [spot, where, facing, outfit, work loop (npc_idles.gd strike(), from
+## assets/models/npc/pip_poses.glb), its props, where Eco talks to her from]
 const PIP_SPOTS := [
-	["casino", Vector3(CASINO_X - 2.6, 0, Z1 - 1.3), 60.0, "warden"],
-	["club", Vector3(CLUB_X - 2.4, 0, Z1 - 1.2), 55.0, "rave"],
-	["arch", Vector3(X0 + 3.2, 0, Z0 + 1.2), 100.0, "crop"],
-	["casino", Vector3(CASINO_X - 2.6, 0, Z1 - 1.3), 60.0, "shorts"],
-	["high_rollers", Below.HIGH + Vector3(2.0, 0, -2.6), 200.0, "afterhours"],
+	["casino", Vector3(CASINO_X - 2.6, 0, Z1 - 1.3), 60.0, "warden", "work_casino", ["cards"]],
+	["club", Vector3(CLUB_X - 2.4, 0, Z1 - 1.2), 55.0, "rave", "work_club", ["cocktail"]],
+	["arch", Vector3(X0 + 3.2, 0, Z0 + 1.2), 100.0, "crop", "", []],
+	["casino", Vector3(CASINO_X - 2.6, 0, Z1 - 1.3), 60.0, "shorts", "work_casino", ["cards"]],
+	["high_rollers", Below.HIGH + Vector3(3.0, 0, -2.98), 180.0, "afterhours", "work_high", ["chip"], Below.HIGH + Vector3(2.7, 0, -1.6)],
+	["rooms", Below.UNDER + Vector3(-2.0, 0, -0.95), 180.0, "warden", "work_rooms", ["ledger"], Below.UNDER + Vector3(-2.0, 0, 0.2)],
 ]
 
 static var save_path := "user://downtown.cfg"
@@ -178,16 +181,17 @@ static func place_pip(info: Dictionary, run: int, rating := "") -> Dictionary:
 	if rating == "":
 		rating = ContentRating.current()
 	var spot: Array = PIP_SPOTS[posmod(run, PIP_SPOTS.size())]
-	if spot[0] == "high_rollers" and rating != "M":
+	if spot[0] in ["high_rollers", "rooms"] and rating != "M":
 		spot = PIP_SPOTS[2]  # the rooms below are Mature only: she's at the arch
 	var outfit: String = spot[3]
 	if outfit == "warden" and rating != "M":
 		outfit = "crop"
-	var spec := {"who": "pip", "pos": spot[1], "yaw": spot[2], "outfit": outfit, "spot": spot[0]}
+	var spec := {"who": "pip", "pos": spot[1], "yaw": spot[2], "outfit": outfit, "spot": spot[0],
+		"anim": spot[4], "props": spot[5]}
 	if not info.has("npcs"):
 		info["npcs"] = []
 	info["npcs"].append(spec)
-	K.interactable(info, "npc_pip", spot[1], "[F] Talk to Pip", [], 2.6)
+	K.interactable(info, "npc_pip", spot[6] if spot.size() > 6 else spot[1], "[F] Talk to Pip", [], 2.6)
 	info["interactables"].back()["npc"] = "pip"
 	return spec
 

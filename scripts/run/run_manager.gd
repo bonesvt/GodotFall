@@ -511,6 +511,8 @@ func enter_hub() -> void:
 		if spec.has("outfit"):
 			npc.wear(spec["outfit"])  # dressed for where she stands (Pip, downtown.gd)
 		NpcIdles.settle(npc, zone_info, runs_ended)
+		if spec.get("anim", "") != "":
+			NpcIdles.strike(npc, spec["anim"], spec.get("props", []))  # Pip at work
 		hub_npcs[spec["who"]] = npc
 	Townsfolk.populate(zone_root, player, runs_ended)
 	Soundscape.hub(zone_root, zone_info)

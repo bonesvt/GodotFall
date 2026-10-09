@@ -43,6 +43,7 @@ EXPORT = "--no-export" not in argv
 WALK = "--walk" in argv
 # --shots face,front: only those concept shots, first outfit only (a quick look)
 SHOTS = argv[argv.index("--shots") + 1].split(",") if "--shots" in argv else []
+WORK = "--work" in argv
 FACE_VARIANTS = argv[argv.index("--face-variants") + 1] if "--face-variants" in argv else None
 # pip's concept looks (boss, club, shark); the game's is boss
 LOOK = argv[argv.index("--look") + 1] if "--look" in argv else "boss"
@@ -2496,6 +2497,42 @@ def concept(arm, objs):
     dress(OUTFITS.get(WHO, ["default"])[0])
     for shot in shots:
         shoot(*shot, CONCEPT)
+    if WORK:   # --work: the work loops of tools/npc/build_poses.py, posed on this rig, front and three-quarter
+        _pp = os.path.join(ROOT, "tools", "npc", "build_poses.py")
+        _ps = open(_pp).read()
+        _ps = _ps[:_ps.rindex("\nmain()")]
+        _saved = sys.argv
+        sys.argv = ["blender", "--", ROOT, WHO]
+        P = {"__name__": "npc_poses"}
+        exec(compile(_ps, _pp, "exec"), P)
+        sys.argv = _saved
+        P["HIPS"] = (arm.matrix_world @ arm.pose.bones["J_Bip_C_Hips"].head).z
+        props = []
+        for nm, at, size in (("chair", (0, -0.05, 0.35), (0.8, 0.7, 0.7)), ("back", (0, -0.42, 0.95), (0.8, 0.12, 1.0)), ("wall", (0, -0.45, 1.2), (3.0, 0.1, 2.4))):
+            bpy.ops.mesh.primitive_cube_add(location=at)
+            ob = bpy.context.active_object
+            ob.name = "set_" + nm
+            ob.scale = Vector(size) / 2
+            ob.data.materials.append(new_mat("set_" + nm, (0.3, 0.22, 0.12) if nm != "wall" else (0.2, 0.12, 0.16)))
+            props.append(ob)
+        keyed = [E["BONE"][b] for b in E["ORDER"]] + ["J_Bip_%s_%s%d" % (sd, fg, j) for sd in "RL" for fg in E["FINGERS"] + ("Thumb",) for j in (1, 2, 3)]
+        for name, spec in P["PIP_POSES"].items():
+            fn, n = spec[0], spec[1]
+            a = bpy.data.actions.new(name)
+            arm.animation_data.action = a
+            for fr in (n // 2,):
+                E["key_pose"](arm, fr, fn(fr, n), keyed)
+            for ob in props:
+                ob.hide_render = not ((ob.name in ("set_chair", "set_back") and name == "work_high") or (ob.name == "set_wall" and name == "work_rooms"))
+            for fr in (n // 2,):
+                sc.frame_set(fr)
+                for shot in shots:
+                    if shot[0] in ("front", "q34"):
+                        shoot(*shot, "%s_%s%d" % (CONCEPT, name, fr))
+        for ob in props:
+            bpy.data.objects.remove(ob)
+        arm.animation_data.action = bpy.data.actions["idle"]
+        sc.frame_set(0)
     if FACE_VARIANTS:   # --face-variants a.json: [{shape: value}, ...], each a face close-up over SPEC's face
         import json
         for j, extra in enumerate(json.load(open(FACE_VARIANTS))):

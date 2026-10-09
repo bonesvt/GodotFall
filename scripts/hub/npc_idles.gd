@@ -74,24 +74,29 @@ static func take(npc: Node3D, spot: String, info := {}) -> void:
 	npc.home_yaw = deg_to_rad(s["yaw"])
 	npc.rotation.y = npc.home_yaw
 	npc.spot = spot
+	strike(npc, s["anim"], s.get("props", []), s.get("mood", []))
+	for spec in info.get("interactables", []):
+		if spec.get("npc", "") == npc.who:
+			spec["pos"] = s.get("talk", s["pos"])
+
+
+## Plays `anim` from their poses file where they stand ("": their plain
+## idle), with its props and resting mood, and holds it while they talk.
+static func strike(npc: Node3D, anim: String, props := [], mood := []) -> void:
 	for p in npc.find_children("*", "Node3D", true, false):
 		if p.has_meta("idle_prop"):
 			p.get_parent().remove_child(p)
 			p.queue_free()
-	var anim: String = s["anim"]
 	npc.posed = anim != ""
 	if npc._anim != null:
 		_load_poses(npc)
 		var name := LIB + "/" + anim if anim != "" else "idle"
 		if npc._anim.has_animation(name):
 			npc._anim.play(name, 0.3)
-	npc.rest_mood = s.get("mood", [])
+	npc.rest_mood = mood
 	npc.calm()
-	for prop in s.get("props", []):
+	for prop in props:
 		_prop(npc, prop)
-	for spec in info.get("interactables", []):
-		if spec.get("npc", "") == npc.who:
-			spec["pos"] = s.get("talk", s["pos"])
 
 
 ## Their poses file as the "poses" library. HubNpc loads it before they play
@@ -131,7 +136,7 @@ static func _prop(npc: Node3D, kind: String) -> void:
 	at.set_meta("idle_prop", true)
 	skel.add_child(at)
 	# props are built in metres; undo whatever scale the bone carries
-	var bone_name := "J_Bip_R_Index2" if kind == "cigarette" else "J_Bip_L_Hand"
+	var bone_name: String = {"cigarette": "J_Bip_R_Index2", "chip": "J_Bip_R_Index2", "cocktail": "J_Bip_R_Hand"}.get(kind, "J_Bip_L_Hand")
 	var bone := skel.find_bone(bone_name)
 	var unscale := Vector3.ONE
 	if bone >= 0:
@@ -241,6 +246,76 @@ static func _prop(npc: Node3D, kind: String) -> void:
 			Kit.mesh(book, Vector3(0, 0.017, 0), Vector3(0.19, 0.006, 0.27), Art.material("canvas", Color(0.86, 0.82, 0.72)))
 			Kit.glow(book, Vector3(0, -0.016, 0.06), Vector3(0.12, 0.004, 0.02), Color(0.9, 0.75, 0.4))
 			_face_head(npc, skel, book)
+
+
+		# Pip's work (downtown.gd PIP_SPOTS)
+		"cards":
+			# a deck in her left hand, the right riffling into it
+			at.bone_name = bone_name
+			var deck := Node3D.new()
+			deck.position = Vector3(-0.07, -0.02, 0.0)
+			deck.scale = unscale
+			at.add_child(deck)
+			Kit.mesh(deck, Vector3.ZERO, Vector3(0.065, 0.025, 0.09), Art.material("canvas", Color(0.93, 0.9, 0.86)))
+			Kit.mesh(deck, Vector3(0, 0.013, 0), Vector3(0.06, 0.002, 0.085), Art.material("canvas", Color(0.5, 0.04, 0.1)))
+			_face_head(npc, skel, deck)
+		"ledger":
+			# a little black book, gold-edged
+			at.bone_name = bone_name
+			var ledger := Node3D.new()
+			ledger.position = Vector3(-0.07, -0.02, 0.0)
+			ledger.scale = unscale
+			at.add_child(ledger)
+			Kit.mesh(ledger, Vector3.ZERO, Vector3(0.13, 0.02, 0.19), Art.material("canvas", Color(0.06, 0.05, 0.06)))
+			Kit.mesh(ledger, Vector3(0, 0.011, 0), Vector3(0.12, 0.004, 0.18), Art.material("canvas", Color(0.88, 0.84, 0.74)))
+			Kit.glow(ledger, Vector3(0.066, 0, 0), Vector3(0.004, 0.02, 0.19), Color(0.95, 0.75, 0.3))
+			_face_head(npc, skel, ledger)
+		"cocktail":
+			# a coupe glass with something red in it, kept upright
+			at.bone_name = bone_name
+			var glass := Node3D.new()
+			glass.position = Vector3(0.06, -0.04, 0.0)
+			glass.scale = unscale
+			at.add_child(glass)
+			var clear := Art.material("alloy", Color(0.85, 0.9, 0.95))
+			Kit.mesh(glass, Vector3(0, -0.06, 0), Vector3(0.05, 0.006, 0.05), clear)
+			Kit.mesh(glass, Vector3(0, -0.03, 0), Vector3(0.008, 0.06, 0.008), clear)
+			Kit.mesh(glass, Vector3(0, 0.01, 0), Vector3(0.09, 0.02, 0.09), clear)
+			Kit.glow(glass, Vector3(0, 0.018, 0), Vector3(0.08, 0.008, 0.08), Color(0.9, 0.08, 0.2))
+			_upright(npc, glass)
+		"chip":
+			# a gold casino chip between her fingers
+			at.bone_name = bone_name
+			var chip := Node3D.new()
+			chip.scale = unscale
+			at.add_child(chip)
+			var disc := CylinderMesh.new()
+			disc.top_radius = 0.02
+			disc.bottom_radius = 0.02
+			disc.height = 0.004
+			var mi := MeshInstance3D.new()
+			mi.mesh = disc
+			mi.rotation_degrees = Vector3(90, 0, 0)
+			var gold := StandardMaterial3D.new()
+			gold.albedo_color = Color(0.95, 0.75, 0.3)
+			gold.metallic = 0.8
+			gold.roughness = 0.3
+			mi.material_override = gold
+			chip.add_child(mi)
+
+
+## Once their pose has blended in, stands a held prop up straight (its +Y
+## up): a glass.
+static func _upright(npc: Node3D, prop: Node3D) -> void:
+	if not npc.is_inside_tree():
+		return
+	var ref: WeakRef = weakref(prop)
+	npc.get_tree().create_timer(0.5).timeout.connect(func():
+		var held: Node3D = ref.get_ref()
+		if held != null and held.is_inside_tree():
+			var at := held.global_position
+			held.global_basis = Basis.IDENTITY.scaled(held.global_basis.get_scale())
+			held.global_position = at)
 
 
 ## Once their pose has blended in, turns a held prop's face (its +Y) toward

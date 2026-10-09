@@ -377,8 +377,8 @@ func _process(delta: float) -> void:
 	var noticing := false
 	if look_target != null and is_instance_valid(look_target):
 		var d := look_target.global_position - global_position
-		if not posed and (Vector2(d.x, d.z).length() < NOTICE_RANGE or talking):
-			noticing = true
+		noticing = Vector2(d.x, d.z).length() < NOTICE_RANGE or talking
+		if not posed and noticing:
 			var toward := angle_difference(home_yaw, atan2(-d.x, -d.z))   # the model faces -Z
 			var most := deg_to_rad(MAX_TURN)
 			want = home_yaw + clampf(toward, -most, most)
@@ -387,7 +387,8 @@ func _process(delta: float) -> void:
 	if noticing and who in LOOKS_DOWN:
 		var d := look_target.global_position - global_position
 		var drop := head_position().y - (look_target.global_position.y + ECO_EYES)
-		down = Vector3(0.0, clampf(atan2(drop, maxf(Vector2(d.x, d.z).length(), 0.5)), 0.0, 0.3) + 0.12, 0.07)
+		# sat down she can't look down at her, so the chin comes up instead
+		down = Vector3(0.0, clampf(atan2(drop, maxf(Vector2(d.x, d.z).length(), 0.5)), -0.25, 0.3) + 0.12, 0.07)
 	regard = regard.lerp(down, minf(1.0, delta * 3.0))
 	# Mouth flaps while their voice plays.
 	var open := 0.0

@@ -29,6 +29,15 @@ rest are struck for her heart scenes):
   scene_mirror  standing, eyeliner to one eye, little mirror in the other hand
   scene_shy     standing, hands behind her back, weight on one hip
 
+Pip's (tools/npc/build_poses.py -- . pip): work loops, one for each of her
+businesses, played where she stands that hub stay (downtown.gd PIP_SPOTS):
+  work_casino   at the Velvet Ace's door, shuffling a deck, a look up the street
+  work_club     at the Undertow's door, cocktail in hand, a slow sip
+  work_rooms    in the corridor of rooms below, foot up on the wall, ticking
+                off her ledger, glancing at the doors
+  work_high     in her chair in the high rollers' room, legs crossed, walking
+                a chip over her knuckles
+
 Level 2 (the holding cell and getting out of it; scripts/run/escort.gd):
   chained       sitting on the cell floor, knees up, shackled wrists resting
                 on them, head down
@@ -49,6 +58,8 @@ from mathutils import Vector
 argv = sys.argv[sys.argv.index("--") + 1:]
 ROOT, WHO = argv[0], argv[1]
 SHOTS = argv[argv.index("--shots") + 1] if "--shots" in argv else None
+# --mesh: the shots show the model itself (untextured) rather than a stick figure
+MESH = "--mesh" in argv
 
 _eco_path = os.path.join(ROOT, "tools", "eco", "build_eco_vroid.py")
 _src = open(_eco_path).read()
@@ -505,6 +516,149 @@ def yoga(f, n):
     return p
 
 
+# --- Pip at work, one loop for each of her businesses (downtown.gd PIP_SPOTS) ---
+
+def _boss(p):
+    """Her stand: weight on her left hip, chest up, chin up."""
+    add(p, "hips", Y, -6)
+    add(p, "spine", Y, 3)
+    add(p, "chest", X, 4)
+    add(p, "head", X, 4)
+    add(p, "thigh.L", Y, 4)
+    add(p, "thigh.R", Y, -3)
+    add(p, "thigh.R", X, 6)
+    add(p, "shin.R", X, -10)
+
+
+def casino(f, n):
+    """The Velvet Ace's door: shuffling a deck in front of her, riffle after
+    riffle, eyes on the cards; halfway through she looks up the street to
+    see who's coming, then back down."""
+    p = base_pose()
+    _boss(p)
+    riffle = wave(f, n, 6)
+    look = max(0.0, math.sin(f / n * math.pi)) ** 3   # the glance up
+    add(p, "chest", X, -1.0 * wave(f, n, 2))
+    add(p, "head", X, -14 + 18 * look)
+    add(p, "head", Z, 22 * look)
+    add(p, "head", Y, 5)
+    for s, sgn in (("R", 1), ("L", -1)):
+        add(p, "upperarm." + s, X, 8)
+        add(p, "upperarm." + s, Y, sgn * 10)
+        add(p, "forearm." + s, X, 58)
+        add(p, "forearm." + s, Z, sgn * (40 - 8 * riffle))   # hands apart and together, at her waist
+    add(p, "hand.R", X, 10 * riffle)
+    add(p, "hand.L", X, -10 * riffle)
+    p["_hips_loc"] = (-0.025, 0.0, -0.005)
+    p["_grip"] = 0.8
+    return p
+
+
+def club(f, n):
+    """The Undertow's door: a cocktail in her right hand, her left arm folded
+    under it, watching the queue; a slow sip in the middle of the loop."""
+    p = base_pose()
+    _boss(p)
+    sip = max(0.0, math.sin(f / n * math.pi)) ** 2
+    add(p, "chest", X, -1.0 * wave(f, n, 3))
+    add(p, "head", Z, 10 * (1 - sip) - 4)
+    add(p, "head", Y, 6 * (1 - sip))
+    add(p, "head", X, 8 * sip)
+    # left arm across her waist, holding her right elbow
+    add(p, "upperarm.L", X, 10)
+    add(p, "forearm.L", X, 62)
+    add(p, "forearm.L", Z, -62)
+    # right: elbow on that arm, the glass in front of her chest, up to her lips for the sip
+    add(p, "upperarm.R", X, 14 + 10 * sip)
+    add(p, "upperarm.R", Y, 4 - 8 * sip)
+    add(p, "forearm.R", X, 96 + 30 * sip)
+    add(p, "forearm.R", Z, 28 + 10 * sip)
+    add(p, "hand.R", Z, -10 * wave(f, n, 2))   # the swirl
+    p["_hips_loc"] = (-0.025, 0.0, -0.005)
+    p["_grip"] = 1.3
+    return p
+
+
+def rooms(f, n):
+    """The corridor of rooms under the club: back to the wall, one foot up
+    against it, a little black ledger open in her left hand; she ticks a line
+    off, glances down the corridor at the doors, ticks another."""
+    p = base_pose()
+    write = wave(f, n, 8)
+    look = max(0.0, math.sin(f / n * 2 * math.pi)) ** 4
+    add(p, "spine", X, 4)
+    add(p, "chest", X, -1.0 * wave(f, n, 2))
+    add(p, "head", X, -16 + 14 * look)
+    add(p, "head", Z, -26 * look)
+    add(p, "hips", Y, -4)
+    # the right foot up flat against the wall behind her
+    add(p, "thigh.R", X, 30)
+    add(p, "shin.R", X, -95)
+    add(p, "foot.R", X, 20)
+    add(p, "thigh.L", Y, 3)
+    # the ledger
+    add(p, "upperarm.L", X, 12)
+    add(p, "upperarm.L", Y, 6)
+    add(p, "forearm.L", X, 64)
+    add(p, "forearm.L", Z, -30)
+    # the pen hand, writing (small strokes, still while she looks up)
+    k = 1 - look
+    add(p, "upperarm.R", X, 12)
+    add(p, "upperarm.R", Y, 6)
+    add(p, "forearm.R", X, 66 + 3 * write * k)
+    add(p, "forearm.R", Z, 46 + 4 * wave(f, n, 16) * k)
+    p["_hips_loc"] = (-0.02, -0.04, -0.01)
+    p["_grip"] = 1.2
+    return p
+
+
+SEAT = 0.78   # her hips in the high rollers' chair (its cushion is 0.7 m up, step and all)
+
+
+def high(f, n):
+    """Her chair in the high rollers' room: sat back, legs crossed right over
+    left, her left hand on her knee, a chip walking over the knuckles of her
+    right hand held up by her shoulder; she watches the stage."""
+    p = base_pose()
+    b = wave(f, n, 2)
+    add(p, "spine", X, 6)
+    add(p, "chest", X, -1.0 * b)
+    add(p, "head", X, 3 + 2 * wave(f, n, 1))
+    add(p, "head", Y, -6)
+    add(p, "head", Z, 6 * wave(f, n, 1, 0.8))
+    # legs: the left down to the floor, the right crossed over its knee
+    add(p, "thigh.L", X, 82)
+    add(p, "thigh.L", Y, -6)
+    add(p, "shin.L", X, -78)
+    add(p, "foot.L", X, 10)
+    add(p, "thigh.R", X, 108)
+    add(p, "thigh.R", Y, 34)
+    add(p, "shin.R", X, -78)
+    add(p, "foot.R", X, -18 + 6 * wave(f, n, 3))   # the toe bounces
+    # left hand resting on her right knee
+    add(p, "upperarm.L", X, 38)
+    add(p, "upperarm.L", Y, -8)
+    add(p, "forearm.L", X, 30)
+    add(p, "forearm.L", Z, -30)
+    # right hand up by her shoulder, the chip
+    add(p, "upperarm.R", X, 20)
+    add(p, "upperarm.R", Y, -30)
+    add(p, "forearm.R", X, 115)
+    add(p, "forearm.R", Z, 10)
+    add(p, "hand.R", X, -15 + 8 * wave(f, n, 8))
+    p["_hips_loc"] = (0.0, -0.06, SEAT - HIPS)
+    p["_grip"] = 0.9
+    return p
+
+
+PIP_POSES = {
+    "work_casino": (casino, 150),
+    "work_club": (club, 180),
+    "work_rooms": (rooms, 180),
+    "work_high": (high, 180),
+}
+
+
 POSES = {
     "idle_lounge": (lounge, 150),
     "idle_smoke": (smoke, 180),
@@ -529,7 +683,7 @@ def make(arm):
     keyed = [BONE[n] for n in ORDER] + ["J_Bip_%s_%s%d" % (s, f, j) for s in "RL" for f in FINGERS + ("Thumb",) for j in (1, 2, 3)]
     keyed = [k for k in keyed if k in arm.pose.bones]
     acts = []
-    for name, spec in POSES.items():
+    for name, spec in (PIP_POSES if WHO == "pip" else POSES).items():
         fn, n = spec[0], spec[1]
         step = spec[2] if len(spec) > 2 else 10
         a = bpy.data.actions.new(name)
@@ -576,7 +730,13 @@ def shots(arm, acts, out):
     os.makedirs(out, exist_ok=True)
     for o in bpy.data.objects:
         if o.type == "MESH":
-            o.hide_render = True
+            o.hide_render = not MESH
+    if WHO == "pip":   # her chair (seat 0.7 m up, step and all) and the corridor wall behind her
+        for name, at, size in (("chair", (0, -0.05, 0.35), (0.8, 0.7, 0.7)), ("back", (0, -0.42, 0.95), (0.8, 0.12, 1.0)), ("wall", (0, -0.42, 1.2), (3.0, 0.1, 2.4))):
+            bpy.ops.mesh.primitive_cube_add(location=at)
+            ob = bpy.context.active_object
+            ob.name = name
+            ob.scale = Vector(size) / 2
     slab = bpy.data.meshes.new("slab")
     slab.from_pydata([(-0.9, -0.8, 0.31), (0.9, -0.8, 0.31), (0.9, 0.8, 0.31), (-0.9, 0.8, 0.31)], [], [(0, 1, 2, 3)])
     slab_ob = bpy.data.objects.new("slab", slab)
@@ -590,7 +750,8 @@ def shots(arm, acts, out):
     floor.from_pydata([(-3, -3, 0), (3, -3, 0), (3, 3, 0), (-3, 3, 0)], [], [(0, 1, 2, 3)])
     bpy.data.objects.new("floor", floor)
     sc.collection.objects.link(bpy.data.objects["floor"])
-    cams = {"front": (Vector((1.2, 3.2, 1.2)), Vector((0, 0, 0.65))), "side": (Vector((3.4, 0.0, 0.9)), Vector((0, 0, 0.6)))}
+    k = HIPS / 0.85   # framed for their height
+    cams = {"front": (Vector((1.2, 3.2, 1.2)) * k, Vector((0, 0, 0.65)) * k), "side": (Vector((3.4, 0.0, 0.9)) * k, Vector((0, 0, 0.6)) * k)}
     for a in acts:
         arm.animation_data.action = a
         end = a.frame_range[1]
@@ -600,7 +761,11 @@ def shots(arm, acts, out):
             sc.frame_set(frame)
             bpy.context.view_layer.update()
             slab_ob.hide_render = a.name != "idle_lounge"
+            for name, shown in (("chair", "work_high"), ("back", "work_high"), ("wall", "work_rooms")):
+                if name in bpy.data.objects:
+                    bpy.data.objects[name].hide_render = a.name != shown
             fig = stick(arm)
+            fig.hide_render = MESH
             tag = a.name if len(frames) == 1 else "%s%d" % (a.name, fi + 1)
             for view, (at, look) in cams.items():
                 cam_data = bpy.data.cameras.new("cam")
