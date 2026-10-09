@@ -66,29 +66,36 @@ func _run() -> void:
 	Redline.crash_owed = false
 
 	# the rest, in order, on her bones
-	for i in 6:
+	for i in 7:
 		Redline.caught()
 	Redline.high_left = 0.0
 	Redline.crash_owed = false
-	_check("they stack, in order", Redline.changes == Redline.CHANGES.slice(0, 7), Redline.changes)
+	_check("they stack, in order", Redline.changes == Redline.CHANGES.slice(0, 8), Redline.changes)
 	run_node.cutter_scene._redress_copies()  # as the catch scene does
 	await _ticks(4)
 	var body: Node = player.get_node("EcoBody/Body")
 	var skel: Skeleton3D = body.get("skeleton")
 	var mod: Node = skel.get_node("RedlineBody")
 	_check("reshaping her every frame", mod.runs > 0, mod.runs)
-	_check("hands too big", mod.last.get("J_Bip_L_Hand:scale", 1.0) > 1.3, mod.last)
+	_check("a heavy body: all of her, evenly", mod.last.get("body:scale", 1.0) > 1.1 and skel.scale.x > 1.1 and is_equal_approx(skel.scale.x, skel.scale.y), skel.scale)
+	_check("forced posture: chin up", mod.last.get("posture:chin", 0.0) > 0.0, mod.last)
+	_check("forced posture: she can't look down far", Redline.pitch_min() > -1.0, Redline.pitch_min())
 	_check("a stretched neck, long forearms", mod.last.get("J_Bip_C_Head:length", 1.0) > 1.8 and mod.last.get("J_Bip_R_Hand:length", 1.0) > 1.2, mod.last)
 	_check("long legs: lifted so her feet reach the floor", skel.position.y > 0.05, skel.position.y)
 	_check("a tail", player.find_child("RedlineBody_Tail", true, false) != null, "")
-	_check("clumsy hands, long legs", Redline.reload_scale() > 1.0 and Redline.jump_scale() > 1.0, [Redline.reload_scale(), Redline.jump_scale()])
+	_check("heavy on her feet, long legs", Redline.speed_scale() < 1.0 and Redline.jump_scale() > 1.0, [Redline.speed_scale(), Redline.jump_scale()])
 
 	# Doc Imani: the newest one back, for scrap
 	run_node.armory.stash["scrap"] = 100
 	run_node._doc_redline()
 	await _ticks(3)
-	_check("Doc Imani takes the newest back", not "tail" in Redline.changes and Redline.changes.size() == 6 and run_node.armory.amount("scrap") == 100 - Redline.DOC_COST, Redline.changes)
+	_check("Doc Imani takes the newest back", not "tail" in Redline.changes and Redline.changes.size() == 7 and run_node.armory.amount("scrap") == 100 - Redline.DOC_COST, Redline.changes)
 	_check("and it's gone from her", player.find_child("RedlineBody_Tail", true, false) == null, "")
+	# all of it gone: her own size again
+	Redline.changes = []
+	run_node.cutter_scene._redress_copies()
+	await _ticks(2)
+	_check("her own size back", is_equal_approx(skel.scale.x, 1.0) or skel.scale.x < 1.05, skel.scale)
 
 	# Teen: none of it
 	ContentRating.set_rating("T", false)

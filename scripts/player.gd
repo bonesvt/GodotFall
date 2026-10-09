@@ -332,7 +332,7 @@ func _ready() -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED and not entranced:
 		rotate_y(-Prefs.look_x(event.relative.x) * mouse_sensitivity)
-		head.rotation.x = clampf(head.rotation.x - Prefs.look_y(event.relative.y) * mouse_sensitivity, -1.55, 1.55)
+		head.rotation.x = clampf(head.rotation.x - Prefs.look_y(event.relative.y) * mouse_sensitivity, Redline.pitch_min(), 1.55)
 	elif event.is_action_pressed("ui_cancel"):
 		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	elif event is InputEventMouseButton and event.pressed and Input.mouse_mode != Input.MOUSE_MODE_CAPTURED:
@@ -961,7 +961,7 @@ func _drunk(delta: float) -> void:
 	_drunk_sway = want
 	if step != Vector2.ZERO and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
 		rotate_y(deg_to_rad(step.x))
-		head.rotation.x = clampf(head.rotation.x + deg_to_rad(step.y), -1.55, 1.55)
+		head.rotation.x = clampf(head.rotation.x + deg_to_rad(step.y), Redline.pitch_min(), 1.55)
 	var veer := Vices.stagger(_drunk_t)
 	if veer != 0.0 and wish_dir != Vector3.ZERO:
 		wish_dir = wish_dir.rotated(Vector3.UP, veer)

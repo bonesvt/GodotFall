@@ -11,11 +11,13 @@ extends RefCounted
 ##              catches her after, Redline changes her body, a change a catch,
 ##              in CHANGES order, and they stack (redline_body.gd):
 ##     ears     cat ears on her head, on backwards, twitching
-##     hands    her hands too big for her: clumsy (reload_scale)
+##     body     heavy: 15% more of her, all over, evenly; slower on her feet (speed_scale)
 ##     eyes     red, swirling: a red cast over her view
 ##     neck     her neck stretched, her head sitting too high
 ##     arms     her arms too long, her forearms stretched
 ##     legs     her shins long: taller, and she jumps higher (jump_scale)
+##     posture  forced posture: her spine held straight as a wire, chin up; she
+##              can't look down far (pitch_min)
 ##     tail     a thin red tail that sways
 ##     head     her head too small for her
 ## The changes only ever touch those parts. Doc Imani can reverse one, the last
@@ -24,23 +26,26 @@ extends RefCounted
 
 const ContentRating := preload("res://scripts/radio/content_rating.gd")
 
-const CHANGES := ["ears", "hands", "eyes", "neck", "arms", "legs", "tail", "head"]
-const NAMES := {"ears": "wrong ears", "hands": "hands too big", "eyes": "red eyes", "neck": "a stretched neck",
-	"arms": "arms too long", "legs": "long legs", "tail": "a tail", "head": "a head too small"}
+const CHANGES := ["ears", "body", "eyes", "neck", "arms", "legs", "posture", "tail", "head"]
+const NAMES := {"ears": "wrong ears", "body": "a heavy body", "eyes": "red eyes", "neck": "a stretched neck",
+	"arms": "arms too long", "legs": "long legs", "posture": "forced posture", "tail": "a tail", "head": "a head too small"}
 ## What each change feels like, when it comes on.
 const FEEL := {
 	"ears": "Something pushes up through her hair. Two ears, a cat's, on backwards. They twitch at sounds behind her that aren't there.",
-	"hands": "Her hands swell. Her fingers don't fit her gun's grip any more. She has to think about every one of them.",
+	"body": "All of her thickens at once, evenly, head to toe. More of her. She's heavy on her feet, and the floor knows it.",
 	"eyes": "The red doesn't leave her eyes when the high does. It swirls in them now.",
 	"neck": "Her neck creaks and stretches. Her head sits higher than it should. Doorframes look lower.",
 	"arms": "Her forearms pull long, like taffy. Her hands hang to her knees.",
 	"legs": "Her shins lengthen with a sound like a knuckle. She's taller. The ground's further away.",
+	"posture": "Something pulls her spine straight as a wire. Chin up. She can't slouch, she can't bow her head, she can't look at her own feet for long.",
 	"tail": "A thin red tail. It sways when she's nervous. She's always nervous now.",
 	"head": "Her head shrinks. Just a little. Just enough that her hair doesn't sit right. Everyone notices.",
 }
 const HIGH_TIME := 60.0
 const HIGH_SPEED := 1.15
-const HANDS_RELOAD := 1.3
+## A heavy body: how much slower she moves; forced posture: how far down she can look (radians).
+const BODY_SPEED := 0.92
+const POSTURE_PITCH := -0.55
 const LEGS_JUMP := 1.15
 const DOC_COST := 60
 
@@ -100,11 +105,12 @@ static func crashed() -> void:
 
 
 static func speed_scale() -> float:
-	return HIGH_SPEED if high() else 1.0
+	return (HIGH_SPEED if high() else 1.0) * (BODY_SPEED if has("body") else 1.0)
 
 
-static func reload_scale() -> float:
-	return HANDS_RELOAD if has("hands") else 1.0
+## How far down she can look (the player's head pitch), radians.
+static func pitch_min() -> float:
+	return POSTURE_PITCH if has("posture") else -1.55
 
 
 static func jump_scale() -> float:
@@ -133,7 +139,8 @@ static func open(path: String) -> void:
 	var cfg := ConfigFile.new()
 	if cfg.load(path) != OK:
 		return
-	changes = Array(cfg.get_value("redline", "changes", [])).filter(func(c): return c in CHANGES)
+	# saves from before the heavy body took the big hands' place
+	changes = Array(cfg.get_value("redline", "changes", [])).map(func(c): return "body" if c == "hands" else c).filter(func(c): return c in CHANGES)
 	catches = int(cfg.get_value("redline", "catches", 0))
 
 

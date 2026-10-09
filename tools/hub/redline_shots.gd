@@ -1,7 +1,7 @@
 extends SceneTree
 ## Redline's changes on Eco (redline_body.gd), one panel each, then all of
-## them at once: wrong ears, hands too big, red eyes, a stretched neck, arms too
-## long, long legs, a tail, a head too small, and everything.
+## them at once: wrong ears, a heavy body, red eyes, a stretched neck, arms too
+## long, long legs, forced posture, a tail, a head too small, and everything.
 ##   godot --path . --resolution 1280x720 -s res://tools/hub/redline_shots.gd -- <out_dir>
 ## Needs a renderer (not --headless). Writes <out_dir>/redline_changes.png.
 
@@ -13,11 +13,12 @@ const CELL := Vector2i(400, 560)
 ## [changes, camera offset from her, look-at height, fov]
 const PANELS := [
 	[["ears"], Vector3(0.55, 0.25, -0.9), 1.55, 30],
-	[["hands"], Vector3(0.45, 0.15, -1.05), 0.85, 34],
+	[["body"], Vector3(1.1, -0.2, -3.2), 0.95, 42],
 	[["eyes"], Vector3(0.12, 0.0, -0.6), 1.52, 20],
 	[["neck"], Vector3(0.9, 0.0, -2.2), 1.3, 38],
 	[["arms"], Vector3(0.9, -0.1, -2.6), 1.0, 42],
 	[["legs"], Vector3(1.0, -0.3, -3.0), 0.95, 42],
+	[["posture"], Vector3(2.2, -0.05, -1.2), 1.15, 36],
 	[["tail"], Vector3(1.0, -0.2, 1.9), 0.9, 40],
 	[["head"], Vector3(0.5, 0.05, -1.25), 1.42, 26],
 	[Redline.CHANGES, Vector3(1.4, -0.2, -3.4), 1.0, 44],
@@ -69,7 +70,7 @@ func _go() -> void:
 	world.add_child(cam)
 	cam.make_current()
 	await _frames(20)
-	var sheet := Image.create(CELL.x * 3, CELL.y * 3, false, Image.FORMAT_RGBA8)
+	var sheet := Image.create(CELL.x * 5, CELL.y * 2, false, Image.FORMAT_RGBA8)
 	var win := Vector2(root.get_texture().get_size())
 	var cw := int(win.y * CELL.x / CELL.y)
 	for i in PANELS.size():
@@ -84,7 +85,7 @@ func _go() -> void:
 		img.convert(Image.FORMAT_RGBA8)
 		img = img.get_region(Rect2i(int((win.x - cw) * 0.5), 0, cw, int(win.y)))
 		img.resize(CELL.x, CELL.y)
-		sheet.blit_rect(img, Rect2i(Vector2i.ZERO, CELL), Vector2i(CELL.x * (i % 3), CELL.y * (i / 3)))
+		sheet.blit_rect(img, Rect2i(Vector2i.ZERO, CELL), Vector2i(CELL.x * (i % 5), CELL.y * (i / 5)))
 	sheet.save_png(out.path_join("redline_changes.png"))
 	print("wrote redline_changes.png")
 	Redline.reset()

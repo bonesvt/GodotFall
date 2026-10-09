@@ -16,6 +16,7 @@ extends CanvasLayer
 ##   0   the Family Plan: Mom and Ophelia in the whole set, their Hymn full
 ##   R   Biggie's toolkit: everything above (and Super Hush, and Redline) back to nothing
 ##   C   Cutter's Redline: he's there, and the needle (cutter_scene.gd)
+##   E   a rescue: Mom or Ophelia taken right now (rescue_event.gd)
 ## and the hypno looks' meters (vice_looks.gd), Mature only:
 ##   D   Faith's devotion up a stage
 ##   T   Colony City's Town's Grip up a stage
@@ -101,6 +102,7 @@ func _ready() -> void:
 	col.add_child(_button("0   The Family Plan (Mom and Ophelia, the whole set)", func(): control_item("family")))
 	col.add_child(_button("R   Biggie's toolkit (reset every control system)", func(): control_item("toolkit")))
 	col.add_child(_button("C   Cutter's Redline (the needle; from the second, a change)", redline_item))
+	col.add_child(_button("E   A rescue (Mom or Ophelia taken, now: get to them)", rescue_item))
 	col.add_child(_button("D   Faith look: devotion up a stage", func(): look_meter("devotion")))
 	col.add_child(_button("T   Colony City look: Town's Grip up a stage", func(): look_meter("town_grip")))
 	col.add_child(_button("O   Ophelia's look: obsession up a stage", func(): look_meter("obsession")))
@@ -109,7 +111,7 @@ func _ready() -> void:
 	_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_status.custom_minimum_size = Vector2(512, 0)
 	col.add_child(_status)
-	col.add_child(_text("1-9, 0, R, C, D, T, O, L pick   F or Esc close", 14, DIM))
+	col.add_child(_text("1-9, 0, R, C, E, D, T, O, L pick   F or Esc close", 14, DIM))
 
 
 func _input(event: InputEvent) -> void:
@@ -140,6 +142,8 @@ func _input(event: InputEvent) -> void:
 			control_item("toolkit")
 		KEY_C:
 			redline_item()
+		KEY_E:
+			rescue_item()
 		KEY_D:
 			look_meter("devotion")
 		KEY_T:
@@ -216,6 +220,17 @@ func redline_item() -> bool:
 	scene = "redline"
 	close_now = true
 	_did("Cutter's Redline: watch.")
+	return true
+
+
+## Someone taken, now: Biggie runs in when the box shuts (rescue_event.gd).
+func rescue_item() -> bool:
+	if not Vices.allowed():
+		_did("Rescues are Mature only (Settings > Game > rating).")
+		return false
+	scene = "rescue"
+	close_now = true
+	_did("A rescue: run.")
 	return true
 
 

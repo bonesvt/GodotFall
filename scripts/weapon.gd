@@ -427,7 +427,7 @@ func fire() -> void:
 		FX.tracer(fx_parent, tracer_from, end, tracer_color.lerp(STREAK_TRACER, heat_t), 0.012 + 0.008 * heat_t, 0.06)
 	bloom = minf(bloom + bloom_per_shot, max_bloom)
 	var k := deg_to_rad(recoil_kick)
-	player.head.rotation.x = clampf(player.head.rotation.x + k, -1.55, 1.55)
+	player.head.rotation.x = clampf(player.head.rotation.x + k, Redline.pitch_min(), 1.55)
 	recoil_pending += k * recoil_recovery
 	flash_timer = 0.04
 	_shot_feel(fx_parent)
@@ -673,7 +673,7 @@ func damage_at(distance: float) -> float:
 func start_reload() -> void:
 	if reload_timer > 0.0 or ammo >= magazine_size:
 		return
-	reload_timer = reload_time * Hymn.reload_scale() * Redline.reload_scale()  # the comfort gloves' numb hands, Redline's too-big ones
+	reload_timer = reload_time * Hymn.reload_scale()  # the comfort gloves' numb hands
 	_reload_events = 0
 	stop_inspect()
 
@@ -936,7 +936,7 @@ func _recover_recoil(delta: float) -> void:
 		return
 	var step := minf(recoil_pending, deg_to_rad(12.0) * delta)
 	recoil_pending -= step
-	player.head.rotation.x = clampf(player.head.rotation.x - step, -1.55, 1.55)
+	player.head.rotation.x = clampf(player.head.rotation.x - step, Redline.pitch_min(), 1.55)
 
 
 func _build_viewmodel() -> void:

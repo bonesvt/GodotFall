@@ -5,27 +5,34 @@ extends SkeletonModifier3D
 ## like the Shepherd's gear (colony_gear.gd _root):
 ##   ears   cat ears through her hair on top of her head, on backwards (their
 ##          openings to the back), twitching now and then
-##   hands  her hands scaled up (HANDS)
+##   body   all of her BODY times as big, evenly: her skeleton scaled from the floor
 ##   neck   her head's bone pushed up its neck (NECK times as long)
 ##   arms   her upper arms and forearms lengthened (ARM_UPPER, ARM_FORE)
 ##   legs   her shins lengthened (SHIN), her whole skeleton lifted so her feet
 ##          still meet the floor
+##   posture  her spine and neck held at their rest (no slouch, no sway from her
+##          animation), leaning back a touch, her chin lifted (POSTURE_*)
 ##   tail   a thin red tail from the base of her spine, swaying
 ##   head   her head scaled down (HEAD)
 ## (Her eyes are eco_model.gd's, a red swirl.) On the copy in her gun's
-## first-person arms the hands and arms are left alone, so she still holds it.
+## first-person arms her size and arms are left alone, so she still holds it.
 ## apply() puts it on (or updates it on) a model of her.
 
 const Redline := preload("res://scripts/hub/redline.gd")
 const ColonyGear := preload("res://scripts/hub/colony_gear.gd")
 
 const NODE := "RedlineBody"
-const HANDS := 1.65
+const BODY := 1.15
 const NECK := 2.4
 const ARM_UPPER := 1.25
 const ARM_FORE := 1.5
 const SHIN := 1.3
 const HEAD := 0.74
+## Forced posture: her spine leaned back this many degrees, her chin up this
+## many (about her bones' X: negative lifts, her rig facing +Z).
+const POSTURE_LEAN := -4.0
+const POSTURE_CHIN := -16.0
+const SPINE := ["J_Bip_C_Spine", "J_Bip_C_Chest", "J_Bip_C_UpperChest", "J_Bip_C_Neck"]
 const EAR_RED := Color(0.16, 0.06, 0.07)
 const EAR_PINK := Color(0.95, 0.5, 0.55)
 const TAIL_RED := Color(0.55, 0.06, 0.08)
@@ -41,6 +48,7 @@ var shown: Array = []
 var gun_arms := false
 var _t := 0.0
 var _base_y := NAN
+var _base_scale := Vector3.ONE
 var _ears: Array = []
 var _tail: Array = []
 var _twitch := 0.0
@@ -55,6 +63,9 @@ static func apply(model: Node) -> void:
 		return
 	for child in skel.get_children():
 		if String(child.name).begins_with(NODE):
+			if child.get("_base_y") != null and not is_nan(child._base_y):  # her size and height back
+				skel.scale = child._base_scale
+				skel.position.y = child._base_y
 			skel.remove_child(child)
 			child.free()
 	if not Redline.allowed() or Redline.changes.is_empty():
@@ -170,10 +181,12 @@ func _modify(delta: float) -> void:
 	_t += delta
 	if is_nan(_base_y):
 		_base_y = skel.position.y
+		_base_scale = skel.scale
+	var size := BODY if "body" in shown and not gun_arms else 1.0
+	skel.scale = _base_scale * size
+	last["body:scale"] = size
 	if not gun_arms:
 		for side in ["L", "R"]:
-			if "hands" in shown:
-				_scale(skel, "J_Bip_%s_Hand" % side, HANDS)
 			if "arms" in shown:
 				_stretch(skel, "J_Bip_%s_LowerArm" % side, ARM_UPPER)
 				_stretch(skel, "J_Bip_%s_Hand" % side, ARM_FORE)
@@ -181,14 +194,33 @@ func _modify(delta: float) -> void:
 		_stretch(skel, ColonyGear.HEAD, NECK)
 	if "head" in shown:
 		_scale(skel, ColonyGear.HEAD, HEAD)
+	if "posture" in shown and not gun_arms:
+		_posture(skel)
 	var lift := 0.0
 	if "legs" in shown:
 		for side in ["L", "R"]:
 			var i := _stretch(skel, "J_Bip_%s_Foot" % side, SHIN)
 			if i >= 0:
 				lift = skel.get_bone_rest(i).origin.length() * (SHIN - 1.0)
-	skel.position.y = _base_y + lift
+	skel.position.y = _base_y + lift * size
 	_animate_parts()
+
+
+## Forced posture: her spine and neck straight (their rest, whatever her
+## animation wants), leaned back a little, and her chin lifted.
+func _posture(skel: Skeleton3D) -> void:
+	for k in SPINE.size():
+		var i := skel.find_bone(SPINE[k])
+		if i < 0:
+			continue
+		var rest := skel.get_bone_rest(i).basis.get_rotation_quaternion()
+		var tilt := POSTURE_LEAN if k == 0 else 0.0
+		skel.set_bone_pose_rotation(i, rest * Quaternion(Vector3.RIGHT, deg_to_rad(tilt)))
+	var h := skel.find_bone(ColonyGear.HEAD)
+	if h >= 0:
+		var rest := skel.get_bone_rest(h).basis.get_rotation_quaternion()
+		skel.set_bone_pose_rotation(h, rest * Quaternion(Vector3.RIGHT, deg_to_rad(POSTURE_CHIN)))
+	last["posture:chin"] = -POSTURE_CHIN
 
 
 ## The bone `name`'s own scale, s times.
