@@ -91,8 +91,8 @@ SPEC = {
     "pip": {
         # a head taller than Eco (1.69), long-legged: she looks down at her sister
         "height": 1.82, "head": 0.91, "legs": 1.08,
-        # cold and amused: a low, hard brow, narrowed eyes, the corner of a smirk
-        "face": {"Fcl_BRW_Angry": 0.4, "Fcl_EYE_Angry": 0.28, "Fcl_EYE_Natural": 0.18, "Fcl_MTH_Fun": 0.12},
+        # cocky and amused: lids relaxed, a closed-lip smirk, knows what she's worth
+        "face": {"Fcl_BRW_Angry": 0.12, "Fcl_BRW_Fun": 0.2, "Fcl_EYE_Angry": 0.15, "Fcl_EYE_Fun": 0.28, "Fcl_MTH_Fun": 0.45, "Fcl_MTH_Close": 0.5},
         # the family red, deeper and cooler: wine
         "hair": [(0.30, (0.022, 0.001, 0.007)), (0.62, (0.10, 0.006, 0.022)),
                  (0.86, (0.24, 0.025, 0.055)), (1.0, (0.5, 0.17, 0.22))],
@@ -2176,23 +2176,23 @@ def stance():
         add(p, "forearm.R", X, 10)
         add(p, "forearm.L", X, 10)
     elif WHO == "pip":
-        # owns the room: chin up and looking down her nose, shoulders back,
-        # feet planted wide, both hands on her hips
-        add(p, "chest", X, 5)
-        add(p, "neck", X, 3)
-        add(p, "head", X, 6)
-        add(p, "head", Y, -6)
-        add(p, "hips", Y, -4)
-        add(p, "thigh.L", Y, 5)
-        add(p, "thigh.R", Y, -5)
-        add(p, "shin.L", X, -6)
-        add(p, "thigh.L", X, 4)
+        # owns the room and enjoys it: hip cocked, one hand on it, the other
+        # loose, chin up and her head tipped as she sizes you up
+        add(p, "chest", X, 4)
+        add(p, "head", X, 4)
+        add(p, "head", Y, -7)
+        add(p, "head", Z, 9)
+        add(p, "hips", Y, -7)
+        add(p, "spine", Y, 3)
+        add(p, "thigh.L", Y, 4)
+        add(p, "thigh.R", Y, -3)
+        add(p, "shin.L", X, -10)
+        add(p, "thigh.L", X, 6)
         add(p, "upperarm.L", Y, 30)
         add(p, "upperarm.L", X, -8)
         add(p, "forearm.L", Y, -80)
-        add(p, "upperarm.R", Y, -30)
-        add(p, "upperarm.R", X, -8)
-        add(p, "forearm.R", Y, 80)
+        add(p, "upperarm.R", Y, -6)
+        add(p, "forearm.R", X, 12)
     else:
         # at ease: upright, belly out, hands folded on top of it, head tilted
         # a little, the way a man listens who has time for you
