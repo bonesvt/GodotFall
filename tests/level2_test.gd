@@ -97,14 +97,21 @@ func _play_checks() -> void:
 	var was: String = ContentRating.current()
 	ContentRating.set_rating("M", false)
 	await _frames(3)
-	_check("Ophelia's in the stasis column in the Mature intake suit, cuffed and collared", oph != null and oph.who == "ophelia" and oph.outfit == "colony_m" and oph.posed and cell._restraints.size() == 3 and cell._field.visible, [oph.outfit, cell._restraints.size()])
-	_check("she floats off the pad in the stasis pose", oph.position.y > cell.PAD_TOP + 0.1 and oph._anim.current_animation.ends_with("stasis"), [oph.position.y, oph._anim.current_animation])
+	cell._hold()   # the gear only shows under Mature, and the rating was only just set
+	await _frames(3)
+	_check("Ophelia's in the trial frame in the Mature intake suit, in the white light", oph != null and oph.who == "ophelia" and oph.outfit == "colony_m" and oph.posed and cell._field.visible, oph.outfit)
+	_check("she wears the trial's headphones, cuff, visor and neck band", cell.gear_on() == cell.TRIAL_GEAR, cell.gear_on())
+	var wrists: Variant = cell.wrists_at()
+	_check("her arms are held up over her head, wrists clamped together, ankles clamped", cell._clamps.size() == 6 and wrists != null and (wrists as Vector3).y > 1.6 and absf((wrists as Vector3).x - cell.COLUMN.x) < 0.15, [cell._clamps.size(), wrists])
+	_check("she stands on the bay's floor, held still", absf(oph.position.y - cell.PAD_TOP) < 0.05 and oph._anim.speed_scale == 0.0, [oph.position.y, oph._anim.speed_scale])
+	_check("a screen in front of her face flashes words at her", cell._feed != null and cell._feed_word.text in cell.FEED_WORDS, cell._feed_word.text if cell._feed_word else null)
+	_check("two empty frames with their visors hung on them, the film tray and Marrow's Glass case", cell.find_children("HungVisor*", "", false, false).size() == 2 and cell.find_child("FilmTray", false, false) != null and cell.find_child("GlassCase", false, false) != null, cell.find_children("HungVisor*", "", false, false).size())
 	_check("Mature face and messed-up hair", _face_tex(oph).ends_with("face_colony_m.png") and _blend(oph, "mess_colony") > 0.99, [_face_tex(oph), _blend(oph, "mess_colony")])
 	_check("nothing shows through her suit (no chest nubs on a captive)", _hidden(oph, "Piercings"), _hidden(oph, "Piercings"))
-	_check("Mature manifest: item 41 of 60", cell._manifest.text.contains("ITEM 41 OF 60"), cell._manifest.text)
+	_check("the wall screen reads her trial: Bay 7, day 19", cell._manifest.text.contains("BAY 7") and cell._manifest.text.contains("DAY 19") and cell._log.text.contains("SOLACE"), cell._manifest.text)
 	ContentRating.set_rating("T", false)
 	await _frames(3)
-	_check("Teen: the intake suit with its ID plate and its own face", oph.outfit == "colony" and _face_tex(oph).ends_with("face_colony.png") and not cell._manifest.text.contains("41"), [oph.outfit, _face_tex(oph), cell._manifest.text])
+	_check("Teen: the intake suit with its ID plate and its own face", oph.outfit == "colony" and _face_tex(oph).ends_with("face_colony.png"), [oph.outfit, _face_tex(oph)])
 	ContentRating.set_rating(was, false)
 	await _frames(3)
 	_check("calm radio gossips about the prisoner", run_node.pilot_hud.radio.extra_rumor == "prisoner", run_node.pilot_hud.radio.extra_rumor)
@@ -117,11 +124,15 @@ func _play_checks() -> void:
 
 	# Into the cell: the field drops, she follows.
 	await _use_cell(cell)
-	_check("F breaks her out", cell.opened and run_node.rescued and not cell._field.visible and not _screen_blocks(cell), cell.opened)
+	_check("F breaks her out: the light and her screen go out, the clamps open", cell.opened and run_node.rescued and not cell._field.visible and not _screen_blocks(cell) and cell._manifest.text == "" and cell._feed_word.text == "" and cell._clamps.is_empty() and cell._pose == null and oph._anim.speed_scale > 0.0, [cell._field.visible, _screen_blocks(cell), cell._manifest.text, cell._feed_word.text, cell._clamps.size(), oph._anim.speed_scale])
 	_check("they talk", run_node.hud.toast_label.text.begins_with("OPHELIA"), run_node.hud.toast_label.text)
 	_check("radio stops gossiping about her", run_node.pilot_hud.radio.extra_rumor == "", run_node.pilot_hud.radio.extra_rumor)
 	var escort = run_node.escort
 	_check("she's following", escort != null and escort.npc == oph and not escort.waiting, escort)
+	ContentRating.set_rating("M", false)
+	cell._hold()
+	cell._unmask()
+	_check("the visor, headphones and band come off her, the cuff stays", cell.gear_on() == cell.KEPT_GEAR, cell.gear_on())
 	if escort == null:
 		return
 	# Walk off up the street: she comes after. (Grunts held passive for this,
@@ -183,6 +194,7 @@ func _play_checks() -> void:
 	await _ticks(3)
 	_check("exfil with her far behind doesn't end it", run_node.phase == run_node.Phase.ZONE and run_node.hud.toast_label.text.contains("Not without Ophelia"), run_node.hud.toast_label.text)
 	oph.global_position = beacon.global_position + Vector3(2, 0, 2)
+	ContentRating.set_rating("M", false)
 	await _ticks(3)
 	_check("exfil with her close clears the level", run_node.phase == run_node.Phase.OVER and run_node.result == "RUN COMPLETE", run_node.result)
 	_check("level 2 marked cleared and saved", "level2" in load("res://scripts/hub/armory.gd").open(run_node.armory_path).cleared, run_node.armory.cleared)
@@ -193,6 +205,9 @@ func _play_checks() -> void:
 	var gained: int = Romance.affection(run_node.npc_talk.state, "ophelia") - affection_before
 	_check("the rescue starts her romance on +%d" % run_node.RESCUE_AFFECTION, gained == run_node.RESCUE_AFFECTION, gained)
 	run_node._rescue_bonus("level2")
+	var HubGrip = preload("res://scripts/hub/hub_grip.gd")
+	_check("she comes home still wearing the trial's dose cuff, Hymn in her", HubGrip.has("ophelia", "cuff") and HubGrip.level("ophelia") >= run_node.TRIAL_HYMN, [HubGrip.gear_of("ophelia"), HubGrip.level("ophelia")])
+	ContentRating.set_rating(was, false)
 	_check("the rescue bonus is given only once", Romance.affection(run_node.npc_talk.state, "ophelia") - affection_before == run_node.RESCUE_AFFECTION, Romance.affection(run_node.npc_talk.state, "ophelia"))
 
 

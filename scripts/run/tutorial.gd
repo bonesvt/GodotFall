@@ -707,7 +707,7 @@ func _level2() -> Array:
 			"targets": func(): return _route_tags(_info().get("routes", [])),
 			"when": func(): return level_time > 2.0},
 		{"id": "level2_cell", "title": "HOLDING BLOCK", "color": RED, "max": 16.0,
-			"body": "Her cell's behind an energy screen, a guard on it and more round the block. Take him quietly with the stiletto [Z], walk up to the screen and press [F] to short it and overload her stasis column.",
+			"body": "Her cell's behind an energy screen, a guard on it and more round the block. Take him quietly with the stiletto [Z], walk up to the screen and press [F] to short it and kill the bay's power.",
 			"targets": func(): return _cell_tag(),
 			"when": func(): return _cell_tag().size() > 0 and _near(_info()["holding_cell"].global_position, 70.0),
 			"done": func(): return _info()["holding_cell"].opened},

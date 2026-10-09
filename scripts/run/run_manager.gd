@@ -103,6 +103,9 @@ const VisorScreen := preload("res://scripts/ui/visor_screen.gd")
 const VisorFriends := preload("res://scripts/run/visor_friends.gd")
 const ObsessionLook := preload("res://scripts/hub/obsession_look.gd")
 const HubGrip := preload("res://scripts/hub/hub_grip.gd")
+const HoldingCell := preload("res://scripts/run/holding_cell.gd")
+## The Hymn the trial left in whoever Eco got out of it (hub_grip.gd).
+const TRIAL_HYMN := 20.0
 const ColonyGear := preload("res://scripts/hub/colony_gear.gd")
 const TAKEN_WITH := "%s was taken with her. She's on the bench beside Eco, wearing the colony's %s, smiling. \"I feel so calm.\""
 const DEAF := "%s doesn't look up. Eco says her name again. Nothing. The headphones hum. Then %s blinks: \"Sorry, did you say something?\""
@@ -1784,12 +1787,21 @@ func _hide_unrescued(info: Dictionary) -> void:
 
 
 ## Winning a rescue level starts the one rescued on some romance affection,
-## the first time only.
+## the first time only. Ophelia comes home from the Hymn trial still wearing
+## its dose cuff, with some Hymn in her (hub_grip.gd): Biggie can get it off.
 func _rescue_bonus(level: String) -> void:
 	var who := String(Levels.spec(level).get("rescue", ""))
 	if who == "" or npc_talk == null or npc_talk.state.get_value(who, "rescue_bonus", false):
 		return
 	NpcTalk.Romance.add(npc_talk.state, who, RESCUE_AFFECTION)
+	if who in HubGrip.WHO and HubGrip.allowed():
+		var mine: Array = HubGrip.gear_of(who).duplicate()
+		for piece in HoldingCell.KEPT_GEAR:
+			if not piece in mine:
+				mine.append(piece)
+		HubGrip.gear[who] = mine
+		HubGrip.levels[who] = maxf(HubGrip.level(who), TRIAL_HYMN)
+		HubGrip.save()
 	npc_talk.state.set_value(who, "rescue_bonus", true)
 	npc_talk.state.save(npc_talk.save_path)
 
