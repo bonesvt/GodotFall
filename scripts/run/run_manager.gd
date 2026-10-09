@@ -76,12 +76,13 @@ const CheatScene := preload("res://scripts/hub/cheat_scene.gd")
 const Cutter := preload("res://scripts/hub/cutter.gd")
 const CutterScene := preload("res://scripts/hub/cutter_scene.gd")
 const Redline := preload("res://scripts/hub/redline.gd")
+const RigScreen := preload("res://scripts/hub/rig_screen.gd")
+const RedlineSenses := preload("res://scripts/hub/redline_senses.gd")
 ## Cutter (cutter.gd): the chance he comes after her on a hub stay (from her
 ## CUTTER_FROM'th run on), and how many seconds of roaming town before he does.
 const CUTTER_CHANCE := 0.35
 const CUTTER_FROM := 2
 const CUTTER_DELAY := Vector2(20.0, 50.0)
-const DOC_REDLINE := "Doc Imani, gloves on, a tray of things that hum: \"Hold still. I can take one of them back. The newest. It'll hurt.\" It does. It's gone: %s."
 const FittingScene := preload("res://scripts/hub/fitting_scene.gd")
 const DoseScene := preload("res://scripts/hub/dose_scene.gd")
 const CheatScreen := preload("res://scripts/hub/cheat_screen.gd")
@@ -374,6 +375,7 @@ func _ready() -> void:
 	drunk.name = "DrunkScreen"
 	add_child(drunk)
 	add_child(VisorScreen.new(self))
+	add_child(RedlineSenses.new(self))  # what the Rig's mods let her hear and see
 	var craving := CravingScreen.new()
 	craving.name = "CravingScreen"
 	add_child(craving)
@@ -703,6 +705,23 @@ func spawn_cutter() -> void:
 	hud.toast("Somebody whistles behind her. Two notes, low then high. Ophelia used to say that's Cutter's.", 4.0)
 
 
+## Sat in the Rig (on: in the chair, facing into Biggie's den), or up out of it.
+func _rig_sit(on: bool) -> void:
+	var seat: Vector3 = zone_info.get("rig_seat", Vector3.INF)
+	if seat == Vector3.INF:
+		return
+	var eco: Node = player.get_node_or_null("EcoBody")
+	if on:
+		place_player(seat + Vector3(0, 0.05, 0))
+		player.rotation.y = PI  # facing into the den
+	else:
+		place_player(seat + Vector3(0, 0.1, 0.9))
+	for n in ["Body", "Shadow"]:
+		var body: Node = eco.get_node_or_null(n) if eco != null else null
+		if body != null:
+			body.set("rest_seat_height", 0.59)
+			body.set("rest_pose", "chair" if on else "")
+
 ## The cheat box's Redline: Cutter, right in front of her, and the needle.
 func cutter_now() -> void:
 	if not Redline.allowed():
@@ -727,17 +746,6 @@ func _tick_redline(delta: float) -> void:
 		cutter_scene.play_crash()
 
 
-## Doc Imani takes back the newest Redline change, for scrap.
-func _doc_redline() -> void:
-	if armory.amount("scrap") < Redline.DOC_COST:
-		hud.toast("Doc Imani: \"%d scrap. I don't do this for love.\"" % Redline.DOC_COST, 3.0)
-		return
-	armory.stash["scrap"] = armory.amount("scrap") - Redline.DOC_COST
-	armory.save()
-	var gone := Redline.doc_reverse()
-	Wardrobe.dress_eco(player, true)
-	cutter_scene._redress_copies()
-	hud.toast(DOC_REDLINE % Redline.NAMES.get(gone, gone), 5.0)
 
 
 ## The Shepherd comes for her (hymn.gd), from the dispensary's back door.
@@ -965,7 +973,7 @@ func _hub_tick(delta: float) -> void:
 	if spot["id"] == "marrow" and Vices.allowed() and Glass.can_confront():
 		chorus_scene.play()
 		return
-	var vice_shop: bool = spot.get("shop", "") in ["bar", "stims", "hush", "dispensary", "gear_off", "gear_off_doc"] and Vices.allowed()
+	var vice_shop: bool = spot.get("shop", "") in ["bar", "stims", "hush", "dispensary", "gear_off", "gear_off_doc", "rig"] and Vices.allowed()
 	if spot.has("date") and (not vice_shop or date_ready(spot)) and date_at(spot):
 		return
 	if spot.has("screen"):
@@ -1000,9 +1008,6 @@ func _hub_tick(delta: float) -> void:
 		return
 	if spot["id"] == "garage":
 		open_garage()
-		return
-	if spot["id"] == "doc_redline" and Redline.allowed() and not Redline.changes.is_empty():
-		_doc_redline()
 		return
 	if spot.has("npc"):
 		talk_to(spot["npc"])
@@ -1329,6 +1334,9 @@ func open_bench(kind: String) -> void:
 		bench = GearOffScreen.new(true, armory, hub_npcs.keys())
 	elif kind == "obsession":
 		bench = ObsessionScreen.new(npc_talk)
+	elif kind == "rig":
+		bench = RigScreen.new()
+		_rig_sit(true)
 	else:
 		bench = GunsmithScreen.new(armory) if kind == "gunsmith" else BenchScreen.new(armory, kind)
 	bench.set_meta("kind", kind)
@@ -1367,6 +1375,13 @@ func close_bench() -> void:
 		Wardrobe.dress_eco(player, true)
 	elif bench is GearOffScreen and bench.slipped != "":
 		hud.toast("The %s is still on her. Try again after the next run." % Hymn.GEAR_NAMES[bench.slipped], HUB_LINE_SECONDS)
+	if bench is RigScreen:
+		_rig_sit(false)
+	if bench is RigScreen and bench.changed:  # the Rig: her mods, as they are now
+		Wardrobe.dress_eco(player, true)
+		cutter_scene._redress_copies()
+		if bench.felt != "":
+			hud.toast(Redline.FEEL[bench.felt], HUB_LINE_SECONDS + 1.0)
 	if bench is BarScreen and bench.net != 0:
 		hud.toast("Scrapjack: %s%d scrap tonight." % ["+" if bench.net > 0 else "", bench.net], HUB_LINE_SECONDS)
 	if bench is WardrobeScreen and not bench.changed.is_empty():
@@ -1821,7 +1836,7 @@ func kill_y() -> float:
 func _check_fall() -> bool:
 	if player.global_position.y > kill_y():
 		return false
-	run.pilot_hp -= FALL_DAMAGE
+	run.pilot_hp -= roundi(FALL_DAMAGE * Redline.fall_scale())
 	run.falls += 1
 	BattleDamage.on_fall()
 	if run.pilot_hp <= 0:
@@ -1886,6 +1901,9 @@ func nearest_cache() -> Node3D:
 
 
 func open_salvage(cache: Node3D) -> void:
+	if not cache.can_open() and Redline.breaks_locks() and cache.get("locked") == true:
+		cache.unlock()  # the Rig's bone spurs
+		hud.toast("Eco drives a spur through the padlock. It pops.", 2.5)
 	if not cache.can_open():
 		hud.toast("LOCKED: CLEAR THE GUARDS")
 		tutorial.event("locked")
@@ -2308,8 +2326,6 @@ func _prompt() -> String:
 					return family_scene.prompt()
 				if spot.get("shop", "") == "bar" and Vices.allowed() and not date_ready(spot):
 					return "[F] The Rusted Halo: drinks, smokes and Scrapjack"
-				if spot["id"] == "doc_redline" and Redline.allowed() and not Redline.changes.is_empty():
-					return "[F] Doc Imani: undo the newest Redline change (%d scrap)" % Redline.DOC_COST
 				if spot.get("shop", "") == "gear_off_doc" and Vices.allowed():
 					return "[F] Doc Imani: colony hardware off" + ("  (tried today)" if Hymn.doc_tried else "")
 				if spot.get("shop", "") == "gear_off" and Vices.allowed() and not Hymn.gear.is_empty():

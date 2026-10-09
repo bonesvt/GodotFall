@@ -22,6 +22,7 @@ extends CanvasLayer
 ##   U   the PRIORITY ticket: Colony City's Town's Grip to full (vice_looks.gd)
 ##   R   Biggie's toolkit: everything above (and Super Hush) back to nothing
 ##   C   Cutter's Redline: he's there, and the needle (cutter_scene.gd)
+##   G   five Redline charges, for the Rig in Biggie's den (redline.gd)
 
 const Armory := preload("res://scripts/hub/armory.gd")
 const TownShops := preload("res://scripts/hub/town_shops.gd")
@@ -106,12 +107,13 @@ func _ready() -> void:
 	col.add_child(_button("Y   The glass shard (Faith's devotion to full)", func(): control_item("shard")))
 	col.add_child(_button("U   The PRIORITY ticket (Town's Grip to full)", func(): control_item("ticket")))
 	col.add_child(_button("R   Biggie's toolkit (reset every control system)", func(): control_item("toolkit")))
-	col.add_child(_button("C   Cutter's Redline (the needle; from the second, a change)", redline_item))
+	col.add_child(_button("C   Cutter's Redline (the needle, the high, a charge)", redline_item))
+	col.add_child(_button("G   Five Redline charges (spend them at the Rig in Biggie's den)", redline_charges))
 	_status = _text("", 16, INK)
 	_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_status.custom_minimum_size = Vector2(512, 0)
 	col.add_child(_status)
-	col.add_child(_text("1-9, 0, Q, W, E, T, Y, U, R, C pick   F or Esc close", 14, DIM))
+	col.add_child(_text("1-9, 0, Q, W, E, T, Y, U, R, C, G pick   F or Esc close", 14, DIM))
 
 
 func _input(event: InputEvent) -> void:
@@ -154,6 +156,8 @@ func _input(event: InputEvent) -> void:
 			control_item("toolkit")
 		KEY_C:
 			redline_item()
+		KEY_G:
+			redline_charges()
 		_:
 			return
 	get_viewport().set_input_as_handled()
@@ -251,6 +255,18 @@ func unlock_looks() -> void:
 
 ## One of the control items: the box closes and its scene plays out
 ## (cheat_scene.gd), which sets its system to full at the end. Mature only.
+## Five Redline charges for the Rig.
+func redline_charges() -> bool:
+	if not Vices.allowed():
+		_did("Redline is Mature only (Settings > Game > rating).")
+		return false
+	var Redline := preload("res://scripts/hub/redline.gd")
+	Redline.charges += 5
+	Redline.save()
+	_did("Five Redline charges: %d now. The Rig's in Biggie's den." % Redline.charges)
+	return true
+
+
 func control_item(id: String) -> bool:
 	if not Vices.allowed():
 		_did("The control items are Mature only (Settings > Game > rating).")

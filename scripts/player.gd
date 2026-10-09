@@ -349,7 +349,7 @@ func _physics_process(delta: float) -> void:
 	regen_timer -= delta
 	untouchable_timer -= delta
 	if regen_timer <= 0.0 and health < max_health:
-		health = minf(health + regen_rate * Vices.regen_scale() * delta, max_health)
+		health = minf(health + regen_rate * Vices.regen_scale() * Redline.regen_scale() * delta, max_health)
 	elif regen_timer <= 0.0 and armor < max_armor:
 		armor = minf(armor + armor_regen_rate * _armor_regen_mult * delta, max_armor)
 	if resting:
@@ -419,7 +419,7 @@ func _ground_state(delta: float) -> void:
 	_set_crouch(want_crouch)
 
 	var sprinting := (auto_sprint or Input.is_action_pressed("sprint")) and input_dir.y < -0.3
-	var target := (crouch_speed if crouching else (sprint_speed if sprinting else run_speed)) * speed_mult * suit_speed * Vices.speed_scale() * Hymn.speed_scale() * Redline.speed_scale()
+	var target := (crouch_speed if crouching else (sprint_speed * Redline.sprint_scale() if sprinting else run_speed)) * speed_mult * suit_speed * Vices.speed_scale() * Hymn.speed_scale() * Redline.speed_scale()
 	if strolling:
 		# auto sprint doesn't apply; under the orbit camera any direction counts
 		var brisk := Input.is_action_pressed("sprint") and (input_dir.y < -0.3 or (not is_nan(move_yaw) and input_dir != Vector2.ZERO))
@@ -626,6 +626,7 @@ func _air_state(delta: float) -> void:
 	_set_crouch(Input.is_action_pressed("crouch"))
 	var g := gravity * (fall_gravity_mult if velocity.y < 0.0 else 1.0)
 	velocity.y = maxf(velocity.y - g * delta, -max_fall_speed)
+	_glide(Redline.can_glide() and Input.is_action_pressed("jump") and velocity.y < -Redline.GLIDE_FALL)
 	_air_strafe(delta)
 
 	if jump_buffer_timer > 0.0:
@@ -642,6 +643,7 @@ func _air_state(delta: float) -> void:
 	move_and_slide()
 
 	if is_on_floor():
+		_glide(false)
 		_land()
 	elif _can_wallrun():
 		_start_wallrun(get_wall_normal())
@@ -744,6 +746,22 @@ func _grapple_state(delta: float) -> void:
 	move_and_slide()
 
 
+## The Rig's wing stubs: holding jump while she falls, she glides down slow,
+## her wings spread (redline_body.gd).
+var gliding := false
+
+
+func _glide(on: bool) -> void:
+	if on:
+		velocity.y = -Redline.GLIDE_FALL
+	if on == gliding:
+		return
+	gliding = on
+	for n in find_children("RedlineBody", "", true, false):
+		if n.has_method("glide"):
+			n.glide(on)
+
+
 func _air_strafe(delta: float) -> void:
 	# Quake-style air control: you can steer and strafe, but never push
 	# your speed in the held direction past air_wish_speed, so momentum carries.
@@ -752,7 +770,7 @@ func _air_strafe(delta: float) -> void:
 	var current := Vector3(velocity.x, 0.0, velocity.z).dot(wish_dir)
 	var add := air_wish_speed - current
 	if add > 0.0:
-		velocity += wish_dir * minf(add, air_accel * delta)
+		velocity += wish_dir * minf(add, air_accel * Redline.air_scale() * delta)
 
 
 # --- Transitions --------------------------------------------------------------
@@ -898,10 +916,12 @@ func take_damage(amount: float, from := Vector3.ZERO) -> void:
 	if health <= 0.0 or untouchable_timer > 0.0:
 		return
 	amount *= damage_mult * Vices.damage_scale() * Redline.damage_scale()
+	if from != Vector3.ZERO and from.distance_to(global_position) < Redline.MELEE_RANGE:
+		amount *= Redline.melee_damage_taken()  # up close: the Rig's scales
 	var soaked := minf(armor, amount)
 	armor -= soaked
 	health -= amount - soaked
-	regen_timer = regen_delay
+	regen_timer = regen_delay * Redline.recover_scale()
 	damaged.emit(amount, from)
 	if health <= 0.0 and second_wind_ready:
 		# Dad's Colours: once per zone she stays up on 1 HP and can't be touched for a moment

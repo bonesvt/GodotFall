@@ -3,7 +3,7 @@ extends Node
 ##   the catch  he has the back of her head; through her eyes, his needle of
 ##              Redline comes in slow at the camera, then red (a flash at contact, nothing
 ##              more); her heart, her eyes swirling red; from the second time
-##              the change it brings, coming on (redline_body.gd); and Cutter,
+##              a Redline charge left in her for the Rig (redline.gd); and Cutter,
 ##              off and laughing
 ##   the crash  when the high runs out: the colour goes out of everything, she
 ##              sinks to the floor, shaking, and swears never again
@@ -50,8 +50,6 @@ var rm: Node
 var t := -1.0
 ## "catch" or "crash".
 var kind := ""
-## The change this catch brought ("" for none).
-var change := ""
 var _cutter: Node3D
 var _syringe: Node3D
 var _cam: Camera3D
@@ -94,7 +92,7 @@ func busy() -> bool:
 	return t >= 0.0
 
 
-## He has her (cutter.gd catch): the needle, the high, the change if it's due.
+## He has her (cutter.gd catch): the needle, the high, a charge.
 func play_catch(cutter: Node3D) -> void:
 	_cutter = cutter
 	kind = "catch"
@@ -157,7 +155,7 @@ func _catch_tick(_delta: float) -> void:
 		_syringe.look_at(eye, Vector3.UP)
 	if t >= IN and not _said.has("in"):
 		_said["in"] = true
-		change = Redline.caught()
+		Redline.caught()  # one more charge in her: the Rig in Biggie's den can use it, if she wants
 		_say("in", 1.0)
 		SFX.play(self, "heartbeat", 0.0, 1.2)
 		if _syringe != null:
@@ -167,11 +165,9 @@ func _catch_tick(_delta: float) -> void:
 		_say("rush", 3.0)
 	if t >= CHANGE and not _said.has("change"):
 		_said["change"] = true
-		if change != "":
-			Wardrobe.dress_eco(rm.player, true)  # her body, as it is now
-			_redress_copies()
-			rm.hud.toast(Redline.FEEL[change], 4.0)
-			_shot("change")
+		_own_body(true)  # out of her eyes: her, red-eyed, heart going
+		_shot("change")
+		rm.hud.toast("A Redline charge, burning in her. The Rig in Biggie's den can use it. If she wants. (%d)" % Redline.charges, 4.0)
 		SFX.play(self, "heartbeat", -2.0, 1.3)
 	if t >= GOES and not _said.has("goes"):
 		_say("goes", 3.0)
@@ -210,6 +206,7 @@ func _crash_tick(_delta: float) -> void:
 
 func _finish() -> void:
 	t = -1.0
+	_own_body(true)
 	_veil.color.a = 0.0
 	_grey.visible = false
 	if kind == "crash":
@@ -277,6 +274,13 @@ func _bodies() -> Array:
 	if eco == null:
 		return []
 	return ["Body", "Shadow"].map(func(n): return eco.get_node_or_null(n)).filter(func(b): return b != null)
+
+
+## Her body seen (on) or not, for the shot through her eyes.
+func _own_body(on: bool) -> void:
+	var eco: Node3D = rm.player.get_node_or_null("EcoBody")
+	if eco != null:
+		eco.visible = on
 
 
 ## Every copy of her (her gun's first-person arms too) in her body as it is now.
@@ -361,7 +365,8 @@ func _shot(which: String) -> void:
 			_cam.fov = 60.0
 			_cam.near = 0.005
 			var eye := _eye_pos()
-			_cam.look_at_from_position(eye + fwd * 0.02, eye + fwd)  # just past her face, so it's not in shot
+			_cam.look_at_from_position(eye + fwd * 0.02, eye + fwd)
+			_own_body(false)  # her own head out of the way of her eyes
 		"change":
 			_cam.fov = 42.0
 			_cam.look_at_from_position(eyes + fwd * 2.2 + right * 0.7 + Vector3(0, 0.1, 0), eyes - Vector3(0, 0.45, 0))
