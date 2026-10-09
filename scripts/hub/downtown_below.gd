@@ -72,14 +72,14 @@ const HINTS := [
 		"The blue room's tassel is out. Nobody's in there. Somebody paid for it anyway, so nobody else can be."]],
 	# a guest's review pinned inside each room's door, and the replies under it
 	["review_red", "under", Vector3(-5.3, 0, 1.5), "[F] A comment card by the door", [
-		"A comment card, red room: 'Five stars. The lock works, the walls are thick, and nobody asked my name. Back Thursday. The wife thinks I'm on patrol.' Signed 'A Grateful Sergeant'.",
-		"Under it, another hand: 'Bed creaks. Tell Pip.' Under that, in Pip's: 'The bed creaks so the lady with the timers knows you're still alive. Working as intended.'"]],
+		"A comment card, red room: 'Five stars. Paid for an hour, got my money's worth twice. She didn't laugh at me once, and I gave her plenty of reasons to. Back Thursday. The wife thinks I'm on patrol.' Signed 'A Grateful Sergeant'.",
+		"Under it, another hand: 'Bed creaks. Loudly. Rhythmically. The whole corridor knew.' Under that, in Pip's: 'The bed creaks so the lady with the timers knows you're still alive. Judging by the noise, you were very alive. Working as intended.'"]],
 	["review_violet", "under", Vector3(-1.3, 0, 1.5), "[F] A comment card by the door", [
-		"A comment card, violet room: 'Four stars. Lovely lighting, very forgiving. One star off because somebody knocked twice at exactly the wrong moment.' Pip, underneath: 'That was the timer, sir. You were forty minutes over.'",
-		"Another: 'Asked for the all-night rate. Got the all-night rate. Got no sleep whatsoever. No complaints.' No name, just a rank pin pushed through the card."]],
+		"A comment card, violet room: 'Four stars. Lovely lighting, very forgiving, and she was more than worth the price. One star off because somebody knocked twice right at the best part.' Pip, underneath: 'That was the timer, sir. You were forty minutes over. The best part is billed by the quarter hour.'",
+		"Another: 'Booked the all-night rate with two of the women from the bar. Got no sleep whatsoever. Couldn't walk straight to muster. Worth every scrap.' No name, just a captain's pin pushed through the card."]],
 	["review_blue", "under", Vector3(2.7, 0, 1.5), "[F] A comment card by the door", [
-		"A comment card, blue room: 'Three stars. The music next door was too loud, and so was I, apparently. Got a note about it.' Pip, below: 'You got two notes. Read the second one.'",
-		"Another, in very careful handwriting: 'Came down nervous, went home a different man. Thank you, Vell.' Pip has added: 'Vell says you're welcome. Vell also says tip.'"]],
+		"A comment card, blue room: 'Three stars. The walls aren't as thick as advertised. Neither of us was quiet, and the room next door sent a note asking us to keep it down.' Pip, below: 'You got two notes. The second one asked if you take bookings.'",
+		"Another, in very careful handwriting: 'My first time down here. My first time anywhere, if I'm honest. She was patient, and kind, and showed me what I'd been doing wrong. Thank you, Vell.' Pip has added: 'Vell says you're welcome, and that it was nothing she hadn't fixed before. Vell also says tip.'"]],
 	["stage_card", "high", Vector3(-2.8, 0, 1.3), "[F] A card on the stage steps", [
 		"A price list for the stage, gold on black. A DANCE. A PRIVATE DANCE. THE GOLD DOOR, CLOSED. The last line has no price. You ask Pip.",
 		"On the back, small: 'Dancers choose. Guests who argue leave by the alley, and they don't come back down.'"]],
