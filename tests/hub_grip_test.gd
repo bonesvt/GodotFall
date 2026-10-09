@@ -10,7 +10,6 @@ const Vices := preload("res://scripts/hub/vices.gd")
 const Hymn := preload("res://scripts/hub/hymn.gd")
 const HubGrip := preload("res://scripts/hub/hub_grip.gd")
 const Shepherd := preload("res://scripts/hub/shepherd.gd")
-const ContentRating := preload("res://scripts/radio/content_rating.gd")
 
 var run_node: Node
 var player: CharacterBody3D
@@ -19,7 +18,6 @@ var failures := 0
 
 func _initialize() -> void:
 	preload("res://scripts/run/tutorial.gd").settings_path = "user://test_settings.cfg"
-	ContentRating.set_rating("M", false)
 	run_node = load("res://scenes/run.tscn").instantiate()
 	run_node.run_seed = 7
 	run_node.armory_path = "user://test_grip_armory.cfg"
@@ -115,10 +113,6 @@ func _run() -> void:
 	await _until(func(): return run_node.bench == null, 4.0)
 	_check("off Ophelia", HubGrip.gear_of("ophelia").is_empty(), HubGrip.gear_of("ophelia"))
 
-	# Teen: none of it
-	ContentRating.set_rating("T", false)
-	_check("teen: no grip", not HubGrip.allowed() and not HubGrip.has("mom", "headphones"), HubGrip.allowed())
-	ContentRating.set_rating("M", false)
 	HubGrip.reset()
 	HubGrip.save()
 	Hymn.reset()

@@ -6,7 +6,7 @@ extends Control
 ##   Sound     master, effects, ambience, voices
 ##   Video     window / borderless / fullscreen, vsync, frame cap, look
 ##             (Anime, PS3 or PS2) and film grain
-##   Game      dialogue rating, tutorial hints, Eco's jiggle style and full body jiggle, and the
+##   Game      tutorial hints, Eco's jiggle style and full body jiggle, and the
 ##             third person camera: start in it, how far back it sits, the
 ##             shoulder swap key, the hub camera nudge keys
 ## Esc or Back closes it (emits `closed`).
@@ -289,11 +289,6 @@ func _set_video(key: String, value: Variant) -> void:
 
 func _game_tab() -> void:
 	var box := _page("Game")
-	var ratings: Array = Prefs.ContentRating.RATINGS
-	_options(box, "Dialogue rating", ratings.map(func(r): return RadioLines.RATING_NAMES[r]),
-		ratings.find(Prefs.rating()),
-		func(i): Prefs.set_rating(ratings[i]))
-	box.add_child(UI.label("Teen or Mature: how rough the enemy radio and Eco's whispers get.", 18, UI.MUTED))
 	# Hints are kept per save slot, so they're only offered with a game going.
 	if tutorial != null:
 		_toggle(box, "Tutorial hints (F1)", _hints_on(), _set_hints)

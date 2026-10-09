@@ -7,7 +7,6 @@ extends SceneTree
 
 const Vices := preload("res://scripts/hub/vices.gd")
 const Wardrobe := preload("res://scripts/hub/wardrobe.gd")
-const ContentRating := preload("res://scripts/radio/content_rating.gd")
 
 var run_node: Node
 var player: CharacterBody3D
@@ -16,7 +15,6 @@ var failures := 0
 
 func _initialize() -> void:
 	preload("res://scripts/run/tutorial.gd").settings_path = "user://test_settings.cfg"
-	ContentRating.set_rating("M", false)
 	run_node = load("res://scenes/run.tscn").instantiate()
 	run_node.run_seed = 7
 	run_node.armory_path = "user://test_hold_armory.cfg"
@@ -108,9 +106,6 @@ func _run() -> void:
 	model.wear("suit_hush")
 	_check("she can wear it", model.outfit == "suit_hush", model.outfit)
 	model.wear("suit")
-	ContentRating.set_rating("T", false)
-	_check("Teen: not in the wardrobe", not "suit_hush" in Wardrobe.options("eco"), Wardrobe.options("eco"))
-	ContentRating.set_rating("M", false)
 
 	# The cheat box's Super Hush plays its scene: injector, swirls, Marrow, back.
 	Vices.reset()

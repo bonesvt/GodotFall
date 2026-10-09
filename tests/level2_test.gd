@@ -93,9 +93,6 @@ func _play_checks() -> void:
 	var cell: Node3D = info["holding_cell"]
 	var oph: Node3D = cell.ophelia
 	await _ticks(3)
-	var ContentRating = preload("res://scripts/radio/content_rating.gd")
-	var was: String = ContentRating.current()
-	ContentRating.set_rating("M", false)
 	await _frames(3)
 	cell._hold()   # the gear only shows under Mature, and the rating was only just set
 	await _frames(3)
@@ -109,10 +106,6 @@ func _play_checks() -> void:
 	_check("Mature face and messed-up hair", _face_tex(oph).ends_with("face_colony_m.png") and _blend(oph, "mess_colony") > 0.99, [_face_tex(oph), _blend(oph, "mess_colony")])
 	_check("nothing shows through her suit (no chest nubs on a captive)", _hidden(oph, "Piercings"), _hidden(oph, "Piercings"))
 	_check("the wall screen reads her trial: Bay 7, day 19", cell._manifest.text.contains("BAY 7") and cell._manifest.text.contains("DAY 19") and cell._log.text.contains("SOLACE"), cell._manifest.text)
-	ContentRating.set_rating("T", false)
-	await _frames(3)
-	_check("Teen: the intake suit with its ID plate and its own face", oph.outfit == "colony" and _face_tex(oph).ends_with("face_colony.png"), [oph.outfit, _face_tex(oph)])
-	ContentRating.set_rating(was, false)
 	await _frames(3)
 	_check("calm radio gossips about the prisoner", run_node.pilot_hud.radio.extra_rumor == "prisoner", run_node.pilot_hud.radio.extra_rumor)
 	_check("the screen is solid", _screen_blocks(cell), true)
@@ -129,7 +122,6 @@ func _play_checks() -> void:
 	_check("radio stops gossiping about her", run_node.pilot_hud.radio.extra_rumor == "", run_node.pilot_hud.radio.extra_rumor)
 	var escort = run_node.escort
 	_check("she's following", escort != null and escort.npc == oph and not escort.waiting, escort)
-	ContentRating.set_rating("M", false)
 	cell._hold()
 	cell._unmask()
 	_check("the visor, headphones and band come off her, the cuff stays", cell.gear_on() == cell.KEPT_GEAR, cell.gear_on())
@@ -194,7 +186,6 @@ func _play_checks() -> void:
 	await _ticks(3)
 	_check("exfil with her far behind doesn't end it", run_node.phase == run_node.Phase.ZONE and run_node.hud.toast_label.text.contains("Not without Ophelia"), run_node.hud.toast_label.text)
 	oph.global_position = beacon.global_position + Vector3(2, 0, 2)
-	ContentRating.set_rating("M", false)
 	await _ticks(3)
 	_check("exfil with her close clears the level", run_node.phase == run_node.Phase.OVER and run_node.result == "RUN COMPLETE", run_node.result)
 	_check("level 2 marked cleared and saved", "level2" in load("res://scripts/hub/armory.gd").open(run_node.armory_path).cleared, run_node.armory.cleared)
@@ -207,7 +198,6 @@ func _play_checks() -> void:
 	run_node._rescue_bonus("level2")
 	var HubGrip = preload("res://scripts/hub/hub_grip.gd")
 	_check("she comes home still wearing the trial's dose cuff, Hymn in her", HubGrip.has("ophelia", "cuff") and HubGrip.level("ophelia") >= run_node.TRIAL_HYMN, [HubGrip.gear_of("ophelia"), HubGrip.level("ophelia")])
-	ContentRating.set_rating(was, false)
 	_check("the rescue bonus is given only once", Romance.affection(run_node.npc_talk.state, "ophelia") - affection_before == run_node.RESCUE_AFFECTION, Romance.affection(run_node.npc_talk.state, "ophelia"))
 
 

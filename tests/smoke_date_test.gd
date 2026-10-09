@@ -8,7 +8,6 @@ extends SceneTree
 const SmokeDate := preload("res://scripts/hub/smoke_date.gd")
 const HubNpc := preload("res://scripts/hub/hub_npc.gd")
 const NpcTalk := preload("res://scripts/hub/npc_talk.gd")
-const ContentRating := preload("res://scripts/radio/content_rating.gd")
 
 var failures := 0
 var scene
@@ -84,7 +83,6 @@ func _run() -> void:
 ## In the real hub: the back step date stages the scene, the dialogue's
 ## "@" cues drive it, and it's put away when the talk ends.
 func _in_hub() -> void:
-	ContentRating.set_rating("M", false)
 	var run_node = load("res://scenes/run.tscn").instantiate()
 	run_node.run_seed = 7
 	run_node.armory_path = "user://test_smoke_armory.cfg"
@@ -128,7 +126,6 @@ func _in_hub() -> void:
 	await _frames(5)
 	_check("hub: it's put away after", cues.has("done"), cues.keys())
 	_check("hub: Eco's back", eco_body == null or eco_body.visible, "")
-	ContentRating.set_rating("T", false)
 	run_node.queue_free()
 	await _frames(2)
 

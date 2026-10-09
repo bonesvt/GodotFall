@@ -45,7 +45,6 @@ const Family := preload("res://scripts/hub/family.gd")
 const FAMILY_DIR := "res://dialogue/family/"
 const Gifts := preload("res://scripts/run/gifts.gd")
 const NpcIdles := preload("res://scripts/hub/npc_idles.gd")
-const ContentRating := preload("res://scripts/radio/content_rating.gd")
 const Obsession := preload("res://scripts/hub/obsession.gd")
 const Vices := preload("res://scripts/hub/vices.gd")
 ## Where the gift bag lives in the save file.
@@ -199,12 +198,11 @@ static func _line(speaker: String, text: String) -> Array:
 	return [speaker.substr(0, open).strip_edges(), text, moods]
 
 
-## Their parsed lines at the current dialogue rating. Under Mature,
-## dialogue/npc/<who>_M.txt (and dialogue/family/<who>_M.txt) is read on top:
-## see overlay(). Cached per rating, so switching it in Settings just works.
+## Their parsed lines: dialogue/npc/<who>.txt (and dialogue/family/<who>.txt),
+## with dialogue/npc/<who>_M.txt (and family's) read on top, the Mature cuts
+## of the scenes they share: see overlay(). Cached.
 func bank(who: String) -> Dictionary:
-	var rating := ContentRating.current()
-	var key := who + ":" + rating
+	var key := who
 	if not _banks.has(key):
 		var b := _read(DIALOGUE_DIR + who + ".txt")
 		if Family.enabled:
@@ -217,10 +215,9 @@ func bank(who: String) -> Dictionary:
 				elif b[k] is Dictionary:
 					b[k].merge(extra[k])
 			b["bond"].sort_custom(func(x, y): return x["at"] < y["at"])
-		if rating == "M":
-			overlay(b, _read(DIALOGUE_DIR + who + "_M.txt"))
-			if Family.enabled:
-				overlay(b, _read(FAMILY_DIR + who + "_M.txt"))
+		overlay(b, _read(DIALOGUE_DIR + who + "_M.txt"))
+		if Family.enabled:
+			overlay(b, _read(FAMILY_DIR + who + "_M.txt"))
 		_banks[key] = b
 	return _banks[key]
 
@@ -510,9 +507,9 @@ func date(p_npc: Node3D, place: String, run_id: int) -> bool:
 	return true
 
 
-## The lines for a date at `place` from a parsed bank, by content rating.
+## The lines for a date at `place` from a parsed bank (the Mature cut first).
 static func date_lines(b: Dictionary, place: String) -> Array:
-	if ContentRating.current() == "M" and b.get("date_m", {}).has(place):
+	if b.get("date_m", {}).has(place):
 		return b["date_m"][place]
 	return b["date"].get(place, b["date"].get("any", []))
 

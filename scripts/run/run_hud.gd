@@ -197,7 +197,7 @@ func _process(delta: float) -> void:
 		_crave_fill.color = Color(0.95, 0.35, 0.6) if Obsession.crave > Vices.crave_level() else Color(0.7, 0.3, 1.0)
 		_crave_fill.color.a = 1.0 if crave < 0.6 else 0.75 + 0.25 * sin(Time.get_ticks_msec() / 1000.0 * TAU * 1.8)
 	# Hymn in her and the gear on her; Ophelia's Keepsake
-	hymn_label.visible = Hymn.allowed() and (Hymn.level > 0.0 or not Hymn.gear.is_empty() or Hymn.hunted)
+	hymn_label.visible = (Hymn.level > 0.0 or not Hymn.gear.is_empty() or Hymn.hunted)
 	if hymn_label.visible:
 		var t := "HYMN  %d%%" % roundi(Hymn.level)
 		if not Hymn.gear.is_empty():
@@ -205,7 +205,7 @@ func _process(delta: float) -> void:
 		if Hymn.hunted:
 			t += "   HUNTED"
 		hymn_label.text = t
-	keepsake_label.visible = Obsession.allowed() and Obsession.keepsake > 0.0
+	keepsake_label.visible = Obsession.keepsake > 0.0
 	if keepsake_label.visible:
 		keepsake_label.text = "KEEPSAKE  %d%%" % roundi(Obsession.keepsake) + ("   pull home %d%%" % roundi(Obsession.crave * 100.0) if Obsession.crave > 0.01 else "")
 	relations_panel.visible = relations_label.text != "" and not corners_hidden

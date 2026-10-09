@@ -7,7 +7,6 @@ extends SceneTree
 ## Needs a renderer (not --headless). Writes <out_dir>/trigger_craving.png.
 
 const Vices := preload("res://scripts/hub/vices.gd")
-const ContentRating := preload("res://scripts/radio/content_rating.gd")
 const SIZE := Vector2i(640, 360)
 
 var out := "user://trigger_shots"
@@ -20,7 +19,6 @@ func _initialize() -> void:
 		out = a
 	DirAccess.make_dir_recursive_absolute(out)
 	preload("res://scripts/run/tutorial.gd").settings_path = "user://shots_settings.cfg"
-	ContentRating.set_rating("M", false)
 	Vices.save_path = "user://shots_vices.cfg"
 	root.size = Vector2i(1280, 720)
 	var run_node: Node = load("res://scenes/run.tscn").instantiate()

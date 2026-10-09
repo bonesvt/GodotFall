@@ -3,7 +3,6 @@ extends SceneTree
 ## Run: godot --headless --path . -s res://tests/radio_test.gd
 
 const Lines := preload("res://scripts/radio/radio_lines.gd")
-const Rating := preload("res://scripts/radio/content_rating.gd")
 
 var level
 var player
@@ -29,7 +28,6 @@ func _run() -> void:
 	radio = level.hud.radio
 	_check("HUD has a radio", radio != null, radio)
 	_check("radio popup is on the HUD", radio.popup != null and radio.popup.is_inside_tree(), "")
-	Rating.set_rating("M", false)
 	_bank_checks()
 	_rating_checks()
 	_pick_checks()
@@ -173,14 +171,8 @@ func _run() -> void:
 
 
 func _rating_checks() -> void:
-	var m_cats := Lines.bank("M").keys()
-	var banned := {
-		"T": ["bitch", "skank", "slut", "shit", "gorgeous", "pretty face"],
-	}
-	for r in Lines.RATINGS:
-		var bank: Dictionary = Lines.bank(r)
-		var missing := m_cats.filter(func(c): return not bank.has(c))
-		_check("%s bank has every category" % r, missing.is_empty(), missing)
+	for r in ["M"]:
+		var bank: Dictionary = Lines.bank()
 		var problems := []
 		for cat in bank:
 			var need := 0 if cat == "no_answer" else 1
@@ -190,27 +182,14 @@ func _rating_checks() -> void:
 				for line in Lines.parse(entry):
 					if not line[0] in ["a", "b", "c", "hq"]:
 						problems.append(entry)
-				var plain := RegEx.create_from_string("\\{\\w+\\}").sub(entry.to_lower(), "", true)
-				for word in banned.get(r, []):
-					if RegEx.create_from_string("\\b%s\\b" % word).search(plain) != null:
-						problems.append("%s: '%s' in %s" % [r, word, entry])
-		_check("%s bank is well formed and clean for its rating" % r, problems.is_empty(), problems)
-	Rating.set_rating("T", false)
-	var t_line: Array = radio._pick("combat", 3)
-	var t_texts := []
-	for entry in Lines.bank("T")["combat"]:
-		t_texts.append(str(Lines.parse(entry)))
-	_check("T rating picks from the T bank", str(t_line) in t_texts, t_line)
-	Rating.set_rating("M", false)
-	_check("rating switches between T and M only", Lines.RATINGS == ["T", "M"] and Rating.RATINGS == ["T", "M"], Lines.RATINGS)
-	_check("old E and AO settings map to T and M", Rating.OLD == {"E": "T", "AO": "M"}, Rating.OLD)
+		_check("%s bank is well formed" % r, problems.is_empty(), problems)
 
 
 func _bank_checks() -> void:
 	var bad := []
-	for cat in Lines.bank("M"):
+	for cat in Lines.bank():
 		_check("priority set for %s" % cat, radio.PRIORITY.has(cat), cat)
-		for entry in Lines.bank("M")[cat]:
+		for entry in Lines.bank()[cat]:
 			for line in Lines.parse(entry):
 				if not line[0] in ["a", "b", "c", "hq"] or line[1].strip_edges() == "":
 					bad.append(entry)

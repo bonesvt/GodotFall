@@ -191,7 +191,7 @@ func _title_and_pause() -> void:
 	_check("settings opens from the title", title._settings != null and title._settings.tabs.get_tab_count() == 5, "")
 	var game_tab: Node = title._settings.tabs.get_node("Game")
 	var texts := game_tab.find_children("*", "Label", true, false).map(func(l): return l.text)
-	_check("rating lives in Settings > Game", texts.has("Dialogue rating"), "")
+	_check("no rating setting (the game is rated M)", not texts.has("Dialogue rating"), "")
 	_check("third person camera rows in Settings > Game", texts.has("Camera distance") and texts.has("Swap shoulder on X") \
 		and texts.has("Move hub camera with the arrow keys") and texts.has("Start in third person (Middle mouse)"), texts)
 	await _esc()

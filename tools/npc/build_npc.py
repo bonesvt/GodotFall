@@ -1077,7 +1077,7 @@ def colony_faces(face, px):
     """Ophelia's face in the colony's hold (Level 2): her emo make-up ruined,
     the liner smeared round both eyes and cried down her cheeks in runs, the
     plum lipstick smudged past her lip line, a med-tag patch on her left
-    cheekbone and a bruise under her right eye (face_colony.png). Mature
+    cheekbone and a bruise under her right eye (the old Teen face_colony.png, dropped). Mature
     (face_colony_m.png) adds the colony's tracking code etched under her
     right eye, where her fringe hangs over it: the cradle scanner's alignment
     mark, and the reason she wears her hair that way."""
@@ -1129,7 +1129,7 @@ def colony_faces(face, px):
     rim = np.exp(-(((sx + 0.048) / 0.023) ** 2 + ((z - 1.255) / 0.01) ** 2))
     put(m, (0.92, 0.62, 0.6), 0.35 * rim, "tint")
     put(m, (0.03, 0.025, 0.04), 0.92 * ((reg & bars) | ticks).astype(float))
-    return {"face_colony": a, "face_colony_m": m}
+    return {"face_colony_m": m}   # (the Teen "face_colony" was dropped 2026-10-09)
 
 
 def skin_tone(px):
@@ -1147,9 +1147,9 @@ def skin_tone(px):
 # bake to body_<outfit>.png and hub_npc.gd swaps them in.
 # (Mom's and Ophelia's bikini/sheer/tight/lingerie were shelved 2026-10-04;
 # backup: /mnt/project-files/hub-npcs/shelved/npc_outfits.bundle)
-OUTFITS = {"ophelia": ["tee", "hoodie", "night", "prison", "colony", "colony_m"], "mom": ["home", "night"]}
+OUTFITS = {"ophelia": ["tee", "hoodie", "night", "prison", "colony_m"], "mom": ["home", "night"]}
 # Outfits worn barefoot (the boots mesh hidden; hub_npc.gd NO_BOOTS).
-BAREFOOT = ["night", "prison", "colony", "colony_m"]
+BAREFOOT = ["night", "prison", "colony_m"]
 OUTFIT = "tee"
 
 
@@ -1324,7 +1324,7 @@ def colony_outfit(g, skin, x, y, z, ax, front, cov, edge, sine, neck_r):
     went down in (Bones, 2026-10-09: torn all over, never replaced), grey
     grip socks, no
     boots. Her choker is gone (the inhibitor collar is a prop,
-    holding_cell.gd). Teen ("colony"): an ID plate with a light-strip code on
+    holding_cell.gd). The old Teen cut ("colony", dropped 2026-10-09): an ID plate with a light-strip code on
     her chest. Mature ("colony_m"): no plate (the code is etched under her
     eye: face_colony_m.png), her left trouser leg torn away at mid-thigh and a
     long tear down her back to the waist. Rips stay off her chest, hips and

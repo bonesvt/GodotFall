@@ -9,7 +9,6 @@ extends SceneTree
 
 const Vices := preload("res://scripts/hub/vices.gd")
 const Hymn := preload("res://scripts/hub/hymn.gd")
-const ContentRating := preload("res://scripts/radio/content_rating.gd")
 const CELL := Vector2i(640, 360)
 ## Seconds into each induction to catch it.
 const AT := [9.5, 8.0, 2.7, 5.5, 9.0, 1.9, 6.5]
@@ -22,7 +21,6 @@ func _initialize() -> void:
 		out = a
 	DirAccess.make_dir_recursive_absolute(out)
 	preload("res://scripts/run/tutorial.gd").settings_path = "user://shots_settings.cfg"
-	ContentRating.set_rating("M", false)
 	var run_node: Node = load("res://scenes/run.tscn").instantiate()
 	run_node.armory_path = "user://shots_induction_armory.cfg"
 	root.add_child(run_node)

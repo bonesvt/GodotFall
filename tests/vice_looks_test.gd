@@ -12,7 +12,6 @@ const Glass := preload("res://scripts/hub/glass.gd")
 const Hymn := preload("res://scripts/hub/hymn.gd")
 const Obsession := preload("res://scripts/hub/obsession.gd")
 const Wardrobe := preload("res://scripts/hub/wardrobe.gd")
-const ContentRating := preload("res://scripts/radio/content_rating.gd")
 const Hair := preload("res://scripts/hub/hair.gd")
 const ECO := preload("res://assets/models/eco.tscn")
 
@@ -42,8 +41,6 @@ func _clean() -> void:
 
 
 func _run() -> void:
-	var rating := ContentRating.current()
-	ContentRating.set_rating("M", false)
 	Wardrobe.save_path = "user://test_looks_wardrobe.cfg"
 	ViceLooks.open("user://test_looks.cfg")
 	_clean()
@@ -138,12 +135,6 @@ func _run() -> void:
 	_check("what she reached is saved", int(ViceLooks.reached.get("glass", 0)) == 4, ViceLooks.reached)
 	_check("her unlocks are saved", "warden" in ViceLooks.unlocked, ViceLooks.unlocked)
 
-	# Teen: none of it.
-	ContentRating.set_rating("T", false)
-	Vices.hold = 100.0
-	_check("Teen: nothing has her", ViceLooks.forced() == "")
-	_check("Teen: no looks in the wardrobe", ViceLooks.wardrobe_looks().is_empty())
-	ContentRating.set_rating("M", false)
 	Vices.hold = 0.0
 
 	# On her model.
@@ -174,7 +165,6 @@ func _run() -> void:
 	eco.queue_free()
 
 	_clean()
-	ContentRating.set_rating(rating, false)
 	await _ticks(2)
 	print("RESULT ", "OK" if failures == 0 else "%d FAILED" % failures)
 	quit(1 if failures > 0 else 0)

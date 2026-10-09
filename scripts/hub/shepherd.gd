@@ -366,7 +366,7 @@ func _process_her(_delta: float) -> void:
 		var npc: Node3D = rm.hub_npcs.get(w)
 		if npc != null and is_instance_valid(npc):
 			near[w] = npc.global_position
-	var with := HubGrip.closest(_player().global_position, near) if HubGrip.allowed() else ""
+	var with := HubGrip.closest(_player().global_position, near)
 	var with_piece := HubGrip.take(with) if with != "" else ""
 	if piece == "" and with_piece == "":
 		rm.hud.toast(TAKEN, 6.0)  # nothing left to put on her

@@ -90,14 +90,14 @@ func _run() -> void:
 		if spot["id"] in ["tutorial_poster", "uncharted_map", "garage", "level_board", "level2_board", "ophelia_papers"]:  # the Keepsake tin: tests/obsession_test.gd  # level boards: tests/level1_test.gd, level2_test.gd
 			continue
 		await _stand_at(spot["pos"])
-		if spot.has("teleport") and (spot.get("open", false) or Vices.allowed()):
+		if spot.has("teleport"):
 			# Marrow's cellar door and basement stairs (hush_den.gd) take her through.
 			await _press("interact")
 			await _ticks(2)
 			var to: Vector3 = spot["teleport"]
 			_check("%s takes her through" % spot["id"], Vector2(player.global_position.x - to.x, player.global_position.z - to.z).length() < 1.0, player.global_position)
 			continue
-		if spot.get("shop", "") in ["bar", "stims", "hush", "dispensary", "gear_off", "gear_off_doc"] and Vices.allowed():
+		if spot.get("shop", "") in ["bar", "stims", "hush", "dispensary", "gear_off", "gear_off_doc"]:
 			# Under Mature the Rusted Halo, Sal's hatch and the colony dispensary open their screens
 			# (tests/vices_test.gd, tests/hymn_test.gd).
 			await _press("interact")

@@ -11,7 +11,6 @@ const Hymn := preload("res://scripts/hub/hymn.gd")
 const Glass := preload("res://scripts/hub/glass.gd")
 const Obsession := preload("res://scripts/hub/obsession.gd")
 const HubGrip := preload("res://scripts/hub/hub_grip.gd")
-const ContentRating := preload("res://scripts/radio/content_rating.gd")
 const CELL := Vector2i(640, 360)
 const ITEMS := ["hymn", "set", "glass", "keepsake", "dosebox", "family", "toolkit"]
 const TIMES := [1.2, 4.2, 6.6]
@@ -25,7 +24,6 @@ func _initialize() -> void:
 		out = a
 	DirAccess.make_dir_recursive_absolute(out)
 	preload("res://scripts/run/tutorial.gd").settings_path = "user://shots_settings.cfg"
-	ContentRating.set_rating("M", false)
 	run_node = load("res://scenes/run.tscn").instantiate()
 	run_node.armory_path = "user://shots_cheatscene_armory.cfg"
 	run_node.npc_path = "user://shots_cheatscene_npcs.cfg"

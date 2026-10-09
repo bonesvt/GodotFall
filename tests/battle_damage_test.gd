@@ -2,15 +2,13 @@ extends SceneTree
 ## Battle damage (scripts/ps2/battle_damage.gd): hits, slides and time out on a
 ## run make Eco dirtier, more scuffed, torn and cut, and sliding wears her suit
 ## through at the outer thighs, glutes and hips; her clothes over the suit rip
-## too; Teen shows only the dirt and
-## scuffs; the setting turns it off; the baked maps never let a tear or cut
+## too; the setting turns it off; the baked maps never let a tear or cut
 ## near the always-covered zones; her materials read the map; and it all
 ## washes off at the temple.
 ## Run: godot --headless --path . -s res://tests/battle_damage_test.gd
 
 const ECO := preload("res://assets/models/eco.tscn")
 const BattleDamage := preload("res://scripts/ps2/battle_damage.gd")
-const ContentRating := preload("res://scripts/radio/content_rating.gd")
 const Prefs := preload("res://scripts/game/prefs.gd")
 const TEST_SETTINGS := "user://test_battle_damage_settings.cfg"
 const MAP := "res://assets/textures/eco/v_damage.png"
@@ -29,14 +27,12 @@ func _initialize() -> void:
 
 
 func _run() -> void:
-	var rating := ContentRating.current()
 	_levels()
 	_rating_and_setting()
 	_map_keeps_clear()
 	_materials()
 	_clothes()
 	await _in_a_run()
-	ContentRating.set_rating(rating, false)
 	print("battle damage test: %s" % ("PASS" if failures == 0 else "%d FAILED" % failures))
 	quit(1 if failures > 0 else 0)
 
@@ -67,17 +63,10 @@ func _levels() -> void:
 
 func _rating_and_setting() -> void:
 	BattleDamage.set_all(0.8)
-	ContentRating.set_rating("T", false)
 	var v := BattleDamage.shown()
-	_check("Teen: dirt and scuffs only", v.x > 0.7 and v.y > 0.7 and v.z == 0.0 and v.w == 0.0, v)
+	_check("dirt, scuffs, torn and cut", v.z > 0.7 and v.w > 0.7, v)
 	BattleDamage.apply()
-	_check("Teen: no tears reach the shader", BattleDamage._pushed.z == 0.0 and BattleDamage._pushed_slide == 0.0,
-			[BattleDamage._pushed, BattleDamage._pushed_slide])
-	ContentRating.set_rating("M", false)
-	v = BattleDamage.shown()
-	_check("Mature: torn and cut too", v.z > 0.7 and v.w > 0.7, v)
-	BattleDamage.apply()
-	_check("Mature: tears reach the shader", BattleDamage._pushed.z > 0.7 and BattleDamage._pushed_slide > 0.7,
+	_check("tears reach the shader", BattleDamage._pushed.z > 0.7 and BattleDamage._pushed_slide > 0.7,
 			[BattleDamage._pushed, BattleDamage._pushed_slide])
 	_check("on by default", Prefs.battle_damage(), Prefs.battle_damage())
 	Prefs.set_battle_damage(false)
@@ -227,7 +216,6 @@ func _clothes() -> void:
 
 
 func _in_a_run() -> void:
-	ContentRating.set_rating("M", false)
 	var run_node = load("res://scenes/run.tscn").instantiate()
 	run_node.run_seed = 7
 	run_node.armory_path = "user://test_battle_damage_armory.cfg"

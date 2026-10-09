@@ -30,7 +30,6 @@ const Vices := preload("res://scripts/hub/vices.gd")
 const Glass := preload("res://scripts/hub/glass.gd")
 const Hymn := preload("res://scripts/hub/hymn.gd")
 const Obsession := preload("res://scripts/hub/obsession.gd")
-const ContentRating := preload("res://scripts/radio/content_rating.gd")
 const Hair := preload("res://scripts/hub/hair.gd")
 
 const TEX := "res://assets/textures/eco/looks/%s_%s.png"
@@ -140,11 +139,6 @@ static var save_path := "user://vice_looks.cfg"
 ## The last forced() seen by changed().
 static var _last_forced := ""
 
-
-static func allowed() -> bool:
-	return ContentRating.current() == "M"
-
-
 static func path_for(vices_path: String) -> String:
 	return vices_path.get_basename().trim_suffix("_vices") + "_looks.cfg"
 
@@ -169,8 +163,6 @@ static func meter(path: String) -> float:
 
 ## How deep a path has her: 0 (not at all) up to its number of stages.
 static func stage(path: String) -> int:
-	if not allowed():
-		return 0
 	var m := meter(path)
 	var s := 0
 	for at: float in STAGE_AT:
@@ -231,7 +223,7 @@ static func changed() -> bool:
 
 static func note_reached() -> void:
 	# helping Ophelia through it frees Eco to pick her own look again
-	if Obsession.resolved == "helped" and allowed():
+	if Obsession.resolved == "helped":
 		unlock("her_own")
 	var grew := false
 	for path: String in PATHS:
@@ -252,10 +244,8 @@ static func unlock(id: String) -> bool:
 
 
 ## The looks in her wardrobe: every stage she's reached and every free look
-## she's earned (none under Teen).
+## she's earned.
 static func wardrobe_looks() -> Array:
-	if not allowed():
-		return []
 	var list := []
 	for path: String in ORDER:
 		for s in range(1, int(reached.get(path, 0)) + 1):

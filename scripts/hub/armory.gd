@@ -619,7 +619,7 @@ static func finish(id: String) -> Dictionary:
 ## Whether finish `id` is on offer: the Hush finish only once Marrow's given it
 ## to her (vices.gd hush_finish), under Mature.
 static func finish_open(id: String) -> bool:
-	return finish(id).get("locked", "") != "hush" or (Vices.hush_finish and Vices.allowed())
+	return finish(id).get("locked", "") != "hush" or Vices.hush_finish
 
 
 ## The finishes on offer at the gunsmith's bench.

@@ -9,7 +9,6 @@ extends SceneTree
 
 const Vices := preload("res://scripts/hub/vices.gd")
 const Obsession := preload("res://scripts/hub/obsession.gd")
-const ContentRating := preload("res://scripts/radio/content_rating.gd")
 
 var run_node: Node
 var player: CharacterBody3D
@@ -18,7 +17,6 @@ var failures := 0
 
 func _initialize() -> void:
 	preload("res://scripts/run/tutorial.gd").settings_path = "user://test_settings.cfg"
-	ContentRating.set_rating("M", false)
 	run_node = load("res://scenes/run.tscn").instantiate()
 	run_node.run_seed = 7
 	run_node.armory_path = "user://test_obsession_armory.cfg"
@@ -120,10 +118,6 @@ func _run() -> void:
 	_check("helping: it wears off over runs", Obsession.keepsake < k and Obsession.meter < m, [Obsession.keepsake, Obsession.meter])
 	_check("no more packs, none left on her", not Obsession.give_pack(stay + 99) and Obsession.laced == 0, Obsession.laced)
 
-	# Teen: none of it.
-	ContentRating.set_rating("T", false)
-	_check("teen: no obsession", not Obsession.allowed() and Obsession.eyes() == 0.0 and not Obsession.papers_there(), Obsession.allowed())
-	ContentRating.set_rating("M", false)
 	Obsession.reset()
 	Obsession.save()
 

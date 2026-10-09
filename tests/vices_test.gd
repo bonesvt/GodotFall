@@ -10,7 +10,6 @@ const Vices := preload("res://scripts/hub/vices.gd")
 const Scrapjack := preload("res://scripts/hub/scrapjack.gd")
 const BarScreen := preload("res://scripts/hub/bar_screen.gd")
 const Armory := preload("res://scripts/hub/armory.gd")
-const ContentRating := preload("res://scripts/radio/content_rating.gd")
 const StimScreen := preload("res://scripts/hub/stim_screen.gd")
 const HushScreen := preload("res://scripts/hub/hush_screen.gd")
 const HushDen := preload("res://scripts/hub/hush_den.gd")
@@ -28,8 +27,6 @@ func _run() -> void:
 	for p in [ARMORY_PATH, VICES_PATH]:
 		DirAccess.remove_absolute(ProjectSettings.globalize_path(p))
 	Vices.open(VICES_PATH)
-	var old_rating := ContentRating.current()
-	ContentRating.set_rating("M", false)
 	Vices.reset()
 
 	# Catalogue.
@@ -60,12 +57,6 @@ func _run() -> void:
 	_check("drift stays within a few degrees", peak < Vices.SWAY_DEG.length() * 1.5, peak)
 	_check("named state", Vices.state_name() != "", Vices.state_name())
 
-	# Teen hides it all.
-	ContentRating.set_rating("T", false)
-	_check("teen: bar closed", not Vices.allowed(), Vices.allowed())
-	_check("teen: no effect while buzzed", Vices.effect() == 0.0 and Vices.sway(2.0) == Vector2.ZERO, Vices.effect())
-	_check("teen: full damage", Vices.damage_scale() == 1.0, Vices.damage_scale())
-	ContentRating.set_rating("M", false)
 
 	# Cut off.
 	Vices.drink("shine")
@@ -146,7 +137,6 @@ func _run() -> void:
 	_deep_hold()
 
 	Vices.reset()
-	ContentRating.set_rating(old_rating, false)
 	for p in [ARMORY_PATH, VICES_PATH]:
 		DirAccess.remove_absolute(ProjectSettings.globalize_path(p))
 	print("vices_test: %s" % ("PASS" if failures == 0 else "%d FAILURES" % failures))
@@ -207,14 +197,8 @@ func _smokes_and_stims() -> void:
 	Vices.run_over()
 	_check("a clean run wears it down", Vices.dependence < 3.0 and Vices.craving() == 0.0, Vices.dependence)
 
-	ContentRating.set_rating("T", false)
 	Vices.belt = ["redline"]
-	Vices.smoke_left = 0.0
-	_check("teen: no jabs", Vices.jab() == "", Vices.stim)
-	_check("teen: no smokes", not Vices.light_up(), Vices.smokes)
-	_check("teen: nothing on the HUD", Vices.pockets_text() == "" and Vices.state_name() == "", Vices.pockets_text())
-	ContentRating.set_rating("M", false)
-	_check("mature: pockets on the HUD", Vices.pockets_text().contains("[B]") and Vices.pockets_text().contains("[N]"), Vices.pockets_text())
+	_check("pockets on the HUD", Vices.pockets_text().contains("[B]") and Vices.pockets_text().contains("[N]"), Vices.pockets_text())
 
 
 ## Marrow's Hush: bonuses, his Hold, the trance, Ophelia and Mom paying for
@@ -292,9 +276,6 @@ func _hush() -> void:
 
 	_errands(armory, talks)
 
-	ContentRating.set_rating("T", false)
-	_check("teen: no Hush", not Vices.dose(talks) and Vices.hush() == 0.0, Vices.dosed)
-	ContentRating.set_rating("M", false)
 
 
 ## Full Hold: no more sales, errands for doses, his pull, withdrawal.
@@ -390,10 +371,6 @@ func _deep_hold() -> void:
 	_check("always something else she owns", right_kit and weapon_swaps > 0, weapon_swaps)
 	var bare := Vices.wrong_gear(rng, ["smart_pistol"], "smart_pistol", ["needle"], "needle", 0, "medium", weights)
 	_check("nothing else to grab: nothing mixed up", bare.is_empty(), bare)
-	ContentRating.set_rating("T", false)
-	_check("Teen: none of it", Vices.slump() == 0.0 and Vices.confuse_chance() == 0.0
-			and Vices.wrong_gear(rng, guns, "smart_pistol", knives, "needle", 2, "medium", weights).is_empty(), Vices.slump())
-	ContentRating.set_rating("M", false)
 	# the Hush gun finish at TRANCE_HOLD, then the Hush courier suit at full
 	Vices.reset()
 	var armory := Armory.open(ARMORY_PATH)
@@ -411,9 +388,6 @@ func _deep_hold() -> void:
 	armory.set_finish("smart_pistol", "hush")
 	var profile: Dictionary = armory.weapon_profile("smart_pistol")
 	_check("painted: hypnotic, violet tracers", profile["finish"].get("hypno", false) and profile["tracer"] == Armory.finish("hush")["tracer"], profile["tracer"])
-	ContentRating.set_rating("T", false)
-	_check("Teen: back to Dad's colours", armory.finish_of("smart_pistol") == "dads" and not armory.weapon_profile("smart_pistol")["finish"].get("hypno", false), armory.finish_of("smart_pistol"))
-	ContentRating.set_rating("M", false)
 	Vices.hold = Vices.MAX_HOLD - Vices.HOLD_PER_DOSE
 	_check("no suit before his Hold is full", not Vices.hush_suit, Vices.hush_suit)
 	Vices.dose()

@@ -1,6 +1,6 @@
 extends RefCounted
 ## Enemy radio chatter, by situation: the colony's grunts. Eco listens; she
-## never talks back. The lines themselves live in dialogue/radio/<rating>.txt
+## never talks back. The lines themselves live in dialogue/radio/M.txt
 ## (see dialogue_bank.gd and dialogue/README.md) so they can be edited as text.
 ##
 ## Each entry is one exchange: lines split by " | ", each "role: text".
@@ -11,8 +11,8 @@ extends RefCounted
 ##
 ## Story (Bones, 2026-10-04): the grunts are colonists who can't build
 ## anything, so the colony handed them rifles. Bored, bitter, homesick, and
-## scared of the local Pilot they call the Starling. Teen and Mature files;
-## Mature swears and gets meaner, never slurs or anything sexual.
+## scared of the local Pilot they call the Starling. They swear and get
+## mean, never slurs or anything sexual.
 
 const DialogueBank := preload("res://scripts/radio/dialogue_bank.gd")
 
@@ -45,15 +45,8 @@ static func roles(entry: String) -> Array:
 	return out
 
 
-# --- Rating banks --------------------------------------------------------
-# Teen and Mature each get their own file rather than a censored M bank, so
-# every category still has full exchanges.
+# --- The bank ------------------------------------------------------------
 
-const RATINGS := ["T", "M"]
-const RATING_NAMES := {"T": "T (Teen)", "M": "M (Mature 17+)"}
-
-
-## The line bank for a content rating: {category: [entries]}, read from
-## dialogue/radio/<rating>.txt.
-static func bank(rating: String) -> Dictionary:
-	return DialogueBank.bank("radio", rating)
+## The line bank: {category: [entries]}, read from dialogue/radio/M.txt.
+static func bank() -> Dictionary:
+	return DialogueBank.bank("radio")

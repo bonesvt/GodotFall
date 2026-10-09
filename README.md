@@ -21,7 +21,7 @@ Or play the Windows build (no editor needed): `GodotFall.exe`, see **Windows bui
   `user://settings.cfg`): mouse sensitivity, invert Y, field of view; every key rebindable
   (primary and secondary); master / effects / ambience / voices volume (buses in
   `default_bus_layout.tres`); windowed / borderless / fullscreen, vsync, frame cap, look
-  (Anime, PS3 or PS2; F9 remembers too) and film grain; dialogue rating (Teen / Mature; no hotkey any more), tutorial hints,
+  (Anime, PS3 or PS2; F9 remembers too) and film grain; tutorial hints,
   Eco's jiggle style (Classic, Smooth anime, Realistic); third person camera: start in it, camera
   distance (1.0 to 4.5 m, the hub orbit scales with it), X swaps shoulders, arrow keys slide the hub
   camera (remembered; Recentre resets it). Middle mouse (or F5) swaps first / third person.
@@ -145,8 +145,7 @@ Down the pilgrim road past the front gate, Eco's hometown sells her things for h
   lip rings, a bridge bar, a belly ring (shows only with a bare stomach), a spiked choker, tattoos
   on the forearm (a tally), small of the back, side of the waist and outer thigh, Hiro's firewater
   (harder hits, louder), and Mature cuts of every date (`[date <place> m]`: flirtier, a drink, a
-  kiss, then the night fades out) plus a date at the Rusted Halo. Switched back to Teen, none of it
-  shows or sells, and Eco keeps it for later.
+  kiss, then the night fades out) plus a date at the Rusted Halo.
 - **The back step** (Mature only, the step behind the Halo): a fully acted smoke date
   (`scripts/hub/smoke_date.gd`). Ophelia lights one cigarette and they pass it back and forth, Eco
   takes the last drag and grinds out the stub, and Ophelia kisses her before she can breathe out,
@@ -160,8 +159,7 @@ Close-ups: `xvfb-run -a godot --path . --rendering-driver opengl3 -s res://tools
 `tests/town_shops_test.gd`.
 
 ### Vices: the Rusted Halo, smokes, stims and Hush (Mature only)
-Under the Mature rating (Settings > Game), **F** at the Rusted Halo on Low Row opens the bar
-(`scripts/hub/bar_screen.gd`). Under Teen it keeps its old lines and none of this shows.
+**F** at the Rusted Halo on Low Row opens the bar (`scripts/hub/bar_screen.gd`).
 
 - **Drinks** (Rook, the bartender) cost scrap: Halo Lager, Rust Bucket, Precursor Shine.
   Each adds buzz; Rook cuts Eco off near the top and pours free water to sober her up.
@@ -768,7 +766,7 @@ boots with knee plates, teal glowing trims).
   at the knees, elbows, shins, shoulders, a strip of stomach and so on, with fresh cuts on the
   skin underneath. Time out in a zone, slides, wallruns, hits, falls and going down all add to
   four levels (grime, scuffs, tears, scars); she's clean again at the start of every run and back
-  at the temple. Teen shows the dirt and scuffs only; Settings > Game > Battle damage turns it
+  at the temple. Settings > Game > Battle damage turns it
   off. The levels are shader globals (`eco_grime` etc.) read by `eco_toon.gdshaderinc`
   (`damage_kind` 1: her body and face, from `v_damage.png` / `v_damage_face.png`; 2: her kit,
   dust and scuffs only). `tools/eco/bake_damage.py` bakes those maps from `eco.glb` (each texel
@@ -808,9 +806,7 @@ through static. She only listens; she never talks back.
   a terrified last man, and HQ calling into silence once the squad is gone.
 - Bigger events cut off small talk; lines never repeat back to back, and every exchange plays before any repeats.
 - Speakers near the edge of range break up: fewer signal bars and garbled characters.
-- **Dialogue rating**: press **O** to switch between Teen and Mature (saved between sessions; default M). Not F8: that stops the game when it runs from the Godot editor.
-  Each rating has its own line files in `dialogue/`. `scripts/radio/content_rating.gd`
-  holds the setting.
+- **Rating**: the game is rated M throughout (the Teen rating was dropped 2026-10-09). The lines live in `dialogue/`.
 - Lines live in `scripts/radio/radio_lines.gd`, one exchange per string (`"a: ... | b: ... | hq: ..."`).
   `radio_chatter.gd` emits `line_started(callsign, text, category)` for voice-over later.
 
@@ -873,7 +869,7 @@ select the Player node and tweak values in the Inspector, or change the defaults
   `godot --headless --path . -s res://tests/combat_test.gd`
 - `tests/stealth_test.gd` headless stealth test (vision cone, sight range, cover, detection meter,
   gunshots, squad callouts, losing the pilot): `godot --headless --path . -s res://tests/stealth_test.gd`
-- `tests/battle_damage_test.gd` Eco's battle damage (levels, Teen vs Mature, the setting,
+- `tests/battle_damage_test.gd` Eco's battle damage (levels, the setting,
   nothing near the covered zones can tear, a run dirties her and the temple cleans her):
   `godot --headless --path . -s res://tests/battle_damage_test.gd`
 - `tests/eco_test.gd` Eco's model (toon materials, expression, animations, hair and jiggle

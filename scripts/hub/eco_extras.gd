@@ -11,9 +11,8 @@ extends RefCounted
 ## tattoo_tex (eco_toon.gdshaderinc), which only lays them on bare skin, so her
 ## clothes cover them.
 ##
-## Entries marked "mature" are only sold, and only shown on her, while the
-## content rating is Mature (content_rating.gd). They follow the project's
-## limits like everything else: nothing near the always-covered zones.
+## They follow the project's limits like everything else: nothing near the
+## always-covered zones.
 ##
 ## eco_model.gd apply_suit() calls apply() on every model of her (her full
 ## model, her first-person arm and body, the shop previews), so they follow
@@ -27,7 +26,6 @@ const CANVAS := preload("res://assets/materials/eco/eco_v_kit_canvas.tres")
 const LENS := preload("res://assets/materials/eco/eco_v_goggle_lens.tres")
 const OUTLINED := preload("res://assets/materials/eco/eco_v_kit_leather.tres")
 const TWO_SIDED := preload("res://assets/shaders/eco_toon_2side.gdshader")
-const ContentRating := preload("res://scripts/radio/content_rating.gd")
 
 ## Where her ears, nose and brows are (measured on eco.glb's Face mesh; the
 ## date outfit's hoops hang from the same lobes).
@@ -50,9 +48,9 @@ const PIERCINGS := {
 	"nose_stud": {"name": "Nose stud", "blurb": "A pin of steel on the right side of her nose. Subtle. For her."},
 	"septum": {"name": "Septum ring", "blurb": "A ring through the middle of her nose. The recruiters will hate it. That's the point."},
 	"brow": {"name": "Eyebrow bar", "blurb": "A barbell through the end of her right brow. Makes every glare count double."},
-	"snakebites": {"name": "Snakebites", "mature": true, "blurb": "Two little rings at the corners of her bottom lip. Mom will cry. Ophelia won't stop looking at them."},
-	"bridge": {"name": "Bridge bar", "mature": true, "blurb": "A barbell across the bridge of her nose, between the eyes. Hurts like hell. She laughed the whole way through."},
-	"navel": {"name": "Belly ring", "mature": true, "blurb": "A steel ring with a teal drop, through her navel. Only shows in the tops that show her stomach."},
+	"snakebites": {"name": "Snakebites", "blurb": "Two little rings at the corners of her bottom lip. Mom will cry. Ophelia won't stop looking at them."},
+	"bridge": {"name": "Bridge bar", "blurb": "A barbell across the bridge of her nose, between the eyes. Hurts like hell. She laughed the whole way through."},
+	"navel": {"name": "Belly ring", "blurb": "A steel ring with a teal drop, through her navel. Only shows in the tops that show her stomach."},
 }
 
 ## Tattoos, baked by tools/ink/build_tattoos.py: [name, blurb, where it sits].
@@ -65,10 +63,10 @@ const TATTOOS := {
 	"stars": {"name": "Three stars", "where": "side of her neck", "blurb": "A little constellation under her left ear. Dad named it after her. Nobody else uses the name."},
 	"heart_bolt": {"name": "Struck heart", "where": "top of her right shoulder", "blurb": "A red heart split by a lightning bolt. Loud, cute, a bit of a threat."},
 	"wrench": {"name": "Spanner heart", "where": "back of her right wrist", "blurb": "A spanner through a teal heart. Mechanic for life."},
-	"tally": {"name": "Tally", "mature": true, "where": "top of her right forearm", "blurb": "Tally marks in fives, one for every colony grunt she's put down. Mara stopped at twenty-five. Eco said keep going."},
-	"lower_back": {"name": "Precursor wings", "mature": true, "where": "small of her back", "blurb": "The temple's spiral with a wing either side, right across the small of her back. Loud. Bratty. Worth it."},
-	"hip_moth": {"name": "Death's-head moth", "mature": true, "where": "left side of her waist, above the hip", "blurb": "A moth with a skull on its back. It goes where the light is. So does she."},
-	"thigh_snake": {"name": "Snake and dagger", "mature": true, "where": "outside of her right thigh", "blurb": "Old sailor flash: a snake round a dagger. Better to die than live a coward."},
+	"tally": {"name": "Tally", "where": "top of her right forearm", "blurb": "Tally marks in fives, one for every colony grunt she's put down. Mara stopped at twenty-five. Eco said keep going."},
+	"lower_back": {"name": "Precursor wings", "where": "small of her back", "blurb": "The temple's spiral with a wing either side, right across the small of her back. Loud. Bratty. Worth it."},
+	"hip_moth": {"name": "Death's-head moth", "where": "left side of her waist, above the hip", "blurb": "A moth with a skull on its back. It goes where the light is. So does she."},
+	"thigh_snake": {"name": "Snake and dagger", "where": "outside of her right thigh", "blurb": "Old sailor flash: a snake round a dagger. Better to die than live a coward."},
 }
 
 ## Accessories: one per slot (head, eyes, face). Goggles go when something sits on her head.
@@ -77,13 +75,12 @@ const ACCESSORIES := {
 	"visor": {"name": "Wraparound visor", "slot": "eyes", "blurb": "One curved band of teal glass, ear to ear. Very titan pilot. Mara swears it's not stolen."},
 	"beanie": {"name": "Knit beanie", "slot": "head", "blurb": "Charcoal, rib-knit, warm. Her goggles go in her pocket."},
 	"bandana": {"name": "Face bandana", "slot": "face", "blurb": "Red bandana tied over her nose and mouth. Dust, smoke, cameras. Very guerrilla."},
-	"choker": {"name": "Spiked choker", "slot": "neck", "mature": true, "blurb": "Black leather, steel spikes. Only shows with a bare neck. Ophelia lent her the idea, and then the choker."},
+	"choker": {"name": "Spiked choker", "slot": "neck", "blurb": "Black leather, steel spikes. Only shows with a bare neck. Ophelia lent her the idea, and then the choker."},
 }
 
-## Whether `id` from `catalogue` (PIERCINGS, TATTOOS, ACCESSORIES) may be sold
-## and shown under the current content rating.
+## Whether `id` is in `catalogue` (PIERCINGS, TATTOOS, ACCESSORIES).
 static func allowed(catalogue: Dictionary, id: String) -> bool:
-	return catalogue.has(id) and (not catalogue[id].get("mature", false) or ContentRating.current() == "M")
+	return catalogue.has(id)
 
 
 ## Stacked tattoo textures, by the worn ids joined (so models share them).

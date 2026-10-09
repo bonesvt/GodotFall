@@ -32,7 +32,6 @@ const HubNpc := preload("res://scripts/hub/hub_npc.gd")
 const NpcIdles := preload("res://scripts/hub/npc_idles.gd")
 const ColonyGear := preload("res://scripts/hub/colony_gear.gd")
 const Poses := preload("res://scripts/hub/family_poses.gd")
-const ContentRating := preload("res://scripts/radio/content_rating.gd")
 
 const INTERACT_RANGE := 3.4
 ## Inside: across the front, height, front to back (m).
@@ -90,7 +89,6 @@ var _pose: SkeletonModifier3D   # her arms held up together over her head
 var _feed: Node3D
 var _feed_word: Label3D
 var _feed_rings: Array = []
-var _rating := ""
 var _t := 0.0
 
 
@@ -103,12 +101,10 @@ func _ready() -> void:
 	_refresh()
 
 
-## The intake suit for the content rating: Teen keeps the ID plate on the
-## suit, Mature has the code on her skin.
+## The colony's torn intake suit, the code etched under her eye.
 func _dress() -> void:
-	_rating = ContentRating.current()
 	if ophelia != null:
-		ophelia.wear("colony_m" if HubNpc.mature() else "colony")
+		ophelia.wear("colony_m")
 
 
 ## Her arms held straight up over her head, wrists together, in the frame's
@@ -248,7 +244,7 @@ func _bar(a: Vector3, b: Vector3, thick: float, m: Material) -> Node3D:
 	return mi
 
 
-## The gear she has on (empty under Teen, where the gear never shows).
+## The gear she has on.
 func gear_on() -> Array:
 	var on := []
 	for piece in TRIAL_GEAR:
@@ -258,9 +254,6 @@ func gear_on() -> Array:
 
 
 func _process(delta: float) -> void:
-	if not opened and _rating != ContentRating.current():
-		_dress()
-		_refresh()
 	if opened:
 		return
 	_t += delta

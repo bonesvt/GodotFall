@@ -556,20 +556,20 @@ func enter_hub() -> void:
 	dose_scene.reset()
 	chorus_scene.reset()
 	tether.stop()
-	if Hymn.hunted and Hymn.allowed():
+	if Hymn.hunted:
 		spawn_shepherd.call_deferred()  # it's still out for her
 	player.refresh_glass()
 	_dress_chorus()
 	if not mixed_up.is_empty():  # home: her own gear again
 		mixed_up = {}
 		equip_loadout()
-	if Vices.trance and Vices.allowed() and zone_info.has("hush"):
+	if Vices.trance and zone_info.has("hush"):
 		_wake_at_marrows()
 	elif last_result != "":
 		var mom := ""
-		if Vices.smoked and Vices.allowed() and hub_npcs.has("mom") and not sick:
+		if Vices.smoked and hub_npcs.has("mom") and not sick:
 			mom = "  " + MOM_SMELLS[runs_ended % MOM_SMELLS.size()]
-		elif Vices.hold >= 30.0 and Vices.allowed() and hub_npcs.has("ophelia"):
+		elif Vices.hold >= 30.0 and hub_npcs.has("ophelia"):
 			mom = "  " + OPHELIA_NOTICES[runs_ended % OPHELIA_NOTICES.size()]
 		Vices.smoked = false
 		hud.toast("Back at the temple." + ("  You're burning up. Go find Mom." if sick else "") + mom, HUB_LINE_SECONDS + (2.0 if mom != "" else 0.0))
@@ -643,7 +643,7 @@ func _step_press_strength() -> void:
 ## One of the people she loves has gone further under (hub_grip.gd): their scene,
 ## played as a talk with them, wherever they are.
 func _grip_scene() -> void:
-	if not HubGrip.allowed() or phase != Phase.HUB or npc_talk.active():
+	if phase != Phase.HUB or npc_talk.active():
 		return
 	var scene := HubGrip.next_scene(hub_npcs.keys())
 	if scene.is_empty():
@@ -657,7 +657,7 @@ func _grip_scene() -> void:
 
 ## The Shepherd comes for her (hymn.gd), from the dispensary's back door.
 func spawn_shepherd() -> void:
-	if not Hymn.allowed() or phase != Phase.HUB or not get_tree().get_nodes_in_group("shepherd").is_empty():
+	if phase != Phase.HUB or not get_tree().get_nodes_in_group("shepherd").is_empty():
 		return
 	var at := _dispensary_spot()
 	if at == Vector3.INF:
@@ -815,11 +815,11 @@ func _hub_tick(delta: float) -> void:
 	_tick_hymn(delta, roaming)
 	if hush_pull.busy():
 		return
-	if Vices.hush_suit_new and Vices.allowed():
+	if Vices.hush_suit_new:
 		Vices.hush_suit_new = false
 		Vices.hush_finish_new = false
 		hud.toast(HUSH_SUIT_LINE, HUB_LINE_SECONDS + 3.0)
-	elif Vices.hush_finish_new and Vices.allowed():
+	elif Vices.hush_finish_new:
 		Vices.hush_finish_new = false
 		hud.toast(HUSH_FINISH_LINE, HUB_LINE_SECONDS + 3.0)
 	if not rest_spot.is_empty():
@@ -872,13 +872,13 @@ func _hub_tick(delta: float) -> void:
 		hud.toast(PAPERS, HUB_LINE_SECONDS + 2.0)
 		SFX.play(player, "paper_2", -4.0)
 		return
-	if spot.get("shop", "") == "hush" and Vices.allowed() and Glass.broken:
+	if spot.get("shop", "") == "hush" and Glass.broken:
 		hud.toast(MARROW_GONE, HUB_LINE_SECONDS)
 		return
-	if spot["id"] == "marrow" and Vices.allowed() and Glass.can_confront():
+	if spot["id"] == "marrow" and Glass.can_confront():
 		chorus_scene.play()
 		return
-	var vice_shop: bool = spot.get("shop", "") in ["bar", "stims", "hush", "dispensary", "gear_off", "gear_off_doc"] and Vices.allowed()
+	var vice_shop: bool = spot.get("shop", "") in ["bar", "stims", "hush", "dispensary", "gear_off", "gear_off_doc"]
 	if spot.has("date") and (not vice_shop or date_ready(spot)) and date_at(spot):
 		return
 	if spot.has("screen"):
@@ -907,7 +907,7 @@ func _hub_tick(delta: float) -> void:
 			_leave_pull = LeavePull.new(self)
 			add_child(_leave_pull)
 		return
-	if spot.has("teleport") and (spot.get("open", false) or Vices.allowed()):
+	if spot.has("teleport"):
 		place_player(spot["teleport"])
 		hud.toast(TELEPORT_LINES.get(spot["id"], ""), 2.5)
 		return
@@ -1032,13 +1032,13 @@ func _rest_prompt() -> String:
 
 ## Starts a conversation between Eco and one of the people in the hub.
 func talk_to(who: String) -> void:
-	if who in HubGrip.WHO and HubGrip.allowed() and hub_npcs.has(who):
+	if who in HubGrip.WHO and hub_npcs.has(who):
 		if HubGrip.deaf_now(who):  # the headphones: she doesn't hear Eco, the first time
 			hud.toast(DEAF % [HubGrip.NAMES[who], HubGrip.NAMES[who]], HUB_LINE_SECONDS)
 			return
 		if HubGrip.has(who, "visor"):
 			hud.toast("%s: \"Good morning, citizen.\"" % HubGrip.NAMES[who], 2.5)
-	if who == "ophelia" and Obsession.allowed() and hub_npcs.has(who):
+	if who == "ophelia" and hub_npcs.has(who):
 		if Obsession.talk_waiting():  # Eco found the papers: they have it out
 			Obsession.saw(runs_ended)
 			open_bench("obsession")
@@ -1077,7 +1077,7 @@ func relations_text() -> String:
 			continue
 		var stage := NpcTalk.Romance.stage(npc_talk.state, who)
 		var row := "%s   %s   %d/%d" % [String(NpcTalk.NAMES[who]), stage.capitalize(), NpcTalk.Romance.affection(npc_talk.state, who), NpcTalk.Romance.MAX]
-		if who == "ophelia" and Obsession.allowed():
+		if who == "ophelia":
 			if Obsession.upset:
 				row += "\n   upset: you left without saying goodbye"
 			if Obsession.meter > 0.0:
@@ -1563,7 +1563,7 @@ func nearest_hub_spot() -> Dictionary:
 	var best_d := INF
 	var pos := player.global_position
 	for spot in zone_info.get("interactables", []):
-		if spot.has("errand") and (spot["errand"] != Vices.errand or Vices.errand_done or not Vices.allowed()):
+		if spot.has("errand") and (spot["errand"] != Vices.errand or Vices.errand_done):
 			continue  # Marrow's errand spots are only there while she's on one
 		if spot["id"] == "ophelia_papers" and not Obsession.papers_there():
 			continue  # her Keepsake tin, only while it's in Eco (obsession.gd)
@@ -1644,7 +1644,7 @@ func _rescue_bonus(level: String) -> void:
 	if who == "" or npc_talk == null or npc_talk.state.get_value(who, "rescue_bonus", false):
 		return
 	NpcTalk.Romance.add(npc_talk.state, who, RESCUE_AFFECTION)
-	if who in HubGrip.WHO and HubGrip.allowed():
+	if who in HubGrip.WHO:
 		var mine: Array = HubGrip.gear_of(who).duplicate()
 		for piece in HoldingCell.KEPT_GEAR:
 			if not piece in mine:
@@ -1988,7 +1988,7 @@ func end_run(title: String, reason: String) -> void:
 ## B lights a smoke, N jabs a stim: on foot, in the hub or on a run, with
 ## nothing else open.
 func _vice_keys() -> void:
-	if not Vices.allowed() or bench != null or garage != null or hub_piloting or npc_talk.active() or hush_pull.busy() \
+	if bench != null or garage != null or hub_piloting or npc_talk.active() or hush_pull.busy() \
 			or super_hush_scene.busy() or cheat_scene.busy() or chorus_scene.busy() or fitting_scene.busy() or dose_scene.busy() or tether.busy():
 		return
 	if not (phase == Phase.HUB or in_run()) or (titan != null and titan.piloted):
@@ -2038,7 +2038,7 @@ func _dress_chorus() -> void:
 			n.get_node("Tank").visible = not id in Glass.vats
 			n.get_node("Shards").visible = id in Glass.vats
 	for f: Node3D in zone_info.get("marrow_figures", []):
-		f.visible = not (Glass.broken and Glass.allowed())
+		f.visible = not (Glass.broken)
 	var folk := zone_root.get_node_or_null("Townsfolk") if zone_root != null else null
 	if folk != null:
 		folk.chorus_refresh()
@@ -2139,7 +2139,7 @@ func _vices_text() -> String:
 		parts.append(Glass.pockets_text())
 	if tether.hud_text() != "":
 		parts.append(tether.hud_text())
-	if Vices.errand != "" and Vices.allowed():
+	if Vices.errand != "":
 		parts.append("MARROW: " + ("go back to him" if Vices.errand_done else HushDen.ERRANDS[Vices.errand]["short"]))
 	return "" if parts.is_empty() else "    " + "    ".join(parts)
 
@@ -2223,25 +2223,25 @@ func _prompt() -> String:
 			if not spot.is_empty():
 				if spot.has("family"):
 					return family_scene.prompt()
-				if spot.get("shop", "") == "bar" and Vices.allowed() and not date_ready(spot):
+				if spot.get("shop", "") == "bar" and not date_ready(spot):
 					return "[F] The Rusted Halo: drinks, smokes and Scrapjack"
-				if spot.get("shop", "") == "gear_off_doc" and Vices.allowed():
+				if spot.get("shop", "") == "gear_off_doc":
 					return "[F] Doc Imani: colony hardware off" + ("  (tried today)" if Hymn.doc_tried else "")
-				if spot.get("shop", "") == "gear_off" and Vices.allowed() and not Hymn.gear.is_empty():
+				if spot.get("shop", "") == "gear_off" and not Hymn.gear.is_empty():
 					return "[F] Biggie's table: get the colony gear off" + ("  (tried today)" if Hymn.biggie_tried else "")
-				if spot.get("shop", "") == "dispensary" and Vices.allowed():
+				if spot.get("shop", "") == "dispensary":
 					return "[F] Colony dispensary: today's Hymn" + ("  (done today)" if Hymn.dosed_today else "")
-				if spot.get("shop", "") == "stims" and Vices.allowed():
+				if spot.get("shop", "") == "stims":
 					return "[F] Sal's side hatch: stims"
-				if spot.has("glass") and Vices.allowed():
+				if spot.has("glass"):
 					return "[F] Marrow's ledger" if spot["glass"] == "ledger" else ("[F] Smash the vat" if Glass.ledger else "[F] Violet vats, bubbling")
-				if spot.get("shop", "") == "hush" and Vices.allowed() and Glass.broken:
+				if spot.get("shop", "") == "hush" and Glass.broken:
 					return "Nobody here anymore"
-				if spot["id"] == "marrow" and Vices.allowed() and Glass.can_confront():
+				if spot["id"] == "marrow" and Glass.can_confront():
 					return "[F] Face Marrow"
-				if spot["id"] == "hush_alley" and Vices.allowed():
+				if spot["id"] == "hush_alley":
 					return "[F] Marrow: Hush"
-				if spot["id"] == "cinema_cellar" and Vices.allowed():
+				if spot["id"] == "cinema_cellar":
 					return "[F] Go down to Marrow's basement"
 				if spot.get("npc", "") == "mom" and Family.sick(npc_talk.state, runs_ended):
 					return spot["prompt"] + "  (you're burning up)"

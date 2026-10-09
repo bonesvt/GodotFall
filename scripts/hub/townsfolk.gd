@@ -2,8 +2,7 @@ extends Node
 ## The people of Solace going about their day (townsperson.gd), and what
 ## they say: two of them chatting where Eco can overhear, someone muttering
 ## to themselves as they pass, a word for Eco herself when she walks by.
-## The lines live in dialogue/town/T.txt and M.txt (Teen and Mature, the O
-## key's rating; see dialogue/README.md), by how far the town's suspicion has
+## The lines live in dialogue/town/M.txt (see dialogue/README.md), by how far the town's suspicion has
 ## got: stage 1 (her first runs) still believes Mom's excuses, stage 2 has
 ## noticed things, stage 3 is sure she's up to something.
 ##
@@ -13,7 +12,6 @@ extends Node
 const Townsperson := preload("res://scripts/hub/townsperson.gd")
 const DialogueBank := preload("res://scripts/radio/dialogue_bank.gd")
 const RadioLines := preload("res://scripts/radio/radio_lines.gd")
-const ContentRating := preload("res://scripts/radio/content_rating.gd")
 const Glass := preload("res://scripts/hub/glass.gd")
 
 ## Marrow's Chorus (glass.gd, Mature only): who he doses first, as it spreads.
@@ -170,7 +168,7 @@ func _set_dosed(who: String, on: bool) -> void:
 
 ## {category: [entries]} at the current rating.
 func bank() -> Dictionary:
-	return DialogueBank.bank("town", ContentRating.current())
+	return DialogueBank.bank("town")
 
 
 ## The entries for a kind of line ("chat", "mutter", "greet") at this stage,
@@ -309,7 +307,7 @@ func _pick(kind: String) -> String:
 	var list := entries(kind)
 	if list.is_empty():
 		return ""
-	var key := "%s/%s/%d" % [ContentRating.current(), kind, stage]
+	var key := "%s/%d" % [kind, stage]
 	var used: Array = _used.get(key, [])
 	if used.size() >= list.size():
 		used = []

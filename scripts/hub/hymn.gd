@@ -100,13 +100,8 @@ static var biggie_tried := false
 static var doc_tried := false
 static var save_path := "user://hymn.cfg"
 
-
-static func allowed() -> bool:
-	return Vices.allowed()
-
-
 static func has(piece: String) -> bool:
-	return allowed() and piece in gear
+	return piece in gear
 
 
 ## Where Hymn is saved for a vices save (user://x_vices.cfg -> user://x_hymn.cfg).

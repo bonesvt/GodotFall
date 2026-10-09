@@ -2,7 +2,7 @@ extends CanvasLayer
 ## What a few drinks at the Rusted Halo do to Eco's eyes (vices.gd): the view
 ## softens, doubles and drifts, the edges close in and warm up. Strength
 ## follows Vices.haze() (the buzz, a stim crash or the shakes), so it fades
-## as they wear off and is off entirely when clean or under Teen. Sits after the 3D view and the PS2/PS3
+## as they wear off and is off entirely when clean. Sits after the 3D view and the PS2/PS3
 ## post pass (layer -1), before the HUD, so the HUD stays readable.
 
 const Vices := preload("res://scripts/hub/vices.gd")

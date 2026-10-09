@@ -7,14 +7,12 @@ extends SceneTree
 const Obsession := preload("res://scripts/hub/obsession.gd")
 const ObsessionLook := preload("res://scripts/hub/obsession_look.gd")
 const HubNpc := preload("res://scripts/hub/hub_npc.gd")
-const ContentRating := preload("res://scripts/radio/content_rating.gd")
 
 var failures := 0
 
 
 func _initialize() -> void:
 	preload("res://scripts/run/tutorial.gd").settings_path = "user://test_settings.cfg"
-	ContentRating.set_rating("M", false)
 	_run.call_deferred()
 
 

@@ -103,8 +103,7 @@ var clung := 0
 ## suit_* are the other looks baked by tools/eco/build_eco_vroid.py
 ## BASE_STYLES: each shows its own pieces with no suit upgrade, and the
 ## upgrades go over any of them. "skater", "y2k" and "date" are her clothes off duty (outfit_graph),
-## every suit piece hidden; each comes in a Teen and a Mature version, picked
-## by the content rating (scripts/radio/content_rating.gd, O key) as it changes.
+## every suit piece hidden.
 @export_enum("suit", "suit_ghost", "suit_racer", "suit_harness", "suit_techwear", "suit_shade", "suit_homemade",
 		"suit_ophelia", "suit_vesper", "suit_vesper_open", "suit_hush", "skater", "y2k", "date") var outfit := "suit":
 	set(value):
@@ -246,15 +245,13 @@ const KIT_FACE := {
 ## suit but her own has its bodysuit material, and its own pieces in the glb as
 ## base_<style>_* (a jacket, cowl, vest or skirt; harness and the vesper looks
 ## have none). The vesper looks are Vesper Kane's clothes (a concept character,
-## Eco wears them for now): Mature rating only (MATURE_OUTFITS). The Hush
+## Eco wears them for now). The Hush
 ## courier suit (Marrow's runner) is the shade catsuit dyed violet under her
 ## skater hoodie, sneakers and some of the mechanic kit's gear, all re-dyed
 ## (STYLE_GEAR): it's her reward for Marrow's Hold reaching full (vices.gd
 ## hush_suit), and only in her wardrobe once she's earned it (wardrobe.gd).
 const OUTFITS := ["suit", "suit_ghost", "suit_racer", "suit_harness", "suit_techwear", "suit_shade", "suit_homemade",
 		"suit_ophelia", "suit_vesper", "suit_vesper_open", "suit_hush", "skater", "y2k", "date"]
-## Outfits only offered under the Mature content rating (wardrobe.gd).
-const MATURE_OUTFITS := ["suit_vesper", "suit_vesper_open", "suit_hush"]
 const STYLE_BODY := {
 	"suit_ghost": preload("res://assets/materials/eco/eco_v_body_ghost.tres"),
 	"suit_racer": preload("res://assets/materials/eco/eco_v_body_racer.tres"),
@@ -289,7 +286,7 @@ const STYLE_GEAR := {
 		},
 	},
 }
-## Her clothes' body textures, by look() (<outfit>_t Teen, <outfit>_m Mature);
+## Her clothes' body textures, by look() (<outfit>_m; the old Teen <outfit>_t are unused);
 ## their loose parts are the glb's outfit_<outfit>_<t|m|any>_* meshes.
 const OUTFIT_BODY := {
 	"skater_t": preload("res://assets/materials/eco/eco_v_body_skater_t.tres"),
@@ -305,7 +302,6 @@ const NO_GOGGLES := ["date", "skater", "y2k"]
 const NO_BOOTS := ["skater", "y2k"]
 ## Her date-night makeup (deeper smoky eyes, a sharper wing, red lips).
 const DATE_FACE := preload("res://assets/materials/eco/eco_v_face_date.tres")
-const ContentRating := preload("res://scripts/radio/content_rating.gd")
 const EcoRest := preload("res://scripts/ps2/eco_rest.gd")
 const Prefs := preload("res://scripts/game/prefs.gd")
 const Hair := preload("res://scripts/hub/hair.gd")
@@ -374,7 +370,6 @@ var _swirl_tint := Color(0.72, 0.32, 1.0)
 ## The face's weights from before she fell asleep (blend shape index -> weight).
 var _awake_face := {}
 ## The content rating her clothes were last put on for.
-var _dressed_rating := ""
 ## Her bodysuit with her suit weight's changes laid over it, by "<outfit>/<weight>" (body_material).
 var _kit_bodies := {}
 # the heavy breastplate is on (apply_suit): her chest's springs stay at rest under it
@@ -485,12 +480,12 @@ func suited() -> bool:
 	return outfit.begins_with("suit")
 
 
-## Which version of her clothes she has on: "<outfit>_t" or "<outfit>_m" for
-## the content rating ("" in a suit).
+## Which version of her clothes she has on: "<outfit>_m" ("" in a suit). The
+## glb still carries the old Teen versions (<outfit>_t), never shown now.
 func look() -> String:
 	if suited():
 		return ""
-	return outfit + ("_m" if ContentRating.current() == "M" else "_t")
+	return outfit + "_m"
 
 
 ## Shows the armour of every tier up to suit_tier, in Dad's colours at the top
@@ -502,7 +497,6 @@ func apply_suit() -> void:
 	# the heavy kit's breastplate is one stiff plate strapped over her chest: it holds her still
 	_plated = suited_ and suit_tier > 0 and suit_weight == "heavy"
 	var rating := look().right(1)
-	_dressed_rating = ContentRating.current()
 	for node in find_children("*", "MeshInstance3D", true, false):
 		var mi := node as MeshInstance3D
 		var tier := piece_tier(String(mi.name))
@@ -629,8 +623,6 @@ func strolling() -> bool:
 
 
 func _process(delta: float) -> void:
-	if not suited() and ContentRating.current() != _dressed_rating:
-		apply_suit()  # the rating changed (O): the other version of her clothes
 	if _anim != null:
 		_animate()
 		_strut(delta)

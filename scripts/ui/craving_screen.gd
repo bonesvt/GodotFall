@@ -3,7 +3,7 @@ extends CanvasLayer
 ## Marrow's clock running on her at full Hold). A violet dark closes in from
 ## the edges and thumps like a heartbeat, faster and harder as it builds; past
 ## halfway, spiral tendrils curl in from the corners. A trigger word (or his
-## pull) flares it. Off when clean, dosed or under Teen. Sits over the 3D view
+## pull) flares it. Off when clean or dosed. Sits over the 3D view
 ## and the drunk haze (drunk_screen.gd), under the HUD.
 
 const Vices := preload("res://scripts/hub/vices.gd")
@@ -74,7 +74,7 @@ func _process(delta: float) -> void:
 	var s := maxf(Vices.crave_level(), Obsession.crave)
 	_mat.set_shader_parameter("tint", ROSE if Obsession.crave > Vices.crave_level() else VIOLET)
 	# His words or his pull: it flares while they have her.
-	_flare = move_toward(_flare, 1.0 if (Vices.entranced and Vices.allowed()) else 0.0, delta * 2.5)
+	_flare = move_toward(_flare, 1.0 if (Vices.entranced) else 0.0, delta * 2.5)
 	_rect.visible = s > 0.01 or _flare > 0.01
 	if not _rect.visible:
 		return

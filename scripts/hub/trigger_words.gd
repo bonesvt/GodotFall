@@ -78,7 +78,7 @@ func busy() -> bool:
 
 ## Can his words get to her at all right now.
 static func can_trigger() -> bool:
-	return Vices.allowed() and (Vices.hold >= Vices.TRANCE_HOLD or Hymn.has("headphones")) and not Vices.entranced
+	return (Vices.hold >= Vices.TRANCE_HOLD or Hymn.has("headphones")) and not Vices.entranced
 
 
 ## Seconds between triggers at his current Hold.

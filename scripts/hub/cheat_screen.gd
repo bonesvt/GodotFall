@@ -195,9 +195,6 @@ func unlock_cosmetics_count() -> int:
 ## A vial of glowing violet resin, three times the usual: his Hold goes to
 ## full, so his pull, his errands and withdrawal all start now.
 func super_hush() -> bool:
-	if not Vices.allowed():
-		_did("Super Hush is Mature only (Settings > Game > rating).")
-		return false
 	Vices.hold = Vices.MAX_HOLD
 	Vices.walked_away = false
 	Vices.save()
@@ -209,11 +206,8 @@ func super_hush() -> bool:
 
 
 ## One of the hypno looks' meters up a stage (25), back to none after full.
-## Returns the meter's new level (-1 under Teen).
+## Returns the meter's new level.
 func look_meter(meter_name: String) -> float:
-	if not ViceLooks.allowed():
-		_did("The hypno looks are Mature only (Settings > Game > rating).")
-		return -1.0
 	var now := ViceLooks.level(meter_name)
 	ViceLooks.add(meter_name, -ViceLooks.MAX if now >= ViceLooks.MAX else ViceLooks.STAGE_AT[0])
 	var level := ViceLooks.level(meter_name)
@@ -224,9 +218,6 @@ func look_meter(meter_name: String) -> float:
 
 
 func unlock_looks() -> void:
-	if not ViceLooks.allowed():
-		_did("The hypno looks are Mature only (Settings > Game > rating).")
-		return
 	var n := 0
 	for id: String in ViceLooks.FREE:
 		if ViceLooks.unlock(id):
@@ -237,10 +228,7 @@ func unlock_looks() -> void:
 ## One of the control items: the box closes and its scene plays out
 ## (cheat_scene.gd), which sets its system to full at the end. Mature only.
 func control_item(id: String) -> bool:
-	if not Vices.allowed():
-		_did("The control items are Mature only (Settings > Game > rating).")
-		return false
-	if id in ["family", "dosebox"] and (npc_talk == null or not HubGrip.allowed()):
+	if id in ["family", "dosebox"] and npc_talk == null:
 		_did("Nobody home for the Family Plan.")
 		return false
 	scene = id

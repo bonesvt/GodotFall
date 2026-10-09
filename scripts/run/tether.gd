@@ -87,7 +87,7 @@ func run_tick(delta: float, free: bool) -> void:
 ## Cracks a vial. Returns whether she had one.
 func focus() -> bool:
 	if not Glass.use_vial():
-		if Glass.allowed() and Glass.vials <= 0 and Glass.earpiece:
+		if Glass.vials <= 0 and Glass.earpiece:
 			rm.hud.toast("No Glass left. Marrow would sell you more.", 2.0)
 		return false
 	rm.player.refresh_glass()

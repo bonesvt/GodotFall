@@ -280,7 +280,7 @@ static func _lantern_row(root: Node3D, info: Dictionary, rng: RandomNumberGenera
 
 	# The colony dispensary (hymn.gd): a white kiosk against the building line
 	# between the outfitter and the clinic, its screen and seal lit. Its daily
-	# dose is Mature only (dispensary_screen.gd); under Teen it's out of service.
+	# dose (dispensary_screen.gd).
 	var white := Art.material("gunmetal", Color(0.9, 0.92, 0.95))
 	K.mesh(root, Vector3(-6.35, 1.1, 146.8), Vector3(0.8, 2.2, 1.3), white)
 	K.mesh(root, Vector3(-5.93, 0.95, 146.8), Vector3(0.06, 0.1, 0.9), Art.material("gunmetal", Color(0.2, 0.22, 0.26)))
@@ -300,7 +300,7 @@ static func _lantern_row(root: Node3D, info: Dictionary, rng: RandomNumberGenera
 		"Don't ask where the serial numbers went.",
 	], "salvage", {"screen": "salvage"})
 	# Sal's side hatch at the plaza end of the shop: stims under the counter,
-	# Mature only (vices.gd). Under Teen it stays shut.
+	# vices.gd.
 	K.mesh(root, Vector3(STREET_HALF + 0.02, 1.05, 158.4), Vector3(0.12, 2.1, 1.0), Art.material("gunmetal", Color(0.24, 0.3, 0.26)))
 	K.mesh(root, Vector3(STREET_HALF - 0.05, 1.35, 158.4), Vector3(0.06, 0.25, 0.7), Art.material("gunmetal", Color(0.1, 0.1, 0.1)))
 	K.light(root, Vector3(STREET_HALF - 0.4, 2.4, 158.4), Color(0.6, 1.0, 0.35), 0.6, 3.5)

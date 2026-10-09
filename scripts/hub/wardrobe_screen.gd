@@ -184,7 +184,7 @@ func refresh() -> void:
 	elif String(options[selected]).begins_with("suit"):
 		_detail.text = "Eco wears it everywhere, runs included (an upgraded suit goes over it)."
 	else:
-		_detail.text = "Eco wears it at home and in town; on a run she's in her pilot suit. The content rating (O) picks its Teen or Mature version."
+		_detail.text = "Eco wears it at home and in town; on a run she's in her pilot suit."
 	_update_preview(options[selected])
 
 

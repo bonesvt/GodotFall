@@ -1,8 +1,7 @@
 extends RefCounted
-## Vices at the Rusted Halo, Solace's bar (Mature only: content_rating.gd "M").
+## Vices at the Rusted Halo, Solace's bar.
 ## Eco buys drinks with scrap (armory.gd) and plays Scrapjack, the Halo's
-## blackjack, at the back table (bar_screen.gd). Under Teen the bar is just
-## its old lines and none of this shows.
+## blackjack, at the back table (bar_screen.gd).
 ##
 ## Drinks add buzz (0..MAX_BUZZ). Buzz wears off with time, in the hub and on a
 ## run alike, so a drink just before a run carries into it. While buzzed:
@@ -10,7 +9,6 @@ extends RefCounted
 ##   - her aim drifts on its own and the gun's cone opens (player.gd, weapon.gd),
 ##   - her steps wander a little,
 ##   - but she's numb: hits hurt up to NUMB less (liquid courage).
-## Switching to Teen hides the effects at once; the buzz still wears off.
 ## Buzz lives for the session only (static), like the hub's run counters.
 ##
 ## Smokes: packs of Night Owls from Rook. B lights one (hub or run): for
@@ -40,7 +38,6 @@ extends RefCounted
 ## it's full the Hush courier suit (eco_model.gd "suit_hush"): she keeps both
 ## even after she walks away.
 
-const ContentRating := preload("res://scripts/radio/content_rating.gd")
 
 ## Buzz Rook stops serving at.
 const MAX_BUZZ := 5.0
@@ -201,12 +198,6 @@ static var hush_finish := false
 static var hush_finish_new := false
 static var save_path := "user://vices.cfg"
 
-
-## The bar's drinks and cards are open (Mature only).
-static func allowed() -> bool:
-	return ContentRating.current() == "M"
-
-
 static func drink_name(id: String) -> String:
 	return DRINKS[id]["name"]
 
@@ -256,9 +247,9 @@ static func buy_pack() -> void:
 	save()
 
 
-## Lights one up (B). Returns false with none left, one already lit, or under Teen.
+## Lights one up (B). Returns false with none left, or one already lit.
 static func light_up() -> bool:
-	if not allowed() or smokes <= 0 or smoke_left > 0.0:
+	if smokes <= 0 or smoke_left > 0.0:
 		return false
 	smokes -= 1
 	smoke_left = SMOKE_TIME
@@ -268,7 +259,7 @@ static func light_up() -> bool:
 
 
 static func calm() -> bool:
-	return smoke_left > 0.0 and allowed()
+	return smoke_left > 0.0
 
 
 # --- stims --------------------------------------------------------------------
@@ -292,7 +283,7 @@ static func add_stim(id: String) -> bool:
 
 ## Jabs the next stim on her belt (N). Cuts any crash short (that's the trap).
 static func jab() -> String:
-	if not allowed() or belt.is_empty() or stim != "":
+	if belt.is_empty() or stim != "":
 		return ""
 	stim = belt.pop_front()
 	stim_left = STIMS[stim]["time"]
@@ -304,12 +295,12 @@ static func jab() -> String:
 
 
 static func crashing() -> bool:
-	return crash_left > 0.0 and stim == "" and allowed()
+	return crash_left > 0.0 and stim == ""
 
 
 ## How bad the shakes are, 0..1 (dependence at CRAVE_AT and over, nothing in her).
 static func craving() -> float:
-	if not allowed() or stim != "" or crash_left > 0.0 or dependence < CRAVE_AT:
+	if stim != "" or crash_left > 0.0 or dependence < CRAVE_AT:
 		return 0.0
 	return clampf((dependence - CRAVE_AT + 1.0) / 3.0, 0.0, 1.0)
 
@@ -317,15 +308,13 @@ static func craving() -> float:
 ## The craving the player sees (craving_screen.gd, the HUD bar), 0..1: the
 ## stim shakes or Marrow's clock running on her (hush_crave), whichever's worse.
 static func crave_level() -> float:
-	if not allowed():
-		return 0.0
 	return clampf(maxf(craving(), hush_crave), 0.0, 1.0)
 
 
 ## A run starts: a dose waiting goes in.
 static func run_started() -> void:
-	hushed = dosed and allowed()
-	withdrawal = allowed() and not hushed and hold >= MAX_HOLD
+	hushed = dosed
+	withdrawal = not hushed and hold >= MAX_HOLD
 	dosed = false
 	errand = ""  # whatever he wanted, she's gone without it
 	errand_done = false
@@ -341,7 +330,7 @@ static func run_over() -> void:
 	if not jabbed:
 		dependence = maxf(dependence - CLEAN_RUN, 0.0)
 	jabbed = false
-	if allowed() and (hushed or hold >= TRANCE_HOLD):
+	if hushed or hold >= TRANCE_HOLD:
 		trance = true
 	if not hushed and not begging:  # walking off a job to beg him loosens nothing
 		hold = maxf(hold - HOLD_CLEAN_RUN, 0.0)
@@ -356,7 +345,7 @@ static func run_over() -> void:
 ## Takes a dose from Marrow (the screen has taken the price): raises his Hold.
 ## `state` is the hub talks' ConfigFile (npc_talk.state): Ophelia and Mom feel it.
 static func dose(state: ConfigFile = null) -> bool:
-	if not allowed() or dosed:
+	if dosed:
 		return false
 	return _dose(state)
 
@@ -407,8 +396,6 @@ static func _nudge(state: ConfigFile, romance: int, bond: int) -> void:
 ## Hush courier suit at full (each *_new until the run manager says so).
 ## Returns whether the suit was given now.
 static func reward_check() -> bool:
-	if not allowed():
-		return false
 	var suit := false
 	if not hush_finish and hold >= TRANCE_HOLD:
 		hush_finish = true
@@ -422,16 +409,14 @@ static func reward_check() -> bool:
 
 
 ## How far her posture has gone (0..1, eco_model.gd _slump): from SLUMP_FROM
-## to full Hold. 0 under Teen.
+## to full Hold.
 static func slump() -> float:
-	if not allowed():
-		return 0.0
 	return clampf((hold - SLUMP_FROM) / (MAX_HOLD - SLUMP_FROM), 0.0, 1.0)
 
 
 ## How often her lines drift off (0..CONFUSE_MAX), deeper in his Hold.
 static func confuse_chance() -> float:
-	if not allowed() or hold < CONFUSE_FROM:
+	if hold < CONFUSE_FROM:
 		return 0.0
 	return CONFUSE_MAX * clampf((hold - CONFUSE_FROM + 10.0) / (MAX_HOLD - CONFUSE_FROM + 10.0), 0.0, 1.0)
 
@@ -458,7 +443,7 @@ static func confuse(text: String, roll: float, pick := 0) -> String:
 ## tier (no kit to mix up at 0).
 static func wrong_gear(rng: RandomNumberGenerator, guns: Array, gun: String, knives: Array, knife: String,
 		tier: int, weight: String, weights: Array) -> Dictionary:
-	if not allowed() or hold < WRONG_GEAR_FROM:
+	if hold < WRONG_GEAR_FROM:
 		return {}
 	var chance := lerpf(WRONG_GEAR_MIN, WRONG_GEAR_MAX, (hold - WRONG_GEAR_FROM) / (MAX_HOLD - WRONG_GEAR_FROM))
 	if rng.randf() >= chance:
@@ -499,7 +484,7 @@ static func timer_chance(elapsed: float, deadline: float) -> float:
 ## His pull can take her now: full Hold, nothing waiting in her, no errand
 ## running, not already pulled since she got back.
 static func can_pull() -> bool:
-	return allowed() and hold >= MAX_HOLD and not dosed and errand == "" and not pulled and not entranced
+	return hold >= MAX_HOLD and not dosed and errand == "" and not pulled and not entranced
 
 
 ## He gives her errand `id` (pulled: it came with a trance).
@@ -513,7 +498,7 @@ static func give_errand(id: String, by_pull := false) -> void:
 
 ## She's at errand spot `id`: true if it's the one he sent her to.
 static func errand_reached(id: String) -> bool:
-	if errand != id or errand_done or not allowed():
+	if errand != id or errand_done:
 		return false
 	errand_done = true
 	save()
@@ -522,7 +507,7 @@ static func errand_reached(id: String) -> bool:
 
 ## Back to him with it done: he pays in Hush. Returns whether he did.
 static func errand_paid(state: ConfigFile = null) -> bool:
-	if errand == "" or not errand_done or dosed or not allowed():
+	if errand == "" or not errand_done or dosed:
 		return false
 	errand = ""
 	errand_done = false
@@ -543,7 +528,7 @@ static func walk_off_job() -> void:
 
 ## How strong the Hush is in her this run (0 none): stronger the deeper his Hold.
 static func hush() -> float:
-	if not hushed or not allowed():
+	if not hushed:
 		return 0.0
 	return 1.0 + hold / 100.0
 
@@ -563,7 +548,7 @@ static func notice_scale() -> float:
 ## How strongly the Hush swirls in her eyes, 0..1 (eco_model.gd): faint after
 ## the first dose, full when she's his; brighter while it's in her on a run.
 static func eye_swirl() -> float:
-	if not allowed() or hold <= 0.0:
+	if hold <= 0.0:
 		return 0.0
 	if entranced:
 		return 3.0  # past 1 the spirals only spin faster (eco_toon.gdshaderinc)
@@ -582,7 +567,7 @@ static func hold_name() -> String:
 
 
 static func _stim_stat(key: String, default: float) -> float:
-	if stim == "" or not allowed():
+	if stim == "":
 		return default
 	return float(STIMS[stim].get(key, default))
 
@@ -594,9 +579,9 @@ static func speed_scale() -> float:
 	return _stim_stat("speed", 1.0) * (WITHDRAWAL_SPEED if in_withdrawal() else 1.0)
 
 
-## A run at full Hold with no Hush in her (0 under Teen).
+## A run at full Hold with no Hush in her.
 static func in_withdrawal() -> bool:
-	return withdrawal and allowed()
+	return withdrawal
 
 
 ## Health regen multiplier (smoking slows it).
@@ -618,7 +603,7 @@ static func haze() -> float:
 	var h := effect()
 	if crashing():
 		h = maxf(h, CRASH_HAZE * crash_left / CRASH_TIME + 0.1)
-	if entranced and allowed():
+	if entranced:
 		h = maxf(h, 0.35)
 	if in_withdrawal():
 		h = maxf(h, WITHDRAWAL_HAZE)
@@ -665,7 +650,7 @@ static func open(path: String) -> void:
 		smokes = cfg.get_value("vices", "smokes", 0)
 		belt = cfg.get_value("vices", "belt", []).filter(func(id): return STIMS.has(id))
 		dependence = cfg.get_value("vices", "dependence", 0.0)
-		if allowed() and ((hold >= TRANCE_HOLD and not hush_finish) or (hold >= MAX_HOLD and not hush_suit)):
+		if (hold >= TRANCE_HOLD and not hush_finish) or (hold >= MAX_HOLD and not hush_suit):
 			reward_check()  # a save from before his gifts
 
 
@@ -688,9 +673,9 @@ static func save() -> void:
 
 
 ## How drunk she is for the effects, 0..1, eased in so one lager is a light
-## haze and four drinks is hard going. 0 under Teen.
+## haze and four drinks is hard going.
 static func effect() -> float:
-	if buzz <= 0.0 or not allowed():
+	if buzz <= 0.0:
 		return 0.0
 	var t := clampf(buzz / FULL_BUZZ, 0.0, 1.0)
 	return t * (0.6 + 0.4 * t)
@@ -736,7 +721,7 @@ static func state_name() -> String:
 		out.append("Smoking")
 	if hush() > 0.0:
 		out.append("Hushed")
-	if stim != "" and allowed():
+	if stim != "":
 		out.append("%s %ds" % [stim_name(stim), ceili(stim_left)])
 	elif crashing():
 		out.append("Crashing")
@@ -747,10 +732,8 @@ static func state_name() -> String:
 	return "  ".join(out)
 
 
-## What she's got on her for the HUD: "" under Teen or when she carries nothing.
+## What she's got on her for the HUD: "" when she carries nothing.
 static func pockets_text() -> String:
-	if not allowed():
-		return ""
 	var out := []
 	if smokes > 0:
 		out.append("[B] smoke x%d" % smokes)

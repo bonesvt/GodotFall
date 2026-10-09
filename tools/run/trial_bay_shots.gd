@@ -7,7 +7,6 @@ extends SceneTree
 ## Needs a renderer (not --headless). Writes <out_dir>/trial_bay.png.
 
 const HoldingCell := preload("res://scripts/run/holding_cell.gd")
-const ContentRating := preload("res://scripts/radio/content_rating.gd")
 const CELL := Vector2i(960, 540)
 
 var out := "user://trial_bay_shots"
@@ -20,7 +19,6 @@ func _initialize() -> void:
 	for a in OS.get_cmdline_user_args():
 		out = a
 	DirAccess.make_dir_recursive_absolute(out)
-	ContentRating.set_rating("M", false)
 	_go.call_deferred()
 
 

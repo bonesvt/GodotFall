@@ -9,8 +9,7 @@ extends RefCounted
 ##     get into. While his Hold is shallow (OWN_ROOM_BELOW) she makes it there
 ##     and wakes up locked in, safe; deeper, she wakes in his armchair.
 ## The basement is a sealed room built under the town (BASEMENT), so it never
-## shows from the street. Under Teen the alley is empty talk and the cellar
-## door stays chained (the run manager checks the rating).
+## shows from the street.
 ## Marrow is a shadow man (figure(), tools/hub/build_marrow.py).
 
 const K := preload("res://scripts/hub/hub_kit.gd")

@@ -4,12 +4,11 @@ extends SceneTree
 ## health, violet glass in her shader); his orders in her ear (tether.gd),
 ## paid when she obeys and punished when she doesn't; the Chorus dosing the
 ## townsfolk, his ledger and vats, and holding out against him to break it
-## (chorus_scene.gd). Teen sees none of it.
+## (chorus_scene.gd).
 ##   godot --headless --path . -s res://tests/glass_test.gd
 
 const Vices := preload("res://scripts/hub/vices.gd")
 const Glass := preload("res://scripts/hub/glass.gd")
-const ContentRating := preload("res://scripts/radio/content_rating.gd")
 
 var run_node: Node
 var player: CharacterBody3D
@@ -18,7 +17,6 @@ var failures := 0
 
 func _initialize() -> void:
 	preload("res://scripts/run/tutorial.gd").settings_path = "user://test_settings.cfg"
-	ContentRating.set_rating("M", false)
 	run_node = load("res://scenes/run.tscn").instantiate()
 	run_node.run_seed = 7
 	run_node.armory_path = "user://test_glass_armory.cfg"
@@ -39,9 +37,6 @@ func _run() -> void:
 	_check("no Glass for a taste of Hush", not Glass.on_sale(), Vices.hold)
 	Vices.hold = Vices.TRANCE_HOLD
 	_check("on sale once he's got her", Glass.on_sale(), Vices.hold)
-	ContentRating.set_rating("T", false)
-	_check("Teen: never", not Glass.on_sale() and Glass.look() == 0.0 and Glass.health_scale() == 1.0, "")
-	ContentRating.set_rating("M", false)
 
 	# Buying at his screen.
 	armory.stash["scrap"] = 500

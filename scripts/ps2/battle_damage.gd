@@ -7,12 +7,9 @@ extends RefCounted
 ## first-person arms, her shadow), pushed to shader globals that her toon
 ## shader compares with the maps tools/eco/bake_damage.py baked
 ## (assets/shaders/eco_toon.gdshaderinc, damage_kind): each texel turns at
-## its own level, so the damage spreads as the level rises. Grime and scuffs
-## show under either content rating; the torn and worn-through suit and cuts
-## only under Mature (content_rating.gd). The Battle damage setting (Game tab)
-## turns it all off.
+## its own level, so the damage spreads as the level rises. The Battle damage
+## setting (Game tab) turns it all off.
 
-const ContentRating := preload("res://scripts/radio/content_rating.gd")
 const Prefs := preload("res://scripts/game/prefs.gd")
 const PlayerState := preload("res://scripts/ps2/eco_model.gd").PlayerState
 
@@ -91,17 +88,16 @@ static func tick(delta: float, player: Node) -> void:
 		add(WALLRUN, delta)
 
 
-## The levels drawn now: nothing with the setting off, no tears or cuts in Teen.
+## The levels drawn now: nothing with the setting off.
 static func shown() -> Vector4:
 	if not Prefs.battle_damage():
 		return Vector4.ZERO
-	var mature := ContentRating.current() == "M"
-	return Vector4(grime, scuffs, tears if mature else 0.0, scars if mature else 0.0)
+	return Vector4(grime, scuffs, tears, scars)
 
 
-## How far sliding has worn her suit through, as drawn now (Mature only).
+## How far sliding has worn her suit through, as drawn now.
 static func shown_slide() -> float:
-	return slide if Prefs.battle_damage() and ContentRating.current() == "M" else 0.0
+	return slide if Prefs.battle_damage() else 0.0
 
 
 ## Pushes the levels to the shader globals (cheap to call every frame: only

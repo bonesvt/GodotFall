@@ -6,7 +6,6 @@ extends SceneTree
 ##   godot --headless --path . --audio-driver Dummy -s res://tests/fp_gear_test.gd
 
 const Hymn := preload("res://scripts/hub/hymn.gd")
-const ContentRating := preload("res://scripts/radio/content_rating.gd")
 const EcoArms := preload("res://scripts/eco_fp_arms.gd")
 const EcoBody := preload("res://scripts/eco_fp_body.gd")
 
@@ -15,7 +14,6 @@ var failures := 0
 
 func _initialize() -> void:
 	preload("res://scripts/run/tutorial.gd").settings_path = "user://test_settings.cfg"
-	ContentRating.set_rating("M", false)
 	Hymn.gear = ["headphones", "cuff", "visor", "bridge", "gloves", "spine"]
 	_run.call_deferred()
 

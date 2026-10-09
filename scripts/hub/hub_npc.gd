@@ -24,20 +24,19 @@ const MAX_TURN := 60.0
 const OUTFITS := {"ophelia": ["tee", "hoodie", "night"], "mom": ["home", "night"]}
 ## Outfits only worn on missions, never picked for the hub (Ophelia's
 ## detainee rags, and the colony's torn intake suit she wears in Level 2's
-## Hymn trial bay, "colony" for Teen and "colony_m" for Mature):
+## Hymn trial bay, "colony_m"):
 ## body_<outfit>.png too. An outfit can bring its own face (face_<outfit>.png:
 ## the ruined make-up) and hair blend shape (MESS: frizzed from the fight).
-const MISSION_OUTFITS := {"ophelia": ["prison", "colony", "colony_m", "upset", "clingy", "obsessed"]}
+const MISSION_OUTFITS := {"ophelia": ["prison", "colony_m", "upset", "clingy", "obsessed"]}
 ## Outfits worn barefoot or in socks: the boots come off.
-const NO_BOOTS := ["night", "prison", "colony", "colony_m"]
+const NO_BOOTS := ["night", "prison", "colony_m"]
 ## The hair blend shape an outfit turns on (tools/npc/build_npc.py mess_colony()).
-const MESS := {"colony": "mess_colony", "colony_m": "mess_colony"}
+const MESS := {"colony_m": "mess_colony"}
 
 const NpcSprings := preload("res://scripts/hub/npc_springs.gd")
 const Hair := preload("res://scripts/hub/hair.gd")
 const NpcIdles := preload("res://scripts/hub/npc_idles.gd")
 const Wardrobe := preload("res://scripts/hub/wardrobe.gd")
-const ContentRating := preload("res://scripts/radio/content_rating.gd")
 
 var who := ""
 var outfit := ""
@@ -53,8 +52,6 @@ var max_turn := MAX_TURN
 var _anim: AnimationPlayer
 var _mouth: Array = []   # [[MeshInstance3D, blend shape index]]
 var _t := 0.0
-## The content rating the meshes were last shown for (the O key can change it in the hub).
-var _rating_seen := ""
 ## The face mood on now ("" plain), how red the cheeks are (0..1, fading on
 ## its own), and the head gesture with how long it has run.
 ## Holding one of their poses (npc_idles.gd): they don't turn on the spot
@@ -328,24 +325,18 @@ func _dress_face(p_outfit: String) -> void:
 
 ## Shows an outfit's own meshes (Outfit_<outfit>_*: Mom's nightgown,
 ## Ophelia's pajama legs) and hides every other outfit's, and the boots when
-## the outfit has none. Ophelia's piercings ("Piercings") show only with the
-## content rating on Mature (or above), and never in a mission outfit.
+## the outfit has none. Ophelia's piercings ("Piercings") never show in a
+## mission outfit.
 func _dress_meshes(p_outfit: String) -> void:
-	_rating_seen = ContentRating.current()
 	for mi in find_children("*", "MeshInstance3D", true, false):
 		var n := String(mi.name)
 		if n.begins_with("Piercings"):
 			# never on a captive (mission outfits): nothing on her chest shows through
-			mi.visible = mature() and not MISSION_OUTFITS.get(who, []).has(p_outfit)
+			mi.visible = not MISSION_OUTFITS.get(who, []).has(p_outfit)
 		elif n.begins_with("Outfit_"):
 			mi.visible = n.begins_with("Outfit_%s_" % p_outfit)
 		elif n.begins_with("Boots"):
 			mi.visible = not p_outfit in NO_BOOTS
-
-
-## Whether the content rating lets mature details show (anything above Teen).
-static func mature() -> bool:
-	return not ContentRating.current() in ["E", "T"]
 
 
 func say(stream: AudioStream) -> void:
@@ -365,8 +356,6 @@ func hush() -> void:
 
 
 func _process(delta: float) -> void:
-	if _rating_seen != ContentRating.current():
-		_dress_meshes(outfit if outfit != "" else OUTFITS.get(who, [""])[0])
 	_t += delta
 	# Turn toward Eco when she's close, back to their spot when she leaves.
 	var want := home_yaw
