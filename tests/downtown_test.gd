@@ -148,8 +148,9 @@ func _run() -> void:
 
 	# What the rooms are for, lying about to be read (nothing shown), and
 	# Pip talking about them at her spots there (Mature only, like the rooms).
+	var words := Below.hint_lines()
 	for h in Below.HINTS:
-		_check("something to read: %s" % h[0], h[0] in ids, "")
+		_check("something to read: %s" % h[0], h[0] in ids and not words.get(h[0], []).is_empty(), words.get(h[0], []).size())
 	var cut := NpcTalk.parse(FileAccess.get_file_as_string("res://dialogue/npc/pip_M.txt"))
 	_check("Pip talks about the rooms and the high rollers' room", cut["spot"].has("rooms") and cut["spot"].has("high_rollers"), cut["spot"].keys())
 	var plain := NpcTalk.parse(FileAccess.get_file_as_string("res://dialogue/npc/pip.txt"))

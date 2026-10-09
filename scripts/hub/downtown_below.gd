@@ -61,74 +61,34 @@ const DIRT_ORDER := ["mirror", "guestbook", "reels", "markers", "safe", "chair"]
 
 ## What the rooms are for, said plainly by what's lying about (nothing is
 ## ever shown: the rooms are empty after hours). Not dirt, just looking:
-## [id, room ("under" or "high"), offset from its origin, prompt, lines in turn].
+## [id, room ("under", "high" or "dress"), offset from its origin, prompt].
+## The words are in HINT_TEXT, one reading a line under each [id], so they
+## can be edited without touching code.
+const HINT_TEXT := "res://dialogue/town/downtown_below.txt"
 const HINTS := [
-	["rate_board", "under", Vector3(-4.4, 0, -1.0), "[F] The board by the stairs", [
-		"A chalkboard by the stairs. ROOMS BY THE HOUR. ALL NIGHT ON REQUEST. COMPANY ARRANGED AT THE BAR. Someone has drawn a little heart next to 'company'.",
-		"Under the prices, in Pip's handwriting: 'No names at the door. Names cost extra.'"]],
-	["timers", "under", Vector3(-2.8, 0, -0.9), "[F] The desk with the timers", [
-		"Three egg timers on a little desk, one for each room. When one rings, somebody knocks twice. After that Pip charges by the quarter hour.",
-		"A notepad by the timers: 'Lt. Varga, red room, two hours. Asked for Liesl again. Liesl says no more.' Pip has underlined it twice."]],
-	["foil_bowl", "under", Vector3(0.9, 0, 0.9), "[F] A bowl by the door", [
-		"A glass bowl by every door, full of little foil packets. Restocked every night, the way a hotel leaves mints on the pillow.",
-		"Eco leaves them exactly where they are and decides she was never here."]],
-	["linen_cart", "under", Vector3(2.2, 0, -0.8), "[F] The laundry cart", [
-		"A laundry cart heaped with sheets, none of them clean. The rooms are changed between guests. That's a lot of guests for one night.",
-		"There's a lipstick kiss on a pillowcase. Not Pip's shade."]],
-	["door_tags", "under", Vector3(4.0, 0, 0.9), "[F] The tags on the handles", [
-		"Each door has a tag on its handle: VACANT on one side, a red silk tassel on the other. Tassel out means don't knock, whatever you hear.",
-		"The blue room's tassel is out. Nobody's in there. Somebody paid for it anyway, so nobody else can be."]],
+	["rate_board", "under", Vector3(-4.4, 0, -1.0), "[F] The board by the stairs"],
+	["timers", "under", Vector3(-2.8, 0, -0.9), "[F] The desk with the timers"],
+	["foil_bowl", "under", Vector3(0.9, 0, 0.9), "[F] A bowl by the door"],
+	["linen_cart", "under", Vector3(2.2, 0, -0.8), "[F] The laundry cart"],
+	["door_tags", "under", Vector3(4.0, 0, 0.9), "[F] The tags on the handles"],
 	# a guest's review pinned inside each room's door, and the replies under it
-	["review_red", "under", Vector3(-5.3, 0, 1.5), "[F] A comment card by the door", [
-		"A comment card, red room: 'Five stars. Paid for an hour, got my money's worth twice. She didn't laugh at me once, and I gave her plenty of reasons to. Back Thursday. The wife thinks I'm on patrol.' Signed 'A Grateful Sergeant'.",
-		"Under it, another hand: 'Bed creaks. Loudly. Rhythmically. The whole corridor knew.' Under that, in Pip's: 'The bed creaks so the lady with the timers knows you're still alive. Judging by the noise, you were very alive. Working as intended.'"]],
-	["review_violet", "under", Vector3(-1.3, 0, 1.5), "[F] A comment card by the door", [
-		"A comment card, violet room: 'Four stars. Lovely lighting, very forgiving, and she was more than worth the price. One star off because somebody knocked twice right at the best part.' Pip, underneath: 'That was the timer, sir. You were forty minutes over. The best part is billed by the quarter hour.'",
-		"Another: 'Booked the all-night rate with two of the women from the bar. Got no sleep whatsoever. Couldn't walk straight to muster. Worth every scrap.' No name, just a captain's pin pushed through the card."]],
-	["review_blue", "under", Vector3(2.7, 0, 1.5), "[F] A comment card by the door", [
-		"A comment card, blue room: 'Three stars. The walls aren't as thick as advertised. Neither of us was quiet, and the room next door sent a note asking us to keep it down.' Pip, below: 'You got two notes. The second one asked if you take bookings.'",
-		"Another, in very careful handwriting: 'My first time down here. My first time anywhere, if I'm honest. She was patient, and kind, and showed me what I'd been doing wrong. Thank you, Vell.' Pip has added: 'Vell says you're welcome, and that it was nothing she hadn't fixed before. Vell also says tip.'"]],
+	["review_red", "under", Vector3(-5.3, 0, 1.5), "[F] A comment card by the door"],
+	["review_violet", "under", Vector3(-1.3, 0, 1.5), "[F] A comment card by the door"],
+	["review_blue", "under", Vector3(2.7, 0, 1.5), "[F] A comment card by the door"],
 	# the dressing room: the women who work down here, in their own words
-	["staff_rules", "dress", Vector3(-1.5, 0, -2.5), "[F] The board on the wall", [
-		"PIP'S RULES FOR STAFF, in her hand. You choose who, and you can change your mind at any point. Cash before the door shuts. Anyone who argues meets Tomas in the alley. Nobody leaves with a guest. Ever. I walk you home if you ask.",
-		"A pay sheet pinned under it: the house keeps thirty in every hundred. Someone has written 'The Velvet Ace takes sixty off its dealers.' Someone else has added '...and doesn't walk them home.'"]],
-	["staff_vell", "dress", Vector3(0.5, 0, 2.2), "[F] Lipstick on the mirror", [
-		"Lipstick on the mirror, Vell's: 'JOB REVIEW. Four stars. Pay's good, the boss is terrifying, the beds are nicer than mine. One star off for the captain: pays for two hours, needs ten minutes, spends the rest talking about his mother.'",
-		"Under it, in another colour: 'He tips double if you let him finish the story about his mother. L.'"]],
-	["staff_liesl", "dress", Vector3(-2.2, 0, 2.2), "[F] A card in the mirror frame", [
-		"A card in a mirror frame, Liesl's: 'Three stars this month. Varga keeps asking for me. Told Pip I'm done with him. She didn't argue. She moved him to the blue room, tripled his rate and sent Dove in, and Dove charges him extra every time he says my name.'",
-		"Dove's reply, below: 'Eleven times on Thursday. Bought new shoes. Thanks, Varga.'"]],
-	["staff_dove", "dress", Vector3(0.0, 0, -1.6), "[F] A note on the couch", [
-		"A note on a couch cushion, Dove's: 'Five stars. Best-paid job in the valley that doesn't come with a gun. The men think they're paying for us. They're paying Pip for what they say while they're with us. We just listen, and smile, and remember.'",
-		"Folded in with it: a list of officers and what each one let slip, between one thing and another. It goes to Pip on Fridays. That's the real job."]],
-	["staff_lockers", "dress", Vector3(3.2, 0, -1.8), "[F] The lockers", [
-		"Lockers with names on tape. One has a photo of a little boy taped inside the door, and a tally of scrap saved towards 'his school'. The tally is nearly at the bottom of the page.",
-		"Another has a colony recruitment notice taped up with a face circled. Next to it, in lipstick: 'NOT MY BROTHER. NOT EVER.'"]],
-	["staff_rack", "dress", Vector3(-3.2, 0, -0.4), "[F] The costume rack", [
-		"A rack of costumes. A lot of them are colony dress uniforms, every rank, perfectly pressed. The officers love the uniforms. The women find that very funny.",
-		"A tag on the captain's-rank jacket: 'For the captain. He likes being the one taking orders, for once.'"]],
-	["staff_kettle", "dress", Vector3(1.8, 0, -2.3), "[F] The table with the kettle", [
-		"A kettle, a tin of the good tea, a first aid kit, ice packs for sore feet, and a jar of hand cream with a note: 'You're all worth more than they pay. Keep your hands soft and your rates high. P.'",
-		"A rota under the kettle: who's on, who's off, who's walking whom home. 'P' is down for every night."]],
+	["staff_rules", "dress", Vector3(-1.5, 0, -2.5), "[F] The board on the wall"],
+	["staff_vell", "dress", Vector3(0.5, 0, 2.2), "[F] Lipstick on the mirror"],
+	["staff_liesl", "dress", Vector3(-2.2, 0, 2.2), "[F] A card in the mirror frame"],
+	["staff_dove", "dress", Vector3(0.0, 0, -1.6), "[F] A note on the couch"],
+	["staff_lockers", "dress", Vector3(3.2, 0, -1.8), "[F] The lockers"],
+	["staff_rack", "dress", Vector3(-3.2, 0, -0.4), "[F] The costume rack"],
+	["staff_kettle", "dress", Vector3(1.8, 0, -2.3), "[F] The table with the kettle"],
 	# Pip herself: the one thing in the house that isn't on the menu
-	["pip_card", "high", Vector3(2.8, 0, 1.3), "[F] A gold card on the stage steps", [
-		"A second card, gold on gold, one line long: THE HOUSE. One night with the woman who owns this room, the gold door locked till morning. Price: a sealed envelope. She opens it, she decides. Waiting list: closed.",
-		"Pinned behind it, in Pip's hand: 'Self-review. Five stars, obviously. I don't sell hours, I sell nights, and I decide when the night's over. Dinner first. They talk, I listen, and by dessert they'd sign anything. Then I take them upstairs and make them forget they did. Nobody has ever asked for a refund. Nobody has ever been able to walk straight enough to ask. P.'"]],
-	["pip_book", "high", Vector3(3.5, 0, -1.6), "[F] The leather book on the bar", [
-		"A leather book on the bar: GUESTS OF THE HOUSE. A colonel: 'Sold my second titan to afford one night. I'd sell the first. She had my secrets before the door shut and everything else by midnight. Woke up with her lipstick in places I had to explain to my batman. Five stars.'",
-		"A quartermaster: 'Four stars. She made me wait three months for the booking, then all evening for the bedroom, then made me ask nicely. Twice. Once we got there, she didn't make me wait at all. Lost a star for the bruise on my pride. Gained one somewhere else.'",
-		"A trader from the coast: 'Paid in pearls. She weighed them in front of me, then took the rest of the night weighing me. Left at dawn with nothing: not my money, not my secrets, not my shirt, which she kept. Already saving for next year. Five stars.'",
-		"The recruiters' captain: 'One star. She took my letter, my career and my evening, in that order, and then she took her time with the rest of me, smiling the whole way. Would book again.' Pip, underneath: 'He has. Spring.'",
-		"Unsigned, in a shaky hand: 'I remember candlelight, and her hair coming down, and her telling me exactly what to do, slowly, and then not having to tell me anything at all. I didn't sleep. I didn't want to. Five stars. Ten, if she'd let me.'"]],
-	["stage_card", "high", Vector3(-2.8, 0, 1.3), "[F] A card on the stage steps", [
-		"A price list for the stage, gold on black. A DANCE. A PRIVATE DANCE. THE GOLD DOOR, CLOSED. The last line has no price. You ask Pip.",
-		"On the back, small: 'Dancers choose. Guests who argue leave by the alley, and they don't come back down.'"]],
-	["tip_glass", "high", Vector3(1.0, 0, 1.3), "[F] The glass by the middle pole", [
-		"A brandy glass stuffed with folded scrip by the middle pole. Rank pins are pushed through some of the notes, so the dancers know exactly who tipped.",
-		"Most of the pins are officers'. The biggest wad has the recruiters' captain's pin through it."]],
-	["house_rules", "high", Vector3(-1.2, 0, -3.5), "[F] The plaque by the door", [
-		"A brass plaque by the door. HOUSE RULES: Look all you like. Touch only what you've paid for. What happens here, the house remembers.",
-		"The last rule is newer than the others. The brass is shinier."]],
+	["pip_card", "high", Vector3(2.8, 0, 1.3), "[F] A gold card on the stage steps"],
+	["pip_book", "high", Vector3(3.5, 0, -1.6), "[F] The leather book on the bar"],
+	["stage_card", "high", Vector3(-2.8, 0, 1.3), "[F] A card on the stage steps"],
+	["tip_glass", "high", Vector3(1.0, 0, 1.3), "[F] The glass by the middle pole"],
+	["house_rules", "high", Vector3(-1.2, 0, -3.5), "[F] The plaque by the door"],
 ]
 ## Eco, once she's found all of it.
 const ALL_FOUND := "Eco thought her sister sold secrets. She doesn't. She makes them: she builds rooms for men to be weak in, and keeps the receipts."
@@ -295,8 +255,29 @@ static func _dressing(root: Node3D, info: Dictionary) -> void:
 	info["interactables"].back()["teleport"] = STAGE_DOOR + Vector3(0.9, 0, 0)
 
 
+## HINT_TEXT read as {id: [lines]}: "[id]" starts a hint, each line under it
+## is one reading, "#" lines are notes.
+static func hint_lines() -> Dictionary:
+	var out := {}
+	var cur := ""
+	var f := FileAccess.open(HINT_TEXT, FileAccess.READ)
+	if f == null:
+		return out
+	for raw in f.get_as_text().split("\n"):
+		var line := raw.strip_edges()
+		if line == "" or line.begins_with("#"):
+			continue
+		if line.begins_with("[") and line.ends_with("]"):
+			cur = line.substr(1, line.length() - 2).strip_edges()
+			out[cur] = []
+		elif cur != "":
+			out[cur].append(line)
+	return out
+
+
 ## The things lying about (HINTS), each something small to look at.
 static func _hints(root: Node3D, info: Dictionary) -> void:
+	var words := hint_lines()
 	for h in HINTS:
 		var at: Vector3 = {"under": UNDER, "high": HIGH, "dress": DRESSING}[h[1]] + h[2]
 		match h[0]:
@@ -338,7 +319,11 @@ static func _hints(root: Node3D, info: Dictionary) -> void:
 				K.mesh(root, at + Vector3(0, 0.58, 0.35), Vector3(0.14, 0.16, 0.14), Art.material("alloy", Color(0.85, 0.9, 0.95)))
 			"house_rules":
 				K.glow(root, at + Vector3(0, 1.5, 0.08), Vector3(0.5, 0.3, 0.02), GOLD * 0.9)
-		K.interactable(info, h[0], at, h[3], h[4], 1.6)
+		var lines: Array = words.get(h[0], [])
+		if lines.is_empty():
+			push_warning("%s: no lines for [%s]" % [HINT_TEXT, h[0]])
+			lines = ["..."]
+		K.interactable(info, h[0], at, h[3], lines, 1.6)
 
 
 const MAGENTA_SOFT := Color(1.0, 0.35, 0.7)
