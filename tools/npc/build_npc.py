@@ -43,6 +43,7 @@ EXPORT = "--no-export" not in argv
 WALK = "--walk" in argv
 # --shots face,front: only those concept shots, first outfit only (a quick look)
 SHOTS = argv[argv.index("--shots") + 1].split(",") if "--shots" in argv else []
+FACE_VARIANTS = argv[argv.index("--face-variants") + 1] if "--face-variants" in argv else None
 # pip's concept looks (boss, club, shark); the game's is boss
 LOOK = argv[argv.index("--look") + 1] if "--look" in argv else "boss"
 
@@ -95,7 +96,7 @@ SPEC = {
         # a head taller than Eco (1.69), long-legged: she looks down at her sister
         "height": 1.82, "head": 0.91, "legs": 1.08,
         # cocky and amused: lids relaxed, a closed-lip smirk, knows what she's worth
-        "face": {"Fcl_BRW_Angry": 0.12, "Fcl_BRW_Fun": 0.2, "Fcl_EYE_Angry": 0.15, "Fcl_EYE_Fun": 0.28, "Fcl_MTH_Fun": 0.2, "Pip_Smirk": 1.0, "Fcl_MTH_Close": 0.5},
+        "face": {"Fcl_BRW_Angry": 0.12, "Fcl_BRW_Fun": 0.2, "Fcl_EYE_Angry": 0.15, "Fcl_EYE_Fun": 0.28, "Fcl_MTH_Fun": 0.25, "Pip_Smirk": 0.45, "Pip_SmirkEye": 0.35, "Fcl_MTH_Close": 0.5},
         # the family red, deeper and cooler: wine
         "hair": [(0.30, (0.022, 0.001, 0.007)), (0.62, (0.10, 0.006, 0.022)),
                  (0.86, (0.24, 0.025, 0.055)), (1.0, (0.5, 0.17, 0.22))],
@@ -343,6 +344,12 @@ def smirk(face, side=-1, k=1.6):
         r2 = ((p.x * side - 0.019) ** 2 + (p.z - 1.241) ** 2) / (2 * 0.009 ** 2)
         c = math.exp(-r2) * smooth(-0.02, -0.035, p.y) if p.x * side > 0 else 0.0
         sk.data[i].co = p + (fun.data[i].co - p) * k * w + Vector((0.002 * side, 0.0015, 0.0055)) * c
+    # the eye over that corner narrows with it (Pip_SmirkEye): Fcl_EYE_Fun, that side only
+    eye = keys["Fcl_EYE_Fun"]
+    sk = face.shape_key_add(name="Pip_SmirkEye", from_mix=False)
+    for i, b in enumerate(basis.data):
+        w = smooth(-0.004, 0.012, b.co.x * side)
+        sk.data[i].co = b.co + (eye.data[i].co - b.co) * w
 
 
 def face_biggie():
@@ -2489,6 +2496,14 @@ def concept(arm, objs):
     dress(OUTFITS.get(WHO, ["default"])[0])
     for shot in shots:
         shoot(*shot, CONCEPT)
+    if FACE_VARIANTS:   # --face-variants a.json: [{shape: value}, ...], each a face close-up over SPEC's face
+        import json
+        for j, extra in enumerate(json.load(open(FACE_VARIANTS))):
+            for k, v in list(SPEC["face"].items()) + list(extra.items()):
+                face.data.shape_keys.key_blocks[k].value = v
+            shoot(*next(sh for sh in shots if sh[0] == "face"), "%s_v%d" % (CONCEPT, j))
+            for k in extra:
+                face.data.shape_keys.key_blocks[k].value = SPEC["face"].get(k, 0.0)
     if WALK and "walk" in bpy.data.actions:   # --walk: the walk cycle, frame by frame, side on and from the front
         arm.animation_data.action = bpy.data.actions["walk"]
         n = int(bpy.data.actions["walk"].frame_range[1])
