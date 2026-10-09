@@ -570,9 +570,9 @@ def club(f, n):
     add(p, "forearm.L", Z, -62)
     # right: elbow on that arm, the glass in front of her chest, up to her lips for the sip
     add(p, "upperarm.R", X, 14 + 10 * sip)
-    add(p, "upperarm.R", Y, 4 - 8 * sip)
-    add(p, "forearm.R", X, 96 + 30 * sip)
-    add(p, "forearm.R", Z, 28 + 10 * sip)
+    add(p, "upperarm.R", Y, 4 + 6 * sip)
+    add(p, "forearm.R", X, 96 + 22 * sip)
+    add(p, "forearm.R", Z, 28 + 32 * sip)
     add(p, "hand.R", Z, -10 * wave(f, n, 2))   # the swirl
     p["_hips_loc"] = (-0.025, 0.0, -0.005)
     p["_grip"] = 1.3
