@@ -41,6 +41,8 @@ SRC, ROOT, WHO = argv[0], os.path.abspath(argv[1]), argv[2]   # Blender on Windo
 CONCEPT = argv[argv.index("--concept") + 1] if "--concept" in argv else None
 EXPORT = "--no-export" not in argv
 WALK = "--walk" in argv
+# --shots face,front: only those concept shots, first outfit only (a quick look)
+SHOTS = argv[argv.index("--shots") + 1].split(",") if "--shots" in argv else []
 # pip's concept looks (boss, club, shark); the game's is boss
 LOOK = argv[argv.index("--look") + 1] if "--look" in argv else "boss"
 
@@ -327,16 +329,20 @@ def face_pip():
     smirk(face)
 
 
-def smirk(face, side=1, k=1.35):
+def smirk(face, side=-1, k=1.6):
     """A one-sided smile (shape key Pip_Smirk): the preset's Fcl_MTH_Fun on
-    her left corner only (+X, she faces -Y here), pushed a little further,
-    fading out across the middle of her lips."""
+    her right corner only (-X, she faces -Y here: the side her head tilts
+    up), pushed further, fading out across the middle of her lips, and that
+    corner hitched well up and out into her cheek."""
     keys = face.data.shape_keys.key_blocks
     basis, fun = keys["Basis"], keys["Fcl_MTH_Fun"]
     sk = face.shape_key_add(name="Pip_Smirk", from_mix=False)
     for i, b in enumerate(basis.data):
-        w = smooth(-0.004, 0.012, b.co.x * side)
-        sk.data[i].co = b.co + (fun.data[i].co - b.co) * k * w
+        p = b.co
+        w = smooth(-0.004, 0.012, p.x * side)
+        r2 = ((p.x * side - 0.019) ** 2 + (p.z - 1.241) ** 2) / (2 * 0.009 ** 2)
+        c = math.exp(-r2) * smooth(-0.02, -0.035, p.y) if p.x * side > 0 else 0.0
+        sk.data[i].co = p + (fun.data[i].co - p) * k * w + Vector((0.002 * side, 0.0015, 0.0055)) * c
 
 
 def face_biggie():
@@ -2456,7 +2462,8 @@ def concept(arm, objs):
             ("q34", Vector((-0.55, 0.85, 0.07)), Vector((0, 0, H * 0.52)), 50, (800, 1300)),
             ("back", Vector((0.35, -0.94, 0.06)), Vector((0, 0, H * 0.52)), 50, (800, 1300)),
             ("face", Vector((-0.25, 1, -0.12 if WHO == "ophelia" else 0.02)), head + head_up * (0.085 * H / 1.66), 85, (1000, 1000))):
-        shots.append((name, d, at, lens, res))
+        if not SHOTS or name in SHOTS:
+            shots.append((name, d, at, lens, res))
 
     def shoot(name, d, at, lens, res, prefix):
         d = d.normalized()
@@ -2493,7 +2500,7 @@ def concept(arm, objs):
         sc.frame_set(0)
     # the other outfits: the body texture swapped, full-length shots only
     tex = next((n for n in bpy.data.materials["npc_%s_body" % WHO].node_tree.nodes if n.type == "TEX_IMAGE"), None)
-    for outfit in OUTFITS.get(WHO, [])[1:]:
+    for outfit in OUTFITS.get(WHO, [])[1:] if not SHOTS else []:
         dress(outfit)
         tex.image = bpy.data.images.load(os.path.join(TEX_OUT, "body_%s.png" % outfit))
         for shot in shots[:3]:
