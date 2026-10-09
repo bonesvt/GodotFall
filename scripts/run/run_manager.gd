@@ -133,6 +133,8 @@ const TELEPORT_LINES := {
 	"undertow_up": "Back up into the neon.",
 	"gold_door": "Gold door. Low light, slow music, nobody here yet.",
 	"gold_door_back": "Back to the corridor of rooms.",
+	"stage_door": "Staff only. Eco goes in anyway. Mirrors, bulbs, the smell of hairspray and cheap tea.",
+	"stage_door_back": "Back out past the poles.",
 	"physics_lab_exit": "Back up into the temple.",
 }
 ## Ophelia notices Eco slipping away while Marrow's Hold is deep (vices.gd).

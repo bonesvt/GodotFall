@@ -4,7 +4,9 @@ extends RefCounted
 ##   - a roped stair beside the Undertow's door, down to the Underfloor:
 ##     a corridor of private rooms with just a bed and mood lighting each,
 ##   - the gold door at the end of it, into the high rollers' room: a stage
-##     with poles, a private table, and Pip's chair watching all of it.
+##     with poles, a private table, and Pip's chair watching all of it,
+##   - the stage door beside it, into the dancers' dressing room, where the
+##     women who work down here leave notes for each other.
 ## Each room hides some of her DIRT: the rooms are how she gets leverage on
 ## the colony officers who use them. Found pieces are saved with the rest of
 ## Downtown (Downtown.find_dirt). Both rooms are sealed boxes built under the
@@ -33,6 +35,12 @@ const GOLD_DOOR_IN := UNDER + Vector3(5.5, 0, 0)
 const HIGH := Vector3(-80.0, -10.0, 275.0)
 const HIGH_SIZE := Vector3(10.0, 3.6, 8.0)
 const GOLD_DOOR_OUT := HIGH + Vector3(0, 0, -3.4)
+## The dancers' dressing room, through the stage door in the high rollers'
+## room's west wall (sealed, under the town; the doors teleport).
+const DRESSING := Vector3(-80.0, -10.0, 300.0)
+const DRESSING_SIZE := Vector3(8.0, 3.0, 6.0)
+const STAGE_DOOR := HIGH + Vector3(-4.5, 0, 0.9)
+const STAGE_DOOR_BACK := DRESSING + Vector3(3.5, 0, 0)
 
 ## Her dirt: where it's hidden, what Eco finds. In the order the rooms run.
 const DIRT := {
@@ -80,6 +88,28 @@ const HINTS := [
 	["review_blue", "under", Vector3(2.7, 0, 1.5), "[F] A comment card by the door", [
 		"A comment card, blue room: 'Three stars. The walls aren't as thick as advertised. Neither of us was quiet, and the room next door sent a note asking us to keep it down.' Pip, below: 'You got two notes. The second one asked if you take bookings.'",
 		"Another, in very careful handwriting: 'My first time down here. My first time anywhere, if I'm honest. She was patient, and kind, and showed me what I'd been doing wrong. Thank you, Vell.' Pip has added: 'Vell says you're welcome, and that it was nothing she hadn't fixed before. Vell also says tip.'"]],
+	# the dressing room: the women who work down here, in their own words
+	["staff_rules", "dress", Vector3(-1.5, 0, -2.5), "[F] The board on the wall", [
+		"PIP'S RULES FOR STAFF, in her hand. You choose who, and you can change your mind at any point. Cash before the door shuts. Anyone who argues meets Tomas in the alley. Nobody leaves with a guest. Ever. I walk you home if you ask.",
+		"A pay sheet pinned under it: the house keeps thirty in every hundred. Someone has written 'The Velvet Ace takes sixty off its dealers.' Someone else has added '...and doesn't walk them home.'"]],
+	["staff_vell", "dress", Vector3(0.5, 0, 2.2), "[F] Lipstick on the mirror", [
+		"Lipstick on the mirror, Vell's: 'JOB REVIEW. Four stars. Pay's good, the boss is terrifying, the beds are nicer than mine. One star off for the captain: pays for two hours, needs ten minutes, spends the rest talking about his mother.'",
+		"Under it, in another colour: 'He tips double if you let him finish the story about his mother. L.'"]],
+	["staff_liesl", "dress", Vector3(-2.2, 0, 2.2), "[F] A card in the mirror frame", [
+		"A card in a mirror frame, Liesl's: 'Three stars this month. Varga keeps asking for me. Told Pip I'm done with him. She didn't argue. She moved him to the blue room, tripled his rate and sent Dove in, and Dove charges him extra every time he says my name.'",
+		"Dove's reply, below: 'Eleven times on Thursday. Bought new shoes. Thanks, Varga.'"]],
+	["staff_dove", "dress", Vector3(0.0, 0, -1.6), "[F] A note on the couch", [
+		"A note on a couch cushion, Dove's: 'Five stars. Best-paid job in the valley that doesn't come with a gun. The men think they're paying for us. They're paying Pip for what they say while they're with us. We just listen, and smile, and remember.'",
+		"Folded in with it: a list of officers and what each one let slip, between one thing and another. It goes to Pip on Fridays. That's the real job."]],
+	["staff_lockers", "dress", Vector3(3.2, 0, -1.8), "[F] The lockers", [
+		"Lockers with names on tape. One has a photo of a little boy taped inside the door, and a tally of scrap saved towards 'his school'. The tally is nearly at the bottom of the page.",
+		"Another has a colony recruitment notice taped up with a face circled. Next to it, in lipstick: 'NOT MY BROTHER. NOT EVER.'"]],
+	["staff_rack", "dress", Vector3(-3.2, 0, -0.4), "[F] The costume rack", [
+		"A rack of costumes. A lot of them are colony dress uniforms, every rank, perfectly pressed. The officers love the uniforms. The women find that very funny.",
+		"A tag on the captain's-rank jacket: 'For the captain. He likes being the one taking orders, for once.'"]],
+	["staff_kettle", "dress", Vector3(1.8, 0, -2.3), "[F] The table with the kettle", [
+		"A kettle, a tin of the good tea, a first aid kit, ice packs for sore feet, and a jar of hand cream with a note: 'You're all worth more than they pay. Keep your hands soft and your rates high. P.'",
+		"A rota under the kettle: who's on, who's off, who's walking whom home. 'P' is down for every night."]],
 	["stage_card", "high", Vector3(-2.8, 0, 1.3), "[F] A card on the stage steps", [
 		"A price list for the stage, gold on black. A DANCE. A PRIVATE DANCE. THE GOLD DOOR, CLOSED. The last line has no price. You ask Pip.",
 		"On the back, small: 'Dancers choose. Guests who argue leave by the alley, and they don't come back down.'"]],
@@ -101,6 +131,7 @@ static func build(root: Node3D, info: Dictionary) -> void:
 	_rope(below, info)
 	_underfloor(below, info)
 	_high_rollers(below, info)
+	_dressing(below, info)
 	_hints(below, info)
 
 
@@ -224,10 +255,40 @@ static func _high_rollers(root: Node3D, info: Dictionary) -> void:
 	info["interactables"].back()["teleport"] = GOLD_DOOR_IN + Vector3(-0.9, 0, 0)
 
 
+## The dancers' dressing room behind the stage: a row of mirrors ringed with
+## bulbs, a couch, the stage door back. Empty after hours, like the rest.
+static func _dressing(root: Node3D, info: Dictionary) -> void:
+	var d := DRESSING
+	_box(root, d, DRESSING_SIZE, Color(0.2, 0.12, 0.14))
+	K.mesh(root, d + Vector3(0, 0.02, 0), Vector3(DRESSING_SIZE.x - 0.2, 0.03, DRESSING_SIZE.z - 0.2), Art.material("wood", Color(0.3, 0.2, 0.15)))
+	# the mirrors along the north wall
+	K.mesh(root, d + Vector3(-1.0, 0.75, 2.6), Vector3(5.0, 0.08, 0.6), Art.material("wood", Color(0.35, 0.22, 0.18)))
+	K.mesh(root, d + Vector3(-1.0, 0.37, 2.6), Vector3(5.0, 0.74, 0.5), Art.material("wood", Color(0.25, 0.15, 0.12)))
+	for k in 4:
+		var x := -3.0 + k * 1.3
+		K.mesh(root, d + Vector3(x, 1.55, 2.94), Vector3(1.0, 0.9, 0.03), Art.material("alloy", Color(0.75, 0.78, 0.85)))
+		for b in 5:
+			K.glow(root, d + Vector3(x - 0.5 + b * 0.25, 2.05, 2.9), Vector3(0.06, 0.06, 0.06), Color(1.0, 0.9, 0.7) * 1.6)
+		K.mesh(root, d + Vector3(x, 0.45, 2.0), Vector3(0.4, 0.45, 0.4), Art.material("fabric", Color(0.5, 0.1, 0.2)))
+	K.light(root, d + Vector3(-1.0, 2.2, 2.0), Color(1.0, 0.85, 0.65), 0.9, 5.0)
+	# the couch
+	K.mesh(root, d + Vector3(0, 0.25, -2.3), Vector3(2.0, 0.5, 0.8), Art.material("fabric", Color(0.35, 0.18, 0.3)))
+	K.mesh(root, d + Vector3(0, 0.65, -2.65), Vector3(2.0, 0.6, 0.15), Art.material("fabric", Color(0.35, 0.18, 0.3)))
+	K.light(root, d + Vector3(0, 2.2, -1.5), Color(1.0, 0.7, 0.6), 0.6, 4.0)
+	# the stage doors, both ways
+	K.mesh(root, STAGE_DOOR + Vector3(-0.42, 1.1, 0), Vector3(0.08, 2.2, 1.0), Art.material("wood", Color(0.12, 0.08, 0.08)))
+	K.glow(root, STAGE_DOOR + Vector3(-0.38, 2.3, 0), Vector3(0.03, 0.08, 0.6), RED)
+	K.interactable(info, "stage_door", STAGE_DOOR, "[F] The stage door", ["STAFF ONLY, on a door beside the stage."], 1.8)
+	info["interactables"].back()["teleport"] = STAGE_DOOR_BACK + Vector3(-0.9, 0, 0)
+	K.mesh(root, STAGE_DOOR_BACK + Vector3(0.42, 1.1, 0), Vector3(0.08, 2.2, 1.0), Art.material("wood", Color(0.12, 0.08, 0.08)))
+	K.interactable(info, "stage_door_back", STAGE_DOOR_BACK, "[F] Back out to the stage", ["The high rollers' room."], 1.8)
+	info["interactables"].back()["teleport"] = STAGE_DOOR + Vector3(0.9, 0, 0)
+
+
 ## The things lying about (HINTS), each something small to look at.
 static func _hints(root: Node3D, info: Dictionary) -> void:
 	for h in HINTS:
-		var at: Vector3 = (UNDER if h[1] == "under" else HIGH) + h[2]
+		var at: Vector3 = {"under": UNDER, "high": HIGH, "dress": DRESSING}[h[1]] + h[2]
 		match h[0]:
 			"rate_board":
 				K.mesh(root, at + Vector3(0, 1.4, -0.15), Vector3(0.9, 0.6, 0.04), Art.material("canvas", Color(0.08, 0.1, 0.09)))
@@ -245,6 +306,18 @@ static func _hints(root: Node3D, info: Dictionary) -> void:
 				K.glow(root, at + Vector3(0.5, 1.0, 0.2), Vector3(0.03, 0.12, 0.03), RED)
 			"review_red", "review_violet", "review_blue":
 				K.mesh(root, at + Vector3(0, 1.3, -0.19), Vector3(0.12, 0.17, 0.02), Art.material("canvas", Color(0.92, 0.88, 0.8)))
+			"staff_rules":
+				K.mesh(root, at + Vector3(0, 1.5, -0.38), Vector3(1.0, 0.7, 0.03), Art.material("wood", Color(0.45, 0.32, 0.22)))
+			"staff_lockers":
+				for k in 4:
+					K.mesh(root, at + Vector3(-0.6 + k * 0.4, 0.9, -1.0), Vector3(0.38, 1.8, 0.4), Art.material("gunmetal", Color(0.3, 0.32, 0.36)))
+			"staff_rack":
+				K.mesh(root, at + Vector3(0, 1.6, 0), Vector3(0.04, 0.04, 1.6), Art.material("gunmetal", GOLD))
+				for k in 6:
+					K.mesh(root, at + Vector3(0, 1.1, -0.65 + k * 0.26), Vector3(0.1, 0.9, 0.22), Art.material("fabric", Color(0.18, 0.2, 0.17) if k % 2 else Color(0.5, 0.05, 0.12)))
+			"staff_kettle":
+				K.mesh(root, at + Vector3(0, 0.4, -0.3), Vector3(0.8, 0.8, 0.4), Art.material("wood", Color(0.2, 0.12, 0.1)))
+				K.mesh(root, at + Vector3(0.2, 0.9, -0.3), Vector3(0.18, 0.2, 0.15), Art.material("alloy", Color(0.8, 0.8, 0.82)))
 			"stage_card":
 				K.mesh(root, at + Vector3(0, 0.675, 0.3), Vector3(0.25, 0.35, 0.02), Art.material("canvas", Color(0.05, 0.04, 0.05)))
 			"tip_glass":

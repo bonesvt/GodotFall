@@ -133,6 +133,7 @@ func _run() -> void:
 
 	# Pip's own secrets under the Undertow: rooms, the gold door, her dirt.
 	_check("the roped stair goes down", "undertow_down" in ids and "gold_door" in ids and "gold_door_back" in ids, "")
+	_check("the stage door to the dressing room, both ways", "stage_door" in ids and "stage_door_back" in ids, "")
 	var dirt_spots: Array = town_info["interactables"].filter(func(i): return i.has("dirt"))
 	_check("six pieces of her dirt to find", dirt_spots.size() == Below.DIRT.size(), dirt_spots.size())
 	_check("nothing found yet", Downtown.dirt().is_empty(), Downtown.dirt())
