@@ -7,6 +7,8 @@ extends SceneTree
 ##   row 3  the colony has Ophelia: in time, too late (the Shepherd putting the piece on, then on)
 ##   row 5  their eyes after (Marrow's violet, the colony's white, Cutter's red),
 ##          and Mom walking off to Cutter, Eco seeing her go
+##   row 6  where they end up, taking more: Marrow's armchair, the colony kiosk,
+##          Cutter's crate (close, and wide with him lounging by her)
 ##   row 4  Cutter has Mom: in time, too late (his needle at her eye, then Wiring)
 ##   godot --path . --resolution 1280x720 -s res://tools/hub/rescue_shots.gd -- <out_dir>
 ## Needs a renderer (not --headless). Writes <out_dir>/rescue.png.
@@ -99,7 +101,7 @@ func _go() -> void:
 	for c in root.find_children("*", "Control", true, false):
 		if c.get_script() != null and String(c.get_script().resource_path).ends_with("whisper_caption.gd"):
 			c.visible = false
-	sheet = Image.create(CELL.x * 4, CELL.y * 5, false, Image.FORMAT_RGBA8)
+	sheet = Image.create(CELL.x * 4, CELL.y * 6, false, Image.FORMAT_RGBA8)
 	var p: Node3D = run_node.player
 	# out in Solace's street, by the dispensary
 	run_node.place_player(Vector3(1.5, 0.1, 141.0))
@@ -206,6 +208,29 @@ func _go() -> void:
 	await _frames(6)
 	_grab(19)
 	ev._end_walk()
+	# row 6: where she ends up, taking more: Marrow's armchair, the colony kiosk, Cutter's tarp
+	var cam := Camera3D.new()
+	run_node.add_child(cam)
+	run_node.hud.visible = false
+	run_node.pilot_hud.visible = false
+	var shots := [["mom", "marrow", Vector3(0.9, 0.55, -1.4), 30.0], ["ophelia", "colony", Vector3(-0.5, 0.3, 1.5), 32.0],
+			["mom", "cutter", Vector3(-1.9, 0.4, 1.3), 32.0], ["mom", "cutter", Vector3(-3.4, 1.7, 2.6), 46.0]]
+	for i in shots.size():
+		var sh: Array = shots[i]
+		ev._end_walk()
+		ev._drawn_who = sh[0]
+		ev._drawn_captor = sh[1]
+		ev._settle()
+		ev._hang_t = 1.9  # the vial at her lips, the film, the needle: going in
+		await _frames(6)
+		var at: Vector3 = ev._hanger.head_position() - Vector3(0, 0.25, 0)
+		cam.fov = sh[3]
+		cam.look_at_from_position(at + sh[2], at)
+		cam.make_current()
+		await _frames(8)
+		_grab(20 + i)
+	ev._end_walk()
+	cam.queue_free()
 	sheet.save_png(out.path_join("rescue.png"))
 	print("wrote rescue.png")
 	Vices.reset()

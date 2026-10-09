@@ -119,7 +119,21 @@ func _run() -> void:
 	await _ticks(60)
 	_check("walking his way", ev._walker != null and ev._walker.global_position.distance_to(was) > 0.5, ev._walker.global_position if ev._walker != null else null)
 	_check("Eco sees her go", ev._spotted and run_node.hud.toast_label.text.contains("pilgrim road"), run_node.hud.toast_label.text)
+	ev._walk_leg = ev._walk_route.size() - 1
+	ev._walker.global_position = ev._walk_route.back()
+	await _ticks(3)
+	_check("there: on his crate, under his tarp", ev._walker == null and ev._hanger != null and ev._hanger.global_position.distance_to(preload("res://scripts/hub/rescue_sites.gd").STASH) < 2.0, ev._hanger)
+	var prop_at: Vector3 = ev._hang_prop.global_position
+	ev._hang_t = 0.0
+	await _ticks(90)
+	_check("taking more: the needle comes up", ev._hang_prop.global_position.distance_to(prop_at) > 0.05, ev._hang_prop.global_position)
+	run_node.place_player(ev._hanger.global_position + Vector3(-3.0, 0.1, 0.0))
+	await _ticks(3)
+	_check("Eco finds her there", ev._found and run_node.hud.toast_label.text.contains("She came on her own"), run_node.hud.toast_label.text)
+	_check("not to be taken while she's there", not ev.start_random() or ev.who != "mom", ev.who)
+	ev.step = ev.Step.IDLE
 	ev._end_walk()
+	_check("and gone with the stay", ev._hang == null, "")
 
 	# the colony, too late: the next piece
 	var pieces := HubGrip.gear_of("mom").size()

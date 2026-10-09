@@ -95,6 +95,14 @@ const SPOTTED := {
 	"cutter": "%s, out past the town gate, heading for the pilgrim road and Cutter's tarp. Shaking. Red in her eyes. She doesn't hear Eco at all.",
 }
 const GONE := "%s's not at home. Someone saw her heading into Solace."
+## Once she's there: where she settles, taking more every TAKE_EVERY s, and
+## what Eco sees when she finds her.
+const TAKE_EVERY := 7.0
+const FOUND := {
+	"marrow": "%s, sunk in the armchair in Marrow's basement, tipping another vial of violet to her lips. She doesn't look up. He doesn't either.",
+	"colony": "%s, at the colony kiosk, taking another film off the dispenser, and another. \"Good morning, citizen,\" it says. She says it back.",
+	"cutter": "%s, on the crate under Cutter's tarp, a needle of Redline in her hand. Cutter's lounging by her, grinning at Eco. \"She came on her own.\"",
+}
 const QUIET := "%s smiles when Eco says her name, and doesn't say much back. She doesn't say much at all any more."
 ## Cutter's Wiring: red veins lit under the skin of their body texture (where it's skin-coloured).
 const VEINS := "shader_type spatial;
@@ -247,7 +255,7 @@ func tick(delta: float, roaming: bool) -> void:
 ## nobody could be.
 func start_random() -> bool:
 	var captors := Rescue.active_captors()
-	var people: Array = Rescue.WHO.filter(func(w): return rm.hub_npcs.has(w) and not (w == _drawn_who and _walker != null))
+	var people: Array = Rescue.WHO.filter(func(w): return rm.hub_npcs.has(w) and not (w == _drawn_who and (_walker != null or _hang != null)))
 	if captors.is_empty() or people.is_empty():
 		return false
 	return start(people[randi() % people.size()], captors[randi() % captors.size()])
@@ -884,6 +892,7 @@ func _draw_marker() -> void:
 ## eyes whoever's had them left them with, each frame; and one of them walking off.
 func _aftermath(_delta: float) -> void:
 	_walk_tick(_delta)
+	_hang_tick(_delta)
 	if rm.get("hub_npcs") == null:
 		return
 	for w in Rescue.WHO:
@@ -1036,7 +1045,7 @@ func _walk_tick(delta: float) -> void:
 	if d.length() < 0.15:
 		_walk_leg += 1
 		if _walk_leg >= _walk_route.size():
-			_end_walk()  # there: gone to them, for the rest of the stay
+			_settle()  # there: with them, for the rest of the stay
 			return
 		return
 	var step_ := d.normalized() * minf(WALK_SPEED * delta, d.length())
@@ -1053,7 +1062,162 @@ func _end_walk() -> void:
 	if _walker != null and is_instance_valid(_walker):
 		_walker.queue_free()
 	_walker = null
+	if _hang != null and is_instance_valid(_hang):
+		_hang.queue_free()
+	_hang = null
+	_hanger = null
+	_hang_prop = null
 	_walker_spot(false)
+
+
+# --- there, taking more ----------------------------------------------------------
+
+## Where she ends up: a node holding her (and for Cutter, his stash and him).
+var _hang: Node3D
+var _hanger: Node3D
+var _hang_prop: Node3D
+var _hang_anim: AnimationPlayer
+var _hang_rest: EcoRest
+var _hang_pose := ""
+var _hang_t := 0.0
+var _found := false
+
+
+## She's got there: sat (or stood) at the captor's place for the rest of the
+## stay, taking more now and then.
+func _settle() -> void:
+	if _walker != null and is_instance_valid(_walker):
+		_walker.queue_free()
+	_walker = null
+	_hang = Node3D.new()
+	_hang.name = "RescueHangout"
+	rm.zone_root.add_child(_hang)
+	var at := Vector3.ZERO
+	var yaw := 0.0
+	var seat := 0.0
+	match _drawn_captor:
+		"marrow":  # her armchair in his basement
+			var site := RescueSites.marrow()
+			at = site["seat"]
+			yaw = site["seat_yaw"]
+			seat = site["seat_height"]
+		"colony":  # stood at the kiosk, facing it
+			at = Vector3(-5.0, 0, 147.4)
+			yaw = 90.0
+		"cutter":  # on his crate, under his tarp, him beside her
+			var site := RescueSites.cutter(_hang)
+			at = site["seat"]
+			yaw = site["seat_yaw"]
+			seat = site["seat_height"]
+			var him := Node3D.new()
+			him.add_child(CutterModel.build())
+			_hang.add_child(him)
+			him.position = site["seat"] + Vector3(-0.85, 0, -0.85)
+			var d := _flat(site["seat"] - him.position)
+			him.rotation.y = atan2(-d.x, -d.z)
+	_hanger = HubNpc.create(_drawn_who, at, yaw)
+	_hang.add_child(_hanger)
+	_hanger.posed = true
+	if is_instance_valid(_hanger.soft_body):
+		_hanger.soft_body.queue_free()
+	var real: Node3D = rm.hub_npcs.get(_drawn_who)
+	if real != null and real.get("outfit") != null and String(real.outfit) != "":
+		_hanger.wear(String(real.outfit))
+	ColonyGear.apply(_hanger, HubGrip.gear_of(_drawn_who))
+	_hanger.mood(["plain"] if _drawn_captor == "colony" else (["smile"] if _drawn_captor == "marrow" else ["sad"]))
+	eyes(_hanger, EYES_AFTER, EYE_TINT[_drawn_captor])
+	if _drawn_captor == "cutter":
+		veins(_hanger, true)
+	_hang_anim = null
+	_hang_rest = null
+	_hang_pose = ""
+	if seat > 0.0:
+		var skel := _hanger.find_child("Skeleton3D", true, false) as Skeleton3D
+		if skel != null:
+			_hang_anim = _hanger.find_child("AnimationPlayer", true, false) as AnimationPlayer
+			if _hang_anim != null:
+				_hang_anim.callback_mode_process = AnimationMixer.ANIMATION_CALLBACK_MODE_PROCESS_MANUAL
+			_hang_rest = EcoRest.new(skel)
+			_hang_rest.seat_height = seat
+			_hang_pose = "chair"
+			if not _hang_rest.usable():
+				_hang_rest = null
+	_hang_prop = _take_prop(_drawn_captor)
+	_hang.add_child(_hang_prop)
+	_hang_t = TAKE_EVERY - 2.0
+	_found = false
+
+
+## What she takes: a vial of Hush, a Hymn film, a needle of Redline.
+func _take_prop(kind: String) -> Node3D:
+	var p := Node3D.new()
+	var glow := StandardMaterial3D.new()
+	glow.emission_enabled = true
+	var mi := MeshInstance3D.new()
+	match kind:
+		"marrow":
+			glow.albedo_color = Color(0.72, 0.32, 1.0)
+			var c := CylinderMesh.new()
+			c.top_radius = 0.012
+			c.bottom_radius = 0.014
+			c.height = 0.07
+			mi.mesh = c
+		"colony":
+			glow.albedo_color = Color(0.92, 0.96, 1.0)
+			var b := BoxMesh.new()
+			b.size = Vector3(0.03, 0.002, 0.045)
+			mi.mesh = b
+		_:
+			glow.albedo_color = Color(1.0, 0.1, 0.08)
+			var c2 := CylinderMesh.new()
+			c2.top_radius = 0.007
+			c2.bottom_radius = 0.007
+			c2.height = 0.09
+			mi.mesh = c2
+			mi.rotation_degrees = Vector3(90, 0, 0)
+	glow.emission = glow.albedo_color
+	glow.emission_energy_multiplier = 2.2
+	mi.material_override = glow
+	p.add_child(mi)
+	var light := OmniLight3D.new()
+	light.light_color = glow.albedo_color
+	light.light_energy = 0.5
+	light.omni_range = 1.2
+	p.add_child(light)
+	return p
+
+
+## Each frame: her pose, the prop in her lap and up to her lips (Marrow's, the
+## colony's) or her arm (Cutter's) every TAKE_EVERY s, her eyes flaring as it
+## goes in; and Eco finding her.
+func _hang_tick(delta: float) -> void:
+	if _hanger == null or not is_instance_valid(_hanger):
+		return
+	if _hang_anim != null:
+		_hang_anim.advance(delta)
+	if _hang_rest != null:
+		_hang_rest.step(delta, _hang_pose)
+	_hang_t += delta
+	var c := fmod(_hang_t, TAKE_EVERY)
+	var k := smoothstep(0.0, 1.4, c) * (1.0 - smoothstep(2.6, 3.6, c))  # up, a moment, down
+	var fwd := _flat(-_hanger.global_basis.z)
+	var right := fwd.cross(Vector3.UP)
+	var head: Vector3 = _hanger.head_position()
+	var lap := _hanger.global_position + Vector3(0, 0.62 if _hang_pose != "" else 1.0, 0) + fwd * 0.28 + right * 0.08
+	var to := head - Vector3(0, 0.045, 0) + fwd * 0.08  # her lips
+	if _drawn_captor == "cutter":
+		to = _hanger.global_position + Vector3(0, 0.66, 0) + fwd * 0.22 - right * 0.14  # the inside of her arm
+	if _hang_prop != null and is_instance_valid(_hang_prop):
+		_hang_prop.global_position = lap.lerp(to, k)
+	var flare := smoothstep(1.2, 1.6, c) * (1.0 - smoothstep(3.0, 5.0, c))
+	_hanger.set_meta("rescue_eyes", _drawn_captor)
+	eyes(_hanger, lerpf(EYES_AFTER, EYES_IN, flare), EYE_TINT[_drawn_captor])
+	if _drawn_captor == "cutter":
+		_shake(_hanger, 0.6 + flare)
+	if not _found and rm.player.global_position.distance_to(_hanger.global_position) < 6.0 \
+			and absf(rm.player.global_position.y - _hanger.global_position.y) < 3.0:
+		_found = true
+		rm.hud.toast(FOUND[_drawn_captor] % Rescue.NAMES[_drawn_who], 5.0)
 
 
 ## While she's out, her spot at home says so.
