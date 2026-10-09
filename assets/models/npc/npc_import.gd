@@ -37,7 +37,7 @@ const FACES := {
 	"mom": {"Fcl_BRW_Sorrow": 0.55, "Fcl_EYE_Natural": 0.2, "Fcl_MTH_Up": 0.15},
 	"ophelia": {"Fcl_EYE_Sorrow": 0.3, "Fcl_BRW_Sorrow": 0.3, "Fcl_MTH_Down": 0.25},
 	"biggie": {"Fcl_BRW_Joy": 0.6, "Fcl_EYE_Joy": 0.45, "Fcl_MTH_Fun": 0.3},
-	"pip": {"Fcl_BRW_Angry": 0.12, "Fcl_BRW_Fun": 0.2, "Fcl_EYE_Angry": 0.15, "Fcl_EYE_Fun": 0.28, "Fcl_MTH_Fun": 0.45, "Fcl_MTH_Close": 0.5},
+	"pip": {"Fcl_BRW_Angry": 0.12, "Fcl_BRW_Fun": 0.2, "Fcl_EYE_Angry": 0.15, "Fcl_EYE_Fun": 0.28, "Fcl_MTH_Fun": 0.2, "Pip_Smirk": 1.0, "Fcl_MTH_Close": 0.5},
 	# the people of Solace (tools/town/build_townsfolk.py)
 	"town_pell": {"Fcl_BRW_Joy": 0.3, "Fcl_MTH_Fun": 0.25},
 	"town_kit": {"Fcl_BRW_Angry": 0.2, "Fcl_MTH_Up": 0.2},

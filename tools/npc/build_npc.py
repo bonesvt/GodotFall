@@ -40,6 +40,7 @@ argv = sys.argv[sys.argv.index("--") + 1:]
 SRC, ROOT, WHO = argv[0], os.path.abspath(argv[1]), argv[2]   # Blender on Windows resolves "." against its own folder
 CONCEPT = argv[argv.index("--concept") + 1] if "--concept" in argv else None
 EXPORT = "--no-export" not in argv
+WALK = "--walk" in argv
 # pip's concept looks (boss, club, shark); the game's is boss
 LOOK = argv[argv.index("--look") + 1] if "--look" in argv else "boss"
 
@@ -92,7 +93,7 @@ SPEC = {
         # a head taller than Eco (1.69), long-legged: she looks down at her sister
         "height": 1.82, "head": 0.91, "legs": 1.08,
         # cocky and amused: lids relaxed, a closed-lip smirk, knows what she's worth
-        "face": {"Fcl_BRW_Angry": 0.12, "Fcl_BRW_Fun": 0.2, "Fcl_EYE_Angry": 0.15, "Fcl_EYE_Fun": 0.28, "Fcl_MTH_Fun": 0.45, "Fcl_MTH_Close": 0.5},
+        "face": {"Fcl_BRW_Angry": 0.12, "Fcl_BRW_Fun": 0.2, "Fcl_EYE_Angry": 0.15, "Fcl_EYE_Fun": 0.28, "Fcl_MTH_Fun": 0.2, "Pip_Smirk": 1.0, "Fcl_MTH_Close": 0.5},
         # the family red, deeper and cooler: wine
         "hair": [(0.30, (0.022, 0.001, 0.007)), (0.62, (0.10, 0.006, 0.022)),
                  (0.86, (0.24, 0.025, 0.055)), (1.0, (0.5, 0.17, 0.22))],
@@ -323,6 +324,19 @@ def face_pip():
         w = smooth(1.262, 1.214, p.z) * smooth(-0.025, -0.045, p.y)
         return Vector((p.x * (1 - 0.05 * w), p.y - 0.001 * w, p.z - 0.003 * w))
     move_verts(face, chin)
+    smirk(face)
+
+
+def smirk(face, side=1, k=1.35):
+    """A one-sided smile (shape key Pip_Smirk): the preset's Fcl_MTH_Fun on
+    her left corner only (+X, she faces -Y here), pushed a little further,
+    fading out across the middle of her lips."""
+    keys = face.data.shape_keys.key_blocks
+    basis, fun = keys["Basis"], keys["Fcl_MTH_Fun"]
+    sk = face.shape_key_add(name="Pip_Smirk", from_mix=False)
+    for i, b in enumerate(basis.data):
+        w = smooth(-0.004, 0.012, b.co.x * side)
+        sk.data[i].co = b.co + (fun.data[i].co - b.co) * k * w
 
 
 def face_biggie():
@@ -2243,7 +2257,60 @@ def make_actions(arm):
         for fc in E["action_fcurves"](a):
             for kp in fc.keyframe_points:
                 kp.interpolation = "BEZIER"
+    if WHO == "pip":
+        strut(arm, keyed)
     arm.animation_data.action = bpy.data.actions["idle"]
+
+
+def strut(arm, keyed):
+    """walk, for when Pip moves about Downtown: a slow catwalk strut, one
+    stride (two steps) in 40 frames. Each foot lands in front of the other,
+    her hips roll up over the standing leg and swing out to it, the shoulders
+    stay back and level against them, chin up, arms loose."""
+    add = E["add"]
+    a = bpy.data.actions.new("walk")
+    arm.animation_data.action = a
+    n = 40
+    for f in range(0, n + 1, 2):
+        t = f / n * 2 * math.pi
+        p = E["base_pose"]()
+        for s, ph in (("R", 0.0), ("L", math.pi)):   # the right leg is forward at t = pi/2
+            u = t + ph
+            side = 1 if s == "R" else -1
+            swing = max(0.0, math.cos(u + 0.5)) ** 1.5   # knee up early in the swing
+            stand = max(0.0, -math.cos(u))               # flat on the floor, most at midstance
+            thigh = 24 * math.sin(u) + 10 * swing
+            shin = -48 * swing - 4
+            add(p, "thigh." + s, X, thigh)
+            add(p, "thigh." + s, Y, side * (6 + 4 * stand))   # cross in toward the middle line
+            add(p, "shin." + s, X, shin)
+            add(p, "foot." + s, X, -(thigh + shin) * stand - 14 * swing)
+        roll = math.cos(t)   # +1: the left leg standing (its hip up), -1: the right
+        add(p, "hips", Y, 9 * roll)
+        add(p, "thigh.R", Y, -6 * roll)
+        add(p, "thigh.L", Y, -6 * roll)
+        add(p, "hips", Z, 9 * math.sin(t))
+        add(p, "spine", Y, -5 * roll)
+        add(p, "chest", Y, -3 * roll)
+        add(p, "chest", Z, -12 * math.sin(t))
+        add(p, "chest", X, 4)
+        add(p, "head", X, 5)
+        add(p, "head", Z, 3 * math.sin(t))
+        add(p, "head", Y, 2 * roll)
+        add(p, "upperarm.R", Y, -5)
+        add(p, "upperarm.L", Y, 5)
+        add(p, "upperarm.R", X, -16 * math.sin(t))
+        add(p, "upperarm.L", X, 16 * math.sin(t))
+        add(p, "forearm.R", X, 10 + 10 * max(0.0, -math.sin(t - 0.6)))
+        add(p, "forearm.L", X, 10 + 10 * max(0.0, math.sin(t - 0.6)))
+        add(p, "hand.R", X, -12 * math.sin(t - 0.9))   # wrists trail the swing
+        add(p, "hand.L", X, 12 * math.sin(t - 0.9))
+        x, y, z = E["hips_loc"](-0.02 * math.sin(t) ** 2, 0)
+        p["_hips_loc"] = (-0.035 * roll, y, z)   # out over the standing leg
+        E["key_pose"](arm, f, p, keyed)
+    for fc in E["action_fcurves"](a):
+        for kp in fc.keyframe_points:
+            kp.interpolation = "BEZIER"
 
 
 # --- concept renders (Eevee, cel-shaded, ink outlines) ------------------------------------
@@ -2415,6 +2482,15 @@ def concept(arm, objs):
     dress(OUTFITS.get(WHO, ["default"])[0])
     for shot in shots:
         shoot(*shot, CONCEPT)
+    if WALK and "walk" in bpy.data.actions:   # --walk: the walk cycle, frame by frame, side on and from the front
+        arm.animation_data.action = bpy.data.actions["walk"]
+        n = int(bpy.data.actions["walk"].frame_range[1])
+        for f in range(0, n, n // 8):
+            sc.frame_set(f)
+            shoot("side", Vector((1, 0, 0.05)), Vector((0, 0, H * 0.52)), 50, (560, 900), "%s_walk%02d" % (CONCEPT, f))
+            shoot("front", Vector((0, 1, 0.05)), Vector((0, 0, H * 0.52)), 50, (560, 900), "%s_walk%02d" % (CONCEPT, f))
+        arm.animation_data.action = bpy.data.actions["idle"]
+        sc.frame_set(0)
     # the other outfits: the body texture swapped, full-length shots only
     tex = next((n for n in bpy.data.materials["npc_%s_body" % WHO].node_tree.nodes if n.type == "TEX_IMAGE"), None)
     for outfit in OUTFITS.get(WHO, [])[1:]:

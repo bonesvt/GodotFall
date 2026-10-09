@@ -10,6 +10,7 @@ const Town := preload("res://scripts/hub/town.gd")
 const CasinoScreen := preload("res://scripts/hub/casino_screen.gd")
 const ClubScreen := preload("res://scripts/hub/club_screen.gd")
 const Below := preload("res://scripts/hub/downtown_below.gd")
+const HubNpc := preload("res://scripts/hub/hub_npc.gd")
 
 const ARMORY_PATH := "user://test_downtown_armory.cfg"
 const DOWNTOWN_PATH := "user://test_downtown.cfg"
@@ -87,6 +88,28 @@ func _run() -> void:
 	_check("after hours: the high rollers' room", late["spot"] == "high_rollers" and late["outfit"] == "afterhours", late)
 	var teen := Downtown.place_pip({"interactables": []}, 4, "T")
 	_check("Teen keeps her upstairs", teen["spot"] == "arch" and teen["outfit"] == "crop", teen)
+
+	# She looks down at Eco when Eco comes close; Mom doesn't.
+	var eco := Node3D.new()
+	root.add_child(eco)
+	var looks := {}
+	for who in ["pip", "mom"]:
+		var npc: Node3D = HubNpc.create(who, Vector3(0, 0, -30), 0.0)
+		root.add_child(npc)
+		npc.look_target = eco
+		eco.position = Vector3(0, 0, -31.2)
+		for i in 150:
+			await process_frame
+		looks[who] = npc.regard.y
+		eco.position = Vector3(0, 0, -50)
+		for i in 150:
+			await process_frame
+		looks[who + "_gone"] = npc.regard.y
+		npc.queue_free()
+	eco.queue_free()
+	_check("Pip looks down at Eco up close", looks["pip"] > 0.12, looks)
+	_check("and back up when she's gone", looks["pip_gone"] < 0.05, looks)
+	_check("Mom doesn't", looks["mom"] == 0.0, looks)
 
 	# The street's in the town, with both doors.
 	var town_root := Node3D.new()

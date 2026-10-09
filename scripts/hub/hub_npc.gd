@@ -19,6 +19,11 @@ const TURN_SPEED := 2.5
 ## The furthest (degrees) they turn from where they stand facing to follow
 ## Eco; past that they hold at the limit rather than spin round after her.
 const MAX_TURN := 60.0
+## Who looks down at Eco as she comes close: Pip, half a head taller and
+## making sure she knows it. The chin dips to Eco's eyes and the head tips.
+const LOOKS_DOWN := ["pip"]
+## Where Eco's eyes are, above her feet (m).
+const ECO_EYES := 1.57
 ## Who has more than one outfit (body.png first, then body_<outfit>.png from
 ## tools/npc/build_npc.py). They change between runs.
 const OUTFITS := {"ophelia": ["tee", "hoodie", "night"], "mom": ["home", "night"], "pip": ["crop", "shorts", "rave", "warden", "afterhours"]}
@@ -66,6 +71,9 @@ var _gesture_t := 0.0
 var _faces: Array = []   # [[MeshInstance3D, {face: [[blend index, weight], ...]}]]
 var _blush_mats: Array = []
 var _head: HeadPose
+## The look down at Eco (LOOKS_DOWN) as (yaw, pitch, roll), eased; laid over
+## the head with the gestures.
+var regard := Vector3.ZERO
 ## Their soft capsule (_add_body), when they were last bumped (_t), and how
 ## far (world space) a bump has rocked them off their feet, easing back.
 var soft_body: AnimatableBody3D
@@ -366,13 +374,21 @@ func _process(delta: float) -> void:
 	_t += delta
 	# Turn toward Eco when she's close, back to their spot when she leaves.
 	var want := home_yaw
+	var noticing := false
 	if look_target != null and is_instance_valid(look_target):
 		var d := look_target.global_position - global_position
 		if not posed and (Vector2(d.x, d.z).length() < NOTICE_RANGE or talking):
+			noticing = true
 			var toward := angle_difference(home_yaw, atan2(-d.x, -d.z))   # the model faces -Z
 			var most := deg_to_rad(MAX_TURN)
 			want = home_yaw + clampf(toward, -most, most)
 	rotation.y = lerp_angle(rotation.y, want, minf(1.0, delta * TURN_SPEED))
+	var down := Vector3.ZERO
+	if noticing and who in LOOKS_DOWN:
+		var d := look_target.global_position - global_position
+		var drop := head_position().y - (look_target.global_position.y + ECO_EYES)
+		down = Vector3(0.0, clampf(atan2(drop, maxf(Vector2(d.x, d.z).length(), 0.5)), 0.0, 0.3) + 0.12, 0.07)
+	regard = regard.lerp(down, minf(1.0, delta * 3.0))
 	# Mouth flaps while their voice plays.
 	var open := 0.0
 	if voice != null and voice.playing:
@@ -431,7 +447,7 @@ class HeadPose extends SkeletonModifier3D:
 		var skel := get_skeleton()
 		if skel == null or npc == null:
 			return
-		_now = _now.lerp(npc.gesture_angles(), minf(1.0, get_process_delta_time() * 8.0))
+		_now = _now.lerp(npc.gesture_angles() + npc.regard, minf(1.0, get_process_delta_time() * 8.0))
 		if _now.length() < 0.001:
 			return
 		# Two thirds in the head, a third in the neck; the axes are the
