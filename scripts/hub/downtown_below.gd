@@ -110,6 +110,16 @@ const HINTS := [
 	["staff_kettle", "dress", Vector3(1.8, 0, -2.3), "[F] The table with the kettle", [
 		"A kettle, a tin of the good tea, a first aid kit, ice packs for sore feet, and a jar of hand cream with a note: 'You're all worth more than they pay. Keep your hands soft and your rates high. P.'",
 		"A rota under the kettle: who's on, who's off, who's walking whom home. 'P' is down for every night."]],
+	# Pip herself: the one thing in the house that isn't on the menu
+	["pip_card", "high", Vector3(2.8, 0, 1.3), "[F] A gold card on the stage steps", [
+		"A second card, gold on gold, one line long: THE HOUSE. One evening with the woman who owns this room. Price: a sealed envelope. She opens it, she decides. Waiting list: closed.",
+		"Pinned behind it, in Pip's hand: 'Self-review. Five stars, obviously. I don't sell hours, I sell evenings, and I decide when the evening's over. Dinner first. They talk, I listen, and by dessert they'd sign anything. Some of them think that was the part they paid for. It never is. They don't complain about the rest. They save up. P.'"]],
+	["pip_book", "high", Vector3(3.5, 0, -1.6), "[F] The leather book on the bar", [
+		"A leather book on the bar: GUESTS OF THE HOUSE. A colonel: 'Sold my second titan to afford one night. I'd sell the first. She knew my name, my wife's name and three things I've never told anyone before the door had even shut. Five stars.'",
+		"A quartermaster: 'Four stars. She made me wait three months for the booking, then all evening for anything else, then made me ask nicely. Twice. I have never been so happy to be told no so many times before a yes.'",
+		"A trader from the coast: 'Paid in pearls. She weighed them in front of me. Worth every gram. Left at dawn with nothing: not my money, not my secrets, not my dignity. Already saving for next year. Five stars.'",
+		"The recruiters' captain: 'One star. She took my letter, my career and my evening, in that order, and smiled the whole time.' Pip, underneath: 'He's booked again for spring.'",
+		"Unsigned, in a shaky hand: 'I don't remember what we talked about. I remember candlelight, and her hair down, and her telling me exactly what to do, slowly. I still think about it every day. Five stars. Ten, if she'd let me.'"]],
 	["stage_card", "high", Vector3(-2.8, 0, 1.3), "[F] A card on the stage steps", [
 		"A price list for the stage, gold on black. A DANCE. A PRIVATE DANCE. THE GOLD DOOR, CLOSED. The last line has no price. You ask Pip.",
 		"On the back, small: 'Dancers choose. Guests who argue leave by the alley, and they don't come back down.'"]],
@@ -318,6 +328,10 @@ static func _hints(root: Node3D, info: Dictionary) -> void:
 			"staff_kettle":
 				K.mesh(root, at + Vector3(0, 0.4, -0.3), Vector3(0.8, 0.8, 0.4), Art.material("wood", Color(0.2, 0.12, 0.1)))
 				K.mesh(root, at + Vector3(0.2, 0.9, -0.3), Vector3(0.18, 0.2, 0.15), Art.material("alloy", Color(0.8, 0.8, 0.82)))
+			"pip_card":
+				K.glow(root, at + Vector3(0, 0.675, 0.3), Vector3(0.25, 0.35, 0.02), GOLD * 1.1)
+			"pip_book":
+				K.mesh(root, at + Vector3(0.7, 1.13, 0), Vector3(0.25, 0.05, 0.32), Art.material("canvas", Color(0.3, 0.12, 0.06)))
 			"stage_card":
 				K.mesh(root, at + Vector3(0, 0.675, 0.3), Vector3(0.25, 0.35, 0.02), Art.material("canvas", Color(0.05, 0.04, 0.05)))
 			"tip_glass":
