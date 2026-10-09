@@ -72,8 +72,8 @@ func _go() -> void:
 	await _frames(30)
 	var c: Vector3 = HoldingCell.COLUMN
 	await _look(Vector3(0.4, 1.6, 4.2), Vector3(0, 1.3, -2.2), 55.0)                 # from the street
-	await _look(c + Vector3(1.5, 1.3, 0.5), c + Vector3(0, 1.0, 0.1), 50.0)          # her in the frame, clamped, the screen in her face
-	await _look(c + Vector3(0.15, 1.65, -0.25), c + Vector3(0, 1.5, 0.55), 60.0)     # over her shoulder: what it shows her
+	await _look(c + Vector3(1.6, 1.45, 0.9), c + Vector3(0, 1.3, 0.05), 55.0)         # her in the frame: wrists clamped overhead, the band, the screen in her face
+	await _look(c + Vector3(0.34, 1.38, -0.12), c + Vector3(0, 1.5, 0.55), 60.0)     # past her side, under her arm: what it shows her
 	await _look(Vector3(0.6, 1.8, -1.0), Vector3(-2.5, 1.95, -1.6), 50.0)            # the wall screen
 	cell.release()
 	await _frames(70)   # the visor comes off her
