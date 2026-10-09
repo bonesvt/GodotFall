@@ -59,17 +59,19 @@ const LEVELS := {
 		"part_bonus": 2,
 		"needs": "level1",
 		"rescue": "ophelia",
-		# What they say when the screen drops (rated T both ways).
+		# What they say when the screen drops and the visor comes off her.
 		"rescue_lines": [
-			"OPHELIA: ...Eco? What are you doing here? They only grabbed me last night.",
+			"OPHELIA: ...Why'd the light go off? I was doing so well.",
+			"ECO: Doing so well at what? Hold still. This thing's coming off your face.",
+			"OPHELIA: Eco? What are you doing here? They only grabbed me last night.",
 			"ECO: Last night? Ophelia, you've been gone nineteen days.",
-			"OPHELIA: No. The light came on, and then you were... Nineteen days?",
-			"ECO: Later. I've got you. Can you walk?",
+			"OPHELIA: No. The light came on, and a nice voice said I was doing so well, and then you were... Nineteen days?",
+			"ECO: Later. The thing on your wrist won't budge. Biggie can get it off. Can you walk?",
 			"OPHELIA: Barefoot, through their city, in the dark? Sure. Love that for me.",
 			"ECO: Stay close. I crouch, you crouch. We go out the way I came in.",
 		],
-		"blurb": "The colony's radio keeps joking about a girl from town in their holding block downtown. "
-			+ "Nobody in town has even noticed she's gone. Ophelia. Go in at night, get her out of whatever they've got her in, and get her back out the way you came without waking the district.",
+		"blurb": "The colony's radio keeps talking about a girl from town in Trial Bay 7 downtown, and her numbers. "
+			+ "Nobody in town has even noticed she's gone. Ophelia. Go in at night, get her out of whatever they've put on her, and get her back out the way you came without waking the district.",
 	},
 }
 

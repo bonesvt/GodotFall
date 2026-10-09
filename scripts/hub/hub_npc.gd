@@ -23,8 +23,8 @@ const MAX_TURN := 60.0
 ## tools/npc/build_npc.py). They change between runs.
 const OUTFITS := {"ophelia": ["tee", "hoodie", "night"], "mom": ["home", "night"]}
 ## Outfits only worn on missions, never picked for the hub (Ophelia's
-## detainee rags, and the colony's torn intake suit she's held in at Level 2's
-## stasis column, "colony" for Teen and "colony_m" for Mature):
+## detainee rags, and the colony's torn intake suit she wears in Level 2's
+## Hymn trial bay, "colony" for Teen and "colony_m" for Mature):
 ## body_<outfit>.png too. An outfit can bring its own face (face_<outfit>.png:
 ## the ruined make-up) and hair blend shape (MESS: frizzed from the fight).
 const MISSION_OUTFITS := {"ophelia": ["prison", "colony", "colony_m", "upset", "clingy", "obsessed"]}
