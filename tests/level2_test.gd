@@ -98,9 +98,11 @@ func _play_checks() -> void:
 	ContentRating.set_rating("M", false)
 	await _frames(3)
 	cell._hold()   # the gear only shows under Mature, and the rating was only just set
+	await _frames(3)
 	_check("Ophelia's in the trial frame in the Mature intake suit, in the white light", oph != null and oph.who == "ophelia" and oph.outfit == "colony_m" and oph.posed and cell._field.visible, oph.outfit)
-	_check("she wears the trial's headphones, cuff and visor", cell.gear_on() == cell.TRIAL_GEAR, cell.gear_on())
-	_check("the frame's clamps hold her forearms and ankles", cell._clamps.size() == 8, cell._clamps.size())
+	_check("she wears the trial's headphones, cuff, visor and neck band", cell.gear_on() == cell.TRIAL_GEAR, cell.gear_on())
+	var wrists: Variant = cell.wrists_at()
+	_check("her arms are held up over her head, wrists clamped together, ankles clamped", cell._clamps.size() == 6 and wrists != null and (wrists as Vector3).y > 1.6 and absf((wrists as Vector3).x - cell.COLUMN.x) < 0.15, [cell._clamps.size(), wrists])
 	_check("she stands on the bay's floor, held still", absf(oph.position.y - cell.PAD_TOP) < 0.05 and oph._anim.speed_scale == 0.0, [oph.position.y, oph._anim.speed_scale])
 	_check("a screen in front of her face flashes words at her", cell._feed != null and cell._feed_word.text in cell.FEED_WORDS, cell._feed_word.text if cell._feed_word else null)
 	_check("two empty frames with their visors hung on them, the film tray and Marrow's Glass case", cell.find_children("HungVisor*", "", false, false).size() == 2 and cell.find_child("FilmTray", false, false) != null and cell.find_child("GlassCase", false, false) != null, cell.find_children("HungVisor*", "", false, false).size())
@@ -122,7 +124,7 @@ func _play_checks() -> void:
 
 	# Into the cell: the field drops, she follows.
 	await _use_cell(cell)
-	_check("F breaks her out: the light and her screen go out, the clamps open", cell.opened and run_node.rescued and not cell._field.visible and not _screen_blocks(cell) and cell._manifest.text == "" and cell._feed_word.text == "" and cell._clamps.is_empty() and oph._anim.speed_scale > 0.0, [cell._field.visible, _screen_blocks(cell), cell._manifest.text, cell._feed_word.text, cell._clamps.size(), oph._anim.speed_scale])
+	_check("F breaks her out: the light and her screen go out, the clamps open", cell.opened and run_node.rescued and not cell._field.visible and not _screen_blocks(cell) and cell._manifest.text == "" and cell._feed_word.text == "" and cell._clamps.is_empty() and cell._pose == null and oph._anim.speed_scale > 0.0, [cell._field.visible, _screen_blocks(cell), cell._manifest.text, cell._feed_word.text, cell._clamps.size(), oph._anim.speed_scale])
 	_check("they talk", run_node.hud.toast_label.text.begins_with("OPHELIA"), run_node.hud.toast_label.text)
 	_check("radio stops gossiping about her", run_node.pilot_hud.radio.extra_rumor == "", run_node.pilot_hud.radio.extra_rumor)
 	var escort = run_node.escort
@@ -130,7 +132,7 @@ func _play_checks() -> void:
 	ContentRating.set_rating("M", false)
 	cell._hold()
 	cell._unmask()
-	_check("the visor and headphones come off her, the cuff stays", cell.gear_on() == cell.KEPT_GEAR, cell.gear_on())
+	_check("the visor, headphones and band come off her, the cuff stays", cell.gear_on() == cell.KEPT_GEAR, cell.gear_on())
 	if escort == null:
 		return
 	# Walk off up the street: she comes after. (Grunts held passive for this,

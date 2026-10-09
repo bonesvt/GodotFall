@@ -5,8 +5,10 @@ extends Node3D
 ## concrete cell open to the street behind a humming energy screen, tiled
 ## white inside, with a drain. She stands in the same white fitting frame as
 ## the dispensary's back room (fitting_scene.gd), under a column of white
-## light, wearing the prototype compliance headphones, dose cuff and clarity
-## visor (colony_gear.gd), the frame's clamps on her forearms and ankles, and
+## light, wearing the prototype compliance headphones, dose cuff, clarity
+## visor and a tracker band locked round her neck (colony_gear.gd), her arms
+## held up over her head with her wrists clamped together to the frame's top
+## bar, her ankles clamped to its base, and
 ## a screen hung in front of her face flashing rings and words at her.
 ## Two empty frames beside hers, their visors hanging off them, were the
 ## subjects before her. The wall screen reads her trial (TRIAL_TEXT, LOG), a
@@ -15,8 +17,8 @@ extends Node3D
 ## Marrow to the colony. Guards are posted round the block but nothing holds
 ## the screen shut: sneak up, F shorts it and kills the bay's power
 ## (run_manager rescue()), the light and the screen go out, the clamps spring
-## open, Eco lifts the dead visor off
-## her and pulls the headphones, and she follows Eco out (escort.gd). The
+## open, her arms come down, Eco lifts the dead visor off her, pulls the
+## headphones and unbolts the band, and she follows Eco out (escort.gd). The
 ## cuff's pins won't come out: she goes home wearing it (run_manager
 ## _rescue_bonus, hub_grip.gd). The cell opens toward local +z.
 
@@ -29,6 +31,7 @@ const K := preload("res://scripts/hub/hub_kit.gd")
 const HubNpc := preload("res://scripts/hub/hub_npc.gd")
 const NpcIdles := preload("res://scripts/hub/npc_idles.gd")
 const ColonyGear := preload("res://scripts/hub/colony_gear.gd")
+const Poses := preload("res://scripts/hub/family_poses.gd")
 const ContentRating := preload("res://scripts/radio/content_rating.gd")
 
 const INTERACT_RANGE := 3.4
@@ -49,7 +52,7 @@ const PAD_TOP := 0.08
 ## The empty frames of the subjects before her (cell space).
 const EMPTY := [Vector3(-1.75, 0.0, -3.35), Vector3(1.95, 0.0, -3.4)]
 ## What the colony put on her for the trial, and what stays on once she's out.
-const TRIAL_GEAR := ["headphones", "cuff", "visor"]
+const TRIAL_GEAR := ["headphones", "cuff", "visor", "band"]
 const KEPT_GEAR := ["cuff"]
 ## The screen hung in front of her face, and what it flashes at her, a word at
 ## a time over turning white rings.
@@ -82,6 +85,7 @@ var _rings: Array = []    # MeshInstance3D drifting down the light
 var _pylons: Array = []   # the power strips up her frame's posts
 var _glows: Array = []    # the bay's lit seams, dark once it's shorted
 var _clamps: Array = []   # the frame's clamps on her, open once it's shorted
+var _pose: SkeletonModifier3D   # her arms held up together over her head
 ## The screen in front of her face: its words, its rings, and its backing.
 var _feed: Node3D
 var _feed_word: Label3D
@@ -107,9 +111,21 @@ func _dress() -> void:
 		ophelia.wear("colony_m" if HubNpc.mature() else "colony")
 
 
+## Her arms held straight up over her head, wrists together, in the frame's
+## clamp (a hold like family_poses.gd's, from the rest pose).
+const ARMS_UP := [
+	["J_Bip_L_UpperArm", "J_Bip_L_LowerArm", Vector3(-0.28, 0.96, -0.04)],
+	["J_Bip_L_LowerArm", "J_Bip_L_Hand", Vector3(0.62, 0.78, -0.02)],
+	["J_Bip_L_Hand", "J_Bip_L_Middle1", Vector3(0.2, 0.98, 0.0)],
+	["J_Bip_R_UpperArm", "J_Bip_R_LowerArm", Vector3(0.28, 0.96, -0.04)],
+	["J_Bip_R_LowerArm", "J_Bip_R_Hand", Vector3(-0.62, 0.78, -0.02)],
+	["J_Bip_R_Hand", "J_Bip_R_Middle1", Vector3(-0.2, 0.98, 0.0)],
+]
+
+
 ## Standing stock still in the frame in the white light, eyes shut behind the
-## visor, with the trial's gear on and the frame's clamps on her forearms and
-## ankles.
+## visor, with the trial's gear on (the band locked round her neck), her arms
+## held up over her head and the frame's clamps on her wrists and ankles.
 func _hold() -> void:
 	if ophelia == null or ophelia._anim == null:
 		return
@@ -120,36 +136,62 @@ func _hold() -> void:
 	ophelia.posed = true
 	ophelia.mood(["closed", "smile"])
 	ColonyGear.apply(ophelia, TRIAL_GEAR)
-	_clamp()
+	var skel := ophelia.find_child("Skeleton3D", true, false) as Skeleton3D
+	if skel == null or opened:
+		return
+	if _pose != null:
+		_pose.free()
+	var hold := Poses.Hold.new()
+	hold.name = "TrialHold"
+	hold.turns = ARMS_UP
+	hold.after = _posed
+	_pose = hold
+	skel.add_child(_pose)
+	skel.move_child(_pose, 0)
 
 
-## The frame's clamps: a white band round each forearm, arms run out to the
-## frame's posts, and a band round each ankle locked to its base plate, each
-## lit with the bay's light. Built in cell space round where her pose has
-## them, since she's held still.
-func _clamp() -> void:
+## Her bones only read back posed inside the hold, so the clamps are measured
+## there, the first time, and built just after.
+func _posed(skel: Skeleton3D) -> void:
+	if opened or _pose == null or _pose.has_meta("measured"):
+		return
+	var at := {}
+	for b in ["J_Bip_L_Hand", "J_Bip_R_Hand", "J_Bip_L_LowerArm", "J_Bip_R_LowerArm", "J_Bip_L_Foot", "J_Bip_R_Foot"]:
+		var p: Variant = _bone_at(skel, b)
+		if p == null:
+			return
+		at[b] = p
+	_pose.set_meta("measured", true)
+	_clamp.call_deferred(at)
+
+
+## The frame's clamps: one white band round both her wrists together, a bar
+## from it up to the frame's top bar, and a band round each ankle locked to
+## its base plate, each lit with the bay's light. Built in cell space round
+## where the hold has her, since she's held still.
+func _clamp(at: Dictionary) -> void:
 	for c in _clamps:
 		c.queue_free()
 	_clamps.clear()
-	var skel := ophelia.find_child("Skeleton3D", true, false) as Skeleton3D
-	if skel == null:
+	if opened:
 		return
 	var white := _flat(Color(0.93, 0.94, 0.96))
 	var lit := Kit.glow(FIELD)
+	var l_wrist: Vector3 = (at["J_Bip_L_Hand"] as Vector3).lerp(at["J_Bip_L_LowerArm"] as Vector3, 0.2)
+	var r_wrist: Vector3 = (at["J_Bip_R_Hand"] as Vector3).lerp(at["J_Bip_R_LowerArm"] as Vector3, 0.2)
+	var wrists := (l_wrist + r_wrist) * 0.5
+	_clamp_part(_band(wrists, Vector3.UP, 0.075, 0.08, white, lit))
+	var top := Vector3(COLUMN.x, 2.2, COLUMN.z - 0.35)
+	_clamp_part(_bar(wrists + (top - wrists).normalized() * 0.05, top, 0.035, white))
 	for side in ["L", "R"]:
-		var hand: Variant = _bone_at(skel, "J_Bip_%s_Hand" % side)
-		var elbow: Variant = _bone_at(skel, "J_Bip_%s_LowerArm" % side)
-		var foot: Variant = _bone_at(skel, "J_Bip_%s_Foot" % side)
-		if hand == null or elbow == null or foot == null:
-			continue
-		var s := 1.0 if (hand as Vector3).x > COLUMN.x else -1.0
-		var wrist: Vector3 = (hand as Vector3).lerp(elbow as Vector3, 0.3)
-		var post := Vector3(COLUMN.x + 0.5 * s, wrist.y, COLUMN.z - 0.35)
-		_clamp_part(_band(wrist, ((elbow as Vector3) - (hand as Vector3)).normalized(), 0.05, 0.07, white, lit))
-		_clamp_part(_bar(wrist + (post - wrist).normalized() * 0.05, post, 0.035, white))
-		var ankle: Vector3 = (foot as Vector3) + Vector3.UP * 0.06
+		var ankle: Vector3 = (at["J_Bip_%s_Foot" % side] as Vector3) + Vector3.UP * 0.06
 		_clamp_part(_band(ankle, Vector3.UP, 0.055, 0.07, white, lit))
 		_clamp_part(_bar(ankle - Vector3.UP * 0.04, Vector3(ankle.x, 0.06, ankle.z), 0.04, white))
+
+
+## Where her wrists are held (cell space), or null before the clamps are on.
+func wrists_at() -> Variant:
+	return null if _clamps.is_empty() else (_clamps[0] as Node3D).position
 
 
 func _clamp_part(n: Node3D) -> void:
@@ -530,7 +572,7 @@ func set_locked(value: bool) -> void:
 
 ## Shorts out the screen and the bay's power with it: the frame's strips
 ## flare and die, the white light goes out, and a beat later Eco lifts the
-## dead visor off her and pulls the headphones (_unmask). The cuff stays on.
+## dead visor off her, pulls the headphones and the band (_unmask). The cuff stays on.
 ## Returns false if it's already open.
 func release() -> bool:
 	if not can_open():
@@ -561,6 +603,9 @@ func release() -> bool:
 	for c in _clamps:
 		c.queue_free()
 	_clamps.clear()
+	if _pose != null:
+		_pose.queue_free()   # her arms come down
+		_pose = null
 	if ophelia != null:
 		if ophelia._anim != null:
 			ophelia._anim.speed_scale = 1.0
@@ -574,7 +619,7 @@ func release() -> bool:
 	return true
 
 
-## The visor and headphones come off her (the cuff's pins don't): she blinks
+## The visor, headphones and neck band come off her (the cuff's pins don't): she blinks
 ## in the dark like she's just woken up.
 func _unmask() -> void:
 	if not is_instance_valid(ophelia):

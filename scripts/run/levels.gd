@@ -62,7 +62,8 @@ const LEVELS := {
 		# What they say when the screen drops and the visor comes off her.
 		"rescue_lines": [
 			"OPHELIA: ...Why'd the light go off? I was doing so well.",
-			"ECO: Doing so well at what? Hold still. This thing's coming off your face.",
+			"ECO: Doing so well at what? Hold still. This thing's coming off your face, and that off your neck.",
+			"OPHELIA: I can't feel my arms. Did they have them up the whole time?",
 			"OPHELIA: Eco? What are you doing here? They only grabbed me last night.",
 			"ECO: Last night? Ophelia, you've been gone nineteen days.",
 			"OPHELIA: No. The light came on, and a nice voice said I was doing so well, and then you were... Nineteen days?",
