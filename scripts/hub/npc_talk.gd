@@ -60,6 +60,8 @@ const COLORS := {"mom": Color(0.6, 0.85, 0.6), "ophelia": Color(0.78, 0.55, 1.0)
 
 var save_path := DEFAULT_PATH
 var state := ConfigFile.new()
+## The levels she's cleared (run_manager dress_hub), for [after_<level>] talks.
+var cleared: Array = []
 ## The conversation playing: its NPC node, lines [[speaker, text], ...] and the line on now.
 var npc: Node3D
 var lines: Array = []
@@ -262,6 +264,15 @@ func pick(who: String, run_id: int, won: bool, spot := "") -> Array:
 		state.set_value(who, "warm_run", run_id)
 		state.set_value(who, "bond_run", run_id)
 		return b["intro"]
+	# What they've got to say about a level she's just cleared, once
+	# ([after_level4]: Biggie on the joint op), the latest first.
+	for i in range(cleared.size() - 1, -1, -1):
+		var level: String = cleared[i]
+		var key := "after_" + level
+		if b.has(key) and not state.get_value(who, key, false):
+			state.set_value(who, key, true)
+			state.set_value(who, "run_seen", run_id)
+			return b[key]
 	if Family.has_family(b) and int(state.get_value(who, "bond_run", -1)) != run_id:
 		state.set_value(who, "bond_run", run_id)
 		_add_bond(who, Family.TALK_GAIN)

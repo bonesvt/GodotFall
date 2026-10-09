@@ -87,7 +87,7 @@ func _run() -> void:
 			_check("the lab console changes how much she can press", Prefs.press_strength() != before and run_node.hud.toast_label.text.begins_with("Press into things"), [before, Prefs.press_strength()])
 			Prefs.set_press_strength(1.0)
 			continue
-		if spot["id"] in ["tutorial_poster", "uncharted_map", "garage", "level_board", "level2_board", "ophelia_papers"]:  # the Keepsake tin: tests/obsession_test.gd  # level boards: tests/level1_test.gd, level2_test.gd
+		if spot["id"] in ["tutorial_poster", "uncharted_map", "garage", "level_board", "level2_board", "level3_board", "level4_board", "ophelia_papers"]:  # the Keepsake tin: tests/obsession_test.gd  # level boards: tests/level1_test.gd, level2_test.gd
 			continue
 		await _stand_at(spot["pos"])
 		if spot.has("teleport"):
@@ -129,7 +129,7 @@ func _run() -> void:
 			await _press("interact")
 			await _ticks(2)
 			_check("%s lines cycle" % spot["id"], run_node.hud.toast_label.text == spot["lines"][1], run_node.hud.toast_label.text)
-	for id in ["tutorial_poster", "level_board", "level2_board", "uncharted_map", "idol", "lore_builders", "lore_eye", "lore_tablets", "titan", "gunsmith",
+	for id in ["tutorial_poster", "level_board", "level2_board", "level3_board", "level4_board", "uncharted_map", "idol", "lore_builders", "lore_eye", "lore_tablets", "titan", "gunsmith",
 			"weapon_rack", "knife_case", "suit_locker", "titan_workshop", "bedroll", "letter", "wardrobe", "garage"]:
 		_check("hub has %s" % id, id in ids, ids)
 	# Downstairs: the statue, lore, mission table, armour bench, gunsmith, rack and knife case;
@@ -141,9 +141,9 @@ func _run() -> void:
 	var upstairs := ["bedroll", "letter", "wardrobe"].filter(func(id): return absf(at[id].y - loft_y) < 0.3 and HubBuilder.LOFT.has_point(Vector2(at[id].x, at[id].z)))
 	_check("bed, letter and wardrobe are in the loft", upstairs.size() == 3, upstairs)
 	var hall := Rect2(-HubBuilder.HALF, HubBuilder.BACK_Z, HubBuilder.HALF * 2, HubBuilder.FRONT_Z - HubBuilder.BACK_Z)
-	var downstairs := ["idol", "lore_builders", "lore_eye", "lore_tablets", "level_board", "level2_board", "suit_locker", "gunsmith", "weapon_rack", "knife_case"].filter(
+	var downstairs := ["idol", "lore_builders", "lore_eye", "lore_tablets", "level_board", "level2_board", "level3_board", "level4_board", "suit_locker", "gunsmith", "weapon_rack", "knife_case"].filter(
 			func(id): return absf(at[id].y - HubBuilder.F) < 1.2 and hall.has_point(Vector2(at[id].x, at[id].z)))
-	_check("statue, lore, mission table and benches downstairs", downstairs.size() == 10, downstairs)
+	_check("statue, lore, mission table and benches downstairs", downstairs.size() == 12, downstairs)
 	var poster: Vector3 = at["tutorial_poster"]
 	_check("tutorial poster is outside the temple", not hall.grow(HubBuilder.WALL_T).has_point(Vector2(poster.x, poster.z)) and poster.y < 0.5, poster)
 	var marker: Node3D = info["tutorial_marker"]

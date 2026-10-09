@@ -624,6 +624,8 @@ func load_zone(index: int) -> void:
 		tutorial.start_level(run.level)
 	else:
 		tutorial.start_level("zone%d" % index if index < run.zone_count else "arena")
+	if zone_info.has("story"):
+		zone_info["story"].begin(self)
 
 
 ## The physics lab's console: steps the Press into things setting round
@@ -1325,6 +1327,7 @@ func equip_loadout() -> void:
 ## three knives under the knife case's glass (the one she carries tagged), and
 ## the titan you'd start a run with standing in the workshop's gantry.
 func dress_hub() -> void:
+	npc_talk.cleared = armory.cleared_levels()   # their [after_<level>] talks
 	# Solace's date spots name whoever Eco can take there.
 	var partner := date_partner()
 	for spot in zone_info.get("interactables", []):
@@ -1592,6 +1595,11 @@ func _zone_tick(delta: float) -> void:
 	if escort != null and escort.in_reach(player.global_position) and Input.is_action_just_pressed("interact"):
 		_escort_order()
 		return
+	var story: Node = zone_info.get("story")
+	if story != null:
+		story.tick(delta)
+		if Input.is_action_just_pressed("interact") and story.use(player.global_position):
+			return
 	var cache := nearest_cache()
 	if cache != null and Input.is_action_just_pressed("interact"):
 		open_salvage(cache)
@@ -1608,6 +1616,10 @@ func _zone_tick(delta: float) -> void:
 	if zone_info["beacon"] != null and zone_info["beacon"].contains(player.global_position):
 		if zone_info.has("holding_cell"):
 			_exfil()
+		elif zone_info.has("story"):
+			_story_exfil()
+		elif run.level != "":
+			end_run("RUN COMPLETE", "Out.")  # a level is one zone: its beacon is the way home
 		else:
 			load_zone(run.zone + 1)
 
@@ -1722,6 +1734,16 @@ func _exfil() -> void:
 	elif _rescue_nag <= 0.0:
 		_rescue_nag = 6.0
 		hud.toast("Not without %s. Go back for her." % _rescue_name(), 3.5)
+
+
+## The way out on a story level (levels.gd "story"): once its set piece is done.
+func _story_exfil() -> void:
+	var story: Node = zone_info["story"]
+	if story.can_leave():
+		end_run("RUN COMPLETE", story.finish())
+	elif _rescue_nag <= 0.0:
+		_rescue_nag = 6.0
+		hud.toast(story.leave_nag(), 3.5)
 
 
 func _set_prisoner_chatter(on: bool) -> void:
@@ -2257,6 +2279,9 @@ func _prompt() -> String:
 			var cell := holding_cell_in_reach()
 			if cell != null:
 				return "[F] Short the screen and overload the pylons"
+			var story: Node = zone_info.get("story")
+			if story != null and story.prompt(player.global_position) != "":
+				return story.prompt(player.global_position)
 			if escort != null and escort.in_reach(player.global_position):
 				return "[F] %s: come on" % _rescue_name() if escort.waiting else "[F] %s: wait here" % _rescue_name()
 			var cache := nearest_cache()

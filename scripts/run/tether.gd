@@ -168,6 +168,11 @@ func _obey() -> void:
 	_lines += 1
 
 
+## A story order she refused (story/blackwater.gd): his punishment, as for any order.
+func punish() -> void:
+	_fail()
+
+
 ## She didn't do it (or wouldn't): the swirls take her for a moment.
 func _fail() -> void:
 	order = ""

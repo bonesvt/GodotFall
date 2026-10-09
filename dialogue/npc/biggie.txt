@@ -24,6 +24,30 @@ biggie: Course you did. Just remember, kid. The fight you win is the one they le
 eco: Meaning?
 biggie: Meaning next time, they'll be ready for that trick. Bring a new one.
 
+[after_level3]
+biggie: Colony seal on crates of Glass. Addressed to a cellar. In Solace.
+eco: You know anybody in town with a cellar?
+biggie: Old Hiro's got a root hole under the noodle shop. The cinema's got a basement nobody's been down since the reels stopped.
+eco: The cinema.
+biggie: I didn't say that. I said nobody's been down there. Which is a different thing from nobody going down there.
+eco: Somebody in Solace is working for them, Biggie.
+biggie: Somebody in Solace has always been working for somebody. Question is who's paying this time.
+
+[after_level4]
+biggie: Put that recorder down a second. Sit.
+eco: He opened his canopy. For a friendly on the colony band.
+biggie: Yeah. I figured it was something like that. I just didn't want it to be.
+eco: You know who it was.
+biggie: I know who it could've been. Years back, your pop flew a joint op. Hollow Line, the winter they called the truce.
+biggie: Him and a colony ace, side by side for three weeks. Big heavy frame. Painted grey, with a war chant stencilled down the arm. Warsong, they called him.
+biggie: They shared a fire every night. Traded smokes. Your pop said he was the only one of them worth a damn.
+eco: And when the truce ended?
+biggie: When the truce ended, they went home on opposite sides. Your pop never said a bad word about him. Not once.
+eco: So if Warsong called him on the colony band and said it's me...
+biggie: He'd have opened up. Yeah. He'd have opened right up.
+eco: That shell I pulled out of his seat. Nothing the colony fields fires a round that big.
+biggie: Nothing the grunts field. A heavy frame like his does. ...Don't go looking for him angry, kid. That's how your pop went in.
+
 [lost]
 biggie: Sit down before you fall down.
 eco: I'm fine.

@@ -42,6 +42,8 @@ extends RefCounted
 ##   holding: the colony's holding block, a yard like the depot where the
 ##     bigger squad guards a prisoner's cell instead (levels.gd "rescue");
 ##     with holding_last it's the last stop before the end.
+##   story: a yard taken over by the level's story set piece (levels.gd
+##     "story", scripts/run/story/); with story_last it's the last stop.
 ##   finale: in place of the end, a wide clearing across the whole valley
 ##     where the enemy titan waits: call yours in, fight, walk it to the evac.
 ## Everything is seeded: the same seed always plans the same zone.
@@ -70,10 +72,10 @@ const BRIDGE_REACH := 2.0
 const SECTION_LEN := {
 	"start": 36.0, "field": 44.0, "picket": 36.0, "wall": 28.0,
 	"outpost": 56.0, "camp": 56.0, "resource": 44.0, "chasm": 48.0, "end": 36.0, "ruins": 48.0,
-	"depot": 64.0, "holding": 64.0, "finale": 112.0,
+	"depot": 64.0, "holding": 64.0, "story": 64.0, "finale": 112.0,
 }
 ## Sections that are a flat yard with buildings, a squad and a cache.
-const YARDS := ["outpost", "camp", "depot", "holding"]
+const YARDS := ["outpost", "camp", "depot", "holding", "story"]
 ## Flat ground round the spawn and the beacon.
 const SPAWN_CLEAR := 10.0
 const BIOMES := ["forest", "marsh", "boneyard", "city", "military"]
@@ -224,9 +226,10 @@ func _plan_sections(rng: RandomNumberGenerator) -> void:
 	middle.append_array(level.get("must", []))
 	# A holding block kept for last goes in after the shuffle.
 	var last := []
-	if level.get("holding_last", false) and "holding" in middle:
-		middle.erase("holding")
-		last = ["holding"]
+	for kind in ["holding", "story"]:
+		if level.get(kind + "_last", false) and kind in middle:
+			middle.erase(kind)
+			last = [kind]
 	var fillers := ["field", "picket", "resource", "field", "ruins"]
 	for i in extra:
 		middle.append(fillers[rng.randi() % fillers.size()])
@@ -444,7 +447,7 @@ func _plan_ridges() -> void:
 		match s["kind"]:
 			"start":
 				spans.append([spawn_z - 2.0, s["z1"], 16.0, 0.0])
-			"outpost", "camp", "depot", "holding":
+			"outpost", "camp", "depot", "holding", "story":
 				pass
 			"wall":
 				spans.append([s["z0"], s["wall_z"] + 3.0, 0.0, 0.0])

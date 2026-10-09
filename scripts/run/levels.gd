@@ -23,12 +23,16 @@ extends RefCounted
 ##   exfil: "spawn" puts the way out (the extraction beacon) back where you
 ##     came in, instead of past the far end.
 ##   night: dark streets, grunts with torches who see less far (biome.night).
+##   story: the level's story set piece (scripts/run/story/<story>.gd), in a
+##     "story" section: what Eco has to do there before the beacon lets her
+##     leave, played by Marrow's Hold (level_story.gd). story_last puts it
+##     last, at the far end.
 
 const ZoneGenerator := preload("res://scripts/run/procgen/zone_generator.gd")
 const LevelPlan := preload("res://scripts/run/procgen/level_plan.gd")
 const Biome := preload("res://scripts/run/procgen/biome.gd")
 
-const ORDER := ["level1", "level2"]
+const ORDER := ["level1", "level2", "level3", "level4"]
 const LEVELS := {
 	"level1": {
 		"number": 1,
@@ -73,7 +77,40 @@ const LEVELS := {
 		],
 		"blurb": "The colony's radio keeps talking about a girl from town in Trial Bay 7 downtown, and her numbers. "
 			+ "Nobody in town has even noticed she's gone. Ophelia. Go in at night, get her out of whatever they've put on her, and get her back out the way you came without waking the district.",
+	},	"level3": {
+		"number": 3,
+		"name": "BLACKWATER LINE",
+		"biome": "marsh",
+		"difficulty": 5,
+		"lanes": 0,
+		"must": ["story"],
+		"story": "blackwater",
+		"story_last": true,
+		"finale": false,
+		"threats": false,
+		"part_bonus": 2,
+		"needs": "level2",
+		"blurb": "The colony's fuel line runs out across Blackwater to a barge. Cut it. "
+			+ "The radio says the barge is carrying something else as well, crates under a colony seal, and they're addressed to Solace.",
 	},
+	"level4": {
+		"number": 4,
+		"name": "THE BONEYARD",
+		"biome": "boneyard",
+		"difficulty": 6,
+		"lanes": 0,
+		"must": ["story"],
+		"story": "boneyard",
+		"story_last": true,
+		"finale": false,
+		"exfil": "spawn",
+		"threats": false,
+		"part_bonus": 3,
+		"needs": "level3",
+		"blurb": "Dad went down on the old front line. The colony sent his titan home, but not its left arm, and not whatever was in the cockpit with him. "
+			+ "Find the crater, take what's his, and walk back out the way you came.",
+	},
+
 }
 
 

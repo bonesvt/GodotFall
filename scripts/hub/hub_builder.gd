@@ -789,7 +789,7 @@ static func _mission_table(root: Node3D, info: Dictionary) -> void:
 	title.modulate = Color(1.0, 0.85, 0.5)
 	var tag := Kit.label(root, lv + Vector3(-0.4, 1.25, 0), "LEVEL 1", 40)
 	tag.modulate = Color(1.0, 0.55, 0.4)
-	K.interactable(info, "level_board", t + Vector3(-0.9, 0.1, 1.3), "[F] Level 1", [], 1.2)
+	K.interactable(info, "level_board", t + Vector3(-1.2, 0.1, 1.3), "[F] Level 1", [], 0.8)
 	info["interactables"][-1]["level"] = "level1"
 	# Level 2: the Glass District, blue city blocks, the holding block ringed
 	# in red with a photo of Ophelia pinned to it.
@@ -803,9 +803,31 @@ static func _mission_table(root: Node3D, info: Dictionary) -> void:
 	photo.set_instance_shader_parameter("paint", Color(0.85, 0.82, 0.8))
 	var tag2 := Kit.label(root, lv2 + Vector3(0.1, 1.25, 0), "LEVEL 2", 40)
 	tag2.modulate = Color(1.0, 0.55, 0.4)
-	K.interactable(info, "level2_board", t + Vector3(0.5, 0.1, 1.3), "[F] Level 2", [], 1.2)
+	K.interactable(info, "level2_board", t + Vector3(-0.4, 0.1, 1.3), "[F] Level 2", [], 0.8)
 	info["interactables"][-1]["level"] = "level2"
-	info["level_boards"] = [{"id": "level1", "label": tag}, {"id": "level2", "label": tag2}]
+	# Level 3: Blackwater Line, green-black water and the fuel line drawn
+	# across it in red, out to a barge.
+	var lv3 := t + Vector3(-0.35, 1.05, -0.2)
+	var water := K.mesh(root, lv3, Vector3(0.5, 0.012, 0.32), Art.material("light"))
+	water.set_instance_shader_parameter("paint", Color(0.2, 0.3, 0.26))
+	K.glow(root, lv3 + Vector3(0.0, 0.01, 0.0), Vector3(0.42, 0.02, 0.03), Color(0.9, 0.2, 0.12))
+	K.glow(root, lv3 + Vector3(0.24, 0.012, 0.0), Vector3(0.08, 0.02, 0.06), Color(0.72, 0.32, 1.0))
+	var tag3 := Kit.label(root, lv3 + Vector3(0, 1.25, 0), "LEVEL 3", 40)
+	tag3.modulate = Color(1.0, 0.55, 0.4)
+	K.interactable(info, "level3_board", t + Vector3(0.4, 0.1, 1.3), "[F] Level 3", [], 0.8)
+	info["interactables"][-1]["level"] = "level3"
+	# Level 4: the Boneyard, bone-grey, Dad's crater circled twice.
+	var lv4 := t + Vector3(0.75, 1.05, -0.15)
+	var bones := K.mesh(root, lv4, Vector3(0.36, 0.012, 0.3), Art.material("light"))
+	bones.set_instance_shader_parameter("paint", Color(0.72, 0.7, 0.64))
+	K.glow(root, lv4 + Vector3(0.0, 0.01, 0.0), Vector3(0.12, 0.02, 0.12), Color(0.9, 0.2, 0.12))
+	K.glow(root, lv4 + Vector3(0.0, 0.012, 0.0), Vector3(0.06, 0.02, 0.06), Color(0.62, 0.74, 0.92))
+	var tag4 := Kit.label(root, lv4 + Vector3(0, 1.25, 0), "LEVEL 4", 40)
+	tag4.modulate = Color(1.0, 0.55, 0.4)
+	K.interactable(info, "level4_board", t + Vector3(1.2, 0.1, 1.3), "[F] Level 4", [], 0.8)
+	info["interactables"][-1]["level"] = "level4"
+	info["level_boards"] = [{"id": "level1", "label": tag}, {"id": "level2", "label": tag2},
+			{"id": "level3", "label": tag3}, {"id": "level4", "label": tag4}]
 	# The far end: a second sheet with the uncharted country in blue.
 	var far := t + Vector3(0, 0, -0.6)
 	var chart := K.mesh(root, far + Vector3(0, 1.04, 0), Vector3(2.0, 0.02, 0.6), Art.material("light"))

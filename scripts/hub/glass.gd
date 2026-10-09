@@ -95,6 +95,10 @@ static var ledger := false
 static var vats: Array = []
 ## The Chorus broken: Marrow is gone for good.
 static var broken := false
+## His crates she let through to Solace (story/blackwater.gd): each brings the
+## Chorus on as if she'd used another CRATE_VIALS vials.
+static var shipped := 0
+const CRATE_VIALS := 2
 static var save_path := "user://glass.cfg"
 
 ## Whether Marrow offers Glass: once his Hold has been deep, until he's gone.
@@ -184,7 +188,7 @@ static func chorus_stage() -> int:
 		return 0
 	var s := 0
 	for n: int in CHORUS_AT:
-		if used >= n:
+		if used + shipped * CRATE_VIALS >= n:
 			s += 1
 	return s
 
@@ -293,6 +297,7 @@ static func open(path: String) -> void:
 	ledger = cfg.get_value("glass", "ledger", false)
 	vats = cfg.get_value("glass", "vats", []).filter(func(id): return id in VAT_IDS)
 	broken = cfg.get_value("glass", "broken", false)
+	shipped = cfg.get_value("glass", "shipped", 0)
 
 
 static func save() -> void:
@@ -304,6 +309,7 @@ static func save() -> void:
 	cfg.set_value("glass", "ledger", ledger)
 	cfg.set_value("glass", "vats", vats)
 	cfg.set_value("glass", "broken", broken)
+	cfg.set_value("glass", "shipped", shipped)
 	cfg.save(save_path)
 
 
@@ -318,3 +324,4 @@ static func reset() -> void:
 	ledger = false
 	vats = []
 	broken = false
+	shipped = 0

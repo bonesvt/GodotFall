@@ -34,7 +34,7 @@ func _run() -> void:
 
 func _plan_checks() -> void:
 	var spec := Levels.spec("level2")
-	_check("level 2 needs level 1, rescues Ophelia at night", spec["needs"] == "level1" and spec["rescue"] == "ophelia" and spec["night"] and Levels.ORDER == ["level1", "level2"], spec.get("needs", ""))
+	_check("level 2 needs level 1, rescues Ophelia at night", spec["needs"] == "level1" and spec["rescue"] == "ophelia" and spec["night"] and Levels.ORDER.slice(0, 2) == ["level1", "level2"], spec.get("needs", ""))
 	var bad := []
 	for s in range(1, 41):
 		var plan = LevelPlan.make_level(s, spec)
