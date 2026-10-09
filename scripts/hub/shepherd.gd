@@ -237,6 +237,8 @@ func _say() -> void:
 
 
 ## A Hymn dart at her: it flies, and hits if she's still where it's going.
+
+
 func fire_dart() -> void:
 	var p := _player()
 	var from := global_position + Vector3(0.42, 1.0, 0) .rotated(Vector3.UP, rotation.y)

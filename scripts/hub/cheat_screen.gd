@@ -15,6 +15,12 @@ extends CanvasLayer
 ##   9   Mom's dose box: Mom's and Ophelia's Hymn to 90 (hub_grip.gd)
 ##   0   the Family Plan: Mom and Ophelia in the whole set, their Hymn full
 ##   R   Biggie's toolkit: everything above (and Super Hush) back to nothing
+## and the hypno looks' meters (vice_looks.gd), Mature only:
+##   D   Faith's devotion up a stage
+##   T   Colony City's Town's Grip up a stage
+##   O   Ophelia's look: obsession up a stage
+##   L   unlock the free endings' looks (Warden, Survivor, Unbound, Her Own)
+##   (each meter wraps back to none after full)
 
 const Armory := preload("res://scripts/hub/armory.gd")
 const TownShops := preload("res://scripts/hub/town_shops.gd")
@@ -25,6 +31,7 @@ const NpcTalk := preload("res://scripts/hub/npc_talk.gd")
 const Vices := preload("res://scripts/hub/vices.gd")
 const HubGrip := preload("res://scripts/hub/hub_grip.gd")
 const CheatScene := preload("res://scripts/hub/cheat_scene.gd")
+const ViceLooks := preload("res://scripts/hub/vice_looks.gd")
 
 const MAX_MATERIAL := 9999
 const GOLD := Color(1.0, 0.82, 0.3)
@@ -92,11 +99,15 @@ func _ready() -> void:
 	col.add_child(_button("9   Mom's dose box (Mom and Ophelia's Hymn to 90)", func(): control_item("dosebox")))
 	col.add_child(_button("0   The Family Plan (Mom and Ophelia, the whole set)", func(): control_item("family")))
 	col.add_child(_button("R   Biggie's toolkit (reset every control system)", func(): control_item("toolkit")))
+	col.add_child(_button("D   Faith look: devotion up a stage", func(): look_meter("devotion")))
+	col.add_child(_button("T   Colony City look: Town's Grip up a stage", func(): look_meter("town_grip")))
+	col.add_child(_button("O   Ophelia's look: obsession up a stage", func(): look_meter("obsession")))
+	col.add_child(_button("L   Unlock the free endings' looks", unlock_looks))
 	_status = _text("", 16, INK)
 	_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_status.custom_minimum_size = Vector2(512, 0)
 	col.add_child(_status)
-	col.add_child(_text("1-9, 0, R pick   F or Esc close", 14, DIM))
+	col.add_child(_text("1-9, 0, R, D, T, O, L pick   F or Esc close", 14, DIM))
 
 
 func _input(event: InputEvent) -> void:
@@ -125,6 +136,14 @@ func _input(event: InputEvent) -> void:
 			control_item("family")
 		KEY_R:
 			control_item("toolkit")
+		KEY_D:
+			look_meter("devotion")
+		KEY_T:
+			look_meter("town_grip")
+		KEY_O:
+			look_meter("obsession")
+		KEY_L:
+			unlock_looks()
 		_:
 			return
 	get_viewport().set_input_as_handled()
@@ -196,6 +215,32 @@ func control_item(id: String) -> bool:
 	close_now = true
 	_did("%s: watch." % CheatScene.ITEMS[id]["name"])
 	return true
+
+
+## One of the hypno looks' meters up a stage (25), back to none after full.
+## Returns the meter's new level (-1 under Teen).
+func look_meter(meter_name: String) -> float:
+	if not ViceLooks.allowed():
+		_did("The hypno looks are Mature only (Settings > Game > rating).")
+		return -1.0
+	var now := ViceLooks.level(meter_name)
+	ViceLooks.add(meter_name, -ViceLooks.MAX if now >= ViceLooks.MAX else ViceLooks.STAGE_AT[0])
+	var level := ViceLooks.level(meter_name)
+	var wearing := ViceLooks.forced()
+	_did("%s is at %d. %s" % [meter_name.capitalize(), int(level),
+			("She's in %s now." % ViceLooks.look_name(wearing)) if wearing != "" else "Nothing has her."])
+	return level
+
+
+func unlock_looks() -> void:
+	if not ViceLooks.allowed():
+		_did("The hypno looks are Mature only (Settings > Game > rating).")
+		return
+	var n := 0
+	for id: String in ViceLooks.FREE:
+		if ViceLooks.unlock(id):
+			n += 1
+	_did("Unlocked %d looks in her wardrobe: Warden, Survivor, Unbound and Her Own." % n if n > 0 else "She has every free look already.")
 
 
 func _did(line: String) -> void:

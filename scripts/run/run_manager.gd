@@ -99,6 +99,7 @@ const DISPENSARY_BACK_DOOR := Vector3(-0.5, 0.1, 4.5)
 const BRIDGE_PUFF := "The bridge hisses up her nose. Lavender. Linen. Calm."
 const CUFF_DOSED := "The cuff hisses. Something cold goes into her wrist, and then the calm comes: white, quiet, everywhere. Hymn."
 const Glass := preload("res://scripts/hub/glass.gd")
+const ViceLooks := preload("res://scripts/hub/vice_looks.gd")
 const Tether := preload("res://scripts/run/tether.gd")
 const ChorusScene := preload("res://scripts/hub/chorus_scene.gd")
 const Soundscape := preload("res://scripts/soundscape.gd")
@@ -309,6 +310,7 @@ func _ready() -> void:
 	Vices.open(armory_path.get_basename() + "_vices.cfg")
 	Glass.open(Glass.path_for(Vices.save_path))
 	Hymn.open(Hymn.path_for(Vices.save_path))
+	ViceLooks.open(ViceLooks.path_for(Vices.save_path))
 	Obsession.open(Obsession.path_for(Vices.save_path))
 	HubGrip.open(HubGrip.path_for(Vices.save_path))
 	tether = Tether.new(self)
@@ -758,7 +760,10 @@ func _physics_process(delta: float) -> void:
 	if phase in [Phase.ZONE, Phase.ARENA] and not get_tree().paused:
 		BattleDamage.tick(delta, player)
 	BattleDamage.apply()
-	RenderingServer.global_shader_parameter_set("eco_glass", Glass.look())
+	RenderingServer.global_shader_parameter_set("eco_glass", ViceLooks.glass_level())
+	RenderingServer.global_shader_parameter_set("eco_glass_tint", ViceLooks.glass_tint())
+	if ViceLooks.changed():  # a hypno look took her, went deeper or let go
+		Wardrobe.dress_eco(player, phase == Phase.HUB)
 	match phase:
 		Phase.ZONE:
 			_zone_tick(delta)

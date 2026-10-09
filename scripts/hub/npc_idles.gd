@@ -94,6 +94,8 @@ static func take(npc: Node3D, spot: String, info := {}) -> void:
 			spec["pos"] = s.get("talk", s["pos"])
 
 
+## Their poses file as the "poses" library. HubNpc loads it before they play
+## anything: added while an animation plays, it can crash the engine.
 static func _load_poses(npc: Node3D) -> void:
 	if npc._anim.has_animation_library(LIB):
 		return

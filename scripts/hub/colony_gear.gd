@@ -237,6 +237,8 @@ static func _match_layers(model: Node, root: Node3D, mesh_name: String) -> void:
 	if own != null:
 		for mi in root.find_children("*", "MeshInstance3D", true, false):
 			mi.layers = own.layers
+			# her first-person "Shadow" copy is drawn only into shadows (eco_fp_body.gd);
+			# its gear has to be too, or it hangs in front of the camera
 			mi.cast_shadow = own.cast_shadow
 
 

@@ -8,6 +8,7 @@
 !assets/models/grunt/*.import
 !assets/models/eco/*.import
 !assets/textures/eco/v_*.import
+!assets/textures/eco/looks/*.import
 tools/eco/__pycache__/
 tools/grunt/__pycache__/
 tools/hub/__pycache__/
