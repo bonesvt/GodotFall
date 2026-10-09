@@ -9,6 +9,7 @@ enum State { GROUND, AIR, SLIDE, WALLRUN, GRAPPLE }
 const SFX := preload("res://scripts/sfx.gd")
 const Prefs := preload("res://scripts/game/prefs.gd")
 const Hymn := preload("res://scripts/hub/hymn.gd")
+const Redline := preload("res://scripts/hub/redline.gd")
 const Vices := preload("res://scripts/hub/vices.gd")
 const Glass := preload("res://scripts/hub/glass.gd")
 const EcoContactSounds := preload("res://scripts/ps2/eco_contact_sounds.gd")
@@ -418,7 +419,7 @@ func _ground_state(delta: float) -> void:
 	_set_crouch(want_crouch)
 
 	var sprinting := (auto_sprint or Input.is_action_pressed("sprint")) and input_dir.y < -0.3
-	var target := (crouch_speed if crouching else (sprint_speed if sprinting else run_speed)) * speed_mult * suit_speed * Vices.speed_scale() * Hymn.speed_scale()
+	var target := (crouch_speed if crouching else (sprint_speed if sprinting else run_speed)) * speed_mult * suit_speed * Vices.speed_scale() * Hymn.speed_scale() * Redline.speed_scale()
 	if strolling:
 		# auto sprint doesn't apply; under the orbit camera any direction counts
 		var brisk := Input.is_action_pressed("sprint") and (input_dir.y < -0.3 or (not is_nan(move_yaw) and input_dir != Vector2.ZERO))
@@ -736,7 +737,7 @@ func _grapple_state(delta: float) -> void:
 
 	if jump_buffer_timer > 0.0:
 		_release_grapple()
-		velocity.y = maxf(velocity.y, jump_velocity)
+		velocity.y = maxf(velocity.y, jump_velocity * Redline.jump_scale())
 		jump_buffer_timer = 0.0
 	elif not Input.is_action_pressed("grapple") or dist < grapple_release_dist:
 		_release_grapple()
@@ -757,7 +758,7 @@ func _air_strafe(delta: float) -> void:
 # --- Transitions --------------------------------------------------------------
 
 func _jump() -> void:
-	velocity.y = jump_velocity
+	velocity.y = jump_velocity * Redline.jump_scale()  # Redline's long legs
 	state = State.AIR
 	jump_buffer_timer = 0.0
 	coyote_timer = 0.0

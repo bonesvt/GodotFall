@@ -73,6 +73,15 @@ const CravingScreen := preload("res://scripts/ui/craving_screen.gd")
 const HushPull := preload("res://scripts/hub/hush_pull.gd")
 const SuperHushScene := preload("res://scripts/hub/super_hush_scene.gd")
 const CheatScene := preload("res://scripts/hub/cheat_scene.gd")
+const Cutter := preload("res://scripts/hub/cutter.gd")
+const CutterScene := preload("res://scripts/hub/cutter_scene.gd")
+const Redline := preload("res://scripts/hub/redline.gd")
+## Cutter (cutter.gd): the chance he comes after her on a hub stay (from her
+## CUTTER_FROM'th run on), and how many seconds of roaming town before he does.
+const CUTTER_CHANCE := 0.35
+const CUTTER_FROM := 2
+const CUTTER_DELAY := Vector2(20.0, 50.0)
+const DOC_REDLINE := "Doc Imani, gloves on, a tray of things that hum: \"Hold still. I can take one of them back. The newest. It'll hurt.\" It does. It's gone: %s."
 const FittingScene := preload("res://scripts/hub/fitting_scene.gd")
 const DoseScene := preload("res://scripts/hub/dose_scene.gd")
 const CheatScreen := preload("res://scripts/hub/cheat_screen.gd")
@@ -244,6 +253,10 @@ var hush_pull: HushPull
 var super_hush_scene: SuperHushScene
 ## The cheat box's other control items, played out (cheat_scene.gd).
 var cheat_scene: CheatScene
+## Cutter's scenes: the needle, the crash (cutter_scene.gd).
+var cutter_scene: CutterScene
+## Seconds of roaming town till Cutter shows this stay (-1: not this stay).
+var _cutter_at := -1.0
 ## The Shepherd's gear going on her in the dispensary's back room (fitting_scene.gd).
 var fitting_scene: FittingScene
 ## The morning dose at the dispensary, played out (dose_scene.gd).
@@ -313,6 +326,7 @@ func _ready() -> void:
 	ViceLooks.open(ViceLooks.path_for(Vices.save_path))
 	Obsession.open(Obsession.path_for(Vices.save_path))
 	HubGrip.open(HubGrip.path_for(Vices.save_path))
+	Redline.open(Redline.path_for(Vices.save_path))
 	tether = Tether.new(self)
 	add_child(tether)
 	chorus_scene = ChorusScene.new(self)
@@ -323,6 +337,8 @@ func _ready() -> void:
 	add_child(super_hush_scene)
 	cheat_scene = CheatScene.new(self)
 	add_child(cheat_scene)
+	cutter_scene = CutterScene.new(self)
+	add_child(cutter_scene)
 	fitting_scene = FittingScene.new(self)
 	add_child(fitting_scene)
 	dose_scene = DoseScene.new(self)
@@ -541,6 +557,7 @@ func enter_hub() -> void:
 	if hub_npcs.has("ophelia"):
 		NpcIdles.build_window(zone_root)
 	_grip_scene.call_deferred()  # someone she loves has gone further under (hub_grip.gd)
+	_cutter_at = randf_range(CUTTER_DELAY.x, CUTTER_DELAY.y) if Redline.allowed() and runs_ended >= CUTTER_FROM and randf() < CUTTER_CHANCE else -1.0
 	Wardrobe.dress_eco(player, true)
 	phase = Phase.HUB
 	dress_hub()
@@ -549,6 +566,7 @@ func enter_hub() -> void:
 	hush_pull.reset()
 	super_hush_scene.reset()
 	cheat_scene.reset()
+	cutter_scene.reset()
 	fitting_scene.reset()
 	dose_scene.reset()
 	chorus_scene.reset()
@@ -652,6 +670,76 @@ func _grip_scene() -> void:
 	npc_talk._play(them, scene[1])
 
 
+## Any of the hub's scenes playing (the hub's controls and Cutter wait for them).
+func _scene_busy(with_pull := true) -> bool:
+	return super_hush_scene.busy() or cheat_scene.busy() or chorus_scene.busy() or fitting_scene.busy() \
+			or dose_scene.busy() or cutter_scene.busy() or (with_pull and hush_pull.busy())
+
+
+## Cutter's due this stay: once she's been roaming town long enough he comes,
+## from whichever of his haunts is far enough away to give her a head start.
+func _tick_cutter(delta: float, roaming: bool) -> void:
+	if _cutter_at < 0.0 or not roaming or not Redline.allowed() or not get_tree().get_nodes_in_group("cutter").is_empty():
+		return
+	if player.global_position.z < 120.0:  # not in the temple: he works the town
+		return
+	_cutter_at -= delta
+	if _cutter_at <= 0.0:
+		_cutter_at = -1.0
+		spawn_cutter()
+
+
+func spawn_cutter() -> void:
+	if not Redline.allowed() or phase != Phase.HUB or not get_tree().get_nodes_in_group("cutter").is_empty():
+		return
+	var best := Vector3.INF
+	for at in [HushDen.ALLEY + Vector3(2.0, 0.1, 0), HushDen.CELLAR + Vector3(-2.0, 0.1, 0), Vector3(0.0, 0.1, 150.0), Vector3(0.0, 0.1, 230.0)]:
+		var d := player.global_position.distance_to(at)
+		if d >= 18.0 and (best == Vector3.INF or d < player.global_position.distance_to(best)):
+			best = at
+	if best == Vector3.INF:
+		best = player.global_position + Vector3(0, 0.1, 20.0)
+	zone_root.add_child(Cutter.create(self, best))
+	hud.toast("Somebody whistles behind her. Two notes, low then high. Ophelia used to say that's Cutter's.", 4.0)
+
+
+## The cheat box's Redline: Cutter, right in front of her, and the needle.
+func cutter_now() -> void:
+	if not Redline.allowed():
+		return
+	var fwd := -player.global_basis.z
+	fwd.y = 0.0
+	var c := Cutter.create(self, player.global_position + fwd.normalized() * 0.8)
+	zone_root.add_child(c)
+	c.catch.call_deferred()
+
+
+## Cutter has her (cutter.gd): the needle (cutter_scene.gd).
+func cutter_caught(c: Node3D) -> void:
+	cutter_scene.play_catch(c)
+
+
+## The Redline high counting down; when it's out, the crash, as soon as nothing
+## else has the screen.
+func _tick_redline(delta: float) -> void:
+	Redline.tick(delta)
+	if Redline.crash_owed and not Redline.high() and not _scene_busy() and bench == null:
+		cutter_scene.play_crash()
+
+
+## Doc Imani takes back the newest Redline change, for scrap.
+func _doc_redline() -> void:
+	if armory.amount("scrap") < Redline.DOC_COST:
+		hud.toast("Doc Imani: \"%d scrap. I don't do this for love.\"" % Redline.DOC_COST, 3.0)
+		return
+	armory.stash["scrap"] = armory.amount("scrap") - Redline.DOC_COST
+	armory.save()
+	var gone := Redline.doc_reverse()
+	Wardrobe.dress_eco(player, true)
+	cutter_scene._redress_copies()
+	hud.toast(DOC_REDLINE % Redline.NAMES.get(gone, gone), 5.0)
+
+
 ## The Shepherd comes for her (hymn.gd), from the dispensary's back door.
 func spawn_shepherd() -> void:
 	if not Hymn.allowed() or phase != Phase.HUB or not get_tree().get_nodes_in_group("shepherd").is_empty():
@@ -742,6 +830,7 @@ func _physics_process(delta: float) -> void:
 	if not get_tree().paused:
 		Vices.tick(delta)
 		_vice_keys()
+		_tick_redline(delta)
 		if phase in [Phase.ZONE, Phase.ARENA, Phase.FIGHT]:
 			hush_pull.run_tick(delta, titan == null or not titan.piloted)
 			if Hymn.tick_bridge(delta):
@@ -792,7 +881,7 @@ func _hub_tick(delta: float) -> void:
 		if Input.is_action_just_pressed("interact") or Input.is_action_just_pressed("ui_cancel") or bench.get("close_now") == true:
 			close_bench()
 		return
-	if super_hush_scene.busy() or cheat_scene.busy() or chorus_scene.busy() or fitting_scene.busy() or dose_scene.busy():
+	if _scene_busy(false):  # (Marrow's pull ticks on below)
 		return
 	if garage != null:
 		if Input.is_action_just_pressed("interact") or Input.is_action_just_pressed("ui_cancel"):
@@ -811,6 +900,7 @@ func _hub_tick(delta: float) -> void:
 			and player.global_position.y > HushDen.BASEMENT.y + 5.0
 	hush_pull.tick(delta, roaming)
 	_tick_hymn(delta, roaming)
+	_tick_cutter(delta, roaming)
 	if hush_pull.busy():
 		return
 	if Vices.hush_suit_new and Vices.allowed():
@@ -911,6 +1001,9 @@ func _hub_tick(delta: float) -> void:
 		return
 	if spot["id"] == "garage":
 		open_garage()
+		return
+	if spot["id"] == "doc_redline" and Redline.allowed() and not Redline.changes.is_empty():
+		_doc_redline()
 		return
 	if spot.has("npc"):
 		talk_to(spot["npc"])
@@ -1299,7 +1392,9 @@ func close_bench() -> void:
 	dress_hub()
 	if inject:
 		super_hush_scene.play()
-	if cheat != "":
+	if cheat == "redline":
+		cutter_now()
+	elif cheat != "":
 		cheat_scene.play(cheat)
 	if hunt:
 		spawn_shepherd()
@@ -1978,7 +2073,7 @@ func end_run(title: String, reason: String) -> void:
 ## nothing else open.
 func _vice_keys() -> void:
 	if not Vices.allowed() or bench != null or garage != null or hub_piloting or npc_talk.active() or hush_pull.busy() \
-			or super_hush_scene.busy() or cheat_scene.busy() or chorus_scene.busy() or fitting_scene.busy() or dose_scene.busy() or tether.busy():
+			or super_hush_scene.busy() or cheat_scene.busy() or chorus_scene.busy() or fitting_scene.busy() or dose_scene.busy() or cutter_scene.busy() or tether.busy():
 		return
 	if not (phase == Phase.HUB or in_run()) or (titan != null and titan.piloted):
 		return
@@ -2194,7 +2289,7 @@ func _update_hud() -> void:
 func _prompt() -> String:
 	match phase:
 		Phase.HUB:
-			if hub_piloting or hush_pull.busy() or super_hush_scene.busy() or cheat_scene.busy() or chorus_scene.busy() or fitting_scene.busy() or dose_scene.busy():
+			if hub_piloting or hush_pull.busy() or super_hush_scene.busy() or cheat_scene.busy() or chorus_scene.busy() or fitting_scene.busy() or dose_scene.busy() or cutter_scene.busy():
 				return ""
 			if hub_titan != null and hub_titan.dropping:
 				return "Titanfall inbound"
@@ -2214,6 +2309,8 @@ func _prompt() -> String:
 					return family_scene.prompt()
 				if spot.get("shop", "") == "bar" and Vices.allowed() and not date_ready(spot):
 					return "[F] The Rusted Halo: drinks, smokes and Scrapjack"
+				if spot["id"] == "doc_redline" and Redline.allowed() and not Redline.changes.is_empty():
+					return "[F] Doc Imani: undo the newest Redline change (%d scrap)" % Redline.DOC_COST
 				if spot.get("shop", "") == "gear_off_doc" and Vices.allowed():
 					return "[F] Doc Imani: colony hardware off" + ("  (tried today)" if Hymn.doc_tried else "")
 				if spot.get("shop", "") == "gear_off" and Vices.allowed() and not Hymn.gear.is_empty():

@@ -14,7 +14,8 @@ extends CanvasLayer
 ##   8   Ophelia's ECO pack: Keepsake full, her obsession all the way (obsession.gd)
 ##   9   Mom's dose box: Mom's and Ophelia's Hymn to 90 (hub_grip.gd)
 ##   0   the Family Plan: Mom and Ophelia in the whole set, their Hymn full
-##   R   Biggie's toolkit: everything above (and Super Hush) back to nothing
+##   R   Biggie's toolkit: everything above (and Super Hush, and Redline) back to nothing
+##   C   Cutter's Redline: he's there, and the needle (cutter_scene.gd)
 ## and the hypno looks' meters (vice_looks.gd), Mature only:
 ##   D   Faith's devotion up a stage
 ##   T   Colony City's Town's Grip up a stage
@@ -99,6 +100,7 @@ func _ready() -> void:
 	col.add_child(_button("9   Mom's dose box (Mom and Ophelia's Hymn to 90)", func(): control_item("dosebox")))
 	col.add_child(_button("0   The Family Plan (Mom and Ophelia, the whole set)", func(): control_item("family")))
 	col.add_child(_button("R   Biggie's toolkit (reset every control system)", func(): control_item("toolkit")))
+	col.add_child(_button("C   Cutter's Redline (the needle; from the second, a change)", redline_item))
 	col.add_child(_button("D   Faith look: devotion up a stage", func(): look_meter("devotion")))
 	col.add_child(_button("T   Colony City look: Town's Grip up a stage", func(): look_meter("town_grip")))
 	col.add_child(_button("O   Ophelia's look: obsession up a stage", func(): look_meter("obsession")))
@@ -107,7 +109,7 @@ func _ready() -> void:
 	_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_status.custom_minimum_size = Vector2(512, 0)
 	col.add_child(_status)
-	col.add_child(_text("1-9, 0, R, D, T, O, L pick   F or Esc close", 14, DIM))
+	col.add_child(_text("1-9, 0, R, C, D, T, O, L pick   F or Esc close", 14, DIM))
 
 
 func _input(event: InputEvent) -> void:
@@ -136,6 +138,8 @@ func _input(event: InputEvent) -> void:
 			control_item("family")
 		KEY_R:
 			control_item("toolkit")
+		KEY_C:
+			redline_item()
 		KEY_D:
 			look_meter("devotion")
 		KEY_T:
@@ -204,6 +208,17 @@ func super_hush() -> bool:
 
 ## One of the control items: the box closes and its scene plays out
 ## (cheat_scene.gd), which sets its system to full at the end. Mature only.
+## Cutter's Redline: the box closes, he's right there, and the needle.
+func redline_item() -> bool:
+	if not Vices.allowed():
+		_did("Redline is Mature only (Settings > Game > rating).")
+		return false
+	scene = "redline"
+	close_now = true
+	_did("Cutter's Redline: watch.")
+	return true
+
+
 func control_item(id: String) -> bool:
 	if not Vices.allowed():
 		_did("The control items are Mature only (Settings > Game > rating).")

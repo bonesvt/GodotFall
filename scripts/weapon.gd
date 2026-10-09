@@ -36,6 +36,7 @@ const Art := preload("res://scripts/ps2/ps2_assets.gd")
 const SFX := preload("res://scripts/sfx.gd")
 const Vices := preload("res://scripts/hub/vices.gd")
 const Hymn := preload("res://scripts/hub/hymn.gd")
+const Redline := preload("res://scripts/hub/redline.gd")
 const Glass := preload("res://scripts/hub/glass.gd")
 const EcoArms := preload("res://scripts/eco_fp_arms.gd")
 ## Where the gun rests in front of the camera (its own space: right, up, back).
@@ -672,7 +673,7 @@ func damage_at(distance: float) -> float:
 func start_reload() -> void:
 	if reload_timer > 0.0 or ammo >= magazine_size:
 		return
-	reload_timer = reload_time * Hymn.reload_scale()  # the comfort gloves' numb hands
+	reload_timer = reload_time * Hymn.reload_scale() * Redline.reload_scale()  # the comfort gloves' numb hands, Redline's too-big ones
 	_reload_events = 0
 	stop_inspect()
 
