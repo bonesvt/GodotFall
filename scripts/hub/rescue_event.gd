@@ -38,10 +38,14 @@ const S_KNOCK := 1.3
 const S_FREE := 2.8
 const S_DARK := 6.0
 const S_END := 7.0
-## Too late.
-const L_SECOND := 4.2
-const L_DARK := 8.0
-const L_END := 9.0
+## Too late: the captor puts it in them (the drug to her lips, the needle to her
+## eye, the piece on her: L_IN), then what it's done, then what comes after.
+const L_CLOSE := 2.0
+const L_IN := 3.4
+const L_AFTER := 4.6
+const L_SECOND := 7.6
+const L_DARK := 11.0
+const L_END := 12.0
 
 const KNOCK := {
 	"marrow": "Eco hits him with her whole weight. He comes apart like smoke round her shoulder and pools on the floor, and from everywhere at once: \"Take her, then. She'll find her own way back.\"",
@@ -52,13 +56,19 @@ const FREED := {
 	"mom": "Mom takes Eco's face in both hands. \"You came. Oh, baby. You came for me.\"",
 	"ophelia": "Ophelia throws her arms round Eco's neck and doesn't let go. \"I knew it'd be you. I knew it.\"",
 }
-## Too late: [first shot, second shot] (%s: Mom or Ophelia; the colony's: the piece).
+## Too late, as they do it (%s: Mom or Ophelia; the colony's: the piece, then her).
+const APPLY := {
+	"marrow": "Marrow, bent over the armchair, a vial of violet in his long fingers. \"Shh. Just a little. You'll feel so much better.\" He tips it to %s's lips.",
+	"colony": "The Shepherd leans in over the white bench. \"Hold still, citizen.\" It brings the colony's %s up to %s.",
+	"cutter": "Cutter's got %s's chin in one hand and a needle of Redline in the other. \"Eyes open. You'll love it.\"",
+}
+## Too late, after: [what it's done, what comes after] (%s: Mom or Ophelia; the colony's: the piece).
 const LATE := {
-	"marrow": ["Marrow's basement. %s's sunk deep in the armchair, violet curling off her breath, smiling at nothing. His hand rests on the back of the chair.",
+	"marrow": ["%s sinks deep into the armchair, violet curling off her breath, smiling at nothing. His hand rests on the back of the chair.",
 		"%s comes home after dark. Calm. Quiet. She smiles at Eco like she's someone she used to know, and goes to bed without a word."],
-	"colony": ["The colony van. The door slides open on %s, sat very straight on the white bench while the arm comes down with the colony's %s.",
+	"colony": ["The colony van. %s sits very straight on the white bench, the colony's %s on her now.",
 		"It's on. %s blinks, and smiles, and doesn't stop. \"I feel so calm.\""],
-	"cutter": ["Cutter's stash. %s's on a crate, shaking so hard it rattles. Red lines glow up her arms and her neck, under the skin. Wiring.",
+	"cutter": ["%s's on the crate, shaking so hard it rattles. Red lines glow up her arms and her neck, under the skin. Wiring.",
 		"Cutter, grinning: \"Tell Eco she's next. Tell her mine's better than Marrow's.\""],
 }
 const QUIET := "%s smiles when Eco says her name, and doesn't say much back. She doesn't say much at all any more."
@@ -260,10 +270,10 @@ func play_late() -> void:
 			ColonyGear.fit_model(_victim, piece, 0.0)
 	elif captor == "cutter":
 		veins(_victim, true)
-	_victim.mood(["closed", "smile"] if captor != "cutter" else ["sad"])
+	_victim.mood(["sad"])
 	rm.player.visible = false  # she isn't there: this is what she missed
-	_look(_site["cam"], _victim.head_position() + Vector3(0, -0.25, 0), 40.0)
-	rm.hud.toast(_late_line(0), 4.0)
+	_late_set()
+	rm.hud.toast(_apply_line(), 3.4)
 	SFX.play(self, "heartbeat", -8.0, 0.8)
 
 
@@ -367,10 +377,18 @@ func _saved_tick() -> void:
 
 
 func _late_tick() -> void:
+	_apply_tick()
 	if captor == "colony" and piece != "" and _victim != null:
-		ColonyGear.fit_model(_victim, piece, smoothstep(0.8, 3.4, t))
-	if captor == "cutter" and _victim != null:
+		ColonyGear.fit_model(_victim, piece, smoothstep(0.8, L_IN, t))
+	if captor == "cutter" and _victim != null and t >= L_IN:
 		_shake(_victim, 1.0)
+	if t >= L_AFTER and not _said.has("after"):
+		_said["after"] = true
+		_drop_prop()
+		_step_back()
+		_victim.mood(["closed", "smile"] if captor != "cutter" else ["sad"])
+		_look(_site["cam"], _victim.head_position() + Vector3(0, -0.25, 0), 40.0)
+		rm.hud.toast(_late_line(0), 3.6)
 	if t >= L_SECOND and not _said.has("second"):
 		_said["second"] = true
 		rm.hud.toast(_late_line(1), 3.8)
@@ -398,6 +416,174 @@ func _late_tick() -> void:
 		_finish()
 
 
+## Too late, as it happens: the captor brought in close to them, facing them,
+## and what they're putting in or on them in his hand.
+var _prop: Node3D
+var _prop_from := Vector3.ZERO
+var _rod: MeshInstance3D
+
+
+func _late_set() -> void:
+	var seat: Vector3 = _site["seat"]
+	var at := seat
+	match captor:
+		"marrow":
+			at = seat + Vector3(0.42, 0, -0.55)
+		"colony":
+			at = seat + Vector3(0.85, 0, 0)
+		"cutter":
+			at = seat + Vector3(-0.7, 0, 0)
+	if is_instance_valid(_captor):
+		_captor.position = at
+		var d := _flat(_victim.global_position - at)
+		_captor.rotation = Vector3(0, atan2(-d.x, -d.z), 0)
+		_captor.scale = Vector3.ONE
+	var toward := _flat(_victim.global_position - at)
+	_prop_from = at + Vector3(0, 1.2, 0) + toward * 0.32
+	var glow := StandardMaterial3D.new()
+	glow.emission_enabled = true
+	match captor:
+		"marrow":  # a vial of Hush, glowing violet
+			glow.albedo_color = Color(0.72, 0.32, 1.0)
+			glow.emission = glow.albedo_color
+			glow.emission_energy_multiplier = 2.5
+			_prop = Node3D.new()
+			var vial := MeshInstance3D.new()
+			var c := CylinderMesh.new()
+			c.top_radius = 0.012
+			c.bottom_radius = 0.014
+			c.height = 0.07
+			vial.mesh = c
+			vial.material_override = glow
+			_prop.add_child(vial)
+			var light := OmniLight3D.new()
+			light.light_color = glow.albedo_color
+			light.light_energy = 1.2
+			light.omni_range = 1.6
+			_prop.add_child(light)
+		"cutter":  # his needle of Redline
+			glow.albedo_color = Color(1.0, 0.1, 0.08)
+			glow.emission = glow.albedo_color
+			glow.emission_energy_multiplier = 2.0
+			_prop = Node3D.new()
+			var steel := StandardMaterial3D.new()
+			steel.albedo_color = Color(0.8, 0.82, 0.85)
+			steel.metallic = 0.9
+			for part in [[0.0075, 0.07, 0.0, glow], [0.0007, 0.05, -0.06, steel], [0.002, 0.04, 0.055, steel]]:
+				var mi := MeshInstance3D.new()
+				var cy := CylinderMesh.new()
+				cy.top_radius = part[0]
+				cy.bottom_radius = part[0]
+				cy.height = part[1]
+				mi.mesh = cy
+				mi.material_override = part[3]
+				mi.rotation_degrees = Vector3(90, 0, 0)
+				mi.position = Vector3(0, 0, part[2])
+				_prop.add_child(mi)
+		"colony":  # its arm: a white rod from its hand to the piece going on
+			_rod = MeshInstance3D.new()
+			var rod := CylinderMesh.new()
+			rod.top_radius = 0.012
+			rod.bottom_radius = 0.016
+			rod.height = 1.0
+			_rod.mesh = rod
+			var white := StandardMaterial3D.new()
+			white.albedo_color = Color(0.92, 0.94, 0.97)
+			_rod.material_override = white
+			_set.add_child(_rod)
+	if _prop != null:
+		_set.add_child(_prop)
+		_prop.global_position = _prop_from
+	# the two of them, from the side
+	var mid: Vector3 = (_prop_from + _victim.head_position()) * 0.5
+	var side := toward.cross(Vector3.UP)
+	if captor == "colony":
+		side = Vector3(1, 0, 0.6).normalized() * 2.4  # from the street, in through the door
+	elif captor == "cutter":
+		side = Vector3(0, 0, 1)  # from the open side of the tarp
+	_look(mid + side * 1.5 + Vector3(0, 0.15, 0), mid - Vector3(0, 0.1, 0), 40.0)
+
+
+## Where on them it's going: her lips (Marrow), her eye (Cutter).
+func _apply_target() -> Vector3:
+	var fwd := _flat(-_victim.global_basis.z)
+	var right := fwd.cross(Vector3.UP)
+	if captor == "cutter":
+		return _victim.head_position() + Vector3(0, 0.02, 0) + fwd * 0.075 + right * 0.032
+	return _victim.head_position() - Vector3(0, 0.045, 0) + fwd * 0.08
+
+
+func _apply_tick() -> void:
+	var k := smoothstep(0.8, L_IN, t)
+	if _prop != null and is_instance_valid(_prop):
+		var to := _apply_target()
+		_prop.global_position = _prop_from.lerp(to + (_prop_from - to).normalized() * 0.03, k)
+		if captor == "cutter":
+			_prop.look_at(to, Vector3.UP)
+	if _rod != null and is_instance_valid(_rod) and piece != "":
+		var node := ColonyGear.piece_node(_victim, piece)
+		var a := _prop_from
+		var b: Vector3 = node.global_position if node != null else _victim.head_position()
+		_rod.global_position = (a + b) * 0.5
+		var dir := b - a
+		_rod.scale = Vector3(1, maxf(dir.length(), 0.01), 1)
+		if dir.length() > 0.01:
+			_rod.global_basis = Basis(Quaternion(Vector3.UP, dir.normalized())) * Basis.from_scale(Vector3(1, dir.length(), 1))
+	if captor == "cutter" and t >= L_CLOSE and not _said.has("close"):
+		_said["close"] = true  # close on her eye as it comes in
+		var fwd := _flat(-_victim.global_basis.z)
+		var eye := _apply_target() - fwd * 0.075
+		_look(eye + fwd * 0.4 + Vector3(0, 0, 0.22) - Vector3(0, 0.02, 0), eye, 22.0)
+	if t >= L_IN and not _said.has("in"):
+		_said["in"] = true
+		match captor:
+			"marrow":
+				_victim.mood(["closed", "smile"])
+				rm.hud.toast("She drinks. Her eyes go soft and violet at the edges.", 2.0)
+			"colony":
+				SFX.play(self, "cache_unlock", -4.0, 0.7)
+				_victim.mood(["smile"])
+			"cutter":
+				_veil.color = Color(0.85, 0.05, 0.05, 0.85)  # red, at contact, and nothing more
+				veins(_victim, true)
+				SFX.play(self, "heartbeat", 0.0, 1.2)
+	if captor == "cutter" and t >= L_IN and t < L_AFTER:
+		_veil.color.a = 0.85 * (1.0 - smoothstep(L_IN, L_IN + 0.8, t))
+
+
+## Done: the captor steps back out of the way (Marrow to behind her chair, a
+## hand on it; the Shepherd out of the van; Cutter off to the side).
+func _step_back() -> void:
+	if not is_instance_valid(_captor):
+		return
+	var seat: Vector3 = _site["seat"]
+	match captor:
+		"marrow":
+			_captor.position = seat + Vector3(0.35, 0, 0.55)
+		"colony":
+			_captor.position = seat + Vector3(1.6, -RescueSites.VAN_FLOOR, -1.1)
+		"cutter":
+			_captor.position = seat + Vector3(-0.85, 0, -0.85)
+	var d := _flat(_victim.global_position - _captor.position)
+	_captor.rotation = Vector3(0, atan2(-d.x, -d.z), 0)
+
+
+func _drop_prop() -> void:
+	if _prop != null and is_instance_valid(_prop):
+		_prop.queue_free()
+	_prop = null
+	if _rod != null and is_instance_valid(_rod):
+		_rod.queue_free()
+	_rod = null
+
+
+func _apply_line() -> String:
+	var name_: String = Rescue.NAMES[who]
+	if captor == "colony":
+		return APPLY[captor] % [Hymn.GEAR_NAMES.get(piece, "gear"), name_]
+	return APPLY[captor] % name_
+
+
 func _late_line(i: int) -> String:
 	var line: String = LATE[captor][i]
 	var name_: String = Rescue.NAMES[who]
@@ -411,6 +597,7 @@ func _late_line(i: int) -> String:
 func _finish() -> void:
 	t = -1.0
 	rm.player.visible = true
+	_drop_prop()
 	_veil.color.a = 0.0
 	_teardown()
 	step = Step.IDLE

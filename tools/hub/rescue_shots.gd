@@ -3,9 +3,9 @@ extends SceneTree
 ##   row 1  Biggie running in, Biggie with it, the countdown and the marker,
 ##          the colony van by the dispensary
 ##   row 2  Marrow has Mom: in time (him knocked to smoke, the two of them),
-##          too late (his basement, then her home, quiet)
-##   row 3  the colony has Ophelia: in time, too late (the van, the piece going on)
-##   row 4  Cutter has Mom: in time, too late (the stash, Wiring)
+##          too late (his vial at her lips, then sunk in his chair)
+##   row 3  the colony has Ophelia: in time, too late (the Shepherd putting the piece on, then on)
+##   row 4  Cutter has Mom: in time, too late (his needle at her eye, then Wiring)
 ##   godot --path . --resolution 1280x720 -s res://tools/hub/rescue_shots.gd -- <out_dir>
 ## Needs a renderer (not --headless). Writes <out_dir>/rescue.png.
 
@@ -117,9 +117,9 @@ func _go() -> void:
 	ev.left = 0.05
 	while not ev.busy():
 		await process_frame
-	await _at(2.4)
+	await _at(2.7)
 	_grab(6)
-	await _at(5.6)
+	await _at(5.4)
 	_grab(7)
 	while ev.busy():
 		await process_frame
@@ -146,9 +146,9 @@ func _go() -> void:
 	ev.left = 0.05
 	while not ev.busy():
 		await process_frame
-	await _at(2.6)
+	await _at(2.7)
 	_grab(10)
-	await _at(5.6)
+	await _at(5.4)
 	_grab(11)
 	while ev.busy():
 		await process_frame
@@ -168,9 +168,9 @@ func _go() -> void:
 	ev.left = 0.05
 	while not ev.busy():
 		await process_frame
-	await _at(2.4)
+	await _at(2.7)
 	_grab(14)
-	await _at(5.6)
+	await _at(5.4)
 	_grab(15)
 	while ev.busy():
 		await process_frame

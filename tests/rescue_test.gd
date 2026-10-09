@@ -100,7 +100,7 @@ func _run() -> void:
 	ev.left = 0.05
 	await _until(func(): return ev.busy(), 2.0)
 	_check("the clock's out: too late", ev.busy() and ev.step == ev.Step.LATE, ev.step)
-	await _until(func(): return not ev.busy(), 12.0)
+	await _until(func(): return not ev.busy(), 16.0)
 	await _ticks(3)
 	_check("bond -10", Family.bond(state, "mom") == bond_was + Rescue.BOND_LATE, Family.bond(state, "mom"))
 	_check("Town's Grip +10", is_equal_approx(ViceLooks.town_grip, 30.0), ViceLooks.town_grip)
@@ -115,7 +115,7 @@ func _run() -> void:
 	_check("the van by the dispensary", run_node.zone_root.find_child("RescueVan", true, false) != null, "")
 	ev.left = 0.05
 	await _until(func(): return ev.busy(), 2.0)
-	await _until(func(): return not ev.busy(), 12.0)
+	await _until(func(): return not ev.busy(), 16.0)
 	await _ticks(3)
 	_check("the colony's next piece on her", HubGrip.gear_of("mom").size() == pieces + 1, HubGrip.gear_of("mom"))
 	_check("the van's gone", run_node.zone_root.find_child("RescueVan", true, false) == null, "")
