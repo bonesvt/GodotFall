@@ -6,10 +6,12 @@ extends Node3D
 ## white inside, with a drain. She stands in the same white fitting frame as
 ## the dispensary's back room (fitting_scene.gd), under a column of white
 ## light, wearing the prototype compliance headphones, dose cuff, clarity
-## visor and a tracker band locked round her neck (colony_gear.gd), her arms
-## held up over her head with her wrists clamped together to the frame's top
-## bar, her ankles clamped to its base, and
-## a screen hung in front of her face flashing rings and words at her.
+## visor and a tracker band locked round her neck, and the two pieces they
+## tried on her after: the calm bridge in her nose and comfort gloves to the
+## shoulder (colony_gear.gd). Her arms are held up over her head with her
+## wrists clamped together to the frame's top bar, her ankles clamped to its
+## base, her head hung forward after nineteen days of it, and a screen hung
+## in front of her face flashing rings and words at her.
 ## Two empty frames beside hers, their visors hanging off them, were the
 ## subjects before her. The wall screen reads her trial (TRIAL_TEXT, LOG), a
 ## steel cart holds a tray of Hymn films cut into strips, and a sealed case
@@ -56,12 +58,14 @@ const PAD_TOP := 0.08
 ## The empty frames of the subjects before her (cell space).
 const EMPTY := [Vector3(-1.75, 0.0, -3.35), Vector3(1.95, 0.0, -3.4)]
 ## What the colony put on her for the trial, and what stays on once she's out.
-const TRIAL_GEAR := ["headphones", "cuff", "visor", "band"]
+const TRIAL_GEAR := ["headphones", "cuff", "visor", "band", "bridge", "gloves"]
 const KEPT_GEAR := ["cuff"]
 ## The screen hung in front of her face, and what it flashes at her, a word at
 ## a time over turning white rings.
 const FEED_AT := Vector3(0.0, 1.5, 0.55)
-const FEED_WORDS := ["CALM", "YOU ARE DOING SO WELL", "STAY", "SOLACE IS SAFE", "BREATHE WITH US", "GOOD", "BE ON TIME", "STAY"]
+const FEED_WORDS := ["YOU ARE HOME", "SMILE ON THE CHIME", "SOLACE IS SAFE", "SHARE THE HYMN", "THANK THE COLONY", "STAY"]
+## What it said on her first day.
+const DAY_ONE_WORDS := ["CALM", "BREATHE", "CALM", "BE STILL", "STAY"]
 const FEED_WORD_TIME := 1.1
 ## The wall screen over her frame, and the last lines of the trial log.
 const TRIAL_TEXT := "HYMN TRIAL  BAY 7
@@ -133,6 +137,15 @@ const ARMS_UP := [
 ]
 
 
+## Nineteen days in: the same, with her head hung forward (turns about her
+## model's x, negative is down).
+const HUNG := [
+	["J_Bip_C_Neck", Vector3.RIGHT, -16.0],
+	["J_Bip_C_Head", Vector3.RIGHT, -12.0],
+	["J_Bip_C_UpperChest", Vector3.RIGHT, -5.0],
+]
+
+
 ## Standing stock still in the frame in the white light, eyes shut behind the
 ## visor, with the trial's gear on (the band locked round her neck), her arms
 ## held up over her head and the frame's clamps on her wrists and ankles.
@@ -153,7 +166,7 @@ func _hold() -> void:
 		_pose.free()
 	var hold := Poses.Hold.new()
 	hold.name = "TrialHold"
-	hold.turns = ARMS_UP
+	hold.turns = ARMS_UP + HUNG
 	hold.after = _posed
 	_pose = hold
 	skel.add_child(_pose)
@@ -263,7 +276,7 @@ func _bar(a: Vector3, b: Vector3, thick: float, m: Material) -> Node3D:
 func gear_on() -> Array:
 	var on := []
 	for piece in TRIAL_GEAR:
-		if ophelia != null and ColonyGear.piece_node(ophelia, piece) != null:
+		if ophelia != null and ColonyGear.piece_node(ophelia, "HandL" if piece == "gloves" else piece) != null:
 			on.append(piece)
 	return on
 
@@ -280,7 +293,8 @@ func _process(delta: float) -> void:
 		ring.scale = Vector3(r, 1.0, r * 0.95)
 		ring.transparency = f
 	if _feed_word != null:
-		_feed_word.text = FEED_WORDS[int(_t / FEED_WORD_TIME) % FEED_WORDS.size()]
+		var words := DAY_ONE_WORDS if intake else FEED_WORDS
+		_feed_word.text = words[int(_t / FEED_WORD_TIME) % words.size()]
 	# Rings of the light sink down over her, slow; the light breathes.
 	var h := SIZE.y - PAD_TOP - 0.3
 	for i in _rings.size():
@@ -724,7 +738,7 @@ func power(on: bool) -> void:
 	if _field_light != null:
 		_field_light.light_energy = 1.1 if on else 0.3   # off, just the service light
 	if _feed_word != null:
-		_feed_word.text = FEED_WORDS[0] if on else ""
+		_feed_word.text = (DAY_ONE_WORDS if intake else FEED_WORDS)[0] if on else ""
 	for strip in _pylons:
 		strip.visible = on
 

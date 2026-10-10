@@ -9,8 +9,10 @@ extends Node
 ##   her, one at a time (colony_gear.gd fittings)
 ##   the orderlies step back, the bay powers up, the screen in front of her
 ##   face starts, and the words come
-##   out on the street, through the screen: nineteen days, and nobody came
-## Then black, and the level starts where the trial's got to. Plays the first
+##   black, then day 19: the same frame, her head hung forward, a calm bridge
+##   in her nose and comfort gloves to her shoulders now, smiling on the
+##   chime, the screen on new words and the log recommending Solace
+## Then black, and the level starts there. Plays the first
 ## time she loads in (tutorial.gd seen, "trial_intro"); F skips it. The run
 ## manager plays it when the zone loads and keeps its own controls off while
 ## busy(), with the grunts in the yard held still till it's over.
@@ -34,9 +36,11 @@ const VISOR := 22.6
 const FIT_TIME := 2.2
 const BACK := 26.0
 const POWER := 27.4
-const STREET := 32.0
-const OUT := 36.4
-const END := 37.4
+const DAY19 := 32.0
+const FACE19 := DAY19 + 3.4
+const FEED19 := DAY19 + 6.8
+const OUT := DAY19 + 9.6
+const END := OUT + 1.0
 ## Each piece in the order it goes on her.
 const GEAR := [["band", BAND], ["cuff", CUFF], ["headphones", PHONES], ["visor", VISOR]]
 const LINES := [
@@ -52,7 +56,10 @@ const LINES := [
 	[BACK + 0.2, "Orderly: \"Subject is fitted. Begin trial.\"", 2.0],
 	[POWER + 1.2, "The screen: CALM.", 2.2],
 	[POWER + 3.0, "Ophelia, very quietly: \"...I don't want to be calm.\"", 2.0],
-	[STREET + 0.4, "The trial ran nineteen days. Nobody came for her.", 3.6],
+	[DAY19 + 0.6, "Day 19.", 2.6],
+	[FACE19 + 0.8, "The chime. Under the visor, she smiles.", 2.4],
+	[FACE19 + 2.6, "Ophelia, softly: \"Thank you.\"", 1.8],
+	[FEED19 + 0.4, "The wall log: D19  RESPONDS TO PRAISE. RECOMMEND WIDER ROLLOUT: SOLACE.", 3.4],
 ]
 
 var rm: Node
@@ -140,6 +147,7 @@ func _process(delta: float) -> void:
 		return
 	# black in, a dip to black when they bring her in, black out at the end
 	var dip := smoothstep(BROUGHT - 0.5, BROUGHT - 0.1, t) * (1.0 - smoothstep(BROUGHT, BROUGHT + 0.5, t))
+	dip = maxf(dip, smoothstep(DAY19 - 1.0, DAY19 - 0.2, t) * (1.0 - smoothstep(DAY19 + 0.4, DAY19 + 1.4, t)))
 	_veil.color.a = maxf(maxf(1.0 - smoothstep(IN, IN + 1.4, t), dip), smoothstep(OUT, OUT + 0.8, t))
 	if t >= BROUGHT - 0.1 and not _said.has("brought"):
 		_said["brought"] = true
@@ -152,7 +160,7 @@ func _process(delta: float) -> void:
 	if t >= NAMED and _shot == "her":
 		_set_shot("face")
 	# her arms up into the clamp, the orderlies lifting them
-	if t >= ARMS:
+	if t >= ARMS and t < DAY19:
 		var k := smoothstep(ARMS, ARMS + ARMS_TIME, t)
 		cell.intake_arms(k)
 		for o in _orderlies:
@@ -169,7 +177,7 @@ func _process(delta: float) -> void:
 	# the gear, a piece at a time
 	var on := []
 	for g in GEAR:
-		if t < g[1]:
+		if t < g[1] or t >= DAY19:   # by day 19 they've put more on her (holding_cell.gd)
 			break
 		on.append(g[0])
 		cell.intake_gear(on.duplicate(), g[0], smoothstep(g[1], g[1] + FIT_TIME, t))
@@ -189,11 +197,20 @@ func _process(delta: float) -> void:
 		SFX.play(self, "chime_2", -10.0)
 		cell.ophelia.mood(["closed"])
 		_set_shot("feed")
-	if t >= STREET and not _said.has("street"):
-		_said["street"] = true
+	# nineteen days on
+	if t >= DAY19 and not _said.has("day19"):
+		_said["day19"] = true
 		for o in _orderlies:
 			o.visible = false
-		_set_shot("street")
+		cell.end_intake()
+		_set_shot("wide19")
+	if t >= FACE19 and not _said.has("face19"):
+		_said["face19"] = true
+		_set_shot("close")
+		SFX.play(self, "chime_2", -8.0)
+	if t >= FEED19 and not _said.has("feed19"):
+		_said["feed19"] = true
+		_set_shot("log")
 	for line in LINES:
 		if t >= line[0] and not _said.has(line[1]):
 			_said[line[1]] = true
@@ -252,8 +269,10 @@ func _set_shot(which: String) -> void:
 			_look(c + Vector3(-1.9, 1.7, 2.4), c + Vector3(0, 1.3, 0), 58.0)
 		"feed":
 			_look(c + Vector3(0.28, 1.62, -0.12), c + HoldingCell.FEED_AT, 52.0)
-		"street":
-			_look(Vector3(0.4, 1.6, 4.4), Vector3(0, 1.3, -2.2), 55.0)
+		"wide19":
+			_look(c + Vector3(-1.3, 1.5, 1.9), c + Vector3(0, 1.45, 0), 46.0)
+		"log":
+			_look(c + Vector3(1.2, 1.7, 1.6), Vector3(-HoldingCell.SIZE.x * 0.5, 1.9, -1.6), 50.0)
 
 
 func _look(from: Vector3, at: Vector3, fov: float) -> void:

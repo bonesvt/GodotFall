@@ -1,8 +1,10 @@
 extends SceneTree
 ## Stills of Level 2's opening (trial_intro.gd), day one of Ophelia's trial in
 ## Trial Bay 7: the bay dark and her frame empty, the orderlies bringing her
-## in, her arms clamped up, the band going on, the visor, and the screen
-## starting once the bay powers up. Its shots, staged on the cell directly.
+## in, her arms clamped up, the band going on, the visor, the screen starting
+## once the bay powers up, then day 19: her hung in the frame with the bridge
+## and gloves on, close on her face, and the wall log. Its shots, staged on
+## the cell directly.
 ##   godot --path . --resolution 1280x720 -s res://tools/run/trial_intro_shots.gd -- <out_dir>
 ## Needs a renderer (not --headless). Writes <out_dir>/trial_intro.png.
 
@@ -54,7 +56,7 @@ func _go() -> void:
 	world.add_child(street)
 	var cell: Node3D = HoldingCell.new()
 	world.add_child(cell)
-	sheet = Image.create(CELL.x * 3, CELL.y * 2, false, Image.FORMAT_RGBA8)
+	sheet = Image.create(CELL.x * 3, CELL.y * 3, false, Image.FORMAT_RGBA8)
 	await _frames(40)
 	cell.begin_intake()
 	var intro = TrialIntro.new(null)
@@ -91,6 +93,11 @@ func _go() -> void:
 	cell.ophelia.mood(["closed"])
 	await _frames(30)
 	await _still(intro, "feed")
+	cell.end_intake()
+	await _frames(30)
+	await _still(intro, "wide19")
+	await _still(intro, "close")
+	await _still(intro, "log")
 	sheet.save_png(out.path_join("trial_intro.png"))
 	print("saved ", out.path_join("trial_intro.png"))
 	quit()

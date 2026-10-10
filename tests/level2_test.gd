@@ -98,7 +98,7 @@ func _play_checks() -> void:
 	await _frames(3)
 	await _frames(3)
 	_check("Ophelia's in the trial frame in the Mature intake suit, in the white light", oph != null and oph.who == "ophelia" and oph.outfit == "colony_m" and oph.posed and cell._field.visible, oph.outfit)
-	_check("she wears the trial's headphones, cuff, visor and neck band", cell.gear_on() == cell.TRIAL_GEAR, cell.gear_on())
+	_check("she wears the trial's headphones, cuff, visor, neck band, bridge and gloves", cell.gear_on() == cell.TRIAL_GEAR, cell.gear_on())
 	var wrists: Variant = cell.wrists_at()
 	_check("her arms are held up over her head, wrists clamped together, ankles clamped", cell._clamps.size() == 6 and wrists != null and (wrists as Vector3).y > 1.6 and absf((wrists as Vector3).x - cell.COLUMN.x) < 0.15, [cell._clamps.size(), wrists])
 	_check("she stands on the bay's floor, held still", absf(oph.position.y - cell.PAD_TOP) < 0.05 and oph._anim.speed_scale == 0.0, [oph.position.y, oph._anim.speed_scale])
@@ -267,6 +267,11 @@ func _trial_intro() -> void:
 	intro.t = intro.POWER + 0.05
 	await _frames(3)
 	_check("then the bay powers up and the screen starts", cell._field.visible and cell._feed_word.text != "", cell._feed_word.text)
+	_check("on its first-day words", cell._feed_word.text in cell.DAY_ONE_WORDS, cell._feed_word.text)
+	intro.t = intro.DAY19 + 0.05
+	await _frames(4)
+	_check("day 19: the calm bridge and the gloves on her too", cell.gear_on() == cell.TRIAL_GEAR and cell.gear_on().size() == 6, cell.gear_on())
+	_check("her head hung, new words on the screen, the log on the wall", cell._pose != null and cell._pose.turns.size() > cell.ARMS_UP.size() and cell._feed_word.text in cell.FEED_WORDS and cell._log.text.contains("D19"), [cell._feed_word.text, cell._log.text])
 	await _press("interact")
 	await _frames(3)
 	_check("F skips to the level", not intro.busy() and not cell.intake and not player.entranced and g0.process_mode != Node.PROCESS_MODE_DISABLED, intro.t)
