@@ -1,6 +1,7 @@
 @tool
 extends EditorScenePostImport
-## Import script for the hub NPCs' glbs (mom, ophelia, biggie; built by
+## Import script for the hub NPCs' glbs (mom, ophelia, biggie, the colony's
+## orderly; built by
 ## tools/npc/build_npc.py). Gives every surface the same toon shading as Eco
 ## (assets/shaders/eco_toon*), built here from each Blender material's name
 ## (npc_<who>_<part>) and the textures in assets/textures/npc/<who>/, sets
@@ -31,6 +32,14 @@ const PARTS := {
 	"eyeline": [OVERLAY, Vector3.ONE, 2, 0.0, 0.0, 0.0, 0.0],
 	"lash": [OVERLAY, Vector3.ONE, 2, 0.0, 0.0, 0.0, 0.0],
 	"eye_glint": [OVERLAY, Vector3.ONE, 3, 0.0, 0.0, 0.0, 0.0],
+	# real clothes (tools/npc/npc_outfits.py): the rescue looks, Ophelia's
+	# torn intake suit (its rips cut out by the texture's alpha) and the
+	# orderlies' suit
+	"captor_marrow": [TOON, Vector3(0.7, 0.62, 0.85), 0, 1.4, 0.0, 0.18, 0.0],
+	"captor_colony": [TOON, Vector3(0.72, 0.76, 0.86), 0, 1.4, 0.0, 0.22, 0.1],
+	"captor_cutter": [TOON, Vector3(0.7, 0.68, 0.8), 0, 1.4, 0.0, 0.2, 0.0],
+	"colony_m_suit": [TWO_SIDE, Vector3(0.72, 0.76, 0.86), 0, 1.4, 0.5, 0.22, 0.1],
+	"suit": [TOON, Vector3(0.72, 0.76, 0.86), 0, 1.4, 0.0, 0.22, 0.15],
 }
 ## Each character's resting face (the same blend shapes the concept renders used).
 const FACES := {
