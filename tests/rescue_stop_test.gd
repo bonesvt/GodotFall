@@ -124,6 +124,11 @@ func _run() -> void:
 			"cutter":
 				_check("cutter: a Redline charge in her", Redline.charges == charges_was + 1, Redline.charges)
 		_check("%s: she walks on" % c, ev.walking() and not player.entranced and ev.step == ev.Step.IDLE, ev.step)
+		_check("%s: her eyes still easing back, not snapped" % c, EcoModel.swirl_override > 0.0 and ev._swirl_fade > 0.0, EcoModel.swirl_override)
+		var turn_was: float = ev._walker.rotation.y
+		await _ticks(1)
+		_check("%s: she turns to the road, not snaps" % c, absf(angle_difference(turn_was, ev._walker.rotation.y)) < 0.3, angle_difference(turn_was, ev._walker.rotation.y))
+		await _until(func(): return EcoModel.swirl_override < 0.0, 3.0)
 		_check("%s: Eco's own eyes back" % c, EcoModel.swirl_override < 0.0, EcoModel.swirl_override)
 		_check("%s: no hard cuts" % c, ev.cuts == cuts_was, ev.cuts - cuts_was)
 		await _ticks(3)

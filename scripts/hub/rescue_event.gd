@@ -16,6 +16,7 @@ const Rescue := preload("res://scripts/hub/rescue.gd")
 const Vices := preload("res://scripts/hub/vices.gd")
 const Redline := preload("res://scripts/hub/redline.gd")
 const EcoModel := preload("res://scripts/ps2/eco_model.gd")
+const Obsession := preload("res://scripts/hub/obsession.gd")
 const RescueSites := preload("res://scripts/hub/rescue_sites.gd")
 const HubNpc := preload("res://scripts/hub/hub_npc.gd")
 const HubGrip := preload("res://scripts/hub/hub_grip.gd")
@@ -409,6 +410,7 @@ func play_late() -> void:
 
 
 func _process(delta: float) -> void:
+	_swirl_fade_tick(delta)
 	_aftermath(delta)
 	Townsfolk.hush = busy()  # nobody talks over a scene
 	if not busy() and _key != null and _key_level > 0.0:
@@ -1464,6 +1466,8 @@ var _drawn_at := -1.0
 var _walker: Node3D
 var _walk_route: Array = []
 var _walk_leg := 1
+## Her pace along the route: she gets going from a stop, not at full speed at once.
+var _walk_v := 0.0
 var _spotted := false
 
 
@@ -1493,6 +1497,7 @@ func _start_walk(from := Vector3.INF) -> void:
 	RescueLooks.apply(_walker, _drawn_who, Rescue.changed_by(_drawn_who))
 	_borrow_walk(_walker)
 	_walk_leg = 1
+	_walk_v = 0.0
 	_spotted = false
 	_stop_done = false
 	real.visible = false
@@ -1535,9 +1540,13 @@ func _walk_tick(delta: float) -> void:
 			_settle()  # there: with them, for the rest of the stay
 			return
 		return
-	var step_ := d.normalized() * minf(WALK_SPEED * delta, d.length())
+	_walk_v = move_toward(_walk_v, WALK_SPEED, delta * 2.5)  # up to pace over half a second
+	var step_ := d.normalized() * minf(_walk_v * delta, d.length())
 	_walker.global_position += step_
-	_walker.rotation.y = atan2(-d.x, -d.z)
+	_walker.rotation.y = lerp_angle(_walker.rotation.y, atan2(-d.x, -d.z), 1.0 - exp(-6.0 * delta))  # turning, not snapping
+	var wap := _walker.find_child("AnimationPlayer", true, false) as AnimationPlayer
+	if wap != null:
+		wap.speed_scale = clampf(_walk_v / WALK_SPEED, 0.35, 1.0)  # her stride with her pace
 	if _drawn_captor == "cutter":
 		_shake(_walker, 0.6)
 	_stop_spot(true)
@@ -2401,10 +2410,34 @@ func _stop_over() -> void:
 		_give_prop.queue_free()
 	_give_prop = null
 	_q_ui.visible = false
+	if _give_swirl > 0.0:  # her eyes ease back to their own, not snap
+		_swirl_fade = SWIRL_FADE
+		_swirl_from = _give_swirl
+	else:
+		EcoModel.swirl_override = -1.0
 	_give_swirl = 0.0
-	EcoModel.swirl_override = -1.0
+	_walk_v = 0.0
 	if step == Step.STOP:
 		step = Step.IDLE
 	if t >= 0.0:
 		t = -1.0
 		_hold(false)
+
+
+## After she's given it: the scene's swirl in Eco's eyes eases down to what her
+## own would be now (eco_model.gd _eye_swirl()) over SWIRL_FADE s, then lets go.
+const SWIRL_FADE := 1.5
+var _swirl_fade := 0.0
+var _swirl_from := 0.0
+
+
+func _swirl_fade_tick(delta: float) -> void:
+	if _swirl_fade <= 0.0:
+		return
+	_swirl_fade = maxf(_swirl_fade - delta, 0.0)
+	var own := maxf(Vices.eye_swirl(), Obsession.eyes() * 0.9)
+	if Redline.high():
+		own = maxf(own, 0.85)
+	EcoModel.swirl_override = lerpf(own, _swirl_from, _smoother(_swirl_fade / SWIRL_FADE))
+	if _swirl_fade <= 0.0:
+		EcoModel.swirl_override = -1.0
