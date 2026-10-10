@@ -96,7 +96,7 @@ func _go() -> void:
 	cell.end_intake()
 	await _frames(30)
 	await _still(intro, "wide19")
-	await _still(intro, "close")
+	await _still(intro, "close19")
 	await _still(intro, "log")
 	sheet.save_png(out.path_join("trial_intro.png"))
 	print("saved ", out.path_join("trial_intro.png"))

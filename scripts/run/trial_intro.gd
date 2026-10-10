@@ -206,7 +206,7 @@ func _process(delta: float) -> void:
 		_set_shot("wide19")
 	if t >= FACE19 and not _said.has("face19"):
 		_said["face19"] = true
-		_set_shot("close")
+		_set_shot("close19")
 		SFX.play(self, "chime_2", -8.0)
 	if t >= FEED19 and not _said.has("feed19"):
 		_said["feed19"] = true
@@ -270,7 +270,9 @@ func _set_shot(which: String) -> void:
 		"feed":
 			_look(c + Vector3(0.28, 1.62, -0.12), c + HoldingCell.FEED_AT, 52.0)
 		"wide19":
-			_look(c + Vector3(-1.3, 1.5, 1.9), c + Vector3(0, 1.45, 0), 46.0)
+			_look(c + Vector3(1.4, 1.35, 1.5), c + Vector3(0, 1.35, 0), 46.0)
+		"close19":
+			_look(c + Vector3(0.45, 1.32, 0.48), c + Vector3(0, 1.47, 0), 36.0)   # up under her hung head
 		"log":
 			_look(c + Vector3(1.2, 1.7, 1.6), Vector3(-HoldingCell.SIZE.x * 0.5, 1.9, -1.6), 50.0)
 
