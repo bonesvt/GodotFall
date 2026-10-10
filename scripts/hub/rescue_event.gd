@@ -23,6 +23,7 @@ const ColonyGear := preload("res://scripts/hub/colony_gear.gd")
 const HushDen := preload("res://scripts/hub/hush_den.gd")
 const ShepherdModel := preload("res://scripts/hub/shepherd_model.gd")
 const ThreatModel := preload("res://scripts/threats/threat_model.gd")
+const Townsfolk := preload("res://scripts/hub/townsfolk.gd")
 const RescueLooks := preload("res://scripts/hub/rescue_looks.gd")
 const CutterModel := preload("res://scripts/hub/cutter_model.gd")
 const EcoRest := preload("res://scripts/ps2/eco_rest.gd")
@@ -409,6 +410,9 @@ func play_late() -> void:
 
 func _process(delta: float) -> void:
 	_aftermath(delta)
+	Townsfolk.hush = busy()  # nobody talks over a scene
+	if not busy() and _key != null and _key_level > 0.0:
+		_key_light(_key.global_position - Vector3(0, 0.7, 0) + Vector3(0, 0, 0.01), _key.global_position - Vector3(0, 0.7, 0), delta)
 	if step == Step.RUNNING:
 		_clock.text = "%s: %s   %d:%02d" % [Rescue.NAMES[who].to_upper(), Rescue.PLACES[captor], int(left) / 60, int(left) % 60]
 		_clock.add_theme_color_override("font_color", RED if left < 20.0 and fmod(left, 1.0) > 0.5 else Color(1.0, 0.85, 0.8))
@@ -1178,11 +1182,35 @@ func _cam_tick(delta: float) -> void:
 	_cam.fov = fov
 	if not _cam.current:
 		_cam.make_current()
+	_key_light(pos, at, delta)
 	if _defer_body and (_cam.global_position.distance_to(rm.player.global_position + Vector3(0, 1.5, 0)) > 0.7 or t > 1.5):
 		_defer_body = false  # clear of her head: her body can show now
 		var view: Node = rm.player.get_node_or_null("ViewCam")
 		if view != null:
 			view.set_third_person(true)
+
+
+## A soft key light on whoever the camera's on (the town's dark under its
+## canopy, and its shop fronts bright behind them): from the camera's side,
+## above, easing up while a scene plays and away after.
+var _key: OmniLight3D
+var _key_level := 0.0
+
+
+func _key_light(pos: Vector3, at: Vector3, delta: float) -> void:
+	if _key == null:
+		_key = OmniLight3D.new()
+		_key.light_color = Color(1.0, 0.93, 0.86)
+		_key.omni_range = 4.5
+		_key.shadow_enabled = false
+		add_child(_key)
+	var want := 1.0 if busy() and _home <= 0.0 else 0.0
+	_key_level = move_toward(_key_level, want, delta * 1.5)
+	_key.light_energy = 0.9 * _smoother(_key_level)
+	_key.visible = _key_level > 0.0
+	var toward := (pos - at)
+	toward.y = 0.0
+	_key.global_position = at + (toward.normalized() * 1.3 if toward.length() > 0.01 else Vector3.ZERO) + Vector3(0, 0.7, 0)
 
 
 ## Easing back to her own view over `dur` s; the scene's over when it gets there.
@@ -2041,6 +2069,7 @@ func _stop_tick(delta: float) -> void:
 
 ## The bar: up with each [F], draining, and her pulling against it.
 func _qte_tick(delta: float) -> void:
+	_tug(delta)
 	if t < Q_START:
 		return
 	_q_ui.visible = true
@@ -2054,6 +2083,44 @@ func _qte_tick(delta: float) -> void:
 	if qte_result == "" and (qte <= 0.0 or t >= Q_START + Q_TIME):
 		_qte_lost()
 	_q_ui.queue_redraw()
+
+
+## The pull, in their bodies: Eco steps in and gets hold of her; she leans and
+## backs away from Eco as the bar drains and comes in closer as Eco wins.
+func _tug(delta: float) -> void:
+	if not walking():
+		return
+	var p: Node3D = rm.player
+	var d := _flat(_walker.global_position - p.global_position)
+	var gap := Vector2(_walker.global_position.x - p.global_position.x, _walker.global_position.z - p.global_position.z).length()
+	# Eco closes to arm's length first
+	if t < Q_START and gap > 1.0:
+		p.set("trance_speed", 1.6)
+		p.set("trance_dir", d)
+	else:
+		p.set("trance_speed", 0.0)
+		p.set("trance_dir", Vector3.ZERO)
+	if t < Q_START:
+		return
+	var pull := clampf(1.0 - qte, 0.0, 1.0)
+	var want: Vector3 = p.global_position + d * lerpf(0.8, 1.35, pull)
+	want.y = _walker.global_position.y
+	_walker.global_position = _walker.global_position.lerp(want, 1.0 - exp(-5.0 * delta))
+	var m := _walker.get_node_or_null("Model") as Node3D
+	if m != null:  # leaning back away from her, tugging in jerks
+		var lean := 0.16 * pull * (0.65 + 0.35 * sin(t * 7.5))
+		m.rotation.x = lerpf(m.rotation.x, lean, 1.0 - exp(-10.0 * delta))
+
+
+## Her model upright again (after the tug).
+func _untug() -> void:
+	if walking():
+		var m := _walker.get_node_or_null("Model") as Node3D
+		if m != null:
+			var tw := create_tween()
+			tw.tween_property(m, "rotation:x", 0.0, 0.5).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	rm.player.set("trance_speed", 0.0)
+	rm.player.set("trance_dir", Vector3.ZERO)
 
 
 ## One [F] while the bar's up.
@@ -2085,6 +2152,7 @@ func _draw_qte() -> void:
 ## Held on to: she comes round, and home.
 func _qte_held() -> void:
 	qte_result = "held"
+	_untug()
 	_q_at = t
 	_q_ui.visible = false
 	rm.hud.toast(HELD[_stop_who], 4.0)
@@ -2113,6 +2181,7 @@ func _held_tick() -> void:
 ## Lost her: she steps in close, and gives it to Eco.
 func _qte_lost() -> void:
 	qte_result = "lost"
+	_untug()
 	_stop_done = true
 	_q_at = t
 	_q_ui.visible = false
@@ -2139,13 +2208,23 @@ func _qte_lost() -> void:
 			ColonyGear.fit_model(body, _give_piece, 0.0)
 	else:
 		_give_prop = _needle() if _stop_captor == "cutter" else _take_prop("colony" if _stop_captor == "colony" else "marrow")
+		_give_prop.scale = Vector3.ONE * 1.6  # big enough to read in the shot
 		rm.zone_root.add_child(_give_prop)
 		_give_prop.visible = false
-	_follow(_two_shot.bind(1.25, 0.06), 34.0, G_IN - 0.4)  # easing in on them as she does it
+	# over Eco's shoulder onto her face as she steps in and says it
+	var w := _walker
+	_follow(func():
+		var eco_head := _eco_point("J_Bip_C_Head", 1.5)
+		var her: Vector3 = w.head_position() if is_instance_valid(w) else eco_head
+		var back := _flat(eco_head - her)
+		return [eco_head + back * 0.9 + back.cross(Vector3.UP) * 0.5 + Vector3(0, 0.14, 0), her - Vector3(0, 0.05, 0)], 32.0, 1.0)
 
 
 func _give_tick(_delta: float) -> void:
 	var g := t - _q_at
+	if g >= G_REACH - 0.35 and not _said.has("tight"):
+		_said["tight"] = true  # round to the side, close, as it comes up to Eco
+		_follow(_two_shot.bind(1.05, 0.0), 30.0, G_IN - G_REACH + 0.35)
 	var u := clampf((g - G_REACH) / (G_IN - G_REACH), 0.0, 1.0)
 	var k := _smoother(u)
 	if _give_prop != null and is_instance_valid(_give_prop) and walking():
@@ -2185,6 +2264,7 @@ func _give_tick(_delta: float) -> void:
 		_move(_walker, _walker.global_position, _walker.global_position + d * 0.7, t, t + 1.0, "eco", 0.7)
 	if g >= G_WALK and not _said.has("walk"):
 		_said["walk"] = true
+		_around_eco()
 		_walker_anim("rescue/walk")
 		_walker.mood(["plain"])
 		_glide_home(G_HOME)
@@ -2218,6 +2298,28 @@ func _give_results() -> void:
 			Redline.caught()
 			got = "A Redline charge, burning in her. (%d)" % Redline.charges
 	rm.hud.toast("%s did that.  %s" % [Rescue.NAMES[_stop_who], got], 5.0)
+
+
+## Walking on, she goes round Eco, not through her: a step out to the side first.
+func _around_eco() -> void:
+	if not walking() or _walk_leg >= _walk_route.size():
+		return
+	var p: Vector3 = rm.player.global_position
+	var at := _walker.global_position
+	var to: Vector3 = _walk_route[_walk_leg]
+	var line := to - at
+	line.y = 0.0
+	var rel := p - at
+	rel.y = 0.0
+	var k := clampf(rel.dot(line) / maxf(line.length_squared(), 0.001), 0.0, 1.0)
+	var closest := at + line * k
+	if Vector2(closest.x - p.x, closest.z - p.z).length() > 1.0:
+		return
+	var side := _flat(line).cross(Vector3.UP)
+	if side.dot(at - p) < 0.0:
+		side = -side
+	_walk_route = _walk_route.duplicate()
+	_walk_route.insert(_walk_leg, Vector3(p.x, to.y, p.z) + side * 1.3 + _flat(line) * 0.6)
 
 
 ## Where it goes on Eco: her lips, or her left forearm (Cutter's).

@@ -87,6 +87,25 @@ func _run() -> void:
 	_check("too late: no hard cuts where it's seen", ev.cuts == 0, ev.cuts)
 	_check("Cutter walked in to her, and back", worst.get("captor_moved", 0.0) > 1.0, worst.get("captor_moved"))
 
+	# stopping her once she's theirs: the tug, lost, and her giving it to Eco
+	Rescue.lost_to["mom"] = ["cutter"]
+	Rescue.visits["mom"] = {"cutter": Rescue.VISITS}
+	Rescue.hooks["mom"] = {"cutter": 50.0}
+	run_node.place_player(Vector3(0.5, 0.1, 150.0))
+	p.rotation.y = PI
+	await _frames(10)
+	ev.walk_off_now("mom")
+	await _frames(40)
+	var w: Node3D = ev._walker
+	var behind := w.global_position - p.global_position
+	behind.y = 0.0
+	run_node.place_player(w.global_position - behind.normalized() * 1.4 + Vector3(0, 0.1, 0))
+	p.rotation.y = atan2(-behind.x, -behind.z)
+	await _frames(3)
+	ev.stop_walker()
+	await _watch("stopping her", func(): return not ev.busy(), 20.0)
+	_check("stopping her: no hard cuts where it's seen", ev.cuts == 0, ev.cuts)
+
 	for k in worst:
 		print("  worst %s: %s" % [k, str(worst[k])])
 	Vices.reset()
@@ -143,7 +162,7 @@ func _watch(what: String, done: Callable, seconds: float) -> void:
 		last_v = v if seen else 0.0
 		# everyone it shows
 		var dtb: float = dt
-		var people := {"biggie": ev._biggie, "victim": ev._victim, "captor": ev._captor, "eco": run_node.player}
+		var people := {"biggie": ev._biggie, "victim": ev._victim, "captor": ev._captor, "eco": run_node.player, "walker": ev._walker}
 		for k in people:
 			var n = people[k]
 			if n == null or not is_instance_valid(n) or not (n as Node3D).is_visible_in_tree():
