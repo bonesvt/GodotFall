@@ -245,7 +245,7 @@ func _set_shot(which: String) -> void:
 		"arms":
 			_look(c + Vector3(1.25, 1.8, 1.25), c + Vector3(0, 1.85, -0.1), 48.0)
 		"neck":
-			_look(c + Vector3(0.6, 1.45, 0.6), c + Vector3(0, 1.38, 0), 38.0)
+			_look(c + Vector3(0.42, 1.58, 0.42), c + Vector3(0, 1.49, 0), 28.0)
 		"close":
 			_look(c + Vector3(0.5, 1.55, 0.55), c + Vector3(0, 1.52, 0), 34.0)
 		"wide":
