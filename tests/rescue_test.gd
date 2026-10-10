@@ -116,7 +116,7 @@ func _run() -> void:
 	await _until(func(): return ev._walker != null, 3.0)
 	_check("off to Cutter: walking out of Solace", ev._walker != null and not run_node.hub_npcs["mom"].visible, ev._walker)
 	var was: Vector3 = ev._walker.global_position if ev._walker != null else Vector3.ZERO
-	await _ticks(60)
+	await _ticks(90)  # (she gets going from a stop)
 	_check("walking his way", ev._walker != null and ev._walker.global_position.distance_to(was) > 0.5, ev._walker.global_position if ev._walker != null else null)
 	_check("Eco sees her go", ev._spotted and run_node.hud.toast_label.text.contains("pilgrim road"), run_node.hud.toast_label.text)
 	ev._walk_leg = ev._walk_route.size() - 1

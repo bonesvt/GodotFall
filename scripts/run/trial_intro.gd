@@ -65,7 +65,7 @@ const SHOTS := {
 	"neck": [Vector3(0.5, 1.6, 0.5), Vector3(0, 1.49, 0), 30.0, Vector3(0.42, 1.58, 0.42), Vector3(0, 1.49, 0), 27.0],
 	"cuff": [Vector3(1.0, 1.95, 0.9), Vector3(0, 2.0, -0.1), 40.0, Vector3(0.8, 2.0, 0.75), Vector3(0, 2.02, -0.1), 36.0],
 	"close": [Vector3(0.6, 1.56, 0.62), Vector3(0, 1.52, 0), 36.0, Vector3(0.48, 1.54, 0.5), Vector3(0, 1.52, 0), 32.0],
-	"wide": [Vector3(-1.7, 1.6, 2.0), Vector3(0, 1.3, 0), 56.0, Vector3(-2.0, 1.75, 2.5), Vector3(0, 1.3, 0.2), 58.0],
+	"wide": [Vector3(-2.0, 2.5, 0.8), Vector3(0, 1.2, 0.2), 54.0, Vector3(-2.1, 2.75, 1.0), Vector3(0, 1.15, 0.3), 58.0],   # high in the corner, out of their way
 	"feed": [Vector3(0.3, 1.62, -0.1), HoldingCell.FEED_AT, 56.0, Vector3(0.26, 1.6, -0.14), HoldingCell.FEED_AT, 46.0],
 	"wide19": [Vector3(1.7, 1.3, 1.9), Vector3(0, 1.3, 0), 48.0, Vector3(1.35, 1.35, 1.45), Vector3(0, 1.35, 0), 44.0],
 	"close19": [Vector3(0.55, 1.28, 0.6), Vector3(0, 1.46, 0), 38.0, Vector3(0.45, 1.32, 0.48), Vector3(0, 1.47, 0), 33.0],
@@ -100,7 +100,7 @@ const LINES := [
 	[PHONES + 0.5, "Orderly: \"Hymn, stage one. Audio.\"", 2.4],
 	[VISOR, "Ophelia: \"No. Not my eyes. Please, not my eyes...\"", 2.8],
 	[BACK + 0.4, "Orderly: \"Subject is fitted. Begin trial.\"", 2.2],
-	[POWER + 1.4, "The screen: CALM.", 1.8],
+	[POWER + 0.8, "The screen: CALM. BREATHE. CALM.", 2.4],
 	[POWER + 3.0, "Ophelia, very quietly: \"...I don't want to be calm.\"", 2.0],
 	[DAY19 + 0.8, "Day 19.", 2.4],
 	[FACE19 + 0.9, "The chime. Under the visor, she smiles.", 2.2],
