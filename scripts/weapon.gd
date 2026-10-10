@@ -36,6 +36,7 @@ const Art := preload("res://scripts/ps2/ps2_assets.gd")
 const SFX := preload("res://scripts/sfx.gd")
 const Vices := preload("res://scripts/hub/vices.gd")
 const Hymn := preload("res://scripts/hub/hymn.gd")
+const Redline := preload("res://scripts/hub/redline.gd")
 const Glass := preload("res://scripts/hub/glass.gd")
 const EcoArms := preload("res://scripts/eco_fp_arms.gd")
 ## Where the gun rests in front of the camera (its own space: right, up, back).
@@ -282,7 +283,7 @@ func _ready() -> void:
 	while n != null and not (n is CharacterBody3D):
 		n = n.get_parent()
 	player = n
-	ammo = magazine_size
+	ammo = full_mag()
 	_build_viewmodel()
 	if player.has_signal("respawned"):
 		player.respawned.connect(refill)
@@ -332,9 +333,9 @@ func _physics_process(delta: float) -> void:
 		reload_timer -= delta
 		_reload_choreography()
 		if reload_timer <= 0.0:
-			ammo = magazine_size
+			ammo = full_mag()
 			smart_left = smart_capacity()
-	elif Input.is_action_just_pressed("reload") and ammo < magazine_size:
+	elif Input.is_action_just_pressed("reload") and ammo < full_mag():
 		start_reload()
 	elif Input.is_action_just_pressed("inspect") and not is_inspecting() and not holstered:
 		inspect()
@@ -377,7 +378,7 @@ func _process(delta: float) -> void:
 
 ## Current cone half-angle in degrees.
 func current_spread() -> float:
-	var s := (base_spread + bloom + Vices.SPREAD_DEG * Vices.effect()) * Vices.spread_scale()
+	var s := (base_spread + bloom + Vices.SPREAD_DEG * Vices.effect()) * Vices.spread_scale() * Hymn.spread_scale() * Redline.spread_scale()
 	match player.state:
 		Pilot.State.GROUND:
 			s += move_spread * clampf(player.horizontal_speed() / player.sprint_speed, 0.0, 1.0)
@@ -670,9 +671,9 @@ func damage_at(distance: float) -> float:
 
 
 func start_reload() -> void:
-	if reload_timer > 0.0 or ammo >= magazine_size:
+	if reload_timer > 0.0 or ammo >= full_mag():
 		return
-	reload_timer = reload_time * Hymn.reload_scale()  # the comfort gloves' numb hands
+	reload_timer = reload_time * Hymn.reload_scale() * Redline.reload_scale()  # the comfort gloves' numb hands, Redline's locked arms
 	_reload_events = 0
 	stop_inspect()
 
@@ -695,7 +696,7 @@ func is_reloading() -> bool:
 
 
 func refill() -> void:
-	ammo = magazine_size
+	ammo = full_mag()
 	smart_left = smart_capacity()
 	reload_timer = 0.0
 	bloom = 0.0
@@ -1213,3 +1214,8 @@ func _apply_punch(delta: float) -> void:
 	_punch = _punch.lerp(Vector2.ZERO, 1.0 - exp(-16.0 * delta))
 	player.camera.rotation.x = _punch.x
 	player.camera.rotation.y = _punch.y
+
+
+## A full magazine: the Rig's Compact carries a little less (redline.gd).
+func full_mag() -> int:
+	return Redline.mag_size(magazine_size)

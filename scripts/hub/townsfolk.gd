@@ -188,7 +188,22 @@ func talking() -> bool:
 	return not _chat.is_empty() or _speaker != null
 
 
+## A scene's on (rescue_event.gd): nobody in town talks over it.
+static var hush := false
+
+
 func _process(delta: float) -> void:
+	if hush:
+		if _speaker != null:
+			_speaker.done_talking()
+			_speaker = null
+		_chat.clear()
+		_line_left = GAP
+		for p in people.values():  # and any line still up over their heads goes
+			var cap = p.get_node_or_null("Caption")
+			if cap != null:
+				cap.visible = false
+		return
 	if _speaker != null:
 		_line_left -= delta
 		if _line_left <= 0.0:

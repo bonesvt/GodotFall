@@ -181,6 +181,8 @@ func _next_leg() -> void:
 
 
 func _caption_tick(delta: float) -> void:
+	if load("res://scripts/hub/townsfolk.gd").hush:  # a scene's on: they've stopped mid-word
+		_say_left = 0.0
 	if _say_left <= 0.0:
 		if _caption.visible:
 			_caption.visible = false

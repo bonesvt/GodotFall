@@ -67,6 +67,14 @@ func _run() -> void:
 	_check("super Hush saved", Vices.hold == Vices.MAX_HOLD, Vices.hold)
 	DirAccess.remove_absolute(ProjectSettings.globalize_path("user://test_cheat_vices.cfg"))
 
+	# the control items: Mature only, each closes the box on its own scene
+	ContentRating.set_rating("T", false)
+	_check("control items: Mature only", not box.control_item("hymn") and box.scene == "", box.scene)
+	ContentRating.set_rating("M", false)
+	for id in ["hymn", "set", "glass", "keepsake", "dosebox", "family", "shard", "ticket", "toolkit"]:
+		box.close_now = false
+		_check("%s: closes on its scene" % id, box.control_item(id) and box.scene == id and box.close_now, box.scene)
+
 	print("cheat_test: %s (%d failures)" % ["PASS" if failures == 0 else "FAIL", failures])
 	quit(1 if failures > 0 else 0)
 

@@ -147,14 +147,29 @@ func _run() -> void:
 	await _ticks(2)
 	_check("not over a screen", visor.strength() == 0.0, visor.strength())
 	run_node.close_bench()
+	# the kaleidoscope runs in the hub, never out on a run
+	var seen_hub := []
+	var seen_run := []
+	var keep_t: float = visor._t
+	var keep_phase = run_node.phase
+	for i in 14:
+		visor._t = visor.INDUCTION * i + 1.0
+		seen_hub.append(visor.which_induction())
+	run_node.phase = run_node.Phase.FIGHT
+	for i in 14:
+		visor._t = visor.INDUCTION * i + 1.0
+		seen_run.append(visor.which_induction())
+	run_node.phase = keep_phase
+	visor._t = keep_t
+	_check("kaleidoscope: hub only", "kaleido" in seen_hub and not "kaleido" in seen_run and "countdown" in seen_run, seen_run)
 
 	# The rest of the set: each capture the next piece, in order, each on her.
 	Hymn.gear = ["headphones", "cuff", "visor"]
-	for want in ["bridge", "gloves", "spine"]:
+	for want in ["bridge", "gloves", "spine", "band", "crown"]:
 		_check("next capture: %s" % want, Hymn.processed() == want, Hymn.gear)
 	Wardrobe.dress_eco(player, true)
 	await _ticks(2)
-	for part in ["bridge", "UpperL", "HandR", "Seg_0", "Seg_8"]:
+	for part in ["bridge", "UpperL", "HandR", "Seg_0", "Seg_8", "band", "Speaker"]:
 		_check("%s on her" % part, player.find_child(part, true, false) != null, part)
 	_check("gloves: numb hands, slower reloads", Hymn.reload_scale() == Hymn.RELOAD_SLOW, Hymn.reload_scale())
 	_check("spine: a heavier step", Hymn.speed_scale() == Hymn.SPINE_SPEED, Hymn.speed_scale())
@@ -162,6 +177,16 @@ func _run() -> void:
 	Hymn._puff = Hymn.BRIDGE_EVERY
 	before = Hymn.level
 	_check("bridge: a puff a minute", not Hymn.tick_bridge(Hymn.BRIDGE_EVERY * 0.5) and Hymn.tick_bridge(Hymn.BRIDGE_EVERY * 0.6) and Hymn.level > before, Hymn.level)
+	# first person: her full copy only casts shadows, so its gear mustn't hang in view
+	var shadow_copy: Node = player.get_node("EcoBody/Shadow")
+	var floating := shadow_copy.find_child("ColonyGear*", true, false).find_children("*", "MeshInstance3D", true, false).filter(func(m): return m.cast_shadow != GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY)
+	_check("first person: no gear floating in view", floating.is_empty(), floating.size())
+	# the band's speaker: pings moving fast, enemies near hear it, slow she's quiet
+	_check("band quiet walking", not Hymn.tick_band(1.0, 2.0), "")
+	_check("band pings running", Hymn.tick_band(1.0, 8.0) and not Hymn.tick_band(0.1, 8.0) and Hymn.tick_band(1.0, 8.0), "")
+	_check("crowned: Hymn held up", (func(): Hymn.level = 10.0; Hymn.save(); return Hymn.level).call() >= Hymn.CROWN_FLOOR, Hymn.level)
+	_check("crowned: no time at all to shake his words", TriggerWords.window() < TriggerWords.WINDOW * 0.5, TriggerWords.window())
+	_check("the Crown's last off", Hymn.crown_locked(), Hymn.gear)
 	_check("nothing left to put on her", Hymn.processed() == "", Hymn.gear.size())
 
 	# Biggie's table: one try a visit; a clean job takes it off, a slip shocks her.

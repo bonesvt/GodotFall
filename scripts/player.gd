@@ -9,6 +9,7 @@ enum State { GROUND, AIR, SLIDE, WALLRUN, GRAPPLE }
 const SFX := preload("res://scripts/sfx.gd")
 const Prefs := preload("res://scripts/game/prefs.gd")
 const Hymn := preload("res://scripts/hub/hymn.gd")
+const Redline := preload("res://scripts/hub/redline.gd")
 const Vices := preload("res://scripts/hub/vices.gd")
 const Glass := preload("res://scripts/hub/glass.gd")
 const EcoContactSounds := preload("res://scripts/ps2/eco_contact_sounds.gd")
@@ -219,6 +220,8 @@ var strolling := false:
 ## walks slowly along trance_dir (zero: she stands) and her look follows.
 var entranced := false
 var trance_dir := Vector3.ZERO
+## A scene's say over how fast she goes along trance_dir (0: her slow trance walk).
+var trance_speed := 0.0
 const TRANCE_SPEED := 1.5
 var cam_roll := 0.0
 var input_dir := Vector2.ZERO
@@ -348,7 +351,7 @@ func _physics_process(delta: float) -> void:
 	regen_timer -= delta
 	untouchable_timer -= delta
 	if regen_timer <= 0.0 and health < max_health:
-		health = minf(health + regen_rate * Vices.regen_scale() * delta, max_health)
+		health = minf(health + regen_rate * Vices.regen_scale() * Redline.regen_scale() * delta, max_health)
 	elif regen_timer <= 0.0 and armor < max_armor:
 		armor = minf(armor + armor_regen_rate * _armor_regen_mult * delta, max_armor)
 	if resting:
@@ -418,7 +421,7 @@ func _ground_state(delta: float) -> void:
 	_set_crouch(want_crouch)
 
 	var sprinting := (auto_sprint or Input.is_action_pressed("sprint")) and input_dir.y < -0.3
-	var target := (crouch_speed if crouching else (sprint_speed if sprinting else run_speed)) * speed_mult * suit_speed * Vices.speed_scale() * Hymn.speed_scale()
+	var target := (crouch_speed if crouching else (sprint_speed * Redline.sprint_scale() if sprinting else run_speed)) * speed_mult * suit_speed * Vices.speed_scale() * Hymn.speed_scale() * Redline.speed_scale()
 	if strolling:
 		# auto sprint doesn't apply; under the orbit camera any direction counts
 		var brisk := Input.is_action_pressed("sprint") and (input_dir.y < -0.3 or (not is_nan(move_yaw) and input_dir != Vector2.ZERO))
@@ -426,7 +429,7 @@ func _ground_state(delta: float) -> void:
 		if backpedalling:
 			target = stroll_speed * BACKPEDAL_SPEED
 	if entranced:
-		target = TRANCE_SPEED
+		target = trance_speed if trance_speed > 0.0 else TRANCE_SPEED
 	hvel = _ground_move(hvel, target, delta)
 
 	velocity.x = hvel.x
@@ -625,6 +628,7 @@ func _air_state(delta: float) -> void:
 	_set_crouch(Input.is_action_pressed("crouch"))
 	var g := gravity * (fall_gravity_mult if velocity.y < 0.0 else 1.0)
 	velocity.y = maxf(velocity.y - g * delta, -max_fall_speed)
+	_glide(Redline.can_glide() and Input.is_action_pressed("jump") and velocity.y < -Redline.GLIDE_FALL)
 	_air_strafe(delta)
 
 	if jump_buffer_timer > 0.0:
@@ -641,6 +645,7 @@ func _air_state(delta: float) -> void:
 	move_and_slide()
 
 	if is_on_floor():
+		_glide(false)
 		_land()
 	elif _can_wallrun():
 		_start_wallrun(get_wall_normal())
@@ -736,11 +741,27 @@ func _grapple_state(delta: float) -> void:
 
 	if jump_buffer_timer > 0.0:
 		_release_grapple()
-		velocity.y = maxf(velocity.y, jump_velocity)
+		velocity.y = maxf(velocity.y, jump_velocity * Redline.jump_scale())
 		jump_buffer_timer = 0.0
 	elif not Input.is_action_pressed("grapple") or dist < grapple_release_dist:
 		_release_grapple()
 	move_and_slide()
+
+
+## The Rig's wing stubs: holding jump while she falls, she glides down slow,
+## her wings spread (redline_body.gd).
+var gliding := false
+
+
+func _glide(on: bool) -> void:
+	if on:
+		velocity.y = -Redline.GLIDE_FALL
+	if on == gliding:
+		return
+	gliding = on
+	for n in find_children("RedlineBody", "", true, false):
+		if n.has_method("glide"):
+			n.glide(on)
 
 
 func _air_strafe(delta: float) -> void:
@@ -751,13 +772,13 @@ func _air_strafe(delta: float) -> void:
 	var current := Vector3(velocity.x, 0.0, velocity.z).dot(wish_dir)
 	var add := air_wish_speed - current
 	if add > 0.0:
-		velocity += wish_dir * minf(add, air_accel * delta)
+		velocity += wish_dir * minf(add, air_accel * Redline.air_scale() * delta)
 
 
 # --- Transitions --------------------------------------------------------------
 
 func _jump() -> void:
-	velocity.y = jump_velocity
+	velocity.y = jump_velocity * Redline.jump_scale()  # Redline's long legs
 	state = State.AIR
 	jump_buffer_timer = 0.0
 	coyote_timer = 0.0
@@ -896,11 +917,13 @@ func respawn() -> void:
 func take_damage(amount: float, from := Vector3.ZERO) -> void:
 	if health <= 0.0 or untouchable_timer > 0.0:
 		return
-	amount *= damage_mult * Vices.damage_scale()
+	amount *= damage_mult * Vices.damage_scale() * Redline.damage_scale()
+	if from != Vector3.ZERO and from.distance_to(global_position) < Redline.MELEE_RANGE:
+		amount *= Redline.melee_damage_taken()  # up close: the Rig's scales
 	var soaked := minf(armor, amount)
 	armor -= soaked
 	health -= amount - soaked
-	regen_timer = regen_delay
+	regen_timer = regen_delay * Redline.recover_scale()
 	damaged.emit(amount, from)
 	if health <= 0.0 and second_wind_ready:
 		# Dad's Colours: once per zone she stays up on 1 HP and can't be touched for a moment
@@ -972,13 +995,15 @@ func _trance(delta: float) -> void:
 	wish_dir = Vector3(trance_dir.x, 0.0, trance_dir.z).normalized()
 	input_dir = Vector2(0.0, -1.0) if wish_dir != Vector3.ZERO else Vector2.ZERO
 	if wish_dir != Vector3.ZERO:
-		rotation.y = lerp_angle(rotation.y, atan2(-wish_dir.x, -wish_dir.z), 1.0 - exp(-3.0 * delta))
+		rotation.y = lerp_angle(rotation.y, atan2(-wish_dir.x, -wish_dir.z), 1.0 - exp(-(3.0 if trance_speed <= 0.0 else 9.0) * delta))
 	head.rotation.x = lerpf(head.rotation.x, -0.05, 1.0 - exp(-2.0 * delta))
 
 
 # --- Crouch, camera, rope -----------------------------------------------------
 
 func _set_crouch(want: bool) -> void:
+	if want and not Redline.can_crouch():
+		want = false  # Redline's forced posture
 	if want == crouching:
 		return
 	if not want and test_move(global_transform, Vector3.UP * (STAND_HEIGHT - CROUCH_HEIGHT)):
