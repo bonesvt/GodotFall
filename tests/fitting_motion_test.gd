@@ -6,13 +6,17 @@ extends SceneTree
 ## sat when the white clears, and the hub comes back up out of the white rather
 ## than snapping in. Played alone (the cuff) and face to face with Mom (the visor).
 ##   godot --headless --path . --fixed-fps 60 -s res://tests/fitting_motion_test.gd
+## (--fixed-fps keeps it exact; without it, moves are scaled by each frame's time)
 
 const Hymn := preload("res://scripts/hub/hymn.gd")
 const ContentRating := preload("res://scripts/radio/content_rating.gd")
 
 ## Most the camera may move or turn in one 60 fps frame while the picture shows.
+## Each frame's move is scaled to a 60 fps frame by its real delta, so a run
+## without --fixed-fps (or a slow frame) doesn't read as a jump.
 const MAX_STEP := 0.05
 const MAX_TURN := 3.0
+const FRAME := 1.0 / 60.0
 ## Above this the white hides a cut.
 const HIDDEN := 0.75
 
@@ -66,17 +70,23 @@ func _watch(fitting: Node, piece: String, with: String, with_piece: String) -> v
 	var visor_steps := 0
 	var visor_was := 0.0
 	var glide_speeds: Array = []
+	var d_was := fitting.get_process_delta_time()
 	while fitting.busy():
 		await process_frame
 		if not fitting.busy():
 			break
+		# moves per 60 fps frame; a stalled frame counts as at most three, so a real cut still shows.
+		# process_frame fires before the nodes' _process, so what moved since the last
+		# look was moved by the last frame's delta, not this one's
+		var per := FRAME / clampf(d_was, FRAME * 0.25, FRAME * 3.0)
+		d_was = fitting.get_process_delta_time()
 		var cam: Camera3D = fitting._cam
 		var veil: float = fitting._veil.color.a
 		if cam != null:
 			var xf := cam.global_transform
 			if have:
-				var step := xf.origin.distance_to(last.origin)
-				var turn := rad_to_deg(last.basis.get_rotation_quaternion().angle_to(xf.basis.get_rotation_quaternion()))
+				var step := xf.origin.distance_to(last.origin) * per
+				var turn := rad_to_deg(last.basis.get_rotation_quaternion().angle_to(xf.basis.get_rotation_quaternion())) * per
 				if veil < HIDDEN and (step > MAX_STEP or turn > MAX_TURN):
 					cuts_hidden = false
 				if veil < HIDDEN and step > worst_step:
@@ -91,7 +101,7 @@ func _watch(fitting: Node, piece: String, with: String, with_piece: String) -> v
 		var clamp: Node3D = fitting._arm.get_node("Clamp") if fitting._arm != null else null
 		if clamp != null and fitting.t > fitting.IN:
 			if arm_last != Vector3.INF:
-				arm_jump = maxf(arm_jump, clamp.global_position.distance_to(arm_last))
+				arm_jump = maxf(arm_jump, clamp.global_position.distance_to(arm_last) * per)
 			arm_last = clamp.global_position
 		if sat_when_clear < 0.0 and veil < 0.5 and fitting._with_rest != null:
 			sat_when_clear = fitting._with_rest.weight
@@ -111,12 +121,15 @@ func _watch(fitting: Node, piece: String, with: String, with_piece: String) -> v
 		_check("%s: they're already sat when the white clears" % what, sat_when_clear >= 0.99, sat_when_clear)
 	if piece == "visor":
 		_check("%s: its orders fade up and down" % what, visor_peak > 0.99 and visor_steps > 6, [visor_peak, visor_steps])
-	# back on the hub: out of the white, not snapped in
+	# back on the hub: out of the white, not snapped in (sampled by time, not frames)
 	var veils: Array = []
-	for i in 70:
+	var since := 0.0
+	for at in [1.0 / 60.0, 0.5, 1.15]:
+		while since < at:
+			await process_frame
+			since += fitting.get_process_delta_time()
 		veils.append(fitting._veil.color.a)
-		await process_frame
-	_check("%s: the hub comes back out of the white" % what, veils[1] > 0.8 and veils[30] > 0.05 and veils[30] < veils[1] and veils[69] < 0.01, [veils[1], veils[30], veils[69]])
+	_check("%s: the hub comes back out of the white" % what, veils[0] > 0.8 and veils[1] > 0.05 and veils[1] < veils[0] and veils[2] < 0.01, veils)
 
 
 func _ticks(n: int) -> void:
