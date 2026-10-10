@@ -70,6 +70,7 @@ func _play_checks() -> void:
 	await _use_spot(spot)
 	_check("locked board doesn't start a run", run_node.phase == run_node.Phase.HUB, run_node.phase)
 	run_node.armory.mark_cleared("level1")
+	run_node.tutorial.seen.erase("trial_intro")   # a last run's save
 	run_node.dress_hub()
 	_check("level 2 opens once level 1 is cleared", spot["prompt"].contains("LEVEL 2: THE GLASS DISTRICT"), spot["prompt"])
 	await _use_spot(spot)

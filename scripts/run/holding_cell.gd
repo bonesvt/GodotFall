@@ -722,7 +722,7 @@ func power(on: bool) -> void:
 	for ring in _rings + _feed_rings:
 		ring.visible = on
 	if _field_light != null:
-		_field_light.light_energy = 1.1 if on else 0.0
+		_field_light.light_energy = 1.1 if on else 0.3   # off, just the service light
 	if _feed_word != null:
 		_feed_word.text = FEED_WORDS[0] if on else ""
 	for strip in _pylons:

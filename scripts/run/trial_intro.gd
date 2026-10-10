@@ -263,7 +263,7 @@ func _look(from: Vector3, at: Vector3, fov: float) -> void:
 
 
 ## Two colony orderlies in white, faceless behind black visors, one each side
-## of her frame. Built from blocks; Arm swings up as they lift her arms.
+## of her frame just outside its posts. Arm swings up as they lift her arms.
 func _build_orderlies() -> void:
 	var white := StandardMaterial3D.new()
 	white.albedo_color = Color(0.9, 0.91, 0.93)
@@ -279,31 +279,49 @@ func _build_orderlies() -> void:
 		o.name = "Orderly"
 		o.visible = false
 		cell.add_child(o)
-		o.position = HoldingCell.COLUMN + Vector3(0.62 * s, 0.0, 0.32)
+		o.position = HoldingCell.COLUMN + Vector3(0.88 * s, 0.0, 0.05)
 		o.rotation.y = s * PI * 0.5   # facing her
-		_block(o, Vector3(0, 0.45, 0), Vector3(0.3, 0.9, 0.22), white)       # legs
-		_block(o, Vector3(0, 1.2, 0), Vector3(0.42, 0.62, 0.26), white)      # body
-		_block(o, Vector3(0, 1.0, 0), Vector3(0.44, 0.06, 0.28), grey)       # belt
-		_block(o, Vector3(0, 1.66, 0), Vector3(0.24, 0.28, 0.26), white)     # hood
-		_block(o, Vector3(0, 1.67, -0.125), Vector3(0.2, 0.12, 0.02), black) # visor
+		for leg in [-0.08, 0.08]:
+			_part(o, Vector3(leg, 0.44, 0), _capsule(0.07, 0.9), white)
+		_part(o, Vector3(0, 1.18, 0), _capsule(0.17, 0.66), white)          # body
+		_part(o, Vector3(0, 0.98, 0), _capsule(0.175, 0.36), grey).scale = Vector3(1, 0.18, 1)   # belt
+		_part(o, Vector3(0, 1.62, 0), _sphere(0.115), white)                # hood
+		_part(o, Vector3(0, 1.63, -0.085), _sphere(0.07), black).scale = Vector3(1.3, 0.6, 0.6)  # visor
 		var arm := Node3D.new()
 		arm.name = "Arm"
 		o.add_child(arm)
-		arm.position = Vector3(0.24 * s, 1.45, 0)
+		arm.position = Vector3(0.2 * -s, 1.42, 0)   # the arm toward the street
 		arm.rotation.x = 0.4
-		_block(arm, Vector3(0, -0.3, 0), Vector3(0.1, 0.62, 0.1), white)
-		_block(arm, Vector3(0, -0.64, 0), Vector3(0.09, 0.1, 0.09), grey)
+		_part(arm, Vector3(0, -0.3, 0), _capsule(0.05, 0.6), white)
+		_part(arm, Vector3(0, -0.62, 0), _sphere(0.05), grey)              # glove
 		_orderlies.append(o)
 
 
-func _block(parent: Node3D, at: Vector3, size: Vector3, m: Material) -> void:
+func _capsule(r: float, h: float) -> Mesh:
+	var m := CapsuleMesh.new()
+	m.radius = r
+	m.height = h
+	m.radial_segments = 12
+	m.rings = 4
+	return m
+
+
+func _sphere(r: float) -> Mesh:
+	var m := SphereMesh.new()
+	m.radius = r
+	m.height = r * 2.0
+	m.radial_segments = 12
+	m.rings = 6
+	return m
+
+
+func _part(parent: Node3D, at: Vector3, mesh: Mesh, m: Material) -> MeshInstance3D:
 	var mi := MeshInstance3D.new()
-	var bm := BoxMesh.new()
-	bm.size = size
-	mi.mesh = bm
+	mi.mesh = mesh
 	mi.material_override = m
 	parent.add_child(mi)
 	mi.position = at
+	return mi
 
 
 ## Over (or skipped): the trial's running, and the level starts.
