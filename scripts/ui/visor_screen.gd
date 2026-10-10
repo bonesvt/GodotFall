@@ -208,7 +208,7 @@ func strength() -> float:
 		return 0.0
 	var fitting: Node = rm.get("fitting_scene") if rm != null else null
 	if fitting != null and fitting.busy():
-		return 1.0 if fitting.visor_flash else 0.0  # its first orders, at the end of its fitting
+		return float(fitting.get("visor_level"))  # its first orders, faded up at the end of its fitting
 	if rm != null and (rm.get("bench") != null or not rm.hud.visible):
 		return 0.0
 	var s := 1.0

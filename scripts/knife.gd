@@ -12,6 +12,7 @@ extends Node3D
 ## takedown and inspect (scripts/knife_moves.gd). Models:
 ## assets/models/knife/<id>.glb (tools/knife/build_knives.py).
 
+const Redline := preload("res://scripts/hub/redline.gd")
 const FX := preload("res://scripts/fx.gd")
 const SFX := preload("res://scripts/sfx.gd")
 const Moves := preload("res://scripts/knife_moves.gd")
@@ -339,7 +340,7 @@ func find_target() -> Node3D:
 		var to := chest - from
 		# Measure to the body's surface, not its centre.
 		var d := maxf(to.length() - 0.35, 0.0)
-		if d > reach or d >= best_d:
+		if d > reach * Redline.reach_scale() or d >= best_d:
 			continue
 		if to.length() > 0.5 and rad_to_deg(fwd.angle_to(to)) > reach_angle:
 			continue
@@ -365,7 +366,7 @@ func _strike() -> void:
 	if takedown:
 		killed = target.take_damage(target.health * 10.0 + 1000.0, at, false)
 	else:
-		killed = target.take_damage(damage, at, false)
+		killed = target.take_damage(damage * Redline.melee_scale(), at, false)
 	var kind := "takedown" if takedown and killed else ("kill" if killed else "hit")
 	if takedown and killed:
 		takedowns += 1
