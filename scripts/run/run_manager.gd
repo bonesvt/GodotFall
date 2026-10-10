@@ -743,6 +743,20 @@ func cutter_now() -> void:
 	c.catch.call_deferred()
 
 
+## The cheat box's B: Mom or Ophelia already one of a captor's (three visits
+## in), walking off to them from just ahead of Eco.
+func drawn_now() -> void:
+	if not HubRescue.allowed() or rescue_event.step != RescueEvent.Step.IDLE:
+		return
+	var people: Array = HubRescue.WHO.filter(func(w): return hub_npcs.has(w))
+	if people.is_empty():
+		hud.toast("Nobody home.", 2.5)
+		return
+	var w: String = people[randi() % people.size()]
+	HubRescue.make_theirs(w, HubRescue.CAPTORS[randi() % HubRescue.CAPTORS.size()])
+	rescue_event.walk_off_now(w)
+
+
 ## The cheat box's rescue: someone taken right now, by whichever captor's
 ## started on her (any of them, if none has yet).
 func rescue_now() -> void:
@@ -973,6 +987,9 @@ func _hub_tick(delta: float) -> void:
 		return
 	if spot["id"] == RescueEvent.SPOT:
 		rescue_event.knock()
+		return
+	if spot["id"] == RescueEvent.STOP_SPOT:
+		rescue_event.stop_walker()
 		return
 	_hub_sound(spot)
 	if spot["id"] == "tutorial_poster":
@@ -1448,6 +1465,8 @@ func close_bench() -> void:
 		cutter_now()
 	elif cheat == "rescue":
 		rescue_now()
+	elif cheat == "drawn":
+		drawn_now()
 	elif cheat != "":
 		cheat_scene.play(cheat)
 	if hunt:

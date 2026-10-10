@@ -149,6 +149,35 @@ static func too_late(who: String, captor: String) -> String:
 	return piece
 
 
+## Eco held on to `who` on her way back to `captor`: their hold on her eases
+## as a rescue's does (rescue_event.gd's stop_walker()).
+static func held_on(who: String, captor: String) -> void:
+	if captor == "colony":
+		HubGrip._raise(who, HOOK_SAVED)
+		HubGrip.save()
+	else:
+		_hook_add(who, captor, HOOK_SAVED)
+	save()
+
+
+## The cheat box: `who` is `captor`'s already, their hold on her deep and three
+## visits in, so she's dressed and talking like theirs (changed_by()).
+static func make_theirs(who: String, captor: String) -> void:
+	var mine: Array = lost_to.get(who, []).duplicate()
+	mine.erase(captor)
+	mine.append(captor)
+	lost_to[who] = mine
+	if captor == "colony":
+		HubGrip._raise(who, maxf(60.0 - HubGrip.level(who), 0.0))
+		HubGrip.save()
+	else:
+		_hook_add(who, captor, maxf(60.0 - hook(who, captor), 0.0))
+	var v: Dictionary = visits.get(who, {}).duplicate()
+	v[captor] = maxi(int(v.get(captor, 0)), VISITS)
+	visits[who] = v
+	save()
+
+
 ## A run's done: Marrow's and Cutter's holds fade a little.
 static func run_over() -> void:
 	for who in hooks:

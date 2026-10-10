@@ -5,11 +5,17 @@ extends Node
 ##   in time   Eco knocks the captor down ([F] at him) and gets them out
 ##   too late  the countdown runs out: what happened, where it happened
 ## And afterwards, Cutter's Wiring on whoever he had (red veins, a shake) and
-## Marrow's quiet in them, while his hold is past Rescue.SHOWS_AT.
+## Marrow's quiet in them, while his hold is past Rescue.SHOWS_AT; and [F] at
+## one of them on her way back to them (stop_walker()): she comes round, or,
+## once she's theirs, a quick-time event to hold on to her, and if Eco loses
+## her, she gives Eco what they gave her.
 ## The run manager calls tick() from the hub, knock() from [F] at the captor,
-## and keeps its controls off while busy().
+## stop_walker() from [F] at her, and keeps its controls off while busy().
 
 const Rescue := preload("res://scripts/hub/rescue.gd")
+const Vices := preload("res://scripts/hub/vices.gd")
+const Redline := preload("res://scripts/hub/redline.gd")
+const EcoModel := preload("res://scripts/ps2/eco_model.gd")
 const RescueSites := preload("res://scripts/hub/rescue_sites.gd")
 const HubNpc := preload("res://scripts/hub/hub_npc.gd")
 const HubGrip := preload("res://scripts/hub/hub_grip.gd")
@@ -27,7 +33,7 @@ const Hymn := preload("res://scripts/hub/hymn.gd")
 const SFX := preload("res://scripts/sfx.gd")
 const ViewCamera := preload("res://scripts/view_camera.gd")
 
-enum Step { IDLE, ALERT, RUNNING, SAVED, LATE }
+enum Step { IDLE, ALERT, RUNNING, SAVED, LATE, STOP }
 
 const SPOT := "rescue_captor"
 const RED := Color(1.0, 0.25, 0.2)
@@ -224,6 +230,12 @@ func _ready() -> void:
 	_clock.add_theme_constant_override("outline_size", 6)
 	_clock.visible = false
 	_layer.add_child(_clock)
+	_q_ui = Control.new()
+	_q_ui.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_q_ui.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_q_ui.draw.connect(_draw_qte)
+	_q_ui.visible = false
+	_layer.add_child(_q_ui)
 	_veil = ColorRect.new()
 	_veil.color = Color(0, 0, 0, 0)
 	_veil.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -266,6 +278,8 @@ func draw_off(p_who: String, after: float) -> void:
 
 ## She left the hub with someone taken: too late, without the scene.
 func lose() -> void:
+	if step == Step.STOP:
+		_stop_over()
 	if step == Step.RUNNING and who != "":
 		_late_results()
 	_teardown()
@@ -429,6 +443,8 @@ func _process(delta: float) -> void:
 			_saved_tick(delta)
 		Step.LATE:
 			_late_tick(delta)
+		Step.STOP:
+			_stop_tick(delta)
 
 
 func _alert_tick(delta: float) -> void:
@@ -905,12 +921,13 @@ func _late_results() -> void:
 			("  The colony's %s is on her." % Hymn.GEAR_NAMES.get(got, got)) if got != "" else ""], 5.0)
 
 
-func _bond(by: int) -> void:
+func _bond(by: int, p_who := "") -> void:
 	var state: ConfigFile = rm.npc_talk.state
-	if who == "mom":
+	var w := p_who if p_who != "" else who
+	if w == "mom":
 		Family.add(state, "mom", by)
 	else:
-		Romance.add(state, who, by)
+		Romance.add(state, w, by)
 	state.save(rm.npc_talk.save_path)
 
 
@@ -1188,6 +1205,8 @@ func _home_done() -> void:
 	_hold(false)
 	if step == Step.ALERT:
 		_go()
+	elif step == Step.STOP:
+		_stop_over()
 
 
 ## Nothing solid between `a` and `b` (a camera's view of what it's on).
@@ -1420,12 +1439,15 @@ var _walk_leg := 1
 var _spotted := false
 
 
-## She's off to them: gone from home, and walking through Solace.
-func _start_walk() -> void:
+## She's off to them: gone from home, and walking through Solace (from
+## `from` first, if it's given: the cheat box's, by Eco).
+func _start_walk(from := Vector3.INF) -> void:
 	_drawn_at = -1.0
 	if _drawn_who == "" or not rm.hub_npcs.has(_drawn_who):
 		return
 	_walk_route = ROUTES[_drawn_captor]
+	if from != Vector3.INF:
+		_walk_route = [from] + _walk_route
 	var real: Node3D = rm.hub_npcs[_drawn_who]
 	_walker = HubNpc.create(_drawn_who, _walk_route[0], 0.0)
 	_walker.name = "Drawn_" + _drawn_who
@@ -1444,6 +1466,7 @@ func _start_walk() -> void:
 	_borrow_walk(_walker)
 	_walk_leg = 1
 	_spotted = false
+	_stop_done = false
 	real.visible = false
 	if is_instance_valid(real.get("soft_body")):
 		(real.soft_body as CollisionObject3D).collision_layer = 0
@@ -1489,6 +1512,7 @@ func _walk_tick(delta: float) -> void:
 	_walker.rotation.y = atan2(-d.x, -d.z)
 	if _drawn_captor == "cutter":
 		_shake(_walker, 0.6)
+	_stop_spot(true)
 	if not _spotted and rm.player.global_position.distance_to(_walker.global_position) < SPOT_RANGE:
 		_spotted = true
 		rm.hud.toast(SPOTTED[_drawn_captor] % Rescue.NAMES[_drawn_who], 5.0)
@@ -1509,6 +1533,7 @@ func _end_walk() -> void:
 	_hang_hidden.clear()
 	_hang_spots(false)
 	_walker_spot(false)
+	_stop_spot(false)
 
 
 # --- there, taking more ----------------------------------------------------------
@@ -1548,6 +1573,7 @@ func _settle() -> void:
 	if _walker != null and is_instance_valid(_walker):
 		_walker.queue_free()
 	_walker = null
+	_stop_spot(false)
 	Rescue.visited(_drawn_who, _drawn_captor)
 	_hang = Node3D.new()
 	_hang.name = "RescueHangout"
@@ -1821,3 +1847,462 @@ func quiet_line(p_who: String) -> String:
 		return ""
 	_quiet_said[p_who] = true
 	return QUIET % Rescue.NAMES.get(p_who, p_who)
+
+
+# --- stopping her on her way back to them ---------------------------------------
+
+## [F] at her as she walks off to them (stop_walker()). Until she's walked
+## there Rescue.VISITS times she stops, comes round, and lets Eco walk her home.
+## Once she's theirs (rescue_looks.gd) she pulls away: a quick-time event, [F]
+## again and again to hold on to her while the bar drains, faster the deeper
+## their hold on her. Hold on and she comes home, their hold on her eased. Lose
+## her and, there in the street, she gives Eco what they give her: his violet
+## to her lips, the colony's next piece on her, Cutter's Redline in her arm.
+## Eco isn't held for it: she just never thought it'd come from her. Then she
+## walks on to them, and Eco can't make herself follow.
+const STOP_SPOT := "rescue_stop"
+const STOP_REACH := 2.2
+## The pull: she turns, the camera eases round onto the two of them, and at
+## Q_START she pulls away and the bar comes up, from Q_FROM. Each [F] is
+## Q_PRESS; it drains Q_DRAIN a second, and Q_DRAIN_HOOK more at their full
+## hold. Filled in Q_TIME s she's held; empty or out of time, she's gone.
+const Q_START := 1.4
+const Q_TIME := 4.5
+const Q_FROM := 0.3
+const Q_PRESS := 0.1
+const Q_DRAIN := 0.2
+const Q_DRAIN_HOOK := 0.2
+## Held: her line, then down to black and home (from the moment she's held).
+const H_DARK := 2.8
+const H_END := 3.4
+## Lost (from the moment she's lost): she steps in, it comes up from her hand
+## at G_REACH and is in, or on, at G_IN; she steps back at G_AFTER, walks on at
+## G_WALK, and the view eases back to Eco's own over G_HOME.
+const G_STEP := 0.9
+const G_REACH := 1.5
+const G_IN := 3.0
+const G_AFTER := 4.3
+const G_WALK := 6.0
+const G_HOME := 1.4
+## The bond with her, held on to.
+const BOND_HELD := 5
+## Before she's theirs: she comes round.
+const TALKED := {
+	"mom": "Eco catches Mom's hand. Mom blinks at her like she's waking up. \"Where was I going? Oh, baby. Take me home.\"",
+	"ophelia": "Eco steps in front of her. Ophelia stops, blinks, and the colour goes out of her eyes. \"Eco? I don't... Okay. Walk me back.\"",
+}
+## Once she's theirs: she pulls away.
+const PULL := {
+	"mom": "Mom pulls her hand out of Eco's. \"Let go, Eco. They're waiting for me.\"",
+	"ophelia": "Ophelia twists out of Eco's grip. \"Let me go. You don't get it. Let me go.\"",
+}
+const HELD := {
+	"mom": "Eco doesn't let go. Mom stops pulling all at once and leans on her. \"Okay. Okay. Take me home.\"",
+	"ophelia": "Eco holds on. The fight runs out of Ophelia and she puts her forehead on Eco's shoulder. \"Don't let go, then.\"",
+}
+## Lost: what she does, as she does it ([who][captor]; the colony's: the piece).
+const GIVE := {
+	"mom": {
+		"marrow": "Mom smiles, gentle as she ever was, and there's a vial of violet at Eco's lips before Eco sees it coming. \"Shh. He said you'd need this too. I'm your mother. Trust me.\"",
+		"colony": "Mom takes the colony's %s out of her jumpsuit, already warm. \"Hold still, sweetheart. Calm is a kindness.\" It clicks on before Eco can pull back.",
+		"cutter": "Mom's hand comes out of the hoodie with a needle of Redline. \"Just a little, baby. You'll see. You'll love it.\" It's in Eco's arm before she can pull away.",
+	},
+	"ophelia": {
+		"marrow": "Ophelia's got a vial of violet out of her coat and at Eco's lips before Eco can stop her. \"Sorry. I'm sorry. You'll feel it, and then you'll get it.\"",
+		"colony": "Ophelia has the colony's %s out of her pocket and on Eco before Eco understands what it is. \"It's for your own good. It is. It is.\"",
+		"cutter": "Ophelia's got a needle of Redline in her shaking hand. \"Sorry, sorry, you'll thank me.\" It's in Eco's arm before Eco can stop her.",
+	},
+}
+## The colony, when Eco's wearing all of it already: a film on her tongue.
+const GIVE_FILM := {
+	"mom": "Mom presses a Hymn film to Eco's lips with her thumb, the way she used to give her medicine. \"There. Calm is a kindness.\"",
+	"ophelia": "Ophelia slips a Hymn film between Eco's lips. \"Just one. For me. It's for your own good.\"",
+}
+## After: she walks on (%s: where to).
+const WALKS_ON := {
+	"mom": "Mom won't look at her. She turns and walks on toward %s, and Eco's legs won't follow.",
+	"ophelia": "Ophelia says something that might be sorry, and walks on toward %s. Eco can't make herself follow.",
+}
+const TOWARD := {"marrow": "the cinema's cellar", "colony": "the colony kiosk", "cutter": "the pilgrim road"}
+
+var _stop_who := ""
+## She's given it to Eco this walk: no stopping her again.
+var _stop_done := false
+var _stop_captor := ""
+var _stop_side := Vector3.RIGHT
+## The bar (0..1), and how it went: "" while it's on, "held" or "lost", and when.
+var qte := 0.0
+var qte_result := ""
+var _q_at := 0.0
+var _q_ui: Control
+var _q_flash := 0.0
+var _give_piece := ""
+var _give_prop: Node3D
+var _give_swirl := 0.0
+
+
+## [F] at her on her way to them, or by Eco in the street (the stop spot moves with her).
+func _stop_spot(on: bool) -> void:
+	if rm.get("zone_info") == null or not rm.zone_info.has("interactables"):
+		return
+	var spots: Array = rm.zone_info["interactables"]
+	for s in spots:
+		if s["id"] == STOP_SPOT:
+			if on and _walker != null and is_instance_valid(_walker):
+				s["pos"] = _walker.global_position
+				return
+			rm.zone_info["interactables"] = spots.filter(func(x): return x["id"] != STOP_SPOT)
+			return
+	if on and _walker != null and is_instance_valid(_walker) and _drawn_who != "" and not _stop_done:
+		var K := preload("res://scripts/hub/hub_kit.gd")
+		K.interactable(rm.zone_info, STOP_SPOT, _walker.global_position, "[F] Stop %s" % Rescue.NAMES[_drawn_who], [""], STOP_REACH)
+
+
+## Whether one of them's on her way to them now (so there's someone to stop).
+func walking() -> bool:
+	return _walker != null and is_instance_valid(_walker)
+
+
+## The cheat box: `p_who` is theirs, three visits in, and off to them now from
+## a few steps ahead of Eco.
+func walk_off_now(p_who: String) -> void:
+	if step != Step.IDLE or busy():
+		return
+	_end_walk()
+	draw_off(p_who, 0.0)
+	if _drawn_captor == "":
+		return
+	var p: Node3D = rm.player
+	var fwd := _flat(-p.global_basis.z)
+	_start_walk(p.global_position + fwd * 5.0)
+
+
+## [F] at her as she walks.
+func stop_walker() -> void:
+	if not walking() or step != Step.IDLE or busy():
+		return
+	_stop_who = _drawn_who
+	_stop_captor = _drawn_captor
+	if Rescue.changed_by(_stop_who) == "":
+		rm.hud.toast(TALKED[_stop_who], 4.5)  # not theirs yet: she comes round
+		_walk_home()
+		return
+	step = Step.STOP
+	t = 0.0
+	_said.clear()
+	qte = Q_FROM
+	qte_result = ""
+	_give_piece = ""
+	_give_swirl = 0.0
+	_stop_spot(false)
+	_begin_cam()
+	_hold(true)
+	_moves.clear()
+	_walker_anim("idle")
+	_walker.mood(["sad"])
+	_turn_to(_walker, rm.player.global_position, 0.7)
+	# from the side of the two of them, whichever side has room
+	var a := _eco_point("J_Bip_C_Head", 1.5)
+	var d := _flat(_walker.global_position - rm.player.global_position)
+	_stop_side = d.cross(Vector3.UP)
+	var mid: Vector3 = (a + _walker.head_position()) * 0.5
+	if not _clear(mid + _stop_side * 1.9, mid) and _clear(mid - _stop_side * 1.9, mid):
+		_stop_side = -_stop_side
+	_follow(_two_shot.bind(1.9, 0.12), 40.0, 1.2)
+
+
+## The two of them, from the side, `out` m off, `up` above their eyes.
+func _two_shot(out: float, up: float) -> Array:
+	var a := _eco_point("J_Bip_C_Head", 1.5)
+	var b: Vector3 = _walker.head_position() if walking() else a
+	var mid := (a + b) * 0.5
+	return [mid + _stop_side * out + Vector3(0, up, 0), mid - Vector3(0, 0.08, 0)]
+
+
+func _stop_tick(delta: float) -> void:
+	var p: Node3D = rm.player
+	if walking():  # Eco turns to her
+		var to_her := _flat(_walker.global_position - p.global_position)
+		p.rotation.y = lerp_angle(p.rotation.y, atan2(-to_her.x, -to_her.z), 1.0 - exp(-5.0 * delta))
+	if t >= Q_START - 0.5 and not _said.has("pull"):
+		_said["pull"] = true
+		rm.hud.toast(PULL[_stop_who], 3.0)
+		SFX.play(self, "step_concrete_2", -6.0, 0.9)
+	if qte_result == "":
+		_qte_tick(delta)
+	elif qte_result == "held":
+		_held_tick()
+	else:
+		_give_tick(delta)
+	if _give_swirl > 0.0:
+		EcoModel.swirl_override = _give_swirl
+		EcoModel.swirl_override_tint = EYE_TINT[_stop_captor]
+
+
+## The bar: up with each [F], draining, and her pulling against it.
+func _qte_tick(delta: float) -> void:
+	if t < Q_START:
+		return
+	_q_ui.visible = true
+	_q_flash = maxf(_q_flash - delta * 4.0, 0.0)
+	var hold := clampf(Rescue.hook(_stop_who, _stop_captor) / Rescue.MAX, 0.0, 1.0)
+	qte -= (Q_DRAIN + Q_DRAIN_HOOK * hold) * delta
+	if Input.is_action_just_pressed("interact"):
+		qte_press()
+	if walking():
+		_shake(_walker, 0.25 + 0.35 * (1.0 - qte))  # pulling
+	if qte_result == "" and (qte <= 0.0 or t >= Q_START + Q_TIME):
+		_qte_lost()
+	_q_ui.queue_redraw()
+
+
+## One [F] while the bar's up.
+func qte_press() -> void:
+	if step != Step.STOP or qte_result != "" or t < Q_START:
+		return
+	qte = minf(qte + Q_PRESS, 1.0)
+	_q_flash = 1.0
+	_jolt = maxf(_jolt, 0.25)
+	if qte >= 1.0:
+		_qte_held()
+
+
+func _draw_qte() -> void:
+	if qte_result != "" or step != Step.STOP:
+		return
+	var size := _q_ui.size
+	var w := minf(size.x * 0.4, 420.0)
+	var at := Vector2((size.x - w) * 0.5, size.y * 0.74)
+	var font := ThemeDB.fallback_font
+	_q_ui.draw_string(font, at + Vector2(0, -14), "HOLD ON TO %s" % Rescue.NAMES[_stop_who].to_upper(), HORIZONTAL_ALIGNMENT_CENTER, w, 22, Color(1, 0.95, 0.9))
+	_q_ui.draw_rect(Rect2(at, Vector2(w, 18)), Color(0, 0, 0, 0.6))
+	_q_ui.draw_rect(Rect2(at + Vector2(2, 2), Vector2((w - 4) * clampf(qte, 0.0, 1.0), 14)), Color(1.0, 0.85, 0.8).lerp(Color.WHITE, _q_flash))
+	_q_ui.draw_rect(Rect2(at, Vector2(w, 18)), Color(1, 1, 1, 0.85), false, 2.0)
+	var pulse := 0.6 + 0.4 * sin(t * 14.0)
+	_q_ui.draw_string(font, at + Vector2(0, 46), "[F]  [F]  [F]", HORIZONTAL_ALIGNMENT_CENTER, w, 20, Color(1, 1, 1, pulse))
+
+
+## Held on to: she comes round, and home.
+func _qte_held() -> void:
+	qte_result = "held"
+	_q_at = t
+	_q_ui.visible = false
+	rm.hud.toast(HELD[_stop_who], 4.0)
+	if walking():
+		_walker.mood(["closed", "smile"])
+		var m := _walker.get_node_or_null("Model") as Node3D
+		if m != null and _stop_captor != "cutter":  # still (Cutter's Wiring keeps her shaking)
+			m.position = Vector3.ZERO
+	Rescue.held_on(_stop_who, _stop_captor)
+	_bond(BOND_HELD, _stop_who)
+	_follow(_two_shot.bind(1.45, 0.08), 36.0, 2.2)  # a slow push in on them
+
+
+func _held_tick() -> void:
+	var h := t - _q_at
+	if h >= H_DARK:
+		_veil.color = Color(0, 0, 0, _smoother((h - H_DARK) / (H_END - H_DARK)))
+	if h >= H_END:
+		var name_: String = Rescue.NAMES[_stop_who]
+		_walk_home()
+		rm.hud.toast("Eco walks %s home.  Bond +%d.  %s's hold on her eases." % [name_, BOND_HELD,
+				{"marrow": "Marrow", "colony": "The colony", "cutter": "Cutter"}[_stop_captor]], 5.0)
+		_finish()
+
+
+## Lost her: she steps in close, and gives it to Eco.
+func _qte_lost() -> void:
+	qte_result = "lost"
+	_stop_done = true
+	_q_at = t
+	_q_ui.visible = false
+	if not walking():
+		_stop_over()
+		return
+	var p: Node3D = rm.player
+	var d := _flat(p.global_position - _walker.global_position)
+	var close := p.global_position - d * 0.6
+	_move(_walker, _walker.global_position, close, t, t + G_STEP, "eco", 0.8)
+	_walker.mood(["sad"] if _stop_captor == "cutter" else ["smile"])
+	if _stop_captor == "colony":
+		for g in Hymn.GEAR:
+			if not g in Hymn.gear:
+				_give_piece = g
+				break
+	var line: String = GIVE[_stop_who][_stop_captor]
+	if _stop_captor == "colony":
+		line = line % Hymn.GEAR_NAMES.get(_give_piece, "gear") if _give_piece != "" else GIVE_FILM[_stop_who]
+	rm.hud.toast(line, 4.6)
+	if _give_piece != "":
+		for body in _eco_bodies():
+			ColonyGear.apply(body, Hymn.gear + [_give_piece])
+			ColonyGear.fit_model(body, _give_piece, 0.0)
+	else:
+		_give_prop = _needle() if _stop_captor == "cutter" else _take_prop("colony" if _stop_captor == "colony" else "marrow")
+		rm.zone_root.add_child(_give_prop)
+		_give_prop.visible = false
+	_follow(_two_shot.bind(1.25, 0.06), 34.0, G_IN - 0.4)  # easing in on them as she does it
+
+
+func _give_tick(_delta: float) -> void:
+	var g := t - _q_at
+	var u := clampf((g - G_REACH) / (G_IN - G_REACH), 0.0, 1.0)
+	var k := _smoother(u)
+	if _give_prop != null and is_instance_valid(_give_prop) and walking():
+		_give_prop.visible = g >= G_REACH - 0.2 and g < G_AFTER
+		var from: Vector3 = _walker.global_position + Vector3(0, 1.15, 0) + _flat(rm.player.global_position - _walker.global_position) * 0.3
+		var to := _give_target()
+		var stop := to + (from - to).normalized() * 0.03
+		var lift := (from + stop) * 0.5 + Vector3(0, 0.1, 0)
+		_give_prop.global_position = from.lerp(lift, k).lerp(lift.lerp(stop, k), k)
+		if _stop_captor == "cutter" and _give_prop.global_position.distance_to(to) > 0.01:
+			_give_prop.look_at(to, Vector3.UP)
+	if _give_piece != "":
+		for body in _eco_bodies():
+			ColonyGear.fit_model(body, _give_piece, k)
+	if g >= G_IN and not _said.has("in"):
+		_said["in"] = true
+		match _stop_captor:
+			"marrow":
+				SFX.play(self, "heartbeat", -6.0, 0.8)
+			"colony":
+				SFX.play(self, "cache_unlock", -4.0, 0.7)
+			"cutter":
+				_veil.color = Color(0.85, 0.05, 0.05, 0.85)  # red, at contact, and nothing more
+				SFX.play(self, "heartbeat", 0.0, 1.2)
+	if g >= G_IN:  # it's in her eyes too, like theirs
+		_give_swirl = 0.85 * _smoother((g - G_IN) / 0.9)
+		if _stop_captor == "cutter" and g < G_AFTER:
+			_veil.color.a = 0.85 * (1.0 - _smoother((g - G_IN) / 0.9))
+	if g >= G_AFTER and not _said.has("after"):
+		_said["after"] = true
+		if _give_prop != null and is_instance_valid(_give_prop):
+			_give_prop.queue_free()
+		_give_prop = null
+		_give_results()
+		rm.hud.toast(WALKS_ON[_stop_who] % TOWARD[_stop_captor], 4.0)
+		var d := _flat(_walker.global_position - rm.player.global_position)
+		_move(_walker, _walker.global_position, _walker.global_position + d * 0.7, t, t + 1.0, "eco", 0.7)
+	if g >= G_WALK and not _said.has("walk"):
+		_said["walk"] = true
+		_walker_anim("rescue/walk")
+		_walker.mood(["plain"])
+		_glide_home(G_HOME)
+
+
+## What she gave Eco, now Eco's: Marrow's Hold up, the colony's piece on her
+## (or a film's worth of Hymn), a Redline charge and its high.
+func _give_results() -> void:
+	var got := ""
+	match _stop_captor:
+		"marrow":
+			if Vices.dosed:
+				Vices.hold = minf(Vices.hold + Vices.HOLD_PER_DOSE, 100.0)
+				Vices.save()
+			else:
+				Vices._dose(null)
+			got = "Marrow's Hold +%d." % int(Vices.HOLD_PER_DOSE)
+		"colony":
+			if _give_piece != "":
+				if not _give_piece in Hymn.gear:
+					Hymn.gear.append(_give_piece)
+				Hymn.level = minf(Hymn.level + Hymn.DOSE, Hymn.MAX)
+				Hymn.save()
+				for body in _eco_bodies():
+					ColonyGear.apply(body)
+				got = "The colony's %s is on her.  Hymn +%d." % [Hymn.GEAR_NAMES.get(_give_piece, _give_piece), int(Hymn.DOSE)]
+			else:
+				Hymn.take_dose()
+				got = "Hymn +%d." % int(Hymn.DOSE)
+		"cutter":
+			Redline.caught()
+			got = "A Redline charge, burning in her. (%d)" % Redline.charges
+	rm.hud.toast("%s did that.  %s" % [Rescue.NAMES[_stop_who], got], 5.0)
+
+
+## Where it goes on Eco: her lips, or her left forearm (Cutter's).
+func _give_target() -> Vector3:
+	if _stop_captor == "cutter":
+		return _eco_point("J_Bip_L_LowerArm", 1.1).lerp(_eco_point("J_Bip_L_Hand", 0.95), 0.5)
+	var fwd := _flat(-rm.player.global_basis.z)
+	return _eco_point("J_Bip_C_Head", 1.5) + Vector3(0, 0.035, 0) + fwd * 0.08
+
+
+## A needle of Redline, pointing along -Z.
+func _needle() -> Node3D:
+	var p := Node3D.new()
+	var glow := StandardMaterial3D.new()
+	glow.emission_enabled = true
+	glow.albedo_color = Color(1.0, 0.1, 0.08)
+	glow.emission = glow.albedo_color
+	glow.emission_energy_multiplier = 2.0
+	var steel := StandardMaterial3D.new()
+	steel.albedo_color = Color(0.8, 0.82, 0.85)
+	steel.metallic = 0.9
+	for part in [[0.0075, 0.07, 0.0, glow], [0.0007, 0.05, -0.06, steel], [0.002, 0.04, 0.055, steel]]:
+		var mi := MeshInstance3D.new()
+		var cy := CylinderMesh.new()
+		cy.top_radius = part[0]
+		cy.bottom_radius = part[0]
+		cy.height = part[1]
+		mi.mesh = cy
+		mi.material_override = part[3]
+		mi.rotation_degrees = Vector3(90, 0, 0)
+		mi.position = Vector3(0, 0, part[2])
+		p.add_child(mi)
+	return p
+
+
+## A bone of Eco's (her body's skeleton), or `fallback` m up from her feet.
+func _eco_point(bone: String, fallback: float) -> Vector3:
+	for body in _eco_bodies():
+		var skel := (body as Node).find_child("Skeleton3D", true, false) as Skeleton3D
+		if skel != null:
+			var i := skel.find_bone(bone)
+			if i >= 0:
+				return skel.global_transform * skel.get_bone_global_pose(i).origin
+	return rm.player.global_position + Vector3(0, fallback, 0)
+
+
+func _eco_bodies() -> Array:
+	var eco: Node = rm.player.get_node_or_null("EcoBody")
+	if eco == null:
+		return []
+	return ["Body", "Shadow"].map(func(n): return eco.get_node_or_null(n)).filter(func(b): return b != null)
+
+
+func _walker_anim(anim: String) -> void:
+	if not walking():
+		return
+	var ap := _walker.find_child("AnimationPlayer", true, false) as AnimationPlayer
+	if ap != null and ap.has_animation(anim):
+		ap.play(anim, 0.35)
+
+
+## She's not off to them after all: home, the real her back at her spot.
+func _walk_home() -> void:
+	var w := _drawn_who
+	_end_walk()
+	_drawn_at = -1.0
+	var got = rm.hub_npcs.get(w)
+	if got == null or not is_instance_valid(got):
+		return
+	var real: Node3D = got
+	real.visible = true
+	if is_instance_valid(real.get("soft_body")):
+		(real.soft_body as CollisionObject3D).collision_layer = 1
+
+
+## The scene's over (or cut short): her own eyes back, the bar gone.
+func _stop_over() -> void:
+	if _give_prop != null and is_instance_valid(_give_prop):
+		_give_prop.queue_free()
+	_give_prop = null
+	_q_ui.visible = false
+	_give_swirl = 0.0
+	EcoModel.swirl_override = -1.0
+	if step == Step.STOP:
+		step = Step.IDLE
+	if t >= 0.0:
+		t = -1.0
+		_hold(false)

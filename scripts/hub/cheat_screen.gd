@@ -24,6 +24,8 @@ extends CanvasLayer
 ##   C   Cutter's Redline: he's there, and the needle (cutter_scene.gd)
 ##   G   five Redline charges, for the Rig in Biggie's den (redline.gd)
 ##   V   a rescue: Mom or Ophelia taken right now (rescue_event.gd)
+##   B   Mom or Ophelia already one of a captor's, walking off to them just
+##       ahead of Eco: [F] to try and stop her (rescue_event.gd stop_walker())
 
 const Armory := preload("res://scripts/hub/armory.gd")
 const TownShops := preload("res://scripts/hub/town_shops.gd")
@@ -111,6 +113,7 @@ func _ready() -> void:
 	col.add_child(_button("C   Cutter's Redline (the needle, the high, a charge)", redline_item))
 	col.add_child(_button("G   Five Redline charges (spend them at the Rig in Biggie's den)", redline_charges))
 	col.add_child(_button("V   A rescue (Mom or Ophelia taken, now: get to them)", rescue_item))
+	col.add_child(_button("B   Theirs already (Mom or Ophelia walking off to a captor: stop her)", drawn_item))
 	_status = _text("", 16, INK)
 	_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_status.custom_minimum_size = Vector2(512, 0)
@@ -162,6 +165,8 @@ func _input(event: InputEvent) -> void:
 			redline_charges()
 		KEY_V:
 			rescue_item()
+		KEY_B:
+			drawn_item()
 		_:
 			return
 	get_viewport().set_input_as_handled()
@@ -267,6 +272,18 @@ func rescue_item() -> bool:
 	scene = "rescue"
 	close_now = true
 	_did("A rescue: run.")
+	return true
+
+
+## Mom or Ophelia already one of a captor's, walking off to them now, just
+## ahead of Eco (rescue_event.gd walk_off_now()).
+func drawn_item() -> bool:
+	if not Vices.allowed():
+		_did("Rescues are Mature only (Settings > Game > rating).")
+		return false
+	scene = "drawn"
+	close_now = true
+	_did("She's theirs, and off to them: stop her.")
 	return true
 
 
