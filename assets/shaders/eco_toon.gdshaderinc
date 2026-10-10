@@ -25,6 +25,26 @@ uniform vec3 shade_tint_2 = vec3(0.6, 0.6, 0.78);
 // Where the lit side ends (light . normal) and how soft that edge is.
 uniform float shade_edge : hint_range(-1.0, 1.0) = 0.0;
 uniform float shade_softness : hint_range(0.0, 0.5) = 0.04;
+// A third, deeper tone where the surface turns well away from the light: the
+// shade tint times deep_tint (the hero renders' three-tone look).
+uniform float deep_edge : hint_range(-1.0, 1.0) = -0.45;
+uniform vec3 deep_tint = vec3(0.84, 0.8, 0.88);
+// Skin: a warm, saturated band where the light turns to shade (the anime
+// "blush line"). Skin is where mask_tex's G is low when use_mask is on (bare
+// skin round the suit), else this material's `bare_skin` (1 for faces).
+uniform float skin_band : hint_range(0.0, 1.0) = 0.55;
+uniform float bare_skin : hint_range(0.0, 1.0) = 0.0;
+// The sun's shadows fall as the shade tone rather than going darker, so cast
+// shadows (hair on the face, an arm on the body) read as clean anime shapes.
+uniform bool toon_shadows = true;
+// Hair: a sheen ring round the crown, broken into strands, and tips that
+// lighten toward hair_tip. hair_top is the crown's height in the mesh's own
+// space (npc_import.gd measures it); both are off at 0.
+uniform float hair_ring : hint_range(0.0, 1.0) = 0.0;
+uniform vec3 hair_ring_color : source_color = vec3(1.0, 0.86, 0.9);
+uniform float hair_top = 1.6;
+uniform vec3 hair_tip : source_color = vec3(0.0);
+uniform float hair_tip_amount : hint_range(0.0, 1.0) = 0.0;
 // Thin rim of light round her silhouette.
 uniform float rim : hint_range(0.0, 1.0) = 0.22;
 // Thin, hard sheen, and its colour.
@@ -126,6 +146,8 @@ float damage_noise(vec2 p) {
 }
 varying float v_rim;
 varying vec3 v_shade;
+varying float v_skin;
+varying float v_ring;
 // her model-space position (feet at 0, head at about 1.6 m), for the Glass's spread
 varying vec3 v_obj;
 
@@ -274,6 +296,18 @@ void fragment() {
 		hypno_emit = swirl_tint * (band * 0.9 + iris * breath) * k;
 	}
 	v_shade = mix(shade_tint, shade_tint_2, mask.g);
+	v_skin = (use_mask ? 1.0 - mask.g : bare_skin) * skin_band;
+	v_ring = 0.0;
+	if (hair_tip_amount > 0.0) {
+		// tips lighten (screen) toward hair_tip, from about a hand below the crown down
+		float g = smoothstep(hair_top - 0.22, hair_top - 0.85, v_obj.y) * hair_tip_amount;
+		col = 1.0 - (1.0 - col) * (1.0 - hair_tip * g);
+	}
+	if (hair_ring > 0.0) {
+		float crown = smoothstep(hair_top - 0.24, hair_top - 0.1, v_obj.y);
+		float strands = smoothstep(0.42, 0.58, damage_noise(UV * vec2(70.0, 1.2)));
+		v_ring = hair_ring * crown * strands;
+	}
 	vec4 tattoo = texture(tattoo_tex, UV);
 	if (use_mask && tattoo.a > 0.0) {
 		col = mix(col, tattoo.rgb, tattoo.a * 0.9 * (1.0 - smoothstep(0.3, 0.6, mask.g)));
@@ -306,11 +340,28 @@ void fragment() {
 
 void light() {
 	float ndl = dot(NORMAL, LIGHT);
-	float lit = smoothstep(shade_edge - shade_softness, shade_edge + shade_softness, ndl);
 	vec3 radiance = ATTENUATION * LIGHT_COLOR / PI;
-	DIFFUSE_LIGHT += mix(v_shade, vec3(1.0), lit) * radiance;
-	// rim: light added straight on top, so it reads on dark suit and pale skin alike
-	SPECULAR_LIGHT += v_rim * exposure * radiance;
+	float shadow = 1.0;
+	if (toon_shadows && LIGHT_IS_DIRECTIONAL) {
+		// the sun's attenuation is only its shadow: shadowed means the shade tone
+		shadow = smoothstep(0.35, 0.65, ATTENUATION);
+		radiance = LIGHT_COLOR / PI;
+	}
+	float lit = smoothstep(shade_edge - shade_softness, shade_edge + shade_softness, ndl) * shadow;
+	float deep = smoothstep(deep_edge - shade_softness, deep_edge + shade_softness, ndl);
+	vec3 tone = mix(v_shade * mix(deep_tint, vec3(1.0), deep), vec3(1.0), lit);
+	// the warm band on skin, right at the light's edge
+	float band = (1.0 - smoothstep(0.0, 0.14, abs(ndl - shade_edge))) * shadow;
+	tone = mix(tone, vec3(1.0, 0.6, 0.58), v_skin * band);
+	DIFFUSE_LIGHT += tone * radiance;
+	// rim: light added straight on top, so it reads on dark suit and pale skin
+	// alike; mostly on the lit side, so the shade side keeps its clean shape
+	SPECULAR_LIGHT += v_rim * (0.1 + 0.9 * lit) * exposure * radiance;
+	if (v_ring > 0.0) {
+		vec3 hh = normalize(LIGHT + VIEW);
+		float ring = smoothstep(0.55, 0.7, pow(max(dot(NORMAL, hh), 0.0), 18.0));
+		SPECULAR_LIGHT += hair_ring_color * ring * v_ring * shadow * exposure * radiance;
+	}
 	if (v_sheen_mask > 0.0) {
 		vec3 h = normalize(LIGHT + VIEW);
 		float s = pow(max(dot(NORMAL, h), 0.0), 60.0);
