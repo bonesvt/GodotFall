@@ -16,6 +16,7 @@ const HubGrip := preload("res://scripts/hub/hub_grip.gd")
 const ColonyGear := preload("res://scripts/hub/colony_gear.gd")
 const HushDen := preload("res://scripts/hub/hush_den.gd")
 const ShepherdModel := preload("res://scripts/hub/shepherd_model.gd")
+const ThreatModel := preload("res://scripts/threats/threat_model.gd")
 const RescueLooks := preload("res://scripts/hub/rescue_looks.gd")
 const CutterModel := preload("res://scripts/hub/cutter_model.gd")
 const EcoRest := preload("res://scripts/ps2/eco_rest.gd")
@@ -30,23 +31,36 @@ enum Step { IDLE, ALERT, RUNNING, SAVED, LATE }
 
 const SPOT := "rescue_captor"
 const RED := Color(1.0, 0.25, 0.2)
-## Biggie's run in.
-const A_ARRIVE := 1.4
-const A_END := 5.2
-## In time.
-const S_HIT := 0.45
-const S_KNOCK := 1.3
-const S_FREE := 2.8
-const S_DARK := 6.0
-const S_END := 7.0
-## Too late: the captor puts it in them (the drug to her lips, the needle to her
-## eye, the piece on her: L_IN), then what it's done, then what comes after.
-const L_CLOSE := 2.0
-const L_IN := 3.4
-const L_AFTER := 4.6
-const L_SECOND := 7.6
-const L_DARK := 11.0
-const L_END := 12.0
+## Biggie's run in: slowing to a stop by A_RUN_IN, saying it at A_TALK, off
+## again at A_END while the view eases back to hers over A_HOME.
+const A_RUN_IN := 2.0
+const A_TALK := 2.1
+const A_END := 6.4
+const A_HOME := 1.0
+## In time: she runs at him (CHARGE_SPEED) till she's within HIT_RANGE; then,
+## from the hit, his line (S_KNOCK), them up and over to her (S_FREE), and
+## S_HOLD after they meet, black.
+const CHARGE_SPEED := 7.0
+const HIT_RANGE := 0.9
+const S_KNOCK := 0.8
+const S_FREE := 1.7
+const S_HOLD := 2.6
+## Too late: down to black (L_SET) and up on them (L_FADE); the captor walks in
+## (L_WALK), reaches (L_REACH), puts it in them (L_IN: the drug to her lips, the
+## needle to her eye, the piece on her), steps back (L_AFTER), then what comes
+## after (L_SECOND), black (L_DARK), and the game again (L_END).
+const L_SET := 0.45
+const L_FADE := 0.55
+const L_WALK := 0.7
+const L_REACH := 2.1
+const L_CLOSE := 2.8
+const L_IN := 4.3
+const L_AFTER := 5.5
+const L_SECOND := 8.6
+const L_DARK := 12.0
+const L_END := 12.8
+## Back up out of black into the game.
+const FADE_UP := 0.7
 
 const KNOCK := {
 	"marrow": "Eco hits him with her whole weight. He comes apart like smoke round her shoulder and pools on the floor, and from everywhere at once: \"Take her, then. She'll find her own way back.\"",
@@ -156,8 +170,35 @@ var _clock: Label
 var _marker: Control
 var _quiet_said := {}
 var _hit_from := Vector3.ZERO
-var _hit_to := Vector3.ZERO
+var _hit_dir := Vector3.FORWARD
+var _hit_t := -1.0
+var _fall_from := Vector3.ZERO
+var _fall_yaw := 0.0
+var _meet_t := -1.0
 var _shaders := {}
+var _biggie_ap: AnimationPlayer
+var _biggie_exit := 0.0
+var _victim_anim_speed := 1.0
+var _fade_up := -1.0
+var _home := 0.0
+## The camera: where it's easing from and to (a point it's at and a point it
+## looks at), over how long; or following a Callable([from, at]) live.
+var _cam_from_pos := Vector3.ZERO
+var _cam_from_at := Vector3.ZERO
+var _fov_from := 60.0
+var _to_pos := Vector3.ZERO
+var _to_at := Vector3.ZERO
+var _fov_to := 60.0
+var _glide := 0.0
+var _glide_t := 0.0
+var _aim := Callable()
+var _jolt := 0.0
+var _defer_body := false
+## Hard cuts while it could be seen (the motion test wants none).
+var cuts := 0
+## People and captors moving: {node, from, to, t0, t1, face, keep} on _mt's clock.
+var _moves: Array = []
+var _mt := 0.0
 
 
 func _init(run_manager: Node) -> void:
@@ -272,20 +313,30 @@ func start(p_who: String, p_captor: String) -> bool:
 	step = Step.ALERT
 	t = 0.0
 	_said.clear()
+	_begin_cam()
 	_hold(true)
-	# Biggie, at a run, from in front of her
+	# Biggie, at a jog, from up ahead of her and a little to the side
 	var p: Node3D = rm.player
 	var fwd := _flat(-p.global_basis.z)
-	_biggie = _npc("biggie", p.global_position + fwd * 6.0, rad_to_deg(atan2(fwd.x, fwd.z)))
-	_biggie.set_meta("from", p.global_position + fwd * 6.0)
-	_biggie.set_meta("to", p.global_position + fwd * 1.5)
-	_look(p.global_position + Vector3(0, 1.6, 0) - fwd * 1.1 + fwd.cross(Vector3.UP) * 0.6, p.global_position + fwd * 3.0 + Vector3(0, 1.3, 0), 45.0)
+	var side := fwd.cross(Vector3.UP)
+	var from := p.global_position + fwd * 9.0 + side * 1.2
+	var to := p.global_position + fwd * 1.7 + side * 0.15
+	_end_biggie()
+	_biggie = _npc("biggie", from, 0.0)
+	var d := _flat(to - from)
+	_biggie.rotation.y = atan2(-d.x, -d.z)
+	_borrow_walk(_biggie)
+	_biggie_ap = _biggie.find_child("AnimationPlayer", true, false) as AnimationPlayer
+	_moves.clear()
+	_move(_biggie, from, to, 0.0, A_RUN_IN, "", 2.4)
+	# over her shoulder, the street ahead: the view eases there out of her own
+	_look(p.global_position + Vector3(0, 1.65, 0) - fwd * 1.2 + side * 0.55, p.global_position + fwd * 4.0 + Vector3(0, 1.25, 0), 46.0, 1.0)
 	rm.hud.toast("Running feet. Somebody's shouting her name.", 1.6)
 	SFX.play(self, "step_concrete_2", -2.0, 1.3)
 	return true
 
 
-## [F] at the captor while there's time: down he goes.
+## [F] at the captor while there's time: she runs at him and down he goes.
 func knock() -> void:
 	if step != Step.RUNNING:
 		return
@@ -294,16 +345,31 @@ func knock() -> void:
 	_said.clear()
 	_remove_spot()
 	_clock.visible = false
+	_begin_cam()
 	_hold(true)
+	_hit_t = -1.0
+	_moves.clear()
 	var p: Node3D = rm.player
 	var at: Vector3 = _site["captor"]
 	var dir := _flat(at - p.global_position)
-	_hit_from = at - dir * 1.3
-	_hit_to = at - dir * 0.5
-	rm.place_player(_hit_from)
-	p.rotation.y = atan2(-dir.x, -dir.z)
-	var side := dir.cross(Vector3.UP)
-	_look(at - dir * 0.9 + side * 2.6 + Vector3(0, 1.3, 0), at - dir * 0.4 + Vector3(0, 0.95, 0), 48.0)
+	_hit_from = p.global_position
+	_hit_dir = dir
+	# from the side of the line she runs along, whichever side has room, the
+	# camera easing out to it and keeping the two of them in as she closes
+	var span := Vector2(at.x - p.global_position.x, at.z - p.global_position.z).length()
+	var side := dir.cross(Vector3.UP) * (2.0 + span * 0.5)
+	var mid0 := (p.global_position + at) * 0.5 + Vector3(0, 1.0, 0)
+	if not _clear(mid0 + side + Vector3(0, 0.35, 0), mid0) and _clear(mid0 - side + Vector3(0, 0.35, 0), mid0):
+		side = -side
+	var c: Node3D = _captor
+	_follow(func():
+		var a: Vector3 = rm.player.global_position
+		var b: Vector3 = c.global_position if is_instance_valid(c) else at
+		var mid: Vector3 = (a + b) * 0.5
+		return [mid + side + Vector3(0, 1.35, 0), mid + Vector3(0, 0.95, 0)], 48.0, 1.3)
+	# she goes, flat out
+	p.set("trance_speed", CHARGE_SPEED)
+	p.set("trance_dir", dir)
 
 
 ## Too late: what happened.
@@ -313,20 +379,18 @@ func play_late() -> void:
 	_said.clear()
 	_remove_spot()
 	_clock.visible = false
+	_begin_cam()
 	_hold(true)
+	_moves.clear()
 	piece = ""
 	if captor == "colony":
 		piece = _next_piece()
 		ColonyGear.apply(_victim, HubGrip.gear_of(who) + ([piece] if piece != "" else []))
 		if piece != "":
 			ColonyGear.fit_model(_victim, piece, 0.0)
-	elif captor == "cutter":
-		veins(_victim, true)
 	_victim.mood(["sad"])
-	rm.player.visible = false  # she isn't there: this is what she missed
-	_late_set()
-	rm.hud.toast(_apply_line(), 3.4)
 	SFX.play(self, "heartbeat", -8.0, 0.8)
+	# somewhere else: down to black first (L_SET), and up again on them there
 
 
 func _process(delta: float) -> void:
@@ -334,104 +398,219 @@ func _process(delta: float) -> void:
 	if step == Step.RUNNING:
 		_clock.text = "%s: %s   %d:%02d" % [Rescue.NAMES[who].to_upper(), Rescue.PLACES[captor], int(left) / 60, int(left) % 60]
 		_clock.add_theme_color_override("font_color", RED if left < 20.0 and fmod(left, 1.0) > 0.5 else Color(1.0, 0.85, 0.8))
+		_clock.modulate.a = minf(_clock.modulate.a + delta * 2.0, 1.0)  # fading in, not popping
 		_marker.queue_redraw()
 	if _victim != null and is_instance_valid(_victim):
 		if _victim_anim != null:
-			_victim_anim.advance(delta)
+			_victim_anim.advance(delta * _victim_anim_speed)
 		if _victim_rest != null:
 			_victim_rest.step(delta, _victim_pose)
+	_biggie_tick(delta)
+	if _fade_up >= 0.0:  # back to the game, up out of black
+		_fade_up += delta
+		_veil.color.a = maxf(0.0, 1.0 - _smoother(_fade_up / FADE_UP))
+		if _fade_up >= FADE_UP:
+			_fade_up = -1.0
+			_veil.color.a = 0.0
 	if t < 0.0:
 		return
 	t += delta
-	if _cam != null and not _cam.current:
-		_cam.make_current()
+	_moves_tick(delta)
+	_cam_tick(delta)
+	if _home > 0.0:  # gliding back to her own view
+		_home -= delta
+		if _home <= 0.0:
+			_home_done()
+		return
 	match step:
 		Step.ALERT:
-			_alert_tick()
+			_alert_tick(delta)
 		Step.SAVED:
-			_saved_tick()
+			_saved_tick(delta)
 		Step.LATE:
-			_late_tick()
+			_late_tick(delta)
 
 
-func _alert_tick() -> void:
+func _alert_tick(delta: float) -> void:
+	var p: Node3D = rm.player
 	if is_instance_valid(_biggie):
-		var k := smoothstep(0.0, A_ARRIVE, t)
-		_biggie.global_position = (_biggie.get_meta("from") as Vector3).lerp(_biggie.get_meta("to"), k)
-		_biggie.position.y += absf(sin(t * 11.0)) * 0.05 * (1.0 - k)
-	if t >= A_ARRIVE and not _said.has("alert"):
+		# he slows to a stop in front of her; his stride slows with him
+		var speed: float = _biggie.get_meta("speed", 0.0)
+		if _biggie_ap != null:
+			_biggie_ap.speed_scale = clampf(speed / 1.25, 0.0, 2.2)
+		if t >= A_RUN_IN and not _said.has("stopped"):
+			_said["stopped"] = true
+			if _biggie_ap != null and _biggie_ap.has_animation("talk"):
+				_biggie_ap.speed_scale = 1.0
+				_biggie_ap.play("talk", 0.35)
+			_biggie.mood(["sad"])
+		# she turns to him
+		var to_him := _flat(_biggie.global_position - p.global_position)
+		p.rotation.y = lerp_angle(p.rotation.y, atan2(-to_him.x, -to_him.z), 1.0 - exp(-4.0 * delta))
+	if t >= A_TALK and not _said.has("alert"):
 		_said["alert"] = true
 		rm.hud.toast(Rescue.ALERT[captor] % ("your mom" if who == "mom" else "Ophelia"), 4.0)
-		if is_instance_valid(_biggie):
-			_biggie.mood(["sad"])
-		var p: Node3D = rm.player
-		_look(_biggie.head_position() + _flat(p.global_position - _biggie.global_position) * 1.4 + Vector3(0, 0.05, 0), _biggie.head_position() - Vector3(0, 0.1, 0), 38.0)
-	if t >= A_END:
-		_go()
+		if is_instance_valid(_biggie):  # round onto him, over her shoulder
+			_follow(func():
+				var b: Node3D = _biggie if is_instance_valid(_biggie) else rm.player
+				var h: Vector3 = b.head_position() if b.has_method("head_position") else b.global_position + Vector3(0, 1.6, 0)
+				var back := _flat(rm.player.global_position - b.global_position)
+				return [h + back * 1.5 + back.cross(Vector3.UP) * 0.45 + Vector3(0, 0.08, 0), h - Vector3(0, 0.12, 0)], 38.0, 1.2)
+	if t >= A_END and not _said.has("off"):
+		_said["off"] = true
+		if is_instance_valid(_biggie):  # off again the way he came, at a run
+			var away := _flat(_biggie.global_position - p.global_position)
+			_move(_biggie, _biggie.global_position, _biggie.global_position + away * 9.0 + away.cross(Vector3.UP) * 1.5, t + 0.35, t + 4.2, "", 2.6, true)
+			if _biggie_ap != null:
+				_biggie_ap.play("rescue/walk", 0.3)
+		_glide_home(A_HOME)
+
+
+## Biggie, after the scene: still running off; gone once he's well away.
+func _biggie_tick(delta: float) -> void:
+	if not is_instance_valid(_biggie):
+		return
+	if t < 0.0:
+		_moves_tick(delta)  # he finishes his run out of sight
+		var speed: float = _biggie.get_meta("speed", 0.0)
+		if _biggie_ap != null:
+			_biggie_ap.speed_scale = clampf(speed / 1.25, 0.0, 2.2)
+		_biggie_exit += delta
+		if _biggie_exit > 4.5:
+			_end_biggie()
+
+
+func _end_biggie() -> void:
+	if is_instance_valid(_biggie):
+		_biggie.queue_free()
+	_biggie = null
+	_biggie_ap = null
+	_biggie_exit = 0.0
 
 
 ## Biggie's said it: the place is set, the clock's running, she's hers again.
 func _go() -> void:
-	t = -1.0
-	if is_instance_valid(_biggie):
-		_biggie.queue_free()
-	_biggie = null
 	_build_site()
 	left = Rescue.time()
 	step = Step.RUNNING
+	_clock.modulate.a = 0.0
 	_clock.visible = true
-	_hold(false)
 
 
-func _saved_tick() -> void:
+func _saved_tick(delta: float) -> void:
 	var p: Node3D = rm.player
-	if t < S_HIT + 0.3:
-		p.global_position = _hit_from.lerp(_hit_to, smoothstep(S_HIT - 0.15, S_HIT + 0.1, t))
-	if t >= S_HIT and not _said.has("hit"):
-		_said["hit"] = true
-		_veil.color = Color(1, 1, 1, 0.7)
-		SFX.play(self, "hit_body", 0.0, 0.8)
-	if _said.has("hit"):
-		var k := smoothstep(S_HIT, S_HIT + 0.7, t)
-		if is_instance_valid(_captor):
-			if captor == "marrow":  # he comes apart into smoke and pools
-				_captor.scale = Vector3(1.0 + k * 0.6, maxf(1.0 - k, 0.04), 1.0 + k * 0.6)
-			else:  # over backwards
-				_captor.rotation.x = k * PI * 0.5
-		if t < S_FREE:
-			_veil.color.a = maxf(0.0, 0.7 - (t - S_HIT) * 3.0)
-	if t >= S_KNOCK and not _said.has("knock"):
+	if _hit_t < 0.0:
+		# the captor sees her coming and turns to her
+		if is_instance_valid(_captor) and t > 0.15:
+			var to_her := _flat(p.global_position - _captor.global_position)
+			_captor.rotation.y = lerp_angle(_captor.rotation.y, atan2(-to_her.x, -to_her.z), 1.0 - exp(-7.0 * delta))
+		var gap := Vector2(_captor.global_position.x - p.global_position.x, _captor.global_position.z - p.global_position.z).length() if is_instance_valid(_captor) else 0.0
+		if gap < HIT_RANGE or t > 3.0:
+			_hit_t = t
+			p.set("trance_speed", 0.0)
+			p.set("trance_dir", Vector3.ZERO)
+			_veil.color = Color(1, 1, 1, 0.45)
+			_jolt = 1.0
+			SFX.play(self, "hit_body", 0.0, 0.8)
+			if is_instance_valid(_captor):
+				_fall_from = _captor.position
+				_fall_yaw = _captor.rotation.y
+		return
+	var h := t - _hit_t
+	if h < 0.35:  # the flash of the hit, easing off
+		_veil.color.a = 0.45 * (1.0 - _smoother(h / 0.35))
+	elif not _said.has("results"):
+		_veil.color.a = 0.0
+	if is_instance_valid(_captor):
+		var k := clampf(h / 0.6, 0.0, 1.0)
+		if captor == "marrow":  # he comes apart into smoke and pools, wavering as he goes
+			var s := _smoother(clampf(h / 0.9, 0.0, 1.0))
+			_captor.scale = Vector3(1.0 + s * 0.7, maxf(1.0 - s, 0.03) * (1.0 + 0.06 * sin(h * 20.0) * (1.0 - s)), 1.0 + s * 0.7)
+		else:  # over backwards: slow to start, falling faster, a little bounce where he lands
+			var ang := k * k * PI * 0.5
+			if h > 0.6:
+				ang += -0.07 * sin((h - 0.6) * 16.0) * exp(-(h - 0.6) * 7.0)
+			_captor.rotation = Vector3(ang, _fall_yaw, 0)
+			_captor.position = _fall_from + _hit_dir * 0.35 * _smoother(clampf(h / 0.7, 0.0, 1.0))
+	if h >= S_KNOCK and not _said.has("knock"):
 		_said["knock"] = true
 		rm.hud.toast(KNOCK[captor], 3.5)
-	if t >= S_FREE and not _said.has("free"):
+	if h >= S_FREE and not _said.has("free"):
 		_said["free"] = true
-		_victim_pose = ""  # up on her feet
-		if _site.has("out"):  # and out of the van
-			_victim.global_position = _site["out"]
+		_victim_pose = ""  # up out of the seat (the pose eases off)
 		_victim.mood(["smile"])
+		# then over to Eco: out of the van first, if that's where she is
+		var meet := p.global_position + _flat(_victim.global_position - p.global_position) * 0.75
+		var path: Array = [_victim.global_position]
+		if _site.has("out"):
+			path.append(_site["out"])
+		path.append(meet)
+		var at := S_FREE + 0.7
+		for i in path.size() - 1:
+			var a: Vector3 = path[i]
+			var b: Vector3 = path[i + 1]
+			var dur := maxf(Vector2(b.x - a.x, b.z - a.z).length() / 1.1, 0.5)
+			_move(_victim, a, b, _hit_t + at, _hit_t + at + dur, "eco" if i == path.size() - 2 else "", 1.1)
+			at += dur
+		_meet_t = _hit_t + at
+		_borrow_walk(_victim)
+		if _victim_anim != null:
+			_victim_anim.play("idle", 0.5)  # stood, till she walks
+		# the camera eases round onto the two of them, keeping them both in
+		_follow(func():
+			var v: Node3D = _victim if is_instance_valid(_victim) else rm.player
+			var me: Vector3 = rm.player.global_position
+			var mid: Vector3 = (me + v.global_position) * 0.5
+			var across: Vector3 = _flat(v.global_position - me)
+			var gap2: float = Vector2(v.global_position.x - me.x, v.global_position.z - me.z).length()
+			var side: Vector3 = across.cross(Vector3.UP) * (1.6 + gap2 * 0.55)
+			if _site.has("out") and side.x < 0.0:  # from the street, never from inside the van
+				side = -side
+			return [mid + side + Vector3(0, 1.45, 0), mid + Vector3(0, 1.15, 0)], 42.0, 1.4)
+	if _said.has("free") and is_instance_valid(_victim):
+		var walking: bool = _victim.get_meta("speed", 0.0) > 0.05
+		if walking and not _said.has("walk"):
+			_said["walk"] = true
+			if _victim_anim != null and _victim_anim.has_animation("rescue/walk"):
+				_victim_anim.play("rescue/walk", 0.3)
+		elif not walking and _said.has("walk") and not _said.has("stood"):
+			_said["stood"] = true
+			if _victim_anim != null:
+				_victim_anim.play("idle", 0.4)
+		# Eco turns to her as she comes
 		var to_them := _flat(_victim.global_position - p.global_position)
-		p.rotation.y = atan2(-to_them.x, -to_them.z)
-		var mid := (p.global_position + _victim.global_position) * 0.5
-		var gap := Vector2(p.global_position.x - _victim.global_position.x, p.global_position.z - _victim.global_position.z).length()
-		var side := to_them.cross(Vector3.UP) * (1.4 + gap * 0.6)
-		if _site.has("out"):  # from the street, not from inside the van
-			side = side if side.x > 0.0 else -side
-		_look(mid + side + Vector3(0, 1.45, 0), mid + Vector3(0, 1.2, 0), 42.0)
-		rm.hud.toast(FREED[who], 3.2)
+		p.rotation.y = lerp_angle(p.rotation.y, atan2(-to_them.x, -to_them.z), 1.0 - exp(-4.0 * delta))
+	if _meet_t > 0.0 and t >= _meet_t and not _said.has("met"):
+		_said["met"] = true
+		rm.hud.toast(FREED[who], 3.4)
 		SFX.play(self, "heartbeat", -10.0, 1.0)
-	if t >= S_DARK:
-		_veil.color = Color(0, 0, 0, smoothstep(S_DARK, S_DARK + 0.5, t) * (1.0 - smoothstep(S_END - 0.4, S_END, t)))
+	if _meet_t > 0.0 and t >= _meet_t + S_HOLD:
+		var k2 := clampf((t - _meet_t - S_HOLD) / 0.6, 0.0, 1.0)
+		_veil.color = Color(0, 0, 0, _smoother(k2))
 		if not _said.has("results"):
 			_said["results"] = true
 			_saved_results()
-	if t >= S_END:
-		_finish()
+		if k2 >= 1.0 and t >= _meet_t + S_HOLD + 1.0:
+			_finish()
 
 
-func _late_tick() -> void:
-	_apply_tick()
+func _late_tick(delta: float) -> void:
+	# down to black, the place set while it's dark, and up on them there
+	if t < L_SET:
+		_veil.color = Color(0, 0, 0, _smoother(t / L_SET))
+		return
+	if not _said.has("set"):
+		_said["set"] = true
+		rm.player.visible = false  # she isn't there: this is what she missed
+		_late_set()
+		rm.hud.toast(_apply_line(), 3.6)
+	if t < L_SET + L_FADE:
+		_veil.color = Color(0, 0, 0, 1.0 - _smoother((t - L_SET) / L_FADE))
+	elif not _said.has("in"):
+		_veil.color.a = 0.0
+	_apply_tick(delta)
 	if captor == "colony" and piece != "" and _victim != null:
-		ColonyGear.fit_model(_victim, piece, smoothstep(0.8, L_IN, t))
+		ColonyGear.fit_model(_victim, piece, _smoother(clampf((t - L_REACH) / (L_IN - L_REACH), 0.0, 1.0)))
 	if captor == "cutter" and _victim != null and t >= L_IN:
 		_shake(_victim, 1.0)
 	if t >= L_AFTER and not _said.has("after"):
@@ -439,8 +618,14 @@ func _late_tick() -> void:
 		_drop_prop()
 		_step_back()
 		_victim.mood(["plain"] if captor == "colony" else (["smile"] if captor == "marrow" else ["sad"]))  # eyes open: what's in them shows
-		_look(_site["cam"], _victim.head_position() + Vector3(0, -0.25, 0), 40.0)
+		_victim.set("look_target", null)
+		var v := _victim
+		_follow(func(): return [_site["cam"], v.head_position() + Vector3(0, -0.25, 0)], 40.0, 1.5)
 		rm.hud.toast(_late_line(0), 3.6)
+	if t >= L_SECOND - 0.45 and captor == "marrow" and not _said.has("dip"):
+		_said["dip"] = true  # home's somewhere else: through black
+	if _said.has("dip") and not _said.has("second"):
+		_veil.color = Color(0, 0, 0, _smoother(clampf((t - (L_SECOND - 0.45)) / 0.45, 0.0, 1.0)))
 	if t >= L_SECOND and not _said.has("second"):
 		_said["second"] = true
 		rm.hud.toast(_late_line(1), 3.8)
@@ -450,17 +635,21 @@ func _late_tick() -> void:
 			if real != null:
 				real.mood(["closed", "smile"])
 				var face := _flat(-real.global_basis.z)
-				_look(real.head_position() + face * 1.5 + Vector3(0, 0.05, 0), real.head_position() - Vector3(0, 0.08, 0), 34.0)
+				_look(real.head_position() + face * 1.6 + Vector3(0, 0.05, 0), real.head_position() - Vector3(0, 0.08, 0), 34.0)
+				_look(real.head_position() + face * 1.3 + Vector3(0, 0.04, 0), real.head_position() - Vector3(0, 0.08, 0), 32.0, 3.0)  # a slow push in
 		elif captor == "colony":
 			_victim.mood(["smile"])
-			_look(_victim.head_position() + _flat(-_victim.global_basis.z) * 1.1 + Vector3(0, 0.05, 0), _victim.head_position() - Vector3(0, 0.06, 0), 32.0)
+			var v2 := _victim
+			_follow(func(): return [v2.head_position() + _flat(-v2.global_basis.z) * 1.1 + Vector3(0, 0.05, 0), v2.head_position() - Vector3(0, 0.06, 0)], 32.0, 1.6)
 		else:
-			if is_instance_valid(_captor):  # he turns to the road, grinning, her behind him
-				_captor.rotation_degrees.y = 90.0
-				_look(_captor.global_position + Vector3(-1.7, 1.5, 0.6), _captor.global_position + Vector3(0, 1.35, 0.15), 40.0)
+			_turn_to(_captor, _captor.global_position + Vector3(-3, 0, 0.6), 0.7)  # he turns to the road, grinning
+			var c := _captor
+			_follow(func(): return [c.global_position + Vector3(-1.7, 1.5, 0.6), c.global_position + Vector3(0, 1.35, 0.15)], 40.0, 1.3)
 			SFX.play(self, "impact", -10.0, 0.6)
+	if _said.has("dip") and t >= L_SECOND and t < L_SECOND + 0.5:
+		_veil.color.a = 1.0 - _smoother((t - L_SECOND) / 0.5)
 	if t >= L_DARK:
-		_veil.color = Color(0, 0, 0, smoothstep(L_DARK, L_DARK + 0.5, t) * (1.0 - smoothstep(L_END - 0.4, L_END, t)))
+		_veil.color = Color(0, 0, 0, _smoother(clampf((t - L_DARK) / 0.6, 0.0, 1.0)))
 		if not _said.has("results"):
 			_said["results"] = true
 			_late_results()
@@ -468,28 +657,29 @@ func _late_tick() -> void:
 		_finish()
 
 
-## Too late, as it happens: the captor brought in close to them, facing them,
-## and what they're putting in or on them in his hand.
+## Too late, as it happens: the captor stands back from them, then comes in
+## close, facing them, with what they're putting in or on them in his hand.
 var _prop: Node3D
 var _prop_from := Vector3.ZERO
 var _rod: MeshInstance3D
+var _look_point: Node3D
 
 
 func _late_set() -> void:
 	var seat: Vector3 = _site["seat"]
-	var at := seat
-	match captor:
-		"marrow":
-			at = seat + Vector3(0.42, 0, -0.55)
-		"colony":
-			at = seat + Vector3(0.85, 0, 0)
-		"cutter":
-			at = seat + Vector3(-0.7, 0, 0)
+	var at := _apply_spot()
+	var back := _back_spot()
 	if is_instance_valid(_captor):
-		_captor.position = at
-		var d := _flat(_victim.global_position - at)
-		_captor.rotation = Vector3(0, atan2(-d.x, -d.z), 0)
 		_captor.scale = Vector3.ONE
+		_captor.position = back
+		var d0 := _flat(_victim.global_position - back)
+		_captor.rotation = Vector3(0, atan2(-d0.x, -d0.z), 0)
+		_move(_captor, back, at, L_WALK, L_WALK + 1.2, "victim", 1.3)
+		# where her eyes go: his face, then what's in his hand
+		_look_point = Node3D.new()
+		_captor.add_child(_look_point)
+		_look_point.position = Vector3(0, 1.6, 0)
+		_victim.set("look_target", _look_point)
 	var toward := _flat(_victim.global_position - at)
 	_prop_from = at + Vector3(0, 1.2, 0) + toward * 0.32
 	var glow := StandardMaterial3D.new()
@@ -542,18 +732,41 @@ func _late_set() -> void:
 			var white := StandardMaterial3D.new()
 			white.albedo_color = Color(0.92, 0.94, 0.97)
 			_rod.material_override = white
+			_rod.visible = false
 			_set.add_child(_rod)
 	if _prop != null:
 		_set.add_child(_prop)
-		_prop.global_position = _prop_from
-	# the two of them, from the side
+		_prop.visible = false  # in his hand once he's there
+	# the two of them, from the side: set while it's dark, then a slow push in
 	var mid: Vector3 = (_prop_from + _victim.head_position()) * 0.5
 	var side := toward.cross(Vector3.UP)
 	if captor == "colony":
 		side = Vector3(1, 0, 0.6).normalized() * 2.4  # from the street, in through the door
 	elif captor == "cutter":
 		side = Vector3(0, 0, 1)  # from the open side of the tarp
-	_look(mid + side * 1.5 + Vector3(0, 0.15, 0), mid - Vector3(0, 0.1, 0), 40.0)
+	_look(mid + side * 1.75 + Vector3(0, 0.2, 0), mid - Vector3(0, 0.1, 0), 42.0)
+	_look(mid + side * 1.45 + Vector3(0, 0.15, 0), mid - Vector3(0, 0.1, 0), 40.0, L_IN - L_SET)
+
+
+## Where the captor stands to do it, and where he stands back to before and after.
+func _apply_spot() -> Vector3:
+	var seat: Vector3 = _site["seat"]
+	match captor:
+		"marrow":
+			return seat + Vector3(0.42, 0, -0.55)
+		"colony":
+			return seat + Vector3(0.85, 0, 0)
+	return seat + Vector3(-0.7, 0, 0)
+
+
+func _back_spot() -> Vector3:
+	var seat: Vector3 = _site["seat"]
+	match captor:
+		"marrow":
+			return seat + Vector3(0.35, 0, 0.55)  # behind her chair, a hand on it
+		"colony":
+			return seat + Vector3(1.6, -RescueSites.VAN_FLOOR, -1.1)  # out of the van
+	return seat + Vector3(-0.85, 0, -0.85)  # off to the side
 
 
 ## Where on them it's going: her lips (Marrow), her eye (Cutter).
@@ -565,27 +778,48 @@ func _apply_target() -> Vector3:
 	return _victim.head_position() - Vector3(0, 0.045, 0) + fwd * 0.08
 
 
-func _apply_tick() -> void:
-	var k := smoothstep(0.8, L_IN, t)
+## His hand, now (where he stands, at chest height, toward her).
+func _hand() -> Vector3:
+	if not is_instance_valid(_captor):
+		return _prop_from
+	var toward := _flat(_victim.global_position - _captor.global_position)
+	return _captor.global_position + Vector3(0, 1.2, 0) + toward * 0.32
+
+
+func _apply_tick(_delta: float) -> void:
+	# up from his hand in an arc, slow at the start, slower still as it gets to her
+	var u := clampf((t - L_REACH) / (L_IN - L_REACH), 0.0, 1.0)
+	var k := _smoother(u)
+	k = lerpf(k, 1.0 - pow(1.0 - u, 3.0), 0.35)  # a touch of hesitation before it lands
 	if _prop != null and is_instance_valid(_prop):
+		_prop.visible = t >= L_REACH - 0.25
+		var from := _hand()
 		var to := _apply_target()
-		_prop.global_position = _prop_from.lerp(to + (_prop_from - to).normalized() * 0.03, k)
-		if captor == "cutter":
+		var stop := to + (from - to).normalized() * 0.03
+		var lift := (from + stop) * 0.5 + Vector3(0, 0.12, 0)
+		_prop.global_position = from.lerp(lift, k).lerp(lift.lerp(stop, k), k)  # a quadratic arc
+		if captor == "cutter" and _prop.global_position.distance_to(to) > 0.01:
 			_prop.look_at(to, Vector3.UP)
+		if t >= L_REACH - 0.25 and _look_point != null and _look_point.get_parent() != _prop:
+			_look_point.reparent(_prop, false)  # her eyes go to it
+			_look_point.position = Vector3.ZERO
 	if _rod != null and is_instance_valid(_rod) and piece != "":
+		_rod.visible = t >= L_REACH - 0.2
 		var node := ColonyGear.piece_node(_victim, piece)
-		var a := _prop_from
+		var a := _hand()
 		var b: Vector3 = node.global_position if node != null else _victim.head_position()
-		_rod.global_position = (a + b) * 0.5
+		b = a.lerp(b, _smoother(clampf((t - (L_REACH - 0.2)) / 0.6, 0.0, 1.0)))  # reaching out to it
 		var dir := b - a
-		_rod.scale = Vector3(1, maxf(dir.length(), 0.01), 1)
 		if dir.length() > 0.01:
+			_rod.global_position = (a + b) * 0.5
 			_rod.global_basis = Basis(Quaternion(Vector3.UP, dir.normalized())) * Basis.from_scale(Vector3(1, dir.length(), 1))
 	if captor == "cutter" and t >= L_CLOSE and not _said.has("close"):
-		_said["close"] = true  # close on her eye as it comes in
-		var fwd := _flat(-_victim.global_basis.z)
-		var eye := _apply_target() - fwd * 0.075
-		_look(eye + fwd * 0.4 + Vector3(0, 0, 0.22) - Vector3(0, 0.02, 0), eye, 22.0)
+		_said["close"] = true  # easing in close on her eye as it comes
+		var v := _victim
+		_follow(func():
+			var fwd := _flat(-v.global_basis.z)
+			var eye := _apply_target() - fwd * 0.075
+			return [eye + fwd * 0.4 + Vector3(0, 0, 0.22) - Vector3(0, 0.02, 0), eye], 22.0, L_IN - L_CLOSE - 0.1)
 	if t >= L_IN and not _said.has("in"):
 		_said["in"] = true
 		match captor:
@@ -601,25 +835,14 @@ func _apply_tick() -> void:
 				SFX.play(self, "heartbeat", 0.0, 1.2)
 		eyes(_victim, EYES_IN, EYE_TINT[captor])  # the same in her eyes as Eco gets
 	if captor == "cutter" and t >= L_IN and t < L_AFTER:
-		_veil.color.a = 0.85 * (1.0 - smoothstep(L_IN, L_IN + 0.8, t))
+		_veil.color.a = 0.85 * (1.0 - _smoother(clampf((t - L_IN) / 0.9, 0.0, 1.0)))
 
 
-## Done: the captor steps back out of the way (Marrow to behind her chair, a
-## hand on it; the Shepherd out of the van; Cutter off to the side).
+## Done: the captor steps back out of the way, walking it.
 func _step_back() -> void:
 	if not is_instance_valid(_captor):
 		return
-	var seat: Vector3 = _site["seat"]
-	match captor:
-		"marrow":
-			_captor.position = seat + Vector3(0.35, 0, 0.55)
-		"colony":
-			_captor.position = seat + Vector3(1.6, -RescueSites.VAN_FLOOR, -1.1)
-		"cutter":
-			_captor.position = seat + Vector3(-0.85, 0, -0.85)
-	var d := _flat(_victim.global_position - _captor.position)
-	_captor.rotation = Vector3(0, atan2(-d.x, -d.z), 0)
-
+	_move(_captor, _captor.position, _back_spot(), t + 0.1, t + 1.3, "victim", 1.2)
 
 func _drop_prop() -> void:
 	if _prop != null and is_instance_valid(_prop):
@@ -651,7 +874,11 @@ func _finish() -> void:
 	t = -1.0
 	rm.player.visible = true
 	_drop_prop()
-	_veil.color.a = 0.0
+	if _veil.color.a > 0.5:  # it ends in black: up again into the game, not a snap
+		_veil.color = Color(0, 0, 0, 1)
+		_fade_up = 0.0
+	else:
+		_veil.color.a = 0.0
 	_teardown()
 	step = Step.IDLE
 	_hold(false)
@@ -737,10 +964,19 @@ func _build_site() -> void:
 	K.interactable(rm.zone_info, SPOT, _site["captor"], "[F] Knock him down", [""], 2.6)
 
 
-## A model in a holder that can fall over at its feet.
+## A model in a holder that can fall over at its feet, on the threats' biped
+## puppet (threat_model.gd) so its legs walk when it moves.
 func _holder(model: Node3D) -> Node3D:
 	var h := Node3D.new()
-	h.add_child(model)
+	var puppet := Node3D.new()
+	puppet.name = "Puppet"
+	puppet.set_script(ThreatModel)
+	puppet.gait = "biped"
+	puppet.stride_len = 1.6
+	puppet.swing = 24.0
+	puppet.cycle_speed = 0.0
+	puppet.add_child(model)
+	h.add_child(puppet)
 	_set.add_child(h)
 	return h
 
@@ -816,8 +1052,9 @@ func _hold(on: bool) -> void:
 	var p: Node = rm.player
 	p.set("entranced", on)
 	p.set("trance_dir", Vector3.ZERO)
+	p.set("trance_speed", 0.0)
 	var view: Node = p.get_node_or_null("ViewCam")
-	if view != null:
+	if view != null and not (on and _defer_body):
 		view.set_third_person(on or ViewCamera.prefer_third_person)
 	if rm.get("pilot_hud") != null:
 		rm.pilot_hud.visible = not on
@@ -831,13 +1068,207 @@ func _hold(on: bool) -> void:
 			cam.make_current()
 
 
-func _look(from: Vector3, at: Vector3, fov: float) -> void:
+# --- the camera: it eases, it doesn't cut -------------------------------------
+
+## The scene's camera, put exactly where her view is now, so the first move
+## starts from what she was seeing (call before _hold(true) turns her view).
+func _begin_cam() -> void:
 	if _cam == null:
 		_cam = Camera3D.new()
 		add_child(_cam)
-	_cam.fov = fov
-	_cam.look_at_from_position(from, at)
+	var now := get_viewport().get_camera_3d()
+	if now != null and now != _cam:
+		_cam.global_transform = now.global_transform
+		_cam.fov = now.fov
+		# from her own eyes: her body only shows once the camera's clear of her
+		# head (_cam_tick turns her view third person then)
+		var p: Node3D = rm.player
+		_defer_body = _cam.global_position.distance_to(p.global_position + Vector3(0, 1.5, 0)) < 0.6
+	_cam_from_pos = _cam.global_position
+	_cam_from_at = _cam.global_position - _cam.global_basis.z * 4.0
+	_to_pos = _cam_from_pos
+	_to_at = _cam_from_at
+	_fov_from = _cam.fov
+	_fov_to = _cam.fov
+	_aim = Callable()
+	_glide = 0.0
 	_cam.make_current()
+
+
+## The camera to `from`, looking at `at`: eased there over `glide` s (0: a cut,
+## which the scenes only make where it's dark).
+func _look(from: Vector3, at: Vector3, fov: float, glide := 0.0) -> void:
+	_aim = Callable()
+	_aim_to(from, at, fov, glide)
+
+
+## The camera following `aim` (a Callable returning [from, at]) as it moves,
+## eased onto it over `glide` s.
+func _follow(aim: Callable, fov: float, glide: float) -> void:
+	var r: Array = aim.call()
+	_aim = aim
+	_aim_to(r[0], r[1], fov, glide)
+
+
+func _aim_to(from: Vector3, at: Vector3, fov: float, glide: float) -> void:
+	if _cam == null:
+		_begin_cam()
+	_cam_from_pos = _cam.global_position
+	_cam_from_at = _cam.global_position - _cam.global_basis.z * maxf(_cam.global_position.distance_to(at), 0.5)
+	_fov_from = _cam.fov
+	_to_pos = from
+	_to_at = at
+	_fov_to = fov
+	_glide = glide
+	_glide_t = 0.0
+	if glide <= 0.0:
+		if _veil.color.a < 0.9 and t >= 0.0 and _cam.current:
+			cuts += 1
+		_cam.fov = fov
+		_cam.look_at_from_position(from, at)
+	_cam.make_current()
+
+
+func _cam_tick(delta: float) -> void:
+	if _cam == null:
+		return
+	var to_pos := _to_pos
+	var to_at := _to_at
+	if _aim.is_valid():
+		var r: Array = _aim.call()
+		to_pos = r[0]
+		to_at = r[1]
+	var pos := to_pos
+	var at := to_at
+	var fov := _fov_to
+	if _glide > 0.0:
+		_glide_t += delta
+		var k := _smoother(clampf(_glide_t / _glide, 0.0, 1.0))
+		pos = _cam_from_pos.lerp(to_pos, k)
+		at = _cam_from_at.lerp(to_at, k)
+		fov = lerpf(_fov_from, _fov_to, k)
+		if _glide_t >= _glide:
+			_glide = 0.0
+	# held by hand: a slow drift, and a jolt when something hits
+	var tt := _mt
+	var basis := Basis.looking_at(at - pos, Vector3.UP) if (at - pos).length() > 0.001 else _cam.global_basis
+	pos += basis * Vector3(sin(tt * 0.71) * 0.006, sin(tt * 0.53 + 1.3) * 0.005, 0.0)
+	if _jolt > 0.0:
+		var j := _smoother(_jolt)  # in hard, settling soft: a knock, not a snap
+		pos += basis * Vector3(sin(tt * 23.0), sin(tt * 19.0 + 0.7), 0.0) * 0.014 * j
+		_jolt = maxf(_jolt - delta * 2.2, 0.0)
+	_cam.global_transform = Transform3D(Basis.looking_at(at - pos, Vector3.UP) if (at - pos).length() > 0.001 else basis, pos)
+	_cam.fov = fov
+	if not _cam.current:
+		_cam.make_current()
+	if _defer_body and (_cam.global_position.distance_to(rm.player.global_position + Vector3(0, 1.5, 0)) > 0.7 or t > 1.5):
+		_defer_body = false  # clear of her head: her body can show now
+		var view: Node = rm.player.get_node_or_null("ViewCam")
+		if view != null:
+			view.set_third_person(true)
+
+
+## Easing back to her own view over `dur` s; the scene's over when it gets there.
+func _glide_home(dur: float) -> void:
+	var p: Node = rm.player
+	var view: Node = p.get_node_or_null("ViewCam")
+	if view != null:
+		view.set_third_person(ViewCamera.prefer_third_person)
+	var pc: Camera3D = p.get("camera")
+	if pc == null:
+		_home = 0.01
+		return
+	_follow(func(): return [pc.global_position, pc.global_position - pc.global_basis.z * 4.0], pc.fov, dur)
+	_home = dur
+
+
+func _home_done() -> void:
+	_home = 0.0
+	t = -1.0
+	_hold(false)
+	if step == Step.ALERT:
+		_go()
+
+
+## Nothing solid between `a` and `b` (a camera's view of what it's on).
+func _clear(a: Vector3, b: Vector3) -> bool:
+	var q := PhysicsRayQueryParameters3D.create(a, b)
+	q.exclude = [rm.player.get_rid()]
+	return rm.player.get_world_3d().direct_space_state.intersect_ray(q).is_empty()
+
+
+## Smootherstep: eases in and out with no jolt at either end.
+static func _smoother(x: float) -> float:
+	x = clampf(x, 0.0, 1.0)
+	return x * x * x * (x * (x * 6.0 - 15.0) + 10.0)
+
+
+# --- people moving -----------------------------------------------------------
+
+## `node` walks from `from` to `to` between scene times t0 and t1 (eased in and
+## out, its legs going with its speed), facing where it goes and then `face`
+## ("victim", "eco", or "" for where it went). `speed` is its walking pace, for
+## its stride; `keep` lets it finish after the scene's over.
+func _move(node: Node3D, from: Vector3, to: Vector3, t0: float, t1: float, face := "", speed := 1.2, keep := false) -> void:
+	var now := maxf(t, 0.0)
+	_moves = _moves.filter(func(m): return m["node"] != node)
+	_moves.append({"node": node, "from": from, "to": to, "t0": _mt + (t0 - now), "t1": _mt + (t1 - now), "face": face, "speed": speed, "keep": keep, "last": from})
+
+
+## `node` turns to face `point` over `dur` s, where it stands.
+func _turn_to(node: Node3D, point: Vector3, dur: float) -> void:
+	if not is_instance_valid(node):
+		return
+	_moves.append({"node": node, "from": node.global_position, "to": node.global_position, "t0": _mt, "t1": _mt + dur, "face": point, "speed": 0.0, "keep": false, "last": node.global_position})
+
+
+func _moves_tick(delta: float) -> void:
+	_mt += delta
+	var left: Array = []
+	for m in _moves:
+		var node: Node3D = m["node"]
+		if not is_instance_valid(node):
+			continue
+		if _mt < m["t0"]:
+			left.append(m)
+			continue
+		var span: float = maxf(m["t1"] - m["t0"], 0.001)
+		var k := _smoother((_mt - m["t0"]) / span)
+		var pos: Vector3 = (m["from"] as Vector3).lerp(m["to"], k)
+		var step_ := pos - (m["last"] as Vector3)
+		step_.y = 0.0
+		var speed := step_.length() / maxf(delta, 0.0001)
+		m["last"] = pos
+		node.global_position = pos
+		node.set_meta("speed", speed)
+		var puppet := node.get_node_or_null("Puppet")
+		if puppet != null:
+			puppet.set("cycle_speed", speed)
+		# facing: where it's going while it goes, then what it's turning to
+		var want := INF
+		if speed > 0.15 and step_.length() > 0.0001:
+			want = atan2(-step_.x, -step_.z)
+		else:
+			var face = m["face"]
+			var point := Vector3.INF
+			if face is Vector3:
+				point = face
+			elif face == "victim" and is_instance_valid(_victim):
+				point = _victim.global_position
+			elif face == "eco":
+				point = rm.player.global_position
+			if point != Vector3.INF:
+				var d := _flat(point - node.global_position)
+				want = atan2(-d.x, -d.z)
+		if want != INF:
+			node.rotation.y = lerp_angle(node.rotation.y, want, 1.0 - exp(-8.0 * delta))
+		if _mt < m["t1"] + 0.8:
+			left.append(m)
+		else:
+			node.set_meta("speed", 0.0)
+			if puppet != null:
+				puppet.set("cycle_speed", 0.0)
+	_moves = left
 
 
 static func _flat(v: Vector3) -> Vector3:

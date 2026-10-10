@@ -220,6 +220,8 @@ var strolling := false:
 ## walks slowly along trance_dir (zero: she stands) and her look follows.
 var entranced := false
 var trance_dir := Vector3.ZERO
+## A scene's say over how fast she goes along trance_dir (0: her slow trance walk).
+var trance_speed := 0.0
 const TRANCE_SPEED := 1.5
 var cam_roll := 0.0
 var input_dir := Vector2.ZERO
@@ -427,7 +429,7 @@ func _ground_state(delta: float) -> void:
 		if backpedalling:
 			target = stroll_speed * BACKPEDAL_SPEED
 	if entranced:
-		target = TRANCE_SPEED
+		target = trance_speed if trance_speed > 0.0 else TRANCE_SPEED
 	hvel = _ground_move(hvel, target, delta)
 
 	velocity.x = hvel.x
@@ -993,7 +995,7 @@ func _trance(delta: float) -> void:
 	wish_dir = Vector3(trance_dir.x, 0.0, trance_dir.z).normalized()
 	input_dir = Vector2(0.0, -1.0) if wish_dir != Vector3.ZERO else Vector2.ZERO
 	if wish_dir != Vector3.ZERO:
-		rotation.y = lerp_angle(rotation.y, atan2(-wish_dir.x, -wish_dir.z), 1.0 - exp(-3.0 * delta))
+		rotation.y = lerp_angle(rotation.y, atan2(-wish_dir.x, -wish_dir.z), 1.0 - exp(-(3.0 if trance_speed <= 0.0 else 9.0) * delta))
 	head.rotation.x = lerpf(head.rotation.x, -0.05, 1.0 - exp(-2.0 * delta))
 
 
