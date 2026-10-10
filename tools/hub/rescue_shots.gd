@@ -7,7 +7,7 @@ extends SceneTree
 ##   row 3  the colony has Ophelia: in time, too late (the Shepherd putting the piece on, then on)
 ##   row 5  their eyes after (Marrow's violet, the colony's white, Cutter's red),
 ##          and Mom walking off to Cutter, Eco seeing her go
-##   row 6  where they end up, taking more: Marrow's armchair, the colony kiosk,
+##   row 6  where they end up, taking more: Marrow's armchair, the colony's back room,
 ##          Cutter's crate (close, and wide with him lounging by her)
 ##   row 4  Cutter has Mom: in time, too late (his needle at her eye, then Wiring)
 ##   godot --path . --resolution 1280x720 -s res://tools/hub/rescue_shots.gd -- <out_dir>
@@ -213,8 +213,8 @@ func _go() -> void:
 	run_node.add_child(cam)
 	run_node.hud.visible = false
 	run_node.pilot_hud.visible = false
-	var shots := [["mom", "marrow", Vector3(0.9, 0.55, -1.4), 30.0], ["ophelia", "colony", Vector3(-0.5, 0.3, 1.5), 32.0],
-			["mom", "cutter", Vector3(-1.9, 0.4, 1.3), 32.0], ["mom", "cutter", Vector3(-3.4, 1.7, 2.6), 46.0]]
+	var shots := [["mom", "marrow", Vector3(0.9, 0.55, -1.4), 30.0], ["ophelia", "colony", Vector3(-0.9, 0.45, 1.8), 40.0],
+			["mom", "cutter", Vector3(-1.5, 0.35, -1.25), 34.0], ["mom", "cutter", Vector3(-3.4, 1.7, 2.6), 46.0]]
 	for i in shots.size():
 		var sh: Array = shots[i]
 		ev._end_walk()

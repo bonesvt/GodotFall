@@ -60,6 +60,10 @@ const ALERT := {
 static var hooks := {}
 ## who -> the captors Eco was too late to stop (newest last).
 static var lost_to := {}
+## who -> {captor: times she's walked off to them on her own}; at VISITS she
+## dresses and talks like theirs (rescue_looks.gd) till their hold fades to 0.
+static var visits := {}
+const VISITS := 3
 ## Times each has been saved, and been too late for.
 static var saved := 0
 static var lost := 0
@@ -166,7 +170,37 @@ static func held_by(who: String) -> String:
 	return ""
 
 
+## She's walked off to `captor` again. Returns how many times now.
+static func visited(who: String, captor: String) -> int:
+	var mine: Dictionary = visits.get(who, {}).duplicate()
+	mine[captor] = int(mine.get(captor, 0)) + 1
+	visits[who] = mine
+	save()
+	return int(mine[captor])
+
+
+## The captor she dresses and talks like now ("" for none): one she's walked
+## to VISITS times whose hold on her hasn't faded to 0 (then it starts over).
+static func changed_by(who: String) -> String:
+	if not allowed():
+		return ""
+	var mine: Dictionary = visits.get(who, {})
+	var out := ""
+	for c: String in mine.keys():
+		if int(mine[c]) < VISITS:
+			continue
+		if hook(who, c) <= 0.0:
+			var left: Dictionary = mine.duplicate()
+			left.erase(c)
+			visits[who] = left
+			save()
+			continue
+		out = c
+	return out
+
+
 static func reset() -> void:
+	visits = {}
 	lost_to = {}
 	hooks = {}
 	saved = 0
@@ -181,6 +215,7 @@ static func open(path: String) -> void:
 		return
 	hooks = cfg.get_value("rescue", "hooks", {})
 	lost_to = cfg.get_value("rescue", "lost_to", {})
+	visits = cfg.get_value("rescue", "visits", {})
 	saved = int(cfg.get_value("rescue", "saved", 0))
 	lost = int(cfg.get_value("rescue", "lost", 0))
 
@@ -189,6 +224,7 @@ static func save() -> void:
 	var cfg := ConfigFile.new()
 	cfg.set_value("rescue", "hooks", hooks)
 	cfg.set_value("rescue", "lost_to", lost_to)
+	cfg.set_value("rescue", "visits", visits)
 	cfg.set_value("rescue", "saved", saved)
 	cfg.set_value("rescue", "lost", lost)
 	cfg.save(save_path)

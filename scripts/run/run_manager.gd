@@ -1158,6 +1158,10 @@ func _rest_prompt() -> String:
 
 ## Starts a conversation between Eco and one of the people in the hub.
 func talk_to(who: String) -> void:
+	var theirs := rescue_event.changed_line(who)  # dressed and talking like whoever's had them (rescue_looks.gd)
+	if theirs != "":
+		hud.toast(theirs, HUB_LINE_SECONDS + 1.0)
+		return
 	var quiet := rescue_event.quiet_line(who)  # Marrow had them too long (rescue.gd)
 	if quiet != "":
 		hud.toast(quiet, 3.5)

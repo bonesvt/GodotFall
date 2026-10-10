@@ -16,6 +16,7 @@ const HubGrip := preload("res://scripts/hub/hub_grip.gd")
 const ColonyGear := preload("res://scripts/hub/colony_gear.gd")
 const HushDen := preload("res://scripts/hub/hush_den.gd")
 const ShepherdModel := preload("res://scripts/hub/shepherd_model.gd")
+const RescueLooks := preload("res://scripts/hub/rescue_looks.gd")
 const CutterModel := preload("res://scripts/hub/cutter_model.gd")
 const EcoRest := preload("res://scripts/ps2/eco_rest.gd")
 const Family := preload("res://scripts/hub/family.gd")
@@ -99,9 +100,9 @@ const GONE := "%s's not at home. Someone saw her heading into Solace."
 ## what Eco sees when she finds her.
 const TAKE_EVERY := 7.0
 const FOUND := {
-	"marrow": "%s, sunk in the armchair in Marrow's basement, tipping another vial of violet to her lips. She doesn't look up. He doesn't either.",
-	"colony": "%s, at the colony kiosk, taking another film off the dispenser, and another. \"Good morning, citizen,\" it says. She says it back.",
-	"cutter": "%s, on the crate under Cutter's tarp, a needle of Redline in her hand. Cutter's lounging by her, grinning at Eco. \"She came on her own.\"",
+	"marrow": "%s, sunk in the armchair in Marrow's basement, tipping another vial of violet to her lips. Marrow stands back by the shelves, watching. She doesn't look up.",
+	"colony": "%s, in the fitting chair in the colony's back room, eyes swirling white, taking another film while a Shepherd runs its scanner over her gear. \"Good morning, citizen,\" it says. She says it back.",
+	"cutter": "%s, on the crate under Cutter's tarp, a vial of Redline in her shaking hand. Cutter's leaning on a post, grinning at Eco. \"She came on her own.\"",
 }
 const QUIET := "%s smiles when Eco says her name, and doesn't say much back. She doesn't say much at all any more."
 ## Cutter's Wiring: red veins lit under the skin of their body texture (where it's skin-coloured).
@@ -900,6 +901,9 @@ func _aftermath(_delta: float) -> void:
 		if got == null or not is_instance_valid(got):
 			continue
 		var npc: Node3D = got
+		var look := Rescue.changed_by(w)  # walked to them VISITS times: dressed like theirs
+		if String(npc.get_meta("rescue_look", "")) != look:
+			RescueLooks.apply(npc, w, look)
 		var by := Rescue.held_by(w)
 		if String(npc.get_meta("rescue_eyes", "")) != by:
 			npc.set_meta("rescue_eyes", by)
@@ -1005,6 +1009,7 @@ func _start_walk() -> void:
 	eyes(_walker, EYES_IN, EYE_TINT[_drawn_captor])
 	if _drawn_captor == "cutter":
 		veins(_walker, true)
+	RescueLooks.apply(_walker, _drawn_who, Rescue.changed_by(_drawn_who))
 	_borrow_walk(_walker)
 	_walk_leg = 1
 	_spotted = false
@@ -1067,10 +1072,32 @@ func _end_walk() -> void:
 	_hang = null
 	_hanger = null
 	_hang_prop = null
+	for f in _hang_hidden:
+		if is_instance_valid(f):
+			f.visible = true
+	_hang_hidden.clear()
+	_hang_spots(false)
 	_walker_spot(false)
 
 
 # --- there, taking more ----------------------------------------------------------
+
+## The colony's back room, behind the kiosk: built out of sight while she's in
+## it (a door at the kiosk and one back out).
+const BACK_ROOM := Vector3(40.0, -60.0, 150.0)
+const KIOSK_DOOR := Vector3(-5.6, 0, 148.3)
+const KIOSK_OUT := Vector3(-4.4, 0.1, 148.6)
+const ROOM_MODELS := "res://assets/models/fitting_room/fitting_room.glb"
+const SEAT := 0.46
+## What [F] at her gets: she won't come home.
+const HANG_LINES := {
+	"marrow": ["%s doesn't look up from the vial. \"Not now, Eco. Go home. I'll be along.\" She won't come.",
+		"%s: \"I'm resting. That's all this is. Let me rest.\" She won't get up."],
+	"colony": ["%s, very politely: \"Please wait outside, citizen. I'm being looked after.\" She won't get up.",
+		"%s: \"They're checking my fit. It won't take long. You shouldn't be back here.\""],
+	"cutter": ["%s, too fast: \"I'm fine, I'm fine, go home, Eco, I'm fine.\" She won't come.",
+		"%s: \"Don't. Don't. I'll come back when it's gone. Promise.\" She won't come."],
+}
 
 ## Where she ends up: a node holding her (and for Cutter, his stash and him).
 var _hang: Node3D
@@ -1081,14 +1108,16 @@ var _hang_rest: EcoRest
 var _hang_pose := ""
 var _hang_t := 0.0
 var _found := false
+var _hang_hidden: Array = []
 
 
-## She's got there: sat (or stood) at the captor's place for the rest of the
-## stay, taking more now and then.
+## She's got there: sat at the captor's place for the rest of the stay,
+## taking more now and then; and one more visit counted (rescue_looks.gd).
 func _settle() -> void:
 	if _walker != null and is_instance_valid(_walker):
 		_walker.queue_free()
 	_walker = null
+	Rescue.visited(_drawn_who, _drawn_captor)
 	_hang = Node3D.new()
 	_hang.name = "RescueHangout"
 	rm.zone_root.add_child(_hang)
@@ -1096,15 +1125,23 @@ func _settle() -> void:
 	var yaw := 0.0
 	var seat := 0.0
 	match _drawn_captor:
-		"marrow":  # her armchair in his basement
+		"marrow":  # her armchair in his basement's main room, him stood back by the shelves
 			var site := RescueSites.marrow()
 			at = site["seat"]
 			yaw = site["seat_yaw"]
 			seat = site["seat_height"]
-		"colony":  # stood at the kiosk, facing it
-			at = Vector3(-5.0, 0, 147.4)
-			yaw = 90.0
-		"cutter":  # on his crate, under his tarp, him beside her
+			for f in rm.zone_info.get("marrow_figures", []):
+				if is_instance_valid(f) and (f as Node3D).global_position.y < HushDen.BASEMENT.y + 5.0 and f.visible:
+					f.visible = false
+					_hang_hidden.append(f)
+			var by_shelves := HushDen.BASEMENT + Vector3(-2.2, 0, -1.9)
+			var d := _flat(at - by_shelves)
+			HushDen.figure(_hang, by_shelves, rad_to_deg(atan2(-d.x, -d.z)))
+		"colony":  # the fitting chair in the back room, a Shepherd checking her gear
+			at = _back_room()
+			yaw = 180.0  # facing the door
+			seat = SEAT
+		"cutter":  # on his crate under his tarp, him leaning on a post
 			var site := RescueSites.cutter(_hang)
 			at = site["seat"]
 			yaw = site["seat_yaw"]
@@ -1112,9 +1149,10 @@ func _settle() -> void:
 			var him := Node3D.new()
 			him.add_child(CutterModel.build())
 			_hang.add_child(him)
-			him.position = site["seat"] + Vector3(-0.85, 0, -0.85)
-			var d := _flat(site["seat"] - him.position)
-			him.rotation.y = atan2(-d.x, -d.z)
+			var post := RescueSites.STASH + Vector3(-0.9, 0, 1.3)
+			him.position = post + Vector3(0.22, 0, -0.18)
+			var d := _flat(at - him.position)
+			him.rotation = Vector3(0, atan2(-d.x, -d.z), deg_to_rad(-7.0))  # leant on the post
 	_hanger = HubNpc.create(_drawn_who, at, yaw)
 	_hang.add_child(_hanger)
 	_hanger.posed = true
@@ -1124,8 +1162,9 @@ func _settle() -> void:
 	if real != null and real.get("outfit") != null and String(real.outfit) != "":
 		_hanger.wear(String(real.outfit))
 	ColonyGear.apply(_hanger, HubGrip.gear_of(_drawn_who))
+	RescueLooks.apply(_hanger, _drawn_who, Rescue.changed_by(_drawn_who))
 	_hanger.mood(["plain"] if _drawn_captor == "colony" else (["smile"] if _drawn_captor == "marrow" else ["sad"]))
-	eyes(_hanger, EYES_AFTER, EYE_TINT[_drawn_captor])
+	eyes(_hanger, EYES_IN if _drawn_captor == "colony" else EYES_AFTER, EYE_TINT[_drawn_captor])
 	if _drawn_captor == "cutter":
 		veins(_hanger, true)
 	_hang_anim = null
@@ -1146,7 +1185,107 @@ func _settle() -> void:
 	_hang.add_child(_hang_prop)
 	_hang_t = TAKE_EVERY - 2.0
 	_found = false
+	_hang_spots(true)
 
+
+## The colony's back room: white walls, a lit seam, the fitting chair, and a
+## Shepherd beside it running a scanner over her gear. Returns where she sits.
+func _back_room() -> Vector3:
+	var r := BACK_ROOM
+	var K := preload("res://scripts/hub/hub_kit.gd")
+	var white := StandardMaterial3D.new()
+	white.albedo_color = Color(0.9, 0.92, 0.95)
+	var trim := StandardMaterial3D.new()
+	trim.albedo_color = Color(0.55, 0.6, 0.68)
+	var lit := StandardMaterial3D.new()
+	lit.albedo_color = Color(0.85, 0.95, 1.0)
+	lit.emission_enabled = true
+	lit.emission = lit.albedo_color
+	lit.emission_energy_multiplier = 2.5
+	for spec in [[Vector3(0, -0.05, 0), Vector3(4.4, 0.1, 4.4)], [Vector3(0, 2.85, 0), Vector3(4.4, 0.1, 4.4)],
+			[Vector3(0, 1.4, -2.2), Vector3(4.4, 2.9, 0.1)], [Vector3(0, 1.4, 2.2), Vector3(4.4, 2.9, 0.1)],
+			[Vector3(-2.2, 1.4, 0), Vector3(0.1, 2.9, 4.4)], [Vector3(2.2, 1.4, 0), Vector3(0.1, 2.9, 4.4)]]:
+		K.Kit.box(_hang, r + spec[0], spec[1], K.STONE, Vector3.ZERO, white)
+	for x in [-1.0, 1.0]:
+		RescueSites._box(_hang, r + Vector3(x, 2.79, -0.3), Vector3(0.8, 0.02, 2.0), lit)
+	RescueSites._box(_hang, r + Vector3(0, 1.0, -2.14), Vector3(2.4, 0.04, 0.02), lit)
+	var light := OmniLight3D.new()
+	light.light_color = Color(0.92, 0.96, 1.0)
+	light.light_energy = 1.4
+	light.omni_range = 6.0
+	light.position = r + Vector3(0, 2.4, 0.4)
+	_hang.add_child(light)
+	# the fitting chair (the modelled one, else a white seat on a post), facing the door
+	var chair := Node3D.new()
+	chair.position = r + Vector3(0, 0, -0.6)
+	chair.rotation.y = PI  # facing the door
+	_hang.add_child(chair)
+	var mats := {"shell": white, "trim": trim, "lit": lit, "dark": RescueLooks._mat(Color(0.12, 0.13, 0.16)), "chrome": RescueLooks._mat(Color(0.75, 0.78, 0.82), 0.2, 0.9)}
+	if not _room_part(chair, "chair", mats):
+		RescueSites._box(chair, Vector3(0, SEAT - 0.04, -0.12), Vector3(0.5, 0.08, 0.5), white)
+		RescueSites._box(chair, Vector3(0, (SEAT - 0.08) * 0.5, -0.1), Vector3(0.12, SEAT - 0.08, 0.12), trim)
+		RescueSites._box(chair, Vector3(0, SEAT + 0.2, 0.17), Vector3(0.46, 0.34, 0.06), white)
+	# the Shepherd beside her, its scanner on her gear, a thin white line of light
+	var shepherd := Node3D.new()
+	shepherd.add_child(ShepherdModel.build())
+	_hang.add_child(shepherd)
+	shepherd.position = r + Vector3(0.7, 0, -0.15)
+	var d := _flat(chair.position - shepherd.position)
+	shepherd.rotation.y = atan2(-d.x, -d.z)
+	var beam := MeshInstance3D.new()
+	var bm := CylinderMesh.new()
+	bm.top_radius = 0.003
+	bm.bottom_radius = 0.003
+	bm.height = 1.0
+	beam.mesh = bm
+	beam.material_override = lit
+	beam.name = "ScanBeam"
+	beam.set_meta("from", shepherd.position + Vector3(0, 1.18, 0) + d * 0.38)
+	_hang.add_child(beam)
+	return chair.position
+
+
+## One of the modelled fitting room's parts (tools/hub/build_fitting_room.py).
+static func _room_part(root: Node3D, part: String, mats: Dictionary) -> bool:
+	if not ResourceLoader.exists(ROOM_MODELS):
+		return false
+	var inst := (load(ROOM_MODELS) as PackedScene).instantiate()
+	var found := false
+	for mi in inst.find_children("*", "MeshInstance3D", true, false):
+		var bits := String(mi.name).split("__")
+		if bits.size() < 2 or bits[0] != part:
+			continue
+		var key := ""
+		for ch in bits[1]:
+			if ch < "a" or ch > "z":
+				break
+			key += ch
+		var m := MeshInstance3D.new()
+		m.mesh = (mi as MeshInstance3D).mesh
+		m.transform = (mi as Node3D).transform
+		m.material_override = mats.get(key, mats["shell"])
+		root.add_child(m)
+		found = true
+	inst.free()
+	return found
+
+
+## [F] at her (she won't come home), and the colony back room's doors.
+func _hang_spots(on: bool) -> void:
+	if rm.get("zone_info") == null or not rm.zone_info.has("interactables"):
+		return
+	rm.zone_info["interactables"] = rm.zone_info["interactables"].filter(func(s): return not s["id"] in ["rescue_hangout", "rescue_backroom", "rescue_backroom_out"])
+	if not on or _hanger == null:
+		return
+	var K := preload("res://scripts/hub/hub_kit.gd")
+	var name_: String = Rescue.NAMES[_drawn_who]
+	K.interactable(rm.zone_info, "rescue_hangout", _hanger.global_position, "[F] %s" % name_,
+			(HANG_LINES[_drawn_captor] as Array).map(func(l): return l % name_), 1.6)
+	if _drawn_captor == "colony":
+		K.interactable(rm.zone_info, "rescue_backroom", KIOSK_DOOR, "[F] The door behind the kiosk", [""], 1.2)
+		rm.zone_info["interactables"].back()["teleport"] = BACK_ROOM + Vector3(0, 0.1, 1.5)
+		K.interactable(rm.zone_info, "rescue_backroom_out", BACK_ROOM + Vector3(0, 0, 1.9), "[F] Back out to the street", [""], 1.2)
+		rm.zone_info["interactables"].back()["teleport"] = KIOSK_OUT
 
 ## What she takes: a vial of Hush, a Hymn film, a needle of Redline.
 func _take_prop(kind: String) -> Node3D:
@@ -1167,14 +1306,13 @@ func _take_prop(kind: String) -> Node3D:
 			var b := BoxMesh.new()
 			b.size = Vector3(0.03, 0.002, 0.045)
 			mi.mesh = b
-		_:
+		_:  # a vial of Redline
 			glow.albedo_color = Color(1.0, 0.1, 0.08)
 			var c2 := CylinderMesh.new()
-			c2.top_radius = 0.007
-			c2.bottom_radius = 0.007
-			c2.height = 0.09
+			c2.top_radius = 0.012
+			c2.bottom_radius = 0.014
+			c2.height = 0.07
 			mi.mesh = c2
-			mi.rotation_degrees = Vector3(90, 0, 0)
 	glow.emission = glow.albedo_color
 	glow.emission_energy_multiplier = 2.2
 	mi.material_override = glow
@@ -1205,13 +1343,18 @@ func _hang_tick(delta: float) -> void:
 	var head: Vector3 = _hanger.head_position()
 	var lap := _hanger.global_position + Vector3(0, 0.62 if _hang_pose != "" else 1.0, 0) + fwd * 0.28 + right * 0.08
 	var to := head - Vector3(0, 0.045, 0) + fwd * 0.08  # her lips
-	if _drawn_captor == "cutter":
-		to = _hanger.global_position + Vector3(0, 0.66, 0) + fwd * 0.22 - right * 0.14  # the inside of her arm
 	if _hang_prop != null and is_instance_valid(_hang_prop):
 		_hang_prop.global_position = lap.lerp(to, k)
 	var flare := smoothstep(1.2, 1.6, c) * (1.0 - smoothstep(3.0, 5.0, c))
 	_hanger.set_meta("rescue_eyes", _drawn_captor)
-	eyes(_hanger, lerpf(EYES_AFTER, EYES_IN, flare), EYE_TINT[_drawn_captor])
+	eyes(_hanger, EYES_IN if _drawn_captor == "colony" else lerpf(EYES_AFTER, EYES_IN, flare), EYE_TINT[_drawn_captor])
+	var beam := _hang.get_node_or_null("ScanBeam") as MeshInstance3D if _hang != null else null
+	if beam != null:  # the Shepherd's scanner, sweeping over her gear
+		var a: Vector3 = beam.get_meta("from")
+		var b: Vector3 = head + Vector3(0.05 * sin(_hang_t * 2.3), -0.02 + 0.05 * sin(_hang_t * 1.1), 0)
+		var dir := b - a
+		beam.global_position = (a + b) * 0.5
+		beam.global_basis = Basis(Quaternion(Vector3.UP, dir.normalized())) * Basis.from_scale(Vector3(1, dir.length(), 1))
 	if _drawn_captor == "cutter":
 		_shake(_hanger, 0.6 + flare)
 	if not _found and rm.player.global_position.distance_to(_hanger.global_position) < 6.0 \
@@ -1228,6 +1371,17 @@ func _walker_spot(on: bool) -> void:
 	if on and _drawn_who != "" and rm.hub_npcs.has(_drawn_who):
 		var K := preload("res://scripts/hub/hub_kit.gd")
 		K.interactable(rm.zone_info, "rescue_gone", (rm.hub_npcs[_drawn_who] as Node3D).global_position, "[F] Where's %s?" % Rescue.NAMES[_drawn_who], [GONE % Rescue.NAMES[_drawn_who]], 2.0)
+
+
+## Theirs now (rescue_looks.gd): what they say instead of talking with her. "" if not.
+var _changed_n := {}
+func changed_line(p_who: String) -> String:
+	var c := Rescue.changed_by(p_who)
+	if c == "":
+		return ""
+	var n: int = _changed_n.get(p_who, 0)
+	_changed_n[p_who] = n + 1
+	return RescueLooks.line(p_who, c, n)
 
 
 ## Marrow's quiet in them: said once a stay, before they talk. "" if not.

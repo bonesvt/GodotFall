@@ -135,6 +135,22 @@ func _run() -> void:
 	ev._end_walk()
 	_check("and gone with the stay", ev._hang == null, "")
 
+	# three times to Cutter: she dresses and talks like his till his hold fades
+	_check("one visit: still herself", Rescue.changed_by("mom") == "", Rescue.visits)
+	Rescue.visited("mom", "cutter")
+	Rescue.visited("mom", "cutter")
+	_check("three visits: Cutter's", Rescue.changed_by("mom") == "cutter", Rescue.visits)
+	await _ticks(3)
+	var mom: Node3D = run_node.hub_npcs["mom"]
+	_check("his hoodie and ripped jeans on her", mom.get_meta("rescue_look", "") == "cutter" and mom.find_child("RescueLook_body*", true, false) != null, mom.get_meta("rescue_look", ""))
+	run_node.talk_to("mom")
+	await _ticks(2)
+	_check("twitchy, after Eco's scrap", run_node.hud.toast_label.text.contains("scrap") and not run_node.npc_talk.active(), run_node.hud.toast_label.text)
+	Rescue.hooks["mom"]["cutter"] = 0.0
+	await _ticks(3)
+	_check("his hold faded: herself again", Rescue.changed_by("mom") == "" and mom.get_meta("rescue_look", "") == "" and mom.find_child("RescueLook_body*", true, false) == null, mom.get_meta("rescue_look", ""))
+	Rescue.hooks["mom"]["cutter"] = 20.0  # (back as it was, for the fade check below)
+
 	# the colony, too late: the next piece
 	var pieces := HubGrip.gear_of("mom").size()
 	ev.start("mom", "colony")
