@@ -409,7 +409,10 @@ func _build() -> void:
 		_with_model.posed = true
 		if is_instance_valid(_with_model.soft_body):
 			_with_model.soft_body.queue_free()
-		ColonyGear.apply(_with_model, HubGrip.gear_of(with))
+		var theirs: Array = HubGrip.gear_of(with).duplicate()
+		if not with_piece in theirs:  # (built with it on, whether or not hub_grip.gd has it on them yet)
+			theirs.append(with_piece)
+		ColonyGear.apply(_with_model, theirs)
 		_with_gear = ColonyGear.piece_node(_with_model, with_piece)
 		ColonyGear.fit_model(_with_model, with_piece, 0.0)
 		_with_model.mood(["sad"])

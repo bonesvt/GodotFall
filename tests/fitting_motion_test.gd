@@ -45,7 +45,7 @@ func _run() -> void:
 	var fitting: Node = run_node.fitting_scene
 	await _watch(fitting, "cuff", "", "")
 	Hymn.gear = ["headphones", "cuff"]
-	await _watch(fitting, "visor", "mom", "headphones")
+	await _watch(fitting, "visor", "mom", "visor")
 	Hymn.reset()
 	print("fitting_motion_test: %s (%d failures)" % ["PASS" if failures == 0 else "FAIL", failures])
 	quit(1 if failures > 0 else 0)
@@ -57,6 +57,9 @@ func _watch(fitting: Node, piece: String, with: String, with_piece: String) -> v
 	var what := piece + (" with " + with if with != "" else "")
 	fitting.play(piece, with, with_piece)
 	await process_frame
+	if with != "":
+		var theirs: Node3D = fitting._with_gear
+		_check("%s: %s's %s is on her to come down" % [what, with, with_piece], theirs != null, theirs)
 	var last := Transform3D()
 	var have := false
 	var worst_step := 0.0
