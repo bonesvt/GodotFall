@@ -255,10 +255,10 @@ func _trial_intro() -> void:
 	_check("Eco and the yard held still, no prompt", player.entranced and g0.process_mode == Node.PROCESS_MODE_DISABLED and run_node._prompt() == "", g0.process_mode)
 	_check("the bay's wall reads day one, no log yet", cell._manifest.text.contains("DAY 1") and cell._log.text == "", cell._manifest.text)
 	await _frames(3)
-	_check("her frame empty to begin with", not cell.ophelia.visible, cell.ophelia.visible)
+	_check("they bring her in from the screen", cell.ophelia.position.distance_to(cell.COLUMN) > 1.5 and intro._orderlies.size() == 2, cell.ophelia.position)
 	intro.t = intro.ARMS + intro.ARMS_TIME + 0.05
 	await _frames(4)
-	_check("brought in, her arms up and clamped together", cell.ophelia.visible and cell._pose != null and is_equal_approx(cell._pose.influence, 1.0) and not cell._clamps.is_empty() and cell._clamps[0].visible, cell._clamps.size())
+	_check("brought in, her arms up and clamped together", cell.ophelia.position.distance_to(cell.COLUMN) < 0.2 and cell._pose != null and is_equal_approx(cell._pose.influence, 1.0) and not cell._clamps.is_empty() and cell._clamps[0].visible, cell._clamps.size())
 	_check("two orderlies in white", intro._orderlies.size() == 2 and intro._orderlies[0].visible, intro._orderlies.size())
 	intro.t = intro.VISOR + intro.FIT_TIME + 0.05
 	await _frames(3)

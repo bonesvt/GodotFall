@@ -3,19 +3,23 @@ extends Node
 ## Bay 7 (holding_cell.gd), nineteen days before Eco gets there, so the
 ## player knows who's in the cell and why before the level starts.
 ##   the bay dark and her frame empty
-##   two colony orderlies stand her in the frame, muddy from the night she ran
+##   two colony orderlies walk her in from the screen, muddy from the night
+##   she ran, and turn her round in the frame
 ##   the frame lifts her arms over her head and clamps her wrists together
 ##   the tracker band, the dose cuff, the headphones and last the visor go on
-##   her, one at a time (colony_gear.gd fittings)
-##   the orderlies step back, the bay powers up, the screen in front of her
-##   face starts, and the words come
+##   her one at a time (colony_gear.gd fittings), an orderly's hand at each
+##   the orderlies walk back out, the bay powers up, the screen in front of
+##   her face starts, and the words come
 ##   black, then day 19: the same frame, her head hung forward, a calm bridge
 ##   in her nose and comfort gloves to her shoulders now, smiling on the
 ##   chime, the screen on new words and the log recommending Solace
-## Then black, and the level starts there. Plays the first
-## time she loads in (tutorial.gd seen, "trial_intro"); F skips it. The run
-## manager plays it when the zone loads and keeps its own controls off while
-## busy(), with the grunts in the yard held still till it's over.
+## Then black, and the level starts there. The camera drifts through each shot
+## and eases from one to the next (SHOTS, CUTS); the lines play as subtitles
+## in the letterbox (LINES). Everything is staged from the clock (_seek()), so
+## it plays the same however it's stepped. Plays the first time she loads in
+## (tutorial.gd seen, "trial_intro"); F skips it. The run manager plays it
+## when the zone loads and keeps its own controls off while busy(), with the
+## grunts in the yard held still till it's over.
 
 const SFX := preload("res://scripts/sfx.gd")
 const HoldingCell := preload("res://scripts/run/holding_cell.gd")
@@ -25,42 +29,89 @@ const SEEN := "trial_intro"
 const BLACK := Color(0, 0, 0)
 ## The beats (s from the start).
 const IN := 0.0
-const BROUGHT := 3.4
-const NAMED := 6.6
-const ARMS := 10.2
-const ARMS_TIME := 1.6
-const BAND := 13.4
-const CUFF := 16.2
-const PHONES := 19.4
-const VISOR := 22.6
+const WALK := 2.4
+const WALK_TIME := 3.4
+const TURN := WALK + WALK_TIME
+const TURN_TIME := 0.9
+const NAMED := 7.4
+const ARMS := 11.0
+const ARMS_TIME := 1.8
+const BAND := 14.4
+const CUFF := 17.4
+const PHONES := 20.6
+const VISOR := 23.8
 const FIT_TIME := 2.2
-const BACK := 26.0
-const POWER := 27.4
-const DAY19 := 32.0
-const FACE19 := DAY19 + 3.4
-const FEED19 := DAY19 + 6.8
-const OUT := DAY19 + 9.6
+## An orderly's hand comes up this long before a piece and goes down after.
+const REACH := 0.7
+const BACK := 27.4
+const BACK_TIME := 2.0
+const POWER := 29.0
+const DAY19 := 34.0
+const FACE19 := DAY19 + 3.6
+const FEED19 := DAY19 + 7.2
+const OUT := DAY19 + 10.4
 const END := OUT + 1.0
-## Each piece in the order it goes on her.
-const GEAR := [["band", BAND], ["cuff", CUFF], ["headphones", PHONES], ["visor", VISOR]]
-const LINES := [
-	[IN + 0.4, "Nineteen days ago. Trial Bay 7, in the colony's holding block.", 3.0],
-	[BROUGHT + 0.3, "Ophelia: \"Get OFF me. I can stand on my own.\"", 3.0],
-	[NAMED, "Orderly: \"Subject seven. Ran on night two, picked up in the rain. Intake resumes.\"", 3.4],
-	[NAMED + 3.4, "Ophelia: \"I wasn't running. I was going home.\"", 2.4],
-	[ARMS + ARMS_TIME, "The frame takes her wrists over her head and locks them together.", 3.0],
-	[BAND + 0.5, "Orderly: \"Tracker.\"", 2.0],
-	[CUFF + 0.6, "Ophelia: \"Ow. Ow, what is that? What's in my arm?\"", 2.6],
-	[PHONES + 0.4, "Orderly: \"Hymn, stage one. Audio.\"", 2.6],
-	[VISOR, "Ophelia: \"No. Not my eyes. Please, not my eyes...\"", 2.8],
-	[BACK + 0.2, "Orderly: \"Subject is fitted. Begin trial.\"", 2.0],
-	[POWER + 1.2, "The screen: CALM.", 2.2],
-	[POWER + 3.0, "Ophelia, very quietly: \"...I don't want to be calm.\"", 2.0],
-	[DAY19 + 0.6, "Day 19.", 2.6],
-	[FACE19 + 0.8, "The chime. Under the visor, she smiles.", 2.4],
-	[FACE19 + 2.6, "Ophelia, softly: \"Thank you.\"", 1.8],
-	[FEED19 + 0.4, "The wall log: D19  RESPONDS TO PRAISE. RECOMMEND WIDER ROLLOUT: SOLACE.", 3.4],
+## Each piece in the order it goes on her, and how high the orderly's arm
+## comes up for it (rad: 0 hanging, PI straight up).
+const GEAR := [["band", BAND, 1.55], ["cuff", CUFF, 2.7], ["headphones", PHONES, 1.95], ["visor", VISOR, 1.85]]
+## The camera, in the cell's space from her column (it opens toward +z, she
+## faces the street): [from, at, fov] at the start of a shot and at its end;
+## it drifts between them for as long as the shot runs.
+const SHOTS := {
+	"empty": [Vector3(-2.0, 1.75, 2.4), Vector3(0, 1.2, -0.2), 56.0, Vector3(-1.6, 1.6, 1.9), Vector3(0, 1.25, -0.1), 52.0],
+	"walk": [Vector3(-1.6, 1.55, 2.3), Vector3(0, 1.3, 1.6), 52.0, Vector3(-1.4, 1.5, 1.7), Vector3(0, 1.25, 0.2), 50.0],
+	"face": [Vector3(1.05, 1.55, 1.2), Vector3(0, 1.45, 0), 42.0, Vector3(0.85, 1.52, 0.95), Vector3(0, 1.46, 0), 38.0],
+	"arms": [Vector3(1.35, 1.65, 1.35), Vector3(0, 1.7, -0.1), 50.0, Vector3(1.15, 1.85, 1.15), Vector3(0, 1.9, -0.1), 46.0],
+	"neck": [Vector3(0.5, 1.6, 0.5), Vector3(0, 1.49, 0), 30.0, Vector3(0.42, 1.58, 0.42), Vector3(0, 1.49, 0), 27.0],
+	"cuff": [Vector3(1.0, 1.95, 0.9), Vector3(0, 2.0, -0.1), 40.0, Vector3(0.8, 2.0, 0.75), Vector3(0, 2.02, -0.1), 36.0],
+	"close": [Vector3(0.6, 1.56, 0.62), Vector3(0, 1.52, 0), 36.0, Vector3(0.48, 1.54, 0.5), Vector3(0, 1.52, 0), 32.0],
+	"wide": [Vector3(-1.7, 1.6, 2.0), Vector3(0, 1.3, 0), 56.0, Vector3(-2.0, 1.75, 2.5), Vector3(0, 1.3, 0.2), 58.0],
+	"feed": [Vector3(0.3, 1.62, -0.1), HoldingCell.FEED_AT, 56.0, Vector3(0.26, 1.6, -0.14), HoldingCell.FEED_AT, 46.0],
+	"wide19": [Vector3(1.7, 1.3, 1.9), Vector3(0, 1.3, 0), 48.0, Vector3(1.35, 1.35, 1.45), Vector3(0, 1.35, 0), 44.0],
+	"close19": [Vector3(0.55, 1.28, 0.6), Vector3(0, 1.46, 0), 38.0, Vector3(0.45, 1.32, 0.48), Vector3(0, 1.47, 0), 33.0],
+	"log": [Vector3(1.0, 1.6, 1.4), Vector3(-2.8, 1.9, 0.6), 52.0, Vector3(1.2, 1.75, 1.7), Vector3(-2.8, 1.9, 0.6), 48.0],
+}
+## When each shot starts and how long the camera takes to ease into it from
+## wherever it was (0: a cut).
+const CUTS := [
+	[IN, "empty", 0.0],
+	[WALK + 0.6, "walk", 1.8],
+	[NAMED - 0.4, "face", 1.4],
+	[ARMS - 0.3, "arms", 1.2],
+	[BAND - 0.5, "neck", 1.0],
+	[CUFF - 0.5, "cuff", 1.0],
+	[PHONES - 0.5, "face", 1.0],
+	[VISOR - 0.5, "close", 0.9],
+	[BACK, "wide", 1.6],
+	[POWER, "feed", 0.0],
+	[DAY19, "wide19", 0.0],
+	[FACE19, "close19", 1.6],
+	[FEED19, "log", 1.8],
 ]
+## [start, line, seconds on screen]
+const LINES := [
+	[IN + 0.8, "Nineteen days ago. Trial Bay 7, the colony's holding block.", 3.4],
+	[WALK + 0.8, "Ophelia: \"Get OFF me. I can walk on my own.\"", 2.8],
+	[NAMED, "Orderly: \"Subject seven. Ran on night two, picked up in the rain. Intake resumes.\"", 3.4],
+	[NAMED + 3.5, "Ophelia: \"I wasn't running. I was going home.\"", 2.3],
+	[ARMS + ARMS_TIME + 0.2, "The frame takes her wrists over her head and locks them together.", 2.6],
+	[BAND + 0.6, "Orderly: \"Tracker.\"", 1.8],
+	[CUFF + 0.7, "Ophelia: \"Ow. Ow, what is that? What's in my arm?\"", 2.4],
+	[PHONES + 0.5, "Orderly: \"Hymn, stage one. Audio.\"", 2.4],
+	[VISOR, "Ophelia: \"No. Not my eyes. Please, not my eyes...\"", 2.8],
+	[BACK + 0.4, "Orderly: \"Subject is fitted. Begin trial.\"", 2.2],
+	[POWER + 1.4, "The screen: CALM.", 1.8],
+	[POWER + 3.0, "Ophelia, very quietly: \"...I don't want to be calm.\"", 2.0],
+	[DAY19 + 0.8, "Day 19.", 2.4],
+	[FACE19 + 0.9, "The chime. Under the visor, she smiles.", 2.2],
+	[FACE19 + 2.7, "Ophelia, softly: \"Thank you.\"", 1.8],
+	[FEED19 + 0.5, "The wall log: D19  RESPONDS TO PRAISE. RECOMMEND WIDER ROLLOUT: SOLACE.", 3.4],
+]
+## Where she and the orderlies come in from (just inside the screen), and
+## where the orderlies stand by her frame (cell space, from her column).
+const ENTRY := Vector3(0, 0, 2.0)
+const BESIDE := Vector3(0.88, 0, 0.05)
+const ESCORT := Vector3(0.48, 0, 0.12)
 
 var rm: Node
 var t := -1.0
@@ -68,10 +119,14 @@ var cell: Node3D
 var _cam: Camera3D
 var _veil: ColorRect
 var _bars: Array = []
+var _sub: Label
 var _orderlies: Array = []
 var _said := {}
 var _shot := ""
 var _held: Array = []
+## The camera when the current shot began, for easing out of it.
+var _from_pose: Array = []
+var _cut := -1
 
 
 func _init(run_manager: Node) -> void:
@@ -83,22 +138,32 @@ func _ready() -> void:
 	var layer := CanvasLayer.new()
 	layer.layer = 4
 	add_child(layer)
-	# a letterbox while it plays
-	for top in [true, false]:
-		var bar := ColorRect.new()
-		bar.color = BLACK
-		bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		bar.anchor_right = 1.0
-		bar.anchor_top = 0.0 if top else 0.89
-		bar.anchor_bottom = 0.11 if top else 1.0
-		bar.visible = false
-		layer.add_child(bar)
-		_bars.append(bar)
 	_veil = ColorRect.new()
 	_veil.color = Color(BLACK, 0.0)
 	_veil.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_veil.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	layer.add_child(_veil)
+	# a letterbox while it plays, the lines in the bottom bar
+	for top in [true, false]:
+		var bar := ColorRect.new()
+		bar.color = BLACK
+		bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		bar.anchor_right = 1.0
+		bar.anchor_top = 0.0 if top else 0.87
+		bar.anchor_bottom = 0.13 if top else 1.0
+		bar.visible = false
+		layer.add_child(bar)
+		_bars.append(bar)
+	_sub = Label.new()
+	_sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_sub.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_sub.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_sub.add_theme_font_size_override("font_size", 24)
+	_sub.add_theme_color_override("font_color", Color(0.92, 0.94, 0.97))
+	_sub.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_sub.offset_left = 80.0
+	_sub.offset_right = -80.0
+	(_bars[1] as Control).add_child(_sub)
 
 
 func busy() -> bool:
@@ -112,13 +177,6 @@ func seen() -> bool:
 
 ## Plays it on the zone's holding cell.
 func play(p_cell: Node3D) -> void:
-	cell = p_cell
-	t = 0.0
-	_said.clear()
-	_shot = ""
-	_veil.color.a = 1.0
-	for bar in _bars:
-		bar.visible = true
 	_show_hud(false)
 	rm.player.set("entranced", true)
 	rm.player.set("trance_dir", Vector3.ZERO)
@@ -129,13 +187,25 @@ func play(p_cell: Node3D) -> void:
 		if is_instance_valid(g):
 			_held.append([g, g.process_mode])
 			g.process_mode = Node.PROCESS_MODE_DISABLED
+	stage(p_cell)
+	t = 0.0
+	_seek(0.0)
+
+
+## Sets the bay up for it: back to day one, the camera and the orderlies.
+func stage(p_cell: Node3D) -> void:
+	cell = p_cell
+	_said.clear()
+	_shot = ""
+	_cut = -1
+	for bar in _bars:
+		bar.visible = true
 	cell.begin_intake()
-	cell.ophelia.visible = false
+	cell.ophelia.position = HoldingCell.COLUMN + ENTRY + Vector3.UP * HoldingCell.PAD_TOP
 	_cam = Camera3D.new()
 	_cam.name = "IntroCam"
 	cell.add_child(_cam)
 	_build_orderlies()
-	_set_shot("empty")
 
 
 func _process(delta: float) -> void:
@@ -145,146 +215,185 @@ func _process(delta: float) -> void:
 	if t > 0.5 and (Input.is_action_just_pressed("interact") or Input.is_action_just_pressed("ui_cancel")):
 		_finish()
 		return
-	# black in, a dip to black when they bring her in, black out at the end
-	var dip := smoothstep(BROUGHT - 0.5, BROUGHT - 0.1, t) * (1.0 - smoothstep(BROUGHT, BROUGHT + 0.5, t))
-	dip = maxf(dip, smoothstep(DAY19 - 1.0, DAY19 - 0.2, t) * (1.0 - smoothstep(DAY19 + 0.4, DAY19 + 1.4, t)))
-	_veil.color.a = maxf(maxf(1.0 - smoothstep(IN, IN + 1.4, t), dip), smoothstep(OUT, OUT + 0.8, t))
-	if t >= BROUGHT - 0.1 and not _said.has("brought"):
-		_said["brought"] = true
-		cell.ophelia.visible = true
-		for o in _orderlies:
-			o.visible = true
-		SFX.play_at(cell, cell.to_global(Vector3(0, 1.4, 0)), "door_metal_close", -6.0, 0.9)
-		_set_shot("her")
-	_struggle()
-	if t >= NAMED and _shot == "her":
-		_set_shot("face")
-	# her arms up into the clamp, the orderlies lifting them
-	if t >= ARMS and t < DAY19:
-		var k := smoothstep(ARMS, ARMS + ARMS_TIME, t)
-		cell.intake_arms(k)
-		for o in _orderlies:
-			(o.get_node("Arm") as Node3D).rotation.x = lerpf(0.4, 2.6, k) * (1.0 - smoothstep(ARMS + ARMS_TIME + 0.4, ARMS + ARMS_TIME + 1.2, t))
-		if not _said.has("arms"):
-			_said["arms"] = true
-			_set_shot("arms")
-			SFX.play(self, "titan_servo_2", -10.0, 1.5)
-			cell.ophelia.mood(["surprised"])
-		if k >= 1.0 and not _said.has("clamped"):
-			_said["clamped"] = true
-			SFX.play(self, "cache_unlock", -4.0, 0.7)
-			cell.ophelia.mood(["angry", "down"])
-	# the gear, a piece at a time
-	var on := []
-	for g in GEAR:
-		if t < g[1] or t >= DAY19:   # by day 19 they've put more on her (holding_cell.gd)
-			break
-		on.append(g[0])
-		cell.intake_gear(on.duplicate(), g[0], smoothstep(g[1], g[1] + FIT_TIME, t))
-		if not _said.has(g[0]):
-			_said[g[0]] = true
-			_fitting(g[0])
-	if t >= BACK and not _said.has("back"):
-		_said["back"] = true
-		_set_shot("wide")
-		for o in _orderlies:
-			var tw := create_tween()
-			tw.tween_property(o, "position", o.position + Vector3(0, 0, 1.6), 1.2)
-	if t >= POWER and not _said.has("power"):
-		_said["power"] = true
-		cell.power(true)
-		SFX.play(self, "titan_boot", -6.0, 0.8)
-		SFX.play(self, "chime_2", -10.0)
-		cell.ophelia.mood(["closed"])
-		_set_shot("feed")
-	# nineteen days on
-	if t >= DAY19 and not _said.has("day19"):
-		_said["day19"] = true
-		for o in _orderlies:
-			o.visible = false
-		cell.end_intake()
-		_set_shot("wide19")
-	if t >= FACE19 and not _said.has("face19"):
-		_said["face19"] = true
-		_set_shot("close19")
-		SFX.play(self, "chime_2", -8.0)
-	if t >= FEED19 and not _said.has("feed19"):
-		_said["feed19"] = true
-		_set_shot("log")
-	for line in LINES:
-		if t >= line[0] and not _said.has(line[1]):
-			_said[line[1]] = true
-			rm.hud.toast(line[1], line[2])
+	_seek(t)
 	if t >= END:
 		_finish()
 
 
-## A piece going on her: where the camera goes and how she takes it.
+## Everything at `at` seconds in.
+func _seek(at: float) -> void:
+	# black in, a dip to black into day 19, black out at the end
+	var dip := smoothstep(DAY19 - 1.2, DAY19 - 0.3, at) * (1.0 - smoothstep(DAY19 + 0.3, DAY19 + 1.5, at))
+	_veil.color.a = maxf(maxf(1.0 - smoothstep(IN, IN + 1.6, at), dip), smoothstep(OUT, OUT + 0.9, at))
+	if at < DAY19:
+		_day_one(at)
+	elif not _said.has("day19"):
+		_said["day19"] = true
+		for o in _orderlies:
+			o.visible = false
+		cell.end_intake()
+	if at >= FACE19 and not _said.has("chime"):
+		_said["chime"] = true
+		SFX.play(self, "chime_2", -8.0)
+	_camera(at)
+	_subtitle(at)
+
+
+func _day_one(at: float) -> void:
+	var oph: Node3D = cell.ophelia
+	var c: Vector3 = HoldingCell.COLUMN
+	# walked in from the screen, backwards into the frame, then turned round
+	var walk := smoothstep(WALK, WALK + WALK_TIME, at)
+	var turn := smoothstep(TURN, TURN + TURN_TIME, at)
+	var bob := absf(sin(at * 9.0)) * 0.02 * float(walk > 0.0 and walk < 1.0)
+	oph.position = c + ENTRY.lerp(Vector3.ZERO, walk) + Vector3.UP * (HoldingCell.PAD_TOP + bob)
+	var pull := sin(at * 6.5) * 0.12 * (1.0 - smoothstep(ARMS, ARMS + ARMS_TIME, at)) * smoothstep(WALK, WALK + 0.4, at)
+	oph.home_yaw = lerpf(0.0, PI, turn) + pull
+	if walk > 0.0 and walk < 1.0 and not _said.has("steps"):
+		_said["steps"] = true
+		for i in 6:
+			get_tree().create_timer(i * 0.55, false).timeout.connect(_step)
+	for i in _orderlies.size():
+		var o: Node3D = _orderlies[i]
+		var s := -1.0 if i == 0 else 1.0
+		var back := smoothstep(BACK, BACK + BACK_TIME, at)
+		var side := Vector3(ESCORT.x * s, 0, ESCORT.z).lerp(Vector3(BESIDE.x * s, 0, BESIDE.z), turn)
+		var pos := ENTRY.lerp(Vector3.ZERO, walk) + side
+		pos = pos.lerp(ENTRY + Vector3(BESIDE.x * s * 0.6, 0, 0.2), back)
+		o.position = c + pos
+		# facing in as they walk, then her, then the way out
+		o.rotation.y = lerp_angle(lerp_angle(0.0, s * PI * 0.5, turn), PI, smoothstep(BACK, BACK + 0.5, at))
+		var moving := walk > 0.0 and walk < 1.0 or back > 0.0 and back < 1.0
+		_stride(o, at, 1.0 if moving else 0.0)
+		_reach(o, at, s)
+	# her arms up into the clamp, the orderlies lifting them
+	var k := smoothstep(ARMS, ARMS + ARMS_TIME, at)
+	if at >= ARMS:
+		cell.intake_arms(k)
+		if not _said.has("arms"):
+			_said["arms"] = true
+			SFX.play(self, "titan_servo_2", -10.0, 1.5)
+			oph.mood(["surprised"])
+		if k >= 1.0 and not _said.has("clamped"):
+			_said["clamped"] = true
+			SFX.play(self, "cache_unlock", -4.0, 0.7)
+			oph.mood(["angry", "down"])
+	elif at >= NAMED and not _said.has("named"):
+		_said["named"] = true
+		oph.mood(["angry", "lookaway"])
+	# the gear, a piece at a time
+	var on := []
+	for g in GEAR:
+		if at < g[1]:
+			break
+		on.append(g[0])
+		cell.intake_gear(on.duplicate(), g[0], smoothstep(g[1], g[1] + FIT_TIME, at))
+		if not _said.has(g[0]):
+			_said[g[0]] = true
+			_fitting(g[0])
+	if at >= POWER and not _said.has("power"):
+		_said["power"] = true
+		cell.power(true)
+		SFX.play(self, "titan_boot", -6.0, 0.8)
+		SFX.play(self, "chime_2", -10.0)
+		oph.mood(["closed"])
+
+
+## How each piece lands on her.
 func _fitting(piece: String) -> void:
 	match piece:
 		"band":
-			_set_shot("neck")
 			SFX.play(self, "workbench_ratchet", -8.0, 1.2)
 		"cuff":
-			_set_shot("arms")
 			SFX.play(self, "titan_hiss_short", -8.0, 2.0)
 			cell.ophelia.mood(["sad", "shake"])
 		"headphones":
-			_set_shot("face")
 			SFX.play(self, "titan_servo_3", -10.0, 1.6)
 			cell.ophelia.mood(["angry", "lookaway"])
 		"visor":
-			_set_shot("close")
 			SFX.play(self, "titan_hiss_short", -8.0, 2.4)
 			SFX.play(self, "heartbeat", -6.0)
 			cell.ophelia.mood(["sad"])
 
 
-## Pulling against them till the clamp's on her.
-func _struggle() -> void:
-	if t < BROUGHT or t >= ARMS + ARMS_TIME or cell.ophelia == null:
-		return
-	var o: Node3D = cell.ophelia
-	o.rotation.y = o.home_yaw + sin(t * 7.0) * 0.08 * (1.0 - smoothstep(ARMS, ARMS + ARMS_TIME, t))
+func _step() -> void:
+	if t >= 0.0 and is_instance_valid(cell):
+		SFX.play_at(cell, cell.to_global(HoldingCell.COLUMN + ENTRY * 0.5), "step_concrete_%d" % (randi() % 5 + 1), -12.0)
 
 
-## The camera, in the cell's space (it opens toward +z, she faces the street).
-func _set_shot(which: String) -> void:
-	_shot = which
+## Legs swinging and a bob while they walk (0 standing .. 1 walking).
+func _stride(o: Node3D, at: float, walking: float) -> void:
+	var swing := sin(at * 9.0) * 0.45 * walking
+	(o.get_node("LegL") as Node3D).rotation.x = swing
+	(o.get_node("LegR") as Node3D).rotation.x = -swing
+	(o.get_node("Body") as Node3D).position.y = absf(sin(at * 9.0)) * 0.025 * walking
+
+
+## Their hands: holding her arm on the way in, lifting her arms into the
+## clamp, then one at each piece of gear (GEAR) as it goes on.
+func _reach(o: Node3D, at: float, s: float) -> void:
+	var lift := 0.5 * smoothstep(WALK - 0.3, WALK, at) * (1.0 - smoothstep(TURN, TURN + TURN_TIME, at))
+	lift = maxf(lift, 2.6 * smoothstep(ARMS - 0.4, ARMS + ARMS_TIME * 0.6, at) * (1.0 - smoothstep(ARMS + ARMS_TIME + 0.3, ARMS + ARMS_TIME + 1.1, at)))
+	for i in GEAR.size():
+		var g: Array = GEAR[i]
+		if (i % 2 == 0) == (s < 0.0):   # they take turns
+			var up := smoothstep(g[1] - REACH, g[1], at) * (1.0 - smoothstep(g[1] + FIT_TIME, g[1] + FIT_TIME + REACH, at))
+			lift = maxf(lift, float(g[2]) * up)
+	(o.get_node("Body/Arm") as Node3D).rotation.x = 0.2 + lift
+
+
+## The camera through its shot, eased out of the last one.
+func _camera(at: float) -> void:
+	var i := 0
+	while i + 1 < CUTS.size() and at >= float(CUTS[i + 1][0]):
+		i += 1
+	var start := float(CUTS[i][0])
+	var stop := float(CUTS[i + 1][0]) if i + 1 < CUTS.size() else END
+	var shot: Array = SHOTS[CUTS[i][1]]
+	var p := smoothstep(0.0, 1.0, clampf((at - start) / maxf(stop - start, 0.01), 0.0, 1.0))
+	var pose := [(shot[0] as Vector3).lerp(shot[3], p), (shot[1] as Vector3).lerp(shot[4], p), lerpf(shot[2], shot[5], p)]
+	if i != _cut:
+		_from_pose = _pose_now() if _cut >= 0 else pose
+		_cut = i
+		_shot = CUTS[i][1]
+	var blend := float(CUTS[i][2])
+	if blend > 0.0 and at - start < blend and not _from_pose.is_empty():
+		var b := smoothstep(0.0, blend, at - start)
+		pose = [(_from_pose[0] as Vector3).lerp(pose[0], b), (_from_pose[1] as Vector3).lerp(pose[1], b), lerpf(_from_pose[2], pose[2], b)]
+	_look(pose[0], pose[1], pose[2])
+
+
+## Where the camera is looking from and at now (column space) and its fov.
+func _pose_now() -> Array:
 	var c: Vector3 = HoldingCell.COLUMN
-	match which:
-		"empty":
-			_look(c + Vector3(-1.9, 1.7, 2.2), c + Vector3(0, 1.2, -0.2), 55.0)
-		"her":
-			_look(c + Vector3(-1.5, 1.6, 2.0), c + Vector3(0, 1.25, 0), 50.0)
-		"face":
-			_look(c + Vector3(0.95, 1.55, 1.05), c + Vector3(0, 1.45, 0), 42.0)
-		"arms":
-			_look(c + Vector3(1.25, 1.8, 1.25), c + Vector3(0, 1.85, -0.1), 48.0)
-		"neck":
-			_look(c + Vector3(0.42, 1.58, 0.42), c + Vector3(0, 1.49, 0), 28.0)
-		"close":
-			_look(c + Vector3(0.5, 1.55, 0.55), c + Vector3(0, 1.52, 0), 34.0)
-		"wide":
-			_look(c + Vector3(-1.9, 1.7, 2.4), c + Vector3(0, 1.3, 0), 58.0)
-		"feed":
-			_look(c + Vector3(0.28, 1.62, -0.12), c + HoldingCell.FEED_AT, 52.0)
-		"wide19":
-			_look(c + Vector3(1.4, 1.35, 1.5), c + Vector3(0, 1.35, 0), 46.0)
-		"close19":
-			_look(c + Vector3(0.45, 1.32, 0.48), c + Vector3(0, 1.47, 0), 36.0)   # up under her hung head
-		"log":
-			_look(c + Vector3(1.2, 1.7, 1.6), Vector3(-HoldingCell.SIZE.x * 0.5, 1.9, -1.6), 50.0)
+	var from := cell.to_local(_cam.global_position) - c
+	var ahead := cell.to_local(_cam.global_position - _cam.global_basis.z) - c
+	return [from, from + (ahead - from) * 1.5, _cam.fov]
 
 
 func _look(from: Vector3, at: Vector3, fov: float) -> void:
+	var c: Vector3 = HoldingCell.COLUMN
 	_cam.fov = fov
-	_cam.look_at_from_position(cell.to_global(from), cell.to_global(at))
+	_cam.look_at_from_position(cell.to_global(c + from), cell.to_global(c + at))
 	_cam.make_current()
 
 
-## Two colony orderlies in white, faceless behind black visors, one each side
-## of her frame just outside its posts. Arm swings up as they lift her arms.
+## The line on now, faded in and out in the letterbox.
+func _subtitle(at: float) -> void:
+	var text := ""
+	var alpha := 0.0
+	for line in LINES:
+		var a := float(line[0])
+		var b := a + float(line[2])
+		if at >= a and at < b:
+			text = line[1]
+			alpha = smoothstep(a, a + 0.25, at) * (1.0 - smoothstep(b - 0.3, b, at))
+	_sub.text = text
+	_sub.modulate.a = alpha
+
+
+## Two colony orderlies in white, faceless behind black visors. Their legs,
+## body and the arm toward her swing (_stride, _reach).
 func _build_orderlies() -> void:
 	var white := StandardMaterial3D.new()
 	white.albedo_color = Color(0.9, 0.91, 0.93)
@@ -298,23 +407,31 @@ func _build_orderlies() -> void:
 	for s in [-1.0, 1.0]:
 		var o := Node3D.new()
 		o.name = "Orderly"
-		o.visible = false
 		cell.add_child(o)
-		o.position = HoldingCell.COLUMN + Vector3(0.88 * s, 0.0, 0.05)
-		o.rotation.y = s * PI * 0.5   # facing her
-		for leg in [-0.08, 0.08]:
-			_part(o, Vector3(leg, 0.44, 0), _capsule(0.07, 0.9), white)
-		_part(o, Vector3(0, 1.18, 0), _capsule(0.17, 0.66), white)          # body
-		_part(o, Vector3(0, 0.98, 0), _capsule(0.175, 0.36), grey).scale = Vector3(1, 0.18, 1)   # belt
-		_part(o, Vector3(0, 1.62, 0), _sphere(0.115), white)                # hood
-		_part(o, Vector3(0, 1.63, -0.085), _sphere(0.07), black).scale = Vector3(1.3, 0.6, 0.6)  # visor
+		for leg in [["LegL", -0.08], ["LegR", 0.08]]:
+			var hip := Node3D.new()
+			hip.name = leg[0]
+			o.add_child(hip)
+			hip.position = Vector3(leg[1], 0.88, 0)
+			_part(hip, Vector3(0, -0.44, 0), _capsule(0.07, 0.9), white)
+		var body := Node3D.new()
+		body.name = "Body"
+		o.add_child(body)
+		_part(body, Vector3(0, 1.18, 0), _capsule(0.17, 0.66), white)
+		_part(body, Vector3(0, 0.98, 0), _capsule(0.175, 0.36), grey).scale = Vector3(1, 0.18, 1)   # belt
+		_part(body, Vector3(0, 1.62, 0), _sphere(0.115), white)                # hood
+		_part(body, Vector3(0, 1.63, -0.085), _sphere(0.07), black).scale = Vector3(1.3, 0.6, 0.6)  # visor
 		var arm := Node3D.new()
 		arm.name = "Arm"
-		o.add_child(arm)
-		arm.position = Vector3(0.2 * -s, 1.42, 0)   # the arm toward the street
-		arm.rotation.x = 0.4
+		body.add_child(arm)
+		arm.position = Vector3(0.2 * -s, 1.42, 0)   # the arm toward her
 		_part(arm, Vector3(0, -0.3, 0), _capsule(0.05, 0.6), white)
 		_part(arm, Vector3(0, -0.62, 0), _sphere(0.05), grey)              # glove
+		var other := Node3D.new()
+		body.add_child(other)
+		other.position = Vector3(0.2 * s, 1.42, 0)
+		other.rotation.x = 0.1
+		_part(other, Vector3(0, -0.3, 0), _capsule(0.05, 0.6), white)
 		_orderlies.append(o)
 
 
@@ -359,6 +476,7 @@ func _finish() -> void:
 
 func _teardown() -> void:
 	_veil.color.a = 0.0
+	_sub.text = ""
 	for bar in _bars:
 		bar.visible = false
 	for o in _orderlies:
@@ -366,8 +484,10 @@ func _teardown() -> void:
 			o.queue_free()
 	_orderlies.clear()
 	if is_instance_valid(cell):
-		cell.ophelia.visible = true
-		cell.ophelia.rotation.y = cell.ophelia.home_yaw
+		var oph: Node3D = cell.ophelia
+		oph.position = HoldingCell.COLUMN + Vector3.UP * HoldingCell.PAD_TOP
+		oph.home_yaw = PI
+		oph.rotation.y = PI
 		cell.end_intake()
 	if is_instance_valid(_cam):
 		_cam.queue_free()
