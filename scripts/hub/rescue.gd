@@ -224,7 +224,10 @@ static func changed_by(who: String) -> String:
 			visits[who] = left
 			save()
 			continue
-		out = c
+		# of two that have her, the one who had her last
+		var order: Array = lost_to.get(who, [])
+		if out == "" or order.find(c) > order.find(out):
+			out = c
 	return out
 
 
