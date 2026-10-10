@@ -75,6 +75,7 @@ const SuperHushScene := preload("res://scripts/hub/super_hush_scene.gd")
 const CheatScene := preload("res://scripts/hub/cheat_scene.gd")
 const FittingScene := preload("res://scripts/hub/fitting_scene.gd")
 const DoseScene := preload("res://scripts/hub/dose_scene.gd")
+const TrialIntro := preload("res://scripts/run/trial_intro.gd")
 const CheatScreen := preload("res://scripts/hub/cheat_screen.gd")
 const Hymn := preload("res://scripts/hub/hymn.gd")
 const DispensaryScreen := preload("res://scripts/hub/dispensary_screen.gd")
@@ -251,6 +252,8 @@ var cheat_scene: CheatScene
 var fitting_scene: FittingScene
 ## The morning dose at the dispensary, played out (dose_scene.gd).
 var dose_scene: DoseScene
+## Level 2's opening: day one of Ophelia's trial (trial_intro.gd).
+var trial_intro: TrialIntro
 ## The clarity visor's lie on runs: grunts wearing her people's faces (visor_friends.gd).
 var visor_friends: Node
 ## Who the Shepherd took with her this time, for when she comes to (hub_grip.gd).
@@ -330,6 +333,8 @@ func _ready() -> void:
 	add_child(fitting_scene)
 	dose_scene = DoseScene.new(self)
 	add_child(dose_scene)
+	trial_intro = TrialIntro.new(self)
+	add_child(trial_intro)
 	visor_friends = VisorFriends.new(self)
 	add_child(visor_friends)
 	npc_talk = NpcTalk.new()
@@ -554,6 +559,7 @@ func enter_hub() -> void:
 	cheat_scene.reset()
 	fitting_scene.reset()
 	dose_scene.reset()
+	trial_intro.reset()
 	chorus_scene.reset()
 	tether.stop()
 	if Hymn.hunted:
@@ -577,6 +583,7 @@ func enter_hub() -> void:
 
 
 func load_zone(index: int) -> void:
+	trial_intro.reset()
 	_fresh_level("Zone")
 	run.zone = index
 	if index < run.zone_count:
@@ -620,7 +627,9 @@ func load_zone(index: int) -> void:
 	Wardrobe.dress_eco(player, false)
 	place_player(zone_info["spawn"])
 	player.second_wind_ready = player.second_wind  # Eco's suit: once per zone
-	if run.level != "":
+	if zone_info.has("holding_cell") and run.level == "level2" and not trial_intro.seen():
+		trial_intro.play(zone_info["holding_cell"])   # starts the level's tutorial when it's over
+	elif run.level != "":
 		tutorial.start_level(run.level)
 	else:
 		tutorial.start_level("zone%d" % index if index < run.zone_count else "arena")
@@ -747,7 +756,7 @@ func _physics_process(delta: float) -> void:
 		Vices.tick(delta)
 		_vice_keys()
 		_band_ping(delta)
-		if phase in [Phase.ZONE, Phase.ARENA, Phase.FIGHT]:
+		if phase in [Phase.ZONE, Phase.ARENA, Phase.FIGHT] and not trial_intro.busy():
 			hush_pull.run_tick(delta, titan == null or not titan.piloted)
 			if Hymn.tick_bridge(delta):
 				hud.toast(BRIDGE_PUFF, 2.5)
@@ -770,7 +779,8 @@ func _physics_process(delta: float) -> void:
 		Wardrobe.dress_eco(player, phase == Phase.HUB)
 	match phase:
 		Phase.ZONE:
-			_zone_tick(delta)
+			if not trial_intro.busy():
+				_zone_tick(delta)
 		Phase.CHOOSING:
 			_choice_tick()
 		Phase.ARENA:
@@ -2011,7 +2021,7 @@ func end_run(title: String, reason: String) -> void:
 ## nothing else open.
 func _vice_keys() -> void:
 	if bench != null or garage != null or hub_piloting or npc_talk.active() or hush_pull.busy() \
-			or super_hush_scene.busy() or cheat_scene.busy() or chorus_scene.busy() or fitting_scene.busy() or dose_scene.busy() or tether.busy():
+			or super_hush_scene.busy() or cheat_scene.busy() or chorus_scene.busy() or fitting_scene.busy() or dose_scene.busy() or tether.busy() or trial_intro.busy():
 		return
 	if not (phase == Phase.HUB or in_run()) or (titan != null and titan.piloted):
 		return
@@ -2276,6 +2286,8 @@ func _prompt() -> String:
 			if in_titan_yard():
 				return "[V] Call in your titan" if hub_titan == null else "[V] Call your titan here"
 		Phase.ZONE:
+			if trial_intro.busy():
+				return ""
 			var cell := holding_cell_in_reach()
 			if cell != null:
 				return "[F] Short the screen and overload the pylons"

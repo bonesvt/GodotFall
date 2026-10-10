@@ -75,6 +75,7 @@ func _play_checks() -> void:
 	await _use_spot(spot)
 	_check("board starts the level 2 run", run_node.phase == run_node.Phase.ZONE and run_node.run.level == "level2", [run_node.phase, run_node.run.level])
 	run_node.tutorial.set_enabled(false)
+	await _trial_intro()
 
 	var info: Dictionary = run_node.zone_info
 	_check("it's The Glass District, in the city", info.get("name", "") == "THE GLASS DISTRICT" and info["plan"].biome == "city" and run_node.hud.toast_label.text.contains("LEVEL 2"), info.get("name", ""))
@@ -94,7 +95,6 @@ func _play_checks() -> void:
 	var oph: Node3D = cell.ophelia
 	await _ticks(3)
 	await _frames(3)
-	cell._hold()   # the gear only shows under Mature, and the rating was only just set
 	await _frames(3)
 	_check("Ophelia's in the trial frame in the Mature intake suit, in the white light", oph != null and oph.who == "ophelia" and oph.outfit == "colony_m" and oph.posed and cell._field.visible, oph.outfit)
 	_check("she wears the trial's headphones, cuff, visor and neck band", cell.gear_on() == cell.TRIAL_GEAR, cell.gear_on())
@@ -243,6 +243,34 @@ func _press(action: String) -> void:
 	Input.action_press(action)
 	await physics_frame
 	Input.action_release(action)
+
+
+## The opening: day one of her trial in the bay, the first time only (trial_intro.gd).
+func _trial_intro() -> void:
+	var intro = run_node.trial_intro
+	var cell: Node3D = run_node.zone_info["holding_cell"]
+	var g0: Node = run_node.zone_info["grunts"][0]
+	_check("the level opens on day one of her trial", intro.busy() and cell.intake and not cell._field.visible and cell.gear_on().is_empty(), [intro.busy(), cell.intake])
+	_check("Eco and the yard held still, no prompt", player.entranced and g0.process_mode == Node.PROCESS_MODE_DISABLED and run_node._prompt() == "", g0.process_mode)
+	_check("the bay's wall reads day one, no log yet", cell._manifest.text.contains("DAY 1") and cell._log.text == "", cell._manifest.text)
+	await _frames(3)
+	_check("her frame empty to begin with", not cell.ophelia.visible, cell.ophelia.visible)
+	intro.t = intro.ARMS + intro.ARMS_TIME + 0.05
+	await _frames(4)
+	_check("brought in, her arms up and clamped together", cell.ophelia.visible and cell._pose != null and is_equal_approx(cell._pose.influence, 1.0) and not cell._clamps.is_empty() and cell._clamps[0].visible, cell._clamps.size())
+	_check("two orderlies in white", intro._orderlies.size() == 2 and intro._orderlies[0].visible, intro._orderlies.size())
+	intro.t = intro.VISOR + intro.FIT_TIME + 0.05
+	await _frames(3)
+	_check("the band, cuff, headphones and visor go on her", cell.gear_on().size() == 4, cell.gear_on())
+	_check("still dark till they've done", not cell._field.visible, cell._field.visible)
+	intro.t = intro.POWER + 0.05
+	await _frames(3)
+	_check("then the bay powers up and the screen starts", cell._field.visible and cell._feed_word.text != "", cell._feed_word.text)
+	await _press("interact")
+	await _frames(3)
+	_check("F skips to the level", not intro.busy() and not cell.intake and not player.entranced and g0.process_mode != Node.PROCESS_MODE_DISABLED, intro.t)
+	_check("the trial's day 19 again, her held in the frame", cell._manifest.text.contains("DAY 19") and cell.ophelia.posed and cell.gear_on() == cell.TRIAL_GEAR, cell._manifest.text)
+	_check("seen: it doesn't play again", intro.seen() and root.get_viewport().get_camera_3d() == player.camera, intro.seen())
 
 
 func _ticks(n: int) -> void:

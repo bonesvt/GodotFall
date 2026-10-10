@@ -21,6 +21,11 @@ extends Node3D
 ## headphones and unbolts the band, and she follows Eco out (escort.gd). The
 ## cuff's pins won't come out: she goes home wearing it (run_manager
 ## _rescue_bonus, hub_grip.gd). The cell opens toward local +z.
+## The level opens on day one of her trial (trial_intro.gd): begin_intake()
+## puts the bay back the way it was before her, dark, and the intro brings
+## her in, raises her arms into the clamps (intake_arms()), puts the gear on
+## her a piece at a time (intake_gear()) and powers the bay up (power()),
+## ending where the level starts (end_intake()).
 
 signal freed
 
@@ -67,6 +72,11 @@ const LOG := "D17  SUBJECT STOPPED ASKING THE DATE
 D18  SUBJECT SMILES ON THE CHIME
 D19  RESPONDS TO PRAISE.
      RECOMMEND WIDER ROLLOUT: SOLACE"
+## The wall screen on her first day.
+const DAY_ONE := "HYMN TRIAL  BAY 7
+SUBJECT 07   DAY 1
+COMPLIANCE --
+HYMN v0.3"
 
 ## Kept for the cache-like interface (nothing locks it now).
 var locked := false
@@ -90,6 +100,10 @@ var _feed: Node3D
 var _feed_word: Label3D
 var _feed_rings: Array = []
 var _t := 0.0
+## Day one, before the trial starts (begin_intake()): the bay's dark and the
+## clamps aren't on her yet.
+var intake := false
+var _powered := true
 
 
 func _ready() -> void:
@@ -123,7 +137,7 @@ const ARMS_UP := [
 ## visor, with the trial's gear on (the band locked round her neck), her arms
 ## held up over her head and the frame's clamps on her wrists and ankles.
 func _hold() -> void:
-	if ophelia == null or ophelia._anim == null:
+	if ophelia == null or ophelia._anim == null or intake:
 		return
 	if ophelia._anim.has_animation("idle"):
 		ophelia._anim.play("idle", 0.0)
@@ -191,6 +205,7 @@ func wrists_at() -> Variant:
 
 
 func _clamp_part(n: Node3D) -> void:
+	n.visible = not intake
 	_clamps.append(n)
 
 
@@ -254,7 +269,7 @@ func gear_on() -> Array:
 
 
 func _process(delta: float) -> void:
-	if opened:
+	if opened or not _powered:
 		return
 	_t += delta
 	# The screen's rings turn out from its middle; a new word every so often.
@@ -637,6 +652,91 @@ func _refresh() -> void:
 		_label.modulate = SCREEN
 	# the trial on the wall, dark once the bay's power is gone
 	if _manifest != null:
-		_manifest.text = "" if opened else TRIAL_TEXT
+		_manifest.text = "" if opened else (DAY_ONE if intake else TRIAL_TEXT)
 	if _log != null:
-		_log.text = "" if opened else LOG
+		_log.text = "" if opened or intake else LOG
+
+
+# --- day one (trial_intro.gd) ---------------------------------------------------
+
+## Back to before her trial: the bay unpowered, her out of the frame's hold
+## with nothing on her, and the screen in front of her dark.
+func begin_intake() -> void:
+	intake = true
+	if _pose != null:
+		_pose.free()
+		_pose = null
+	for c in _clamps:
+		c.queue_free()
+	_clamps.clear()
+	if ophelia != null:
+		ColonyGear.apply(ophelia, [])
+		ophelia.posed = false
+		if ophelia._anim != null:
+			ophelia._anim.speed_scale = 1.0
+			if ophelia._anim.has_animation("idle"):
+				ophelia._anim.play("idle", 0.0)
+		ophelia.mood(["angry"])
+	power(false)
+	_refresh()
+
+
+## Her arms raised into the clamp, 0 down to 1 held (the frame's clamps close
+## on her at 1).
+func intake_arms(k: float) -> void:
+	if ophelia == null or opened:
+		return
+	if _pose == null:
+		var skel := ophelia.find_child("Skeleton3D", true, false) as Skeleton3D
+		if skel == null:
+			return
+		ophelia.posed = true
+		var hold := Poses.Hold.new()
+		hold.name = "TrialHold"
+		hold.turns = ARMS_UP
+		hold.after = _posed
+		_pose = hold
+		skel.add_child(_pose)
+		skel.move_child(_pose, 0)
+	_pose.influence = clampf(k, 0.0, 1.0)
+	for c in _clamps:
+		c.visible = k >= 1.0
+
+
+## Puts `pieces` of the trial's gear on her, `piece` (the newest) `k` of the
+## way through its fitting (colony_gear.gd).
+func intake_gear(pieces: Array, piece: String, k: float) -> void:
+	if ophelia == null:
+		return
+	if gear_on().size() != pieces.size():
+		ColonyGear.apply(ophelia, pieces)
+	ColonyGear.fit_model(ophelia, piece, k)
+
+
+## The bay's power: the white light down over her frame, its strips, and the
+## screen in front of her face.
+func power(on: bool) -> void:
+	_powered = on
+	if _field != null:
+		_field.visible = on
+	for ring in _rings + _feed_rings:
+		ring.visible = on
+	if _field_light != null:
+		_field_light.light_energy = 1.1 if on else 0.0
+	if _feed_word != null:
+		_feed_word.text = FEED_WORDS[0] if on else ""
+	for strip in _pylons:
+		strip.visible = on
+
+
+## Day one's over: the trial's running, and the level starts from here.
+func end_intake() -> void:
+	intake = false
+	_t = 0.0
+	power(true)
+	_refresh()
+	if _pose != null:
+		_pose.influence = 1.0
+		for c in _clamps:
+			c.visible = true
+	_hold()
