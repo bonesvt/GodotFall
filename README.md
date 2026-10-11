@@ -876,6 +876,12 @@ select the Player node and tweak values in the Inspector, or change the defaults
 - `scripts/ambience.gd` looping background beds from `assets/audio/ambience/` (forest, temple hub)
 - `scripts/run/titan_gun.gd` titan weapon personalities (XO-16 spin-up, Tracker shells, Splitter beam, stuttering Obelisk Rail)
 - `scripts/hud.gd` crosshair, hitmarkers, health, ammo, speedometer, state and cooldown readout
+- `scripts/ui/hud_style.gd` the HUD's look, from the Strinova-style look test: dark plum cards with a
+  coloured bar along the top and a cut corner, Saira for words and Rajdhani for numbers
+  (`assets/fonts`, SIL Open Font License), white type with a soft shadow. The fight panel, the run
+  HUD's cards (HEART, HELD, titan build), prompts with their key boxed, toasts, the radio intercept,
+  Eco's whispers, the dialogue caption and the tutorial card all use it; the menus keep `ui_theme.gd`.
+  `tools/hud/look_shots.gd` shoots it over a level with every story element up
 - `scripts/radio/` enemy radio: `radio_chatter.gd` (listens to grunt awareness and deaths, picks lines),
   `radio_popup.gd` (the intercept box), `radio_lines.gd` (every line, by situation)
 - `dialogue/` every radio and whisper line as plain text, one file per rating; edit and pick the rating

@@ -48,6 +48,7 @@ const NpcIdles := preload("res://scripts/hub/npc_idles.gd")
 const ContentRating := preload("res://scripts/radio/content_rating.gd")
 const Obsession := preload("res://scripts/hub/obsession.gd")
 const Vices := preload("res://scripts/hub/vices.gd")
+const Style := preload("res://scripts/ui/hud_style.gd")
 ## Where the gift bag lives in the save file.
 const BAG := "_bag"
 ## How long a line stays up after it's all been said.
@@ -71,6 +72,8 @@ var _times := PackedFloat32Array()
 var _line_t := 0.0
 var _eco_voice: AudioStreamPlayer
 var _panel: PanelContainer
+## The caption's card; its top bar takes the speaker's colour.
+var _card: StyleBoxFlat
 var _name: Label
 var _text: Label
 var _hint: Label
@@ -691,6 +694,7 @@ func _next() -> void:
 	line_left = length + GAP
 	_name.text = NAMES.get(speaker, speaker.to_upper())
 	_name.add_theme_color_override("font_color", COLORS.get(speaker, Color.WHITE))
+	_card.border_color = COLORS.get(speaker, Color.WHITE)
 	_text.text = text
 	_text.visible = true
 	_text.visible_characters = 0
@@ -821,12 +825,12 @@ func _ask(p_options: Array) -> void:
 		l.text = "%d   %s" % [i + 1, options[i]["lines"][0][1]]
 		l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		l.custom_minimum_size = Vector2(716, 0)
-		l.add_theme_font_size_override("font_size", 20)
-		l.add_theme_color_override("font_color", COLORS["eco"].lerp(Color.WHITE, 0.45))
+		Style.style(l, 20, COLORS["eco"].lerp(Color.WHITE, 0.45), Style.saira(500))
 		_options.add_child(l)
 	var giving: bool = options[0].has("gift")
 	_name.text = "GIVE %s A GIFT" % NAMES.get(npc.who, npc.who.to_upper()) if giving else "ECO"
 	_name.add_theme_color_override("font_color", COLORS["eco"])
+	_card.border_color = COLORS["eco"]
 	_text.text = ""
 	_text.visible = false
 	_hint.text = "[1-%d] %s" % [options.size(), "give" if giving else "answer"]
@@ -928,14 +932,14 @@ func _build_caption() -> void:
 	_panel = PanelContainer.new()
 	_panel.visible = false
 	_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var style := StyleBoxFlat.new()
-	style.bg_color = Color(0.03, 0.02, 0.05, 0.72)
-	style.set_corner_radius_all(10)
-	style.content_margin_left = 22
-	style.content_margin_right = 22
-	style.content_margin_top = 12
-	style.content_margin_bottom = 14
-	_panel.add_theme_stylebox_override("panel", style)
+	# a card in the HUD's look (hud_style.gd), a little darker so long lines read
+	_card = Style.card(Color.WHITE)
+	_card.bg_color = Color(Style.CARD, 0.84)
+	_card.content_margin_left = 22
+	_card.content_margin_right = 22
+	_card.content_margin_top = 12 + Style.BAR
+	_card.content_margin_bottom = 14
+	_panel.add_theme_stylebox_override("panel", _card)
 	_panel.anchor_left = 0.5
 	_panel.anchor_right = 0.5
 	_panel.anchor_top = 1.0
@@ -951,21 +955,16 @@ func _build_caption() -> void:
 	var top := HBoxContainer.new()
 	top.add_theme_constant_override("separation", 12)
 	box.add_child(top)
-	_name = Label.new()
-	_name.add_theme_font_size_override("font_size", 17)
+	_name = Style.style(Label.new(), 15, Color.WHITE, Style.saira(700, false, 2))
 	top.add_child(_name)
 	_hearts = HeartMeter.new()
 	_hearts.visible = false
 	top.add_child(_hearts)
-	_stage = Label.new()
+	_stage = Style.style(Label.new(), 12, Color(1.0, 0.6, 0.75, 0.8), Style.saira(600, false, 1))
 	_stage.visible = false
-	_stage.add_theme_font_size_override("font_size", 12)
-	_stage.add_theme_color_override("font_color", Color(1.0, 0.6, 0.75, 0.8))
 	top.add_child(_stage)
-	_text = Label.new()
+	_text = Style.style(Label.new(), 21, Color(1.0, 0.98, 0.96), Style.saira(500))
 	_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_text.add_theme_font_size_override("font_size", 22)
-	_text.add_theme_color_override("font_color", Color(0.96, 0.94, 0.92))
 	_text.custom_minimum_size = Vector2(716, 0)
 	box.add_child(_text)
 	_options = VBoxContainer.new()
@@ -974,17 +973,14 @@ func _build_caption() -> void:
 	box.add_child(_options)
 	var foot := HBoxContainer.new()
 	box.add_child(foot)
-	_reaction = Label.new()
+	_reaction = Style.style(Label.new(), 14, Color.WHITE, Style.saira(600))
 	_reaction.visible = false
 	_reaction.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_reaction.add_theme_font_size_override("font_size", 14)
 	foot.add_child(_reaction)
-	_hint = Label.new()
+	_hint = Style.style(Label.new(), 12, Color(1, 1, 1, 0.6), Style.saira(600, false, 1))
 	_hint.text = "[F] next"
 	_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	_hint.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_hint.add_theme_font_size_override("font_size", 13)
-	_hint.add_theme_color_override("font_color", Color(0.7, 0.68, 0.72))
 	foot.add_child(_hint)
 
 

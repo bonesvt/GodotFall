@@ -4,9 +4,12 @@ extends CanvasLayer
 ## with (relations_label), top right what's got a hold on her (the pull clock,
 ## craving, dose cuff, Hymn, Keepsake; hidden when nothing has), bottom right the
 ## run status and titan build, small.
-## The run manager writes the text; this only lays it out. The titan reticle
-## is drawn per weapon (see titan_gun.gd) so each gun reads differently.
+## The run manager writes the text; this only lays it out, in the HUD's look
+## (hud_style.gd): the corners are cards, the prompt a dark pill with its key
+## in a box, the titan build a card of rows. The titan reticle is drawn per
+## weapon (see titan_gun.gd) so each gun reads differently.
 
+const Style := preload("res://scripts/ui/hud_style.gd")
 const Vices := preload("res://scripts/hub/vices.gd")
 const Obsession := preload("res://scripts/hub/obsession.gd")
 const Hymn := preload("res://scripts/hub/hymn.gd")
@@ -36,12 +39,17 @@ var choice_label: Label
 var summary_panel: PanelContainer
 var summary_label: Label
 var _toast_time := 0.0
+var _build_card := Style.card(Style.CYAN)
+var _pill := StyleBoxFlat.new()
+## A prompt's key: "[F] Embark" -> F.
+var _key := RegEx.create_from_string("^\\[([^\\]]{1,6})\\]\\s*")
 
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	# Bottom right, small: where she is, what she's carrying; the titan build above it on runs.
-	status_label = _label(14)
+	status_label = _label(16)
+	status_label.add_theme_font_override("font", Style.numbers(false, 1))
 	status_label.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_RIGHT)
 	status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	status_label.vertical_alignment = VERTICAL_ALIGNMENT_BOTTOM
@@ -50,7 +58,7 @@ func _ready() -> void:
 	status_label.offset_top = -80
 	status_label.offset_bottom = -20
 	status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	status_label.add_theme_color_override("font_color", Color(0.93, 0.95, 0.98, 0.75))
+	status_label.add_theme_color_override("font_color", Color(1, 1, 1, 0.9))
 
 	build_label = _label(14)
 	build_label.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_RIGHT)
@@ -60,12 +68,24 @@ func _ready() -> void:
 	build_label.offset_right = -20
 	build_label.offset_top = -220
 	build_label.offset_bottom = -84
-	build_label.add_theme_color_override("font_color", Color(0.93, 0.95, 0.98, 0.75))
+	# its text stays the record ("TITAN BUILD", then "Slot: part" rows); what
+	# shows is the card _draw_build makes of it
+	build_label.add_theme_color_override("font_color", Color.TRANSPARENT)
+	build_label.add_theme_color_override("font_shadow_color", Color.TRANSPARENT)
+	build_label.draw.connect(_draw_build)
 
-	prompt_label = _centered(26, 60)
-	toast_label = _centered(30, -220)
+	# The prompt draws itself as a pill with its key boxed (_draw_prompt).
+	prompt_label = _centered(21, 40)  # clear of Eco's whisper caption below it
+	prompt_label.add_theme_color_override("font_color", Color.TRANSPARENT)
+	prompt_label.add_theme_color_override("font_shadow_color", Color.TRANSPARENT)
+	prompt_label.draw.connect(_draw_prompt)
+	_pill.bg_color = Color(Style.CARD, 0.62)
+	_pill.set_corner_radius_all(4)
+	toast_label = _centered(28, -220)
+	toast_label.add_theme_font_override("font", Style.saira(700))
 	toast_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	fight_label = _centered(24, -170)
+	toast_label.draw.connect(_draw_toast_rule)
+	fight_label = _centered(22, -170)
 	fight_label.set_anchors_and_offsets_preset(Control.PRESET_CENTER_BOTTOM)
 	fight_label.offset_left = -500
 	fight_label.offset_right = 500
@@ -74,11 +94,11 @@ func _ready() -> void:
 	# Top right: what's got a hold on her (only when something has): Marrow's pull
 	# or withdrawal clock (hush_pull.gd writes it), the craving bar, the dose
 	# cuff's countdown, Hymn in her and its gear, Ophelia's Keepsake.
-	var vices_box := _corner(Control.PRESET_TOP_RIGHT, Color(0.72, 0.5, 1.0))
+	var vices_box := _corner(Control.PRESET_TOP_RIGHT, Style.VIOLET)
 	vices_panel = vices_box[0]
 	var col: VBoxContainer = vices_box[1]
-	col.add_child(_small("HELD", 12, Color(0.85, 0.75, 1.0, 0.6)))
-	pull_label = _small("", 17, Color(0.82, 0.6, 1.0))
+	col.add_child(_caption("HELD"))
+	pull_label = _small("", 17, Style.VIOLET)
 	col.add_child(pull_label)
 	crave_bar = Control.new()
 	crave_bar.custom_minimum_size = Vector2(260, 16)
@@ -93,6 +113,7 @@ func _ready() -> void:
 	crave_bar.add_child(_crave_fill)
 	var word := Label.new()
 	word.text = "CRAVING"
+	word.add_theme_font_override("font", Style.saira(700, false, 2))
 	word.add_theme_font_size_override("font_size", 11)
 	word.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	word.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -100,26 +121,26 @@ func _ready() -> void:
 	crave_bar.add_child(word)
 	cuff_label = _small("", 15, Color(0.85, 0.95, 1.0))
 	col.add_child(cuff_label)
-	hymn_label = _small("", 15, Color(0.88, 0.94, 1.0))
+	hymn_label = _small("", 15, Color(0.86, 0.91, 1.0))
 	col.add_child(hymn_label)
-	keepsake_label = _small("", 15, Color(1.0, 0.6, 0.75))
+	keepsake_label = _small("", 15, Style.PINK)
 	col.add_child(keepsake_label)
 	for l in [pull_label, crave_bar, cuff_label, hymn_label, keepsake_label]:
 		l.visible = false
 
 	# Top left: who she's with (run_manager.gd relations_text()).
-	var rel_box := _corner(Control.PRESET_TOP_LEFT, Color(1.0, 0.6, 0.75))
+	var rel_box := _corner(Control.PRESET_TOP_LEFT, Style.PINK)
 	relations_panel = rel_box[0]
-	(rel_box[1] as VBoxContainer).add_child(_small("HEART", 12, Color(1.0, 0.8, 0.85, 0.6)))
-	relations_label = _small("", 15, Color(0.95, 0.93, 0.95))
+	(rel_box[1] as VBoxContainer).add_child(_caption("HEART"))
+	relations_label = _small("", 15, Style.INK)
 	(rel_box[1] as VBoxContainer).add_child(relations_label)
 	relations_panel.visible = false
 	# One of Marrow's trigger words, big, and the taps to shake it (trigger_words.gd).
 	trigger_label = _centered(40, 150)
 	trigger_label.offset_top = 80
 	trigger_label.offset_bottom = 220
-	trigger_label.add_theme_color_override("font_color", Color(0.85, 0.6, 1.0))
-	trigger_label.add_theme_constant_override("outline_size", 10)
+	trigger_label.add_theme_font_override("font", Style.saira(800))
+	trigger_label.add_theme_color_override("font_color", Style.VIOLET)
 	trigger_label.visible = false
 
 	crosshair = Control.new()
@@ -129,35 +150,26 @@ func _ready() -> void:
 	crosshair.visible = false
 	add_child(crosshair)
 
-	choice_label = Label.new()
-	choice_label.add_theme_font_size_override("font_size", 22)
+	choice_label = Style.style(Label.new(), 21, Style.INK, Style.saira(500))
 	choice_panel = _panel(choice_label)
-	summary_label = Label.new()
-	summary_label.add_theme_font_size_override("font_size", 26)
+	summary_label = Style.style(Label.new(), 25)
 	summary_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	summary_panel = _panel(summary_label)
 
 
-## A dark rounded card in a corner of the screen, with a thin accent line on top:
+## A card in a corner of the screen (hud_style.gd), its accent along the top:
 ## [the panel, the column inside it].
 func _corner(corner: int, accent: Color) -> Array:
 	var p := PanelContainer.new()
-	var box := StyleBoxFlat.new()
-	box.bg_color = Color(0.05, 0.06, 0.08, 0.62)
-	box.border_color = Color(accent, 0.55)
-	box.border_width_top = 2
-	box.set_corner_radius_all(10)
-	box.set_content_margin_all(12)
-	box.content_margin_left = 16
-	box.content_margin_right = 16
-	p.add_theme_stylebox_override("panel", box)
+	p.add_theme_stylebox_override("panel", Style.card(accent, 12.0))
+	p.custom_minimum_size.x = 280
 	p.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	p.set_anchors_and_offsets_preset(corner)
 	var right := corner == Control.PRESET_TOP_RIGHT
 	p.grow_horizontal = Control.GROW_DIRECTION_BEGIN if right else Control.GROW_DIRECTION_END
-	p.offset_left = -20 if right else 20
-	p.offset_right = -20 if right else 20
-	p.offset_top = 20
+	p.offset_left = -22 if right else 22
+	p.offset_right = -22 if right else 22
+	p.offset_top = 22
 	add_child(p)
 	var col := VBoxContainer.new()
 	col.add_theme_constant_override("separation", 6)
@@ -167,11 +179,16 @@ func _corner(corner: int, accent: Color) -> Array:
 
 
 func _small(text: String, size: int, col: Color) -> Label:
-	var l := Label.new()
+	var l := Style.style(Label.new(), size, col, Style.saira(500))
 	l.text = text
-	l.add_theme_font_size_override("font_size", size)
-	l.add_theme_color_override("font_color", col)
 	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	return l
+
+
+## A card's small spaced-out heading.
+func _caption(text: String) -> Label:
+	var l := _small(text, 11, Color(1, 1, 1, 0.75))
+	l.add_theme_font_override("font", Style.saira(700, false, 2))
 	return l
 
 
@@ -215,10 +232,7 @@ func _process(delta: float) -> void:
 
 
 func _label(size: int) -> Label:
-	var l := Label.new()
-	l.add_theme_font_size_override("font_size", size)
-	l.add_theme_color_override("font_outline_color", Color.BLACK)
-	l.add_theme_constant_override("outline_size", 6)
+	var l := Style.style(Label.new(), size)
 	add_child(l)
 	return l
 
@@ -237,11 +251,8 @@ func _centered(size: int, y: float) -> Label:
 
 func _panel(content: Label) -> PanelContainer:
 	var panel := PanelContainer.new()
-	var style := StyleBoxFlat.new()
-	style.bg_color = Color(0.05, 0.06, 0.08, 0.88)
-	style.border_color = Color(1.0, 0.75, 0.2)
-	style.set_border_width_all(2)
-	style.set_content_margin_all(24)
+	var style := Style.card(Style.YELLOW, 24.0)
+	style.bg_color = Color(Style.CARD, 0.92)
 	panel.add_theme_stylebox_override("panel", style)
 	panel.add_child(content)
 	panel.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
@@ -250,6 +261,67 @@ func _panel(content: Label) -> PanelContainer:
 	panel.visible = false
 	add_child(panel)
 	return panel
+
+
+## The prompt: a dark pill, the key boxed at its left ("[F] Embark").
+func _draw_prompt() -> void:
+	var t := prompt_label.text
+	if t == "":
+		return
+	var k := ""
+	var m := _key.search(t)
+	if m != null:
+		k = m.get_string(1)
+		t = t.substr(m.get_end())
+	var f := Style.saira(600)
+	var size := 21
+	var key_w := 0.0 if k == "" else maxf(Style.width(Style.saira(700), k, 15) + 12.0, 25.0) + 10.0
+	var w := key_w + Style.width(f, t, size) + 40.0
+	var c := prompt_label.size * 0.5
+	var r := Rect2(c.x - w * 0.5, c.y - 20.0, w, 40.0)
+	prompt_label.draw_style_box(_pill, r)
+	var x := r.position.x + 20.0
+	if k != "":
+		x += Style.key(prompt_label, Vector2(x, c.y), k, 15) + 10.0
+	Style.text(prompt_label, f, Vector2(x, c.y + size * 0.36), t, size)
+
+
+## A thin rule under the toast that fades out at both ends.
+func _draw_toast_rule() -> void:
+	var f := toast_label.get_theme_font("font")
+	var size := toast_label.get_theme_font_size("font_size")
+	var lines := toast_label.get_line_count()
+	var c := toast_label.size * 0.5
+	var y := c.y + lines * (f.get_height(size) + toast_label.get_theme_constant("line_spacing")) * 0.5 + 6.0
+	var w := 420.0 if lines > 1 else minf(Style.width(f, toast_label.text, size) + 60.0, 420.0)
+	var clear := Color(1, 1, 1, 0.0)
+	toast_label.draw_polyline_colors(PackedVector2Array([Vector2(c.x - w * 0.5, y), Vector2(c.x, y), Vector2(c.x + w * 0.5, y)]),
+		PackedColorArray([clear, Color(1, 1, 1, 0.85), clear]), 2.0)
+
+
+## The titan build, bottom right, from build_label's text: a card with the
+## heading, then each slot and its part (dim while it's still the scrap one).
+func _draw_build() -> void:
+	var rows := build_label.text.split("\n", false)
+	if rows.is_empty():
+		return
+	var w := 320.0
+	var row_h := 21.0
+	var h := Style.BAR + 34.0 + (rows.size() - 1) * row_h + 4.0
+	var r := Rect2(build_label.size.x - w, build_label.size.y - h, w, h)
+	build_label.draw_style_box(_build_card, r)
+	var x := r.position.x + 16.0
+	var y := r.position.y + Style.BAR + 20.0
+	Style.text(build_label, Style.saira(700, false, 2), Vector2(x, y), rows[0], 11, Color(1, 1, 1, 0.75))
+	var f := Style.saira(500)
+	var b := Style.saira(600)
+	for i in range(1, rows.size()):
+		y += row_h
+		var parts := rows[i].split(": ", true, 1)
+		Style.text(build_label, f, Vector2(x, y), parts[0], 14)
+		if parts.size() > 1:
+			var stock := parts[1].ends_with("(scrap)")
+			Style.text(build_label, b, Vector2(x, y), parts[1], 14, Style.DIM if stock else Style.CYAN, HORIZONTAL_ALIGNMENT_RIGHT, w - 32.0)
 
 
 func _draw_reticle() -> void:
@@ -300,7 +372,7 @@ func _draw_reticle() -> void:
 				crosshair.draw_line(c + e * 0.35, c + e, col, 3.0)
 			crosshair.draw_rect(Rect2(c + Vector2(9, -3).rotated(tilt), Vector2(6, 6)), Color(0.75, 0.7, 0.55, 0.8))
 			if gun.jammed() and fmod(t, 0.3) < 0.18:
-				var font := ThemeDB.fallback_font
+				var font := Style.saira(700)
 				crosshair.draw_string(font, c + Vector2(-26, 44), "JAMMED", HORIZONTAL_ALIGNMENT_LEFT, -1, 18, Color(1.0, 0.3, 0.2))
 	# Hitmarker when a round lands on the enemy titan.
 	if gun.since_hit < 0.12:
