@@ -42,7 +42,7 @@ const TINTS := {
 	"forest": {"gunmetal": Color(0.86, 0.95, 0.82), "canvas": Color(0.92, 0.95, 0.82)},
 	"marsh": {"concrete": Color(0.82, 0.9, 0.78), "gunmetal": Color(0.8, 0.9, 0.78), "canvas": Color(0.8, 0.86, 0.68), "wood": Color(0.8, 0.82, 0.7)},
 	"boneyard": {"concrete": Color(1.02, 0.94, 0.86), "gunmetal": Color(1.08, 0.86, 0.72), "canvas": Color(1.0, 0.86, 0.7)},
-	"city": {"concrete": Color(0.8, 0.84, 0.9), "gunmetal": Color(0.86, 0.9, 1.0), "canvas": Color(0.62, 0.66, 0.76), "wood": Color(0.7, 0.66, 0.66)},
+	"city": {"concrete": Color(1.0, 0.98, 0.96), "canvas": Color(0.62, 0.66, 0.76), "wood": Color(0.86, 0.8, 0.78)},
 	"military": {"concrete": Color(0.94, 0.94, 0.88), "gunmetal": Color(0.9, 0.94, 0.84), "canvas": Color(0.9, 0.9, 0.74)},
 }
 ## Neon colours, by the suffix on a "<part>_<colour>__neon" mesh.

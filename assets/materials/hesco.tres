@@ -14,3 +14,5 @@ shader_parameter/use_top_tex = true
 shader_parameter/tex_scale = 0.3
 shader_parameter/normal_tex = ExtResource("3_n")
 shader_parameter/top_normal_tex = ExtResource("5_n")
+shader_parameter/anime_tone = Color(0.82, 0.74, 0.58, 1)
+shader_parameter/anime_tone_detail = 0.3

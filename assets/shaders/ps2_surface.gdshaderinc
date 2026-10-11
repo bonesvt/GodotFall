@@ -9,17 +9,25 @@ global uniform float ps3_look;
 // characters' toon shading. Textures are read from a blurrier mip, their own
 // light/dark variation is squashed toward their broad colour and their
 // brightness posterised into a few flat tones (hue kept); no normal maps or
-// highlights; cel light with lavender shadows and hard-edged lamp pools.
+// highlights; cel light with soft lilac shadows and hard-edged lamp pools.
+// Materials can repaint their texture in a flat palette colour (anime_tone).
 // ROUGHNESS is written as 0.5 so the screen pass (anime_post.gdshader) can
 // tell the painted set from the characters (their toon shaders write 1.0).
-// Looked out from tools/art/style_shots.gd concepts ("blend", 2026-10-04).
+// Looked out from tools/art/style_shots.gd concepts ("blend", 2026-10-04),
+// then lightened to the Strinova-style look test (2026-10-11): clean cream,
+// coral and stone kit, light warm shadows with a deeper core.
 global uniform float anime_look;
 const float ANIME_FLAT = 3.6;        // extra mip levels of blur
 const float ANIME_DETAIL = 0.2;      // share of the texture's own variation kept
 const float ANIME_POSTERIZE = 4.0;   // brightness steps
+const float ANIME_TONE_STEP = 0.2;   // a toned texture's light/dark pattern, in steps of this
+// anime_tone is the colour a sunlit face should show; sun, sky light and the
+// Anime exposure (look.gd) together come to about 1 / this.
+const float ANIME_TONE_GAIN = 0.5;
 const float ANIME_SATURATION = 0.95;
 const float ANIME_CEL_SOFT = 0.06;
-const vec4 ANIME_SHADOW = vec4(0.62, 0.55, 0.85, 0.68);  // shadow tint, strength
+const vec4 ANIME_SHADOW = vec4(0.8, 0.7, 0.86, 0.74);  // shadow tint, strength
+const vec3 ANIME_DEEP = vec3(0.84, 0.8, 0.88);  // the core of the shadow side, darker again
 const float ANIME_LAMP_ENERGY = 0.7;
 const float ANIME_LAMP_NEUTRAL = 0.5;  // lamps lean toward white
 
@@ -77,6 +85,11 @@ uniform float blend_sharpness = 6.0;
 // Anime look: how much the brightness is posterised (0 for high-contrast
 // patterns that would break into blotches, like the wallrun panels).
 uniform float anime_posterize : hint_range(0.0, 1.0) = 1.0;
+// Anime look: repaint the texture in this palette colour (A: how much), the
+// texture's own light/dark pattern kept round it by anime_tone_detail. The
+// albedo tint still applies on top.
+uniform vec4 anime_tone : source_color = vec4(1.0, 1.0, 1.0, 0.0);
+uniform float anime_tone_detail : hint_range(0.0, 1.0) = 0.3;
 // The Hush finish (armory.gd FINISHES "hush"): spirals of violet light on the
 // gun's sides (its local X faces), turning with hypno_phase (weapon.gd spins
 // it, faster the deeper Marrow's Hold). hypno_density: spirals per metre.
@@ -130,6 +143,7 @@ void fragment() {
 	vec4 tex;
 	vec3 avg = vec3(0.0);  // the texture's broad colour, for the Anime look
 	float avg_bias = 3.0;
+	float top_share = 0.0;  // how much of tex came from top_tex
 	vec4 ntex;
 	vec3 surf_n;  // in the projection's space (world or object)
 	if (use_uv) {
@@ -169,6 +183,7 @@ void fragment() {
 		}
 		if (w.y > 0.01) {
 			vec4 a = top ? texture(top_tex, uv_y, ps2_bias(top_tex)) : texture(albedo_tex, uv_y, ps2_bias(albedo_tex));
+			top_share = top ? w.y : 0.0;
 			if (anime_look > 0.0) {
 				avg += w.y * (top ? texture(top_tex, uv_y, ps2_bias(top_tex) + avg_bias).rgb : texture(albedo_tex, uv_y, ps2_bias(albedo_tex) + avg_bias).rgb);
 			}
@@ -200,11 +215,21 @@ void fragment() {
 	vec3 base = tex.rgb;
 	if (anime_look > 0.0) {
 		base = mix(avg, base, ANIME_DETAIL);
-		// Quantise brightness only (in gamma space) so the hue survives.
 		float l = max(dot(base, vec3(0.2126, 0.7152, 0.0722)), 1e-4);
-		// Never round down to black: dark textures keep their first step.
-		float lq = pow(max(floor(pow(l, 1.0 / 2.2) * ANIME_POSTERIZE + 0.5), 1.0) / ANIME_POSTERIZE, 2.2);
-		base = mix(base, base * lq / l, anime_posterize);
+		if (anime_tone.a > 0.0) {
+			// The palette colour, lighter or darker where the texture is, in a
+			// few flat steps. The smallest mip is the whole texture's average.
+			vec3 mean = mix(textureLod(albedo_tex, vec2(0.5), 16.0).rgb, textureLod(top_tex, vec2(0.5), 16.0).rgb, top_share);
+			float ratio = l / max(dot(mean, vec3(0.2126, 0.7152, 0.0722)), 1e-3);
+			ratio = mix(ratio, max(floor(ratio / ANIME_TONE_STEP + 0.5) * ANIME_TONE_STEP, ANIME_TONE_STEP), anime_posterize);
+			vec3 toned = anime_tone.rgb * ANIME_TONE_GAIN * max(mix(1.0, ratio, anime_tone_detail), 0.0);
+			base = mix(base, toned, anime_tone.a);
+		} else {
+			// Quantise brightness only (in gamma space) so the hue survives.
+			// Never round down to black: dark textures keep their first step.
+			float lq = pow(max(floor(pow(l, 1.0 / 2.2) * ANIME_POSTERIZE + 0.5), 1.0) / ANIME_POSTERIZE, 2.2);
+			base = mix(base, base * lq / l, anime_posterize);
+		}
 		float grey = dot(base, vec3(0.299, 0.587, 0.114));
 		base = max(mix(vec3(grey), base, ANIME_SATURATION), vec3(0.0));
 		base = mix(tex.rgb, base, anime_look);
@@ -259,10 +284,15 @@ void light() {
 		vec3 radiance = LIGHT_COLOR;
 		vec3 lit;
 		if (LIGHT_IS_DIRECTIONAL) {
-			float shade = min(ndl, ATTENUATION * 2.0 - 0.5);
+			// Cast shadows go fully dark even where the level softens them
+			// (shadow_opacity 0.75 leaves ATTENUATION at 0.25).
+			float shade = min(ndl, ATTENUATION * 2.0 - 0.6);
 			float cel = smoothstep(-ANIME_CEL_SOFT, ANIME_CEL_SOFT, shade);
-			// The shadow side keeps a tinted share of the sun: coloured shadows.
-			lit = mix(ANIME_SHADOW.rgb * ANIME_SHADOW.a, vec3(1.0), cel);
+			// The shadow side keeps a tinted share of the sun: coloured shadows,
+			// a step darker where the surface turns right away from it.
+			vec3 dark = ANIME_SHADOW.rgb * ANIME_SHADOW.a;
+			dark *= mix(ANIME_DEEP, vec3(1.0), smoothstep(-0.5 - ANIME_CEL_SOFT, -0.5 + ANIME_CEL_SOFT, ndl));
+			lit = mix(dark, vec3(1.0), cel);
 		} else {
 			// Lamps: a pool with a clean painted edge.
 			lit = vec3(smoothstep(0.0, 0.1, ndl) * smoothstep(0.12, 0.17, ATTENUATION) * ANIME_LAMP_ENERGY);

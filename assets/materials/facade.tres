@@ -17,3 +17,5 @@ shader_parameter/top_normal_tex = ExtResource("5_n")
 shader_parameter/rim = 0.3
 shader_parameter/gloss = 0.25
 shader_parameter/metallic = 0.3
+shader_parameter/anime_tone = Color(0.97, 0.92, 0.84, 1)
+shader_parameter/anime_tone_detail = 0.25

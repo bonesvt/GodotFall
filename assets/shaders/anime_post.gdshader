@@ -6,7 +6,9 @@
 //   3. grade: late-90s cel anime finish: warm highlights / cool shadows,
 //      halation round bright lights, vignette and film grain (Settings > Video).
 // The set writes ROUGHNESS 0.5 (ps2_surface.gdshaderinc), characters 1.0.
-// Tuned from the "blend" concept (tools/art/style_shots.gd, concept_post).
+// Tuned from the "blend" concept (tools/art/style_shots.gd, concept_post),
+// then cleaned up to the Strinova-style look test (2026-10-11): warm brown
+// ink, a gentler and less blue grade, lifted blacks.
 shader_type spatial;
 render_mode unshaded, depth_draw_never, depth_test_disabled, cull_disabled, fog_disabled, shadows_disabled;
 
@@ -16,26 +18,26 @@ uniform sampler2D nr_tex : hint_normal_roughness_texture, filter_nearest;
 
 // Kuwahara radius in pixels (0 = off).
 uniform int paint_radius = 4;
-uniform vec4 ink : source_color = vec4(0.14, 0.1, 0.13, 1.0);
+uniform vec4 ink : source_color = vec4(0.3, 0.2, 0.19, 1.0);
 uniform float ink_width = 1.7;
 // Depth break (relative) and normal break that make a line.
 uniform float depth_edge = 0.065;
 uniform float normal_edge = 0.35;
 // Lines fade out past this distance (metres).
 uniform float ink_far = 38.0;
-uniform float saturation = 0.92;
-uniform float contrast = 1.08;
-uniform vec3 shadow_tone : source_color = vec3(0.42, 0.46, 0.62);
-uniform vec3 highlight_tone : source_color = vec3(0.62, 0.52, 0.40);
+uniform float saturation = 1.0;
+uniform float contrast = 1.04;
+uniform vec3 shadow_tone : source_color = vec3(0.52, 0.47, 0.56);
+uniform vec3 highlight_tone : source_color = vec3(0.56, 0.52, 0.47);
 uniform float split = 0.32;
-uniform float black_lift = 0.09;
+uniform float black_lift = 0.12;
 uniform float halation = 0.35;
 uniform vec3 halation_color : source_color = vec3(1.0, 0.45, 0.25);
-uniform float vignette = 0.25;
+uniform float vignette = 0.18;
 uniform float grain = 0.025;
 uniform float grain_size = 1.4;
 // Paper/gouache texture showing through the set.
-uniform float paper = 0.06;
+uniform float paper = 0.04;
 
 void vertex() {
 	POSITION = vec4(VERTEX.xy, 1.0, 1.0);
@@ -142,7 +144,7 @@ void fragment() {
 	col = col * (1.0 - black_lift) + black_lift * shadow_tone;
 	if (halation > 0.0) {
 		vec3 glow = textureLod(screen_tex, uv, 4.0).rgb;
-		float g = max(dot(glow, vec3(0.333)) - 0.6, 0.0);
+		float g = max(dot(glow, vec3(0.333)) - 0.85, 0.0);
 		col += halation_color * g * halation;
 	}
 	vec2 c = uv - 0.5;

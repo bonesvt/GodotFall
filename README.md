@@ -651,12 +651,17 @@ late-90s anime finish. **F9** cycles Anime, PS3 and PS2 to compare.
 - **Anime look** (default): the PS3 look's lighting and haze, but `ps2_surface` (the
   `anime_look` shader global) reads textures from a blurrier mip, squashes their grain
   toward their broad colour and posterises brightness into a few flat tones; no normal
-  maps or highlights; cel lighting with lavender shadows and hard-edged lamp pools.
+  maps or highlights; cel lighting with light lilac shadows (a step darker on faces turned
+  right away from the sun) and hard-edged lamp pools. The city and town kit is repainted in
+  a clean palette (`anime_tone` on the material: cream plaster facades, warm stone
+  concrete and paving, coral-red painted steel, sky-blue glass, orange corrugated sheet),
+  keeping a little of each texture's pattern (`anime_tone_detail`).
   `assets/shaders/anime_post.gdshader` (a full-screen quad the PS2 autoload keeps on the
   current camera) paints the set with a Kuwahara filter (characters stay crisp: the set
-  writes roughness 0.5, the toon characters 1.0), draws ink lines from depth and normal
-  breaks, and grades it: warm highlights, cool shadows, halation, vignette, film grain
-  (Settings > Video > Film grain). Concepts: `tools/art/style_shots.gd`.
+  writes roughness 0.5, the toon characters 1.0), draws warm brown ink lines from depth
+  and normal breaks, and grades it: lifted blacks, gentle warm highlights and lilac
+  shadows, halation round bright lights, vignette, film grain (Settings > Video > Film
+  grain). Concepts: `tools/art/style_shots.gd`.
 - **PS3 look** (default): full resolution with 4x MSAA and 16x anisotropic filtering;
   normal-mapped textures with roughness and bare-metal masks; GGX highlights and sky
   reflections; sky-tinted ambient light with SSAO; soft 4-split sun shadows (4096 px);

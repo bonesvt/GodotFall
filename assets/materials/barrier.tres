@@ -11,3 +11,5 @@ shader_parameter/tex_scale = 0.83
 shader_parameter/world_space = false
 shader_parameter/tex_offset = Vector3(0, -0.6, 0)
 shader_parameter/normal_tex = ExtResource("3_n")
+shader_parameter/anime_tone = Color(0.95, 0.9, 0.82, 1)
+shader_parameter/anime_tone_detail = 0.3
