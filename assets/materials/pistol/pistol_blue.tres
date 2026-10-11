@@ -12,3 +12,4 @@ shader_parameter/world_space = false
 shader_parameter/albedo = Color(0.42, 0.58, 0.8, 1)
 shader_parameter/tex_scale = 1.0
 shader_parameter/normal_tex = ExtResource("3_n")
+shader_parameter/anime_finish = true
