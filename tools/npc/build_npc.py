@@ -27,6 +27,7 @@ glb's material names (npc_<who>_*) are swapped for toon materials on import
 by assets/models/npc/npc_import.gd. --concept renders cel-shaded concept
 pictures in Eevee instead of (or as well as) exporting.
 """
+import json
 import math
 import os
 import sys
@@ -451,6 +452,11 @@ def body_ophelia():
 def body_pip():
     """Eco's figure on a taller frame, a little fuller in the bust and hips,
     the waist cinched in by her waistcoat."""
+    # PIP_FIGURE='{"bust": 1.3, "glute": 2}': scales each part, for trying
+    # proportions out in --concept renders
+    k = {"bust": 1.0, "glute": 1.0, "hip": 1.0, "thigh": 1.0, "waist": 1.0}
+    k.update(json.loads(os.environ.get("PIP_FIGURE", "{}")))
+
     def amount(P, N):
         x, y, z = P[:, 0], P[:, 1], P[:, 2]
         ax = np.abs(x)
@@ -460,7 +466,7 @@ def body_pip():
         thigh = 0.012 * ss(0.4, 0.55, z) * ss(0.8, 0.68, z) * (0.35 + 0.65 * ss(-0.5, 0.5, out))
         bust = 0.022 * gauss(P, 0.062, -0.105, 1.04, 0.05, 0.055, 0.055) * ss(-0.03, -0.07, y)
         waist = -0.006 * np.exp(-((z - 0.9) / 0.05) ** 2) * np.clip(out, 0, 1) * (ax < 0.2)
-        return glute + hip + thigh + bust + waist
+        return k["glute"] * glute + k["hip"] * hip + k["thigh"] * thigh + k["bust"] * bust + k["waist"] * waist
     print("pip body: up to %.1f mm" % (push(bpy.data.objects["Body"], amount, passes=7) * 1000))
 
 
@@ -2469,8 +2475,9 @@ def concept(arm, objs):
             ("front", Vector((0, 1, 0.05)), Vector((0, 0, H * 0.52)), 50, (800, 1300)),
             ("q34", Vector((-0.55, 0.85, 0.07)), Vector((0, 0, H * 0.52)), 50, (800, 1300)),
             ("back", Vector((0.35, -0.94, 0.06)), Vector((0, 0, H * 0.52)), 50, (800, 1300)),
+            ("side", Vector((1, 0, 0.05)), Vector((0, 0, H * 0.52)), 50, (800, 1300)),
             ("face", Vector((-0.25, 1, -0.12 if WHO == "ophelia" else 0.02)), head + head_up * (0.085 * H / 1.66), 85, (1000, 1000))):
-        if not SHOTS or name in SHOTS:
+        if name in SHOTS or (not SHOTS and name != "side"):   # "side" only when asked for
             shots.append((name, d, at, lens, res))
 
     def shoot(name, d, at, lens, res, prefix):
