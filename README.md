@@ -690,6 +690,16 @@ late-90s anime finish. **F9** cycles Anime, PS3 and PS2 to compare.
   from the chassis and weapon you salvaged. Plus the red enemy titan, salvage cache and
   extract beacon. They are plain scenes made of primitive meshes, so you can edit them
   in the editor or swap in Blender models later. `tools/bake_models.gd` regenerates them (run it without `--headless`).
+- **Character look** (Eco and the hub people, `assets/shaders/eco_toon.gdshaderinc`): three
+  tones (lit, shade, and a deeper one turned away from the light), a warm band where the light
+  turns to shade on bare skin, and sun shadows that fall as the shade tone. On the hub people
+  (`scripts/hub/npc_look.gd`) the outlines take the colour of the surface under them, their
+  clothes shade cooler than their skin (`body_mask*.png` from `tools/npc/build_npc_masks.py`),
+  and their hair gets a sheen ring and lighter tips. Ophelia's tee, jeans and arm warmers are
+  real cloth: `tools/npc/build_npc_cloth.py` (Blender) cuts them out of her body along their
+  paint, hangs and folds them and writes `assets/models/npc/ophelia_cloth.glb`, which
+  `hub_npc.gd` puts on her skeleton in the outfit they were painted for. Close-ups:
+  `xvfb-run -a godot --path . -s res://tools/npc/look_shots.gd -- <dir> [who,...] [outfit]`.
 
 From a fresh clone, import once before running the headless tests (opening the
 project in the editor also does this): `godot --headless --import`
