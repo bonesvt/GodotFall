@@ -18,3 +18,5 @@ shader_parameter/rim = 0.4
 shader_parameter/gloss = 0.6
 shader_parameter/gloss_sharpness = 0.8
 shader_parameter/specular = 0.8
+shader_parameter/anime_tone = Color(0.6, 0.8, 0.98, 1)
+shader_parameter/anime_tone_detail = 0.3
