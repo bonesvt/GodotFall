@@ -452,9 +452,11 @@ def body_ophelia():
 def body_pip():
     """Eco's figure on a taller frame, a little fuller in the bust and hips,
     the waist cinched in by her waistcoat."""
-    # PIP_FIGURE='{"bust": 1.3, "glute": 2}': scales each part, for trying
-    # proportions out in --concept renders
-    k = {"bust": 1.0, "glute": 1.0, "hip": 1.0, "thigh": 1.0, "waist": 1.0, "leg": 0.0, "calf": 0.0}
+    # PIP_FIGURE='{"bust": 1.3, "glute": 2}': sets each part's scale, for
+    # trying proportions out in --concept renders
+    # her figure: option B++ of the 2026-10-11 renders (Bones): much heavier
+    # hips and seat, full legs down to the calf, a fuller chest
+    k = {"bust": 2.2, "glute": 2.1, "hip": 2.2, "thigh": 2.6, "waist": 1.4, "leg": 1.5, "calf": 1.4}
     k.update(json.loads(os.environ.get("PIP_FIGURE", "{}")))
 
     def amount(P, N):
