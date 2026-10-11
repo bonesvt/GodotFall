@@ -75,7 +75,7 @@ SPEC = {
                    (0.86, (0.30, 0.06, 0.55)), (1.0, (0.55, 0.25, 0.85))],
     },
     "orderly": {   # the colony's orderlies (npc_outfits.py main_orderly()): only a suit shows
-        "height": 1.8, "head": 0.95, "legs": 1.04, "face": {},
+        "height": 1.72, "head": 0.96, "legs": 1.04, "face": {},
         "hair": [(0.3, (0.02, 0.02, 0.02)), (1.0, (0.2, 0.2, 0.2))],
     },
     "biggie": {

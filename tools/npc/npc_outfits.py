@@ -155,26 +155,6 @@ def fit(bm, gap, smooth=10, hold=0.75, clear=0.004):
     reskin(bm)
 
 
-def relax(bm, pick, passes=60):
-    """Smooths only the points whose rest positions pick(R) chooses, the rest
-    held still: irons out what fit() keeps (the preset's nipples)."""
-    bm.verts.ensure_lookup_table()
-    R, _ = _rest_of(bm)
-    move = pick(R)
-    X = np.array([v.co[:] for v in bm.verts])
-    edges = np.array([(e.verts[0].index, e.verts[1].index) for e in bm.edges])
-    for _ in range(passes):
-        acc = np.zeros_like(X)
-        cnt = np.zeros(len(X))
-        np.add.at(acc, edges[:, 0], X[edges[:, 1]])
-        np.add.at(acc, edges[:, 1], X[edges[:, 0]])
-        np.add.at(cnt, edges[:, 0], 1)
-        np.add.at(cnt, edges[:, 1], 1)
-        X[move] = 0.5 * X[move] + 0.5 * (acc / np.maximum(cnt, 1)[:, None])[move]
-    for v, p in zip(bm.verts, X):
-        v.co = p
-
-
 def extend(ob, bm, pick, step, rings=1, scale=1.0, bone=None):
     """Runs the open edge whose ends all pass pick(rest point) on past where her
     skin ends: `rings` more rings, each moved by `step` and widened by `scale`
@@ -648,16 +628,16 @@ def bake_outfits(made):
 # --- the colony orderlies ------------------------------------------------------------------
 
 def body_orderly():
-    """Lean and square: no bust, narrower hips, a little more shoulder."""
+    """The preset, slimmer: a little off the hips, seat and thighs, and the
+    nipples smoothed away so the suit doesn't show them."""
     def amount(P, N):
         z = P[:, 2]
         out = N[:, 0] * np.sign(P[:, 0])
-        bust = -0.05 * gauss(P, 0.06, -0.11, 1.03, 0.07, 0.07, 0.07) * ss(-0.02, -0.06, P[:, 1])
-        hips = -0.02 * np.exp(-((z - 0.74) / 0.1) ** 2) * np.clip(out, 0, 1)
-        glute = -0.012 * np.exp(-((np.abs(P[:, 0]) - 0.064) / 0.06) ** 2 - ((z - 0.755) / 0.08) ** 2) * ss(-0.02, 0.04, P[:, 1])
-        shoulder = 0.008 * np.exp(-((np.abs(P[:, 0]) - 0.12) / 0.05) ** 2 - ((z - 1.15) / 0.06) ** 2)
-        nip = -0.01 * gauss(P, 0.056, -0.12, 1.049, 0.015, 0.03, 0.015)
-        return bust + hips + glute + shoulder + nip
+        hips = -0.012 * np.exp(-((z - 0.76) / 0.1) ** 2) * np.clip(out, 0, 1)
+        glute = -0.008 * np.exp(-((np.abs(P[:, 0]) - 0.064) / 0.06) ** 2 - ((z - 0.755) / 0.08) ** 2) * ss(-0.02, 0.04, P[:, 1])
+        thigh = -0.006 * np.exp(-((z - 0.6) / 0.1) ** 2) * ss(0.02, 0.05, np.abs(P[:, 0]))
+        nip = -0.006 * gauss(P, 0.056, -0.12, 1.049, 0.015, 0.03, 0.015)
+        return hips + glute + thigh + nip
     print("orderly body: up to %.1f mm" % (push(bpy.data.objects["Body"], amount, passes=8) * 1000))
 
 
@@ -666,9 +646,8 @@ def orderly_suit(arm):
     covers, and a faceless helmet with a black visor over its head."""
     part = "suit"
     ob, bm = shell("Suit", lambda R: np.ones(len(R), bool), part)
-    # loose: most of all over the chest and seat, where it hangs straight
-    fit(bm, lambda R, N: 0.011 + 0.02 * ss(0.62, 0.8, R[:, 2]) * ss(1.2, 1.1, R[:, 2]) * ss(0.2, 0.12, np.abs(R[:, 0])), smooth=36, hold=0.5)
-    relax(bm, lambda R: (np.abs(R[:, 0]) < 0.13) & (np.abs(R[:, 2] - 1.04) < 0.08) & (R[:, 1] < -0.03))
+    # a little loose, more round the seat and middle where it hangs off her
+    fit(bm, lambda R, N: 0.008 + 0.006 * ss(0.62, 0.78, R[:, 2]) * ss(0.98, 0.9, R[:, 2]), smooth=16, hold=0.7)
     finish(ob, bm, 0.003)
     belt = tube("Belt", part, 0.82, 0.785, gap=0.026, rows=3)
     tag(ob, 0)
