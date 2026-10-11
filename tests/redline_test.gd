@@ -10,7 +10,6 @@ extends SceneTree
 const Vices := preload("res://scripts/hub/vices.gd")
 const Redline := preload("res://scripts/hub/redline.gd")
 const RedlineBody := preload("res://scripts/hub/redline_body.gd")
-const ContentRating := preload("res://scripts/radio/content_rating.gd")
 
 var run_node: Node
 var player: CharacterBody3D
@@ -19,7 +18,6 @@ var failures := 0
 
 func _initialize() -> void:
 	preload("res://scripts/run/tutorial.gd").settings_path = "user://test_settings.cfg"
-	ContentRating.set_rating("M", false)
 	run_node = load("res://scenes/run.tscn").instantiate()
 	run_node.run_seed = 7
 	run_node.armory_path = "user://test_redline_armory.cfg"
@@ -134,10 +132,6 @@ func _run() -> void:
 	_check("old changes become her mods", Redline.mods == ["wiring", "core"], Redline.mods)
 	Redline.open(run_node.armory_path.get_basename() + "_redline.cfg")
 
-	# Teen: none of it
-	ContentRating.set_rating("T", false)
-	_check("teen: no Redline", not Redline.allowed() and not Redline.has("wiring") and Redline.speed_scale() == 1.0, "")
-	ContentRating.set_rating("M", false)
 	Redline.reset()
 	Redline.save()
 	print("redline_test: %s (%d failures)" % ["PASS" if failures == 0 else "FAIL", failures])

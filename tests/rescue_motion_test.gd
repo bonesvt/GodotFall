@@ -14,7 +14,6 @@ const Redline := preload("res://scripts/hub/redline.gd")
 const Rescue := preload("res://scripts/hub/rescue.gd")
 const HubGrip := preload("res://scripts/hub/hub_grip.gd")
 const ViceLooks := preload("res://scripts/hub/vice_looks.gd")
-const ContentRating := preload("res://scripts/radio/content_rating.gd")
 
 ## The fastest the view may move (m/s) or turn (degrees/s) where it's seen,
 ## and the hardest it may speed up or slow down (m/s each second): a frame's
@@ -34,7 +33,6 @@ var worst := {}
 
 func _initialize() -> void:
 	preload("res://scripts/run/tutorial.gd").settings_path = "user://test_settings.cfg"
-	ContentRating.set_rating("M", false)
 	run_node = load("res://scenes/run.tscn").instantiate()
 	run_node.run_seed = 7
 	run_node.armory_path = "user://test_rescue_motion_armory.cfg"

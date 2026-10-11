@@ -576,7 +576,7 @@ func enter_hub() -> void:
 	if hub_npcs.has("ophelia"):
 		NpcIdles.build_window(zone_root)
 	_grip_scene.call_deferred()  # someone she loves has gone further under (hub_grip.gd)
-	_cutter_at = randf_range(CUTTER_DELAY.x, CUTTER_DELAY.y) if Redline.allowed() and runs_ended >= CUTTER_FROM and randf() < CUTTER_CHANCE else -1.0
+	_cutter_at = randf_range(CUTTER_DELAY.x, CUTTER_DELAY.y) if runs_ended >= CUTTER_FROM and randf() < CUTTER_CHANCE else -1.0
 	Wardrobe.dress_eco(player, true)
 	phase = Phase.HUB
 	dress_hub()
@@ -705,7 +705,7 @@ func _scene_busy(with_pull := true) -> bool:
 ## Cutter's due this stay: once she's been roaming town long enough he comes,
 ## from whichever of his haunts is far enough away to give her a head start.
 func _tick_cutter(delta: float, roaming: bool) -> void:
-	if _cutter_at < 0.0 or not roaming or not Redline.allowed() or not get_tree().get_nodes_in_group("cutter").is_empty():
+	if _cutter_at < 0.0 or not roaming or not get_tree().get_nodes_in_group("cutter").is_empty():
 		return
 	if player.global_position.z < 120.0:  # not in the temple: he works the town
 		return
@@ -716,7 +716,7 @@ func _tick_cutter(delta: float, roaming: bool) -> void:
 
 
 func spawn_cutter() -> void:
-	if not Redline.allowed() or phase != Phase.HUB or not get_tree().get_nodes_in_group("cutter").is_empty():
+	if phase != Phase.HUB or not get_tree().get_nodes_in_group("cutter").is_empty():
 		return
 	var best := Vector3.INF
 	for at in [HushDen.ALLEY + Vector3(2.0, 0.1, 0), HushDen.CELLAR + Vector3(-2.0, 0.1, 0), Vector3(0.0, 0.1, 150.0), Vector3(0.0, 0.1, 230.0)]:
@@ -748,8 +748,6 @@ func _rig_sit(on: bool) -> void:
 
 ## The cheat box's Redline: Cutter, right in front of her, and the needle.
 func cutter_now() -> void:
-	if not Redline.allowed():
-		return
 	var fwd := -player.global_basis.z
 	fwd.y = 0.0
 	var c := Cutter.create(self, player.global_position + fwd.normalized() * 0.8)
@@ -760,7 +758,7 @@ func cutter_now() -> void:
 ## The cheat box's B: Mom or Ophelia already one of a captor's (three visits
 ## in), walking off to them from just ahead of Eco.
 func drawn_now() -> void:
-	if not HubRescue.allowed() or rescue_event.step != RescueEvent.Step.IDLE:
+	if rescue_event.step != RescueEvent.Step.IDLE:
 		return
 	var people: Array = HubRescue.WHO.filter(func(w): return hub_npcs.has(w))
 	if people.is_empty():
@@ -774,7 +772,7 @@ func drawn_now() -> void:
 ## The cheat box's rescue: someone taken right now, by whichever captor's
 ## started on her (any of them, if none has yet).
 func rescue_now() -> void:
-	if not HubRescue.allowed() or rescue_event.step != RescueEvent.Step.IDLE:
+	if rescue_event.step != RescueEvent.Step.IDLE:
 		return
 	var people: Array = HubRescue.WHO.filter(func(w): return hub_npcs.has(w))
 	if people.is_empty():
@@ -1036,7 +1034,7 @@ func _hub_tick(delta: float) -> void:
 	if spot["id"] == "marrow" and Glass.can_confront():
 		chorus_scene.play()
 		return
-	var vice_shop: bool = spot.get("shop", "") in ["bar", "stims", "hush", "dispensary", "gear_off", "gear_off_doc", "rig"] and Vices.allowed()
+	var vice_shop: bool = spot.get("shop", "") in ["bar", "stims", "hush", "dispensary", "gear_off", "gear_off_doc", "rig"]
 	if spot.has("date") and (not vice_shop or date_ready(spot)) and date_at(spot):
 		return
 	if spot.has("screen"):
@@ -1197,7 +1195,7 @@ func talk_to(who: String) -> void:
 	var quiet := rescue_event.quiet_line(who)  # Marrow had them too long (rescue.gd)
 	if quiet != "":
 		hud.toast(quiet, 3.5)
-	if who in HubGrip.WHO and HubGrip.allowed() and hub_npcs.has(who):
+	if who in HubGrip.WHO and hub_npcs.has(who):
 		if HubGrip.deaf_now(who):  # the headphones: she doesn't hear Eco, the first time
 			hud.toast(DEAF % [HubGrip.NAMES[who], HubGrip.NAMES[who]], HUB_LINE_SECONDS)
 			return
@@ -2197,7 +2195,7 @@ func end_run(title: String, reason: String) -> void:
 ## B lights a smoke, N jabs a stim: on foot, in the hub or on a run, with
 ## nothing else open.
 func _vice_keys() -> void:
-	if not Vices.allowed() or bench != null or garage != null or hub_piloting or npc_talk.active() or hush_pull.busy() \
+	if bench != null or garage != null or hub_piloting or npc_talk.active() or hush_pull.busy() \
 			or super_hush_scene.busy() or cheat_scene.busy() or chorus_scene.busy() or fitting_scene.busy() or dose_scene.busy() or cutter_scene.busy() or rescue_event.busy() or tether.busy() or trial_intro.busy():
 		return
 	if not (phase == Phase.HUB or in_run()) or (titan != null and titan.piloted):

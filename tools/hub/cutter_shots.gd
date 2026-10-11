@@ -10,7 +10,6 @@ extends SceneTree
 const Vices := preload("res://scripts/hub/vices.gd")
 const Redline := preload("res://scripts/hub/redline.gd")
 const CutterModel := preload("res://scripts/hub/cutter_model.gd")
-const ContentRating := preload("res://scripts/radio/content_rating.gd")
 const CELL := Vector2i(640, 360)
 
 var out := "user://cutter_shots"
@@ -22,7 +21,6 @@ func _initialize() -> void:
 		out = a
 	DirAccess.make_dir_recursive_absolute(out)
 	preload("res://scripts/run/tutorial.gd").settings_path = "user://shots_settings.cfg"
-	ContentRating.set_rating("M", false)
 	run_node = load("res://scenes/run.tscn").instantiate()
 	run_node.armory_path = "user://shots_cutter_armory.cfg"
 	root.add_child(run_node)

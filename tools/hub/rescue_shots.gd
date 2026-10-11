@@ -20,7 +20,6 @@ const Rescue := preload("res://scripts/hub/rescue.gd")
 const RescueSites := preload("res://scripts/hub/rescue_sites.gd")
 const HubGrip := preload("res://scripts/hub/hub_grip.gd")
 const ViceLooks := preload("res://scripts/hub/vice_looks.gd")
-const ContentRating := preload("res://scripts/radio/content_rating.gd")
 const CELL := Vector2i(640, 360)
 const ARMORY := "user://shots_rescue_armory.cfg"
 
@@ -35,7 +34,6 @@ func _initialize() -> void:
 		out = a
 	DirAccess.make_dir_recursive_absolute(out)
 	preload("res://scripts/run/tutorial.gd").settings_path = "user://shots_settings.cfg"
-	ContentRating.set_rating("M", false)
 	# Ophelia's been rescued, so she's home too
 	var cfg := ConfigFile.new()
 	cfg.set_value("progress", "cleared", ["tutorial", "level2"])

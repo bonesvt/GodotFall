@@ -6,7 +6,6 @@ extends SceneTree
 
 const Hymn := preload("res://scripts/hub/hymn.gd")
 const HubGrip := preload("res://scripts/hub/hub_grip.gd")
-const ContentRating := preload("res://scripts/radio/content_rating.gd")
 
 var run_node: Node
 var piece := "cuff"
@@ -22,7 +21,6 @@ func _initialize() -> void:
 		with = args[1]
 		with_piece = args[2]
 	preload("res://scripts/run/tutorial.gd").settings_path = "user://movie_settings.cfg"
-	ContentRating.set_rating("M", false)
 	run_node = load("res://scenes/run.tscn").instantiate()
 	run_node.armory_path = "user://movie_fitting_armory.cfg"
 	run_node.npc_path = "user://movie_fitting_npc.cfg"

@@ -70,25 +70,19 @@ static var lost := 0
 static var save_path := "user://rescue.cfg"
 
 
-static func allowed() -> bool:
-	return Vices.allowed()
-
-
 static func path_for(vices_path: String) -> String:
 	return vices_path.get_basename().trim_suffix("_vices") + "_rescue.cfg"
 
 
 ## Whether a captor has started on Eco (and so can reach for her people).
 static func active(captor: String) -> bool:
-	if not allowed():
-		return false
 	match captor:
 		"marrow":
 			return not Glass.broken and (Vices.hold > 0.0 or Vices.wakes > 0)
 		"colony":
-			return Hymn.allowed() and (Hymn.level > 0.0 or not Hymn.gear.is_empty() or Hymn.hunted)
+			return (Hymn.level > 0.0 or not Hymn.gear.is_empty() or Hymn.hunted)
 		"cutter":
-			return Redline.allowed() and Redline.catches > 0
+			return Redline.catches > 0
 	return false
 
 
@@ -98,9 +92,8 @@ static func active_captors() -> Array:
 
 ## Seconds she has to get there.
 static func time() -> float:
-	var t := TIME - HYMN_CUT * clampf(Hymn.level / Hymn.MAX, 0.0, 1.0) if Hymn.allowed() else TIME
-	if Redline.allowed():
-		t -= REDLINE_CUT * Redline.mods.size()
+	var t := TIME - HYMN_CUT * clampf(Hymn.level / Hymn.MAX, 0.0, 1.0)
+	t -= REDLINE_CUT * Redline.mods.size()
 	return maxf(t, MIN_TIME)
 
 
@@ -112,7 +105,7 @@ static func hook(who: String, captor: String) -> float:
 
 
 static func shows(who: String, captor: String) -> bool:
-	return allowed() and captor != "colony" and hook(who, captor) >= SHOWS_AT
+	return captor != "colony" and hook(who, captor) >= SHOWS_AT
 
 
 static func _hook_add(who: String, captor: String, by: float) -> void:
@@ -189,8 +182,6 @@ static func run_over() -> void:
 ## The captor whose hold on `who` shows, of those who've had her ("" for none):
 ## the newest. The colony's shows once their Hub Grip is past SHOWS_AT too.
 static func held_by(who: String) -> String:
-	if not allowed():
-		return ""
 	var mine: Array = lost_to.get(who, [])
 	for i in range(mine.size() - 1, -1, -1):
 		var c: String = mine[i]
@@ -211,8 +202,6 @@ static func visited(who: String, captor: String) -> int:
 ## The captor she dresses and talks like now ("" for none): one she's walked
 ## to VISITS times whose hold on her hasn't faded to 0 (then it starts over).
 static func changed_by(who: String) -> String:
-	if not allowed():
-		return ""
 	var mine: Dictionary = visits.get(who, {})
 	var out := ""
 	for c: String in mine.keys():

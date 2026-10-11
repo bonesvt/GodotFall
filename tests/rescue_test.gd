@@ -15,7 +15,6 @@ const HubGrip := preload("res://scripts/hub/hub_grip.gd")
 const ViceLooks := preload("res://scripts/hub/vice_looks.gd")
 const Family := preload("res://scripts/hub/family.gd")
 const HushDen := preload("res://scripts/hub/hush_den.gd")
-const ContentRating := preload("res://scripts/radio/content_rating.gd")
 
 var run_node: Node
 var player: CharacterBody3D
@@ -25,7 +24,6 @@ var failures := 0
 
 func _initialize() -> void:
 	preload("res://scripts/run/tutorial.gd").settings_path = "user://test_settings.cfg"
-	ContentRating.set_rating("M", false)
 	run_node = load("res://scenes/run.tscn").instantiate()
 	run_node.run_seed = 7
 	run_node.armory_path = "user://test_rescue_armory.cfg"
@@ -175,10 +173,6 @@ func _run() -> void:
 	Rescue.run_over()
 	_check("a run fades it", is_equal_approx(Rescue.hook("mom", "cutter"), 20.0 - Rescue.FADE), Rescue.hook("mom", "cutter"))
 
-	# Teen: none of it
-	ContentRating.set_rating("T", false)
-	_check("teen: no rescues", not ev.start("mom", "marrow") and Rescue.active_captors().is_empty(), "")
-	ContentRating.set_rating("M", false)
 	Vices.reset()
 	Hymn.reset()
 	Redline.reset()

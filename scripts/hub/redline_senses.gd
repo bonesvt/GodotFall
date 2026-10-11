@@ -50,7 +50,7 @@ func _player() -> Node3D:
 
 func _process(delta: float) -> void:
 	var p := _player()
-	if p == null or not Redline.allowed() or get_tree().paused:
+	if p == null or get_tree().paused:
 		_pings.clear()
 		_draw_on.queue_redraw()
 		return

@@ -224,9 +224,6 @@ func super_hush() -> bool:
 
 ## Cutter's Redline: the box closes, he's right there, and the needle.
 func redline_item() -> bool:
-	if not Vices.allowed():
-		_did("Redline is Mature only (Settings > Game > rating).")
-		return false
 	scene = "redline"
 	close_now = true
 	_did("Cutter's Redline: watch.")
@@ -257,9 +254,6 @@ func unlock_looks() -> void:
 ## (cheat_scene.gd), which sets its system to full at the end. Mature only.
 ## Someone taken, now: Biggie runs in when the box shuts (rescue_event.gd).
 func rescue_item() -> bool:
-	if not Vices.allowed():
-		_did("Rescues are Mature only (Settings > Game > rating).")
-		return false
 	scene = "rescue"
 	close_now = true
 	_did("A rescue: run.")
@@ -269,9 +263,6 @@ func rescue_item() -> bool:
 ## Mom or Ophelia already one of a captor's, walking off to them now, just
 ## ahead of Eco (rescue_event.gd walk_off_now()).
 func drawn_item() -> bool:
-	if not Vices.allowed():
-		_did("Rescues are Mature only (Settings > Game > rating).")
-		return false
 	scene = "drawn"
 	close_now = true
 	_did("She's theirs, and off to them: stop her.")
@@ -280,9 +271,6 @@ func drawn_item() -> bool:
 
 ## Five Redline charges for the Rig.
 func redline_charges() -> bool:
-	if not Vices.allowed():
-		_did("Redline is Mature only (Settings > Game > rating).")
-		return false
 	var Redline := preload("res://scripts/hub/redline.gd")
 	Redline.charges += 5
 	Redline.save()
