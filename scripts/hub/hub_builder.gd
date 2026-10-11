@@ -49,8 +49,8 @@ const STAIRS_FROM := Vector3(-HALF + 0.9, F, 6.6)
 const STAIRS_TO := Vector3(-HALF + 0.9, F + GALLERY_H, -0.6)
 const STAIRS_W := 1.8
 
-const SKY_TOP := Color(0.28, 0.5, 0.72)
-const SKY_HORIZON := Color(0.78, 0.84, 0.86)
+const SKY_TOP := Color(0.3, 0.56, 0.88)
+const SKY_HORIZON := Color(0.88, 0.9, 0.9)
 const EYE := Color(0.35, 1.0, 0.85)
 const FIRE := Color(1.0, 0.55, 0.18)
 const LAMP := Color(1.0, 0.78, 0.45)
@@ -78,7 +78,7 @@ static func build(root: Node3D) -> Dictionary:
 		if node is WorldEnvironment:
 			node.environment.ambient_light_energy = 0.4 if home_style == "timber" else 0.3
 			node.environment.fog_density = 0.0028
-			node.environment.fog_light_color = Color(0.7, 0.8, 0.84)
+			node.environment.fog_light_color = Color(0.84, 0.88, 0.9)
 			node.environment.fog_aerial_perspective = 0.35
 			node.environment.adjustment_saturation = 1.1
 		elif node is DirectionalLight3D:

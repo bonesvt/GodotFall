@@ -10,3 +10,5 @@ shader_parameter/albedo_tex = ExtResource("2_tex")
 shader_parameter/tex_scale = 0.5
 shader_parameter/rim = 0.15
 shader_parameter/normal_tex = ExtResource("3_n")
+shader_parameter/anime_tone = Color(0.86, 0.62, 0.38, 1)
+shader_parameter/anime_tone_detail = 0.35

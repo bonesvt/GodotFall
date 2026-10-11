@@ -18,7 +18,7 @@ extends RefCounted
 ##   city: the high tech city's streets. Paved ground, asphalt roads, glass
 ##     towers and shopfronts, holo-ad walls and security walls to wallrun,
 ##     drone pylons and monorail pillars to grapple, planters and streetlights
-##     for trees, neon everywhere, rain and machine hum.
+##     for trees, neon everywhere and machine hum under a bright hazy sky.
 ##   military: the colony's bases and outposts. Packed earth, tarmac roads,
 ##     hangars, barracks and command posts, HESCO and T-wall rows to wallrun,
 ##     comms and guard towers to grapple, APCs and AA guns, scrub pines.
@@ -46,9 +46,11 @@ static func environment(root: Node3D, biome: String) -> void:
 			L.environment(root, Color(0.34, 0.31, 0.33), Color(0.8, 0.62, 0.48), 0.0065, Color(1.0, 0.7, 0.45), 1.15, -20.0)
 			Ambience.start(root, {"wind_soft": -11.0, "forest_wind": -17.0, "radio_static_loop": -32.0})
 		"city":
-			# Overcast dusk over the towers: cold haze, a low violet sun, the neon doing the rest.
-			L.environment(root, Color(0.2, 0.22, 0.34), Color(0.52, 0.5, 0.66), 0.009, Color(0.95, 0.72, 0.85), 0.75, -18.0)
-			Ambience.start(root, {"machine_hum": -16.0, "rain": -17.0, "wind_soft": -20.0})
+			# A bright hazy afternoon over the towers, pale at the horizon, like
+			# the Strinova-style look test (2026-10-11). Night levels go dark
+			# with night() and the neon takes over.
+			L.environment(root, Color(0.3, 0.56, 0.88), Color(0.88, 0.9, 0.92), 0.0065, Color(1.0, 0.94, 0.86), 1.2, -40.0)
+			Ambience.start(root, {"machine_hum": -16.0, "wind_soft": -15.0, "park_birds": -26.0})
 		"military":
 			# Dry, dusty midday over the base.
 			L.environment(root, Color(0.4, 0.5, 0.6), Color(0.84, 0.78, 0.64), 0.0055, Color(1.0, 0.88, 0.7), 1.1, -42.0)
@@ -145,7 +147,7 @@ static func ground_style(biome: String) -> Array:
 		"boneyard":
 			return [Color(0.6, 0.6, 0.64), Color(0.66, 0.64, 0.64), "dirt", "gravel"]
 		"city":
-			return [Color(0.86, 0.88, 0.94), Color(0.5, 0.52, 0.58), "pavers", "concrete"]
+			return [Color(0.96, 0.95, 0.94), Color(0.62, 0.6, 0.6), "pavers", "concrete"]
 		"military":
 			return [Color(0.78, 0.72, 0.6), Color(0.74, 0.7, 0.62), "dirt", "gravel"]
 	return [Color(0.58, 0.72, 0.48), Color(0.8, 0.8, 0.74), "grass", "grass"]

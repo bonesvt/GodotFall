@@ -1,7 +1,8 @@
 @tool
 extends EditorScenePostImport
 ## Import script for the hub NPCs' glbs (mom, ophelia, biggie, pip; built by
-## tools/npc/build_npc.py). Gives every surface the same toon shading as Eco
+## tools/npc/build_npc.py) and their real-cloth garments (<who>_cloth.glb,
+## tools/npc/build_npc_cloth.py). Gives every surface the same toon shading as Eco
 ## (assets/shaders/eco_toon*), built here from each Blender material's name
 ## (npc_<who>_<part>) and the textures in assets/textures/npc/<who>/, sets
 ## each character's resting face from its blend shapes, and loops the anims.
@@ -11,6 +12,8 @@ const TWO_SIDE := preload("res://assets/shaders/eco_toon_2side.gdshader")
 const OVERLAY := preload("res://assets/shaders/eco_toon_overlay.gdshader")
 const OUTLINE := preload("res://assets/shaders/eco_outline.gdshader")
 const HAIR_TINT := Vector3(0.62, 0.55, 0.7)
+## The hero look: coloured outlines, skin band, cloth tint, hair sheen.
+const NpcLook := preload("res://scripts/hub/npc_look.gd")
 
 ## part: [shader, shade tint, render priority, outline width (0 = none), alpha cut, rim, sheen]
 const PARTS := {
@@ -23,7 +26,7 @@ const PARTS := {
 	"beard": [TWO_SIDE, HAIR_TINT, 0, 1.4, 0.0, 0.18, 0.0],
 	"beanie": [TOON, Vector3(0.55, 0.55, 0.7), 0, 1.2, 0.0, 0.18, 0.0],
 	"metal": [TOON, Vector3(0.55, 0.55, 0.7), 0, 0.0, 0.0, 0.3, 0.6],
-	"boots": [TWO_SIDE, Vector3(0.55, 0.55, 0.7), 0, 0.0, 0.5, 0.22, 0.3],
+	"boots": [TWO_SIDE, Vector3(0.55, 0.55, 0.7), 0, 1.2, 0.5, 0.22, 0.3],
 	"eye_white": [TOON, Vector3.ONE, 0, 0.0, 0.5, 0.0, 0.0],
 	"mouth": [TOON, Vector3.ONE, 0, 0.0, 0.5, 0.0, 0.0],
 	"iris": [OVERLAY, Vector3.ONE, 1, 0.0, 0.0, 0.0, 0.0],
@@ -53,7 +56,7 @@ const FACES := {
 
 
 func _post_import(scene: Node) -> Object:
-	var who := get_source_file().get_file().get_basename()
+	var who := get_source_file().get_file().get_basename().trim_suffix("_cloth")
 	var made := {}
 	for mi in scene.find_children("*", "MeshInstance3D", true, false):
 		var mesh := (mi as MeshInstance3D).mesh
@@ -73,6 +76,7 @@ func _post_import(scene: Node) -> Object:
 			var b := (mi as MeshInstance3D).find_blend_shape_by_name(shape)
 			if b >= 0:
 				(mi as MeshInstance3D).set_blend_shape_value(b, face[shape])
+	NpcLook.apply(scene, who)
 	var player := scene.find_child("AnimationPlayer", true, false) as AnimationPlayer
 	if player != null:
 		for anim_name in player.get_animation_list():
@@ -104,10 +108,5 @@ static func make_material(who: String, key: String, source: Material) -> Materia
 		if spec[4] > 0.0:
 			ink.set_shader_parameter("albedo_tex", tex)
 			ink.set_shader_parameter("alpha_cut", spec[4])
-		if part.begins_with("hair"):
-			# The plain brown-grey ink is unlit, so on dark hair it stood out as
-			# light strand lines; take a darker shade of the hair itself instead.
-			ink.set_shader_parameter("ink", Color(0.45, 0.45, 0.45))
-			ink.set_shader_parameter("tint", 1.0)
 		mat.next_pass = ink
 	return mat

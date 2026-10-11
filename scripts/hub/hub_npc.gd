@@ -43,6 +43,7 @@ const Hair := preload("res://scripts/hub/hair.gd")
 const NpcIdles := preload("res://scripts/hub/npc_idles.gd")
 const Wardrobe := preload("res://scripts/hub/wardrobe.gd")
 const ContentRating := preload("res://scripts/radio/content_rating.gd")
+const NpcLook := preload("res://scripts/hub/npc_look.gd")
 
 var who := ""
 var outfit := ""
@@ -122,6 +123,9 @@ func _ready() -> void:
 		var springs := NpcSprings.make(who, model.find_child("Skeleton3D", true, false) as Skeleton3D)
 		if springs != null:
 			add_child(springs)
+		_add_cloth(model)
+		# the hero look, also on glbs imported before npc_import.gd applied it
+		NpcLook.apply(model, who)
 		for mi in model.find_children("*", "MeshInstance3D", true, false):
 			_fill_textures(mi)
 			var b := (mi as MeshInstance3D).find_blend_shape_by_name("Fcl_MTH_A")
@@ -186,6 +190,51 @@ func bumped(from: Vector3) -> bool:
 	return true
 
 
+## Their real-cloth garments (<who>_cloth.glb, tools/npc/build_npc_cloth.py),
+## if they have any: moved onto their own skeleton and bound the way their body
+## is (the garments are in its rest space), so they move with every animation
+## and pose. npc_import.gd gives them their toon material (cloth.png); they're
+## named Outfit_<outfit>_*, so _dress_meshes() shows them only in the outfit
+## they were painted for.
+func _add_cloth(model: Node3D) -> void:
+	var path := "res://assets/models/npc/%s_cloth.glb" % who
+	if not ResourceLoader.exists(path):
+		return
+	var body: MeshInstance3D = null
+	for mi: MeshInstance3D in model.find_children("*", "MeshInstance3D", true, false):
+		for i in mi.mesh.get_surface_count():
+			var m := mi.mesh.surface_get_material(i)
+			if m != null and m.resource_name == "npc_%s_body" % who:
+				body = mi
+	if body == null or body.skin == null:
+		return
+	var binds := {}
+	var skel := body.get_node_or_null(body.skeleton) as Skeleton3D
+	for i in body.skin.get_bind_count():
+		binds[_bind_name(body.skin, i, skel)] = body.skin.get_bind_pose(i)
+	var cloth: Node = load(path).instantiate()
+	var cloth_skel := cloth.find_child("Skeleton3D", true, false) as Skeleton3D
+	for mi: MeshInstance3D in cloth.find_children("*", "MeshInstance3D", true, false):
+		var skin := Skin.new()
+		for i in mi.skin.get_bind_count():
+			var bone := _bind_name(mi.skin, i, cloth_skel)
+			skin.add_named_bind(bone, binds.get(bone, mi.skin.get_bind_pose(i)))
+		mi.get_parent().remove_child(mi)
+		mi.owner = null
+		body.get_parent().add_child(mi)
+		mi.transform = body.transform
+		mi.skeleton = body.skeleton
+		mi.skin = skin
+	cloth.free()
+
+
+static func _bind_name(skin: Skin, i: int, skel: Skeleton3D) -> StringName:
+	var n := skin.get_bind_name(i)
+	if n == &"" and skel != null and skin.get_bind_bone(i) >= 0:
+		n = StringName(skel.get_bone_name(skin.get_bind_bone(i)))
+	return n
+
+
 ## The import script (npc_import.gd) names each material npc_<who>_<part> and
 ## gives it its texture, but on a fresh import the glb can be imported before
 ## its textures are, leaving them out. Fill any gaps from the same paths.
@@ -201,10 +250,11 @@ func _fill_textures(mi: MeshInstance3D) -> void:
 		var tex: Texture2D = load(path)
 		mat.set_shader_parameter("albedo_tex", tex)
 		mat.set_shader_parameter("albedo", Color.WHITE)
+		# the outline takes its colour from the texture (npc_look.gd INK)
 		var ink := mat.next_pass as ShaderMaterial
-		var cut = mat.get_shader_parameter("alpha_cut")
-		if ink != null and cut != null and cut > 0.0:
+		if ink != null:
 			ink.set_shader_parameter("albedo_tex", tex)
+		NpcLook.style(mat, who, part, NpcLook._hair_top(get_node("Model"), who))
 
 
 func _add_faces(mi: MeshInstance3D) -> void:
@@ -292,6 +342,10 @@ func wear(p_outfit: String) -> void:
 	outfit = p_outfit
 	_dress_meshes(p_outfit)
 	var tex: Texture2D = load(path)
+	# the outfit's cloth mask (body_mask[_<outfit>].png: where its clothes are,
+	# so only bare skin gets the warm shade band); none, and the band is off
+	var mask_path := path.replace("/body", "/body_mask")
+	var mask: Texture2D = load(mask_path) if ResourceLoader.exists(mask_path) else null
 	for mi in find_children("*", "MeshInstance3D", true, false):
 		for i in mi.mesh.get_surface_count():
 			var mat := mi.mesh.surface_get_material(i) as ShaderMaterial
@@ -300,8 +354,16 @@ func wear(p_outfit: String) -> void:
 			var mine := mi.get_surface_override_material(i) as ShaderMaterial
 			if mine == null:
 				mine = mat.duplicate()
+				# its own outline too, which takes its colour from the outfit
+				if mat.next_pass != null:
+					mine.next_pass = mat.next_pass.duplicate()
 				mi.set_surface_override_material(i, mine)
 			mine.set_shader_parameter("albedo_tex", tex)
+			mine.set_shader_parameter("use_mask", mask != null)
+			if mask != null:
+				mine.set_shader_parameter("mask_tex", mask)
+			if mine.next_pass is ShaderMaterial:
+				(mine.next_pass as ShaderMaterial).set_shader_parameter("albedo_tex", tex)
 	_dress_face(p_outfit)
 
 
