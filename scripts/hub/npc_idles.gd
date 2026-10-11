@@ -136,7 +136,7 @@ static func _prop(npc: Node3D, kind: String) -> void:
 	at.set_meta("idle_prop", true)
 	skel.add_child(at)
 	# props are built in metres; undo whatever scale the bone carries
-	var bone_name: String = {"cigarette": "J_Bip_R_Index2", "chip": "J_Bip_R_Index2", "cocktail": "J_Bip_R_Hand"}.get(kind, "J_Bip_L_Hand")
+	var bone_name: String = {"cigarette": "J_Bip_R_Index2", "chip": "J_Bip_R_Index2", "cocktail": "J_Bip_R_Hand", "velvet": "J_Bip_R_Hand"}.get(kind, "J_Bip_L_Hand")
 	var bone := skel.find_bone(bone_name)
 	var unscale := Vector3.ONE
 	if bone >= 0:
@@ -270,8 +270,8 @@ static func _prop(npc: Node3D, kind: String) -> void:
 			Kit.mesh(ledger, Vector3(0, 0.011, 0), Vector3(0.12, 0.004, 0.18), Art.material("canvas", Color(0.88, 0.84, 0.74)))
 			Kit.glow(ledger, Vector3(0.066, 0, 0), Vector3(0.004, 0.02, 0.19), Color(0.95, 0.75, 0.3))
 			_face_head(npc, skel, ledger)
-		"cocktail":
-			# a coupe glass with something red in it, kept upright
+		"cocktail", "velvet":
+			# a coupe glass with something red in it (or Pip's Velvet), kept upright
 			at.bone_name = bone_name
 			var glass := Node3D.new()
 			glass.position = Vector3(0.06, -0.04, 0.0)
@@ -281,7 +281,7 @@ static func _prop(npc: Node3D, kind: String) -> void:
 			Kit.mesh(glass, Vector3(0, -0.06, 0), Vector3(0.05, 0.006, 0.05), clear)
 			Kit.mesh(glass, Vector3(0, -0.03, 0), Vector3(0.008, 0.06, 0.008), clear)
 			Kit.mesh(glass, Vector3(0, 0.01, 0), Vector3(0.09, 0.02, 0.09), clear)
-			Kit.glow(glass, Vector3(0, 0.018, 0), Vector3(0.08, 0.008, 0.08), Color(0.9, 0.08, 0.2))
+			Kit.glow(glass, Vector3(0, 0.018, 0), Vector3(0.08, 0.008, 0.08), Color(0.9, 0.08, 0.2) if kind == "cocktail" else Color(0.62, 0.2, 1.0))
 			_upright(npc, glass)
 		"chip":
 			# a gold casino chip between her fingers

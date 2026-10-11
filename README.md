@@ -178,7 +178,13 @@ crooked in Solace from **Downtown**, a short neon street off the end of Low Row
   there leave their own reviews of the job, the guests and Pip. Behind a cupboard there is the
   Still, where Pip cooks **Velvet**, her own product out of the Hush Marrow pays her door with, and
   tests the dose on the guests in the rooms: Marrow and the colony are getting the town and her
-  family hooked, and she wants her cut. Six pieces of Pip's own dirt are hidden there; each one Eco finds shows a little more of
+  family hooked, and she wants her cut. Once Eco has been through the cupboard, Pip asks her to be
+  her test subject (`scripts/hub/velvet.gd`): yes means a check-up at the Still once a day, twelve
+  in all, each its own cutscene (`velvet_scene.gd`, `[velvet 1]`..`[velvet 12]`) with Pip dosing
+  alongside her. The next run carries the dose (harder shots, faster feet, hits land softer) and
+  the drop (`scripts/run/velvet_run.gd`): her body stops dead where she stands and it costs her
+  health, and mixed with Hush or Glass it can kill. What builds up takes max health, and a day
+  without it, once she's deep in, is withdrawal. Six pieces of Pip's own dirt are hidden there; each one Eco finds shows a little more of
   how her sister holds the colony's officers from the shadows. Saved with the rest of Downtown.
   What the rooms are for is said plainly by what's lying about (a rate board, the room timers, the
   laundry cart, the house rules: `HINTS`) and by Pip when Eco finds her down there

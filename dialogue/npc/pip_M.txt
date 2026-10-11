@@ -54,3 +54,190 @@ eco: And now?
 pip: Now he's loyal to me, and he thinks it was his idea. That's the whole trick, little sister. Never make them want it. Make them think they always did.
 eco: You sound like him. Marrow.
 pip: Don't. Marrow takes. I trade. Ask anyone down here which of us they'd rather owe.
+
+# --- Velvet: the trial (hub/velvet.gd, hub/velvet_scene.gd) ---------------------
+# [velvet offer] plays the next time Eco talks to Pip after she's found the
+# Still. Then one check-up a day at the Still, [velvet 1] to [velvet 12], each
+# staged as a cutscene. Words in brackets starting with @ are stage cues for
+# velvet_scene.gd (CUES there): @wide @pip @eco @low @high pick the camera;
+# @pip_sip @pip_notes @pip_sit @pip_down @pip_kneel pose Pip; @eco_sit @eco_sip
+# @eco_slump @eco_lie @eco_kneel @eco_stand pose Eco; @dose @drop @shake @blood
+# are effects. Other words in brackets are Pip's face, as everywhere else.
+# Nothing between them but two sisters and a very bad idea.
+
+[velvet offer]
+pip: You found the cupboard. Of course you did. You always found the presents early.
+eco: Pip, it's a drug lab.
+pip: It's a kitchen with ambitions. Sit down, I'm not angry. I'm glad, actually. It saves me a speech.
+eco: What speech?
+pip (down): I've been testing Velvet on officers who can't tell champagne from paint thinner. Their notes are useless. "Felt nice. Told the lady things." I need someone who knows what this stuff does to a body. Someone who's had Marrow's Hush in her and come back out.
+eco: You want to dose me.
+pip: I want to dose us. Both of us, same glass, same measure. Once a day, down there, and you tell me what it does. Twelve days. Then I'll know what I'm selling.
+eco: The card on your still says never in Eco's.
+pip (lookaway): I wrote that before I knew I'd need you. I'm new at this, Eco. Marrow's had years. The colony's had a whole city. I've had a copper pot and a stolen case of Glass, and I'm behind. I hate being behind.
+pip (plain): I won't lie to you. It isn't finished. It isn't safe. That's the whole point of testing it.
+choice !velvet_yes: eco: ...Same glass. Same measure. You don't get to watch me from the other side of it.
+> pip (smile): Never. Tomorrow, then. The Still, once a day. Don't be late, and don't tell Mom.
+choice !velvet_no: eco: No. And you shouldn't be touching it either.
+> pip: Noble. Tiresome, but noble. The offer stands, little sister. Leave me a note on the bench if you change your mind.
+
+[velvet 1]
+narrator (@wide, @pip_sip, @eco_sit): Day one. Pip pours two coupes from a bottle with no label. The champagne is faintly violet, and it moves a little slower than champagne should.
+pip: Half measure. Batch fourteen. To family.
+eco (@eco_sip): To family.
+narrator (@dose): It tastes like flowers left too long in a vase. Then the room gets warmer, and softer at the edges, and very, very kind.
+eco: Oh. Oh, it's not like Hush at all. Hush goes quiet. This goes warm.
+pip (smile, @pip): Warm. Write that down. No, I'll write it down, you're grinning at the lamp.
+eco: You're grinning too.
+pip: I'm grinning professionally. Pulse?
+eco: Fast. Happy fast.
+pip (closed): Mine too. Heaven help me, Eco, that's good. That's very, very good.
+narrator (@wide): They sit there for an hour saying nice things about the copper. Pip writes none of it down.
+pip (plain): Same time tomorrow. Go and fight something. Tell me if your hands shake.
+
+[velvet 2]
+pip (@pip, @pip_notes, @eco_sit): Report. And don't say "warm" again.
+eco: I cleared a whole colony yard. I felt fast. Like the world was a beat behind me.
+pip: Good. Sleep?
+eco: Didn't. Wasn't tired. I lay on the roof and counted stars. I got to four thousand.
+pip: That's a side effect.
+eco: It was a nice side effect.
+pip (tilt): They all are, at first. Today we go a little higher.
+narrator (@wide, @pip_sip, @eco_sip, @dose): The second glass goes down easier than the first. That's the thing Pip writes down, underlined twice.
+pip (down): Easier the second time. That's what makes it sell. That's what makes it dangerous. Same thing.
+eco: You sound like you're warning yourself.
+pip (smile): Someone has to. Drink your water. All of it.
+
+[velvet 3]
+narrator (@low, @pip_sit, @eco_sit): Day three. Three-quarter measure. Pip takes hers sitting down this time, which she says is for science.
+narrator (@eco_sip, @dose): Two glasses. The violet light seems to lean in to listen.
+eco (@wide): Pip. Do you remember Dad's hands? How they smelled like engine grease and oranges?
+pip (sad, closed): ...Oranges. He peeled them in one long ribbon. He said it was a trick for luck.
+eco: It never worked.
+pip: It worked for him. Every orange. ...Why are we talking about Dad?
+eco: You brought him up.
+pip (surprised): No, you did. ...Did you? I've lost the thread.
+narrator (plain): Neither of them can remember who started it. Pip writes: 'Batch 14, three-quarter. Shared memory. Can't tell whose.' Then she crosses out 'shared' and stares at it for a long time.
+
+[velvet 4]
+eco (@eco, @pip_notes, @eco_sit): Your notes are shaking.
+pip (surprised, @pip): My notes are fine. Your nose is bleeding.
+eco (@blood): ...Huh. I didn't feel it.
+pip: You didn't feel it. Head forward, not back. Forward. Here, hold this on it.
+eco: It's fine. I've bled worse on runs.
+pip (angry): On runs, someone shot you. In here, nobody did anything except me. Me and a copper pot.
+eco: Are you stopping?
+pip (down): Half measure today. Both of us. I want to see if it does it again.
+narrator (@wide, @pip_sip, @eco_sip, @dose): It does it again. Pip's starts four minutes after Eco's. She writes the time down in a steady hand, and then she goes and sits on the floor for a while.
+
+[velvet 5]
+pip (@wide, @pip_sit, @eco_sip): You've had Marrow's Hush. Tell me honestly. Better or worse?
+narrator (@dose): Day five. Full glasses. Eco thinks about it while the warm comes in.
+eco: Hush makes you his. It quiets everything until there's only his voice left.
+pip (@pip): And mine?
+eco: Velvet doesn't want me to obey. It wants me to stay. To sit right here with you and never go back up the stairs.
+pip (smile): ...That's the nicest thing anyone's ever said about my work.
+eco (@eco): It wasn't a compliment, Pip. It scares me more.
+pip (closed): I know. I feel it too. Every night at closing I don't want to go upstairs. I've started sleeping on the crates.
+narrator (@wide, plain): Pip writes 'PULLS HARDER THAN HUSH' and circles it, and Eco can't tell if she's proud or frightened.
+
+[velvet 6]
+narrator (@wide, @pip_sip, @eco_sit): Day six. Full measure. Pip insisted: the officers take a full measure every night, so she needs to know what they feel.
+narrator (@eco_sip, @dose): Two glasses, clinked and emptied.
+pip (smile): See? Fine. Perfectly fi-
+narrator (@drop, @high, @pip_down, @eco_kneel, closed): Her glass hits the floor before she does. Eco gets there first. She always gets there first.
+eco: Pip. Pip! Look at me. Breathe. Come on, breathe, you stubborn...
+narrator: Eleven seconds. Eco counts every one of them out loud. On the twelfth, Pip's eyes open, violet to the rims, and she laughs.
+pip: Did I... did you write down how long?
+eco: You stopped BREATHING.
+pip: How long, Eco.
+eco: ...Eleven seconds.
+pip (sad): Write it down. Please. If I don't write it down, it was for nothing.
+narrator: Eco writes it down. Her hand shakes so hard the eleven looks like a seventeen.
+
+[velvet 7]
+narrator (@wide, @pip_notes, @eco_stand): Day seven. Pip isn't in the Still when Eco gets there. She comes in twenty minutes late, heels in her hand, her makeup redone, badly.
+eco: What happened?
+pip (down, @pip): The violet room. A supply sergeant. Batch fifteen, the one we had yesterday. Full measure.
+eco: Is he...
+pip: Tomas carried him up to the alley. A colony patrol will find him at dawn, and the report will say his heart gave out. Hearts give out. It happens.
+eco (@eco): Pip. A man is dead.
+pip (angry): I know what I did! I was there, I held his hand while it... I know what I did.
+narrator (@wide, @pip_sip, plain): She pours two glasses anyway. Half measure. Her hand is perfectly steady now, which is worse.
+pip: I'm not stopping. If I stop now, he died for nothing. And you're still my best notes.
+eco: Is that all I am?
+pip (lookaway): You're the only one I trust to tell me when it's killing me. Drink, or go home. I won't blame you either way.
+narrator (@eco_sip, @dose): Eco drinks. Pip writes 'Batch 15: lethal at full measure, large man.' Then she tears the page out and keeps it in her pocket.
+
+[velvet 8]
+narrator (@eco, @pip_sit, @eco_sit): Day eight. Same glass, same measure. Eco blinks.
+narrator (@dose, @drop, @eco_slump, @wide): When she opens her eyes the clock on the copper has moved an hour, and Pip has pulled her crate right up, knee to knee, holding both of Eco's hands.
+pip (surprised): There you are. There you are. Don't stand up.
+eco: I just blinked.
+pip: You blinked for an hour. You talked the whole time. You told me where you hide your spare knife, and you called me Mom twice.
+eco: ...What did I say to Mom?
+pip (sad): That you're sorry about the Hush. That you'd stop if she asked. She never asks.
+narrator (@low): Pip doesn't write anything down today. She just stays knee to knee with her until Eco can feel her feet again.
+pip: Out there, if it does that to you on a run...
+eco (@eco_sit): Then I'll be standing in a field full of colony grunts, saying sorry to Mom.
+pip (closed): Don't joke. Please don't joke. Not today.
+
+[velvet 9]
+narrator (@low, @pip_notes, @eco_sit): Day nine. There's a Hush vial on the bench that wasn't there yesterday, stood upright in the middle of the copper, with a note tied round its neck in violet ribbon.
+eco (@eco): "Every tenth vial. I can count, Pip. M."
+pip (@pip): He's known for weeks. He let me skim. He wanted to see what I'd make.
+eco: And now he's seen it.
+pip (angry): Now he wants a taste. He sent a boy to the club last night asking for the violet room's champagne. I poured him the blue room's. He'll know.
+eco: Pip, Marrow doesn't lose. He'll take this place apart.
+pip (smile): Then he'll find copper and a dressing room full of very rude reviews. The real batches are somewhere else now.
+eco: Where?
+pip (plain): Where you'd never look. Drink up. We're running out of days, and I'm running out of time to stay ahead of him.
+narrator (@wide, @pip_sip, @eco_sip, @dose): Tonight the Velvet has a metallic edge to it. "A bit more Glass," Pip says, like it's a good thing.
+
+[velvet 10]
+narrator (@wide, @pip_sit, @eco_sit): Day ten. Pip pours the highest measure yet. "Batch sixteen. If it's going to break us, I need to know where."
+narrator (@eco_sip, @dose, @high): The walls of the Still go soft, and then they go away. The violet light turns gold. And they're sitting on the porch of the house they grew up in, the one the colony took.
+eco: Pip. Pip, the porch. The swing's still broken.
+pip (joy): Dad never fixed it. He said it swung better crooked.
+eco: Can you see him? He's in the doorway. He's peeling an orange.
+pip (closed): ...I can see him. Eco, I can see him.
+narrator: For one long, gold minute they are nine and fourteen, and nobody has ever sold anybody anything.
+narrator (@drop, @eco_slump, @low): Then the peel keeps coming. It ribbons down the steps and across the yard and it won't stop, and Dad won't look up, and the light goes from gold to violet to black.
+eco: Pip, make it stop. I don't want to see him like this. Make it STOP.
+pip (surprised, @pip): Look at me! Look at the copper. Count the pipes. Count them with me. One. Two.
+eco: ...Three. Four.
+narrator (@wide, @eco_sit, plain): They count pipes until the Still comes back. Neither of them says what they saw. Pip doesn't write it down. She wouldn't know how.
+
+[velvet 11]
+pip (@pip, @pip_notes, @eco_sit): I've got enough. Ten days. I know what it does, I know how much kills, I know how long the drop lasts.
+eco: There are two days left.
+pip: I don't need them. The last batch is the one I'll sell. I only wanted to know if it's safe for us.
+eco: Is it?
+pip (down): Nothing about it is safe. Look at your hands, Eco.
+eco (@eco): They're fine.
+pip: They're shaking. They've shaken since day six, you just stopped noticing. So have mine.
+pip (plain, @wide): You can stop. Right now. No more glasses, no more check-ups. I'll tell Mom you've been helping me with the books, and I'll do the last one alone.
+choice !velvet_stop: eco: Then we both stop. Pour it down the drain, Pip. Please.
+> pip (sad): ...I'll stop pouring yours. That's all I can promise. Go home, little sister. Sleep. You'll feel it leave, and you won't like it.
+choice !velvet_go: eco: Same glass. Same measure. I'm not letting you take the last one on your own.
+> pip (closed): You are the worst decision I've ever made, and the best notes. Tomorrow. The last one. Then it's done, whatever it does.
+
+[velvet 12]
+narrator (@wide, @pip_sip, @eco_sit): Day twelve. Batch seventeen. It doesn't glow. Pip says that's how she knows it's finished.
+pip (plain): Last one. To family.
+eco (@eco_sip): To family.
+narrator (@dose): It goes down like nothing at all. For a minute there's no warmth, no gold. Nothing.
+eco (@eco): Pip, I don't feel any...
+narrator (@drop, @shake, @high, @eco_lie, @pip_kneel, surprised): Eco hits the floor and doesn't lie still. Her heels drum the concrete. Pip is on her knees beside her before the glass stops rolling.
+pip: No. No, no, no. Not you. On your side, come on, on your side. Tomas! TOMAS!
+narrator (@low): Pip holds her head off the concrete with both hands and counts out loud, the way Eco counted for her. At forty, the shaking stops. At fifty-two, Eco breathes.
+eco: ...Pip?
+pip (sad, closed): I'm here. I've got you. I'm so sorry. I'm so, so sorry.
+eco: Did you write down how long?
+pip: Fifty-two seconds. I don't care. I don't care how long. I'm never doing this to you again.
+narrator (@wide, @eco_sit, @pip_notes, plain): Later, when Eco can sit up, Pip takes the card off the copper and writes under the old rule, in a hand that's steady again: 'NEVER IN ECO'S. I MEAN IT THIS TIME.'
+eco: And the batch?
+pip (down, @pip): Batch seventeen goes out tomorrow. The high rollers first, then Low Row. It's what all of this was for.
+eco: It nearly killed me, Pip.
+pip (lookaway): It nearly killed you because you'd had it for twelve days straight. They'll have one glass at a time, and come back for more, and pay me for every one. That isn't better. I know it isn't better. It's just mine.
+narrator (@wide): Eco doesn't argue. She's too tired, and Pip is holding her hand too hard to let go.

@@ -97,6 +97,9 @@ const Glass := preload("res://scripts/hub/glass.gd")
 const ViceLooks := preload("res://scripts/hub/vice_looks.gd")
 const Tether := preload("res://scripts/run/tether.gd")
 const ChorusScene := preload("res://scripts/hub/chorus_scene.gd")
+const Velvet := preload("res://scripts/hub/velvet.gd")
+const VelvetScene := preload("res://scripts/hub/velvet_scene.gd")
+const VelvetRun := preload("res://scripts/run/velvet_run.gd")
 const Soundscape := preload("res://scripts/soundscape.gd")
 const SFX := preload("res://scripts/sfx.gd")
 const Weather := preload("res://scripts/game/weather.gd")
@@ -218,6 +221,10 @@ var hub_npcs := {}
 var npc_talk: NpcTalk
 ## Motherly Love scenes in Mom's room (family_scene.gd), in the hub only.
 var family_scene: FamilyScene
+## Pip's Velvet check-ups in the Still (velvet_scene.gd), in the hub only, and
+## the drop on a dosed run (velvet_run.gd).
+var velvet_scene: VelvetScene
+var velvet_run: VelvetRun
 ## The parts your last run ended with; the hub's practice titan is built from them.
 var last_parts := {}
 ## The hub spot Eco is sitting or lying down at ({} = she's on her feet), and
@@ -305,8 +312,11 @@ func _ready() -> void:
 	Hymn.open(Hymn.path_for(Vices.save_path))
 	ViceLooks.open(ViceLooks.path_for(Vices.save_path))
 	Obsession.open(Obsession.path_for(Vices.save_path))
+	Velvet.open(Velvet.path_for(Vices.save_path))
 	tether = Tether.new(self)
 	add_child(tether)
+	velvet_run = VelvetRun.new(self)
+	add_child(velvet_run)
 	chorus_scene = ChorusScene.new(self)
 	add_child(chorus_scene)
 	hush_pull = HushPull.new(self)
@@ -421,7 +431,9 @@ func start_run(seed_value: int, uncharted := 0, level := "") -> void:
 		w.set("softness", Family.softness(npc_talk.state))
 	load_zone(0)
 	Vices.run_started()
+	Velvet.run_started()
 	tether.stop()
+	velvet_run.stop()
 	player.refresh_glass()
 	var line := ""
 	if Vices.hush() > 0.0:
@@ -436,6 +448,8 @@ func start_run(seed_value: int, uncharted := 0, level := "") -> void:
 		line = (line + "\n" if line != "" else "") + Vices.WRONG_GEAR_LINE + "\n" + _mixed_up_text()
 	if Glass.tethered():
 		line = (line + "\n" if line != "" else "") + "The earpiece clicks on. Marrow: \"I'm here. Do as I say out there.\""
+	if Velvet.on() or Velvet.shakes():
+		line = (line + "\n" if line != "" else "") + (Velvet.DOSE_LINE if Velvet.on() else Velvet.SHAKES_LINE)
 	if line != "":
 		hud.toast(line, HUB_LINE_SECONDS + (2.0 if not mixed_up.is_empty() else 0.0))
 
@@ -517,6 +531,7 @@ func enter_hub() -> void:
 		NpcIdles.settle(npc, zone_info, runs_ended)
 		if spec.get("anim", "") != "":
 			NpcIdles.strike(npc, spec["anim"], spec.get("props", []))  # Pip at work
+			npc.set_meta("work", [spec["anim"], spec.get("props", [])])  # back to it after a Velvet check-up
 		if spec.has("spot"):
 			npc.spot = spec["spot"]  # she talks about where she is ([spot ...] in her lines)
 		hub_npcs[spec["who"]] = npc
@@ -527,6 +542,9 @@ func enter_hub() -> void:
 		family_scene = FamilyScene.new()
 		zone_root.add_child(family_scene)
 		family_scene.setup(self, zone_info)
+	velvet_scene = VelvetScene.new()
+	zone_root.add_child(velvet_scene)
+	velvet_scene.setup(self, zone_info)
 	var sick := Family.roll_sick(npc_talk.state, runs_ended, last_result == "RUN COMPLETE", npc_talk.state.get_value("mom", "met", false), randf())
 	npc_talk.state.save(npc_talk.save_path)
 	if hub_npcs.has("ophelia"):
@@ -542,6 +560,7 @@ func enter_hub() -> void:
 	dose_scene.reset()
 	chorus_scene.reset()
 	tether.stop()
+	velvet_run.stop()
 	if Hymn.hunted and Hymn.allowed():
 		spawn_shepherd.call_deferred()  # it's still out for her
 	player.refresh_glass()
@@ -718,8 +737,12 @@ func _physics_process(delta: float) -> void:
 			if pull_was < 0.5 and Obsession.crave >= 0.5:
 				hud.toast(HOME_PULL, 4.0)
 			tether.run_tick(delta, (titan == null or not titan.piloted) and not hush_pull.busy())
-		elif tether.active():
-			tether.stop()
+			velvet_run.run_tick(delta, (titan == null or not titan.piloted) and not hush_pull.busy() and not tether.busy())
+		else:
+			if tether.active():
+				tether.stop()
+			if velvet_run.active():
+				velvet_run.stop()
 	elif tether.active():
 		tether.stop()  # the world paused: no slow-mo, no order running
 	player.strolling = phase == Phase.HUB and not on_training_ground()
@@ -873,6 +896,8 @@ func _hub_tick(delta: float) -> void:
 		SFX.play(player, "cloth_2", -4.0)
 		return
 	if spot.has("teleport") and (spot.get("open", false) or Vices.allowed()):
+		if spot["id"] == "still_door":
+			Velvet.find()  # Pip asks the next time Eco talks to her (velvet.gd)
 		place_player(spot["teleport"])
 		hud.toast(TELEPORT_LINES.get(spot["id"], ""), 2.5)
 		return
@@ -884,6 +909,9 @@ func _hub_tick(delta: float) -> void:
 		return
 	if spot.has("family"):
 		family_scene.use()
+		return
+	if spot.has("velvet"):
+		velvet_scene.use()
 		return
 	if spot.has("rest"):
 		rest_at(spot)
@@ -1902,7 +1930,9 @@ func end_run(title: String, reason: String) -> void:
 	Glass.run_over()
 	Hymn.run_over()
 	Obsession.run_over()
+	Velvet.run_over()
 	tether.stop()
+	velvet_run.stop()
 	var haul := Armory.run_haul(run.materials, won)
 	armory.bank(haul)
 	# The meal from Seven Suns was for this run.
@@ -1936,7 +1966,7 @@ func end_run(title: String, reason: String) -> void:
 ## nothing else open.
 func _vice_keys() -> void:
 	if not Vices.allowed() or bench != null or garage != null or hub_piloting or npc_talk.active() or hush_pull.busy() \
-			or super_hush_scene.busy() or chorus_scene.busy() or fitting_scene.busy() or dose_scene.busy() or tether.busy():
+			or super_hush_scene.busy() or chorus_scene.busy() or fitting_scene.busy() or dose_scene.busy() or tether.busy() or velvet_run.busy():
 		return
 	if not (phase == Phase.HUB or in_run()) or (titan != null and titan.piloted):
 		return
@@ -2062,6 +2092,8 @@ func _vices_text() -> String:
 		parts.append(Vices.state_name().to_upper())
 	if Glass.state_name() != "":
 		parts.append(Glass.state_name().to_upper())
+	if Velvet.state_name() != "":
+		parts.append(Velvet.state_name().to_upper())
 	if Vices.pockets_text() != "":
 		parts.append(Vices.pockets_text())
 	if Glass.pockets_text() != "":
@@ -2099,6 +2131,8 @@ func _update_hud() -> void:
 			status += "    %s" % Vices.pockets_text()
 		if Glass.state_name() != "":
 			status += "    %s" % Glass.state_name().to_upper()
+		if Velvet.state_name() != "":
+			status += "    %s" % Velvet.state_name().to_upper()
 		if Glass.pockets_text() != "":
 			status += "    %s" % Glass.pockets_text()
 		hud.status_label.text = status
@@ -2152,6 +2186,8 @@ func _prompt() -> String:
 			if not spot.is_empty():
 				if spot.has("family"):
 					return family_scene.prompt()
+				if spot.has("velvet"):
+					return velvet_scene.prompt()
 				if spot.get("shop", "") == "bar" and Vices.allowed() and not date_ready(spot):
 					return "[F] The Rusted Halo: drinks, smokes and Scrapjack"
 				if spot.get("shop", "") == "gear_off" and Vices.allowed() and not Hymn.gear.is_empty():
@@ -2179,6 +2215,8 @@ func _prompt() -> String:
 				var text: String = spot["prompt"]
 				if spot.has("npc") and npc_talk.beat_waiting(spot["npc"], runs_ended):
 					text += "  (wants to talk)"
+				elif spot.get("npc", "") == "pip" and (Velvet.offer_due() or Velvet.checkup_due()):
+					text += "  (wants to talk)" if Velvet.offer_due() else "  (check-up waiting in the Still)"
 				if spot.has("npc") and npc_talk.can_give(spot["npc"], runs_ended):
 					text += "    [G] Give a gift"
 				return text
