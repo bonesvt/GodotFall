@@ -175,7 +175,10 @@ crooked in Solace from **Downtown**, a short neon street off the end of Low Row
   club goes down to the Underfloor, a corridor of private rooms with just a bed and mood lighting,
   and through the gold door to the high rollers' room with its stage, poles, card table and Pip's
   chair, and through its stage door to the dancers' dressing room, where the women who work down
-  there leave their own reviews of the job, the guests and Pip. Six pieces of Pip's own dirt are hidden there; each one Eco finds shows a little more of
+  there leave their own reviews of the job, the guests and Pip. Behind a cupboard there is the
+  Still, where Pip cooks **Velvet**, her own product out of the Hush Marrow pays her door with, and
+  tests the dose on the guests in the rooms: Marrow and the colony are getting the town and her
+  family hooked, and she wants her cut. Six pieces of Pip's own dirt are hidden there; each one Eco finds shows a little more of
   how her sister holds the colony's officers from the shadows. Saved with the rest of Downtown.
   What the rooms are for is said plainly by what's lying about (a rate board, the room timers, the
   laundry cart, the house rules: `HINTS`) and by Pip when Eco finds her down there

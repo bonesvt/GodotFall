@@ -135,6 +135,8 @@ const TELEPORT_LINES := {
 	"gold_door_back": "Back to the corridor of rooms.",
 	"stage_door": "Staff only. Eco goes in anyway. Mirrors, bulbs, the smell of hairspray and cheap tea.",
 	"stage_door_back": "Back out past the poles.",
+	"still_door": "The back of the cupboard swings in. Copper, glass, and a violet glow that smells like Marrow's basement, only sweeter.",
+	"still_door_back": "Out through the cupboard, past the costumes.",
 	"physics_lab_exit": "Back up into the temple.",
 }
 ## Ophelia notices Eco slipping away while Marrow's Hold is deep (vices.gd).

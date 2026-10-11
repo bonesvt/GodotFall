@@ -17,6 +17,9 @@
 #   dressing room       staff_rules, staff_vell, staff_liesl, staff_dove,
 #                       staff_lockers, staff_rack, staff_kettle
 #   high rollers' room  pip_card, pip_book, stage_card, tip_glass, house_rules
+#   the Still           still_board, still_log, still_crates, still_rules,
+#   (behind the         still_journal, still_orders
+#   dressing room)
 
 [rate_board]
 A chalkboard by the stairs. ROOMS BY THE HOUR. ALL NIGHT ON REQUEST. COMPANY ARRANGED AT THE BAR. Someone has drawn a little heart next to 'company'.
@@ -45,6 +48,7 @@ Under it, another hand: 'Bed creaks. Loudly. Rhythmically. The whole corridor kn
 [review_violet]
 A comment card, violet room: 'Four stars. Lovely lighting, very forgiving, and she was more than worth the price. One star off because somebody knocked twice right at the best part.' Pip, underneath: 'That was the timer, sir. You were forty minutes over. The best part is billed by the quarter hour.'
 Another: 'Booked the all-night rate with two of the women from the bar. Got no sleep whatsoever. Couldn't walk straight to muster. Worth every scrap.' No name, just a captain's pin pushed through the card.
+On the back of the card, a third hand: 'Don't know what she puts in the violet room's champagne. Told her things I've never told my priest. Booked again before I'd got my boots back on.'
 
 [review_blue]
 A comment card, blue room: 'Three stars. The walls aren't as thick as advertised. Neither of us was quiet, and the room next door sent a note asking us to keep it down.' Pip, below: 'You got two notes. The second one asked if you take bookings.'
@@ -100,3 +104,30 @@ Most of the pins are officers'. The biggest wad has the recruiters' captain's pi
 [house_rules]
 A brass plaque by the door. HOUSE RULES: Look all you like. Touch only what you've paid for. What happens here, the house remembers.
 The last rule is newer than the others. The brass is shinier.
+
+# --- the Still: Velvet, Pip's own product, and how she found the dose ---
+
+[still_board]
+A chalkboard, Pip's hand: VELVET, BATCH 14. RED ROOM: half measure in the champagne. VIOLET ROOM: full measure. BLUE ROOM: nothing (control).
+Under it, the results. RED: talks twice as long, books again 2 in 5. VIOLET: talks till the timer, tells me everything, books again 4 in 5, tips the women a month's pay. BLUE: books again 1 in 5. Circled twice: 'Violet. Every room violet by spring.'
+
+[still_log]
+A test log, guest by guest. 'Lt. Varga, batch 9. Wept. Gave me the patrol routes for the whole quarter without being asked. Asked if he could live here. Booked again for tomorrow.'
+'Quartermaster, batch 12. Forgot his own name for an hour. Remembered every crate number perfectly. Batch 12 shelved: too strong to sell, perfect for him.'
+'Batch 13. One guest didn't wake till noon. Tomas carried him up to the alley. He came back the next night and asked for the violet room and the same drink. That is the result.'
+
+[still_crates]
+Crates stamped with Marrow's swirl, lids prised off. Every tenth vial of the Hush he pays Pip's door with never reaches his customers. She's been skimming him for months, and he hasn't noticed.
+At the bottom, a colony-sealed case of Glass, signed out by the quartermaster. In the margin of the docket, Pip: 'He thinks he sold it to a collector. He did.'
+
+[still_rules]
+A card taped to the copper: 'NEVER IN THE STAFF'S DRINKS. NEVER IN MINE. NEVER IN ECO'S. P.'
+Under it, newer, a shakier pen: 'Tried batch 11 myself. Lost a whole night and woke up telling the ceiling about Dad. Never again. It's for them.'
+
+[still_journal]
+A journal page: 'Marrow sells them a cage. The colony sells them a hymn. Everyone in this valley is being fed something by someone who doesn't love them. If Solace is going to be hooked on something, it may as well be hooked on me. At least I'll know their names.'
+A later page: 'Eco came home on Hush again. I could see it in her eyes from my window. Mom took the dispensary's dose this morning without even looking at it. Marrow and the colony are splitting my family between them. I want my cut. P.'
+
+[still_orders]
+An order book, in a code that isn't hard to read. Six of the high rollers, every week. The recruiters' captain, 'for the mess hall'. And a buyer from Colony City who signs with a single initial and pays in sealed envelopes.
+The last page is a plan: the Velvet Ace, the Undertow and the rooms first, then Low Row, then the Rusted Halo's taps. Marrow's alley is crossed out, with 'his customers become mine' written over it.

@@ -6,7 +6,10 @@ extends RefCounted
 ##   - the gold door at the end of it, into the high rollers' room: a stage
 ##     with poles, a private table, and Pip's chair watching all of it,
 ##   - the stage door beside it, into the dancers' dressing room, where the
-##     women who work down here leave notes for each other.
+##     women who work down here leave notes for each other,
+##   - and behind a cupboard there, the Still: where Pip cooks Velvet, her own
+##     product, out of the Hush Marrow pays her door with, and tests it on
+##     the guests in the rooms.
 ## Each room hides some of her DIRT: the rooms are how she gets leverage on
 ## the colony officers who use them. Found pieces are saved with the rest of
 ## Downtown (Downtown.find_dirt). Both rooms are sealed boxes built under the
@@ -41,6 +44,13 @@ const DRESSING := Vector3(-80.0, -10.0, 300.0)
 const DRESSING_SIZE := Vector3(8.0, 3.0, 6.0)
 const STAGE_DOOR := HIGH + Vector3(-4.5, 0, 0.9)
 const STAGE_DOOR_BACK := DRESSING + Vector3(3.5, 0, 0)
+## The Still: Pip's own lab, behind a cupboard at the end of the costume rack.
+## Where she cooks Velvet, her answer to Marrow's Hush and the colony's Hymn,
+## and works out the dose on the guests in the rooms.
+const STILL := Vector3(-80.0, -10.0, 320.0)
+const STILL_SIZE := Vector3(6.0, 2.8, 5.0)
+const STILL_DOOR := DRESSING + Vector3(-3.5, 0, 1.3)
+const STILL_DOOR_BACK := STILL + Vector3(2.6, 0, 0)
 
 ## Her dirt: where it's hidden, what Eco finds. In the order the rooms run.
 const DIRT := {
@@ -83,6 +93,13 @@ const HINTS := [
 	["staff_lockers", "dress", Vector3(3.2, 0, -1.8), "[F] The lockers"],
 	["staff_rack", "dress", Vector3(-3.2, 0, -0.4), "[F] The costume rack"],
 	["staff_kettle", "dress", Vector3(1.8, 0, -2.3), "[F] The table with the kettle"],
+	# the Still: Velvet, and how she found the dose
+	["still_board", "still", Vector3(-1.0, 0, -1.9), "[F] The chalkboard"],
+	["still_log", "still", Vector3(1.4, 0, -1.6), "[F] The test log"],
+	["still_crates", "still", Vector3(2.0, 0, 1.5), "[F] The crates"],
+	["still_rules", "still", Vector3(0.0, 0, 1.4), "[F] A card taped to the still"],
+	["still_journal", "still", Vector3(-2.1, 0, 1.4), "[F] The journal on the desk"],
+	["still_orders", "still", Vector3(-2.2, 0, -1.3), "[F] The order book"],
 	# Pip herself: the one thing in the house that isn't on the menu
 	["pip_card", "high", Vector3(2.8, 0, 1.3), "[F] A gold card on the stage steps"],
 	["pip_book", "high", Vector3(3.5, 0, -1.6), "[F] The leather book on the bar"],
@@ -102,6 +119,7 @@ static func build(root: Node3D, info: Dictionary) -> void:
 	_underfloor(below, info)
 	_high_rollers(below, info)
 	_dressing(below, info)
+	_still(below, info)
 	_hints(below, info)
 
 
@@ -275,11 +293,41 @@ static func hint_lines() -> Dictionary:
 	return out
 
 
+## The Still: a cramped room of glass and copper behind the dressing room,
+## lit violet by what's cooking. The way in is the back of a cupboard.
+static func _still(root: Node3D, info: Dictionary) -> void:
+	var r := STILL
+	_box(root, r, STILL_SIZE, Color(0.12, 0.1, 0.12))
+	K.mesh(root, r + Vector3(0, 0.02, 0), Vector3(STILL_SIZE.x - 0.2, 0.03, STILL_SIZE.z - 0.2), Art.material("concrete", Color(0.25, 0.23, 0.26)))
+	# the still itself: a bench along the north wall, copper and glass, glowing
+	K.mesh(root, r + Vector3(0, 0.45, 2.0), Vector3(3.6, 0.9, 0.7), Art.material("gunmetal", Color(0.35, 0.33, 0.36)))
+	var copper := Art.material("gunmetal", Color(0.8, 0.45, 0.25))
+	for k in 3:
+		var x := -1.2 + k * 1.2
+		K.mesh(root, r + Vector3(x, 1.15, 2.0), Vector3(0.35, 0.5, 0.35), copper)
+		K.glow(root, r + Vector3(x + 0.35, 1.05, 1.85), Vector3(0.14, 0.3, 0.14), VIOLET * 1.4)
+	K.mesh(root, r + Vector3(0, 1.6, 2.1), Vector3(3.0, 0.05, 0.05), copper)
+	# a rack of finished vials
+	for k in 2:
+		K.mesh(root, r + Vector3(-2.6, 0.93 + k * 0.3, -0.1), Vector3(0.3, 0.03, 0.9), Art.material("wood", Color(0.22, 0.14, 0.1)))
+	for k in 8:
+		K.glow(root, r + Vector3(-2.6, 1.0 + (k / 4) * 0.3, -0.4 + (k % 4) * 0.2), Vector3(0.04, 0.12, 0.04), VIOLET * 1.2)
+	K.light(root, r + Vector3(0, 2.2, 1.0), VIOLET, 0.9, 4.5)
+	K.light(root, r + Vector3(-1.5, 2.2, -1.0), Color(1.0, 0.85, 0.6), 0.4, 3.5)
+	# the cupboard in the dressing room, and its back wall out again
+	K.mesh(root, STILL_DOOR + Vector3(-0.3, 1.0, 0), Vector3(0.45, 2.0, 0.9), Art.material("wood", Color(0.3, 0.18, 0.14)))
+	K.interactable(info, "still_door", STILL_DOOR, "[F] The cupboard by the rack", ["A cupboard at the end of the costume rack. It's empty, and its back moves when you lean on it."], 1.6)
+	info["interactables"].back()["teleport"] = STILL_DOOR_BACK + Vector3(-0.9, 0, 0)
+	K.mesh(root, STILL_DOOR_BACK + Vector3(0.38, 1.0, 0), Vector3(0.08, 2.0, 0.9), Art.material("wood", Color(0.3, 0.18, 0.14)))
+	K.interactable(info, "still_door_back", STILL_DOOR_BACK, "[F] Back through the cupboard", ["The dressing room."], 1.6)
+	info["interactables"].back()["teleport"] = STILL_DOOR + Vector3(0.9, 0, 0)
+
+
 ## The things lying about (HINTS), each something small to look at.
 static func _hints(root: Node3D, info: Dictionary) -> void:
 	var words := hint_lines()
 	for h in HINTS:
-		var at: Vector3 = {"under": UNDER, "high": HIGH, "dress": DRESSING}[h[1]] + h[2]
+		var at: Vector3 = {"under": UNDER, "high": HIGH, "dress": DRESSING, "still": STILL}[h[1]] + h[2]
 		match h[0]:
 			"rate_board":
 				K.mesh(root, at + Vector3(0, 1.4, -0.15), Vector3(0.9, 0.6, 0.04), Art.material("canvas", Color(0.08, 0.1, 0.09)))
@@ -309,6 +357,15 @@ static func _hints(root: Node3D, info: Dictionary) -> void:
 			"staff_kettle":
 				K.mesh(root, at + Vector3(0, 0.4, -0.3), Vector3(0.8, 0.8, 0.4), Art.material("wood", Color(0.2, 0.12, 0.1)))
 				K.mesh(root, at + Vector3(0.2, 0.9, -0.3), Vector3(0.18, 0.2, 0.15), Art.material("alloy", Color(0.8, 0.8, 0.82)))
+			"still_board":
+				K.mesh(root, at + Vector3(0, 1.5, -0.55), Vector3(1.4, 0.8, 0.04), Art.material("canvas", Color(0.08, 0.1, 0.09)))
+			"still_log", "still_journal", "still_orders":
+				K.mesh(root, at + Vector3(0, 0.38, 0), Vector3(0.8, 0.76, 0.5), Art.material("wood", Color(0.22, 0.14, 0.1)))
+				K.mesh(root, at + Vector3(0, 0.79, 0), Vector3(0.22, 0.03, 0.3), Art.material("canvas", Color(0.3, 0.1, 0.12) if h[0] == "still_journal" else Color(0.85, 0.8, 0.7)))
+			"still_crates":
+				for k in 3:
+					K.mesh(root, at + Vector3(0.1 * k, 0.25 + k * 0.5, 0.2), Vector3(0.7, 0.5, 0.5), Art.material("wood", Color(0.3, 0.22, 0.14)))
+				K.glow(root, at + Vector3(0, 0.52, -0.06), Vector3(0.2, 0.06, 0.02), VIOLET)
 			"pip_card":
 				K.glow(root, at + Vector3(0, 0.675, 0.3), Vector3(0.25, 0.35, 0.02), GOLD * 1.1)
 			"pip_book":

@@ -37,3 +37,20 @@ eco: Is this where you got the captain's letter?
 pip: He wanted a private dance, a closed door and no questions. He got all three, and I got a signature. It was a very good night for everyone except his career.
 eco: That's blackmail, Pip.
 pip: It's insurance. He recruits children for the colony, Eco. I'm not losing sleep over his reputation.
+
+[spot rooms]
+eco: Pip. What's in the violet room's champagne?
+pip: Something better than what's in yours, apparently. Who told you?
+eco: A comment card. And a chalkboard behind your costume rack.
+pip: Marrow sells this town a leash. The colony hands it a hymn every morning. I'm not letting the pair of them carve up Solace while I pour the drinks.
+eco: So you're cooking your own.
+pip: I'm cooking a better one. Mine makes them talk, and want to come back, and it doesn't put spirals in anyone's eyes. If this valley's going to be hooked, it can be hooked on me.
+eco: That's what Marrow would say.
+pip: Marrow would say it with a worse suit.
+
+[spot high_rollers]
+pip: See the colonel on the end sofa, when it's busy? Three visits ago he was loyal to the colony. Two visits ago he was loyal to the champagne.
+eco: And now?
+pip: Now he's loyal to me, and he thinks it was his idea. That's the whole trick, little sister. Never make them want it. Make them think they always did.
+eco: You sound like him. Marrow.
+pip: Don't. Marrow takes. I trade. Ask anyone down here which of us they'd rather owe.
