@@ -454,7 +454,7 @@ def body_pip():
     the waist cinched in by her waistcoat."""
     # PIP_FIGURE='{"bust": 1.3, "glute": 2}': scales each part, for trying
     # proportions out in --concept renders
-    k = {"bust": 1.0, "glute": 1.0, "hip": 1.0, "thigh": 1.0, "waist": 1.0}
+    k = {"bust": 1.0, "glute": 1.0, "hip": 1.0, "thigh": 1.0, "waist": 1.0, "leg": 0.0, "calf": 0.0}
     k.update(json.loads(os.environ.get("PIP_FIGURE", "{}")))
 
     def amount(P, N):
@@ -466,7 +466,12 @@ def body_pip():
         thigh = 0.012 * ss(0.4, 0.55, z) * ss(0.8, 0.68, z) * (0.35 + 0.65 * ss(-0.5, 0.5, out))
         bust = 0.022 * gauss(P, 0.062, -0.105, 1.04, 0.05, 0.055, 0.055) * ss(-0.03, -0.07, y)
         waist = -0.006 * np.exp(-((z - 0.9) / 0.05) ** 2) * np.clip(out, 0, 1) * (ax < 0.2)
-        return k["glute"] * glute + k["hip"] * hip + k["thigh"] * thigh + k["bust"] * bust + k["waist"] * waist
+        # fuller all the way round the thigh down to the knee, and the calves,
+        # so heavier hips carry on down the leg (off unless PIP_FIGURE asks)
+        leg = 0.014 * ss(0.38, 0.48, z) * ss(0.78, 0.7, z) * (0.6 + 0.4 * ss(-0.5, 0.5, out))
+        calf = 0.008 * ss(0.12, 0.22, z) * ss(0.42, 0.32, z) * (0.4 + 0.6 * ss(-0.01, 0.03, y))
+        return (k["glute"] * glute + k["hip"] * hip + k["thigh"] * thigh + k["bust"] * bust + k["waist"] * waist
+                + k["leg"] * leg + k["calf"] * calf)
     print("pip body: up to %.1f mm" % (push(bpy.data.objects["Body"], amount, passes=7) * 1000))
 
 
