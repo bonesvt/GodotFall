@@ -73,6 +73,18 @@ const CravingScreen := preload("res://scripts/ui/craving_screen.gd")
 const HushPull := preload("res://scripts/hub/hush_pull.gd")
 const SuperHushScene := preload("res://scripts/hub/super_hush_scene.gd")
 const CheatScene := preload("res://scripts/hub/cheat_scene.gd")
+const Cutter := preload("res://scripts/hub/cutter.gd")
+const CutterScene := preload("res://scripts/hub/cutter_scene.gd")
+const Redline := preload("res://scripts/hub/redline.gd")
+const RigScreen := preload("res://scripts/hub/rig_screen.gd")
+const RedlineSenses := preload("res://scripts/hub/redline_senses.gd")
+const HubRescue := preload("res://scripts/hub/rescue.gd")
+const RescueEvent := preload("res://scripts/hub/rescue_event.gd")
+## Cutter (cutter.gd): the chance he comes after her on a hub stay (from her
+## CUTTER_FROM'th run on), and how many seconds of roaming town before he does.
+const CUTTER_CHANCE := 0.35
+const CUTTER_FROM := 2
+const CUTTER_DELAY := Vector2(20.0, 50.0)
 const FittingScene := preload("res://scripts/hub/fitting_scene.gd")
 const DoseScene := preload("res://scripts/hub/dose_scene.gd")
 const TrialIntro := preload("res://scripts/run/trial_intro.gd")
@@ -248,6 +260,12 @@ var hush_pull: HushPull
 var super_hush_scene: SuperHushScene
 ## The cheat box's other control items, played out (cheat_scene.gd).
 var cheat_scene: CheatScene
+## Cutter's scenes: the needle, the crash (cutter_scene.gd).
+var cutter_scene: CutterScene
+## Seconds of roaming town till Cutter shows this stay (-1: not this stay).
+var _cutter_at := -1.0
+## Rescues in the hub (rescue.gd, rescue_event.gd): Mom or Ophelia taken, and the race to them.
+var rescue_event: RescueEvent
 ## The Shepherd's gear going on her in the dispensary's back room (fitting_scene.gd).
 var fitting_scene: FittingScene
 ## The morning dose at the dispensary, played out (dose_scene.gd).
@@ -319,6 +337,8 @@ func _ready() -> void:
 	ViceLooks.open(ViceLooks.path_for(Vices.save_path))
 	Obsession.open(Obsession.path_for(Vices.save_path))
 	HubGrip.open(HubGrip.path_for(Vices.save_path))
+	Redline.open(Redline.path_for(Vices.save_path))
+	HubRescue.open(HubRescue.path_for(Vices.save_path))
 	tether = Tether.new(self)
 	add_child(tether)
 	chorus_scene = ChorusScene.new(self)
@@ -329,6 +349,10 @@ func _ready() -> void:
 	add_child(super_hush_scene)
 	cheat_scene = CheatScene.new(self)
 	add_child(cheat_scene)
+	cutter_scene = CutterScene.new(self)
+	add_child(cutter_scene)
+	rescue_event = RescueEvent.new(self)
+	add_child(rescue_event)
 	fitting_scene = FittingScene.new(self)
 	add_child(fitting_scene)
 	dose_scene = DoseScene.new(self)
@@ -366,6 +390,7 @@ func _ready() -> void:
 	drunk.name = "DrunkScreen"
 	add_child(drunk)
 	add_child(VisorScreen.new(self))
+	add_child(RedlineSenses.new(self))  # what the Rig's mods let her hear and see
 	var craving := CravingScreen.new()
 	craving.name = "CravingScreen"
 	add_child(craving)
@@ -417,7 +442,9 @@ func abandon_run() -> void:
 
 
 func start_run(seed_value: int, uncharted := 0, level := "") -> void:
-	if phase == Phase.HUB:  # did she go and see Ophelia first? (obsession.gd)
+	if phase == Phase.HUB:
+		rescue_event.lose()  # gone on a run with someone taken: too late for them
+		# did she go and see Ophelia first? (obsession.gd)
 		Obsession.run_started(NpcTalk.Romance.status(npc_talk.state, "ophelia") == "together", runs_ended)
 	if seed_value == 0:
 		seed_value = randi_range(1, 999999)
@@ -549,6 +576,7 @@ func enter_hub() -> void:
 	if hub_npcs.has("ophelia"):
 		NpcIdles.build_window(zone_root)
 	_grip_scene.call_deferred()  # someone she loves has gone further under (hub_grip.gd)
+	_cutter_at = randf_range(CUTTER_DELAY.x, CUTTER_DELAY.y) if runs_ended >= CUTTER_FROM and randf() < CUTTER_CHANCE else -1.0
 	Wardrobe.dress_eco(player, true)
 	phase = Phase.HUB
 	dress_hub()
@@ -557,6 +585,8 @@ func enter_hub() -> void:
 	hush_pull.reset()
 	super_hush_scene.reset()
 	cheat_scene.reset()
+	cutter_scene.reset()
+	rescue_event.reset()
 	fitting_scene.reset()
 	dose_scene.reset()
 	trial_intro.reset()
@@ -666,6 +696,109 @@ func _grip_scene() -> void:
 	npc_talk._play(them, scene[1])
 
 
+## Any of the hub's scenes playing (the hub's controls and Cutter wait for them).
+func _scene_busy(with_pull := true) -> bool:
+	return super_hush_scene.busy() or cheat_scene.busy() or chorus_scene.busy() or fitting_scene.busy() \
+			or dose_scene.busy() or cutter_scene.busy() or rescue_event.busy() or (with_pull and hush_pull.busy())
+
+
+## Cutter's due this stay: once she's been roaming town long enough he comes,
+## from whichever of his haunts is far enough away to give her a head start.
+func _tick_cutter(delta: float, roaming: bool) -> void:
+	if _cutter_at < 0.0 or not roaming or not get_tree().get_nodes_in_group("cutter").is_empty():
+		return
+	if player.global_position.z < 120.0:  # not in the temple: he works the town
+		return
+	_cutter_at -= delta
+	if _cutter_at <= 0.0:
+		_cutter_at = -1.0
+		spawn_cutter()
+
+
+func spawn_cutter() -> void:
+	if phase != Phase.HUB or not get_tree().get_nodes_in_group("cutter").is_empty():
+		return
+	var best := Vector3.INF
+	for at in [HushDen.ALLEY + Vector3(2.0, 0.1, 0), HushDen.CELLAR + Vector3(-2.0, 0.1, 0), Vector3(0.0, 0.1, 150.0), Vector3(0.0, 0.1, 230.0)]:
+		var d := player.global_position.distance_to(at)
+		if d >= 18.0 and (best == Vector3.INF or d < player.global_position.distance_to(best)):
+			best = at
+	if best == Vector3.INF:
+		best = player.global_position + Vector3(0, 0.1, 20.0)
+	zone_root.add_child(Cutter.create(self, best))
+	hud.toast("Somebody whistles behind her. Two notes, low then high. Ophelia used to say that's Cutter's.", 4.0)
+
+
+## Sat in the Rig (on: in the chair, facing into Biggie's den), or up out of it.
+func _rig_sit(on: bool) -> void:
+	var seat: Vector3 = zone_info.get("rig_seat", Vector3.INF)
+	if seat == Vector3.INF:
+		return
+	var eco: Node = player.get_node_or_null("EcoBody")
+	if on:
+		place_player(seat + Vector3(0, 0.05, 0))
+		player.rotation.y = PI  # facing into the den
+	else:
+		place_player(seat + Vector3(0, 0.1, 0.9))
+	for n in ["Body", "Shadow"]:
+		var body: Node = eco.get_node_or_null(n) if eco != null else null
+		if body != null:
+			body.set("rest_seat_height", 0.59)
+			body.set("rest_pose", "chair" if on else "")
+
+## The cheat box's Redline: Cutter, right in front of her, and the needle.
+func cutter_now() -> void:
+	var fwd := -player.global_basis.z
+	fwd.y = 0.0
+	var c := Cutter.create(self, player.global_position + fwd.normalized() * 0.8)
+	zone_root.add_child(c)
+	c.catch.call_deferred()
+
+
+## The cheat box's B: Mom or Ophelia already one of a captor's (three visits
+## in), walking off to them from just ahead of Eco.
+func drawn_now() -> void:
+	if rescue_event.step != RescueEvent.Step.IDLE:
+		return
+	var people: Array = HubRescue.WHO.filter(func(w): return hub_npcs.has(w))
+	if people.is_empty():
+		hud.toast("Nobody home.", 2.5)
+		return
+	var w: String = people[randi() % people.size()]
+	HubRescue.make_theirs(w, HubRescue.CAPTORS[randi() % HubRescue.CAPTORS.size()])
+	rescue_event.walk_off_now(w)
+
+
+## The cheat box's rescue: someone taken right now, by whichever captor's
+## started on her (any of them, if none has yet).
+func rescue_now() -> void:
+	if rescue_event.step != RescueEvent.Step.IDLE:
+		return
+	var people: Array = HubRescue.WHO.filter(func(w): return hub_npcs.has(w))
+	if people.is_empty():
+		hud.toast("Nobody home to take.", 2.5)
+		return
+	var captors := HubRescue.active_captors()
+	if captors.is_empty():
+		captors = HubRescue.CAPTORS
+	rescue_event.start(people[randi() % people.size()], captors[randi() % captors.size()])
+
+
+## Cutter has her (cutter.gd): the needle (cutter_scene.gd).
+func cutter_caught(c: Node3D) -> void:
+	cutter_scene.play_catch(c)
+
+
+## The Redline high counting down; when it's out, the crash, as soon as nothing
+## else has the screen.
+func _tick_redline(delta: float) -> void:
+	Redline.tick(delta)
+	if Redline.crash_owed and not Redline.high() and not _scene_busy() and bench == null:
+		cutter_scene.play_crash()
+
+
+
+
 ## The Shepherd comes for her (hymn.gd), from the dispensary's back door.
 func spawn_shepherd() -> void:
 	if phase != Phase.HUB or not get_tree().get_nodes_in_group("shepherd").is_empty():
@@ -756,6 +889,7 @@ func _physics_process(delta: float) -> void:
 		Vices.tick(delta)
 		_vice_keys()
 		_band_ping(delta)
+		_tick_redline(delta)
 		if phase in [Phase.ZONE, Phase.ARENA, Phase.FIGHT] and not trial_intro.busy():
 			hush_pull.run_tick(delta, titan == null or not titan.piloted)
 			if Hymn.tick_bridge(delta):
@@ -806,7 +940,7 @@ func _hub_tick(delta: float) -> void:
 		if Input.is_action_just_pressed("interact") or Input.is_action_just_pressed("ui_cancel") or bench.get("close_now") == true:
 			close_bench()
 		return
-	if super_hush_scene.busy() or cheat_scene.busy() or chorus_scene.busy() or fitting_scene.busy() or dose_scene.busy():
+	if _scene_busy(false):  # (Marrow's pull ticks on below)
 		return
 	if garage != null:
 		if Input.is_action_just_pressed("interact") or Input.is_action_just_pressed("ui_cancel"):
@@ -825,6 +959,10 @@ func _hub_tick(delta: float) -> void:
 			and player.global_position.y > HushDen.BASEMENT.y + 5.0
 	hush_pull.tick(delta, roaming)
 	_tick_hymn(delta, roaming)
+	_tick_cutter(delta, roaming)
+	rescue_event.tick(delta, roaming)
+	if rescue_event.busy():
+		return
 	if hush_pull.busy():
 		return
 	if Vices.hush_suit_new:
@@ -860,6 +998,12 @@ func _hub_tick(delta: float) -> void:
 		return
 	if spot.is_empty() or not Input.is_action_just_pressed("interact"):
 		return
+	if spot["id"] == RescueEvent.SPOT:
+		rescue_event.knock()
+		return
+	if spot["id"] == RescueEvent.STOP_SPOT:
+		rescue_event.stop_walker()
+		return
 	_hub_sound(spot)
 	if spot["id"] == "tutorial_poster":
 		start_run(run_seed)
@@ -890,7 +1034,7 @@ func _hub_tick(delta: float) -> void:
 	if spot["id"] == "marrow" and Glass.can_confront():
 		chorus_scene.play()
 		return
-	var vice_shop: bool = spot.get("shop", "") in ["bar", "stims", "hush", "dispensary", "gear_off", "gear_off_doc"]
+	var vice_shop: bool = spot.get("shop", "") in ["bar", "stims", "hush", "dispensary", "gear_off", "gear_off_doc", "rig"]
 	if spot.has("date") and (not vice_shop or date_ready(spot)) and date_at(spot):
 		return
 	if spot.has("screen"):
@@ -1044,6 +1188,13 @@ func _rest_prompt() -> String:
 
 ## Starts a conversation between Eco and one of the people in the hub.
 func talk_to(who: String) -> void:
+	var theirs := rescue_event.changed_line(who)  # dressed and talking like whoever's had them (rescue_looks.gd)
+	if theirs != "":
+		hud.toast(theirs, HUB_LINE_SECONDS + 1.0)
+		return
+	var quiet := rescue_event.quiet_line(who)  # Marrow had them too long (rescue.gd)
+	if quiet != "":
+		hud.toast(quiet, 3.5)
 	if who in HubGrip.WHO and hub_npcs.has(who):
 		if HubGrip.deaf_now(who):  # the headphones: she doesn't hear Eco, the first time
 			hud.toast(DEAF % [HubGrip.NAMES[who], HubGrip.NAMES[who]], HUB_LINE_SECONDS)
@@ -1251,6 +1402,9 @@ func open_bench(kind: String) -> void:
 		bench = GearOffScreen.new(true, armory, hub_npcs.keys())
 	elif kind == "obsession":
 		bench = ObsessionScreen.new(npc_talk)
+	elif kind == "rig":
+		bench = RigScreen.new()
+		_rig_sit(true)
 	else:
 		bench = GunsmithScreen.new(armory) if kind == "gunsmith" else BenchScreen.new(armory, kind)
 	bench.set_meta("kind", kind)
@@ -1289,6 +1443,13 @@ func close_bench() -> void:
 		Wardrobe.dress_eco(player, true)
 	elif bench is GearOffScreen and bench.slipped != "":
 		hud.toast("The %s is still on her. Try again after the next run." % Hymn.GEAR_NAMES[bench.slipped], HUB_LINE_SECONDS)
+	if bench is RigScreen:
+		_rig_sit(false)
+	if bench is RigScreen and bench.changed:  # the Rig: her mods, as they are now
+		Wardrobe.dress_eco(player, true)
+		cutter_scene._redress_copies()
+		if bench.felt != "":
+			hud.toast(Redline.FEEL[bench.felt], HUB_LINE_SECONDS + 1.0)
 	if bench is BarScreen and bench.net != 0:
 		hud.toast("Scrapjack: %s%d scrap tonight." % ["+" if bench.net > 0 else "", bench.net], HUB_LINE_SECONDS)
 	if bench is WardrobeScreen and not bench.changed.is_empty():
@@ -1313,7 +1474,13 @@ func close_bench() -> void:
 	dress_hub()
 	if inject:
 		super_hush_scene.play()
-	if cheat != "":
+	if cheat == "redline":
+		cutter_now()
+	elif cheat == "rescue":
+		rescue_now()
+	elif cheat == "drawn":
+		drawn_now()
+	elif cheat != "":
 		cheat_scene.play(cheat)
 	if hunt:
 		spawn_shepherd()
@@ -1582,8 +1749,12 @@ func nearest_hub_spot() -> Dictionary:
 			continue  # her Keepsake tin, only while it's in Eco (obsession.gd)
 		if spot.has("glass") and (not Glass.ledger_there() or spot["glass"] in Glass.vats):
 			continue  # the Chorus's ledger and vats (glass.gd)
+		if rescue_event != null and rescue_event.step != RescueEvent.Step.IDLE and spot.get("npc", "") == rescue_event.who:
+			continue  # taken (rescue_event.gd)
 		var at: Vector3 = spot["pos"]
 		var d := Vector2(pos.x - at.x, pos.z - at.z).length()
+		if spot["id"] == RescueEvent.SPOT:
+			d *= 0.5  # the captor first, over any door beside him
 		if d < float(spot["range"]) and absf(pos.y - at.y) < 2.5 and d < best_d:
 			best = spot
 			best_d = d
@@ -1770,7 +1941,7 @@ func kill_y() -> float:
 func _check_fall() -> bool:
 	if player.global_position.y > kill_y():
 		return false
-	run.pilot_hp -= FALL_DAMAGE
+	run.pilot_hp -= roundi(FALL_DAMAGE * Redline.fall_scale())
 	run.falls += 1
 	BattleDamage.on_fall()
 	if run.pilot_hp <= 0:
@@ -1835,6 +2006,9 @@ func nearest_cache() -> Node3D:
 
 
 func open_salvage(cache: Node3D) -> void:
+	if not cache.can_open() and Redline.breaks_locks() and cache.get("locked") == true:
+		cache.unlock()  # the Rig's bone spurs
+		hud.toast("Eco drives a spur through the padlock. It pops.", 2.5)
 	if not cache.can_open():
 		hud.toast("LOCKED: CLEAR THE GUARDS")
 		tutorial.event("locked")
@@ -1989,6 +2163,7 @@ func end_run(title: String, reason: String) -> void:
 	Hymn.run_over()
 	Obsession.run_over()
 	HubGrip.run_over()
+	HubRescue.run_over()
 	tether.stop()
 	var haul := Armory.run_haul(run.materials, won)
 	armory.bank(haul)
@@ -2021,7 +2196,7 @@ func end_run(title: String, reason: String) -> void:
 ## nothing else open.
 func _vice_keys() -> void:
 	if bench != null or garage != null or hub_piloting or npc_talk.active() or hush_pull.busy() \
-			or super_hush_scene.busy() or cheat_scene.busy() or chorus_scene.busy() or fitting_scene.busy() or dose_scene.busy() or tether.busy() or trial_intro.busy():
+			or super_hush_scene.busy() or cheat_scene.busy() or chorus_scene.busy() or fitting_scene.busy() or dose_scene.busy() or cutter_scene.busy() or rescue_event.busy() or tether.busy() or trial_intro.busy():
 		return
 	if not (phase == Phase.HUB or in_run()) or (titan != null and titan.piloted):
 		return
@@ -2237,7 +2412,7 @@ func _update_hud() -> void:
 func _prompt() -> String:
 	match phase:
 		Phase.HUB:
-			if hub_piloting or hush_pull.busy() or super_hush_scene.busy() or cheat_scene.busy() or chorus_scene.busy() or fitting_scene.busy() or dose_scene.busy():
+			if hub_piloting or hush_pull.busy() or super_hush_scene.busy() or cheat_scene.busy() or chorus_scene.busy() or fitting_scene.busy() or dose_scene.busy() or cutter_scene.busy() or rescue_event.busy():
 				return ""
 			if hub_titan != null and hub_titan.dropping:
 				return "Titanfall inbound"

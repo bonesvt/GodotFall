@@ -37,6 +37,12 @@
    0.55,
    0.15,
    0.75
+  ],
+  "cuts": [
+   "sleeveless",
+   "crop",
+   "deep_back",
+   "hotpants"
   ]
  },
  "kintsugi": {
@@ -77,6 +83,12 @@
    0.95,
    0.7,
    0.25
+  ],
+  "cuts": [
+   "sleeveless",
+   "lattice",
+   "deep_back",
+   "thigh_highs"
   ]
  },
  "sleepwalker": {
@@ -117,6 +129,10 @@
    0.97,
    0.96,
    0.97
+  ],
+  "cuts": [
+   "crop",
+   "hotpants"
   ]
  },
  "idol": {
@@ -152,6 +168,12 @@
    0.95,
    0.7,
    0.3
+  ],
+  "cuts": [
+   "sleeveless",
+   "crop",
+   "side_cuts",
+   "hotpants"
   ]
  },
  "parade": {
@@ -192,6 +214,10 @@
    0.85,
    0.1,
    0.2
+  ],
+  "cuts": [
+   "hotpants",
+   "crop"
   ]
  },
  "keepsake_a": {
@@ -214,7 +240,14 @@
    0.8,
    0.35,
    0.45
-  ]
+  ],
+  "cuts": [
+   "short_sleeves",
+   "collar",
+   "side_cuts",
+   "thigh_highs"
+  ],
+  "from": "ophelia"
  },
  "keepsake_b": {
   "pattern": [
@@ -249,6 +282,10 @@
    0.25,
    0.12,
    0.22
+  ],
+  "cuts": [
+   "crop",
+   "hotpants"
   ]
  },
  "keepsake_c": {
@@ -284,6 +321,10 @@
    0.7,
    0.45,
    0.45
+  ],
+  "cuts": [
+   "crop",
+   "hotpants"
   ]
  },
  "her_own": {
@@ -332,6 +373,12 @@
    0.55,
    0.03,
    0.08
+  ],
+  "cuts": [
+   "sleeveless",
+   "deep_back",
+   "side_cuts",
+   "thigh_highs"
   ]
  },
  "survivor": {
@@ -361,6 +408,11 @@
    0.05,
    0.0,
    0.0
+  ],
+  "cuts": [
+   "sleeve_l",
+   "shorts_r",
+   "crop"
   ]
  },
  "unbound": {
@@ -406,6 +458,11 @@
    0.75,
    0.35,
    0.4
+  ],
+  "cuts": [
+   "crop",
+   "hotpants",
+   "off_shoulder"
   ]
  }
 }

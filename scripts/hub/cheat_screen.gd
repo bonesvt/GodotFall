@@ -21,6 +21,11 @@ extends CanvasLayer
 ##   Y   the glass shard: Faith's devotion to full (vice_looks.gd)
 ##   U   the PRIORITY ticket: Colony City's Town's Grip to full (vice_looks.gd)
 ##   R   Biggie's toolkit: everything above (and Super Hush) back to nothing
+##   C   Cutter's Redline: he's there, and the needle (cutter_scene.gd)
+##   G   five Redline charges, for the Rig in Biggie's den (redline.gd)
+##   V   a rescue: Mom or Ophelia taken right now (rescue_event.gd)
+##   B   Mom or Ophelia already one of a captor's, walking off to them just
+##       ahead of Eco: [F] to try and stop her (rescue_event.gd stop_walker())
 
 const Armory := preload("res://scripts/hub/armory.gd")
 const TownShops := preload("res://scripts/hub/town_shops.gd")
@@ -105,11 +110,15 @@ func _ready() -> void:
 	col.add_child(_button("Y   The glass shard (Faith's devotion to full)", func(): control_item("shard")))
 	col.add_child(_button("U   The PRIORITY ticket (Town's Grip to full)", func(): control_item("ticket")))
 	col.add_child(_button("R   Biggie's toolkit (reset every control system)", func(): control_item("toolkit")))
+	col.add_child(_button("C   Cutter's Redline (the needle, the high, a charge)", redline_item))
+	col.add_child(_button("G   Five Redline charges (spend them at the Rig in Biggie's den)", redline_charges))
+	col.add_child(_button("V   A rescue (Mom or Ophelia taken, now: get to them)", rescue_item))
+	col.add_child(_button("B   Theirs already (Mom or Ophelia walking off to a captor: stop her)", drawn_item))
 	_status = _text("", 16, INK)
 	_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_status.custom_minimum_size = Vector2(512, 0)
 	col.add_child(_status)
-	col.add_child(_text("1-9, 0, Q, W, E, T, Y, U, R pick   F or Esc close", 14, DIM))
+	col.add_child(_text("1-9, 0, Q, W, E, T, Y, U, R, C, G, V pick   F or Esc close", 14, DIM))
 
 
 func _input(event: InputEvent) -> void:
@@ -150,6 +159,14 @@ func _input(event: InputEvent) -> void:
 			control_item("ticket")
 		KEY_R:
 			control_item("toolkit")
+		KEY_C:
+			redline_item()
+		KEY_G:
+			redline_charges()
+		KEY_V:
+			rescue_item()
+		KEY_B:
+			drawn_item()
 		_:
 			return
 	get_viewport().set_input_as_handled()
@@ -205,6 +222,14 @@ func super_hush() -> bool:
 	return true
 
 
+## Cutter's Redline: the box closes, he's right there, and the needle.
+func redline_item() -> bool:
+	scene = "redline"
+	close_now = true
+	_did("Cutter's Redline: watch.")
+	return true
+
+
 ## One of the hypno looks' meters up a stage (25), back to none after full.
 ## Returns the meter's new level.
 func look_meter(meter_name: String) -> float:
@@ -227,6 +252,32 @@ func unlock_looks() -> void:
 
 ## One of the control items: the box closes and its scene plays out
 ## (cheat_scene.gd), which sets its system to full at the end. Mature only.
+## Someone taken, now: Biggie runs in when the box shuts (rescue_event.gd).
+func rescue_item() -> bool:
+	scene = "rescue"
+	close_now = true
+	_did("A rescue: run.")
+	return true
+
+
+## Mom or Ophelia already one of a captor's, walking off to them now, just
+## ahead of Eco (rescue_event.gd walk_off_now()).
+func drawn_item() -> bool:
+	scene = "drawn"
+	close_now = true
+	_did("She's theirs, and off to them: stop her.")
+	return true
+
+
+## Five Redline charges for the Rig.
+func redline_charges() -> bool:
+	var Redline := preload("res://scripts/hub/redline.gd")
+	Redline.charges += 5
+	Redline.save()
+	_did("Five Redline charges: %d now. The Rig's in Biggie's den." % Redline.charges)
+	return true
+
+
 func control_item(id: String) -> bool:
 	if id in ["family", "dosebox"] and npc_talk == null:
 		_did("Nobody home for the Family Plan.")
