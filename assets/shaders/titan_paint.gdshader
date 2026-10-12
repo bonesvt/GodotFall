@@ -7,10 +7,18 @@
 // The wear mask is box projected in object space, like ps2_surface, so the
 // models need no UVs. Same per-object knobs as ps2_surface (flash, glow,
 // paint), so ps2_model.gd set_param works on titans unchanged. No vertex
-// snap: the import script builds these materials, and global uniforms don't
-// exist while importing.
+// snap.
+// In the Anime look (the anime_look global, see ps2_surface.gdshaderinc) the
+// paint is drawn crisp like the characters (the screen pass doesn't paint
+// over it) and shades in the set's cel tones: a clean terminator, light lilac
+// shadows with a deeper core, cast shadows fully dark.
 shader_type spatial;
 render_mode diffuse_lambert;
+
+global uniform float anime_look;
+const float ANIME_CEL_SOFT = 0.06;
+const vec4 ANIME_SHADOW = vec4(0.8, 0.7, 0.86, 0.74);  // as ps2_surface
+const vec3 ANIME_DEEP = vec3(0.84, 0.8, 0.88);
 
 uniform vec4 albedo : source_color = vec4(0.5, 0.6, 0.8, 1.0);
 // What shows through where the paint is chipped.
@@ -98,7 +106,7 @@ void fragment() {
 		RIM_TINT = 0.5;
 		// Physical finish for the sky reflections of the PS3 look: polished
 		// paint is smooth, grime and chips rough it up, chips are bare steel.
-		ROUGHNESS = mix(0.75, 0.18, shine) + mask.b * 0.08;
+		ROUGHNESS = mix(mix(0.75, 0.18, shine) + mask.b * 0.08, 1.0, anime_look);
 		METALLIC = chip * 0.85;
 		v_shine = shine;
 	}
@@ -106,9 +114,16 @@ void fragment() {
 
 void light() {
 	float ndl = dot(NORMAL, LIGHT);
-	float wrapped = (ndl + light_wrap) / (1.0 + light_wrap);
-	float lit = smoothstep(0.0, light_softness, wrapped);
-	DIFFUSE_LIGHT += lit * ATTENUATION * LIGHT_COLOR / PI;
+	if (anime_look > 0.5 && LIGHT_IS_DIRECTIONAL) {
+		float cel = smoothstep(-ANIME_CEL_SOFT, ANIME_CEL_SOFT, min(ndl, ATTENUATION * 2.0 - 0.6));
+		vec3 dark = ANIME_SHADOW.rgb * ANIME_SHADOW.a;
+		dark *= mix(ANIME_DEEP, vec3(1.0), smoothstep(-0.5 - ANIME_CEL_SOFT, -0.5 + ANIME_CEL_SOFT, ndl));
+		DIFFUSE_LIGHT += mix(dark, vec3(1.0), cel) * LIGHT_COLOR / PI;
+	} else {
+		float wrapped = (ndl + light_wrap) / (1.0 + light_wrap);
+		float lit = smoothstep(0.0, light_softness, wrapped);
+		DIFFUSE_LIGHT += lit * ATTENUATION * LIGHT_COLOR / PI;
+	}
 	// Candy highlight: Blinn-Phong pushed to a near hard edge.
 	vec3 h = normalize(LIGHT + VIEW);
 	float s = pow(max(dot(NORMAL, h), 0.0), shininess);

@@ -10,17 +10,25 @@ extends RefCounted
 ##   headphones  trigger words twice as often, a shorter window to shake them
 ##               (trigger_words.gd), and from any Hold, in the colony's voice
 ##   cuff        a dose cuff: skip the line and it counts down on the HUD, then
-##               doses her where she stands. A Hymn bell hangs off it and rings
-##               when she sprints or lands from a fall (tick_bell), and every
-##               ring is heard: enemies in BELL_RANGE come to it, the Shepherd
-##               knows where she is. Walking keeps it quiet.
+##               doses her where she stands
 ##   visor       the clarity visor: her view crowded with flashing orders,
 ##               turning rings and false HUD (visor_screen.gd)
 ##   bridge      the calm bridge (smell): every BRIDGE_EVERY s it puffs a
 ##               little Hymn up her nose
-##   gloves      comfort gloves (touch): numb hands, reloads RELOAD_SLOW slower
+##   gloves      comfort gloves (touch): numb hands that won't come apart: she has
+##               to two-hand her one-handed guns, so reloads are RELOAD_SLOW
+##               slower and her shots spread GLOVE_SPREAD wider
 ##   spine       the Plumb Line (balance): colony posture, a step heavier
 ##               (SPINE_SPEED)
+##   band        the Processed tracker band: heavy grey prison band at her throat,
+##               a blinking light and a small speaker. Moving fast (over
+##               BAND_SPEED) its speaker pings every BAND_EVERY s: on a run every
+##               enemy in BAND_RANGE hears it like a shot, and in town the
+##               Shepherd does. While the Shepherd hunts her it also reports
+##               where she is every BAND_TRACK s, its pulse locks the band for
+##               BAND_LOCK s, and running from it in its sight more than
+##               STUN_RANGE m off stuns her every STUN_EVERY s (shepherd.gd).
+##               Every Processed NPC wears the same one (hub_grip.gd).
 ## Biggie can get a piece off at the folding table in his tent (gear_off_screen.gd):
 ## one try each time she's back in town, a steady-hand job (STEADY: how much room
 ## he has with each piece), and every slip shocks her (SLIP Hymn) and it stays on.
@@ -28,12 +36,12 @@ extends RefCounted
 
 const Vices := preload("res://scripts/hub/vices.gd")
 
-const GEAR := ["headphones", "cuff", "visor", "bridge", "gloves", "spine"]
+const GEAR := ["headphones", "cuff", "visor", "bridge", "gloves", "spine", "band", "crown"]
 const GEAR_NAMES := {"headphones": "compliance headphones", "cuff": "dose cuff", "visor": "clarity visor",
-	"bridge": "calm bridge", "gloves": "comfort gloves", "spine": "Plumb Line spine"}
+	"bridge": "calm bridge", "gloves": "comfort gloves", "spine": "Plumb Line spine", "band": "tracker band", "crown": "Crown"}
 ## How much room Biggie's hand has getting each piece off (the width of the
 ## steady band, 0..1): the visor's cups on her eyes and the spine least of all.
-const STEADY := {"headphones": 0.22, "cuff": 0.2, "visor": 0.12, "bridge": 0.18, "gloves": 0.2, "spine": 0.1}
+const STEADY := {"headphones": 0.22, "cuff": 0.2, "visor": 0.12, "bridge": 0.18, "gloves": 0.2, "spine": 0.1, "band": 0.15, "crown": 0.08}
 ## Clean holds he needs in a row (pins, needles, cups, tubes, seals, segments).
 const HOLDS := 3
 ## Hymn a slip shocks into her.
@@ -41,8 +49,25 @@ const SLIP := 5.0
 ## The calm bridge's puff: how often, and how much Hymn.
 const BRIDGE_EVERY := 60.0
 const BRIDGE_PUFF := 1.5
+## The Crown, last of all: it ties every piece together. While it's on, Hymn
+## never falls below CROWN_FLOOR, his words come in half the time (trigger_words.gd),
+## and Biggie can't touch it until everything else is off her (crown_locked()).
+const CROWN_FLOOR := 80.0
+## The tracker band's speaker: how fast she has to be moving for it to ping,
+## how often, how far it carries.
+const BAND_SPEED := 6.0
+const BAND_EVERY := 0.9
+const BAND_RANGE := 22.0
+## While the Shepherd hunts her (shepherd.gd): how often the band reports where
+## she is, how long its lock holds her, and the stun for running.
+const BAND_TRACK := 5.0
+const BAND_LOCK := 1.5
+const STUN_RANGE := 12.0
+const STUN_EVERY := 8.0
+const STUN_HOLD := 0.9
 ## The gloves' numb hands (reload time x), the spine's heavier step (speed x).
 const RELOAD_SLOW := 1.3
+const GLOVE_SPREAD := 1.35
 const SPINE_SPEED := 0.94
 ## Hymn a dose puts in her, a Shepherd dart, and being processed.
 const DOSE := 12.0
@@ -54,13 +79,6 @@ const MAX := 100.0
 const WINDOW := 0.3
 const WINDOW_SHRINK := 0.05
 const MIN_WINDOW := 0.1
-## The cuff's bell: it rings at BELL_SPEED (m/s, a sprint) or faster, at most
-## every BELL_EVERY s, and on landing from BELL_FALL s in the air; enemies
-## within BELL_RANGE hear it.
-const BELL_SPEED := 8.5
-const BELL_EVERY := 1.1
-const BELL_FALL := 0.45
-const BELL_RANGE := 16.0
 ## Seconds the dose cuff gives her to get to the line once she's back in town.
 const CUFF_TIME := 180.0
 
@@ -75,10 +93,11 @@ static var captures := 0
 static var gear: Array = []
 static var cuff_left := CUFF_TIME
 static var _puff := BRIDGE_EVERY
-static var _bell_wait := 0.0
-static var _air := 0.0
+static var _band_t := 0.0
 ## Biggie's had a go this time in town.
 static var biggie_tried := false
+## Doc Imani's had a go this time in town (gear_off_screen.gd, the clinic).
+static var doc_tried := false
 static var save_path := "user://hymn.cfg"
 
 
@@ -189,24 +208,48 @@ static func tick_bridge(delta: float) -> bool:
 	return true
 
 
-## Each physics tick: the cuff's bell, from how fast she's moving (flat m/s)
-## and whether she's on the ground. True when it rings.
-static func tick_bell(delta: float, speed: float, grounded: bool) -> bool:
-	if not has("cuff"):
-		_air = 0.0
+## The Crown holds her Hymn up.
+static func _crown_floor() -> void:
+	if has("crown"):
+		level = maxf(level, CROWN_FLOOR)
+
+
+## The Crown can't come off while anything else is still on her.
+static func crown_locked() -> bool:
+	return "crown" in gear and gear.size() > 1
+
+
+## A saved set of gear in today's pieces: the old Hymn bell and detention
+## collar are the tracker band now.
+static func migrate(old: Array) -> Array:
+	var out: Array = []
+	for g in old:
+		var piece: String = "band" if g in ["bell", "collar"] else String(g)
+		if piece in GEAR and not piece in out:
+			out.append(piece)
+	return out
+
+
+## Each tick: true when the band's speaker pings (she's on the move, fast, with it on).
+static func tick_band(delta: float, speed: float) -> bool:
+	if not has("band") or speed < BAND_SPEED:
+		_band_t = minf(_band_t, 0.2)
 		return false
-	_bell_wait = maxf(_bell_wait - delta, 0.0)
-	var landed := grounded and _air >= BELL_FALL
-	_air = 0.0 if grounded else _air + delta
-	if _bell_wait > 0.0 or not (landed or speed >= BELL_SPEED):
+	_band_t -= delta
+	if _band_t > 0.0:
 		return false
-	_bell_wait = BELL_EVERY
+	_band_t = BAND_EVERY
 	return true
 
 
 ## Her reload time multiplier (the gloves' numb hands).
 static func reload_scale() -> float:
 	return RELOAD_SLOW if has("gloves") else 1.0
+
+
+## Her gun's spread multiplier (the gloves hold her hands together on a one-handed grip).
+static func spread_scale() -> float:
+	return GLOVE_SPREAD if has("gloves") else 1.0
 
 
 ## Her move speed multiplier (the spine's colony step).
@@ -231,7 +274,9 @@ static func biggie_try(piece: String, clean: bool) -> void:
 
 ## A run ends: tomorrow's dose is waiting.
 static func run_over() -> void:
+	_crown_floor()
 	biggie_tried = false
+	doc_tried = false
 	dosed_today = false
 	cuff_left = CUFF_TIME
 	save()
@@ -246,9 +291,8 @@ static func reset() -> void:
 	captures = 0
 	gear = []
 	biggie_tried = false
+	doc_tried = false
 	cuff_left = CUFF_TIME
-	_bell_wait = 0.0
-	_air = 0.0
 
 
 static func open(path: String) -> void:
@@ -263,11 +307,12 @@ static func open(path: String) -> void:
 	refusals = int(cfg.get_value("hymn", "refusals", 0))
 	hunted = bool(cfg.get_value("hymn", "hunted", false))
 	captures = int(cfg.get_value("hymn", "captures", 0))
-	gear = Array(cfg.get_value("hymn", "gear", [])).filter(func(g): return g in GEAR)
+	gear = migrate(cfg.get_value("hymn", "gear", []))
 	biggie_tried = bool(cfg.get_value("hymn", "biggie_tried", false))
 
 
 static func save() -> void:
+	_crown_floor()
 	var cfg := ConfigFile.new()
 	cfg.set_value("hymn", "level", level)
 	cfg.set_value("hymn", "dosed_today", dosed_today)

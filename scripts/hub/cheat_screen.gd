@@ -10,6 +10,22 @@ extends CanvasLayer
 ##       devotion, Colony City's Town's Grip, Ophelia's obsession), wrapping
 ##       back to none after full
 ##   8   unlock the free endings' looks (Warden, Survivor, Unbound, Her Own)
+## and an item for each of the other control systems, each with its own scene
+## (cheat_scene.gd), Mature only:
+##   9   TAKE ALL Hymn films: her Hymn to full (hymn.gd)
+##   0   the colony case: every piece of the Shepherd's gear fitted in turn
+##   Q   Glass Rush: crystallised, three vials and his earpiece (glass.gd)
+##   W   Ophelia's ECO pack: Keepsake full, her obsession all the way (obsession.gd)
+##   E   Family Plan: Mom and Ophelia in the whole set, their Hymn full (hub_grip.gd)
+##   T   Mom's dose box: Mom's and Ophelia's Hymn to 90 (hub_grip.gd)
+##   Y   the glass shard: Faith's devotion to full (vice_looks.gd)
+##   U   the PRIORITY ticket: Colony City's Town's Grip to full (vice_looks.gd)
+##   R   Biggie's toolkit: everything above (and Super Hush) back to nothing
+##   C   Cutter's Redline: he's there, and the needle (cutter_scene.gd)
+##   G   five Redline charges, for the Rig in Biggie's den (redline.gd)
+##   V   a rescue: Mom or Ophelia taken right now (rescue_event.gd)
+##   B   Mom or Ophelia already one of a captor's, walking off to them just
+##       ahead of Eco: [F] to try and stop her (rescue_event.gd stop_walker())
 
 const Armory := preload("res://scripts/hub/armory.gd")
 const TownShops := preload("res://scripts/hub/town_shops.gd")
@@ -19,6 +35,8 @@ const SFX := preload("res://scripts/sfx.gd")
 const NpcTalk := preload("res://scripts/hub/npc_talk.gd")
 const Vices := preload("res://scripts/hub/vices.gd")
 const ViceLooks := preload("res://scripts/hub/vice_looks.gd")
+const HubGrip := preload("res://scripts/hub/hub_grip.gd")
+const CheatScene := preload("res://scripts/hub/cheat_scene.gd")
 
 const MAX_MATERIAL := 9999
 const GOLD := Color(1.0, 0.82, 0.3)
@@ -35,6 +53,9 @@ var unlocked: Array = []
 var done: Array = []
 ## Super Hush was picked: the box closes and its scene plays (super_hush_scene.gd).
 var inject := false
+## One of the control items was picked: the box closes and its scene plays
+## (cheat_scene.gd ITEMS key).
+var scene := ""
 var close_now := false
 
 var _status: Label
@@ -80,11 +101,24 @@ func _ready() -> void:
 	col.add_child(_button("6   Colony City look: Town's Grip up a stage (Mature only)", func(): look_meter("town_grip")))
 	col.add_child(_button("7   Ophelia's look: obsession up a stage (Mature only)", func(): look_meter("obsession")))
 	col.add_child(_button("8   Unlock the free endings' looks (Mature only)", unlock_looks))
+	col.add_child(_button("9   TAKE ALL Hymn films (her Hymn to full)", func(): control_item("hymn")))
+	col.add_child(_button("0   The colony case (all the Shepherd's gear, fitted in turn)", func(): control_item("set")))
+	col.add_child(_button("Q   Glass Rush (fully crystallised, vials, his earpiece)", func(): control_item("glass")))
+	col.add_child(_button("W   Ophelia's ECO pack (Keepsake full, her obsession all the way)", func(): control_item("keepsake")))
+	col.add_child(_button("E   The Family Plan (Mom and Ophelia, the whole set)", func(): control_item("family")))
+	col.add_child(_button("T   Mom's dose box (Mom and Ophelia's Hymn to 90)", func(): control_item("dosebox")))
+	col.add_child(_button("Y   The glass shard (Faith's devotion to full)", func(): control_item("shard")))
+	col.add_child(_button("U   The PRIORITY ticket (Town's Grip to full)", func(): control_item("ticket")))
+	col.add_child(_button("R   Biggie's toolkit (reset every control system)", func(): control_item("toolkit")))
+	col.add_child(_button("C   Cutter's Redline (the needle, the high, a charge)", redline_item))
+	col.add_child(_button("G   Five Redline charges (spend them at the Rig in Biggie's den)", redline_charges))
+	col.add_child(_button("V   A rescue (Mom or Ophelia taken, now: get to them)", rescue_item))
+	col.add_child(_button("B   Theirs already (Mom or Ophelia walking off to a captor: stop her)", drawn_item))
 	_status = _text("", 16, INK)
 	_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_status.custom_minimum_size = Vector2(512, 0)
 	col.add_child(_status)
-	col.add_child(_text("1-8 pick   F or Esc close", 14, DIM))
+	col.add_child(_text("1-9, 0, Q, W, E, T, Y, U, R, C, G, V pick   F or Esc close", 14, DIM))
 
 
 func _input(event: InputEvent) -> void:
@@ -107,6 +141,32 @@ func _input(event: InputEvent) -> void:
 			look_meter("obsession")
 		KEY_8, KEY_KP_8:
 			unlock_looks()
+		KEY_9, KEY_KP_9:
+			control_item("hymn")
+		KEY_0, KEY_KP_0:
+			control_item("set")
+		KEY_Q:
+			control_item("glass")
+		KEY_W:
+			control_item("keepsake")
+		KEY_E:
+			control_item("family")
+		KEY_T:
+			control_item("dosebox")
+		KEY_Y:
+			control_item("shard")
+		KEY_U:
+			control_item("ticket")
+		KEY_R:
+			control_item("toolkit")
+		KEY_C:
+			redline_item()
+		KEY_G:
+			redline_charges()
+		KEY_V:
+			rescue_item()
+		KEY_B:
+			drawn_item()
 		_:
 			return
 	get_viewport().set_input_as_handled()
@@ -165,6 +225,17 @@ func super_hush() -> bool:
 	return true
 
 
+## Cutter's Redline: the box closes, he's right there, and the needle.
+func redline_item() -> bool:
+	if not Vices.allowed():
+		_did("Redline is Mature only (Settings > Game > rating).")
+		return false
+	scene = "redline"
+	close_now = true
+	_did("Cutter's Redline: watch.")
+	return true
+
+
 ## One of the hypno looks' meters up a stage (25), back to none after full.
 ## Returns the meter's new level (-1 under Teen).
 func look_meter(meter_name: String) -> float:
@@ -189,6 +260,56 @@ func unlock_looks() -> void:
 		if ViceLooks.unlock(id):
 			n += 1
 	_did("Unlocked %d looks in her wardrobe: Warden, Survivor, Unbound and Her Own." % n if n > 0 else "She has every free look already.")
+
+
+## One of the control items: the box closes and its scene plays out
+## (cheat_scene.gd), which sets its system to full at the end. Mature only.
+## Someone taken, now: Biggie runs in when the box shuts (rescue_event.gd).
+func rescue_item() -> bool:
+	if not Vices.allowed():
+		_did("Rescues are Mature only (Settings > Game > rating).")
+		return false
+	scene = "rescue"
+	close_now = true
+	_did("A rescue: run.")
+	return true
+
+
+## Mom or Ophelia already one of a captor's, walking off to them now, just
+## ahead of Eco (rescue_event.gd walk_off_now()).
+func drawn_item() -> bool:
+	if not Vices.allowed():
+		_did("Rescues are Mature only (Settings > Game > rating).")
+		return false
+	scene = "drawn"
+	close_now = true
+	_did("She's theirs, and off to them: stop her.")
+	return true
+
+
+## Five Redline charges for the Rig.
+func redline_charges() -> bool:
+	if not Vices.allowed():
+		_did("Redline is Mature only (Settings > Game > rating).")
+		return false
+	var Redline := preload("res://scripts/hub/redline.gd")
+	Redline.charges += 5
+	Redline.save()
+	_did("Five Redline charges: %d now. The Rig's in Biggie's den." % Redline.charges)
+	return true
+
+
+func control_item(id: String) -> bool:
+	if not Vices.allowed():
+		_did("The control items are Mature only (Settings > Game > rating).")
+		return false
+	if id in ["family", "dosebox"] and (npc_talk == null or not HubGrip.allowed()):
+		_did("Nobody home for the Family Plan.")
+		return false
+	scene = id
+	close_now = true
+	_did("%s: watch." % CheatScene.ITEMS[id]["name"])
+	return true
 
 
 func _did(line: String) -> void:

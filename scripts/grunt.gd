@@ -10,6 +10,7 @@ extends CharacterBody3D
 ## the pilot moves, so wallrunning and sliding are your best armour.
 
 const Vices := preload("res://scripts/hub/vices.gd")
+const Redline := preload("res://scripts/hub/redline.gd")
 const Pilot := preload("res://scripts/player.gd")
 const FX := preload("res://scripts/fx.gd")
 const Art := preload("res://scripts/ps2/ps2_assets.gd")
@@ -261,7 +262,7 @@ func _update_sight(delta: float) -> void:
 	var gain := _sight_gain(from) + _hearing_gain()
 	var mult = target.get("notice_mult")  # Eco's suit dampers (player.gd)
 	if mult != null:
-		gain *= mult * Vices.notice_scale()  # and Hush (vices.gd)
+		gain *= mult * Vices.notice_scale() * Redline.notice_scale()  # and Hush (vices.gd), and the Rig's mods (redline.gd)
 	if gain > 0.0:
 		detection += gain * SIGHT_TICK
 		since_stimulus = 0.0
@@ -315,6 +316,7 @@ func _hearing_gain() -> float:
 			r = target.horizontal_speed() * footstep_range
 			if target.crouching and target.state == Pilot.State.GROUND:
 				r *= 0.3
+			r *= Redline.step_noise()  # the Rig's Compact: quieter steps
 	if dist >= r:
 		return 0.0
 	return 0.4 + 1.2 * (1.0 - dist / r)

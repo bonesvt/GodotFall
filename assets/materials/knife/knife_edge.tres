@@ -17,3 +17,4 @@ shader_parameter/emission_energy = 1.0
 shader_parameter/normal_tex = ExtResource("3_n")
 shader_parameter/metallic = 1.0
 shader_parameter/roughness = 0.5
+shader_parameter/anime_finish = true

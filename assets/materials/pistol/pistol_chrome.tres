@@ -17,3 +17,4 @@ shader_parameter/normal_tex = ExtResource("3_n")
 shader_parameter/metallic = 1.0
 shader_parameter/gloss = 0.7
 shader_parameter/gloss_sharpness = 0.75
+shader_parameter/anime_finish = true

@@ -17,6 +17,7 @@ extends SkeletonModifier3D
 ## In her skeleton's space she faces -Z, her right is +X, her feet are at y = 0.
 
 const EcoReact := preload("res://scripts/ps2/eco_react.gd")
+const Hymn := preload("res://scripts/hub/hymn.gd")
 const PlayerState := preload("res://scripts/ps2/eco_model.gd").PlayerState
 
 ## Where the pistol's grip is in its own space (centre of the grip), and the
@@ -168,8 +169,16 @@ func _process_modification() -> void:
 	_arm(sk, "R", wrist, Vector3(0.5, -1.0, 0.4), hand_basis, combat)
 	_curl(sk, "R", combat)
 
+	# the colony's comfort gloves (hymn.gd) hold her hands together: her off hand
+	# is locked under the gun hand, whatever she's doing
+	if Hymn.has("gloves"):
+		var flg: Array = _hand_frame["L"]
+		var under := wrist + dir * -0.02 + Vector3(-0.045, -0.05, 0.0)
+		var cup := _frame(dir, Vector3(0.0, 1.0, 0.0))
+		_arm(sk, "L", under, Vector3(-1.0, -0.6, 0.3), cup * _frame(flg[0], flg[1]).inverse(), combat)
+		_curl(sk, "L", combat * 0.8)
 	# off hand on her hip while she stands
-	if s > 0.01:
+	elif s > 0.01:
 		var hips := sk.get_bone_global_pose(_bones["Hips"])
 		var hip := hips.origin + Vector3(-0.16, 0.04, 0.03)
 		var fl: Array = _hand_frame["L"]

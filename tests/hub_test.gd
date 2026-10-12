@@ -26,6 +26,12 @@ func _initialize() -> void:
 	run_node.armory_path = "user://test_hub_armory.cfg"
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(run_node.armory_path))
 	DirAccess.remove_absolute(ProjectSettings.globalize_path("user://test_settings.cfg"))
+	# The vices, Hymn, Hub Grip and other saves sit next to the armory. Left over
+	# from an earlier run, the Hub Grip's levels climb run after run until a
+	# scene is waiting at home and holds her in place.
+	for f in DirAccess.get_files_at("user://"):
+		if f.begins_with("test_hub_armory_"):
+			DirAccess.remove_absolute(ProjectSettings.globalize_path("user://" + f))
 	# Ophelia is only in the hub once Level 2 has rescued her (run_manager RESCUED_IN).
 	var progress := ConfigFile.new()
 	progress.set_value("progress", "cleared", ["level2"])
@@ -91,7 +97,7 @@ func _run() -> void:
 			var to: Vector3 = spot["teleport"]
 			_check("%s takes her through" % spot["id"], Vector2(player.global_position.x - to.x, player.global_position.z - to.z).length() < 1.0, player.global_position)
 			continue
-		if spot.get("shop", "") in ["bar", "stims", "hush", "dispensary", "gear_off"] and Vices.allowed():
+		if spot.get("shop", "") in ["bar", "stims", "hush", "dispensary", "gear_off", "gear_off_doc", "rig"] and Vices.allowed():
 			# Under Mature the Rusted Halo, Sal's hatch and the colony dispensary open their screens
 			# (tests/vices_test.gd, tests/hymn_test.gd).
 			await _press("interact")
