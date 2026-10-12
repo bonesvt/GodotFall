@@ -695,6 +695,12 @@ late-90s anime finish. **F9** cycles Anime, PS3 and PS2 to compare.
   from the chassis and weapon you salvaged. Plus the red enemy titan, salvage cache and
   extract beacon. They are plain scenes made of primitive meshes, so you can edit them
   in the editor or swap in Blender models later. `tools/bake_models.gd` regenerates them (run it without `--headless`).
+- **Weapon look** (Anime look): the guns' and knives' materials set `anime_finish` on
+  `ps2_surface`, so they are drawn crisp like the characters (the screen pass doesn't
+  paint over them), with lifted blacks, a warm rim light on the lit side (`rim`) and a
+  hard gloss band on polished metal (`metallic`). The titans' paint (`titan_paint.gdshader`)
+  is crisp too and shades in the set's cel tones. `tools/pistol/look_shots.gd` renders
+  every sidearm and knife in the hub's sky.
 - **Character look** (Eco and the hub people, `assets/shaders/eco_toon.gdshaderinc`): three
   tones (lit, shade, and a deeper one turned away from the light), a warm band where the light
   turns to shade on bare skin, and sun shadows that fall as the shade tone. On the hub people

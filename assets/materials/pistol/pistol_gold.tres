@@ -16,3 +16,4 @@ shader_parameter/emission = Color(1, 0.8, 0.35, 1)
 shader_parameter/emission_energy = 0.25
 shader_parameter/normal_tex = ExtResource("3_n")
 shader_parameter/metallic = 1.0
+shader_parameter/anime_finish = true

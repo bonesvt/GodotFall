@@ -30,6 +30,10 @@ const vec4 ANIME_SHADOW = vec4(0.8, 0.7, 0.86, 0.74);  // shadow tint, strength
 const vec3 ANIME_DEEP = vec3(0.84, 0.8, 0.88);  // the core of the shadow side, darker again
 const float ANIME_LAMP_ENERGY = 0.7;
 const float ANIME_LAMP_NEUTRAL = 0.5;  // lamps lean toward white
+// The weapons' toon finish (anime_finish), from the look test's arsenal sheet.
+const vec3 ANIME_FINISH_LIFT = vec3(0.014, 0.011, 0.018);  // darkest it paints (lifted blacks)
+const vec3 ANIME_FINISH_RIM = vec3(0.5, 0.47, 0.43);         // warm rim light, times `rim`
+const float ANIME_FINISH_GLOSS = 0.45;                        // gloss band on polished metal
 
 // RGB albedo, A roughness.
 uniform sampler2D albedo_tex : source_color, filter_linear_mipmap_anisotropic, repeat_enable;
@@ -96,6 +100,10 @@ uniform float anime_tone_detail : hint_range(0.0, 1.0) = 0.3;
 uniform float hypno_swirl : hint_range(0.0, 1.0) = 0.0;
 uniform float hypno_phase = 0.0;
 uniform float hypno_density = 22.0;
+// Anime look: the weapons' toon finish. Drawn crisp like the characters (the
+// screen pass doesn't paint over it), blacks lifted, a painted rim light on
+// the lit side (`rim`) and a hard gloss band on metal (`metallic`).
+uniform bool anime_finish = false;
 
 // Per-object knobs, set with set_instance_shader_parameter (see ps2_model.gd).
 instance uniform float flash : instance_index(0) = 0.0;          // white hit flash, 0..1
@@ -235,6 +243,9 @@ void fragment() {
 		base = mix(tex.rgb, base, anime_look);
 	}
 	vec3 col = base * albedo.rgb * paint.rgb;
+	if (anime_finish) {
+		col = mix(col, max(col, ANIME_FINISH_LIFT), anime_look);
+	}
 	col *= mix(1.0, COLOR.r, vertex_ao);
 	if (ao_height > 0.0) {
 		col *= mix(1.0 - ao_strength, 1.0, smoothstep(0.0, ao_height, v_height));
@@ -269,7 +280,7 @@ void fragment() {
 		if (gloss > 0.0) {
 			r = min(r, mix(0.65, 0.12, gloss * gloss_sharpness));
 		}
-		ROUGHNESS = mix(r, 0.5, anime_look);
+		ROUGHNESS = mix(r, anime_finish ? 1.0 : 0.5, anime_look);
 		METALLIC = clamp(metallic + metal_mask * (1.0 - ntex.b), 0.0, 1.0) * ps3_look * (1.0 - anime_look);
 		SPECULAR = specular * ps3_look * (1.0 - anime_look);
 		RIM *= 1.0 - anime_look;
@@ -293,6 +304,17 @@ void light() {
 			vec3 dark = ANIME_SHADOW.rgb * ANIME_SHADOW.a;
 			dark *= mix(ANIME_DEEP, vec3(1.0), smoothstep(-0.5 - ANIME_CEL_SOFT, -0.5 + ANIME_CEL_SOFT, ndl));
 			lit = mix(dark, vec3(1.0), cel);
+			if (anime_finish) {
+				// Painted on top of the paint, so they show on black steel too,
+				// tinted toward the paint's own hue (a gold glint is golden).
+				vec3 hue = mix(vec3(1.0), ALBEDO / max(max(ALBEDO.r, max(ALBEDO.g, ALBEDO.b)), 1e-3), 0.5);
+				float edge = smoothstep(0.6, 0.68, 1.0 - clamp(dot(NORMAL, VIEW), 0.0, 1.0));
+				SPECULAR_LIGHT += ANIME_FINISH_RIM * hue * rim * edge * mix(0.15, 1.0, cel) * radiance / PI;
+				// Only polished metal (chrome, gold, copper, the white shell).
+				float nh = max(dot(NORMAL, normalize(LIGHT + VIEW)), 0.0);
+				float band = smoothstep(0.5, 0.58, pow(nh, 24.0)) * cel * smoothstep(0.75, 1.0, metallic);
+				SPECULAR_LIGHT += ANIME_FINISH_GLOSS * hue * band * radiance / PI;
+			}
 		} else {
 			// Lamps: a pool with a clean painted edge.
 			lit = vec3(smoothstep(0.0, 0.1, ndl) * smoothstep(0.12, 0.17, ATTENUATION) * ANIME_LAMP_ENERGY);

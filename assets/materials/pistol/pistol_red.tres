@@ -14,3 +14,4 @@ shader_parameter/tex_scale = 2.0
 shader_parameter/rim = 0.3
 shader_parameter/normal_tex = ExtResource("3_n")
 shader_parameter/metallic = 0.2
+shader_parameter/anime_finish = true
