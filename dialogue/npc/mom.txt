@@ -299,7 +299,7 @@ mom: ...Then I owe that girl everything.
 choice +5: eco: Tell her that. She thinks you don't like her.
 > mom: Doesn't like her? I'm knitting her a scarf. A black one. Do you know how hard it is to find black wool?
 choice +2: eco: Don't get weepy. You'll set her off, and then we'll all be crying.
-> mom: Let me be weepy. I've earned it. I'm a mother with two daughters at dinner now.
+> mom: Let me be weepy. I've earned it. One daughter at war, one running a casino, and now a girl at my table who eats what I cook. Let me have this.
 
 [about ophelia friends]
 mom: Ophelia's been quiet. Quieter. I didn't know that was possible.

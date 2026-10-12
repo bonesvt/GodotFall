@@ -38,6 +38,7 @@ const Vices := preload("res://scripts/hub/vices.gd")
 const Hymn := preload("res://scripts/hub/hymn.gd")
 const Redline := preload("res://scripts/hub/redline.gd")
 const Glass := preload("res://scripts/hub/glass.gd")
+const Velvet := preload("res://scripts/hub/velvet.gd")
 const EcoArms := preload("res://scripts/eco_fp_arms.gd")
 ## Where the gun rests in front of the camera (its own space: right, up, back).
 const VIEW_POS := Vector3(0.17, -0.105, -0.45)
@@ -455,7 +456,7 @@ func _trace_shot(from: Vector3, dir: Vector3, fx_parent: Node) -> Vector3:
 			_end_streak(landed)
 			return end
 		var head: bool = target.is_headshot(end)
-		var dmg := damage_at(from.distance_to(end)) * (headshot_multiplier if head else 1.0) * mult * Vices.damage_out() * Glass.damage_out()
+		var dmg := damage_at(from.distance_to(end)) * (headshot_multiplier if head else 1.0) * mult * Vices.damage_out() * Glass.damage_out() * Velvet.damage_out()
 		var killed: bool = target.take_damage(dmg, end, head)
 		if stagger > 0.0 and not killed and target.has_method("stagger"):
 			target.stagger(stagger)

@@ -284,6 +284,9 @@ static func boosts() -> Array:
 	for id in owned("implants"):
 		if IMPLANTS.has(id):
 			out.append(IMPLANTS[id]["boost"])
+	var secret: Dictionary = load("res://scripts/hub/downtown.gd").boost()  # Pip's secret (downtown.gd)
+	if not secret.is_empty():
+		out.append(secret)
 	return out
 
 

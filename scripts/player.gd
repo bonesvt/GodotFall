@@ -12,6 +12,7 @@ const Hymn := preload("res://scripts/hub/hymn.gd")
 const Redline := preload("res://scripts/hub/redline.gd")
 const Vices := preload("res://scripts/hub/vices.gd")
 const Glass := preload("res://scripts/hub/glass.gd")
+const Velvet := preload("res://scripts/hub/velvet.gd")
 const EcoContactSounds := preload("res://scripts/ps2/eco_contact_sounds.gd")
 ## Metres between footsteps on the ground and when running along a wall.
 const STRIDE := 2.4
@@ -351,7 +352,7 @@ func _physics_process(delta: float) -> void:
 	regen_timer -= delta
 	untouchable_timer -= delta
 	if regen_timer <= 0.0 and health < max_health:
-		health = minf(health + regen_rate * Vices.regen_scale() * Redline.regen_scale() * delta, max_health)
+		health = minf(health + regen_rate * Vices.regen_scale() * Redline.regen_scale() * Velvet.regen_scale() * delta, max_health)
 	elif regen_timer <= 0.0 and armor < max_armor:
 		armor = minf(armor + armor_regen_rate * _armor_regen_mult * delta, max_armor)
 	if resting:
@@ -421,7 +422,7 @@ func _ground_state(delta: float) -> void:
 	_set_crouch(want_crouch)
 
 	var sprinting := (auto_sprint or Input.is_action_pressed("sprint")) and input_dir.y < -0.3
-	var target := (crouch_speed if crouching else (sprint_speed * Redline.sprint_scale() if sprinting else run_speed)) * speed_mult * suit_speed * Vices.speed_scale() * Hymn.speed_scale() * Redline.speed_scale()
+	var target := (crouch_speed if crouching else (sprint_speed * Redline.sprint_scale() if sprinting else run_speed)) * speed_mult * suit_speed * Vices.speed_scale() * Hymn.speed_scale() * Redline.speed_scale() * Velvet.speed_scale()
 	if strolling:
 		# auto sprint doesn't apply; under the orbit camera any direction counts
 		var brisk := Input.is_action_pressed("sprint") and (input_dir.y < -0.3 or (not is_nan(move_yaw) and input_dir != Vector2.ZERO))
@@ -917,7 +918,7 @@ func respawn() -> void:
 func take_damage(amount: float, from := Vector3.ZERO) -> void:
 	if health <= 0.0 or untouchable_timer > 0.0:
 		return
-	amount *= damage_mult * Vices.damage_scale() * Redline.damage_scale()
+	amount *= damage_mult * Vices.damage_scale() * Redline.damage_scale() * Velvet.damage_scale()
 	if from != Vector3.ZERO and from.distance_to(global_position) < Redline.MELEE_RANGE:
 		amount *= Redline.melee_damage_taken()  # up close: the Rig's scales
 	var soaked := minf(armor, amount)
@@ -943,7 +944,7 @@ func apply_suit(profile: Dictionary) -> void:
 		_base_grapple_cooldown = grapple_cooldown
 		_base_max_health = max_health
 	_suit_max_health = _base_max_health + profile.get("max_health_bonus", 0.0)
-	max_health = _suit_max_health * Glass.health_scale()
+	max_health = _suit_max_health * Glass.health_scale() * Velvet.health_scale()
 	health = max_health
 	suit_tier = profile.get("tier", 0)
 	suit_weight = profile.get("weight", "medium")
@@ -969,7 +970,7 @@ func apply_suit(profile: Dictionary) -> void:
 func refresh_glass() -> void:
 	if _suit_max_health < 0.0:
 		_suit_max_health = max_health
-	max_health = _suit_max_health * Glass.health_scale()
+	max_health = _suit_max_health * Glass.health_scale() * Velvet.health_scale()
 	health = minf(health, max_health)
 
 

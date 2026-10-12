@@ -48,6 +48,7 @@ const NpcIdles := preload("res://scripts/hub/npc_idles.gd")
 const ContentRating := preload("res://scripts/radio/content_rating.gd")
 const Obsession := preload("res://scripts/hub/obsession.gd")
 const Vices := preload("res://scripts/hub/vices.gd")
+const Velvet := preload("res://scripts/hub/velvet.gd")
 ## Where the gift bag lives in the save file.
 const BAG := "_bag"
 ## How long a line stays up after it's all been said.
@@ -55,8 +56,8 @@ const GAP := 0.9
 ## Walk this far (m) from whoever you're talking to and the talk ends.
 const LEAVE_RANGE := 5.5
 
-const NAMES := {"mom": "MOM", "ophelia": "OPHELIA", "biggie": "BIGGIE", "eco": "ECO", "narrator": ""}
-const COLORS := {"mom": Color(0.6, 0.85, 0.6), "ophelia": Color(0.78, 0.55, 1.0), "biggie": Color(0.95, 0.75, 0.4), "eco": Color(1.0, 0.45, 0.45),
+const NAMES := {"mom": "MOM", "ophelia": "OPHELIA", "biggie": "BIGGIE", "pip": "PIP", "eco": "ECO", "narrator": ""}
+const COLORS := {"mom": Color(0.6, 0.85, 0.6), "ophelia": Color(0.78, 0.55, 1.0), "biggie": Color(0.95, 0.75, 0.4), "pip": Color(1.0, 0.72, 0.3), "eco": Color(1.0, 0.45, 0.45),
 	"narrator": Color(0.8, 0.8, 0.82)}
 
 var save_path := DEFAULT_PATH
@@ -265,6 +266,9 @@ func pick(who: String, run_id: int, won: bool, spot := "") -> Array:
 		state.set_value(who, "warm_run", run_id)
 		state.set_value(who, "bond_run", run_id)
 		return b["intro"]
+	# Pip's Velvet (velvet.gd): once Eco's found the Still, she asks.
+	if who == "pip" and Velvet.offer_due() and b.has("velvet offer"):
+		return b["velvet offer"]
 	if Family.has_family(b) and int(state.get_value(who, "bond_run", -1)) != run_id:
 		state.set_value(who, "bond_run", run_id)
 		_add_bond(who, Family.TALK_GAIN)
@@ -452,6 +456,17 @@ func care(p_npc: Node3D, run_id: int) -> bool:
 	return true
 
 
+## Day `n` of Pip's Velvet trial (velvet_scene.gd stages it): her
+## [velvet <n>] talk. False if she has none.
+func velvet(p_npc: Node3D, n: int) -> bool:
+	var talk: Array = bank(p_npc.who).get("velvet %d" % n, [])
+	if talk.is_empty():
+		return false
+	stop()
+	_play(p_npc, talk)
+	return true
+
+
 ## The next talk from one of their lists, in turn.
 func _take_turn(who: String, list: String) -> Array:
 	var talks: Array = bank(who)[list]
@@ -608,6 +623,8 @@ func choose(i: int) -> void:
 	var rest := lines.slice(index + 1)
 	lines = lines.slice(0, index) + opt["lines"] + rest
 	index -= 1
+	if String(opt["flag"]).begins_with("velvet_"):
+		Velvet.answer(opt["flag"])
 	if Romance.romanceable(bank(who)):
 		_add_affection(who, int(opt["delta"]))
 		if opt["flag"] != "":
