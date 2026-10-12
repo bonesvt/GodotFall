@@ -24,6 +24,7 @@ extends Node
 const SFX := preload("res://scripts/sfx.gd")
 const HoldingCell := preload("res://scripts/run/holding_cell.gd")
 const Levels := preload("res://scripts/run/levels.gd")
+const Orderly := preload("res://scripts/run/orderly.gd")
 
 const SEEN := "trial_intro"
 const BLACK := Color(0, 0, 0)
@@ -249,6 +250,7 @@ func _day_one(at: float) -> void:
 	oph.position = c + ENTRY.lerp(Vector3.ZERO, walk) + Vector3.UP * (HoldingCell.PAD_TOP + bob)
 	var pull := sin(at * 6.5) * 0.12 * (1.0 - smoothstep(ARMS, ARMS + ARMS_TIME, at)) * smoothstep(WALK, WALK + 0.4, at)
 	oph.home_yaw = lerpf(0.0, PI, turn) + pull
+	_walk_anim(oph, walk > 0.0 and walk < 1.0)
 	if walk > 0.0 and walk < 1.0 and not _said.has("steps"):
 		_said["steps"] = true
 		for i in 6:
@@ -314,6 +316,19 @@ func _fitting(piece: String) -> void:
 			SFX.play(self, "titan_hiss_short", -8.0, 2.4)
 			SFX.play(self, "heartbeat", -6.0)
 			cell.ophelia.mood(["sad"])
+
+
+## Her walk loop (her glb's "walk", tools/npc/build_npc.py) while she's
+## walked in, her idle again once she's stopped.
+func _walk_anim(oph: Node3D, walking: bool) -> void:
+	var anim: AnimationPlayer = oph.get("_anim")
+	if anim == null or not anim.has_animation("walk"):
+		return
+	if walking and anim.current_animation != "walk":
+		anim.speed_scale = 1.0
+		anim.play("walk", 0.25)
+	elif not walking and anim.current_animation == "walk":
+		anim.play("idle", 0.3)
 
 
 func _step() -> void:
@@ -392,74 +407,14 @@ func _subtitle(at: float) -> void:
 	_sub.modulate.a = alpha
 
 
-## Two colony orderlies in white, faceless behind black visors. Their legs,
-## body and the arm toward her swing (_stride, _reach).
+## Two colony orderlies in white, faceless behind black visors (orderly.gd,
+## the model built in Blender). Their legs, body and the arm toward her
+## swing (_stride, _reach).
 func _build_orderlies() -> void:
-	var white := StandardMaterial3D.new()
-	white.albedo_color = Color(0.9, 0.91, 0.93)
-	white.roughness = 0.6
-	var black := StandardMaterial3D.new()
-	black.albedo_color = Color(0.03, 0.03, 0.04)
-	black.metallic = 0.4
-	black.roughness = 0.2
-	var grey := StandardMaterial3D.new()
-	grey.albedo_color = Color(0.4, 0.42, 0.46)
 	for s in [-1.0, 1.0]:
-		var o := Node3D.new()
-		o.name = "Orderly"
+		var o := Orderly.create(s)
 		cell.add_child(o)
-		for leg in [["LegL", -0.08], ["LegR", 0.08]]:
-			var hip := Node3D.new()
-			hip.name = leg[0]
-			o.add_child(hip)
-			hip.position = Vector3(leg[1], 0.88, 0)
-			_part(hip, Vector3(0, -0.44, 0), _capsule(0.07, 0.9), white)
-		var body := Node3D.new()
-		body.name = "Body"
-		o.add_child(body)
-		_part(body, Vector3(0, 1.18, 0), _capsule(0.17, 0.66), white)
-		_part(body, Vector3(0, 0.98, 0), _capsule(0.175, 0.36), grey).scale = Vector3(1, 0.18, 1)   # belt
-		_part(body, Vector3(0, 1.62, 0), _sphere(0.115), white)                # hood
-		_part(body, Vector3(0, 1.63, -0.085), _sphere(0.07), black).scale = Vector3(1.3, 0.6, 0.6)  # visor
-		var arm := Node3D.new()
-		arm.name = "Arm"
-		body.add_child(arm)
-		arm.position = Vector3(0.2 * -s, 1.42, 0)   # the arm toward her
-		_part(arm, Vector3(0, -0.3, 0), _capsule(0.05, 0.6), white)
-		_part(arm, Vector3(0, -0.62, 0), _sphere(0.05), grey)              # glove
-		var other := Node3D.new()
-		body.add_child(other)
-		other.position = Vector3(0.2 * s, 1.42, 0)
-		other.rotation.x = 0.1
-		_part(other, Vector3(0, -0.3, 0), _capsule(0.05, 0.6), white)
 		_orderlies.append(o)
-
-
-func _capsule(r: float, h: float) -> Mesh:
-	var m := CapsuleMesh.new()
-	m.radius = r
-	m.height = h
-	m.radial_segments = 12
-	m.rings = 4
-	return m
-
-
-func _sphere(r: float) -> Mesh:
-	var m := SphereMesh.new()
-	m.radius = r
-	m.height = r * 2.0
-	m.radial_segments = 12
-	m.rings = 6
-	return m
-
-
-func _part(parent: Node3D, at: Vector3, mesh: Mesh, m: Material) -> MeshInstance3D:
-	var mi := MeshInstance3D.new()
-	mi.mesh = mesh
-	mi.material_override = m
-	parent.add_child(mi)
-	mi.position = at
-	return mi
 
 
 ## Over (or skipped): the trial's running, and the level starts.

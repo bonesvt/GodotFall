@@ -74,6 +74,10 @@ SPEC = {
         "streak": [(0.30, (0.04, 0.004, 0.09)), (0.62, (0.14, 0.02, 0.32)),
                    (0.86, (0.30, 0.06, 0.55)), (1.0, (0.55, 0.25, 0.85))],
     },
+    "orderly": {   # the colony's orderlies (npc_outfits.py main_orderly()): only a suit shows
+        "height": 1.72, "head": 0.96, "legs": 1.04, "face": {},
+        "hair": [(0.3, (0.02, 0.02, 0.02)), (1.0, (0.2, 0.2, 0.2))],
+    },
     "biggie": {
         "height": 1.78, "head": 0.92, "legs": 0.96,
         "face": {"Fcl_BRW_Joy": 0.6, "Fcl_EYE_Joy": 0.45, "Fcl_MTH_Fun": 0.3},
@@ -761,14 +765,16 @@ def _ray_hull(hull, c, d):
     return best
 
 
-def garment(name, part, top, hem, gap=0.008, gap_top=None, tilt=0.0, v_span=None, flare=0.0, side=0, follow=(0.25, 0.65), rows=16, hang=True):
+def garment(name, part, top, hem, gap=0.008, gap_top=None, tilt=0.0, v_span=None, flare=0.0, side=0, follow=(0.25, 0.65), rows=16, hang=True, open_front=0.0):
     """A loose hanging tube from `top` down to `hem` round her hips and legs
     (side 1 or -1: round her left or right leg only), skinned half to her hips
     and half to the nearest body vertex's bones further down. Material
     npc_<who>_<part>; gap_top lets the top ring sit snug on her (no rim)
     and opens to gap over the first quarter; its UVs run round (u) and down (v) the tube, so the
     texture's bottom rows (v 0) are the hem
-    (v_span: the heights v 0 and 1 map to, so pieces of one garment line up)."""
+    (v_span: the heights v 0 and 1 map to, so pieces of one garment line up;
+    open_front: half the angle (rad) left open up the middle of her front, as
+    a coat's skirt). Its inside's faces are marked 'inner' (npc_outfits.py)."""
     from mathutils.kdtree import KDTree
     body = bpy.data.objects["Body"]
     co = np.array([v.co[:] for v in body.data.vertices])
@@ -801,6 +807,9 @@ def garment(name, part, top, hem, gap=0.008, gap_top=None, tilt=0.0, v_span=None
     for r in range(rows):
         for k in range(cols):
             k1 = (k + 1) % cols
+            mid = 2 * math.pi * (k + 0.5) / cols
+            if open_front and abs(mid - 1.5 * math.pi) < open_front:   # her front is -y
+                continue
             f = bm.faces.new((grid[r][k], grid[r][k1], grid[r + 1][k1], grid[r + 1][k]))
             f.smooth = True
             for loop, (uu, vv) in zip(f.loops, ((k, r), (k + 1, r), (k + 1, r + 1), (k, r + 1))):
@@ -810,8 +819,12 @@ def garment(name, part, top, hem, gap=0.008, gap_top=None, tilt=0.0, v_span=None
     cm = f0.calc_center_median()
     if f0.normal.dot(Vector((cm.x, cm.y, 0))) < 0:   # face outwards
         bmesh.ops.reverse_faces(bm, faces=bm.faces[:])
+    old = set(bm.verts)
     bmesh.ops.solidify(bm, geom=bm.faces[:], thickness=0.004)
     bm.normal_update()
+    il = bm.faces.layers.float.new("inner")
+    for f in bm.faces:
+        f[il] = 0.0 if any(v in old for v in f.verts) else 1.0
     me = bpy.data.meshes.new(name)
     bm.to_mesh(me)
     bm.free()
@@ -1795,6 +1808,10 @@ def stance():
         add(p, "upperarm.L", Y, -4)
         add(p, "forearm.R", X, 10)
         add(p, "forearm.L", X, 10)
+    elif WHO == "orderly":
+        # upright, arms at its sides, waiting
+        add(p, "upperarm.R", Y, 6)
+        add(p, "upperarm.L", Y, -6)
     else:
         # at ease: upright, belly out, hands folded on top of it, head tilted
         # a little, the way a man listens who has time for you
@@ -1845,7 +1862,50 @@ def make_actions(arm):
         for fc in a.fcurves:
             for kp in fc.keyframe_points:
                 kp.interpolation = "BEZIER"
+    walk(arm, keyed)
     arm.animation_data.action = bpy.data.actions["idle"]
+
+
+# One stride (two steps) of the walk loop, in frames at 30 fps: a step every
+# 0.57 s, about 0.6 m/s (the pace the trial intro walks her in at).
+WALK_FRAMES = 34
+
+
+def walk(arm, keyed):
+    """walk: an unhurried walk loop on the spot (whatever moves them supplies
+    the ground speed): legs swinging from the hip with the knee folding as
+    each leg comes through, arms swinging against them, the hips dipping on
+    each step and turning with the stride."""
+    add = E["add"]
+    a = bpy.data.actions.new("walk")
+    arm.animation_data.action = a
+    n = WALK_FRAMES
+    for f in range(0, n + 1, 2):
+        t = f / n * 2 * math.pi
+        p = E["base_pose"]()
+        s, c = math.sin(t), math.cos(t)
+        add(p, "thigh.L", X, 24 * s)
+        add(p, "thigh.R", X, -24 * s)
+        add(p, "shin.L", X, -(6 + 42 * max(0.0, c)))   # the leg coming through folds
+        add(p, "shin.R", X, -(6 + 42 * max(0.0, -c)))
+        add(p, "foot.L", X, -10 * max(0.0, c) + 8 * max(0.0, -s))
+        add(p, "foot.R", X, -10 * max(0.0, -c) + 8 * max(0.0, s))
+        add(p, "upperarm.L", X, -16 * s)
+        add(p, "upperarm.R", X, 16 * s)
+        add(p, "forearm.L", X, 8 + 8 * max(0.0, -s))
+        add(p, "forearm.R", X, 8 + 8 * max(0.0, s))
+        add(p, "hips", Z, 5 * s)
+        add(p, "chest", Z, -6 * s)
+        add(p, "spine", X, 3)
+        add(p, "head", X, -2)
+        if WHO == "ophelia":   # dragged along: head down, shoulders in
+            add(p, "chest", X, -5)
+            add(p, "head", X, -8)
+        p["_hips_loc"] = E["hips_loc"](0.012 * (math.cos(2 * t) - 1) * 0.5, 0)
+        E["key_pose"](arm, f, p, keyed)
+    for fc in a.fcurves:
+        for kp in fc.keyframe_points:
+            kp.interpolation = "BEZIER"
 
 
 # --- concept renders (Eevee, cel-shaded, ink outlines) ------------------------------------
@@ -1895,7 +1955,7 @@ def cel(nt, col, shade_tint, alpha=None, rim=0.22):
 
 
 SHADE = {"face": (1.0, 0.93, 0.92), "body": (0.85, 0.7, 0.74), "hair": (0.62, 0.55, 0.7)}
-ALPHA = ("brow", "eyeline", "lash", "eye_glint", "hair", "hair_fringe", "hair_streak", "mouth", "iris", "eye_white")
+ALPHA = ("brow", "eyeline", "lash", "eye_glint", "hair", "hair_fringe", "hair_streak", "mouth", "iris", "eye_white", "colony_m_suit")
 
 
 def concept_materials():
@@ -1932,10 +1992,11 @@ def outlines(objs):
     out = nt.nodes.new("ShaderNodeOutputMaterial")
     nt.links.new(em.outputs[0], out.inputs[0])
     ink.use_backface_culling = True
-    face = bpy.data.objects["Face"]
-    vg = face.vertex_groups.new(name="ink_skin")
-    skin_idx = [i for i, m in enumerate(face.data.materials) if m.name.endswith("_face")]
-    vg.add([v for p in face.data.polygons if p.material_index in skin_idx for v in p.vertices], 1.0, "REPLACE")
+    face = bpy.data.objects.get("Face")
+    if face is not None:
+        vg = face.vertex_groups.new(name="ink_skin")
+        skin_idx = [i for i, m in enumerate(face.data.materials) if m.name.endswith("_face")]
+        vg.add([v for p in face.data.polygons if p.material_index in skin_idx for v in p.vertices], 1.0, "REPLACE")
     for o in objs:
         if o.type != "MESH" or o.name in ("Boots", "LipRing"):
             continue
@@ -1955,7 +2016,7 @@ def outlines(objs):
 def concept(arm, objs):
     concept_materials()
     outlines(objs)
-    face = bpy.data.objects["Face"]
+    face = bpy.data.objects.get("Face")
     for k, v in SPEC["face"].items():
         face.data.shape_keys.key_blocks[k].value = v
     arm.animation_data.action = bpy.data.actions["idle"]
@@ -2014,15 +2075,31 @@ def concept(arm, objs):
     for shot in shots:
         shoot(*shot, CONCEPT)
     # the other outfits: the body texture swapped, full-length shots only
-    tex = next((n for n in bpy.data.materials["npc_%s_body" % WHO].node_tree.nodes if n.type == "TEX_IMAGE"), None)
+    body_m = bpy.data.materials.get("npc_%s_body" % WHO)
+    tex = next((n for n in body_m.node_tree.nodes if n.type == "TEX_IMAGE"), None) if body_m else None
     for outfit in OUTFITS.get(WHO, [])[1:]:
         dress(outfit)
         tex.image = bpy.data.images.load(os.path.join(TEX_OUT, "body_%s.png" % outfit))
         for shot in shots[:3]:
             shoot(*shot, "%s_%s" % (CONCEPT, outfit))
+    # the rescue looks (npc_outfits.py) over her first outfit, as rescue_looks.gd shows them
+    if tex is not None and WHO in ("mom", "ophelia"):
+        tex.image = bpy.data.images.load(os.path.join(TEX_OUT, "body.png"))
+        for captor in ("marrow", "colony", "cutter"):
+            for o in bpy.data.objects:
+                if o.name.startswith("Outfit_"):
+                    o.hide_render = not o.name.startswith("Outfit_captor_%s_" % captor)
+                elif o.name == "Boots":
+                    o.hide_render = False
+                elif o.name == "Piercings":
+                    o.hide_render = True
+            for shot in shots[:3]:
+                shoot(*shot, "%s_captor_%s" % (CONCEPT, captor))
 
 
 def main():
+    if WHO == "orderly":
+        return main_orderly()
     os.makedirs(TEX_OUT, exist_ok=True)
     E["HEIGHT"], E["HEAD_SCALE"], E["LEG_SCALE"] = SPEC["height"], SPEC["head"], SPEC["legs"]
     arm = E["setup_scene"]()
@@ -2036,8 +2113,14 @@ def main():
         {"mom": body_mom, "ophelia": body_ophelia}[WHO]()
         E["glute_bones"](arm)   # jiggle springs, as Eco's
     extras = []
+    made = []   # real clothes (npc_outfits.py): baked once her own textures are
     if WHO in ("mom", "ophelia"):
         extras += nightwear(arm)
+        made += captor_outfits(arm)
+    if WHO == "ophelia":
+        made.append((prison_suit(arm), "colony_m_suit", paint_prison(SKIN_PAINT["ophelia"]),
+                     (paint_prison((1.0, 0.0, 1.0)), paint_prison((0.0, 1.0, 0.0)))))
+    extras += [m[0] for m in made]
     if WHO == "ophelia":
         extras.append(nipple_bars(arm))
     if WHO == "biggie":
@@ -2047,6 +2130,7 @@ def main():
         extras.append(lip_ring(arm))
     objs = [bpy.data.objects[n] for n in ("Body", "Face", "Hair") if n in bpy.data.objects] + [boots] + extras
     textures(objs, boots)
+    bake_outfits(made)
     if WHO == "ophelia":
         bpy.data.objects["Piercings"].material_slots[0].material = bpy.data.materials["npc_%s_body" % WHO]
     if WHO == "biggie":
@@ -2071,5 +2155,9 @@ def main():
                                   export_yup=True, export_apply=False)
         print("exported", GLB_OUT)
 
+
+# the real clothes and the orderlies
+_outfits_path = os.path.join(ROOT, "tools", "npc", "npc_outfits.py")
+exec(compile(open(_outfits_path).read(), _outfits_path, "exec"), globals())
 
 main()

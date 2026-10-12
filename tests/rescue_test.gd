@@ -140,13 +140,13 @@ func _run() -> void:
 	_check("three visits: Cutter's", Rescue.changed_by("mom") == "cutter", Rescue.visits)
 	await _ticks(3)
 	var mom: Node3D = run_node.hub_npcs["mom"]
-	_check("his hoodie and ripped jeans on her", mom.get_meta("rescue_look", "") == "cutter" and mom.find_child("RescueLook_body*", true, false) != null, mom.get_meta("rescue_look", ""))
+	_check("his hoodie and ripped jeans on her", mom.get_meta("rescue_look", "") == "cutter" and _shown(mom, "Outfit_captor_cutter_*"), mom.get_meta("rescue_look", ""))
 	run_node.talk_to("mom")
 	await _ticks(2)
 	_check("twitchy, after Eco's scrap", run_node.hud.toast_label.text.contains("scrap") and not run_node.npc_talk.active(), run_node.hud.toast_label.text)
 	Rescue.hooks["mom"]["cutter"] = 0.0
 	await _ticks(3)
-	_check("his hold faded: herself again", Rescue.changed_by("mom") == "" and mom.get_meta("rescue_look", "") == "" and mom.find_child("RescueLook_body*", true, false) == null, mom.get_meta("rescue_look", ""))
+	_check("his hold faded: herself again", Rescue.changed_by("mom") == "" and mom.get_meta("rescue_look", "") == "" and not _shown(mom, "Outfit_captor_cutter_*"), mom.get_meta("rescue_look", ""))
 	Rescue.hooks["mom"]["cutter"] = 20.0  # (back as it was, for the fade check below)
 
 	# the colony, too late: the next piece
@@ -209,3 +209,11 @@ func _check(what: String, ok: bool, value) -> void:
 	print("%s  %s  (%s)" % ["ok  " if ok else "FAIL", what, str(value)])
 	if not ok:
 		failures += 1
+
+
+## Whether any of `npc`'s meshes matching `pattern` is showing (rescue_looks.gd).
+func _shown(npc: Node, pattern: String) -> bool:
+	for mi in npc.find_children(pattern, "MeshInstance3D", true, false):
+		if (mi as MeshInstance3D).visible:
+			return true
+	return false
