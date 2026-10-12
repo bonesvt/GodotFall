@@ -89,7 +89,7 @@ static func gap() -> float:
 
 ## Seconds she has to shake one off (less with the headphones on).
 static func window() -> float:
-	return WINDOW * (0.75 if Hymn.has("headphones") else 1.0)
+	return WINDOW * (0.75 if Hymn.has("headphones") else 1.0) * (0.5 if Hymn.has("crown") else 1.0)
 
 
 ## Each physics tick while she's free (hub or run); `on_run` picks the sources.

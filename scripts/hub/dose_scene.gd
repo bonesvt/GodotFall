@@ -52,6 +52,7 @@ func play() -> void:
 	rm.player.set("trance_dir", Vector3.ZERO)
 	rm.pilot_hud.visible = false
 	rm.hud.status_label.visible = false
+	rm.hud.corners_hidden = true
 	rm.hush_pull._close_up(rm.player)
 	rm.hud.toast("The officer peels a thin, glowing strip off a sheet. Eco lays it on her tongue. It melts, sweet.", 2.2)
 
@@ -100,6 +101,7 @@ func _finish() -> void:
 	rm.player.set("entranced", false)
 	rm.pilot_hud.visible = true
 	rm.hud.status_label.visible = true
+	rm.hud.corners_hidden = false
 
 
 func reset() -> void:

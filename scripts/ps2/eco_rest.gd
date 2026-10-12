@@ -3,6 +3,8 @@ extends RefCounted
 ## (rest_pose) when she settles somewhere in the hub:
 ## - "sleep": curled up on her side, hands tucked under her chin, slow breathing;
 ## - "sit": sitting up on a seat, hands on her thighs, feet on the floor;
+## - "chair": sat upright and still, facing straight ahead, hands flat on her
+##   thighs, knees together (the fitting chairs, fitting_scene.gd);
 ## - "lounge": stretched out along a couch, propped up on one end, one arm
 ##   behind her head, a knee up;
 ## - "back": flat on her back, arms loose at her sides, one knee bent;
@@ -29,7 +31,7 @@ const BONES := {
 	"upperarm.R": "J_Bip_R_UpperArm", "forearm.R": "J_Bip_R_LowerArm", "hand.R": "J_Bip_R_Hand",
 	"upperarm.L": "J_Bip_L_UpperArm", "forearm.L": "J_Bip_L_LowerArm", "hand.L": "J_Bip_L_Hand",
 }
-const POSES := ["sleep", "sit", "lounge", "back", "prone"]
+const POSES := ["sleep", "sit", "lounge", "back", "prone", "chair"]
 ## Her leg (metres): hip joint to knee, knee to ankle, ankle above the sole.
 const THIGH := 0.383
 const SHIN := 0.451
@@ -206,6 +208,28 @@ func _sit() -> Dictionary:
 		["shin.L", R, -(90.0 - dip) + 8.0], ["shin.L", U, 6.0], ["foot.L", R, -8.0],
 		["thigh.R", R, 108.0 - dip], ["thigh.R", U, 17.0],
 		["shin.R", R, -(93.0 - dip)], ["shin.R", U, -6.0], ["foot.R", R, -32.0],
+	])
+	return {"turns": turns, "hips": Vector3(0.0, seat_height + 0.08, 0.0)}
+
+
+func _chair() -> Dictionary:
+	var b := _breath(4.6)
+	var dip := rad_to_deg(asin(clampf((seat_height + 0.08 - SHIN - ANKLE) / THIGH, -0.8, 0.8)))
+	var turns := [
+		# upright, head level and straight ahead
+		["spine", R, 2.0], ["chest", R, 1.0 - 1.0 * b], ["neck", R, -2.0], ["head", R, 2.0],
+	]
+	turns.append_array(_arms_down())
+	turns.append_array([
+		# hands flat on her thighs
+		["upperarm.R", R, 8.0], ["upperarm.L", R, 8.0], ["upperarm.R", U, 8.0], ["upperarm.L", U, -8.0],
+		["forearm.R", R, 44.0], ["forearm.L", R, 44.0], ["forearm.R", U, 14.0], ["forearm.L", U, -14.0],
+		["hand.R", R, -10.0], ["hand.L", R, -10.0],
+		# knees together, shins straight down, feet flat
+		["thigh.L", R, 90.0 - dip], ["thigh.L", U, 3.0],
+		["shin.L", R, -(90.0 - dip)], ["shin.L", U, -3.0],
+		["thigh.R", R, 90.0 - dip], ["thigh.R", U, -3.0],
+		["shin.R", R, -(90.0 - dip)], ["shin.R", U, 3.0],
 	])
 	return {"turns": turns, "hips": Vector3(0.0, seat_height + 0.08, 0.0)}
 

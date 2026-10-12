@@ -26,6 +26,8 @@ var hymn_label: Label
 var keepsake_label: Label
 var relations_panel: PanelContainer
 var relations_label: Label
+## A cutscene has the screen: the corner cards stay out of it.
+var corners_hidden := false
 var crosshair: Control
 ## The piloted titan, set on embark; the reticle reads its gun.
 var titan: Node
@@ -206,7 +208,8 @@ func _process(delta: float) -> void:
 	keepsake_label.visible = Obsession.allowed() and Obsession.keepsake > 0.0
 	if keepsake_label.visible:
 		keepsake_label.text = "KEEPSAKE  %d%%" % roundi(Obsession.keepsake) + ("   pull home %d%%" % roundi(Obsession.crave * 100.0) if Obsession.crave > 0.01 else "")
-	vices_panel.visible = visible and (pull_label.visible or crave_bar.visible or cuff_label.visible or hymn_label.visible or keepsake_label.visible)
+	relations_panel.visible = relations_label.text != "" and not corners_hidden
+	vices_panel.visible = visible and not corners_hidden and (pull_label.visible or crave_bar.visible or cuff_label.visible or hymn_label.visible or keepsake_label.visible)
 	if crosshair.visible:
 		crosshair.queue_redraw()
 

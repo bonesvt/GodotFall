@@ -12,9 +12,13 @@ extends CharacterBody3D
 ## its gear goes on her in the dispensary's back room (Hymn.processed,
 ## fitting_scene.gd). Out of its
 ## sight for LOSE_TIME s, it loses her and walks off.
+## With the tracker band on her (hymn.gd) it always has her: the band reports
+## where she is every BAND_TRACK s, a pulse locks it where she stands, and
+## running from it in its sight past STUN_RANGE m stuns her.
 
 const Hymn := preload("res://scripts/hub/hymn.gd")
 const SFX := preload("res://scripts/sfx.gd")
+const HubGrip := preload("res://scripts/hub/hub_grip.gd")
 const ThreatModel := preload("res://scripts/threats/threat_model.gd")
 const ShepherdModel := preload("res://scripts/hub/shepherd_model.gd")
 
@@ -41,6 +45,8 @@ const CALLS := [
 	"Shepherd: \"Everyone else took theirs, Eco.\"",
 ]
 const LOST := "The Shepherd's loudspeaker goes quiet. It's lost her. For now."
+const LOCKED := "The band's light goes solid red. Her legs lock. She can't take a step."
+const STUNNED := "The band bites: white static down her spine. She drops to a knee. It doesn't like her running."
 const TAKEN := "White. Then a calm voice counting down from ten. Eco wakes on the dispensary bench. There's nothing left for them to put on her."
 
 var rm: Node
@@ -63,6 +69,13 @@ var piece := ""
 ## Its body, on the Choir's puppet (threat_model.gd).
 var puppet: Node3D
 var _col: CollisionShape3D
+## The band: its next report, the stun's wait while she runs, how long its
+## lock has left, and the stun's white flash.
+var _ping_t := 0.0
+var _stun_t := 1.2
+var _lock_left := 0.0
+var _flash := 0.0
+var _held := false
 
 
 static func create(run_manager: Node, pos: Vector3) -> CharacterBody3D:
@@ -144,6 +157,7 @@ func sees() -> bool:
 func _physics_process(delta: float) -> void:
 	_t += delta
 	_tick_darts(delta)
+	_tick_lock(delta)
 	match step:
 		Step.HUNT:
 			_hunt(delta)
@@ -170,6 +184,8 @@ func _hunt(delta: float) -> void:
 			give_up()
 			return
 	sedation = maxf(sedation - SEDATE_WEAR * delta, 0.0)
+	if Hymn.has("band"):
+		_track(delta, see, dist)
 	if dist <= GRAB_RANGE:
 		take_her()
 		return
@@ -221,13 +237,6 @@ func _say() -> void:
 
 
 ## A Hymn dart at her: it flies, and hits if she's still where it's going.
-## Her cuff's bell rang at pos (hymn.gd tick_bell): it knows where she is.
-func hear_bell(pos: Vector3) -> void:
-	if step == Step.HUNT:
-		_last_seen = pos
-		unseen = 0.0
-
-
 func fire_dart() -> void:
 	var p := _player()
 	var from := global_position + Vector3(0.42, 1.0, 0) .rotated(Vector3.UP, rotation.y)
@@ -274,6 +283,64 @@ func pulse() -> void:
 	var tw: Node = rm.hush_pull.triggers
 	if not tw.busy():
 		tw.fire(false, true)
+	if Hymn.has("band"):
+		lock(Hymn.BAND_LOCK)
+		rm.hud.toast(LOCKED, 2.0)
+
+
+## The tracker band while it hunts her: it reports where she is, and running
+## from it where it can see her, far off, earns a stun.
+func _track(delta: float, see: bool, dist: float) -> void:
+	var p := _player()
+	_ping_t -= delta
+	if _ping_t <= 0.0:
+		_ping_t = Hymn.BAND_TRACK
+		_last_seen = p.global_position
+	var v: Vector3 = p.velocity
+	var running := see and dist > Hymn.STUN_RANGE and Vector2(v.x, v.z).length() > Hymn.BAND_SPEED
+	if not running:
+		_stun_t = maxf(_stun_t, 1.2)
+		return
+	_stun_t -= delta
+	if _stun_t <= 0.0:
+		_stun_t = Hymn.STUN_EVERY
+		stun()
+
+
+## The band's stun: a white flash, she's down for a moment, a little more sedated.
+func stun() -> void:
+	lock(Hymn.STUN_HOLD)
+	_flash = 0.55
+	sedation = minf(sedation + DART_SEDATE * 0.5, 1.0)
+	SFX.play(_player(), "radio_static_burst", -4.0, 1.6)
+	rm.hud.toast(STUNNED, 2.5)
+
+
+## Holds her where she stands for `seconds` (the band's lock).
+func lock(seconds: float) -> void:
+	_lock_left = maxf(_lock_left, seconds)
+	_held = true
+	var p := _player()
+	p.set("entranced", true)
+	p.set("trance_dir", Vector3.ZERO)
+
+
+func _tick_lock(delta: float) -> void:
+	if _flash > 0.0:
+		_flash = maxf(_flash - delta * 1.5, 0.0)
+		if step == Step.HUNT:
+			_veil.color.a = _flash
+	if _lock_left <= 0.0:
+		return
+	_lock_left -= delta
+	if _lock_left <= 0.0 and step == Step.HUNT:
+		_held = false
+		_player().set("entranced", false)
+
+
+## True while the band holds her.
+func locked() -> bool:
+	return _lock_left > 0.0
 
 
 func take_her() -> void:
@@ -293,13 +360,32 @@ func _process_her(_delta: float) -> void:
 		return
 	# white: the fitting in the back room takes it from here (fitting_scene.gd)
 	piece = Hymn.processed()
-	if piece == "":
+	# whoever she loves is closest, within reach, comes too (hub_grip.gd)
+	var near := {}
+	for w in HubGrip.WHO:
+		var npc: Node3D = rm.hub_npcs.get(w)
+		if npc != null and is_instance_valid(npc):
+			near[w] = npc.global_position
+	var with := HubGrip.closest(_player().global_position, near) if HubGrip.allowed() else ""
+	var with_piece := HubGrip.take(with) if with != "" else ""
+	if piece == "" and with_piece == "":
 		rm.hud.toast(TAKEN, 6.0)  # nothing left to put on her
-	rm.processed_by_shepherd(piece)
+	rm.processed_by_shepherd(piece, with, with_piece)
 	step = Step.GONE
 
 
+## The Hymn bell on her collar rang at t: it knows where she is.
+func heard(at: Vector3) -> void:
+	if step == Step.HUNT and global_position.distance_to(at) <= Hymn.BAND_RANGE * 2.0:
+		_last_seen = at
+		unseen = 0.0
+
+
 func give_up() -> void:
+	if _held:
+		_player().set("entranced", false)
+	_held = false
+	_lock_left = 0.0
 	Hymn.escaped()
 	rm.hud.toast(LOST, 4.0)
 	step = Step.GONE

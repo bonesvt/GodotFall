@@ -83,6 +83,34 @@ func _run() -> void:
 	run_node.close_bench()
 	await _ticks(2)
 
+	# His storeroom: she locked herself back in. Holding F turns the key while
+	# the pull drags her eyes to the glow under the door.
+	var keep_hold := Vices.hold
+	run_node._store_locked = true
+	_place(HushDen.STORE_DOOR_OUT + Vector3(-0.6, 0.3, 0))
+	await _ticks(20)
+	Vices.hold = 40.0
+	Input.action_press("interact")
+	await _ticks(Engine.physics_ticks_per_second * 5)
+	Input.action_release("interact")
+	await _ticks(3)
+	_check("storeroom: she holds on, turns the key, out into his basement", not run_node._store_locked and player.global_position.distance_to(HushDen.STORE_DOOR_IN + Vector3(0, 0, -0.9)) < 1.5 and not player.entranced, player.global_position)
+	# deep in his pull she can't finish, until he's spoken through the door and gone
+	run_node._store_locked = true
+	_place(HushDen.STORE_DOOR_OUT + Vector3(-0.6, 0.3, 0))
+	await _ticks(20)
+	Vices.hold = 90.0
+	Input.action_press("interact")
+	await _ticks(Engine.physics_ticks_per_second * 5)
+	var lp: Node = run_node._leave_pull
+	_check("deep: she can't finish", run_node._store_locked and lp != null and lp.progress <= lp.CANT_REACH + 0.01, lp.progress if lp else -1)
+	_check("Marrow through the door", run_node.hud.toast_label.text.contains("I've never needed them for you"), run_node.hud.toast_label.text)
+	await _ticks(int(Engine.physics_ticks_per_second * (HushDen.STORE_HE_GOES + 5.0)))
+	Input.action_release("interact")
+	await _ticks(3)
+	_check("once he's gone up, she gets out", not run_node._store_locked, run_node._store_locked)
+	Vices.hold = keep_hold
+
 	# Out of town (the temple): a few steps, the violet, then the walk down the street.
 	Vices.dosed = false
 	Vices.pulled = false
