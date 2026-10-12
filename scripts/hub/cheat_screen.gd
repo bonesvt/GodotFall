@@ -212,9 +212,6 @@ func unlock_cosmetics_count() -> int:
 ## A vial of glowing violet resin, three times the usual: his Hold goes to
 ## full, so his pull, his errands and withdrawal all start now.
 func super_hush() -> bool:
-	if not Vices.allowed():
-		_did("Super Hush is Mature only (Settings > Game > rating).")
-		return false
 	Vices.hold = Vices.MAX_HOLD
 	Vices.walked_away = false
 	Vices.save()
@@ -227,9 +224,6 @@ func super_hush() -> bool:
 
 ## Cutter's Redline: the box closes, he's right there, and the needle.
 func redline_item() -> bool:
-	if not Vices.allowed():
-		_did("Redline is Mature only (Settings > Game > rating).")
-		return false
 	scene = "redline"
 	close_now = true
 	_did("Cutter's Redline: watch.")
@@ -237,11 +231,8 @@ func redline_item() -> bool:
 
 
 ## One of the hypno looks' meters up a stage (25), back to none after full.
-## Returns the meter's new level (-1 under Teen).
+## Returns the meter's new level.
 func look_meter(meter_name: String) -> float:
-	if not ViceLooks.allowed():
-		_did("The hypno looks are Mature only (Settings > Game > rating).")
-		return -1.0
 	var now := ViceLooks.level(meter_name)
 	ViceLooks.add(meter_name, -ViceLooks.MAX if now >= ViceLooks.MAX else ViceLooks.STAGE_AT[0])
 	var level := ViceLooks.level(meter_name)
@@ -252,9 +243,6 @@ func look_meter(meter_name: String) -> float:
 
 
 func unlock_looks() -> void:
-	if not ViceLooks.allowed():
-		_did("The hypno looks are Mature only (Settings > Game > rating).")
-		return
 	var n := 0
 	for id: String in ViceLooks.FREE:
 		if ViceLooks.unlock(id):
@@ -266,9 +254,6 @@ func unlock_looks() -> void:
 ## (cheat_scene.gd), which sets its system to full at the end. Mature only.
 ## Someone taken, now: Biggie runs in when the box shuts (rescue_event.gd).
 func rescue_item() -> bool:
-	if not Vices.allowed():
-		_did("Rescues are Mature only (Settings > Game > rating).")
-		return false
 	scene = "rescue"
 	close_now = true
 	_did("A rescue: run.")
@@ -278,9 +263,6 @@ func rescue_item() -> bool:
 ## Mom or Ophelia already one of a captor's, walking off to them now, just
 ## ahead of Eco (rescue_event.gd walk_off_now()).
 func drawn_item() -> bool:
-	if not Vices.allowed():
-		_did("Rescues are Mature only (Settings > Game > rating).")
-		return false
 	scene = "drawn"
 	close_now = true
 	_did("She's theirs, and off to them: stop her.")
@@ -289,9 +271,6 @@ func drawn_item() -> bool:
 
 ## Five Redline charges for the Rig.
 func redline_charges() -> bool:
-	if not Vices.allowed():
-		_did("Redline is Mature only (Settings > Game > rating).")
-		return false
 	var Redline := preload("res://scripts/hub/redline.gd")
 	Redline.charges += 5
 	Redline.save()
@@ -300,10 +279,7 @@ func redline_charges() -> bool:
 
 
 func control_item(id: String) -> bool:
-	if not Vices.allowed():
-		_did("The control items are Mature only (Settings > Game > rating).")
-		return false
-	if id in ["family", "dosebox"] and (npc_talk == null or not HubGrip.allowed()):
+	if id in ["family", "dosebox"] and npc_talk == null:
 		_did("Nobody home for the Family Plan.")
 		return false
 	scene = id

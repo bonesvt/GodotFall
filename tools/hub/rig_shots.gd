@@ -5,7 +5,6 @@ extends SceneTree
 ## Needs a renderer (not --headless). Writes <out_dir>/rig.png.
 
 const Redline := preload("res://scripts/hub/redline.gd")
-const ContentRating := preload("res://scripts/radio/content_rating.gd")
 const CELL := Vector2i(640, 360)
 
 var out := "user://rig_shots"
@@ -18,7 +17,6 @@ func _initialize() -> void:
 		out = a
 	DirAccess.make_dir_recursive_absolute(out)
 	preload("res://scripts/run/tutorial.gd").settings_path = "user://shots_settings.cfg"
-	ContentRating.set_rating("M", false)
 	run_node = load("res://scenes/run.tscn").instantiate()
 	run_node.armory_path = "user://shots_rig_armory.cfg"
 	root.add_child(run_node)

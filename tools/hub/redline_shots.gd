@@ -7,7 +7,6 @@ extends SceneTree
 
 const Redline := preload("res://scripts/hub/redline.gd")
 const RedlineBody := preload("res://scripts/hub/redline_body.gd")
-const ContentRating := preload("res://scripts/radio/content_rating.gd")
 const ECO := preload("res://assets/models/eco.tscn")
 const CELL := Vector2i(400, 560)
 const COLS := 6
@@ -40,7 +39,6 @@ func _initialize() -> void:
 	for a in OS.get_cmdline_user_args():
 		out = a
 	DirAccess.make_dir_recursive_absolute(out)
-	ContentRating.set_rating("M", false)
 	_go.call_deferred()
 
 

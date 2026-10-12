@@ -16,7 +16,6 @@ const ViceLooks := preload("res://scripts/hub/vice_looks.gd")
 const ColonyGear := preload("res://scripts/hub/colony_gear.gd")
 const EcoModel := preload("res://scripts/ps2/eco_model.gd")
 const Family := preload("res://scripts/hub/family.gd")
-const ContentRating := preload("res://scripts/radio/content_rating.gd")
 
 var run_node: Node
 var player: CharacterBody3D
@@ -26,7 +25,6 @@ var failures := 0
 
 func _initialize() -> void:
 	preload("res://scripts/run/tutorial.gd").settings_path = "user://test_settings.cfg"
-	ContentRating.set_rating("M", false)
 	run_node = load("res://scenes/run.tscn").instantiate()
 	run_node.run_seed = 7
 	run_node.armory_path = "user://test_rstop_armory.cfg"
@@ -136,12 +134,6 @@ func _run() -> void:
 		ev._end_walk()
 		ev._walk_home()
 
-	# Teen: none of it
-	ContentRating.set_rating("T", false)
-	run_node.drawn_now()
-	await _ticks(2)
-	_check("teen: nobody walks off", not ev.walking(), "")
-	ContentRating.set_rating("M", false)
 	Vices.reset()
 	Vices.save()
 	Hymn.reset()

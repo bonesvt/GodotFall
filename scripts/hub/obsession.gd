@@ -71,11 +71,6 @@ static var crave := 0.0
 static var _away := 0.0
 static var save_path := "user://obsession.cfg"
 
-
-static func allowed() -> bool:
-	return Vices.allowed()
-
-
 static func path_for(vices_path: String) -> String:
 	return vices_path.get_basename().trim_suffix("_vices") + "_obsession.cfg"
 
@@ -84,7 +79,7 @@ static func path_for(vices_path: String) -> String:
 ## of her usual talk when she's upset ("" to talk as usual).
 static func saw(stay: int) -> String:
 	seen_stay = stay
-	if not allowed() or not upset:
+	if not upset:
 		return ""
 	upset = false
 	save()
@@ -103,7 +98,7 @@ const UPSET_LINES := [
 static func run_started(together: bool, stay: int) -> void:
 	_away = 0.0
 	crave = 0.0
-	if not allowed() or not together:
+	if not together:
 		return
 	if seen_stay == stay:
 		skips = 0
@@ -120,7 +115,7 @@ static func run_started(together: bool, stay: int) -> void:
 ## Eco came to see her: past LACE_AT she presses a pack of her Night Owls on
 ## her, once a stay. True if she did (the run manager adds the smokes).
 static func give_pack(stay: int) -> bool:
-	if not allowed() or meter < LACE_AT or resolved == "helped" or gift_stay == stay:
+	if meter < LACE_AT or resolved == "helped" or gift_stay == stay:
 		return false
 	gift_stay = stay
 	laced += PACK
@@ -131,7 +126,7 @@ static func give_pack(stay: int) -> bool:
 ## Eco lights a Night Owl (B): if it's one of Ophelia's, Keepsake goes in.
 ## True when it was laced.
 static func light_up() -> bool:
-	if not allowed() or laced <= 0:
+	if laced <= 0:
 		return false
 	laced -= 1
 	keepsake = minf(keepsake + LACE, MAX)
@@ -141,12 +136,12 @@ static func light_up() -> bool:
 
 ## Their smoke date's off while Keepsake's in her.
 static func date_locked() -> bool:
-	return allowed() and keepsake > 0.0
+	return keepsake > 0.0
 
 
 ## Each tick on a run: the pull home builds with time away from her.
 static func tick_run(delta: float) -> void:
-	if not allowed() or keepsake <= 0.0:
+	if keepsake <= 0.0:
 		crave = 0.0
 		return
 	_away += delta
@@ -156,12 +151,12 @@ static func tick_run(delta: float) -> void:
 
 ## How strongly the rose shows in her eyes, 0..1.
 static func eyes() -> float:
-	return clampf(keepsake / MAX, 0.0, 1.0) if allowed() else 0.0
+	return clampf(keepsake / MAX, 0.0, 1.0)
 
 
 ## The rose papers are in Ophelia's tent for Eco to find.
 static func papers_there() -> bool:
-	return allowed() and keepsake > 0.0 and not found
+	return keepsake > 0.0 and not found
 
 
 static func find_papers() -> void:
@@ -171,7 +166,7 @@ static func find_papers() -> void:
 
 ## The talk with her is waiting (Eco found the papers and hasn't had it out).
 static func talk_waiting() -> bool:
-	return allowed() and found and resolved == ""
+	return found and resolved == ""
 
 
 static func resolve(how: String) -> void:

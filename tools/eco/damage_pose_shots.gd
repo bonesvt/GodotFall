@@ -10,7 +10,6 @@ extends SceneTree
 
 const ECO := preload("res://assets/models/eco.tscn")
 const BattleDamage := preload("res://scripts/ps2/battle_damage.gd")
-const ContentRating := preload("res://scripts/radio/content_rating.gd")
 
 var out := "user://damage_pose_shots"
 var only: Array = []
@@ -62,7 +61,6 @@ func _frames(n: int) -> void:
 
 
 func _go() -> void:
-	ContentRating.set_rating("M", false)
 	BattleDamage.set_all(damage)
 	var env := WorldEnvironment.new()
 	env.environment = Environment.new()

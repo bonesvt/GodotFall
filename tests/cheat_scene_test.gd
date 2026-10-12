@@ -12,7 +12,6 @@ const Obsession := preload("res://scripts/hub/obsession.gd")
 const ViceLooks := preload("res://scripts/hub/vice_looks.gd")
 const HubGrip := preload("res://scripts/hub/hub_grip.gd")
 const CheatScene := preload("res://scripts/hub/cheat_scene.gd")
-const ContentRating := preload("res://scripts/radio/content_rating.gd")
 
 var run_node: Node
 var player: CharacterBody3D
@@ -21,7 +20,6 @@ var failures := 0
 
 func _initialize() -> void:
 	preload("res://scripts/run/tutorial.gd").settings_path = "user://test_settings.cfg"
-	ContentRating.set_rating("M", false)
 	run_node = load("res://scenes/run.tscn").instantiate()
 	run_node.run_seed = 7
 	run_node.armory_path = "user://test_cheatscene_armory.cfg"

@@ -5,7 +5,6 @@ extends SceneTree
 ## Needs a renderer (not --headless). Writes <out_dir>/super_hush_scene.png.
 
 const Vices := preload("res://scripts/hub/vices.gd")
-const ContentRating := preload("res://scripts/radio/content_rating.gd")
 const TIMES := [1.6, 2.1, 4.0, 6.6]
 const SIZE := Vector2i(640, 360)
 
@@ -17,7 +16,6 @@ func _initialize() -> void:
 		out = a
 	DirAccess.make_dir_recursive_absolute(out)
 	preload("res://scripts/run/tutorial.gd").settings_path = "user://shots_settings.cfg"
-	ContentRating.set_rating("M", false)
 	root.size = Vector2i(1280, 720)
 	var run_node: Node = load("res://scenes/run.tscn").instantiate()
 	run_node.armory_path = "user://shots_armory.cfg"

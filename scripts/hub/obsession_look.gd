@@ -47,8 +47,6 @@ const ROSE := Color(1.0, 0.45, 0.68)
 
 
 static func stage() -> int:
-	if not Obsession.allowed():
-		return 0
 	if Obsession.meter >= KEEPER_AT:
 		return 5
 	if Obsession.meter >= LACING_AT:

@@ -8,7 +8,6 @@ extends SceneTree
 
 const ECO := preload("res://assets/models/eco.tscn")
 const Vices := preload("res://scripts/hub/vices.gd")
-const ContentRating := preload("res://scripts/radio/content_rating.gd")
 const VIOLET := Color(0.72, 0.32, 1.0)
 const VEIL := Color(0.16, 0.04, 0.24)
 
@@ -19,7 +18,6 @@ func _initialize() -> void:
 	for a in OS.get_cmdline_user_args():
 		out = a
 	DirAccess.make_dir_recursive_absolute(out)
-	ContentRating.set_rating("M", false)
 	root.size = Vector2i(1200, 900)
 	_go.call_deferred()
 

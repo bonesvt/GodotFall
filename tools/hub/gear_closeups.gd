@@ -9,7 +9,6 @@ extends SceneTree
 
 const Hymn := preload("res://scripts/hub/hymn.gd")
 const ColonyGear := preload("res://scripts/hub/colony_gear.gd")
-const ContentRating := preload("res://scripts/radio/content_rating.gd")
 const ECO := preload("res://assets/models/eco.tscn")
 const CELL := Vector2i(480, 480)
 ## [camera offset from the spot, the spot] in her rest model space (she faces -Z).
@@ -30,7 +29,6 @@ func _initialize() -> void:
 	for a in OS.get_cmdline_user_args():
 		out = a
 	DirAccess.make_dir_recursive_absolute(out)
-	ContentRating.set_rating("M", false)
 	_go.call_deferred()
 
 

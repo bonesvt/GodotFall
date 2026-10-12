@@ -11,7 +11,6 @@ const Vices := preload("res://scripts/hub/vices.gd")
 const Hymn := preload("res://scripts/hub/hymn.gd")
 const TriggerWords := preload("res://scripts/hub/trigger_words.gd")
 const Shepherd := preload("res://scripts/hub/shepherd.gd")
-const ContentRating := preload("res://scripts/radio/content_rating.gd")
 const Wardrobe := preload("res://scripts/hub/wardrobe.gd")
 
 var run_node: Node
@@ -21,7 +20,6 @@ var failures := 0
 
 func _initialize() -> void:
 	preload("res://scripts/run/tutorial.gd").settings_path = "user://test_settings.cfg"
-	ContentRating.set_rating("M", false)
 	run_node = load("res://scenes/run.tscn").instantiate()
 	run_node.run_seed = 7
 	run_node.armory_path = "user://test_hymn_armory.cfg"
@@ -223,12 +221,9 @@ func _run() -> void:
 	Hymn.run_over()
 	_check("another try after the next run", not Hymn.biggie_tried, Hymn.biggie_tried)
 
-	# A new day after a run; Teen: none of it.
+	# A new day after a run.
 	Hymn.run_over()
 	_check("a run over: tomorrow's dose waiting", not Hymn.dosed_today, Hymn.dosed_today)
-	ContentRating.set_rating("T", false)
-	_check("teen: no Hymn, no gear", not Hymn.allowed() and not Hymn.has("visor") and visor.strength() == 0.0, Hymn.allowed())
-	ContentRating.set_rating("M", false)
 	Hymn.reset()
 	Hymn.save()
 

@@ -34,7 +34,7 @@ func _run() -> void:
 
 func _plan_checks() -> void:
 	var spec := Levels.spec("level2")
-	_check("level 2 needs level 1, rescues Ophelia at night", spec["needs"] == "level1" and spec["rescue"] == "ophelia" and spec["night"] and Levels.ORDER == ["level1", "level2"], spec.get("needs", ""))
+	_check("level 2 needs level 1, rescues Ophelia at night", spec["needs"] == "level1" and spec["rescue"] == "ophelia" and spec["night"] and Levels.ORDER.slice(0, 2) == ["level1", "level2"], spec.get("needs", ""))
 	var bad := []
 	for s in range(1, 41):
 		var plan = LevelPlan.make_level(s, spec)
@@ -70,11 +70,13 @@ func _play_checks() -> void:
 	await _use_spot(spot)
 	_check("locked board doesn't start a run", run_node.phase == run_node.Phase.HUB, run_node.phase)
 	run_node.armory.mark_cleared("level1")
+	run_node.tutorial.seen.erase("trial_intro")   # a last run's save
 	run_node.dress_hub()
 	_check("level 2 opens once level 1 is cleared", spot["prompt"].contains("LEVEL 2: THE GLASS DISTRICT"), spot["prompt"])
 	await _use_spot(spot)
 	_check("board starts the level 2 run", run_node.phase == run_node.Phase.ZONE and run_node.run.level == "level2", [run_node.phase, run_node.run.level])
 	run_node.tutorial.set_enabled(false)
+	await _trial_intro()
 
 	var info: Dictionary = run_node.zone_info
 	_check("it's The Glass District, in the city", info.get("name", "") == "THE GLASS DISTRICT" and info["plan"].biome == "city" and run_node.hud.toast_label.text.contains("LEVEL 2"), info.get("name", ""))
@@ -93,19 +95,18 @@ func _play_checks() -> void:
 	var cell: Node3D = info["holding_cell"]
 	var oph: Node3D = cell.ophelia
 	await _ticks(3)
-	var ContentRating = preload("res://scripts/radio/content_rating.gd")
-	var was: String = ContentRating.current()
-	ContentRating.set_rating("M", false)
 	await _frames(3)
-	_check("Ophelia's in the stasis column in the Mature intake suit, cuffed and collared", oph != null and oph.who == "ophelia" and oph.outfit == "colony_m" and oph.posed and cell._restraints.size() == 3 and cell._field.visible, [oph.outfit, cell._restraints.size()])
-	_check("she floats off the pad in the stasis pose", oph.position.y > cell.PAD_TOP + 0.1 and oph._anim.current_animation.ends_with("stasis"), [oph.position.y, oph._anim.current_animation])
+	await _frames(3)
+	_check("Ophelia's in the trial frame in the Mature intake suit, in the white light", oph != null and oph.who == "ophelia" and oph.outfit == "colony_m" and oph.posed and cell._field.visible, oph.outfit)
+	_check("she wears the trial's headphones, cuff, visor, neck band, bridge and gloves", cell.gear_on() == cell.TRIAL_GEAR, cell.gear_on())
+	var wrists: Variant = cell.wrists_at()
+	_check("her arms are held up over her head, wrists clamped together, ankles clamped", cell._clamps.size() == 6 and wrists != null and (wrists as Vector3).y > 1.6 and absf((wrists as Vector3).x - cell.COLUMN.x) < 0.15, [cell._clamps.size(), wrists])
+	_check("she stands on the bay's floor, held still", absf(oph.position.y - cell.PAD_TOP) < 0.05 and oph._anim.speed_scale == 0.0, [oph.position.y, oph._anim.speed_scale])
+	_check("a screen in front of her face flashes words at her", cell._feed != null and cell._feed_word.text in cell.FEED_WORDS, cell._feed_word.text if cell._feed_word else null)
+	_check("two empty frames with their visors hung on them, the film tray and Marrow's Glass case", cell.find_children("HungVisor*", "", false, false).size() == 2 and cell.find_child("FilmTray", false, false) != null and cell.find_child("GlassCase", false, false) != null, cell.find_children("HungVisor*", "", false, false).size())
 	_check("Mature face and messed-up hair", _face_tex(oph).ends_with("face_colony_m.png") and _blend(oph, "mess_colony") > 0.99, [_face_tex(oph), _blend(oph, "mess_colony")])
 	_check("nothing shows through her suit (no chest nubs on a captive)", _hidden(oph, "Piercings"), _hidden(oph, "Piercings"))
-	_check("Mature manifest: item 41 of 60", cell._manifest.text.contains("ITEM 41 OF 60"), cell._manifest.text)
-	ContentRating.set_rating("T", false)
-	await _frames(3)
-	_check("Teen: the intake suit with its ID plate and its own face", oph.outfit == "colony" and _face_tex(oph).ends_with("face_colony.png") and not cell._manifest.text.contains("41"), [oph.outfit, _face_tex(oph), cell._manifest.text])
-	ContentRating.set_rating(was, false)
+	_check("the wall screen reads her trial: Bay 7, day 19", cell._manifest.text.contains("BAY 7") and cell._manifest.text.contains("DAY 19") and cell._log.text.contains("SOLACE"), cell._manifest.text)
 	await _frames(3)
 	_check("calm radio gossips about the prisoner", run_node.pilot_hud.radio.extra_rumor == "prisoner", run_node.pilot_hud.radio.extra_rumor)
 	_check("the screen is solid", _screen_blocks(cell), true)
@@ -117,11 +118,14 @@ func _play_checks() -> void:
 
 	# Into the cell: the field drops, she follows.
 	await _use_cell(cell)
-	_check("F breaks her out", cell.opened and run_node.rescued and not cell._field.visible and not _screen_blocks(cell), cell.opened)
+	_check("F breaks her out: the light and her screen go out, the clamps open", cell.opened and run_node.rescued and not cell._field.visible and not _screen_blocks(cell) and cell._manifest.text == "" and cell._feed_word.text == "" and cell._clamps.is_empty() and cell._pose == null and oph._anim.speed_scale > 0.0, [cell._field.visible, _screen_blocks(cell), cell._manifest.text, cell._feed_word.text, cell._clamps.size(), oph._anim.speed_scale])
 	_check("they talk", run_node.hud.toast_label.text.begins_with("OPHELIA"), run_node.hud.toast_label.text)
 	_check("radio stops gossiping about her", run_node.pilot_hud.radio.extra_rumor == "", run_node.pilot_hud.radio.extra_rumor)
 	var escort = run_node.escort
 	_check("she's following", escort != null and escort.npc == oph and not escort.waiting, escort)
+	cell._hold()
+	cell._unmask()
+	_check("the visor, headphones and band come off her, the cuff stays", cell.gear_on() == cell.KEPT_GEAR, cell.gear_on())
 	if escort == null:
 		return
 	# Walk off up the street: she comes after. (Grunts held passive for this,
@@ -193,6 +197,8 @@ func _play_checks() -> void:
 	var gained: int = Romance.affection(run_node.npc_talk.state, "ophelia") - affection_before
 	_check("the rescue starts her romance on +%d" % run_node.RESCUE_AFFECTION, gained == run_node.RESCUE_AFFECTION, gained)
 	run_node._rescue_bonus("level2")
+	var HubGrip = preload("res://scripts/hub/hub_grip.gd")
+	_check("she comes home still wearing the trial's dose cuff, Hymn in her", HubGrip.has("ophelia", "cuff") and HubGrip.level("ophelia") >= run_node.TRIAL_HYMN, [HubGrip.gear_of("ophelia"), HubGrip.level("ophelia")])
 	_check("the rescue bonus is given only once", Romance.affection(run_node.npc_talk.state, "ophelia") - affection_before == run_node.RESCUE_AFFECTION, Romance.affection(run_node.npc_talk.state, "ophelia"))
 
 
@@ -238,6 +244,39 @@ func _press(action: String) -> void:
 	Input.action_press(action)
 	await physics_frame
 	Input.action_release(action)
+
+
+## The opening: day one of her trial in the bay, the first time only (trial_intro.gd).
+func _trial_intro() -> void:
+	var intro = run_node.trial_intro
+	var cell: Node3D = run_node.zone_info["holding_cell"]
+	var g0: Node = run_node.zone_info["grunts"][0]
+	_check("the level opens on day one of her trial", intro.busy() and cell.intake and not cell._field.visible and cell.gear_on().is_empty(), [intro.busy(), cell.intake])
+	_check("Eco and the yard held still, no prompt", player.entranced and g0.process_mode == Node.PROCESS_MODE_DISABLED and run_node._prompt() == "", g0.process_mode)
+	_check("the bay's wall reads day one, no log yet", cell._manifest.text.contains("DAY 1") and cell._log.text == "", cell._manifest.text)
+	await _frames(3)
+	_check("they bring her in from the screen", cell.ophelia.position.distance_to(cell.COLUMN) > 1.5 and intro._orderlies.size() == 2, cell.ophelia.position)
+	intro.t = intro.ARMS + intro.ARMS_TIME + 0.05
+	await _frames(4)
+	_check("brought in, her arms up and clamped together", cell.ophelia.position.distance_to(cell.COLUMN) < 0.2 and cell._pose != null and is_equal_approx(cell._pose.influence, 1.0) and not cell._clamps.is_empty() and cell._clamps[0].visible, cell._clamps.size())
+	_check("two orderlies in white", intro._orderlies.size() == 2 and intro._orderlies[0].visible, intro._orderlies.size())
+	intro.t = intro.VISOR + intro.FIT_TIME + 0.05
+	await _frames(3)
+	_check("the band, cuff, headphones and visor go on her", cell.gear_on().size() == 4, cell.gear_on())
+	_check("still dark till they've done", not cell._field.visible, cell._field.visible)
+	intro.t = intro.POWER + 0.05
+	await _frames(3)
+	_check("then the bay powers up and the screen starts", cell._field.visible and cell._feed_word.text != "", cell._feed_word.text)
+	_check("on its first-day words", cell._feed_word.text in cell.DAY_ONE_WORDS, cell._feed_word.text)
+	intro.t = intro.DAY19 + 0.05
+	await _frames(4)
+	_check("day 19: the calm bridge and the gloves on her too", cell.gear_on() == cell.TRIAL_GEAR and cell.gear_on().size() == 6, cell.gear_on())
+	_check("her head hung, new words on the screen, the log on the wall", cell._pose != null and cell._pose.turns.size() > cell.ARMS_UP.size() and cell._feed_word.text in cell.FEED_WORDS and cell._log.text.contains("D19"), [cell._feed_word.text, cell._log.text])
+	await _press("interact")
+	await _frames(3)
+	_check("F skips to the level", not intro.busy() and not cell.intake and not player.entranced and g0.process_mode != Node.PROCESS_MODE_DISABLED, intro.t)
+	_check("the trial's day 19 again, her held in the frame", cell._manifest.text.contains("DAY 19") and cell.ophelia.posed and cell.gear_on() == cell.TRIAL_GEAR, cell._manifest.text)
+	_check("seen: it doesn't play again", intro.seen() and root.get_viewport().get_camera_3d() == player.camera, intro.seen())
 
 
 func _ticks(n: int) -> void:

@@ -9,7 +9,6 @@ const Vices := preload("res://scripts/hub/vices.gd")
 const Redline := preload("res://scripts/hub/redline.gd")
 const Rescue := preload("res://scripts/hub/rescue.gd")
 const HubGrip := preload("res://scripts/hub/hub_grip.gd")
-const ContentRating := preload("res://scripts/radio/content_rating.gd")
 const CELL := Vector2i(480, 270)
 const COLS := 5
 
@@ -24,7 +23,6 @@ func _initialize() -> void:
 		out = a
 	DirAccess.make_dir_recursive_absolute(out)
 	preload("res://scripts/run/tutorial.gd").settings_path = "user://shots_settings.cfg"
-	ContentRating.set_rating("M", false)
 	run_node = load("res://scenes/run.tscn").instantiate()
 	run_node.armory_path = "user://shots_rescue_motion_armory.cfg"
 	run_node.npc_path = "user://shots_rescue_motion_npc.cfg"

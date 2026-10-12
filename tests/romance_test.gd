@@ -11,7 +11,6 @@ const NpcTalk := preload("res://scripts/hub/npc_talk.gd")
 const Romance := preload("res://scripts/hub/romance.gd")
 const NpcIdles := preload("res://scripts/hub/npc_idles.gd")
 const Family := preload("res://scripts/hub/family.gd")
-const ContentRating := preload("res://scripts/radio/content_rating.gd")
 const PATH := "user://test_romance.cfg"
 
 var failures := 0
@@ -32,11 +31,15 @@ func _initialize() -> void:
 	_run.call_deferred()
 
 
-func _fresh() -> NpcTalk:
+## A talk with a clean save. By default Ophelia's bank is ophelia.txt alone
+## (the base the Mature cut is laid over), which the mechanics checks run on.
+func _fresh(base := true) -> NpcTalk:
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(PATH))
 	var t: NpcTalk = NpcTalk.new()
 	t.save_path = PATH
 	root.add_child(t)
+	if base:
+		t._banks["ophelia"] = NpcTalk._read("res://dialogue/npc/ophelia.txt")
 	return t
 
 
@@ -63,9 +66,8 @@ func _play_out(t: NpcTalk, pick := 0) -> Array:
 
 
 func _run() -> void:
-	# Most of this checks the Teen lines (dialogue/npc/ophelia.txt); the
-	# Mature cut (ophelia_M.txt) has its own checks in _mature().
-	ContentRating.set_rating("T", false)
+	# Most of this checks the mechanics on ophelia.txt's own lines; the game
+	# lays the Mature cut (ophelia_M.txt) on top, checked in _mature().
 	# The file parses: settings, scenes in order, choices with their answers.
 	var t := _fresh()
 	var oph := _npc("ophelia")
@@ -328,7 +330,6 @@ func _run() -> void:
 	_check("every romance line has a speaker (%d lines)" % count, bad.is_empty() and count > 60, bad.slice(0, 3))
 
 	_mature()
-	ContentRating.set_rating("T", false)
 
 	await _hub_keys()
 
@@ -338,12 +339,10 @@ func _run() -> void:
 
 ## The Mature cut: dialogue/npc/ophelia_M.txt read on top of ophelia.txt.
 func _mature() -> void:
-	var t := _fresh()
-	var teen: Dictionary = t.bank("ophelia")
-	ContentRating.set_rating("M", false)
+	var t := _fresh(false)
 	var m: Dictionary = t.bank("ophelia")
-	_check("Mature: a different bank", m != teen and m["flirt"] != teen["flirt"] and m["intro"] != teen["intro"], "")
-	_check("Mature: her likes still come from ophelia.txt", Romance.settings(m) == Romance.settings(teen), Romance.settings(m))
+	var base := NpcTalk.parse(FileAccess.get_file_as_string("res://dialogue/npc/ophelia.txt"))
+	_check("Mature: her likes still come from ophelia.txt", Romance.settings(m) == Romance.settings(base), Romance.settings(m))
 	var ats: Array = m["heart"].map(func(h): return h["at"])
 	_check("Mature: seven heart scenes, the jealous one at 35", ats == [10, 25, 35, 45, 55, 70, 85], ats)
 	var last: Array = m["heart"].back()["lines"]
@@ -378,8 +377,6 @@ func _mature() -> void:
 	_check("Mature: confession at 85", t.beat == 85 and t.current_line().begins_with("ophelia: I need to say something"), t.current_line())
 	_play_out(t, 0)
 	_check("Mature: kiss, together", Romance.status(t.state, "ophelia") == "together", Romance.status(t.state, "ophelia"))
-	ContentRating.set_rating("T", false)
-	_check("back to Teen: the Teen lines", t.bank("ophelia") == teen, "")
 	t.queue_free()
 	oph.queue_free()
 
@@ -441,7 +438,7 @@ func _hub_keys() -> void:
 	for i in 4:
 		await _press("interact")
 	await physics_frame
-	_check("hub: a line's moods play", talk.current_line().begins_with("ophelia: Fine. Sit") and oph.gesture == "lookaway", [talk.current_line(), oph.gesture])
+	_check("hub: a line's moods play", talk.current_line().begins_with("ophelia: F-fine. Sit") and oph.gesture == "lookaway", [talk.current_line(), oph.gesture])
 	var skel: Skeleton3D = oph.find_child("Skeleton3D", true, false)
 	var head := skel.find_bone("J_Bip_C_Head")
 	var still := skel.get_bone_global_pose(head).basis

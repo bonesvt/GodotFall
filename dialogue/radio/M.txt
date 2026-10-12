@@ -68,14 +68,16 @@ a: That {part} came off a frame the locals stole from us. | b: Then we're steali
 
 # Level 2 only, while Ophelia's in the holding block: gossip about the prisoner.
 [prisoner]
-a: How long are we holding the girl? | b: Till Command remembers she exists. | a: So forever, basically.
-a: The prisoner asked for a blanket. | b: Did you get her one? | a: ...Maybe. Tell Brass and you're dead.
-hq: Holding block, status on the detainee. | a: Still sitting there. Still glaring like she wants us dead. | hq: Noted.
-a: Nobody's come asking about her. Not one damn person from town. | b: That's grim. | a: Convenient, Command says.
+a: How long are we holding the girl? | b: Till the white coats say she's done. | a: Done what? | b: Don't ask, that's how you end up in Bay 8.
+a: Bay 7's numbers came in. | b: And? | a: Sixty-four percent. The coats were clapping. Actual clapping.
+a: She smiles now. | b: The prisoner? | a: Didn't the first week. Now the chime goes and she smiles. I don't like it.
+hq: Holding block, status on the detainee. | a: Standing in the frame. Still standing in the frame. | hq: Noted. Do not touch the visor.
+a: Nobody's come asking about her. Not one damn person from town. | b: That's grim. | a: Convenient, Command says. Good test subject.
 a: Why the hell did we pick her up? | b: Out past curfew drawing on our wall. | a: Drawing what? | b: Us. Very unflattering.
-a: She hasn't said a word in three days. | b: She said a few to me. | a: Which? | b: Ones I can't repeat on the net.
+a: She asked me what day it was. | b: Don't answer. Coats said don't answer. | a: She stopped asking, anyway.
 a: Command thinks the Starling might come for her. | b: For some nobody orphan? | a: That's what scares the hell out of me.
-a: She's got the black nail polish, the whole look. | b: Little storm cloud. | a: Little storm cloud that bit Hollis. Hard.
+a: The coats want it in the town next. | b: What, the girl? | a: The stuff. Whatever they're putting in the girl.
+a: She's got the black nail polish, the whole look. | b: Little storm cloud. | a: Little storm cloud that bit Hollis. First week. She doesn't bite now.
 
 # Heard or glimpsed something.
 [suspicious]

@@ -10,7 +10,6 @@ const BarScreen := preload("res://scripts/hub/bar_screen.gd")
 const Armory := preload("res://scripts/hub/armory.gd")
 const Vices := preload("res://scripts/hub/vices.gd")
 const DrunkScreen := preload("res://scripts/ui/drunk_screen.gd")
-const ContentRating := preload("res://scripts/radio/content_rating.gd")
 
 var out := "user://bar_shots"
 
@@ -32,7 +31,6 @@ func _shot(name: String, frames := 30) -> void:
 
 
 func _go() -> void:
-	ContentRating.set_rating("M", false)
 	var level: Node = load("res://scenes/test_level.tscn").instantiate()
 	root.add_child(level)
 	var player := level.find_child("Player", true, false)

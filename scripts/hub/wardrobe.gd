@@ -10,7 +10,6 @@ const K := preload("res://scripts/hub/hub_kit.gd")
 const Art := preload("res://scripts/ps2/ps2_assets.gd")
 const ECO_MODEL := "res://scripts/ps2/eco_model.gd"
 const HUB_NPC := "res://scripts/hub/hub_npc.gd"
-const ContentRating := preload("res://scripts/radio/content_rating.gd")
 const Vices := preload("res://scripts/hub/vices.gd")
 const ViceLooks := preload("res://scripts/hub/vice_looks.gd")
 
@@ -39,16 +38,12 @@ static var eco_now := "suit"
 
 
 ## The outfits someone has. Eco's come from her model (eco_model.gd OUTFITS:
-## her pilot suits and her clothes), less its MATURE_OUTFITS under the Teen
-## content rating, and less the Hush courier suit until she's earned it
+## her pilot suits and her clothes), less the Hush courier suit until she's earned it
 ## (vices.gd hush_suit).
 static func outfits(who: String) -> Array:
 	if who == "eco":
 		var consts: Dictionary = (load(ECO_MODEL) as Script).get_script_constant_map()
 		var list: Array = consts.get("OUTFITS", ["suit"]).duplicate()
-		if ContentRating.current() != "M":
-			var mature: Array = consts.get("MATURE_OUTFITS", [])
-			list = list.filter(func(o): return not o in mature)
 		if not Vices.hush_suit:
 			list.erase("suit_hush")
 		list.append_array(ViceLooks.wardrobe_looks())  # the hypno looks she's kept

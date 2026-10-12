@@ -78,7 +78,7 @@ func busy() -> bool:
 
 ## Can his words get to her at all right now.
 static func can_trigger() -> bool:
-	return Vices.allowed() and (Vices.hold >= Vices.TRANCE_HOLD or Hymn.has("headphones")) and not Vices.entranced
+	return (Vices.hold >= Vices.TRANCE_HOLD or Hymn.has("headphones")) and not Vices.entranced
 
 
 ## Seconds between triggers at his current Hold.
@@ -104,8 +104,10 @@ func tick(delta: float, free: bool, on_run: bool) -> void:
 		fire(on_run)
 
 
-## His words reach her, now (colony: the Shepherd's pulse).
-func fire(on_run: bool, colony := false) -> void:
+## His words reach her, now (colony: the Shepherd's pulse). `source`, a
+## line with %s for the words, says where from (story/boneyard.gd: a dead
+## grunt's radio).
+func fire(on_run: bool, colony := false, source := "") -> void:
 	var rm: Node = pull.rm
 	_on_run = on_run
 	step = Step.LOCKED
@@ -120,6 +122,8 @@ func fire(on_run: bool, colony := false) -> void:
 		line = PULSE_SOURCE % phrase
 	elif theirs:
 		line = COLONY_SOURCES[rng.randi() % COLONY_SOURCES.size()] % phrase
+	elif source != "":
+		line = source % phrase
 	else:
 		var sources: Array = RUN_SOURCES if on_run else HUB_SOURCES
 		line = sources[rng.randi() % sources.size()] % phrase

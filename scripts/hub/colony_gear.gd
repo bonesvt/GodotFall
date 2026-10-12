@@ -72,8 +72,6 @@ static func apply(model: Node, p_gear = null) -> void:
 		if String(child.name).begins_with(NODE):
 			skel.remove_child(child)
 			child.free()
-	if not Hymn.allowed():
-		return
 	if "headphones" in gear or "visor" in gear or "crown" in gear:
 		var head := _root(skel, HEAD, NODE)
 		if "headphones" in gear:

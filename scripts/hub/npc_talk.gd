@@ -45,7 +45,6 @@ const Family := preload("res://scripts/hub/family.gd")
 const FAMILY_DIR := "res://dialogue/family/"
 const Gifts := preload("res://scripts/run/gifts.gd")
 const NpcIdles := preload("res://scripts/hub/npc_idles.gd")
-const ContentRating := preload("res://scripts/radio/content_rating.gd")
 const Obsession := preload("res://scripts/hub/obsession.gd")
 const Vices := preload("res://scripts/hub/vices.gd")
 ## Where the gift bag lives in the save file.
@@ -61,6 +60,8 @@ const COLORS := {"mom": Color(0.6, 0.85, 0.6), "ophelia": Color(0.78, 0.55, 1.0)
 
 var save_path := DEFAULT_PATH
 var state := ConfigFile.new()
+## The levels she's cleared (run_manager dress_hub), for [after_<level>] talks.
+var cleared: Array = []
 ## The conversation playing: its NPC node, lines [[speaker, text], ...] and the line on now.
 var npc: Node3D
 var lines: Array = []
@@ -199,12 +200,11 @@ static func _line(speaker: String, text: String) -> Array:
 	return [speaker.substr(0, open).strip_edges(), text, moods]
 
 
-## Their parsed lines at the current dialogue rating. Under Mature,
-## dialogue/npc/<who>_M.txt (and dialogue/family/<who>_M.txt) is read on top:
-## see overlay(). Cached per rating, so switching it in Settings just works.
+## Their parsed lines: dialogue/npc/<who>.txt (and dialogue/family/<who>.txt),
+## with dialogue/npc/<who>_M.txt (and family's) read on top, the Mature cuts
+## of the scenes they share: see overlay(). Cached.
 func bank(who: String) -> Dictionary:
-	var rating := ContentRating.current()
-	var key := who + ":" + rating
+	var key := who
 	if not _banks.has(key):
 		var b := _read(DIALOGUE_DIR + who + ".txt")
 		if Family.enabled:
@@ -217,10 +217,9 @@ func bank(who: String) -> Dictionary:
 				elif b[k] is Dictionary:
 					b[k].merge(extra[k])
 			b["bond"].sort_custom(func(x, y): return x["at"] < y["at"])
-		if rating == "M":
-			overlay(b, _read(DIALOGUE_DIR + who + "_M.txt"))
-			if Family.enabled:
-				overlay(b, _read(FAMILY_DIR + who + "_M.txt"))
+		overlay(b, _read(DIALOGUE_DIR + who + "_M.txt"))
+		if Family.enabled:
+			overlay(b, _read(FAMILY_DIR + who + "_M.txt"))
 		_banks[key] = b
 	return _banks[key]
 
@@ -265,6 +264,15 @@ func pick(who: String, run_id: int, won: bool, spot := "") -> Array:
 		state.set_value(who, "warm_run", run_id)
 		state.set_value(who, "bond_run", run_id)
 		return b["intro"]
+	# What they've got to say about a level she's just cleared, once
+	# ([after_level4]: Biggie on the joint op), the latest first.
+	for i in range(cleared.size() - 1, -1, -1):
+		var level: String = cleared[i]
+		var key := "after_" + level
+		if b.has(key) and not state.get_value(who, key, false):
+			state.set_value(who, key, true)
+			state.set_value(who, "run_seen", run_id)
+			return b[key]
 	if Family.has_family(b) and int(state.get_value(who, "bond_run", -1)) != run_id:
 		state.set_value(who, "bond_run", run_id)
 		_add_bond(who, Family.TALK_GAIN)
@@ -510,9 +518,9 @@ func date(p_npc: Node3D, place: String, run_id: int) -> bool:
 	return true
 
 
-## The lines for a date at `place` from a parsed bank, by content rating.
+## The lines for a date at `place` from a parsed bank (the Mature cut first).
 static func date_lines(b: Dictionary, place: String) -> Array:
-	if ContentRating.current() == "M" and b.get("date_m", {}).has(place):
+	if b.get("date_m", {}).has(place):
 		return b["date_m"][place]
 	return b["date"].get(place, b["date"].get("any", []))
 

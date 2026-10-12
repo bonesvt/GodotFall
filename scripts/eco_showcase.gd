@@ -5,14 +5,13 @@ extends Node3D
 ##   1              full body        2       face close-up
 ##   3              first-person pistol and glove
 ##   S              next suit upgrade tier (0-5)    W   next suit weight (light, medium, heavy)
-##   C              next suit or outfit (eco_model.gd OUTFITS)    O   content rating (Teen, Mature)
+##   C              next suit or outfit (eco_model.gd OUTFITS)
 ##   D              battle damage: none, a little, a lot, the end of a hard run (battle_damage.gd)
 ## Also renders the character sheet shots when run with
 ##   godot res://scenes/eco_showcase.tscn -- --shots=<folder> [--clean] [--suit=<tier>] [--weight=light|medium|heavy]
-##       [--outfit=<name>] [--rating=T|M] [--only=front,back] [--damage=0..1]
+##       [--outfit=<name>] [--only=front,back] [--damage=0..1]
 
 const Art := preload("res://scripts/ps2/ps2_assets.gd")
-const ContentRating := preload("res://scripts/radio/content_rating.gd")
 const BattleDamage := preload("res://scripts/ps2/battle_damage.gd")
 ## Battle damage levels D steps through.
 const DAMAGE_STEPS := [0.0, 0.35, 0.7, 1.0]
@@ -63,9 +62,6 @@ func _ready() -> void:
 	_set_view(0)
 
 	for arg in OS.get_cmdline_user_args():
-		if arg.begins_with("--rating="):  # for this run only, before she dresses
-			ContentRating.set_rating(arg.trim_prefix("--rating="), false)
-	for arg in OS.get_cmdline_user_args():
 		if arg == "--clean":  # full resolution, no PS2 filter or haze: a clear reference
 			get_node("/root/PS2").set_enabled(false)
 			for env_node in find_children("*", "WorldEnvironment", true, false):
@@ -103,7 +99,7 @@ func _set_view(i: int) -> void:
 
 
 func _process(delta: float) -> void:
-	BattleDamage.apply()  # the rating may have changed (O)
+	BattleDamage.apply()  # the damage level may have changed (D)
 	if turntable and _view != 2:
 		eco.rotation.y += delta * 0.5
 
@@ -125,8 +121,6 @@ func _unhandled_input(event: InputEvent) -> void:
 			eco.suit_weight = weights[(weights.find(eco.suit_weight) + 1) % weights.size()]
 		KEY_C:
 			eco.wear(eco.OUTFITS[(eco.OUTFITS.find(eco.outfit) + 1) % eco.OUTFITS.size()])
-		KEY_O:
-			ContentRating.cycle()
 		KEY_D:
 			var i := DAMAGE_STEPS.find(BattleDamage.grime)
 			BattleDamage.set_all(DAMAGE_STEPS[(i + 1) % DAMAGE_STEPS.size()])

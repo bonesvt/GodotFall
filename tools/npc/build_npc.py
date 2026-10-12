@@ -1077,7 +1077,7 @@ def colony_faces(face, px):
     """Ophelia's face in the colony's hold (Level 2): her emo make-up ruined,
     the liner smeared round both eyes and cried down her cheeks in runs, the
     plum lipstick smudged past her lip line, a med-tag patch on her left
-    cheekbone and a bruise under her right eye (face_colony.png). Mature
+    cheekbone and a bruise under her right eye (the old Teen face_colony.png, dropped). Mature
     (face_colony_m.png) adds the colony's tracking code etched under her
     right eye, where her fringe hangs over it: the cradle scanner's alignment
     mark, and the reason she wears her hair that way."""
@@ -1114,6 +1114,12 @@ def colony_faces(face, px):
     put(a, (0.85, 0.87, 0.9), patch.astype(float))
     put(a, (0.1, 0.9, 1.0), blob(0.056, 1.268, 0.0018, 0.0018, side=1))
     put(a, (0.8, 0.62, 0.72), 0.45 * blob(0.045, 1.272, 0.012, 0.006, side=-1), "tint")
+    # (Bones, 2026-10-09) she went down in a puddle and nobody cleaned her
+    # up: dried mud across her right cheek and jaw, a dab on her chin, a
+    # streak up into her hairline, mottled where it flaked
+    flake = 0.65 + 0.35 * np.sin(sx * 900 + np.sin(z * 700) * 2.0) * np.sin(z * 1100)
+    mud = blob(0.05, 1.238, 0.02, 0.013, side=-1) + 0.6 * blob(0.008, 1.218, 0.008, 0.005, side=-1) + 0.7 * blob(0.06, 1.305, 0.006, 0.02, side=-1)
+    put(a, (0.24, 0.19, 0.14), np.clip(0.6 * mud * flake, 0, 0.6))
     m = a.copy()
     cx0, cx1, z0, z1 = -0.066, -0.03, 1.2495, 1.2615
     reg = (sx > cx0) & (sx < cx1) & (z > z0) & (z < z1)
@@ -1123,7 +1129,7 @@ def colony_faces(face, px):
     rim = np.exp(-(((sx + 0.048) / 0.023) ** 2 + ((z - 1.255) / 0.01) ** 2))
     put(m, (0.92, 0.62, 0.6), 0.35 * rim, "tint")
     put(m, (0.03, 0.025, 0.04), 0.92 * ((reg & bars) | ticks).astype(float))
-    return {"face_colony": a, "face_colony_m": m}
+    return {"face_colony_m": m}   # (the Teen "face_colony" was dropped 2026-10-09)
 
 
 def skin_tone(px):
@@ -1141,9 +1147,9 @@ def skin_tone(px):
 # bake to body_<outfit>.png and hub_npc.gd swaps them in.
 # (Mom's and Ophelia's bikini/sheer/tight/lingerie were shelved 2026-10-04;
 # backup: /mnt/project-files/hub-npcs/shelved/npc_outfits.bundle)
-OUTFITS = {"ophelia": ["tee", "hoodie", "night", "prison", "colony", "colony_m"], "mom": ["home", "night"]}
+OUTFITS = {"ophelia": ["tee", "hoodie", "night", "prison", "colony_m"], "mom": ["home", "night"]}
 # Outfits worn barefoot (the boots mesh hidden; hub_npc.gd NO_BOOTS).
-BAREFOOT = ["night", "prison", "colony", "colony_m"]
+BAREFOOT = ["night", "prison", "colony_m"]
 OUTFIT = "tee"
 
 
@@ -1313,9 +1319,12 @@ def colony_outfit(g, skin, x, y, z, ax, front, cov, edge, sine, neck_r):
     panels, belt and knee plates, cyan light strips, the colony's mark on her
     back; torn where she fought (right sleeve gone at the shoulder, her left
     upper arm, elbow and forearm, both knees, her right shin, her left calf,
-    across her shoulder blades), scorch marks, grime, grey grip socks, no
+    across her shoulder blades, her right side above the belt, her right
+    thigh, her left shin), scorch marks, grime, dried mud from the puddle she
+    went down in (Bones, 2026-10-09: torn all over, never replaced), grey
+    grip socks, no
     boots. Her choker is gone (the inhibitor collar is a prop,
-    holding_cell.gd). Teen ("colony"): an ID plate with a light-strip code on
+    holding_cell.gd). The old Teen cut ("colony", dropped 2026-10-09): an ID plate with a light-strip code on
     her chest. Mature ("colony_m"): no plate (the code is etched under her
     eye: face_colony_m.png), her left trouser leg torn away at mid-thigh and a
     long tear down her back to the waist. Rips stay off her chest, hips and
@@ -1400,12 +1409,18 @@ def colony_outfit(g, skin, x, y, z, ax, front, cov, edge, sine, neck_r):
     r9 = g.mul(r9, back)
     r10, rr10 = blob(0.0, 1.08, 0.075, 0.009, 0.3)        # across the shoulder blades
     r10 = g.mul(r10, back)
+    # (2026-10-09) torn all over from the escape: her right side above the
+    # belt, her right thigh above the knee, her left shin
+    r12, rr12 = blob(-0.135, 0.9, 0.016, 0.032, 0.25)
+    r13, rr13 = blob(-0.08, 0.58, 0.02, 0.03, 0.25, side=1)
+    r14, rr14 = blob(0.07, 0.29, 0.016, 0.04, 0.25, side=1)
+    r9 = g.mx(r9, g.mx(r12, g.mx(r13, r14)))
     if mature:   # a long tear down her back, ending at her lower back (above the belt)
         r11, rr11 = blob(-0.035, 0.935, 0.026, 0.09, 0.3)
         r10 = g.mx(r10, g.mul(r11, back))
     rip = g.mx(g.mx(g.mx(r1, r2), g.mx(r3, r4)), g.mx(g.mx(g.mx(r5, r6), g.mx(r7, r8)), g.mx(r9, r10)))
     frays = g.mx(g.mx(g.band(rr1, 1.0, 1.12), g.band(rr2, 1.0, 1.15)), g.band(rr3, 1.0, 1.15))
-    for rr in (rr4, rr5, rr6, rr7, rr8, rr9, rr10):
+    for rr in (rr4, rr5, rr6, rr7, rr8, rr9, rr10, rr12, rr13, rr14):
         frays = g.mx(frays, g.band(rr, 1.0, 1.14))
     frays = g.mul(frays, g.sub(1.0, rip))
     # scorch: dark splashes at her left hip and right shoulder
@@ -1430,8 +1445,13 @@ def colony_outfit(g, skin, x, y, z, ax, front, cov, edge, sine, neck_r):
     col = g.mixc(col, skin, g.mul(rip, suit))
     col = g.mixc(col, WHITE_D, g.mul(frays, suit))
     col = g.mixc(col, SOCK, socks)
+    # the puddle: dried mud up her front from the shins, heaviest down her
+    # right side where she landed, a little on the skin through the rips
+    MUD = (0.12, 0.095, 0.07)
+    splash = g.mx(g.mul(g.sstep(0.75, 0.25, z), grime_blot), g.mul(g.mul(right, g.sstep(0.35, 0.8, fine_blot)), g.sstep(1.15, 1.0, z)))
+    col = g.mixc(col, MUD, g.mul(g.mul(splash, front), 0.6))
     ink = g.mx(g.mx(edge(d_suit), g.mul(g.mx(g.band(rr1, 0.98, 1.02), g.band(rr2, 0.98, 1.02)), 0.7)), g.mul(edge(g.sub(0.11, z)), 0.6))
-    for rr in (rr4, rr5, rr6, rr7, rr8, rr9, rr10):
+    for rr in (rr4, rr5, rr6, rr7, rr8, rr9, rr10, rr12, rr13, rr14):
         ink = g.mx(ink, g.mul(g.band(rr, 0.98, 1.02), 0.6))
     if mature:
         ink = g.mx(ink, g.mul(edge(d_leg), g.sstep(0.11, 0.12, z)))

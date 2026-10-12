@@ -10,7 +10,6 @@ const Townsfolk := preload("res://scripts/hub/townsfolk.gd")
 const HubBuilder := preload("res://scripts/hub/hub_builder.gd")
 const DialogueBank := preload("res://scripts/radio/dialogue_bank.gd")
 const RadioLines := preload("res://scripts/radio/radio_lines.gd")
-const ContentRating := preload("res://scripts/radio/content_rating.gd")
 const Babble := preload("res://scripts/hub/babble.gd")
 
 var failures := 0
@@ -36,8 +35,8 @@ func _seconds(s: float) -> void:
 
 func _run() -> void:
 	# --- the lines ---
-	for rating in ContentRating.RATINGS:
-		var bank := DialogueBank.bank("town", rating)
+	for rating in ["M"]:
+		var bank := DialogueBank.bank("town")
 		for kind in ["chat", "mutter", "greet"]:
 			for stage in [1, 2, 3]:
 				var key := "%s_%d" % [kind, stage]

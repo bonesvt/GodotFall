@@ -1,5 +1,5 @@
 extends RefCounted
-## Redline: Cutter's drug (cutter.gd), Mature only like the rest of the vices.
+## Redline: Cutter's drug (cutter.gd).
 ## Ophelia's old dealer won't watch Marrow and the colony take his town: he
 ## hunts Eco through the hub and Solace, and when he catches her he puts a
 ## needle of Redline into her eye, seen only through her eyes (cutter_scene.gd).
@@ -15,8 +15,6 @@ extends RefCounted
 ## chooses for a fight. They stack, except where EXCLUDES says two can't share
 ## her. What they look like is redline_body.gd; what they do is below.
 ## Saved next to the vices save (path_for()).
-
-const ContentRating := preload("res://scripts/radio/content_rating.gd")
 
 ## The mods, in the Rig's order: name, what it is, and what it does.
 const MODS := {
@@ -100,16 +98,12 @@ static var crash_owed := false
 static var save_path := "user://redline.cfg"
 
 
-static func allowed() -> bool:
-	return ContentRating.current() == "M"
-
-
 static func path_for(vices_path: String) -> String:
 	return vices_path.get_basename().trim_suffix("_vices") + "_redline.cfg"
 
 
 static func has(mod: String) -> bool:
-	return allowed() and mod in mods
+	return mod in mods
 
 
 ## He caught her: the high starts, and she's carrying one more charge.
@@ -139,7 +133,7 @@ static func blocked(mod: String) -> String:
 
 ## At the Rig: spends a charge on `mod`. False if she can't.
 static func install(mod: String) -> bool:
-	if not allowed() or blocked(mod) != "":
+	if blocked(mod) != "":
 		return false
 	charges -= 1
 	mods.append(mod)
@@ -165,7 +159,7 @@ static func tick(delta: float) -> bool:
 
 
 static func high() -> bool:
-	return allowed() and high_left > 0.0
+	return high_left > 0.0
 
 
 ## The crash has played.

@@ -6,7 +6,6 @@ extends SceneTree
 ## Needs a renderer (not --headless). Writes <out_dir>/marrow.png.
 
 const HushDen := preload("res://scripts/hub/hush_den.gd")
-const ContentRating := preload("res://scripts/radio/content_rating.gd")
 const CELL := Vector2i(640, 720)
 ## [camera, look at] for each panel; standing at x -1.5, sitting at x +1.5.
 const SHOTS := [
@@ -23,7 +22,6 @@ func _initialize() -> void:
 	for a in OS.get_cmdline_user_args():
 		out = a
 	DirAccess.make_dir_recursive_absolute(out)
-	ContentRating.set_rating("M", false)
 	_go.call_deferred()
 
 

@@ -9,7 +9,6 @@ const Rooms := preload("res://scripts/hub/hub_rooms.gd")
 const NpcTalk := preload("res://scripts/hub/npc_talk.gd")
 const Babble := preload("res://scripts/hub/babble.gd")
 const Wardrobe := preload("res://scripts/hub/wardrobe.gd")
-const ContentRating := preload("res://scripts/radio/content_rating.gd")
 
 const WHO := ["mom", "ophelia", "biggie"]
 ## Where Eco stands on each tent's porch to walk in, and which way is in.
@@ -81,14 +80,8 @@ func _run() -> void:
 	# Ophelia's piercings: only with the rating on Mature
 	var oph_p: Node = run_node.hub_npcs["ophelia"]
 	var bars: Array = oph_p.find_children("Piercings*", "MeshInstance3D", true, false)
-	var was := ContentRating.current()
-	ContentRating.set_rating("T", false)
-	oph_p._process(0.0)
-	_check("Ophelia's piercings hidden on Teen", not bars.is_empty() and bars.all(func(b): return not b.visible), bars.size())
-	ContentRating.set_rating("M", false)
 	oph_p._process(0.0)
 	_check("Ophelia's piercings show on Mature", not bars.is_empty() and bars.all(func(b): return b.visible), bars.size())
-	ContentRating.set_rating(was, false)
 	oph_p._process(0.0)
 
 	# Every line in every conversation babbles, one beat per character.

@@ -71,11 +71,6 @@ static var pending: Array = []
 static var heard := {}
 static var save_path := "user://hub_grip.cfg"
 
-
-static func allowed() -> bool:
-	return Hymn.allowed()
-
-
 static func path_for(vices_path: String) -> String:
 	return vices_path.get_basename().trim_suffix("_vices") + "_hub_grip.cfg"
 
@@ -89,7 +84,7 @@ static func gear_of(who: String) -> Array:
 
 
 static func has(who: String, piece: String) -> bool:
-	return allowed() and piece in gear_of(who)
+	return piece in gear_of(who)
 
 
 ## The closest of WHO within RANGE of `at` ("" for none): `positions` is {who: Vector3}.
@@ -131,8 +126,6 @@ static func remove(who: String, piece: String) -> void:
 
 ## A run's done: the dispensary's been running all day.
 static func run_over() -> void:
-	if not allowed():
-		return
 	for who in WHO:
 		_raise(who, DAILY)
 	heard.clear()

@@ -7,7 +7,6 @@ extends SceneTree
 ## Run: godot --headless --path . -s res://tests/suit_style_test.gd
 
 const Wardrobe := preload("res://scripts/hub/wardrobe.gd")
-const ContentRating := preload("res://scripts/radio/content_rating.gd")
 const Vices := preload("res://scripts/hub/vices.gd")
 const ECO := preload("res://assets/models/eco.tscn")
 
@@ -107,7 +106,7 @@ func _model(eco) -> void:
 	_check("and the shade catsuit is its own again", not _mesh(eco, "outfit_skater_t_hoodie").visible and _mesh(eco, "Boots").visible
 			and _overrides(eco, "outfit_skater_t_hoodie").all(func(m): return m == null), _overrides(eco, "outfit_skater_t_hoodie"))
 	eco.wear("skater")
-	_check("her own skater hoodie keeps its colours", _mesh(eco, "outfit_skater_t_hoodie").visible == (ContentRating.current() != "M")
+	_check("her own skater hoodie keeps its colours", not _mesh(eco, "outfit_skater_t_hoodie").visible
 			and _overrides(eco, "outfit_skater_t_hoodie").all(func(m): return m == null), "")
 	eco.wear("suit_racer")
 	eco.suit_tier = 2
@@ -125,21 +124,12 @@ func _model(eco) -> void:
 
 
 func _wardrobe(eco) -> void:
-	ContentRating.set_rating("T", false)
-	var teen := Wardrobe.options("eco")
-	_check("Teen: no Vesper looks", teen == eco.OUTFITS.filter(func(o): return not o in eco.MATURE_OUTFITS and o != "suit_hush"), teen)
-	Wardrobe.choose("eco", "suit_vesper")
-	_check("Teen: a Vesper pick isn't saved", Wardrobe.choice("eco") == "suit", Wardrobe.choice("eco"))
-	ContentRating.set_rating("M", false)
 	Vices.hush_suit = false
 	_check("no Hush courier suit until she's earned it", not "suit_hush" in Wardrobe.options("eco"), Wardrobe.options("eco"))
 	Vices.hush_suit = true
 	var options := Wardrobe.options("eco")
 	_check("the wardrobe has all her suits", options == eco.OUTFITS, options)
 	Wardrobe.choose("eco", "suit_vesper_open")
-	ContentRating.set_rating("T", false)
-	_check("a Mature pick falls back to her suit under Teen", Wardrobe.choice("eco") == "suit", Wardrobe.choice("eco"))
-	ContentRating.set_rating("M", false)
 	_check("and comes back under Mature", Wardrobe.choice("eco") == "suit_vesper_open", Wardrobe.choice("eco"))
 	for outfit in options:
 		_check(outfit + " has a name", Wardrobe.NAMES.has(outfit), outfit)

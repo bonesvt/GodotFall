@@ -8,7 +8,6 @@ extends SceneTree
 
 const HubNpc := preload("res://scripts/hub/hub_npc.gd")
 const RescueLooks := preload("res://scripts/hub/rescue_looks.gd")
-const ContentRating := preload("res://scripts/radio/content_rating.gd")
 const CELL := Vector2i(420, 600)
 const LOOKS := ["marrow", "colony", "cutter"]
 
@@ -19,7 +18,6 @@ func _initialize() -> void:
 	for a in OS.get_cmdline_user_args():
 		out = a
 	DirAccess.make_dir_recursive_absolute(out)
-	ContentRating.set_rating("M", false)
 	_go.call_deferred()
 
 

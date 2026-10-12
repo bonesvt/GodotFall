@@ -202,7 +202,7 @@ func _shader(code: String) -> ShaderMaterial:
 	return m
 
 
-## How strongly it shows now, 0..1 (0: no visor, a screen open, Teen).
+## How strongly it shows now, 0..1 (0: no visor, or a screen open).
 func strength() -> float:
 	if not Hymn.has("visor"):
 		return 0.0

@@ -5,7 +5,7 @@ extends Node
 ## and gliding where the grunt goes, and visor_screen.gd tags each one FRIEND.
 ## Hitting one tears the picture: the grunt shows through for a moment
 ## (TEAR s) before the friend closes back over it. Off the moment the visor's
-## off, under Teen, or in the hub.
+## off, or in the hub.
 
 const Hymn := preload("res://scripts/hub/hymn.gd")
 const HubNpc := preload("res://scripts/hub/hub_npc.gd")

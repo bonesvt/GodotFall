@@ -7,7 +7,6 @@ extends SceneTree
 
 const ECO := preload("res://assets/models/eco.tscn")
 const Vices := preload("res://scripts/hub/vices.gd")
-const ContentRating := preload("res://scripts/radio/content_rating.gd")
 const SIZE := Vector2i(500, 450)
 const FRAMES := 3
 
@@ -37,7 +36,6 @@ func _frames(n: int) -> void:
 
 
 func _go() -> void:
-	ContentRating.set_rating("M", false)
 	var env := WorldEnvironment.new()
 	env.environment = Environment.new()
 	env.environment.background_mode = Environment.BG_COLOR

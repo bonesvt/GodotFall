@@ -111,7 +111,7 @@ static func build_from_plan(root: Node3D, plan, zone_index: int) -> Dictionary:
 				_picket(root, plan, info, keep_out, s, rng, dress, zone_index)
 			"wall":
 				_wall(root, plan, info, keep_out, s, rng, dress, zone_index)
-			"outpost", "camp", "depot", "holding":
+			"outpost", "camp", "depot", "holding", "story":
 				_yard(root, plan, info, keep_out, s, rng, dress, zone_index)
 			"resource":
 				_resource(root, plan, info, keep_out, s, rng, dress, zone_index)
@@ -422,6 +422,7 @@ static func _yard(root: Node3D, plan, info: Dictionary, keep_out: Array, s: Dict
 	var camp: bool = s["kind"] == "camp"
 	var depot: bool = s["kind"] == "depot"
 	var holding: bool = s["kind"] == "holding"
+	var story: bool = s["kind"] == "story"
 	# The rooftop runs first: they set where the high lanes go.
 	var high_cache := Vector3.INF
 	for i in plan.lanes_of("high"):
@@ -445,7 +446,7 @@ static func _yard(root: Node3D, plan, info: Dictionary, keep_out: Array, s: Dict
 	else:
 		for k in 2:
 			var at := Vector2(c + (side if k == 0 else -side) * 10.5, mid + (6.0 if k == 0 else -8.0))
-			if _lane_dist(plan, at.x, at.y) < 7.5 or (holding and k == 0):
+			if _lane_dist(plan, at.x, at.y) < 7.5 or ((holding or story) and k == 0):
 				continue
 			var size := B.barracks(root, _on(plan, at.x, at.y), dress)
 			_occupy(info, keep_out, at, size)
@@ -453,7 +454,7 @@ static func _yard(root: Node3D, plan, info: Dictionary, keep_out: Array, s: Dict
 		keep_out.append(Rect2(c + side * 6.0 - 1.5, z0 - 7.5, 3, 3))
 	# The holding block takes the back of the yard on the far side (_holding).
 	var block := Rect2(c + side * 8.5 - 5.0, z1 + 0.5, 10.0, 33.0)
-	if holding:
+	if holding or story:
 		keep_out.append(block)
 	# The landmark in the back corner, and a watchtower at the front.
 	var lm := Vector2(c + side * 9.0, z1 + 7.0)
@@ -472,7 +473,7 @@ static func _yard(root: Node3D, plan, info: Dictionary, keep_out: Array, s: Dict
 	# The squad's cover across the road, facing the way the pilot comes in.
 	var posts := [Vector2(c - 4.0, mid + 3.0), Vector2(c + 3.5, mid + 1.5), Vector2(c + 0.5, mid - 4.0), Vector2(c - 7.0, mid - 5.0)]
 	var squad := []
-	var size_n := rng.randi_range(2, 3) + mini(zone_index - 3, 1) + int(depot or holding)
+	var size_n := rng.randi_range(2, 3) + mini(zone_index - 3, 1) + int(depot or holding or story)
 	for k in posts.size():
 		var p: Vector2 = posts[k]
 		if k == 2:
@@ -487,6 +488,9 @@ static func _yard(root: Node3D, plan, info: Dictionary, keep_out: Array, s: Dict
 	elif holding:
 		keep_out.erase(block)
 		_holding(root, plan, info, keep_out, s, rng, dress, zone_index, c, side, squad)
+	elif story:
+		keep_out.erase(block)
+		_story(root, plan, info, keep_out, s, dress, zone_index, c, side, squad)
 	elif s["cache"] == "guarded":
 		L.guard(root, info, L.cache(root, info, _on(plan, c + 2.0, z1 + 6.0)), squad)
 	elif high_cache != Vector3.INF:
@@ -614,6 +618,22 @@ static func _holding(root: Node3D, plan, info: Dictionary, keep_out: Array, s: D
 	# The checkpoint on the road in.
 	if _put(root, plan, info, keep_out, "city_checkpoint", Vector2(c + side * 1.5, z0 - 1.5), 0.0 if side > 0.0 else 180.0, 0.0).is_empty():
 		SP.place(root, "warning_sign", _on(plan, c + side * 3.4, z0 - 2.0), dress.randf_range(-10, 10), info)
+
+
+## The level's story set piece (levels.gd "story", scripts/run/story/) at the
+## back of the yard, where a holding block would be; it builds itself
+## (level_story.gd build()) and the run manager drives it (info["story"]).
+static func _story(root: Node3D, plan, info: Dictionary, keep_out: Array, s: Dictionary, dress: RandomNumberGenerator,
+		zone_index: int, c: float, side: float, squad: Array) -> void:
+	var id := String(plan.level.get("story", ""))
+	var script: Script = load("res://scripts/run/story/%s.gd" % id) if id != "" else null
+	if script == null:
+		return
+	var piece: Node3D = script.new()
+	piece.name = "Story"
+	root.add_child(piece)
+	piece.build(load("res://scripts/run/procgen/zone_generator.gd"), plan, info, keep_out, s, c, side, squad, zone_index, dress)
+	info["story"] = piece
 
 
 ## A row of rooftops along a high lane through a yard, from the ridge's end to

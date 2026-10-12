@@ -91,7 +91,7 @@ static func apply(model: Node) -> void:
 			skel.remove_child(child)
 			child.free()
 	_irises(model, Color(0, 0, 0, 0))
-	if not Redline.allowed() or Redline.mods.is_empty():
+	if Redline.mods.is_empty():
 		return
 	var mod: SkeletonModifier3D = load("res://scripts/hub/redline_body.gd").new()
 	mod.name = NODE

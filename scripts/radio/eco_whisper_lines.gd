@@ -8,7 +8,7 @@ extends RefCounted
 ## her own moments: kills, takedowns, getting hurt, quiet stretches, and the
 ## run's beats (new zone, a part fitted, titanfall, the boss down, home).
 ##
-## The lines themselves live in dialogue/eco/<rating>.txt (see
+## The lines themselves live in dialogue/eco/M.txt (see
 ## dialogue_bank.gd and dialogue/README.md) so they can be edited as text.
 ##
 ## A line can start with "keyword|other words >": it is only said when the
@@ -20,13 +20,12 @@ extends RefCounted
 ## counts, and grabs every moment of relief. She mocks, teases, gets the last
 ## word even when nobody can hear it, and is far too pleased with herself
 ## when she's good, which is often. Underneath it is grief for her father; it
-## only slips out in the quiet lines, and she covers it fast. Teen and Mature
-## files; Mature swears. Nothing sexual, no slurs.
+## only slips out in the quiet lines, and she covers it fast. She swears.
+## Nothing sexual, no slurs.
 
 const DialogueBank := preload("res://scripts/radio/dialogue_bank.gd")
 
 
-## The whisper bank for a content rating: {category: [lines]}, read from
-## dialogue/eco/<rating>.txt.
-static func bank(rating: String) -> Dictionary:
-	return DialogueBank.bank("eco", rating)
+## The whisper bank: {category: [lines]}, read from dialogue/eco/M.txt.
+static func bank() -> Dictionary:
+	return DialogueBank.bank("eco")

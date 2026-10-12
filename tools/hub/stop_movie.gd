@@ -11,7 +11,6 @@ const Hymn := preload("res://scripts/hub/hymn.gd")
 const Redline := preload("res://scripts/hub/redline.gd")
 const Rescue := preload("res://scripts/hub/rescue.gd")
 const HubGrip := preload("res://scripts/hub/hub_grip.gd")
-const ContentRating := preload("res://scripts/radio/content_rating.gd")
 const ARMORY := "user://movie_stop_armory.cfg"
 
 var run_node: Node
@@ -27,7 +26,6 @@ func _initialize() -> void:
 		captor = args[1]
 		how = args[2]
 	preload("res://scripts/run/tutorial.gd").settings_path = "user://movie_settings.cfg"
-	ContentRating.set_rating("M", false)
 	var cfg := ConfigFile.new()
 	cfg.set_value("progress", "cleared", ["tutorial", "level2"])
 	cfg.save(ARMORY)

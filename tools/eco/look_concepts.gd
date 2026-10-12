@@ -15,7 +15,6 @@ const Vices := preload("res://scripts/hub/vices.gd")
 const Hair := preload("res://scripts/hub/hair.gd")
 const EcoExtras := preload("res://scripts/hub/eco_extras.gd")
 const HubNpc := preload("res://scripts/hub/hub_npc.gd")
-const ContentRating := preload("res://scripts/radio/content_rating.gd")
 
 const PANEL := Vector2i(420, 760)
 ## The close-up of her face under each panel (makeup, piercings, collar, eyes).
@@ -198,7 +197,6 @@ func _initialize() -> void:
 		elif not a.begins_with("--"):
 			out = a
 	DirAccess.make_dir_recursive_absolute(out)
-	ContentRating.set_rating("M", false)
 	Hair.save_path = "user://look_concepts_salon.cfg"
 	Vices.save_path = "user://look_concepts_vices.cfg"
 	_go.call_deferred()

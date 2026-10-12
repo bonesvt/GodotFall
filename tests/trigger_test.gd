@@ -6,7 +6,6 @@ extends SceneTree
 ##   godot --headless --path . -s res://tests/trigger_test.gd
 
 const Vices := preload("res://scripts/hub/vices.gd")
-const ContentRating := preload("res://scripts/radio/content_rating.gd")
 const TriggerWords := preload("res://scripts/hub/trigger_words.gd")
 const CravingScreen := preload("res://scripts/ui/craving_screen.gd")
 
@@ -17,7 +16,6 @@ var failures := 0
 
 func _initialize() -> void:
 	preload("res://scripts/run/tutorial.gd").settings_path = "user://test_settings.cfg"
-	ContentRating.set_rating("M", false)
 	Vices.save_path = "user://test_trigger_vices.cfg"
 	run_node = load("res://scenes/run.tscn").instantiate()
 	run_node.run_seed = 7
@@ -89,11 +87,6 @@ func _run() -> void:
 	await _ticks(2)
 	_check("on an errand it eases off", Vices.crave_level() == 0.0 and not run_node.hud.crave_bar.visible, Vices.crave_level())
 
-	# Teen: none of it.
-	ContentRating.set_rating("T", false)
-	_check("teen: no triggers", not TriggerWords.can_trigger(), Vices.allowed())
-	_check("teen: no craving", Vices.crave_level() == 0.0, Vices.crave_level())
-	ContentRating.set_rating("M", false)
 	Vices.errand = ""
 	Vices.hold = 0.0
 

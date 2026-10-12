@@ -1,7 +1,7 @@
 extends RefCounted
 ## Player settings: look, sound, video, gameplay and key bindings. Saved in
-## user://settings.cfg next to the sections other scripts already keep there
-## ([content] dialogue rating, content_rating.gd). Settings are per computer,
+## user://settings.cfg next to the sections other scripts already keep there.
+## Settings are per computer,
 ## not per save slot (saves.gd).
 ##
 ## Nothing here needs an autoload: the title screen (and the run scene, when
@@ -14,7 +14,6 @@ extends RefCounted
 
 ## Tests point this elsewhere.
 static var path := "user://settings.cfg"
-const ContentRating := preload("res://scripts/radio/content_rating.gd")
 
 ## Every setting and its default, by section.
 const DEFAULTS := {
@@ -240,19 +239,6 @@ static func set_battle_damage(on: bool) -> void:
 	set_value("game", "battle_damage", on)
 	save()
 	load("res://scripts/ps2/battle_damage.gd").apply()
-
-
-# --- dialogue rating ------------------------------------------------------------
-
-static func rating() -> String:
-	return ContentRating.current()
-
-
-static func set_rating(r: String) -> void:
-	ContentRating.set_rating(r)
-	load("res://scripts/radio/dialogue_bank.gd").reload()  # picks up edits to dialogue/*.txt
-	_cfg = null  # content_rating.gd wrote the file itself
-	load("res://scripts/ps2/battle_damage.gd").apply()  # no tears or cuts in Teen
 
 
 # --- keys -----------------------------------------------------------------------

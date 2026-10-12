@@ -87,7 +87,7 @@ func run_tick(delta: float, free: bool) -> void:
 ## Cracks a vial. Returns whether she had one.
 func focus() -> bool:
 	if not Glass.use_vial():
-		if Glass.allowed() and Glass.vials <= 0 and Glass.earpiece:
+		if Glass.vials <= 0 and Glass.earpiece:
 			rm.hud.toast("No Glass left. Marrow would sell you more.", 2.0)
 		return false
 	rm.player.refresh_glass()
@@ -166,6 +166,11 @@ func _obey() -> void:
 	player.health = minf(player.health + Glass.OBEY_HEAL, player.max_health)
 	rm.hud.toast("%s  (+%d scrap, patched up)" % [Glass.OBEY_LINES[_lines % Glass.OBEY_LINES.size()], Glass.OBEY_SCRAP], 3.0)
 	_lines += 1
+
+
+## A story order she refused (story/blackwater.gd): his punishment, as for any order.
+func punish() -> void:
+	_fail()
 
 
 ## She didn't do it (or wouldn't): the swirls take her for a moment.

@@ -7,7 +7,6 @@ extends SceneTree
 
 const Vices := preload("res://scripts/hub/vices.gd")
 const Hymn := preload("res://scripts/hub/hymn.gd")
-const ContentRating := preload("res://scripts/radio/content_rating.gd")
 const CELL := Vector2i(640, 360)
 ## When to grab each piece's three stills (seconds into its fitting).
 const TIMES := {"headphones": [2.4, 6.0, 7.9], "cuff": [2.4, 5.4, 7.9], "visor": [2.4, 5.9, 8.2],
@@ -21,7 +20,6 @@ func _initialize() -> void:
 		out = a
 	DirAccess.make_dir_recursive_absolute(out)
 	preload("res://scripts/run/tutorial.gd").settings_path = "user://shots_settings.cfg"
-	ContentRating.set_rating("M", false)
 	var run_node: Node = load("res://scenes/run.tscn").instantiate()
 	run_node.armory_path = "user://shots_fitting_armory.cfg"
 	root.add_child(run_node)

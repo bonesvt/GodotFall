@@ -95,16 +95,15 @@ static var ledger := false
 static var vats: Array = []
 ## The Chorus broken: Marrow is gone for good.
 static var broken := false
+## His crates she let through to Solace (story/blackwater.gd): each brings the
+## Chorus on as if she'd used another CRATE_VIALS vials.
+static var shipped := 0
+const CRATE_VIALS := 2
 static var save_path := "user://glass.cfg"
-
-
-static func allowed() -> bool:
-	return Vices.allowed()
-
 
 ## Whether Marrow offers Glass: once his Hold has been deep, until he's gone.
 static func on_sale() -> bool:
-	return allowed() and not broken and (Vices.hush_suit or Vices.hold >= Vices.TRANCE_HOLD or used > 0)
+	return not broken and (Vices.hush_suit or Vices.hold >= Vices.TRANCE_HOLD or used > 0)
 
 
 ## Buys a vial (the screen has taken the price). The first comes with his earpiece.
@@ -119,7 +118,7 @@ static func buy() -> bool:
 
 ## Cracks a vial on a run: focus starts, she crystallises a step, his Hold tightens.
 static func use_vial() -> bool:
-	if not allowed() or vials <= 0 or focusing():
+	if vials <= 0 or focusing():
 		return false
 	vials -= 1
 	glass = mini(glass + 1, MAX_GLASS)
@@ -134,7 +133,7 @@ static func use_vial() -> bool:
 
 
 static func focusing() -> bool:
-	return focus_left > 0.0 and allowed()
+	return focus_left > 0.0
 
 
 ## `real_delta`: seconds of real time (not slowed by the focus itself).
@@ -144,15 +143,11 @@ static func tick_focus(real_delta: float) -> void:
 
 ## Her max health under the glass.
 static func health_scale() -> float:
-	if not allowed():
-		return 1.0
 	return 1.0 - HEALTH_PER_GLASS * glass
 
 
 ## How far the glass has spread over her, 0..1 (the eco_glass shader global).
 static func look() -> float:
-	if not allowed():
-		return 0.0
 	return float(glass) / MAX_GLASS
 
 
@@ -172,7 +167,7 @@ static func run_over() -> void:
 
 ## Marrow's in her ear on runs.
 static func tethered() -> bool:
-	return allowed() and earpiece and not broken
+	return earpiece and not broken
 
 
 ## A Tether order's outcome on his Hold.
@@ -189,11 +184,11 @@ static func refused() -> void:
 
 ## How far he's dosed Solace (0 none .. 3 the whole town).
 static func chorus_stage() -> int:
-	if not allowed() or broken:
+	if broken:
 		return 0
 	var s := 0
 	for n: int in CHORUS_AT:
-		if used >= n:
+		if used + shipped * CRATE_VIALS >= n:
 			s += 1
 	return s
 
@@ -268,8 +263,6 @@ static func resist_failed() -> void:
 
 ## Words for the HUD's status, or "".
 static func state_name() -> String:
-	if not allowed():
-		return ""
 	var out := []
 	if focusing():
 		out.append("Focus")
@@ -279,7 +272,7 @@ static func state_name() -> String:
 
 
 static func pockets_text() -> String:
-	if not allowed() or vials <= 0:
+	if vials <= 0:
 		return ""
 	return "[L] Glass x%d" % vials
 
@@ -304,6 +297,7 @@ static func open(path: String) -> void:
 	ledger = cfg.get_value("glass", "ledger", false)
 	vats = cfg.get_value("glass", "vats", []).filter(func(id): return id in VAT_IDS)
 	broken = cfg.get_value("glass", "broken", false)
+	shipped = cfg.get_value("glass", "shipped", 0)
 
 
 static func save() -> void:
@@ -315,6 +309,7 @@ static func save() -> void:
 	cfg.set_value("glass", "ledger", ledger)
 	cfg.set_value("glass", "vats", vats)
 	cfg.set_value("glass", "broken", broken)
+	cfg.set_value("glass", "shipped", shipped)
 	cfg.save(save_path)
 
 
@@ -329,3 +324,4 @@ static func reset() -> void:
 	ledger = false
 	vats = []
 	broken = false
+	shipped = 0

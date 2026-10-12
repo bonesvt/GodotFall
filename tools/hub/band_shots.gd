@@ -8,7 +8,6 @@ extends SceneTree
 const Vices := preload("res://scripts/hub/vices.gd")
 const Hymn := preload("res://scripts/hub/hymn.gd")
 const HubGrip := preload("res://scripts/hub/hub_grip.gd")
-const ContentRating := preload("res://scripts/radio/content_rating.gd")
 const CELL := Vector2i(640, 360)
 const TIMES := [[3.6, 6.2, 7.9], [1.6, 5.6, 7.9]]
 
@@ -20,7 +19,6 @@ func _initialize() -> void:
 		out = a
 	DirAccess.make_dir_recursive_absolute(out)
 	preload("res://scripts/run/tutorial.gd").settings_path = "user://shots_settings.cfg"
-	ContentRating.set_rating("M", false)
 	var run_node: Node = load("res://scenes/run.tscn").instantiate()
 	run_node.armory_path = "user://shots_band_armory.cfg"
 	run_node.npc_path = "user://shots_band_npcs.cfg"

@@ -8,16 +8,12 @@ extends RefCounted
 ##   Ink & Iron           piercings and tattoos (eco_extras.gd puts them on her)
 ##   Stitch & Steel       accessories (eco_extras.gd), and a fitting room for her outfits
 ## Prices are in her materials (armory.gd). Everything is saved to save_path.
-## Entries marked "mature" (here and in eco_extras.gd) are only on sale while
-## the content rating is Mature (content_rating.gd): see available().
-##
 ## The boosts ride on her suit's profile (armory.gd suit_profile, which
 ## player.gd apply_suit reads): boost() adds the meal waiting for the next run
 ## and every implant. The run manager eats the meal when a run ends.
 
 const Armory := preload("res://scripts/hub/armory.gd")
 const Extras := preload("res://scripts/hub/eco_extras.gd")
-const ContentRating := preload("res://scripts/radio/content_rating.gd")
 
 ## Where purchases are saved.
 static var save_path := "user://town.cfg"
@@ -40,7 +36,7 @@ const MEALS := {
 	"sticky_parcels": {"name": "Sticky rice parcels", "cost": {"scrap": 14},
 		"blurb": "Wrapped in leaves, three to a string. Health starts coming back 1 s sooner next run.",
 		"boost": {"regen_delay_add": -1.0}},
-	"firewater": {"name": "Hiro's firewater", "cost": {"scrap": 18}, "mature": true,
+	"firewater": {"name": "Hiro's firewater", "cost": {"scrap": 18},
 		"blurb": "A shot of something Hiro brews behind the stall, and a bowl to soak it up. Guns hit 10% harder next run, but she's louder: grunts notice her 15% sooner.",
 		"boost": {"damage_mult": 1.1, "notice_mult": 1.15}},
 }
@@ -82,8 +78,8 @@ const DATES := {
 	"ice_cream": {"name": "Scoops", "cost": {"scrap": 5}},
 	"garden": {"name": "the rooftop garden", "cost": {}},
 	"noodles": {"name": "Seven Suns", "cost": {"scrap": 8}},
-	"bar": {"name": "the Rusted Halo", "cost": {"scrap": 15}, "mature": true},
-	"smoke": {"name": "the Halo's back step", "cost": {}, "mature": true},
+	"bar": {"name": "the Rusted Halo", "cost": {"scrap": 15}},
+	"smoke": {"name": "the Halo's back step", "cost": {}},
 }
 
 ## Ink & Iron's prices (what each looks like: eco_extras.gd).
@@ -176,7 +172,7 @@ static func available(kind: String, id: String) -> bool:
 			entry = MEALS.get(id, {})
 		"dates":
 			entry = DATES.get(id, {})
-	return not entry.is_empty() and (not entry.get("mature", false) or ContentRating.current() == "M")
+	return not entry.is_empty()
 
 
 ## Pays for something and keeps it (and puts it on). False if she owns it

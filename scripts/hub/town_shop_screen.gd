@@ -367,20 +367,6 @@ func _status_line() -> String:
 	return ""
 
 
-## Whether a row is a Mature-only thing (tagged "M" on the shelf).
-func _mature(id: String) -> bool:
-	match tab_kind():
-		"meals":
-			return Shops.MEALS[id].get("mature", false)
-		"piercings":
-			return Extras.PIERCINGS[id].get("mature", false)
-		"tattoos":
-			return Extras.TATTOOS[id].get("mature", false)
-		"accessories":
-			return Extras.ACCESSORIES[id].get("mature", false)
-	return false
-
-
 func _row_view(i: int) -> PanelContainer:
 	var id: String = rows[i]
 	var on := i == selected
@@ -393,8 +379,6 @@ func _row_view(i: int) -> PanelContainer:
 	var label := _text(item_name(id), 17, color if on else INK)
 	label.custom_minimum_size = Vector2(260, 0)
 	line.add_child(label)
-	if _mature(id):
-		line.add_child(_text("M", 13, Color(0.95, 0.4, 0.45)))
 	var state := _row_state(id)
 	var r := _text(state[0], 15, state[1])
 	r.size_flags_horizontal = Control.SIZE_EXPAND_FILL

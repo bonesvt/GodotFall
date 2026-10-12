@@ -9,7 +9,6 @@ extends SceneTree
 ## (--fixed-fps keeps it exact; without it, moves are scaled by each frame's time)
 
 const Hymn := preload("res://scripts/hub/hymn.gd")
-const ContentRating := preload("res://scripts/radio/content_rating.gd")
 
 ## Most the camera may move or turn in one 60 fps frame while the picture shows.
 ## Each frame's move is scaled to a 60 fps frame by its real delta, so a run
@@ -26,7 +25,6 @@ var failures := 0
 
 func _initialize() -> void:
 	preload("res://scripts/run/tutorial.gd").settings_path = "user://test_settings.cfg"
-	ContentRating.set_rating("M", false)
 	run_node = load("res://scenes/run.tscn").instantiate()
 	run_node.run_seed = 7
 	run_node.armory_path = "user://test_fitting_motion_armory.cfg"

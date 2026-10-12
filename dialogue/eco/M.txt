@@ -62,10 +62,14 @@ stole|stealing > Stealing it back from the thieves who stole it. Dizzy yet?
 Hang on. I'm coming. Just hang on.
 Somebody's coming for her, boys. Spoiler: it's me.
 Nobody noticed she was gone? Well. I did.
-blanket > Aw. One of you has a heart. Still kicking your door in.
 drawing|wall > She drew you ugly? Accurate. I like her already.
-bit > Ha! Good. Bite harder.
+bit|bite > Ha! Good. Bite harder.
 Starling|orphan > Nobody random to me. Not anymore.
+smile|smiles > She doesn't smile at anyone. What did you do to her?
+bay|numbers|percent > She's not a number. She's not your number.
+visor|frame|coats > Whatever's on her face is coming off. With your hands still on it if I have to.
+town|stuff > You're not putting that in Solace. Not while I'm breathing.
+day|asking > Nineteen days. I counted, Ophelia. I counted.
 
 # After the grunts' idle radio banter.
 [idle]

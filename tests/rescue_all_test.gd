@@ -12,7 +12,6 @@ const Redline := preload("res://scripts/hub/redline.gd")
 const Rescue := preload("res://scripts/hub/rescue.gd")
 const HubGrip := preload("res://scripts/hub/hub_grip.gd")
 const ViceLooks := preload("res://scripts/hub/vice_looks.gd")
-const ContentRating := preload("res://scripts/radio/content_rating.gd")
 const ARMORY := "user://test_rescue_all_armory.cfg"
 
 var run_node: Node
@@ -22,7 +21,6 @@ var failures := 0
 
 func _initialize() -> void:
 	preload("res://scripts/run/tutorial.gd").settings_path = "user://test_settings.cfg"
-	ContentRating.set_rating("M", false)
 	for f in [ARMORY, "user://test_rescue_all_npc.cfg", "user://test_rescue_all_armory_vices.cfg", "user://test_rescue_all_armory_rescue.cfg",
 			"user://test_rescue_all_armory_hub_grip.cfg", "user://test_rescue_all_armory_looks.cfg", "user://test_rescue_all_armory_redline.cfg",
 			"user://test_rescue_all_armory_hymn.cfg"]:

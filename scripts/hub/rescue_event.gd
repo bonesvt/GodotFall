@@ -265,7 +265,7 @@ func reset() -> void:
 	_end_walk()
 	_drawn_who = ""
 	_drawn_at = -1.0
-	if Rescue.allowed() and rm.get("hub_npcs") != null and randf() < DRAWN_CHANCE:
+	if rm.get("hub_npcs") != null and randf() < DRAWN_CHANCE:
 		var held: Array = Rescue.WHO.filter(func(w): return rm.hub_npcs.has(w) and Rescue.held_by(w) != "")
 		if not held.is_empty():
 			draw_off(held[randi() % held.size()], randf_range(DRAWN_DELAY.x, DRAWN_DELAY.y))
@@ -291,8 +291,6 @@ func lose() -> void:
 ## From the hub each frame: the roll while she's out and about, the countdown
 ## while someone's taken.
 func tick(delta: float, roaming: bool) -> void:
-	if not Rescue.allowed():
-		return
 	if step == Step.IDLE and roaming and not _rolled:
 		_roll -= delta
 		if _roll <= 0.0:
@@ -321,7 +319,7 @@ func start_random() -> bool:
 
 ## `p_who` is taken by `p_captor`: Biggie runs in with it.
 func start(p_who: String, p_captor: String) -> bool:
-	if step != Step.IDLE or not Rescue.allowed() or not rm.hub_npcs.has(p_who) or rm.get("zone_root") == null:
+	if step != Step.IDLE or not rm.hub_npcs.has(p_who) or rm.get("zone_root") == null:
 		return false
 	_rolled = true
 	who = p_who

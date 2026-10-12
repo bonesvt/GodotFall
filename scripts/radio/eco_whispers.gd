@@ -2,8 +2,7 @@ extends Node
 ## Eco's whispers. She can't answer the colony grunts on their own net without
 ## giving herself away, so she talks back under her breath once an exchange
 ## goes off the air, and mutters to herself through the fight and the quiet
-## stretches. Lines come from eco_whisper_lines.gd, picked by the dialogue
-## rating (O key), and show as a soft caption under the crosshair
+## stretches. Lines come from eco_whisper_lines.gd and show as a soft caption under the crosshair
 ## (whisper_caption.gd) with a breathy whisper sound under it.
 ##
 ## The HUD creates this next to the radio. Other systems can call
@@ -18,7 +17,6 @@ signal line_started(text: String, category: String)
 const Lines := preload("res://scripts/radio/eco_whisper_lines.gd")
 const Soft := preload("res://scripts/radio/eco_soft_lines.gd")
 const Caption := preload("res://scripts/radio/whisper_caption.gd")
-const Rating := preload("res://scripts/radio/content_rating.gd")
 
 const VOICE_DIR := "res://assets/audio/voice/eco/"
 ## No whisper starts within this many seconds of the last one ending.
@@ -124,8 +122,8 @@ func say(category: String, delay := 0.0, after_radio := false, context := "") ->
 		return false
 	if not always and rng.randf() > CHANCE.get(category, 1.0):
 		return false
-	if not Lines.bank(Rating.current()).has(category):
-		return false  # this rating has nothing for it
+	if not Lines.bank().has(category):
+		return false  # nothing written for it
 	pending = pending.filter(func(p): return p["category"] != category)
 	pending.append({
 		"category": category, "at": clock + delay, "after_radio": after_radio, "context": context,
@@ -254,11 +252,10 @@ func _speak(category: String, context := "") -> void:
 
 
 ## Lines whose keywords the radio context mentions win; otherwise a plain
-## line. Shuffled bag per rating and category: every line before any repeats,
+## line. Shuffled bag per category: every line before any repeats,
 ## and never the same line twice in a row.
 func _pick(category: String, context := "") -> Dictionary:
-	var rating := Rating.current()
-	var entries: Array = Lines.bank(rating).get(category, [])
+	var entries: Array = Lines.bank().get(category, [])
 	if entries.is_empty():
 		return {}
 	context = context.to_lower()
@@ -277,7 +274,7 @@ func _pick(category: String, context := "") -> Dictionary:
 	var fits := keyed if not keyed.is_empty() else plain
 	if fits.is_empty():
 		return {}
-	var key := rating + "/" + category
+	var key := category
 	var last: int = last_entry.get(key, -1)
 	var bag: Array = bags.get(key, [])
 	var choices := bag.filter(func(i): return fits.has(i))
@@ -291,8 +288,7 @@ func _pick(category: String, context := "") -> Dictionary:
 	var i: int = choices[0]
 	bag.erase(i)
 	last_entry[key] = i
-	var index := i if rating == "M" else -1
-	return {"text": _text(entries[i]), "index": index}
+	return {"text": _text(entries[i]), "index": i}
 
 
 ## One of her gentler lines, now and then as she softens; "" otherwise.

@@ -8,7 +8,6 @@ extends SceneTree
 const Vices := preload("res://scripts/hub/vices.gd")
 const Obsession := preload("res://scripts/hub/obsession.gd")
 const ObsessionLook := preload("res://scripts/hub/obsession_look.gd")
-const ContentRating := preload("res://scripts/radio/content_rating.gd")
 const CELL := Vector2i(480, 540)
 
 var out := "user://ophelia_stages_shots"
@@ -19,7 +18,6 @@ func _initialize() -> void:
 		out = a
 	DirAccess.make_dir_recursive_absolute(out)
 	preload("res://scripts/run/tutorial.gd").settings_path = "user://shots_settings.cfg"
-	ContentRating.set_rating("M", false)
 	var run_node: Node = load("res://scenes/run.tscn").instantiate()
 	run_node.armory_path = "user://shots_oph_armory.cfg"
 	run_node.npc_path = "user://shots_oph_npcs.cfg"
