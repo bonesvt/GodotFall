@@ -11,6 +11,7 @@ extends CanvasLayer
 
 const Style := preload("res://scripts/ui/hud_style.gd")
 const Vices := preload("res://scripts/hub/vices.gd")
+const Velvet := preload("res://scripts/hub/velvet.gd")
 const Obsession := preload("res://scripts/hub/obsession.gd")
 const Hymn := preload("res://scripts/hub/hymn.gd")
 
@@ -206,7 +207,7 @@ func toast(text: String, seconds := 2.5) -> void:
 func _process(delta: float) -> void:
 	_toast_time -= delta
 	toast_label.visible = _toast_time > 0.0
-	var crave := maxf(Vices.crave_level(), Obsession.crave)
+	var crave := maxf(maxf(Vices.crave_level(), Obsession.crave), Velvet.crave())
 	crave_bar.visible = crave > 0.01
 	if crave_bar.visible:
 		_crave_fill.size = Vector2(crave_bar.size.x * crave, crave_bar.size.y)

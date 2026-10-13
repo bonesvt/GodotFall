@@ -7,6 +7,7 @@ extends CanvasLayer
 ## and the drunk haze (drunk_screen.gd), under the HUD.
 
 const Vices := preload("res://scripts/hub/vices.gd")
+const Velvet := preload("res://scripts/hub/velvet.gd")
 const Obsession := preload("res://scripts/hub/obsession.gd")
 const VIOLET := Color(0.62, 0.22, 0.95)
 const ROSE := Color(0.95, 0.3, 0.55)
@@ -71,7 +72,7 @@ static func heartbeat(phase: float) -> float:
 
 func _process(delta: float) -> void:
 	# Marrow's (or the stims') violet, or Ophelia's rose when that pull is stronger
-	var s := maxf(Vices.crave_level(), Obsession.crave)
+	var s := maxf(maxf(Vices.crave_level(), Obsession.crave), Velvet.crave())
 	_mat.set_shader_parameter("tint", ROSE if Obsession.crave > Vices.crave_level() else VIOLET)
 	# His words or his pull: it flares while they have her.
 	_flare = move_toward(_flare, 1.0 if (Vices.entranced and Vices.allowed()) else 0.0, delta * 2.5)
