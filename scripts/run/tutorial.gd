@@ -15,6 +15,7 @@ extends Node
 
 const SETTINGS := "user://settings.cfg"
 const SFX := preload("res://scripts/sfx.gd")
+const Style := preload("res://scripts/ui/hud_style.gd")
 const GLOW := preload("res://assets/shaders/tutorial_glow.gdshader")
 const OUTLINE := preload("res://assets/shaders/tutorial_outline.gdshader")
 
@@ -401,15 +402,9 @@ func _build_card() -> void:
 	_layer.layer = 5
 	add_child(_layer)
 	_card = PanelContainer.new()
-	var style := StyleBoxFlat.new()
-	style.bg_color = Color(0.04, 0.05, 0.07, 0.86)
-	style.border_color = AMBER
-	style.border_width_left = 6
-	style.border_width_top = 1
-	style.border_width_bottom = 1
-	style.border_width_right = 1
-	style.set_content_margin_all(18)
-	style.content_margin_left = 22
+	# a card in the HUD's look (hud_style.gd), amber along its top
+	var style := Style.card(AMBER, 18.0)
+	style.bg_color = Color(Style.CARD, 0.88)
 	_card.add_theme_stylebox_override("panel", style)
 	_card.set_anchors_and_offsets_preset(Control.PRESET_CENTER_RIGHT)
 	_card.offset_left = -470
@@ -420,23 +415,21 @@ func _build_card() -> void:
 	var col := VBoxContainer.new()
 	col.add_theme_constant_override("separation", 8)
 	_card.add_child(col)
-	_title = Label.new()
-	_title.add_theme_font_size_override("font_size", 26)
-	_title.add_theme_color_override("font_outline_color", Color.BLACK)
-	_title.add_theme_constant_override("outline_size", 4)
+	_title = Style.style(Label.new(), 24, Style.INK, Style.saira(700))
 	col.add_child(_title)
 	_body = RichTextLabel.new()
 	_body.bbcode_enabled = true
 	_body.fit_content = true
 	_body.scroll_active = false
 	_body.custom_minimum_size = Vector2(420, 0)
-	_body.add_theme_font_size_override("normal_font_size", 20)
+	_body.add_theme_font_override("normal_font", Style.saira(500))
+	_body.add_theme_font_override("bold_font", Style.saira(700))
+	_body.add_theme_font_size_override("normal_font_size", 19)
+	_body.add_theme_font_size_override("bold_font_size", 19)
 	_body.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	col.add_child(_body)
-	_foot = Label.new()
+	_foot = Style.style(Label.new(), 12, Color(1, 1, 1, 0.55), Style.saira(600, false, 2))
 	_foot.text = "TUTORIAL    F1 hide hints"
-	_foot.add_theme_font_size_override("font_size", 14)
-	_foot.add_theme_color_override("font_color", Color(0.6, 0.62, 0.66))
 	col.add_child(_foot)
 	_card.visible = false
 	_layer.add_child(_card)

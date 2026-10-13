@@ -10,6 +10,7 @@ extends CanvasLayer
 ## Also hosts the enemy radio chatter popup and Eco's whispers (scripts/radio/).
 
 const SFX := preload("res://scripts/sfx.gd")
+const Style := preload("res://scripts/ui/hud_style.gd")
 const RadioChatter := preload("res://scripts/radio/radio_chatter.gd")
 const EcoWhispers := preload("res://scripts/radio/eco_whispers.gd")
 
@@ -34,14 +35,20 @@ var _heart := 0.0
 var message_timer := 0.0
 
 const HITMARKER_TIME := 0.18
-const PANEL_SIZE := Vector2(400, 132)
-const PANEL_BG := Color(0.05, 0.06, 0.08, 0.62)
-const PANEL_LINE := Color(1, 1, 1, 0.12)
-const INK := Color(0.93, 0.95, 0.98)
-const DIM := Color(0.93, 0.95, 0.98, 0.55)
-const HP_COL := Color(0.95, 0.35, 0.3)
-const ARMOR_COL := Color(0.45, 0.8, 1.0)
-const AMMO_COL := Color(1.0, 0.85, 0.45)
+## The fight panel's width (it stops short of the dialogue caption, npc_talk.gd),
+## and its height with the armour row.
+const PANEL_W := 396.0
+const PANEL_H := 156.0
+const ARMOR_ROW := 30.0
+const MARGIN := 22.0
+const PANEL_LINE := Color(1, 1, 1, 0.18)
+const INK := Style.INK
+const DIM := Style.DIM
+const HP_COL := Style.YELLOW
+const LOW_COL := Style.RED
+const ARMOR_COL := Color(1, 1, 1)
+const AMMO_COL := Color(1.0, 0.85, 0.54)
+const SMART_COL := Color(1.0, 0.5, 0.75)
 const HELP := """WASD  move (auto-sprint forward)
 Space  jump / double jump / wall jump
 C or Ctrl  crouch, slide when running
@@ -70,15 +77,15 @@ func _ready() -> void:
 	# and armour bars, the magazine, movement, grapple, grunts left.
 	panel = Control.new()
 	panel.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_LEFT)
-	panel.offset_left = 20
-	panel.offset_right = 20 + PANEL_SIZE.x
-	panel.offset_top = -20 - PANEL_SIZE.y
-	panel.offset_bottom = -20
+	panel.offset_left = MARGIN
+	panel.offset_right = MARGIN + PANEL_W
+	panel.offset_top = -MARGIN - PANEL_H
+	panel.offset_bottom = -MARGIN
 	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	panel.draw.connect(_draw_panel)
 	add_child(panel)
 
-	message_label = _label(30)
+	message_label = _label(28)
 	message_label.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
 	message_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	message_label.offset_left = -400
@@ -86,7 +93,8 @@ func _ready() -> void:
 	message_label.offset_top = 140
 
 	# The controls, off screen until H.
-	help_label = _label(18)
+	help_label = _label(17)
+	help_label.add_theme_font_override("font", Style.saira(500))
 	help_label.position = Vector2(20, 20)
 	help_label.text = HELP
 	help_label.visible = false
@@ -111,10 +119,7 @@ func _ready() -> void:
 
 
 func _label(size: int) -> Label:
-	var l := Label.new()
-	l.add_theme_font_size_override("font_size", size)
-	l.add_theme_color_override("font_outline_color", Color.BLACK)
-	l.add_theme_constant_override("outline_size", 6)
+	var l := Style.style(Label.new(), size)
 	add_child(l)
 	return l
 
@@ -157,6 +162,7 @@ func _process(delta: float) -> void:
 	var hp_frac: float = player.health / player.max_health
 	_heartbeat(delta, hp_frac)
 	hurt_rect.color.a = (1.0 - hp_frac) * 0.3 + hurt_flash * 0.5
+	panel.offset_top = -MARGIN - _panel_height()
 	panel.queue_redraw()
 	# no crosshair under the hub/town orbit camera: it isn't aiming, it's looking at her
 	var view := player.get_node_or_null("ViewCam")
@@ -248,7 +254,7 @@ func _draw_lock_attempt() -> void:
 		crosshair.draw_line(k, k - Vector2(corner.x * arm, 0), c, 2.0)
 		crosshair.draw_line(k, k - Vector2(0, corner.y * arm), c, 2.0)
 	if fail > 0.0:
-		var font := ThemeDB.fallback_font
+		var font := Style.saira(700, false, 1)
 		crosshair.draw_string(font, p + Vector2(-size * 0.5, size * 0.5 + 16), "LOCK ERR", HORIZONTAL_ALIGNMENT_LEFT, -1, 13, c)
 
 
@@ -267,75 +273,97 @@ func _draw_smart_lock(p: Vector2, close: float) -> void:
 	if locked:
 		var d := 6.0
 		crosshair.draw_colored_polygon(PackedVector2Array([p + Vector2(0, -d), p + Vector2(d, 0), p + Vector2(0, d), p + Vector2(-d, 0)]), c)
-		var font := ThemeDB.fallback_font
+		var font := Style.saira(700, false, 1)
 		crosshair.draw_string(font, p + Vector2(-size * 0.5, size * 0.5 + 16), "LOCKED", HORIZONTAL_ALIGNMENT_LEFT, -1, 13, c)
 
 
-## The combat panel: a dark rounded card in the bottom left corner.
-##   HP 100  [bar]          ARMOUR 40 [bar]
-##   8 / 8   ||||||||  (one pip a round; smart rounds pink, the last red)
-##   GROUND  ·  double jump READY  ·  grapple READY  ·  5.2 m/s
-##   GRUNTS LEFT 4   (on a run)
+## The combat panel: a card in the bottom left corner (hud_style.gd).
+##   100  /////////////////////      health, yellow, red when low
+##   40   /////////////             armour (only with a suit that has it)
+##   8 / 8  ||||||||    GRUNTS LEFT 4   (one pip a round: smart rounds pink, the last red)
+##   GROUND  ·  2x jump READY  ·  grapple READY  ·  5.2 m/s
 func _draw_panel() -> void:
-	var font := ThemeDB.fallback_font
-	var w := PANEL_SIZE.x
-	var box := StyleBoxFlat.new()
-	box.bg_color = PANEL_BG
-	box.border_color = PANEL_LINE
-	box.set_border_width_all(1)
-	box.set_corner_radius_all(10)
-	panel.draw_style_box(box, Rect2(Vector2.ZERO, PANEL_SIZE))
+	var w := PANEL_W
+	var armored: bool = player.max_armor > 0.0
+	panel.draw_style_box(Style.card(HP_COL), Rect2(Vector2.ZERO, panel.size))
 	var x := 16.0
+	var num := Style.numbers()
+	var bar_x := x + 62.0
 	# health
 	var hp_frac := clampf(player.health / player.max_health, 0.0, 1.0)
-	panel.draw_string(font, Vector2(x, 30), "HP", HORIZONTAL_ALIGNMENT_LEFT, -1, 13, DIM)
-	panel.draw_string(font, Vector2(x + 26, 32), str(ceili(player.health)), HORIZONTAL_ALIGNMENT_LEFT, -1, 24, INK.lerp(HP_COL, 1.0 - hp_frac))
-	var bar_x := x + 80.0
-	var bar_w := w - bar_x - 16.0
-	if player.max_armor > 0.0:
-		bar_w = (w - bar_x - 16.0) * 0.6
-	_bar(Rect2(bar_x, 20, bar_w, 8), hp_frac, HP_COL)
-	if player.max_armor > 0.0:
-		var ax := bar_x + bar_w + 10.0
-		_bar(Rect2(ax, 20, w - ax - 16.0, 8), clampf(player.armor / player.max_armor, 0.0, 1.0), ARMOR_COL)
+	var hp_col := HP_COL.lerp(LOW_COL, clampf((0.5 - hp_frac) * 2.5, 0.0, 1.0))
+	Style.text(panel, num, Vector2(x, 41), str(ceili(player.health)), 30, hp_col)
+	Style.bar(panel, Rect2(bar_x, 24, w - bar_x - 20.0, 13), hp_frac, hp_col, 40.0)
+	var y := 41.0
+	if armored:
+		y += ARMOR_ROW
+		Style.text(panel, num, Vector2(x, y), str(ceili(player.armor)), 30, ARMOR_COL)
+		Style.bar(panel, Rect2(bar_x, y - 17, w - bar_x - 20.0, 13), player.armor / player.max_armor, ARMOR_COL, 40.0)
+	y += 42.0
+	# grunts left, right of the magazine
+	var right := w - 16.0
+	if level != null:
+		var n := str(level.grunts_alive())
+		Style.text(panel, num, Vector2(right - Style.width(num, n, 26), y), n, 26, Style.RED)
+		var cap := Style.saira(700, false, 2)
+		var cap_w := Style.width(cap, "GRUNTS LEFT", 11)
+		right -= Style.width(num, n, 26) + 8.0
+		Style.text(panel, cap, Vector2(right - cap_w, y - 2), "GRUNTS LEFT", 11, INK)
+		right -= cap_w + 14.0
 	# the magazine
 	if weapon != null:
 		var reloading: bool = weapon.is_reloading()
-		panel.draw_string(font, Vector2(x, 68), "RELOADING" if reloading else "%d / %d" % [weapon.ammo, weapon.magazine_size], HORIZONTAL_ALIGNMENT_LEFT, -1, 22, AMMO_COL if not reloading else DIM)
-		_draw_ammo_pips(Vector2(bar_x + 6.0, 66.0))
-	# movement
-	var grapple := "READY" if player.grapple_ready_in() <= 0.0 else "%.1fs" % player.grapple_ready_in()
-	var move := "%s  ·  2x jump %s  ·  grapple %s  ·  %.1f m/s" % [player.state_name(),
-		"READY" if player.air_jumps_left > 0 else "used", grapple, player.horizontal_speed()]
-	panel.draw_line(Vector2(x, 84), Vector2(w - 16, 84), PANEL_LINE, 1.0)
-	panel.draw_string(font, Vector2(x, 104), move, HORIZONTAL_ALIGNMENT_LEFT, w - 32, 13, DIM)
-	if level != null:
-		panel.draw_string(font, Vector2(x, 122), "GRUNTS LEFT  %d" % level.grunts_alive(), HORIZONTAL_ALIGNMENT_LEFT, -1, 13, INK)
-
-
-func _bar(r: Rect2, frac: float, col: Color) -> void:
-	panel.draw_rect(r, Color(1, 1, 1, 0.1))
-	panel.draw_rect(Rect2(r.position, Vector2(r.size.x * frac, r.size.y)), col)
-
-
-## One pip per round; the last round glows red. Smart rounds (the top of the
-## mag, fired first) are pink.
-func _draw_ammo_pips(at: Vector2) -> void:
-	var n: int = weapon.magazine_size
-	var step := minf(11.0, (PANEL_SIZE.x - at.x - 16.0) / maxf(n, 1))
-	var right := Vector2(at.x + (n - 1) * step + 3.0, at.y)
-	for i in n:
-		var x := right.x - (n - 1 - i) * step
-		var rect := Rect2(x - 3.0, right.y - 18.0, minf(6.0, step - 2.0), 18.0)
-		var loaded: bool = i < weapon.ammo and not weapon.is_reloading()
-		var c := Color(1.0, 0.85, 0.45) if weapon.ammo > 1 else Color(1.0, 0.3, 0.2)
-		if i >= weapon.ammo - weapon.smart_left:
-			c = Color(1.0, 0.45, 0.75)
-		panel.draw_rect(rect, Color(0, 0, 0, 0.6), true)
-		if loaded:
-			panel.draw_rect(rect.grow(-1.0), c, true)
+		var after := x
+		if reloading:
+			var f := Style.saira(700, false, 2)
+			Style.text(panel, f, Vector2(x, y - 3), "RELOADING", 15, DIM)
+			after += Style.width(f, "RELOADING", 15)
 		else:
-			panel.draw_rect(rect.grow(-1.0), Color(1, 1, 1, 0.25), false, 1.0)
+			var shown := str(weapon.ammo)
+			var of := " / %d" % weapon.magazine_size
+			Style.text(panel, num, Vector2(x, y), shown, 38, INK)
+			var sw := Style.width(num, shown, 38)
+			Style.text(panel, num, Vector2(x + sw, y), of, 22, DIM)
+			after += sw + Style.width(num, of, 22)
+		_draw_ammo_pips(after + 14.0, right, y - 2.0)
+	# movement
+	panel.draw_line(Vector2(x, y + 12), Vector2(w - 16, y + 12), PANEL_LINE, 1.0)
+	var grapple := "READY" if player.grapple_ready_in() <= 0.0 else "%.1fs" % player.grapple_ready_in()
+	var jump := "READY" if player.air_jumps_left > 0 else "used"
+	var parts := [[player.state_name(), INK], ["  ·  2x jump ", DIM], [jump, Style.CYAN if jump == "READY" else DIM],
+		["  ·  grapple ", DIM], [grapple, Style.CYAN if grapple == "READY" else DIM],
+		["  ·  %.1f m/s" % player.horizontal_speed(), DIM]]
+	var font := Style.saira(500)
+	var mx := x
+	for p in parts:
+		Style.text(panel, font, Vector2(mx, y + 32), p[0], 13, p[1])
+		mx += Style.width(font, p[0], 13)
+
+
+## How tall the panel is: the armour row only shows with armour on.
+func _panel_height() -> float:
+	return PANEL_H if player != null and player.max_armor > 0.0 else PANEL_H - ARMOR_ROW
+
+
+## One leaning pip per round between x0 and x1, feet on `foot`; the last round
+## glows red. Smart rounds (the top of the mag, fired first) are pink.
+func _draw_ammo_pips(x0: float, x1: float, foot: float) -> void:
+	var n: int = weapon.magazine_size
+	var step := minf(11.0, (x1 - x0) / maxf(n, 1))
+	var w := maxf(minf(8.0, step - 3.0), 2.0)
+	var h := 22.0
+	for i in n:
+		var x := x0 + i * step
+		var pip := Style.lean(x, x + w, foot - h, h)
+		var loaded: bool = i < weapon.ammo and not weapon.is_reloading()
+		var c := AMMO_COL if weapon.ammo > 1 else LOW_COL
+		if i >= weapon.ammo - weapon.smart_left:
+			c = SMART_COL
+		if loaded:
+			panel.draw_colored_polygon(pip, c)
+		else:
+			pip.append(pip[0])
+			panel.draw_polyline(pip, Color(1, 1, 1, 0.35), 1.0)
 
 
 const DETECT_RING := 90.0

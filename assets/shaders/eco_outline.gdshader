@@ -9,6 +9,13 @@ render_mode unshaded, cull_front, shadows_disabled;
 global uniform float ps2_vertex_snap;
 global uniform float eco_tears;
 global uniform float eco_slide;
+// The Anime look (scripts/ps2/ps2_screen.gd) inks the set about 1.7 px wide
+// and leaves a toon character's ink to this pass (anime_post.gdshader), so
+// there the line is at least ANIME_WIDTH and stays that wide out to where the
+// third-person camera sits (ANIME_MAX_WIDTH): thinner, it broke up into dashes.
+global uniform float anime_look;
+const float ANIME_WIDTH = 2.0;
+const float ANIME_MAX_WIDTH = 0.01;
 
 uniform vec4 ink : source_color = vec4(0.25, 0.19, 0.23, 1.0);
 // Line width in pixels at 1080p (scaled with the screen height).
@@ -32,7 +39,9 @@ void vertex() {
 	// projection's Y scale is negative (flipped), which pushed the line inward
 	// and hid it behind the surface.
 	float px_size = 2.0 * -view.z / (abs(PROJECTION_MATRIX[1][1]) * 1080.0);
-	view.xyz += n * min(width * px_size, max_width);
+	float w = mix(width, max(width, ANIME_WIDTH), anime_look);
+	float w_max = mix(max_width, max(max_width, ANIME_MAX_WIDTH), anime_look);
+	view.xyz += n * min(w * px_size, w_max);
 	vec4 clip = PROJECTION_MATRIX * view;
 	if (ps2_vertex_snap > 0.0) {
 		vec2 grid = vec2(ps2_vertex_snap, ps2_vertex_snap * VIEWPORT_SIZE.y / VIEWPORT_SIZE.x) * 0.5;
@@ -50,4 +59,7 @@ void fragment() {
 	ALBEDO = ink.rgb * mix(vec3(1.0), tex.rgb * paint.rgb, tint);
 	ALPHA = tex.a;
 	ALPHA_SCISSOR_THRESHOLD = alpha_cut;
+	// Marks the line for the Anime look's screen pass (anime_post.gdshader),
+	// which then leaves it to draw her outline on its own.
+	ROUGHNESS = 0.8;
 }

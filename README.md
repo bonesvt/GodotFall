@@ -697,10 +697,15 @@ late-90s anime finish. **F9** cycles Anime, PS3 and PS2 to compare.
   keeping a little of each texture's pattern (`anime_tone_detail`).
   `assets/shaders/anime_post.gdshader` (a full-screen quad the PS2 autoload keeps on the
   current camera) paints the set with a Kuwahara filter (characters stay crisp: the set
-  writes roughness 0.5, the toon characters 1.0), draws warm brown ink lines from depth
-  and normal breaks, and grades it: lifted blacks, gentle warm highlights and lilac
-  shadows, halation round bright lights, vignette, film grain (Settings > Video > Film
-  grain). Concepts: `tools/art/style_shots.gd`.
+  writes roughness 0.5, the toon characters 0.9, their outline pass 0.8, weapons and
+  titans 1.0, and the filter only ever averages set pixels, so no character's colour
+  smears out over the background), draws warm brown ink lines from depth and normal
+  breaks (on the set, weapons and titans; a toon character's ink is its own outline
+  pass, so the screen adds none inside it or along it), and grades it: lifted blacks,
+  gentle warm highlights and lilac shadows, halation round bright lights, vignette, film
+  grain (Settings > Video > Film grain). Concepts: `tools/art/style_shots.gd`.
+  `tools/eco/edge_shots.gd` shoots Eco over a level through each part of the pass, and
+  what it takes each pixel to be.
 - **PS3 look** (default): full resolution with 4x MSAA and 16x anisotropic filtering;
   normal-mapped textures with roughness and bare-metal masks; GGX highlights and sky
   reflections; sky-tinted ambient light with SSAO; soft 4-split sun shadows (4096 px);
@@ -915,6 +920,12 @@ select the Player node and tweak values in the Inspector, or change the defaults
 - `scripts/ambience.gd` looping background beds from `assets/audio/ambience/` (forest, temple hub)
 - `scripts/run/titan_gun.gd` titan weapon personalities (XO-16 spin-up, Tracker shells, Splitter beam, stuttering Obelisk Rail)
 - `scripts/hud.gd` crosshair, hitmarkers, health, ammo, speedometer, state and cooldown readout
+- `scripts/ui/hud_style.gd` the HUD's look, from the Strinova-style look test: dark plum cards with a
+  coloured bar along the top and a cut corner, Saira for words and Rajdhani for numbers
+  (`assets/fonts`, SIL Open Font License), white type with a soft shadow. The fight panel, the run
+  HUD's cards (HEART, HELD, titan build), prompts with their key boxed, toasts, the radio intercept,
+  Eco's whispers, the dialogue caption and the tutorial card all use it; the menus keep `ui_theme.gd`.
+  `tools/hud/look_shots.gd` shoots it over a level with every story element up
 - `scripts/radio/` enemy radio: `radio_chatter.gd` (listens to grunt awareness and deaths, picks lines),
   `radio_popup.gd` (the intercept box), `radio_lines.gd` (every line, by situation)
 - `dialogue/` every radio and whisper line as plain text, one file per rating; edit and pick the rating

@@ -317,7 +317,9 @@ void fragment() {
 		NORMAL_MAP = mix(texture(normal_tex, UV).rgb, vec3(0.5, 0.5, 1.0), torn);
 		NORMAL_MAP_DEPTH = normal_depth;
 	}
-	ROUGHNESS = 1.0;
+	// 0.9 marks a toon character for the Anime look's screen pass
+	// (anime_post.gdshader); with SPECULAR 0 it changes nothing else.
+	ROUGHNESS = 0.9;
 	SPECULAR = 0.0;
 	float fres = 1.0 - clamp(dot(NORMAL, VIEW), 0.0, 1.0);
 	vec3 emit = texture(glow_tex, UV).rgb * glow_tex_energy + emission.rgb * emission_energy;

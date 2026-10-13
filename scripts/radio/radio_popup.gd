@@ -1,27 +1,29 @@
 extends Control
-## Radio popup: a small intercepted-transmission box above the health readout.
-## Callsigns in amber (command in red), text types out with static, and
-## words break up when the speaker is near the edge of radio range.
+## Radio popup: a small intercepted-transmission card above the fight panel,
+## amber along its top (hud_style.gd). Callsigns in amber (command in red),
+## text types out with static, and words break up when the speaker is near
+## the edge of radio range.
 ## radio_chatter.gd feeds it with show_line() and end_transmission().
 
-const WIDTH := 500.0
-const FONT_SIZE := 17
-const HEADER_SIZE := 13
+const Style := preload("res://scripts/ui/hud_style.gd")
+
+const WIDTH := 396.0
+const FONT_SIZE := 16
+const HEADER_SIZE := 11
 const ROW := 21.0
 const HEADER := 24.0
-const PAD := 10.0
+const PAD := 12.0
 const MAX_ROWS := 6
 const KEEP_LINES := 3
 const TYPE_SPEED := 45.0  # characters per second
 const HOLD := 3.5  # seconds the box stays after the net goes quiet
 const FADE := 0.6
 
-const BG := Color(0.03, 0.07, 0.05, 0.8)
-const EDGE := Color(0.35, 0.8, 0.5, 0.55)
-const TEXT := Color(0.78, 1.0, 0.82)
-const DIM := Color(0.5, 0.75, 0.55, 0.8)
-const GRUNT := Color(1.0, 0.72, 0.25)
-const HQ := Color(1.0, 0.38, 0.3)
+const EDGE := Color(1, 1, 1, 0.18)
+const TEXT := Style.INK
+const DIM := Color(1, 1, 1, 0.6)
+const GRUNT := Style.AMBER
+const HQ := Style.RED
 const GARBLE := "~-=#/"
 
 var entries: Array = []  # {"callsign", "text", "clarity", "hq", "shown", "seed"}
@@ -32,17 +34,22 @@ var jitter := 0.0
 var garble_timer := 0.0
 var garble_seed := 0
 var font: Font
+var bold: Font
+var caption: Font
+var card := Style.card(Style.AMBER)
 var rng := RandomNumberGenerator.new()
 
 
 func _ready() -> void:
-	font = ThemeDB.fallback_font
+	font = Style.saira(500)
+	bold = Style.saira(700)
+	caption = Style.saira(700, false, 2)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
-	offset_left = 20
-	offset_right = 20 + WIDTH
-	offset_bottom = -170  # above the fight panel (hud.gd)
-	offset_top = -170 - (HEADER + PAD * 2.0 + ROW * MAX_ROWS)
+	offset_left = 22
+	offset_right = 22 + WIDTH
+	offset_bottom = -190  # above the fight panel (hud.gd)
+	offset_top = -190 - (HEADER + PAD * 2.0 + ROW * MAX_ROWS)
 	modulate.a = 0.0
 
 
@@ -104,7 +111,7 @@ func _draw() -> void:
 	for e in entries:
 		var shown_text := _garbled(e)
 		var lead: String = e["callsign"] + ": "
-		var wrapped := _wrap(lead + e["text"], WIDTH - PAD * 2.0)
+		var wrapped := _wrap(lead + e["text"], WIDTH - PAD * 2.0 - 16.0)  # room for the bold callsign
 		var visible_chars := lead.length() + shown_text.length()
 		var used := 0
 		for i in wrapped.size():
@@ -123,43 +130,45 @@ func _draw() -> void:
 	var top := size.y - h
 	var shake := Vector2(rng.randf_range(-3.0, 3.0), 0.0) if jitter > 0.0 else Vector2.ZERO
 	var box := Rect2(Vector2(0, top) + shake, Vector2(WIDTH, h))
-	draw_rect(box, BG)
-	draw_rect(box, EDGE, false, 1.5)
+	draw_style_box(card, box)
 
-	# Header: channel, listening light, signal bars.
-	var hx := box.position.x + PAD
-	var hy := box.position.y + PAD + HEADER_SIZE
+	# Header: listening light, channel, signal bars.
+	var hx := box.position.x + PAD + 2.0
+	var hy := box.position.y + PAD + HEADER_SIZE + 2.0
 	var blink := on_air and int(Time.get_ticks_msec() / 400) % 2 == 0
-	draw_circle(Vector2(hx + 5, hy - 5), 4.0, Color(1, 0.2, 0.15) if blink else Color(0.4, 0.1, 0.1))
-	draw_string(font, Vector2(hx + 16, hy), "INTERCEPT  //  COLONY NET  CH 7", HORIZONTAL_ALIGNMENT_LEFT, -1, HEADER_SIZE, DIM)
+	draw_circle(Vector2(hx + 4, hy - 4), 3.5, HQ if blink else Color(HQ, 0.3))
+	Style.text(self, caption, Vector2(hx + 14, hy), "INTERCEPT  ·  COLONY NET", HEADER_SIZE, GRUNT)
 	var clarity: float = entries[-1]["clarity"]
+	var bars_x := box.end.x - PAD - 4 * 7.0
+	var ch_w := Style.width(caption, "CH 7", HEADER_SIZE)
+	Style.text(self, caption, Vector2(bars_x - 10.0 - ch_w, hy), "CH 7", HEADER_SIZE, DIM)
 	for b in 4:
 		var lit := clarity >= (b + 0.5) / 4.0
 		var bh := 4.0 + b * 3.0
-		var bx := box.end.x - PAD - (4 - b) * 7.0
-		draw_rect(Rect2(bx, hy - bh, 5, bh), TEXT if lit else Color(TEXT, 0.2))
-	draw_line(Vector2(box.position.x + PAD, hy + 6), Vector2(box.end.x - PAD, hy + 6), Color(EDGE, 0.35), 1.0)
+		var bx := bars_x + b * 7.0
+		draw_rect(Rect2(bx, hy - bh, 5, bh), GRUNT if lit else Color(TEXT, 0.2))
+	draw_line(Vector2(box.position.x + PAD, hy + 7), Vector2(box.end.x - PAD, hy + 7), EDGE, 1.0)
 
 	# Lines.
-	var y := box.position.y + PAD + HEADER + FONT_SIZE
+	var y := box.position.y + PAD + HEADER + FONT_SIZE + 4.0
 	for r in rows:
 		var e: Dictionary = r[0]
 		var piece: String = r[1]
-		var x := box.position.x + PAD
+		var x := box.position.x + PAD + 2.0
 		var fade := 1.0 if e == entries[-1] else 0.6
 		if r[2]:
 			var lead: String = e["callsign"] + ": "
 			var sign_part := piece.substr(0, mini(lead.length(), piece.length()))
-			draw_string(font, Vector2(x, y), sign_part, HORIZONTAL_ALIGNMENT_LEFT, -1, FONT_SIZE, Color(HQ if e["hq"] else GRUNT, fade))
-			x += font.get_string_size(sign_part, HORIZONTAL_ALIGNMENT_LEFT, -1, FONT_SIZE).x
+			Style.text(self, bold, Vector2(x, y), sign_part, FONT_SIZE, Color(HQ if e["hq"] else GRUNT, fade))
+			x += bold.get_string_size(sign_part, HORIZONTAL_ALIGNMENT_LEFT, -1, FONT_SIZE).x
 			piece = piece.substr(sign_part.length())
-		draw_string(font, Vector2(x, y), piece, HORIZONTAL_ALIGNMENT_LEFT, -1, FONT_SIZE, Color(TEXT, fade))
+		Style.text(self, font, Vector2(x, y), piece, FONT_SIZE, Color(TEXT, fade))
 		y += ROW
 
-	# Static: scanlines, plus noise bands while someone is talking.
-	var sy := box.position.y
-	while sy < box.end.y:
-		draw_line(Vector2(box.position.x, sy), Vector2(box.end.x, sy), Color(0, 0, 0, 0.12), 1.0)
+	# Static: faint scanlines, plus noise bands while someone is talking.
+	var sy := box.position.y + Style.BAR
+	while sy < box.end.y - Style.CUT:
+		draw_line(Vector2(box.position.x, sy), Vector2(box.end.x, sy), Color(0, 0, 0, 0.07), 1.0)
 		sy += 3.0
 	if _typing() or jitter > 0.0:
 		var bands := 2 + int((1.0 - clarity) * 6.0)

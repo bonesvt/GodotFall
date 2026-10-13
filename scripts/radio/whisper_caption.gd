@@ -1,9 +1,12 @@
 extends Control
 ## Eco's whisper caption: a soft, slanted line under the crosshair that
 ## breathes in word by word and fades away. Deliberately unlike the radio box:
-## no frame, no callsign, just her voice. eco_whispers.gd drives it.
+## no frame, no callsign, just her voice, in Saira italic with a faint pink
+## glow (hud_style.gd). eco_whispers.gd drives it.
 
-const FONT_SIZE := 21
+const Style := preload("res://scripts/ui/hud_style.gd")
+
+const FONT_SIZE := 22
 const WIDTH := 640.0
 ## Where the caption's baseline sits, as a fraction of screen height. Below
 ## the crosshair, above the radio box and the speed readout.
@@ -12,10 +15,11 @@ const WORDS_PER_SEC := 5.0
 const FADE_IN := 0.25
 const FADE_OUT := 0.9
 
-const TEXT := Color(0.95, 0.93, 1.0)
-const SHADOW := Color(0.04, 0.0, 0.06, 0.85)
-const BACK := Color(0.02, 0.0, 0.04, 0.42)
-const TAG := Color(0.95, 0.6, 0.66, 0.9)
+const TEXT := Color(1.0, 0.96, 0.98)
+const SHADOW := Color(0.16, 0.04, 0.12, 0.6)
+const GLOW := Color(1.0, 0.55, 0.78, 0.4)
+const BACK := Color(0.08, 0.02, 0.08, 0.34)
+const TAG := Color(Style.PINK, 0.9)
 
 var text := ""
 var words := PackedStringArray()
@@ -23,16 +27,15 @@ var shown := 0.0  # words revealed so far (fractional: the next one fades in)
 var alpha := 0.0
 var live := false
 var font: Font
+var tag_font: Font
 var band_style := StyleBoxFlat.new()
 
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	var variation := FontVariation.new()
-	variation.base_font = ThemeDB.fallback_font
-	variation.variation_transform = Transform2D(Vector2(1, 0), Vector2(-0.2, 1), Vector2.ZERO)  # italic slant
-	font = variation
+	font = Style.saira(600, true)
+	tag_font = Style.saira(600, true, 2)
 	band_style.set_corner_radius_all(16)
 	band_style.shadow_size = 18  # feathers the band's edge
 
@@ -73,7 +76,7 @@ func _draw() -> void:
 	var rows := _wrap()
 	var y := size.y * HEIGHT_FRACTION
 	var tag := "eco, whispering"
-	var tag_w := font.get_string_size(tag, HORIZONTAL_ALIGNMENT_LEFT, -1, 13).x
+	var tag_w := tag_font.get_string_size(tag, HORIZONTAL_ALIGNMENT_LEFT, -1, 12).x
 	# A soft dark band so the words read on snow and sky alike.
 	var widest := tag_w
 	for row in rows:
@@ -82,7 +85,7 @@ func _draw() -> void:
 	band_style.bg_color = Color(BACK, BACK.a * alpha)
 	band_style.shadow_color = Color(BACK, BACK.a * alpha * 0.8)
 	draw_style_box(band_style, band)
-	_draw_text(Vector2(size.x * 0.5 - tag_w * 0.5, y - FONT_SIZE - 6.0), tag, 13, Color(TAG, TAG.a * alpha))
+	_draw_text(Vector2(size.x * 0.5 - tag_w * 0.5, y - FONT_SIZE - 6.0), tag, 12, Color(TAG, TAG.a * alpha), tag_font)
 	var word_i := 0
 	for row in rows:
 		var row_w := font.get_string_size(" ".join(row), HORIZONTAL_ALIGNMENT_LEFT, -1, FONT_SIZE).x
@@ -96,9 +99,13 @@ func _draw() -> void:
 		y += FONT_SIZE + 6.0
 
 
-func _draw_text(at: Vector2, s: String, size_px: int, color: Color) -> void:
-	draw_string_outline(font, at, s, HORIZONTAL_ALIGNMENT_LEFT, -1, size_px, 5, Color(SHADOW, SHADOW.a * color.a))
-	draw_string(font, at, s, HORIZONTAL_ALIGNMENT_LEFT, -1, size_px, color)
+func _draw_text(at: Vector2, s: String, size_px: int, color: Color, f: Font = null) -> void:
+	if f == null:
+		f = font
+	draw_string_outline(f, at, s, HORIZONTAL_ALIGNMENT_LEFT, -1, size_px, 8, Color(GLOW, GLOW.a * color.a))
+	draw_string_outline(f, at + Vector2(0, 2), s, HORIZONTAL_ALIGNMENT_LEFT, -1, size_px, 3, Color(SHADOW, SHADOW.a * color.a))
+	draw_string(f, at + Vector2(0, 2), s, HORIZONTAL_ALIGNMENT_LEFT, -1, size_px, Color(SHADOW, SHADOW.a * color.a))
+	draw_string(f, at, s, HORIZONTAL_ALIGNMENT_LEFT, -1, size_px, color)
 
 
 func _wrap() -> Array:
