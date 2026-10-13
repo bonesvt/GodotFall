@@ -5,7 +5,13 @@
 //   2. ink: outlines from depth and normal breaks, thinner with distance;
 //   3. grade: late-90s cel anime finish: warm highlights / cool shadows,
 //      halation round bright lights, vignette and film grain (Settings > Video).
-// The set writes ROUGHNESS 0.5 (ps2_surface.gdshaderinc), characters 1.0.
+// What drew each pixel is read from the ROUGHNESS it left in the normal
+// buffer: the set 0.5 (ps2_surface.gdshaderinc), the toon characters' own ink
+// outline 0.8 (eco_outline), the toon characters 0.9 (eco_toon.gdshaderinc),
+// weapons and titans 1.0. The toon characters keep their render's clean look
+// (2026-10-13: Eco looked rougher in the game than in the hero renders): the
+// paint never pulls their colour out into the set, and the screen's ink leaves
+// their insides alone and doesn't draw over or beside their own outline.
 // Tuned from the "blend" concept (tools/art/style_shots.gd, concept_post),
 // then cleaned up to the Strinova-style look test (2026-10-11): warm brown
 // ink, a gentler and less blue grade, lifted blacks.
@@ -64,29 +70,53 @@ float vnoise(vec2 p) {
 	return mix(mix(hash(i), hash(i + vec2(1, 0)), f.x), mix(hash(i + vec2(0, 1)), hash(i + vec2(1, 1)), f.x), f.y);
 }
 
-vec3 kuwahara(vec2 uv, vec2 px, int r) {
+// Roughness bands (see the top).
+const float SET_MAX = 0.7;
+const float OUTLINE_MAX = 0.85;
+const float TOON_MAX = 0.95;
+
+bool is_toon(float r) {
+	return r >= OUTLINE_MAX && r < TOON_MAX;
+}
+
+bool is_outline(float r) {
+	return r >= SET_MAX && r < OUTLINE_MAX;
+}
+
+// Only set pixels count: next to a character, the quadrants reaching into her
+// would otherwise smear her colour out over the background in square blots.
+vec3 kuwahara(vec2 uv, vec2 px, int r, vec3 own) {
 	vec3 m[4];
 	vec3 s[4];
+	float w[4];
 	for (int k = 0; k < 4; k++) {
 		m[k] = vec3(0.0);
 		s[k] = vec3(0.0);
+		w[k] = 0.0;
 	}
 	for (int j = -r; j <= r; j++) {
 		for (int i = -r; i <= r; i++) {
-			vec3 c = textureLod(screen_tex, uv + vec2(float(i), float(j)) * px, 0.0).rgb;
+			vec2 q = uv + vec2(float(i), float(j)) * px;
+			float k = step(texture(nr_tex, q).a, SET_MAX);
+			vec3 c = textureLod(screen_tex, q, 0.0).rgb * k;
 			vec3 c2 = c * c;
-			if (i <= 0 && j <= 0) { m[0] += c; s[0] += c2; }
-			if (i >= 0 && j <= 0) { m[1] += c; s[1] += c2; }
-			if (i <= 0 && j >= 0) { m[2] += c; s[2] += c2; }
-			if (i >= 0 && j >= 0) { m[3] += c; s[3] += c2; }
+			if (i <= 0 && j <= 0) { m[0] += c; s[0] += c2; w[0] += k; }
+			if (i >= 0 && j <= 0) { m[1] += c; s[1] += c2; w[1] += k; }
+			if (i <= 0 && j >= 0) { m[2] += c; s[2] += c2; w[2] += k; }
+			if (i >= 0 && j >= 0) { m[3] += c; s[3] += c2; w[3] += k; }
 		}
 	}
+	// A quadrant mostly over a character is left out; with none left, the
+	// pixel keeps its own colour.
 	float n = float((r + 1) * (r + 1));
 	float best = 1e9;
-	vec3 col = vec3(0.0);
+	vec3 col = own;
 	for (int k = 0; k < 4; k++) {
-		vec3 mean = m[k] / n;
-		vec3 var = abs(s[k] / n - mean * mean);
+		if (w[k] < n * 0.5) {
+			continue;
+		}
+		vec3 mean = m[k] / w[k];
+		vec3 var = abs(s[k] / w[k] - mean * mean);
 		float v = var.r + var.g + var.b;
 		if (v < best) {
 			best = v;
@@ -101,11 +131,13 @@ void fragment() {
 	vec2 px = 1.0 / VIEWPORT_SIZE;
 	vec4 nr = texture(nr_tex, uv);
 	float depth = lin_depth(uv, INV_PROJECTION_MATRIX);
-	bool is_set = nr.a < 0.75 || depth > 500.0;
+	bool is_set = nr.a < SET_MAX || depth > 500.0;
+	bool toon = !is_set && is_toon(nr.a);
+	bool outline = !is_set && is_outline(nr.a);
 
 	vec3 col = textureLod(screen_tex, uv, 0.0).rgb;
 	if (paint_radius > 0 && is_set) {
-		col = kuwahara(uv, px, paint_radius);
+		col = kuwahara(uv, px, paint_radius, col);
 	}
 	if (paper > 0.0 && is_set) {
 		float fib = vnoise(uv * VIEWPORT_SIZE / 3.0) * 0.6 + vnoise(uv * VIEWPORT_SIZE / 11.0) * 0.4;
@@ -118,16 +150,24 @@ void fragment() {
 	vec2 o[4] = vec2[](vec2(w, 0.0), vec2(-w, 0.0), vec2(0.0, w), vec2(0.0, -w));
 	vec3 n0 = normalize(nr.xyz * 2.0 - 1.0);
 	float edge = 0.0;
-	for (int k = 0; k < 4; k++) {
+	// A toon character's own outline is ink already.
+	for (int k = 0; k < 4 && !outline; k++) {
 		vec2 q = uv + o[k] * px;
 		float dq = lin_depth(q, INV_PROJECTION_MATRIX);
-		// Only the nearer side of a depth break draws, so lines hug the object.
+		vec4 nrq = texture(nr_tex, q);
+		// Only the nearer side of a depth break draws, so lines hug the object;
+		// not where a toon character's outline runs along it (the pixel next
+		// door that way is the outline).
 		float rel = (dq - depth) / max(depth, 0.05);
-		if (rel > depth_edge * (1.0 + depth * 0.02)) {
+		if (rel > depth_edge * (1.0 + depth * 0.02)
+				&& !(toon && is_outline(texture(nr_tex, uv + normalize(o[k]) * px).a))) {
 			edge = 1.0;
 		}
-		vec3 nq = normalize(texture(nr_tex, q).xyz * 2.0 - 1.0);
-		if (depth < 500.0 && dot(n0, nq) < 1.0 - normal_edge) {
+		// Creases: on the set and on weapons and titans, not across a toon
+		// character's insides or from the set onto one.
+		vec3 nq = normalize(nrq.xyz * 2.0 - 1.0);
+		bool q_toon = nrq.a >= SET_MAX && nrq.a < TOON_MAX && dq < 500.0;
+		if (depth < 500.0 && !toon && !(is_set && q_toon) && dot(n0, nq) < 1.0 - normal_edge) {
 			edge = max(edge, 0.85);
 		}
 	}
@@ -151,8 +191,13 @@ void fragment() {
 	col *= 1.0 - vignette * dot(c, c) * 2.2;
 	if (grain > 0.0) {
 		// New grain 24 times a second, like film.
+		// Laid on in a perceptual space (cube root): added straight to the
+		// linear colour it boiled the dark colours (Eco's suit and hair) many
+		// times harder than the sunlit set. Half as strong on the toon
+		// characters, which stay as clean as their renders.
 		float gn = vnoise(FRAGCOORD.xy / grain_size + 17.0 + mod(floor(TIME * 24.0), 61.0) * vec2(37.1, 91.7)) - 0.5;
-		col += gn * grain;
+		vec3 g = pow(max(col, vec3(0.0)), vec3(1.0 / 3.0)) + gn * grain * (toon || outline ? 0.5 : 1.0);
+		col = g * g * g;
 	}
 	ALBEDO = clamp(col, 0.0, 1.0);
 }

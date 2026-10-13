@@ -697,10 +697,15 @@ late-90s anime finish. **F9** cycles Anime, PS3 and PS2 to compare.
   keeping a little of each texture's pattern (`anime_tone_detail`).
   `assets/shaders/anime_post.gdshader` (a full-screen quad the PS2 autoload keeps on the
   current camera) paints the set with a Kuwahara filter (characters stay crisp: the set
-  writes roughness 0.5, the toon characters 1.0), draws warm brown ink lines from depth
-  and normal breaks, and grades it: lifted blacks, gentle warm highlights and lilac
-  shadows, halation round bright lights, vignette, film grain (Settings > Video > Film
-  grain). Concepts: `tools/art/style_shots.gd`.
+  writes roughness 0.5, the toon characters 0.9, their outline pass 0.8, weapons and
+  titans 1.0, and the filter only ever averages set pixels, so no character's colour
+  smears out over the background), draws warm brown ink lines from depth and normal
+  breaks (on the set, weapons and titans; a toon character's ink is its own outline
+  pass, so the screen adds none inside it or along it), and grades it: lifted blacks,
+  gentle warm highlights and lilac shadows, halation round bright lights, vignette, film
+  grain (Settings > Video > Film grain). Concepts: `tools/art/style_shots.gd`.
+  `tools/eco/edge_shots.gd` shoots Eco over a level through each part of the pass, and
+  what it takes each pixel to be.
 - **PS3 look** (default): full resolution with 4x MSAA and 16x anisotropic filtering;
   normal-mapped textures with roughness and bare-metal masks; GGX highlights and sky
   reflections; sky-tinted ambient light with SSAO; soft 4-split sun shadows (4096 px);
